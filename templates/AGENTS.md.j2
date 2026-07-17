@@ -1,0 +1,25 @@
+<!--
+agent-policy-generated: true
+configuration: .agent-policy.yml
+DO NOT EDIT DIRECTLY
+-->
+
+# Repository agent instructions
+
+These instructions were generated from shared policy profiles and repository-specific policy files.
+
+{% for rule in rules %}
+## {{ rule.title }}
+
+{{ rule.body.split('\n', 1)[1].strip() if '\n' in rule.body else rule.body }}
+
+_Source: `{{ rule.source }}`; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
+
+{% endfor %}
+{% if config.get('verification', {}).get('command') %}
+## Required verification command
+
+```bash
+{{ config.verification.command }}
+```
+{% endif %}

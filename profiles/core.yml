@@ -1,0 +1,6 @@
+policy_files:
+  - policy/core/change-scope.md
+  - policy/core/regression-safety.md
+  - policy/core/testing.md
+  - policy/core/compatibility.md
+  - policy/core/truthful-reporting.md

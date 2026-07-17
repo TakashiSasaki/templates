@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "takashisasaki-agent-policy"
+version = "0.1.0"
+description = "Compile shared and repository-specific agent policies into reproducible agent instructions"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Takashi Sasaki"}]
+dependencies = [
+  "Jinja2>=3.1,<4",
+  "jsonschema>=4.22,<5",
+  "PyYAML>=6.0,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "ruff>=0.5,<1",
+]
+
+[project.scripts]
+agent-policy = "agent_policy.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_policy"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
