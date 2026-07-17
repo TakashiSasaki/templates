@@ -1,0 +1,31 @@
+site_name: agent-policy
+site_description: 複数のリポジトリとエージェントで共有する規約を、検証・合成・配布するためのポリシーツールチェーン
+site_url: https://agent-policy.moukaeritai.work/
+repo_url: https://github.com/TakashiSasaki/agent-policy
+repo_name: TakashiSasaki/agent-policy
+edit_uri: edit/main/docs/
+strict: true
+site_dir: site
+
+theme:
+  name: readthedocs
+
+nav:
+  - ホーム: index.md
+  - 導入:
+      - はじめに: getting-started.md
+      - CLI: cli.md
+      - ブートストラップスキル: bootstrap.md
+  - 設計:
+      - アーキテクチャ: architecture.md
+      - 設定ファイル: configuration.md
+      - 規約の作成: policy-authoring.md
+      - ブートストラップモデル: bootstrap-model.md
+      - 脅威モデル: threat-model.md
+
+markdown_extensions:
+  - admonition
+  - fenced_code
+  - tables
+  - toc:
+      permalink: true
