@@ -1,5 +1,7 @@
 # agent-policy
 
+Documentation: <https://agent-policy.moukaeritai.work/>
+
 `agent-policy` is a policy compiler and repository bootstrap tool for sharing agent rules across multiple products and multiple coding or general-purpose agents.
 
 The repository has two unrelated long-lived branches:
