@@ -35,7 +35,13 @@ class Config:
 
 
 def package_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    source_root = Path(__file__).resolve().parents[2]
+    if (source_root / "schemas").is_dir():
+        return source_root
+    installed_data = Path(__file__).resolve().parent / "_data"
+    if installed_data.is_dir():
+        return installed_data
+    raise FileNotFoundError("agent-policy resource data is unavailable")
 
 
 def schema_path() -> Path:

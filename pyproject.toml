@@ -28,6 +28,13 @@ agent-policy = "agent_policy.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_policy"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"schemas" = "agent_policy/_data/schemas"
+"profiles" = "agent_policy/_data/profiles"
+"policy" = "agent_policy/_data/policy"
+"templates" = "agent_policy/_data/templates"
+"skills" = "agent_policy/_data/skills"
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
