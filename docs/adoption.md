@@ -1,29 +1,34 @@
 # Existing repository adoption
 
+!!! warning "Design specification — not yet executable"
+    This page defines the proposed repository-adoption interface. The documentation-only revision that introduces this page does not add the `agent-policy adopt` subcommands to `main`. Do not copy these command examples as operational instructions until the implementation has merged and the CLI reference documents them as supported.
+
 ## Purpose
 
-Adoption brings an existing repository under `agent-policy` management without replacing handwritten instructions before their policy meaning has been reviewed.
+Adoption is intended to bring an existing repository under `agent-policy` management without replacing handwritten instructions before their policy meaning has been reviewed.
 
-Use initialization when the repository has no conflicting instruction output. Use adoption when files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, repository-local policies, or existing agent skills are already present.
+The proposed onboarding split uses initialization when the repository has no conflicting instruction output. It uses adoption when files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, repository-local policies, or existing agent skills are already present.
 
 ## Command model
 
-The planned CLI workflow is:
+The proposed CLI workflow is:
 
-```bash
+```text
 agent-policy --repository /path/to/product adopt inspect
 agent-policy --repository /path/to/product adopt prepare
 agent-policy --repository /path/to/product adopt preview
 agent-policy --repository /path/to/product adopt finalize
 ```
 
-Commands that can write default to dry-run and require `--apply` for mutation.
+In the proposed design, commands that can write default to dry-run and require `--apply` for mutation. The implemented CLI reference remains the source of truth for available commands and options.
 
 ## Phase 1: inspect
 
-Inspection is read-only. It classifies the repository and inventories adoption-relevant assets.
+Inspection is designed as a read-only operation that classifies the repository and inventories adoption-relevant assets.
 
-```bash
+Proposed interface:
+
+```text
 agent-policy --repository . --format json adopt inspect
 ```
 
@@ -40,20 +45,20 @@ Inventory records paths, file kinds, generation markers, and byte hashes. It doe
 
 ## Phase 2: prepare
 
-Preparation creates an adoption scaffold while preserving the existing primary instruction file.
+Preparation is designed to create an adoption scaffold while preserving the existing primary instruction file.
 
-A typical invocation is:
+Proposed invocation:
 
-```bash
+```text
 agent-policy --repository . adopt prepare \
   --profile core \
   --profile security-baseline \
   --verification-command "npm run verify:pr"
 ```
 
-The first invocation is a dry-run. Apply only after reviewing paths and conflicts:
+The proposed first invocation is a dry-run. Mutation requires explicit application after reviewing paths and conflicts:
 
-```bash
+```text
 agent-policy --repository . adopt prepare \
   --profile core \
   --profile security-baseline \
@@ -61,7 +66,7 @@ agent-policy --repository . adopt prepare \
   --apply
 ```
 
-Preparation creates or generates the following conceptual state:
+Preparation is expected to create or generate the following conceptual state:
 
 ```text
 .agent-policy.yml
@@ -84,7 +89,7 @@ Preparation must stop rather than overwrite:
 
 ## Policy migration
 
-After preparation, review the handwritten instructions and create repository-local policy modules.
+After the proposed preparation phase, the handwritten instructions are reviewed and repository-local policy modules are created.
 
 Shared profiles should contain reusable rules. Product-specific invariants, branch topology, verification tiers, compatibility constraints, and justified exceptions remain in project policy.
 
@@ -92,15 +97,17 @@ The CLI does not decide whether a paragraph is permanent policy, temporary prior
 
 ## Phase 3: preview
 
-Preview regenerates the configured non-final output and verifies that it matches the current profile and project-policy inputs.
+Preview is designed to regenerate the configured non-final output and verify that it matches the current profile and project-policy inputs.
 
-```bash
+Proposed interface:
+
+```text
 agent-policy --repository . adopt preview
 ```
 
 The operation reports whether inventoried handwritten sources changed after preparation. A changed source does not get silently accepted into the cutover baseline; preparation must be reviewed or refreshed.
 
-Review the handwritten instructions and generated preview for semantic coverage, including:
+The handwritten instructions and generated preview are reviewed for semantic coverage, including:
 
 - preserved invariants and prohibitions;
 - project-specific exceptions;
@@ -113,22 +120,24 @@ Review the handwritten instructions and generated preview for semantic coverage,
 
 ## Phase 4: finalize
 
-Finalization performs the explicit cutover from handwritten instructions to generated instructions.
+Finalization is designed as the explicit cutover from handwritten instructions to generated instructions.
 
-```bash
+Proposed dry-run interface:
+
+```text
 agent-policy --repository . adopt finalize \
-  --primary-instructions AGENTS.md \
   --backup-path .agent-policy/adoption/original/AGENTS.md
 ```
 
-Review the dry-run, then apply explicitly:
+The proposed flow requires reviewing the dry-run before applying explicitly:
 
-```bash
+```text
 agent-policy --repository . adopt finalize \
-  --primary-instructions AGENTS.md \
   --backup-path .agent-policy/adoption/original/AGENTS.md \
   --apply
 ```
+
+The primary instruction path is recorded during preparation and read from adoption state during finalization; it is not supplied again as a finalize option.
 
 Finalization requires unchanged source hashes, a current preview, valid configuration and policy, a safe and unused backup path, and a final output path that can be generated without overwriting unrelated files.
 
@@ -150,6 +159,10 @@ inconsistent        -> stop mutation and explain required repair
 ```
 
 Automatic selection is read-only. Applying a change requires an explicit mode. Adoption application stops at preparation; finalization requires a separate, explicit instruction after semantic review.
+
+## Publication transition
+
+This page remains a design document until the corresponding CLI implementation is merged and verified on `main`. At that point, the command examples must be checked against the implemented parser and tests before this page is promoted into the user-facing onboarding navigation.
 
 ## Trust-anchor update
 
