@@ -11,7 +11,7 @@
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#022642",
   "theme_color": "#063b5a",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "categories": ["developer", "productivity", "utilities"],
   "icons": [

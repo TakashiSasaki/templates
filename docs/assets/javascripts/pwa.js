@@ -1,4 +1,28 @@
 (() => {
+  function isStandaloneDisplay() {
+    return window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true;
+  }
+
+  async function lockPortraitOrientation() {
+    if (!isStandaloneDisplay()) return;
+    if (!screen.orientation || typeof screen.orientation.lock !== "function") return;
+
+    try {
+      await screen.orientation.lock("portrait-primary");
+    } catch (error) {
+      console.info("agent-policy portrait orientation lock was not applied", error);
+    }
+  }
+
+  window.addEventListener("load", () => {
+    void lockPortraitOrientation();
+  }, { once: true });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void lockPortraitOrientation();
+  });
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("/service-worker.js", { scope: "/" })
