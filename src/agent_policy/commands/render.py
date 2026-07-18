@@ -88,6 +88,7 @@ def _literal_output_path(repository_root: Path, relative: str) -> Path:
 def _obsolete_generated_outputs(
     repository_root: Path,
     planned: dict[str, tuple[Path, str]],
+    protected_inputs: set[Path],
 ) -> list[Path]:
     lock_path = resolve_lock_path(repository_root, allow_missing=True)
     if not lock_path.exists():
@@ -99,7 +100,7 @@ def _obsolete_generated_outputs(
         if relative in planned:
             continue
         target = _literal_output_path(repository_root, relative)
-        if target in planned_targets or not target.exists():
+        if target in planned_targets or target in protected_inputs or not target.exists():
             continue
         if not target.is_file():
             raise FileExistsError(
@@ -138,7 +139,18 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 target_name = f".agents/skills/{skill}/{relative}"
                 _add_planned_output(repository_root, planned, target_name, content)
 
-        obsolete = _obsolete_generated_outputs(repository_root, planned)
+        inputs = {config.path.name: config.path}
+        inputs.update(
+            {
+                relative: resolve_inside(repository_root, relative, allow_missing=False)
+                for relative in config.project_policy_files
+            }
+        )
+        obsolete = _obsolete_generated_outputs(
+            repository_root,
+            planned,
+            set(inputs.values()),
+        )
         outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
             _safe_generated_write(target, content)
@@ -147,13 +159,6 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             target.unlink()
 
         toolchain = config.data["toolchain"]
-        inputs = {config.path.name: config.path}
-        inputs.update(
-            {
-                relative: resolve_inside(repository_root, relative, allow_missing=False)
-                for relative in config.project_policy_files
-            }
-        )
         lock_content = create_lock(
             toolchain_repository=toolchain["repository"],
             toolchain_revision=toolchain["revision"],
