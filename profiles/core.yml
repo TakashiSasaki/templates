@@ -1,6 +1,9 @@
 policy_files:
+  - policy/core/change-contract.md
   - policy/core/change-scope.md
   - policy/core/regression-safety.md
   - policy/core/testing.md
+  - policy/core/generated-artifacts.md
   - policy/core/compatibility.md
+  - policy/core/destructive-actions.md
   - policy/core/truthful-reporting.md
