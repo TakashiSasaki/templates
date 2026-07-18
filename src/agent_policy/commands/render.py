@@ -30,6 +30,26 @@ def _safe_generated_write(path: Path, content: str) -> None:
     _write_atomic(path, content)
 
 
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
+
+
+def _add_planned_output(
+    repository_root: Path,
+    planned: dict[str, tuple[Path, str]],
+    relative: str,
+    content: str,
+) -> None:
+    target = resolve_inside(repository_root, relative)
+    for existing_relative, (existing_target, _) in planned.items():
+        if _paths_overlap(target, existing_target):
+            raise ValueError(
+                "Generated output paths overlap: "
+                f"{existing_relative} and {relative}"
+            )
+    planned[relative] = (target, content)
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
     try:
         config = load_config(repository_root, config_path)
@@ -37,17 +57,24 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
         if diagnostics:
             return diagnostics
         rules = load_rules(repository_root, config.profiles, config.project_policy_files)
-        outputs: dict[str, Path] = {}
+
+        planned: dict[str, tuple[Path, str]] = {}
         if config.output_agents_path:
-            output_path = resolve_inside(repository_root, config.output_agents_path)
-            _safe_generated_write(output_path, render_agents(config, rules))
-            outputs[config.output_agents_path] = output_path
+            _add_planned_output(
+                repository_root,
+                planned,
+                config.output_agents_path,
+                render_agents(config, rules),
+            )
         for skill in config.enabled_skills:
             for relative, content in render_skill(skill).items():
                 target_name = f".agents/skills/{skill}/{relative}"
-                target = resolve_inside(repository_root, target_name)
-                _safe_generated_write(target, content)
-                outputs[target_name] = target
+                _add_planned_output(repository_root, planned, target_name, content)
+
+        outputs: dict[str, Path] = {}
+        for relative, (target, content) in planned.items():
+            _safe_generated_write(target, content)
+            outputs[relative] = target
 
         toolchain = config.data["toolchain"]
         inputs = {config.path.name: config.path}
