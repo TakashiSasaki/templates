@@ -29,13 +29,13 @@ def _prepare_repository(path: Path) -> bytes:
 def test_preview_regenerates_stale_generated_output(tmp_path: Path) -> None:
     _prepare_repository(tmp_path)
     preview = tmp_path / ".agent-policy/preview/AGENTS.md"
-    preview.write_text(
-        f"<!-- {GENERATED_MARKER} -->\nstale\n",
-        encoding="utf-8",
-    )
+    stale_content = f"<!-- {GENERATED_MARKER} -->\nstale fixture\n"
+    preview.write_text(stale_content, encoding="utf-8")
 
     assert adopt.preview_run(tmp_path) == []
-    assert "stale" not in preview.read_text(encoding="utf-8")
+    regenerated = preview.read_text(encoding="utf-8")
+    assert regenerated != stale_content
+    assert "stale fixture" not in regenerated
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
 
