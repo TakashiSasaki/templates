@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ..config import package_root
@@ -15,6 +16,7 @@ DEFAULT_VERIFICATION_COMMAND = "./scripts/verify.sh"
 DEFAULT_AGENTS_OUTPUT_PATH = "AGENTS.md"
 DEFAULT_ENABLED_SKILLS = ["validate-agent-policy"]
 LOCK_PATH = ".agent-policy.lock"
+SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def proposed_manifest(
@@ -45,25 +47,31 @@ def proposed_manifest(
 def _generated_skill_outputs(skills: list[str]) -> list[tuple[str, str]]:
     outputs: list[tuple[str, str]] = []
     for skill in skills:
+        if SKILL_NAME_PATTERN.fullmatch(skill) is None:
+            raise ValueError(f"Invalid generated skill name: {skill}")
         for relative in render_skill(skill):
             outputs.append((f"generated skill {skill}", f".agents/skills/{skill}/{relative}"))
     return outputs
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
 
 
 def _planned_path_collision(
     repository_root: Path,
     planned: list[tuple[str, str, Path]],
 ) -> Diagnostic | None:
-    by_target: dict[Path, list[str]] = {}
-    for role, _relative, target in planned:
-        by_target.setdefault(target, []).append(role)
-
-    collisions = []
-    for target, roles in sorted(by_target.items(), key=lambda item: str(item[0])):
-        if len(roles) < 2:
-            continue
-        relative = target.relative_to(repository_root).as_posix()
-        collisions.append(f"{relative} ({', '.join(roles)})")
+    collisions: list[str] = []
+    for index, (left_role, _left_relative, left_target) in enumerate(planned):
+        for right_role, _right_relative, right_target in planned[index + 1 :]:
+            if not _paths_overlap(left_target, right_target):
+                continue
+            left_name = left_target.relative_to(repository_root).as_posix()
+            right_name = right_target.relative_to(repository_root).as_posix()
+            collisions.append(
+                f"{left_name} ({left_role}) overlaps {right_name} ({right_role})"
+            )
     if not collisions:
         return None
     return Diagnostic(
