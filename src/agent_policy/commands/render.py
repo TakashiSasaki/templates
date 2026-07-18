@@ -6,7 +6,13 @@ from pathlib import Path
 
 from ..config import load_config, validate_config
 from ..diagnostics import Diagnostic
-from ..lockfile import LOCK_PATH, create_lock, resolve_lock_path
+from ..lockfile import (
+    LOCK_PATH,
+    create_lock,
+    load_lock_outputs,
+    resolve_lock_path,
+    sha256_file,
+)
 from ..paths import resolve_inside
 from ..policy_loader import load_rules
 from ..renderer import GENERATED_MARKER, render_agents, render_skill
@@ -55,6 +61,38 @@ def _add_planned_output(
     planned[relative] = (target, content)
 
 
+def _obsolete_generated_outputs(
+    repository_root: Path,
+    planned: dict[str, tuple[Path, str]],
+) -> list[Path]:
+    lock_path = resolve_lock_path(repository_root, allow_missing=True)
+    if not lock_path.exists():
+        return []
+
+    planned_targets = {target for target, _content in planned.values()}
+    obsolete: list[Path] = []
+    for relative, locked_digest in load_lock_outputs(lock_path).items():
+        if relative in planned:
+            continue
+        target = resolve_inside(repository_root, relative, allow_missing=True)
+        if target in planned_targets or not target.exists():
+            continue
+        if not target.is_file():
+            raise FileExistsError(
+                f"Refusing to remove non-file obsolete generated output: {relative}"
+            )
+        if sha256_file(target) != locked_digest:
+            raise ValueError(
+                f"Refusing to remove modified obsolete generated output: {relative}"
+            )
+        if GENERATED_MARKER not in target.read_text(encoding="utf-8"):
+            raise FileExistsError(
+                f"Refusing to remove non-generated obsolete output: {relative}"
+            )
+        obsolete.append(target)
+    return obsolete
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
     try:
         config = load_config(repository_root, config_path)
@@ -76,10 +114,13 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 target_name = f".agents/skills/{skill}/{relative}"
                 _add_planned_output(repository_root, planned, target_name, content)
 
+        obsolete = _obsolete_generated_outputs(repository_root, planned)
         outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
             _safe_generated_write(target, content)
             outputs[relative] = target
+        for target in obsolete:
+            target.unlink()
 
         toolchain = config.data["toolchain"]
         inputs = {config.path.name: config.path}
