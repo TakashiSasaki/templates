@@ -26,6 +26,7 @@ nav:
       - アーキテクチャ: architecture.md
       - 設定ファイル: configuration.md
       - 規約の作成: policy-authoring.md
+      - Webアプリケーション規約: web-application-profile.md
       - ブートストラップモデル: bootstrap-model.md
       - 脅威モデル: threat-model.md
 
