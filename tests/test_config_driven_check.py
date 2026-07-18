@@ -88,6 +88,23 @@ def _assert_reserved_lock_collision(repository: Path, output_path: str) -> None:
     assert not (repository / output_path).exists()
 
 
+def _assert_lock_symlink_rejected(repository: Path) -> None:
+    for command in (validate.run, render.run):
+        diagnostics = command(repository, ".agent-policy.yml")
+        assert len(diagnostics) == 1
+        assert diagnostics[0].code == "LOCK_PATH"
+        assert diagnostics[0].path == ".agent-policy.lock"
+        assert "must not be a symlink" in diagnostics[0].message
+
+    check_diagnostics = check.run(repository, ".agent-policy.yml")
+    assert len(check_diagnostics) == 1
+    assert check_diagnostics[0].code == "CHECK"
+    assert "must not be a symlink" in check_diagnostics[0].message
+
+    assert not (repository / "AGENTS.md").exists()
+    assert not (repository / ".agents").exists()
+
+
 def test_check_uses_configured_agent_output_path(tmp_path: Path) -> None:
     output_path = ".agent-policy/preview/AGENTS.md"
     _write_repository(tmp_path, output_path=output_path)
@@ -172,18 +189,21 @@ def test_commands_reject_lock_symlink_outside_repository(tmp_path: Path) -> None
     except OSError as exc:
         pytest.skip(f"symlinks are unavailable: {exc}")
 
-    for command in (validate.run, render.run):
-        diagnostics = command(tmp_path, ".agent-policy.yml")
-        assert len(diagnostics) == 1
-        assert diagnostics[0].code == "LOCK_PATH"
-        assert diagnostics[0].path == ".agent-policy.lock"
-        assert "escapes repository root" in diagnostics[0].message
-
-    check_diagnostics = check.run(tmp_path, ".agent-policy.yml")
-    assert len(check_diagnostics) == 1
-    assert check_diagnostics[0].code == "CHECK"
-    assert "escapes repository root" in check_diagnostics[0].message
+    _assert_lock_symlink_rejected(tmp_path)
 
     assert outside_lock.read_text(encoding="utf-8") == "outside lock content\n"
-    assert not (tmp_path / "AGENTS.md").exists()
-    assert not (tmp_path / ".agents").exists()
+
+
+def test_commands_reject_lock_symlink_to_repository_input(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    config_path = tmp_path / ".agent-policy.yml"
+    config_content = config_path.read_text(encoding="utf-8")
+    lock_path = tmp_path / ".agent-policy.lock"
+    try:
+        lock_path.symlink_to(config_path.name)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    _assert_lock_symlink_rejected(tmp_path)
+
+    assert config_path.read_text(encoding="utf-8") == config_content
