@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .yamlutil import dump_yaml, load_yaml
 
+LOCK_PATH = ".agent-policy.lock"
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
