@@ -2,7 +2,6 @@ from pathlib import Path
 
 from agent_policy.policy_loader import load_rules
 
-
 WEB_APPLICATION_RULE_IDS = [
     "interfaces.define-surface-boundaries",
     "interfaces.isolate-surface-dependencies",
