@@ -38,7 +38,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--apply", action="store_true")
     init.add_argument("--toolchain-revision", default=current_revision())
     init.add_argument("--profile", action="append", dest="profiles")
-    init.add_argument("--project-policy", action="append", dest="project_policy_files")
+    init.add_argument("--project-policy")
     verification = init.add_mutually_exclusive_group()
     verification.add_argument(
         "--verification-command",
@@ -73,13 +73,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "check":
         diagnostics = check_command.run(repository_root, args.config)
     else:
+        project_policy_files = [args.project_policy] if args.project_policy else None
         diagnostics = init_command.run(
             repository_root,
             args.config,
             apply=args.apply,
             toolchain_revision=args.toolchain_revision,
             profiles=args.profiles or ["core", "security-baseline"],
-            project_policy_files=args.project_policy_files,
+            project_policy_files=project_policy_files,
             verification_command=args.verification_command,
             agents_output_enabled=not args.disable_agents_output,
             agents_output_path=args.agents_output_path,
