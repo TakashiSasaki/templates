@@ -86,3 +86,18 @@ def test_check_reports_output_removed_from_configuration(tmp_path: Path) -> None
     )
 
     assert ("OBSOLETE_OUTPUT", "AGENTS.md") in _diagnostic_pairs(tmp_path)
+
+
+def test_check_rejects_locked_output_outside_repository(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    lock_path = tmp_path / ".agent-policy.lock"
+    lock_path.write_text(
+        lock_path.read_text(encoding="utf-8").replace("  AGENTS.md:", "  ../outside:"),
+        encoding="utf-8",
+    )
+
+    diagnostics = check.run(tmp_path, ".agent-policy.yml")
+    assert diagnostics[0].code == "CHECK"
+    assert "escapes repository root" in diagnostics[0].message
