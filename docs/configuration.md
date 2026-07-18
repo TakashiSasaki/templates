@@ -24,7 +24,7 @@ outputs:
     path: AGENTS.md
 ```
 
-When `enabled` is `false`, the path remains declarative but no agent instruction file is rendered. This permits a later explicit cutover without losing the intended destination. Adoption preparation instead enables output at a shadow path such as `.agent-policy/preview/AGENTS.md`.
+When `enabled` is `false`, the path remains declarative but no agent instruction file is rendered. This permits a later explicit cutover without losing the intended destination. Adoption preparation instead enables output at a shadow path such as `.agent-policy/preview/AGENTS.md`. Finalization rewrites this path to the retained primary instruction path and regenerates the lock.
 
 ## Project policy files
 
@@ -42,5 +42,14 @@ When `enabled` is `false`, the path remains declarative but no agent instruction
 - selected profiles and project policy inputs
 - the verification command, if any
 - generated skill names
+- `backup_path: null` and `final_output: null`
 
-The state is validated against `schemas/adoption-state.schema.json` and serialized deterministically. It exists to support later preview comparison and explicit finalization. Editing it manually is unsupported.
+`adopt preview` requires the state to remain `prepared`, verifies the recorded source hashes and exact agreement with `.agent-policy.yml`, then regenerates the shadow output and lock.
+
+After a successful `adopt finalize --apply`, the state remains in the repository with:
+
+- `status: finalized`
+- the immutable backup path containing the original primary instruction bytes
+- the final generated instruction path
+
+The state is validated against `schemas/adoption-state.schema.json` and serialized deterministically. Editing it manually is unsupported. The source hashes are cutover guards for the prepared phase; after finalization the generated primary instruction no longer matches the original source hash by design.
