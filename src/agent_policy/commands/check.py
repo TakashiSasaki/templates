@@ -5,11 +5,9 @@ import tempfile
 from pathlib import Path
 
 from ..diagnostics import Diagnostic
-from ..lockfile import load_lock_output_paths
+from ..lockfile import LOCK_PATH, load_lock_output_paths
 from ..paths import resolve_inside
 from .render import run as render_run
-
-LOCK_PATH = ".agent-policy.lock"
 
 
 def _locked_outputs(repository_root: Path) -> set[str]:
