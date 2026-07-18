@@ -56,6 +56,17 @@ def _append_stale_content(path: Path) -> None:
     path.write_text(path.read_text(encoding="utf-8") + "\nstale\n", encoding="utf-8")
 
 
+def _disable_agent_output(repository: Path) -> None:
+    config_path = repository / ".agent-policy.yml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "enabled: true\n    path: AGENTS.md",
+            "enabled: false\n    path: AGENTS.md",
+        ),
+        encoding="utf-8",
+    )
+
+
 def _assert_generated_output_collision(repository: Path, output_path: str) -> None:
     _write_repository(repository, output_path=output_path)
 
@@ -130,16 +141,38 @@ def test_check_reports_output_removed_from_configuration(tmp_path: Path) -> None
     _write_repository(tmp_path)
     assert render.run(tmp_path, ".agent-policy.yml") == []
 
-    config_path = tmp_path / ".agent-policy.yml"
-    config_path.write_text(
-        config_path.read_text(encoding="utf-8").replace(
-            "enabled: true\n    path: AGENTS.md",
-            "enabled: false\n    path: AGENTS.md",
-        ),
-        encoding="utf-8",
-    )
+    _disable_agent_output(tmp_path)
 
     assert ("OBSOLETE_OUTPUT", "AGENTS.md") in _diagnostic_pairs(tmp_path)
+
+
+def test_render_removes_output_removed_from_configuration(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert (tmp_path / "AGENTS.md").is_file()
+
+    _disable_agent_output(tmp_path)
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert not (tmp_path / "AGENTS.md").exists()
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+
+def test_render_refuses_to_remove_modified_obsolete_output(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    agents_path = tmp_path / "AGENTS.md"
+    _append_stale_content(agents_path)
+    modified = agents_path.read_text(encoding="utf-8")
+
+    _disable_agent_output(tmp_path)
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "modified obsolete generated output: AGENTS.md" in diagnostics[0].message
+    assert agents_path.read_text(encoding="utf-8") == modified
+    assert "AGENTS.md" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
 
 
 def test_check_rejects_locked_output_outside_repository(tmp_path: Path) -> None:
