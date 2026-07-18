@@ -143,6 +143,19 @@ def test_transaction_rolls_back_partial_replacement(tmp_path: Path, monkeypatch)
     assert not (tmp_path / "b.txt").exists()
 
 
+def test_finalized_state_cannot_preview_or_finalize_again(tmp_path: Path) -> None:
+    _prepare_repository(tmp_path)
+    assert adopt.finalize_run(tmp_path, apply=True) == []
+
+    preview = adopt.preview_run(tmp_path)
+    finalize = adopt.finalize_run(tmp_path, apply=False)
+
+    assert preview[0].code == "ADOPT_PREVIEW"
+    assert "not prepared" in preview[0].message
+    assert finalize[0].code == "ADOPT_FINALIZE"
+    assert "not prepared" in finalize[0].message
+
+
 def test_cli_parses_preview_and_finalize() -> None:
     preview = parser().parse_args(["adopt", "preview", "--state", "state.json"])
     assert preview.adopt_command == "preview"
