@@ -175,6 +175,30 @@ def test_render_refuses_to_remove_modified_obsolete_output(tmp_path: Path) -> No
     assert "AGENTS.md" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
 
 
+def test_render_refuses_symlinked_obsolete_output(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    agents_path = tmp_path / "AGENTS.md"
+    target_path = tmp_path / "generated-copy.md"
+    generated_content = agents_path.read_bytes()
+    target_path.write_bytes(generated_content)
+    agents_path.unlink()
+    try:
+        agents_path.symlink_to(target_path.name)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    _disable_agent_output(tmp_path)
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "must not contain symlinks: AGENTS.md" in diagnostics[0].message
+    assert agents_path.is_symlink()
+    assert target_path.read_bytes() == generated_content
+    assert "AGENTS.md" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
+
+
 def test_check_rejects_locked_output_outside_repository(tmp_path: Path) -> None:
     _write_repository(tmp_path)
     assert render.run(tmp_path, ".agent-policy.yml") == []
