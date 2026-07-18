@@ -44,7 +44,7 @@ agent-policy --repository /path/to/repository init \
 
 プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
 
-`init`は書き込み前に、skill名をschema相当の形式で検証し、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。同一pathだけでなく、一方が他方の親pathとなる組合せも`INIT_PATH_COLLISION`として拒否し、部分的な初期化を行いません。
+`init`は書き込み前に、skill名をschema相当の形式で検証し、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。同一path、一方が他方の親pathとなる組合せ、生成先の途中に既存の通常ファイルがある場合を拒否し、部分的な初期化を行いません。生成予定物同士の重複は`INIT_PATH_COLLISION`、既存pathによる妨害は`FILE_CONFLICT`として報告します。
 
 既存挙動との互換性のため、verificationを指定しない場合は`./scripts/verify.sh`が設定されます。そのコマンドを持たないリポジトリでは、実際の検証コマンドを明示するか、`--no-verification`を指定します。
 
