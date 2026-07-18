@@ -9,7 +9,6 @@ from ..paths import resolve_inside
 from ..yamlutil import dump_yaml
 from .render import run as render_run
 
-
 DEFAULT_PROJECT_POLICY_FILES = ["policy/project.md"]
 DEFAULT_VERIFICATION_COMMAND = "./scripts/verify.sh"
 DEFAULT_AGENTS_OUTPUT_PATH = "AGENTS.md"
@@ -26,7 +25,9 @@ def proposed_manifest(
     agents_output_path: str = DEFAULT_AGENTS_OUTPUT_PATH,
     enabled_skills: list[str] | None = None,
 ) -> dict[str, object]:
-    policies = DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    policies = (
+        DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    )
     skills = DEFAULT_ENABLED_SKILLS if enabled_skills is None else enabled_skills
     return build_manifest(
         toolchain_revision=toolchain_revision,
@@ -52,7 +53,9 @@ def run(
     agents_output_path: str = DEFAULT_AGENTS_OUTPUT_PATH,
     enabled_skills: list[str] | None = None,
 ) -> list[Diagnostic]:
-    policies = DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    policies = (
+        DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    )
     skills = DEFAULT_ENABLED_SKILLS if enabled_skills is None else enabled_skills
     if len(policies) != 1:
         return [
@@ -92,7 +95,9 @@ def run(
         diagnostics.extend(Diagnostic("info", "CREATE", relative) for relative in policies)
         if agents_output_enabled:
             diagnostics.append(Diagnostic("info", "GENERATE", agents_output_path))
-        diagnostics.extend(Diagnostic("info", "GENERATE", relative) for relative in generated_skills)
+        diagnostics.extend(
+            Diagnostic("info", "GENERATE", relative) for relative in generated_skills
+        )
         diagnostics.append(Diagnostic("info", "GENERATE", ".agent-policy.lock"))
         return diagnostics
 
