@@ -17,15 +17,15 @@ def build_manifest(
             "repository": "TakashiSasaki/agent-policy",
             "revision": toolchain_revision,
         },
-        "profiles": profiles,
-        "project_policy": {"files": project_policy_files},
+        "profiles": list(profiles),
+        "project_policy": {"files": list(project_policy_files)},
         "outputs": {
             "agents": {
                 "enabled": agents_output_enabled,
                 "path": agents_output_path,
             }
         },
-        "skills": {"enabled": enabled_skills},
+        "skills": {"enabled": list(enabled_skills)},
     }
     if verification_command is not None:
         manifest["verification"] = {"command": verification_command}
