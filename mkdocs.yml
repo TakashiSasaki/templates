@@ -20,6 +20,7 @@ nav:
       - はじめに: getting-started.md
       - CLI: cli.md
       - ブートストラップスキル: bootstrap.md
+      - 既存リポジトリの導入: adoption.md
       - PWAとして利用する: pwa.md
   - 設計:
       - リポジトリ構造: repository-structure.md
@@ -28,6 +29,9 @@ nav:
       - 規約の作成: policy-authoring.md
       - ブートストラップモデル: bootstrap-model.md
       - 脅威モデル: threat-model.md
+      - Architecture decisions:
+          - ADR-0001 Bootstrap history: adr/0001-unrelated-bootstrap-history.md
+          - ADR-0002 Repository adoption: adr/0002-repository-adoption.md
 
 markdown_extensions:
   - admonition
