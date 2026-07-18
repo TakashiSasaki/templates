@@ -40,11 +40,11 @@ agent-policy --repository /path/to/repository init \
 | `--no-verification` | `verification` セクションを初期設定へ含めない |
 | `--agents-output-path PATH` | agent instructionの生成先。既定は `AGENTS.md` |
 | `--disable-agents-output` | agent instruction生成を初期設定で無効にする。pathは将来の有効化に備えて保持される |
-| `--skill NAME` | 初期状態で生成するskill。複数指定可能。省略時は `validate-agent-policy` |
+| `--skill NAME` | 初期状態で生成するskill。`[a-z0-9][a-z0-9-]*`形式で複数指定可能。省略時は `validate-agent-policy` |
 
 プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
 
-`init`は書き込み前に、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。二つ以上の生成予定物が同じpathを指す場合は`INIT_PATH_COLLISION`として拒否し、部分的な初期化を行いません。
+`init`は書き込み前に、skill名をschema相当の形式で検証し、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。同一pathだけでなく、一方が他方の親pathとなる組合せも`INIT_PATH_COLLISION`として拒否し、部分的な初期化を行いません。
 
 既存挙動との互換性のため、verificationを指定しない場合は`./scripts/verify.sh`が設定されます。そのコマンドを持たないリポジトリでは、実際の検証コマンドを明示するか、`--no-verification`を指定します。
 
