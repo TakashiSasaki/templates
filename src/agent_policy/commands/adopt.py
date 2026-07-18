@@ -172,7 +172,6 @@ def prepare_run(
 
         config_target = resolve_inside(repository_root, config_path, allow_missing=True)
         state_target = resolve_inside(repository_root, state_path, allow_missing=True)
-        lock_target = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
         preview_target = resolve_inside(
             repository_root,
             preview_output_path,
@@ -203,7 +202,7 @@ def prepare_run(
         policy_names = {relative for relative, _ in policy_targets}
         if len(reserved) != 4 + len(generated_skill_files):
             raise ValueError("Generated and management paths must be unique")
-        collisions = sorted((reserved | policy_names) & source_paths)
+        collisions = sorted(reserved & source_paths)
         if collisions:
             raise ValueError(f"Adoption outputs overlap existing sources: {', '.join(collisions)}")
         if reserved & policy_names:
@@ -244,8 +243,6 @@ def prepare_run(
             Diagnostic("info", "GENERATE", relative) for relative in generated_skill_files
         )
         plan.append(Diagnostic("info", "GENERATE", LOCK_PATH))
-        if not apply:
-            return plan
 
         with tempfile.TemporaryDirectory(prefix="agent-policy-adopt-") as temporary:
             staged = Path(temporary) / "repo"
@@ -289,6 +286,9 @@ def prepare_run(
 
             staged_lock = resolve_inside(staged, LOCK_PATH, allow_missing=False)
             generated_outputs = list(load_lock_output_paths(staged_lock))
+            if not apply:
+                return plan
+
             apply_names = sorted(
                 {
                     config_name,
