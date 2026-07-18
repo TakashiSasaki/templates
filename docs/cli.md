@@ -104,6 +104,52 @@ agent-policy --repository . adopt prepare \
 
 複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。
 
+## `adopt preview`
+
+prepared stateに記録されたsource hashと設定の整合性を検査し、現在のprofileとproject policyからshadow instruction、generated skill、lockを再生成します。
+
+```bash
+agent-policy --repository . adopt preview
+agent-policy --repository . adopt preview --state .agent-policy/adoption.json
+```
+
+prepare後にproject policyを編集した場合は、このコマンドでpreviewを更新してから`adopt finalize`へ進みます。prepare時に記録したprimary instructionなどの既存sourceが変更または削除されている場合は、`ADOPTION_SOURCE_CHANGED`として停止します。
+
+## `adopt finalize`
+
+prepared stateを正式なmanaged stateへ切り替えます。既定ではdry-runであり、source hash、state/config整合性、preview freshness、backup path、最終renderを一時コピー上で検証するだけです。
+
+```bash
+agent-policy --repository . adopt finalize
+```
+
+cutoverを適用する場合は`--apply`を明示します。
+
+```bash
+agent-policy --repository . adopt finalize \
+  --backup-path .agent-policy/adoption/original/AGENTS.md \
+  --apply
+```
+
+finalizeは次の変更を一つのtransactionとして扱います。
+
+- handwritten primary instructionをbackup pathへbyte-for-byteで保存する
+- `.agent-policy.yml`のagent outputをprimary instruction pathへ切り替える
+- primary instructionを生成済みinstructionへ置き換える
+- `.agent-policy.lock`を更新する
+- adoption stateを`finalized`へ更新する
+- shadow previewを削除する
+
+適用後の`check`が失敗した場合を含め、transaction途中の失敗では変更前のファイルを復元します。backup pathが既に存在する場合、primary sourceがprepare後に変化した場合、previewまたはlockがstaleな場合はcutoverしません。
+
+主なオプション:
+
+| オプション | 説明 |
+| --- | --- |
+| `--state PATH` | prepared adoption state。既定は `.agent-policy/adoption.json` |
+| `--backup-path PATH` | handwritten primary instructionの保存先 |
+| `--apply` | 検証済みcutoverを実際に適用する |
+
 ## `validate`
 
 設定ファイルと参照対象の整合性を検査します。
