@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from agent_policy.commands import check, render, validate
 
 PROJECT_POLICY = """---
@@ -158,3 +160,30 @@ def test_commands_reject_lock_file_as_agents_output(tmp_path: Path) -> None:
 
 def test_commands_reject_path_below_lock_file_as_agents_output(tmp_path: Path) -> None:
     _assert_reserved_lock_collision(tmp_path, ".agent-policy.lock/AGENTS.md")
+
+
+def test_commands_reject_lock_symlink_outside_repository(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    outside_lock = tmp_path.parent / f"{tmp_path.name}-outside-lock"
+    outside_lock.write_text("outside lock content\n", encoding="utf-8")
+    lock_path = tmp_path / ".agent-policy.lock"
+    try:
+        lock_path.symlink_to(outside_lock)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    for command in (validate.run, render.run):
+        diagnostics = command(tmp_path, ".agent-policy.yml")
+        assert len(diagnostics) == 1
+        assert diagnostics[0].code == "LOCK_PATH"
+        assert diagnostics[0].path == ".agent-policy.lock"
+        assert "escapes repository root" in diagnostics[0].message
+
+    check_diagnostics = check.run(tmp_path, ".agent-policy.yml")
+    assert len(check_diagnostics) == 1
+    assert check_diagnostics[0].code == "CHECK"
+    assert "escapes repository root" in check_diagnostics[0].message
+
+    assert outside_lock.read_text(encoding="utf-8") == "outside lock content\n"
+    assert not (tmp_path / "AGENTS.md").exists()
+    assert not (tmp_path / ".agents").exists()
