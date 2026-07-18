@@ -1,4 +1,4 @@
-const CACHE_VERSION = "agent-policy-pwa-v4";
+const CACHE_VERSION = "agent-policy-pwa-v5";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_URL = "/offline.html";
@@ -8,6 +8,8 @@ const PRECACHE_URLS = [
   OFFLINE_URL,
   "/manifest.webmanifest",
   "/assets/javascripts/pwa.js",
+  "/assets/javascripts/file-preview.js",
+  "/assets/stylesheets/file-preview.css",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/icons/icon-maskable-512.png",

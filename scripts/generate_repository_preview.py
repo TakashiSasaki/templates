@@ -10,6 +10,12 @@ import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
+from pygments import lex
+from pygments.lexers import get_lexer_by_name, get_lexer_for_filename
+from pygments.lexers.special import TextLexer
+from pygments.token import STANDARD_TYPES
+from pygments.util import ClassNotFound
+
 REPOSITORY = "TakashiSasaki/agent-policy"
 REMOTE_BOOTSTRAP_REF = "refs/remotes/origin/bootstrap-agent-policy"
 BRANCH_REFS = {
@@ -66,6 +72,57 @@ def github_url(revision: str, path: str) -> str:
     return f"https://github.com/{REPOSITORY}/blob/{encoded_revision}/{encoded_path}"
 
 
+def token_css_class(token_type: object) -> str:
+    current = token_type
+    while current not in STANDARD_TYPES and getattr(current, "parent", None) is not None:
+        current = current.parent
+    return STANDARD_TYPES.get(current, "")
+
+
+def lexer_for_path(path: str, content: str) -> object:
+    compound_lexers = {
+        ".html.j2": "html+jinja",
+        ".htm.j2": "html+jinja",
+        ".yaml.j2": "yaml+jinja",
+        ".yml.j2": "yaml+jinja",
+    }
+    for suffix, alias in compound_lexers.items():
+        if path.endswith(suffix):
+            return get_lexer_by_name(alias, stripnl=False, ensurenl=False)
+    if path.endswith(".j2"):
+        return get_lexer_by_name("jinja", stripnl=False, ensurenl=False)
+
+    try:
+        return get_lexer_for_filename(
+            path,
+            content,
+            stripnl=False,
+            ensurenl=False,
+        )
+    except ClassNotFound:
+        return TextLexer(stripnl=False, ensurenl=False)
+
+
+def highlight_content(path: str, content: str) -> dict[str, object]:
+    lexer = lexer_for_path(path, content)
+
+    lines: list[list[list[str]]] = [[]]
+    for token_type, value in lex(content, lexer):
+        css_class = token_css_class(token_type)
+        parts = value.split("\n")
+        for index, part in enumerate(parts):
+            if part:
+                lines[-1].append([css_class, part])
+            if index < len(parts) - 1:
+                lines.append([])
+
+    return {
+        "lexer": lexer.name,
+        "lines": lines,
+        "version": 1,
+    }
+
+
 def generate_branch(branch: str, ref: str, output_root: Path) -> dict[str, object]:
     commit = run_git_text("rev-parse", ref)
     files: dict[str, object] = {}
@@ -77,6 +134,8 @@ def generate_branch(branch: str, ref: str, output_root: Path) -> dict[str, objec
         content = run_git_bytes("show", f"{ref}:{path}")
         kind, mime_type = classify_content(path, content)
         asset_url = None
+        highlight_url = None
+        lexer_name = None
 
         if kind in {"text", "image"}:
             asset_name = f"{blob_sha}{asset_suffix(kind, path)}"
@@ -85,11 +144,27 @@ def generate_branch(branch: str, ref: str, output_root: Path) -> dict[str, objec
                 asset_path.write_bytes(content)
             asset_url = f"/generated/repository-preview/{quote(branch, safe='')}/{asset_name}"
 
+        if kind == "text":
+            highlighted = highlight_content(path, content.decode("utf-8"))
+            lexer_name = str(highlighted["lexer"])
+            path_digest = hashlib.sha256(path.encode("utf-8")).hexdigest()[:12]
+            highlight_name = f"{blob_sha}-{path_digest}.tokens.json"
+            highlight_path = branch_root / highlight_name
+            highlight_path.write_text(
+                json.dumps(highlighted, ensure_ascii=False, separators=(",", ":")) + "\n",
+                encoding="utf-8",
+            )
+            highlight_url = (
+                f"/generated/repository-preview/{quote(branch, safe='')}/{highlight_name}"
+            )
+
         files[path] = {
             "asset_url": asset_url,
             "blob": blob_sha,
             "github_url": github_url(commit, path),
+            "highlight_url": highlight_url,
             "kind": kind,
+            "lexer": lexer_name,
             "mime_type": mime_type,
             "size": len(content),
         }
@@ -109,7 +184,7 @@ def generate(output_root: Path) -> Path:
     manifest = {
         "branches": branches,
         "repository": REPOSITORY,
-        "version": 1,
+        "version": 2,
     }
     manifest_path = output_root / "index.json"
     manifest_path.write_text(

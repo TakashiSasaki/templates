@@ -76,12 +76,13 @@
 
 .repository-preview-dialog__panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
   background: #fff;
 }
 
 .repository-preview-dialog__header,
+.repository-preview-dialog__toolbar,
 .repository-preview-dialog__footer {
   display: flex;
   align-items: center;
@@ -94,6 +95,29 @@
 .repository-preview-dialog__header {
   justify-content: space-between;
   border-width: 0 0 1px;
+}
+
+.repository-preview-dialog__toolbar {
+  flex-wrap: wrap;
+  border-width: 0 0 1px;
+  background: #f5f5f5;
+  font-size: 0.9rem;
+}
+
+.repository-preview-dialog__toolbar[hidden] {
+  display: none;
+}
+
+.repository-preview-dialog__toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.repository-preview-dialog__toolbar input {
+  margin: 0;
 }
 
 .repository-preview-dialog__footer {
@@ -135,14 +159,193 @@
 }
 
 .repository-preview-dialog__text {
+  min-width: 100%;
   min-height: 100%;
-  margin: 0;
-  padding: 1rem;
-  overflow: visible;
   border: 1px solid #ddd;
   background: #fff;
-  white-space: pre;
+  color: #24292f;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
   tab-size: 4;
+}
+
+.repository-preview-dialog__text:focus-visible {
+  outline: 2px solid #2878a2;
+  outline-offset: 2px;
+}
+
+.repository-preview-dialog__lines {
+  min-width: 100%;
+}
+
+.repository-preview-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 1.5em;
+}
+
+.repository-preview-dialog__text:not(.wrap-lines) .repository-preview-line {
+  width: max-content;
+  min-width: 100%;
+}
+
+.repository-preview-dialog__text.has-line-numbers .repository-preview-line {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.repository-preview-line__number {
+  display: none;
+  min-width: 4.25rem;
+  padding: 0.08rem 0.75rem;
+  border-right: 1px solid #e5e7eb;
+  background: #f6f8fa;
+  color: #6e7781;
+  text-align: right;
+  user-select: none;
+}
+
+.repository-preview-dialog__text.has-line-numbers .repository-preview-line__number {
+  display: block;
+}
+
+.repository-preview-line__content {
+  display: block;
+  min-width: 0;
+  min-height: 1.5em;
+  padding: 0.08rem 1rem;
+  white-space: pre;
+}
+
+.repository-preview-dialog__text.wrap-lines {
+  width: 100%;
+}
+
+.repository-preview-dialog__text.wrap-lines .repository-preview-line {
+  width: 100%;
+}
+
+.repository-preview-dialog__text.wrap-lines .repository-preview-line__content {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.repository-preview-dialog__text:not(.has-highlighting) .tok {
+  color: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-c,
+.repository-preview-dialog__text.has-highlighting .tok-ch,
+.repository-preview-dialog__text.has-highlighting .tok-cm,
+.repository-preview-dialog__text.has-highlighting .tok-cp,
+.repository-preview-dialog__text.has-highlighting .tok-cpf,
+.repository-preview-dialog__text.has-highlighting .tok-c1,
+.repository-preview-dialog__text.has-highlighting .tok-cs {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-k,
+.repository-preview-dialog__text.has-highlighting .tok-kc,
+.repository-preview-dialog__text.has-highlighting .tok-kd,
+.repository-preview-dialog__text.has-highlighting .tok-kn,
+.repository-preview-dialog__text.has-highlighting .tok-kp,
+.repository-preview-dialog__text.has-highlighting .tok-kr,
+.repository-preview-dialog__text.has-highlighting .tok-kt,
+.repository-preview-dialog__text.has-highlighting .tok-ow {
+  color: #8250df;
+  font-weight: 600;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-s,
+.repository-preview-dialog__text.has-highlighting .tok-sa,
+.repository-preview-dialog__text.has-highlighting .tok-sb,
+.repository-preview-dialog__text.has-highlighting .tok-sc,
+.repository-preview-dialog__text.has-highlighting .tok-dl,
+.repository-preview-dialog__text.has-highlighting .tok-sd,
+.repository-preview-dialog__text.has-highlighting .tok-s2,
+.repository-preview-dialog__text.has-highlighting .tok-se,
+.repository-preview-dialog__text.has-highlighting .tok-sh,
+.repository-preview-dialog__text.has-highlighting .tok-si,
+.repository-preview-dialog__text.has-highlighting .tok-sx,
+.repository-preview-dialog__text.has-highlighting .tok-sr,
+.repository-preview-dialog__text.has-highlighting .tok-s1,
+.repository-preview-dialog__text.has-highlighting .tok-ss {
+  color: #0a3069;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-m,
+.repository-preview-dialog__text.has-highlighting .tok-mb,
+.repository-preview-dialog__text.has-highlighting .tok-mf,
+.repository-preview-dialog__text.has-highlighting .tok-mh,
+.repository-preview-dialog__text.has-highlighting .tok-mi,
+.repository-preview-dialog__text.has-highlighting .tok-mo,
+.repository-preview-dialog__text.has-highlighting .tok-il {
+  color: #0550ae;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-na,
+.repository-preview-dialog__text.has-highlighting .tok-nb,
+.repository-preview-dialog__text.has-highlighting .tok-bp,
+.repository-preview-dialog__text.has-highlighting .tok-nt {
+  color: #953800;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-nc,
+.repository-preview-dialog__text.has-highlighting .tok-ne,
+.repository-preview-dialog__text.has-highlighting .tok-nf,
+.repository-preview-dialog__text.has-highlighting .tok-fm {
+  color: #8250df;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-no,
+.repository-preview-dialog__text.has-highlighting .tok-nd,
+.repository-preview-dialog__text.has-highlighting .tok-ni,
+.repository-preview-dialog__text.has-highlighting .tok-nl,
+.repository-preview-dialog__text.has-highlighting .tok-nn,
+.repository-preview-dialog__text.has-highlighting .tok-nv,
+.repository-preview-dialog__text.has-highlighting .tok-vc,
+.repository-preview-dialog__text.has-highlighting .tok-vg,
+.repository-preview-dialog__text.has-highlighting .tok-vi,
+.repository-preview-dialog__text.has-highlighting .tok-vm {
+  color: #116329;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-o {
+  color: #cf222e;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-gh,
+.repository-preview-dialog__text.has-highlighting .tok-gu {
+  color: #0550ae;
+  font-weight: 600;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-ge {
+  font-style: italic;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-gs {
+  font-weight: 700;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-gd {
+  background: #ffebe9;
+  color: #82071e;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-gi {
+  background: #dafbe1;
+  color: #116329;
+}
+
+.repository-preview-dialog__text.has-highlighting .tok-err,
+.repository-preview-dialog__text.has-highlighting .tok-gr,
+.repository-preview-dialog__text.has-highlighting .tok-gt {
+  color: #cf222e;
 }
 
 .repository-preview-dialog__image {
@@ -166,7 +369,13 @@
     border-radius: 0;
   }
 
+  .repository-preview-dialog__toolbar,
   .repository-preview-dialog__footer {
     flex-wrap: wrap;
+  }
+
+  .repository-preview-line__number {
+    min-width: 3.5rem;
+    padding-inline: 0.5rem;
   }
 }
