@@ -61,6 +61,30 @@ def _add_planned_output(
     planned[relative] = (target, content)
 
 
+def _literal_output_path(repository_root: Path, relative: str) -> Path:
+    root = repository_root.resolve()
+    literal = Path(os.path.abspath(root / relative))
+    try:
+        literal.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Path escapes repository root: {relative}") from exc
+
+    for component in (literal, *literal.parents):
+        if component == root:
+            break
+        if component.is_symlink():
+            raise ValueError(
+                f"Obsolete generated output path must not contain symlinks: {relative}"
+            )
+
+    resolved = resolve_inside(root, relative, allow_missing=True)
+    if resolved != literal:
+        raise ValueError(
+            f"Obsolete generated output path resolves through a symlink: {relative}"
+        )
+    return literal
+
+
 def _obsolete_generated_outputs(
     repository_root: Path,
     planned: dict[str, tuple[Path, str]],
@@ -74,7 +98,7 @@ def _obsolete_generated_outputs(
     for relative, locked_digest in load_lock_outputs(lock_path).items():
         if relative in planned:
             continue
-        target = resolve_inside(repository_root, relative, allow_missing=True)
+        target = _literal_output_path(repository_root, relative)
         if target in planned_targets or not target.exists():
             continue
         if not target.is_file():
