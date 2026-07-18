@@ -80,8 +80,15 @@ def _generated_skill_files(skills: list[str]) -> list[str]:
 
 def _write_new_file(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("xb") as handle:
-        handle.write(content)
+    try:
+        with path.open("xb") as handle:
+            handle.write(content)
+    except Exception:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def _remove_created(paths: list[Path]) -> None:
@@ -157,10 +164,10 @@ def prepare_run(
         primary_target = resolve_inside(
             repository_root,
             primary_instructions,
-            allow_missing=False,
+            allow_missing=True,
         )
         primary_name = _relative_name(repository_root, primary_target)
-        if primary_name not in source_paths:
+        if not primary_target.is_file() or primary_name not in source_paths:
             return [
                 Diagnostic(
                     "error",
