@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..config import load_config, validate_config
 from ..diagnostics import Diagnostic
-from ..lockfile import create_lock
+from ..lockfile import LOCK_PATH, create_lock
 from ..paths import resolve_inside
 from ..policy_loader import load_rules
 from ..renderer import GENERATED_MARKER, render_agents, render_skill
@@ -41,6 +41,11 @@ def _add_planned_output(
     content: str,
 ) -> None:
     target = resolve_inside(repository_root, relative)
+    lock_target = resolve_inside(repository_root, LOCK_PATH)
+    if _paths_overlap(target, lock_target):
+        raise ValueError(
+            f"Generated output path overlaps reserved path: {relative} and {LOCK_PATH}"
+        )
     for existing_relative, (existing_target, _) in planned.items():
         if _paths_overlap(target, existing_target):
             raise ValueError(
@@ -90,7 +95,7 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             inputs=inputs,
             outputs=outputs,
         )
-        _write_atomic(repository_root / ".agent-policy.lock", lock_content)
+        _write_atomic(repository_root / LOCK_PATH, lock_content)
         return []
     except Exception as exc:
         return [Diagnostic("error", "RENDER", str(exc))]
