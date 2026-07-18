@@ -9,7 +9,6 @@ from ..lockfile import load_lock_output_paths
 from ..paths import resolve_inside
 from .render import run as render_run
 
-
 LOCK_PATH = ".agent-policy.lock"
 
 
