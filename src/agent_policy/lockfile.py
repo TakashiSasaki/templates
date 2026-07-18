@@ -4,9 +4,14 @@ import hashlib
 from collections.abc import Mapping
 from pathlib import Path
 
+from .paths import resolve_inside
 from .yamlutil import dump_yaml, load_yaml
 
 LOCK_PATH = ".agent-policy.lock"
+
+
+def resolve_lock_path(repository_root: Path, *, allow_missing: bool = True) -> Path:
+    return resolve_inside(repository_root, LOCK_PATH, allow_missing=allow_missing)
 
 
 def sha256_file(path: Path) -> str:
