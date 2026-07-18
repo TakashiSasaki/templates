@@ -22,6 +22,7 @@ nav:
       - ブートストラップスキル: bootstrap.md
       - PWAとして利用する: pwa.md
   - 設計:
+      - リポジトリ構造: repository-structure.md
       - アーキテクチャ: architecture.md
       - 設定ファイル: configuration.md
       - 規約の作成: policy-authoring.md
