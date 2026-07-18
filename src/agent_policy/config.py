@@ -7,7 +7,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .diagnostics import Diagnostic
-from .lockfile import LOCK_PATH
+from .lockfile import LOCK_PATH, resolve_lock_path
 from .paths import resolve_inside
 from .yamlutil import load_yaml
 
@@ -96,7 +96,12 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                 )
             )
 
-    reserved_lock_path = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
+    try:
+        reserved_lock_path = resolve_lock_path(repository_root, allow_missing=True)
+    except ValueError as exc:
+        diagnostics.append(Diagnostic("error", "LOCK_PATH", str(exc), LOCK_PATH))
+        reserved_lock_path = None
+
     output_paths = [path for path in [config.output_agents_path] if path]
     if len(output_paths) != len(set(output_paths)):
         diagnostics.append(Diagnostic("error", "OUTPUT_COLLISION", "Output paths must be unique"))
@@ -106,7 +111,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
         except ValueError as exc:
             diagnostics.append(Diagnostic("error", "OUTPUT_PATH", str(exc), output))
             continue
-        if _paths_overlap(resolved_output, reserved_lock_path):
+        if reserved_lock_path is not None and _paths_overlap(resolved_output, reserved_lock_path):
             diagnostics.append(
                 Diagnostic(
                     "error",
