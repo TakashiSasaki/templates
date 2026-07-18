@@ -30,11 +30,13 @@ def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
 
 def test_init_defaults_remain_compatible() -> None:
     manifest = init.proposed_manifest("LOCAL-DEVELOPMENT", ["core"])
+    args = parser().parse_args(["init"])
 
     assert manifest["project_policy"] == {"files": ["policy/project.md"]}
     assert manifest["verification"] == {"command": "./scripts/verify.sh"}
     assert manifest["outputs"] == {"agents": {"enabled": True, "path": "AGENTS.md"}}
     assert manifest["skills"] == {"enabled": ["validate-agent-policy"]}
+    assert args.verification_command == "./scripts/verify.sh"
 
 
 def test_init_applies_custom_manifest_options(tmp_path: Path) -> None:
