@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from jsonschema import Draft202012Validator
+
+from .config import package_root
+from .paths import resolve_inside
+from .renderer import GENERATED_MARKER
+
+KNOWN_INSTRUCTION_FILES = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".github/copilot-instructions.md",
+)
+KNOWN_INSTRUCTION_DIRECTORIES = (
+    ".agents/policies",
+    ".agents/skills",
+)
+LOCK_PATH = ".agent-policy.lock"
+
+
+@dataclass(frozen=True)
+class AdoptionSource:
+    path: str
+    sha256: str
+    generated: bool
+
+
+@dataclass(frozen=True)
+class AdoptionInspection:
+    state: str
+    sources: tuple[AdoptionSource, ...]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def _relative_name(repository_root: Path, path: Path) -> str:
+    return path.relative_to(repository_root.resolve()).as_posix()
+
+
+def _source(repository_root: Path, relative: str) -> AdoptionSource:
+    path = resolve_inside(repository_root, relative, allow_missing=False)
+    content = path.read_bytes()
+    return AdoptionSource(
+        path=_relative_name(repository_root, path),
+        sha256=hashlib.sha256(content).hexdigest(),
+        generated=GENERATED_MARKER.encode("utf-8") in content,
+    )
+
+
+def discover_sources(repository_root: Path) -> tuple[AdoptionSource, ...]:
+    candidates: set[str] = set()
+    for relative in KNOWN_INSTRUCTION_FILES:
+        path = resolve_inside(repository_root, relative, allow_missing=True)
+        if path.is_file():
+            candidates.add(relative)
+
+    for relative in KNOWN_INSTRUCTION_DIRECTORIES:
+        directory = resolve_inside(repository_root, relative, allow_missing=True)
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file():
+                continue
+            safe_path = resolve_inside(
+                repository_root,
+                path.relative_to(repository_root),
+                allow_missing=False,
+            )
+            candidates.add(_relative_name(repository_root, safe_path))
+
+    return tuple(_source(repository_root, relative) for relative in sorted(candidates))
+
+
+def inspect_repository(
+    repository_root: Path,
+    *,
+    config_path: str = ".agent-policy.yml",
+    state_path: str = ".agent-policy/adoption.json",
+) -> AdoptionInspection:
+    config_target = resolve_inside(repository_root, config_path, allow_missing=True)
+    state_target = resolve_inside(repository_root, state_path, allow_missing=True)
+    lock_target = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
+    sources = discover_sources(repository_root)
+
+    if config_target.exists():
+        state = "managed"
+    elif state_target.exists() or lock_target.exists() or any(item.generated for item in sources):
+        state = "inconsistent"
+    elif sources:
+        state = "unmanaged-existing"
+    else:
+        state = "unmanaged-empty"
+    return AdoptionInspection(state=state, sources=sources)
+
+
+def adoption_state_schema_path() -> Path:
+    return package_root() / "schemas" / "adoption-state.schema.json"
+
+
+def build_adoption_state(
+    *,
+    toolchain_revision: str,
+    config_path: str,
+    state_path: str,
+    primary_instructions: str,
+    sources: tuple[AdoptionSource, ...],
+    preview_output: str,
+    selected_profiles: list[str],
+    project_policy_files: list[str],
+    verification_command: str | None,
+    generated_skills: list[str],
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "status": "prepared",
+        "toolchain": {
+            "repository": "TakashiSasaki/agent-policy",
+            "revision": toolchain_revision,
+        },
+        "config_path": config_path,
+        "state_path": state_path,
+        "primary_instructions": primary_instructions,
+        "sources": [
+            {
+                "path": item.path,
+                "sha256": item.sha256,
+                "generated": item.generated,
+            }
+            for item in sources
+        ],
+        "preview_output": preview_output,
+        "selected_profiles": list(selected_profiles),
+        "project_policy_files": list(project_policy_files),
+        "verification_command": verification_command,
+        "generated_skills": list(generated_skills),
+    }
+
+
+def validate_adoption_state(value: object) -> None:
+    schema = json.loads(adoption_state_schema_path().read_text(encoding="utf-8"))
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(value),
+        key=lambda item: list(item.path),
+    )
+    if errors:
+        location = ".".join(str(part) for part in errors[0].path) or "root"
+        raise ValueError(f"Invalid adoption state at {location}: {errors[0].message}")
+
+
+def dump_adoption_state(value: object) -> str:
+    validate_adoption_state(value)
+    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
