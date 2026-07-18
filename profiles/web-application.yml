@@ -1,0 +1,9 @@
+policy_files:
+  - policy/interfaces/surface-boundaries.md
+  - policy/interfaces/surface-dependencies.md
+  - policy/interfaces/navigation-contracts.md
+  - policy/interfaces/user-visible-states.md
+  - policy/interfaces/accessibility.md
+  - policy/interfaces/diagnostic-boundaries.md
+  - policy/interfaces/surface-consistency.md
+  - policy/interfaces/responsive-layout.md
