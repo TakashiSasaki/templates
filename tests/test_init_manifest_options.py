@@ -173,6 +173,27 @@ def test_init_rejects_parent_child_output_collision_before_writing(tmp_path: Pat
     assert not (tmp_path / ".agent-policy.lock").exists()
 
 
+def test_init_rejects_non_directory_ancestor_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "docs").write_text("blocking file\n", encoding="utf-8")
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        project_policy_files=["docs/policy.md"],
+        enabled_skills=[],
+    )
+
+    assert diagnostics[0].code == "FILE_CONFLICT"
+    assert "non-directory ancestor docs" in diagnostics[0].message
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+    assert (tmp_path / "docs").read_text(encoding="utf-8") == "blocking file\n"
+
+
 def test_cli_parses_custom_init_options() -> None:
     args = parser().parse_args(
         [
