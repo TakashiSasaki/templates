@@ -6,6 +6,7 @@ from ..config import package_root
 from ..diagnostics import Diagnostic
 from ..manifest import build_manifest
 from ..paths import resolve_inside
+from ..renderer import render_skill
 from ..yamlutil import dump_yaml
 from .render import run as render_run
 
@@ -13,6 +14,7 @@ DEFAULT_PROJECT_POLICY_FILES = ["policy/project.md"]
 DEFAULT_VERIFICATION_COMMAND = "./scripts/verify.sh"
 DEFAULT_AGENTS_OUTPUT_PATH = "AGENTS.md"
 DEFAULT_ENABLED_SKILLS = ["validate-agent-policy"]
+LOCK_PATH = ".agent-policy.lock"
 
 
 def proposed_manifest(
@@ -40,6 +42,37 @@ def proposed_manifest(
     )
 
 
+def _generated_skill_outputs(skills: list[str]) -> list[tuple[str, str]]:
+    outputs: list[tuple[str, str]] = []
+    for skill in skills:
+        for relative in render_skill(skill):
+            outputs.append((f"generated skill {skill}", f".agents/skills/{skill}/{relative}"))
+    return outputs
+
+
+def _planned_path_collision(
+    repository_root: Path,
+    planned: list[tuple[str, str, Path]],
+) -> Diagnostic | None:
+    by_target: dict[Path, list[str]] = {}
+    for role, _relative, target in planned:
+        by_target.setdefault(target, []).append(role)
+
+    collisions = []
+    for target, roles in sorted(by_target.items(), key=lambda item: str(item[0])):
+        if len(roles) < 2:
+            continue
+        relative = target.relative_to(repository_root).as_posix()
+        collisions.append(f"{relative} ({', '.join(roles)})")
+    if not collisions:
+        return None
+    return Diagnostic(
+        "error",
+        "INIT_PATH_COLLISION",
+        f"Planned init paths collide: {'; '.join(collisions)}",
+    )
+
+
 def run(
     repository_root: Path,
     config_path: str,
@@ -53,6 +86,7 @@ def run(
     agents_output_path: str = DEFAULT_AGENTS_OUTPUT_PATH,
     enabled_skills: list[str] | None = None,
 ) -> list[Diagnostic]:
+    repository_root = repository_root.resolve()
     policies = (
         DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
     )
@@ -71,15 +105,35 @@ def run(
         return [Diagnostic("error", "ALREADY_INITIALIZED", f"{config_path} already exists")]
 
     project_targets = [resolve_inside(repository_root, relative) for relative in policies]
-    agents_target = (
-        resolve_inside(repository_root, agents_output_path) if agents_output_enabled else None
+    try:
+        generated_skill_outputs = _generated_skill_outputs(skills)
+    except Exception as exc:
+        return [Diagnostic("error", "INIT_SKILL", str(exc))]
+
+    planned = [("configuration", config_path, config_target)]
+    planned.extend(
+        ("project policy", relative, target)
+        for relative, target in zip(policies, project_targets, strict=True)
     )
-    conflict_targets = [*project_targets]
-    if agents_target is not None:
-        conflict_targets.append(agents_target)
-    conflicts = [
-        str(path.relative_to(repository_root)) for path in conflict_targets if path.exists()
-    ]
+    if agents_output_enabled:
+        agents_target = resolve_inside(repository_root, agents_output_path)
+        planned.append(("agent output", agents_output_path, agents_target))
+    for role, relative in generated_skill_outputs:
+        planned.append((role, relative, resolve_inside(repository_root, relative)))
+    lock_target = resolve_inside(repository_root, LOCK_PATH)
+    planned.append(("lock", LOCK_PATH, lock_target))
+
+    collision = _planned_path_collision(repository_root, planned)
+    if collision is not None:
+        return [collision]
+
+    conflicts = sorted(
+        {
+            target.relative_to(repository_root).as_posix()
+            for _role, _relative, target in planned
+            if target != config_target and target.exists()
+        }
+    )
     if conflicts:
         return [
             Diagnostic(
@@ -89,7 +143,7 @@ def run(
             )
         ]
 
-    generated_skills = [f".agents/skills/{skill}/SKILL.md" for skill in skills]
+    generated_skills = [relative for _role, relative in generated_skill_outputs]
     if not apply:
         diagnostics = [Diagnostic("info", "CREATE", config_path)]
         diagnostics.extend(Diagnostic("info", "CREATE", relative) for relative in policies)
@@ -98,7 +152,7 @@ def run(
         diagnostics.extend(
             Diagnostic("info", "GENERATE", relative) for relative in generated_skills
         )
-        diagnostics.append(Diagnostic("info", "GENERATE", ".agent-policy.lock"))
+        diagnostics.append(Diagnostic("info", "GENERATE", LOCK_PATH))
         return diagnostics
 
     manifest = proposed_manifest(
