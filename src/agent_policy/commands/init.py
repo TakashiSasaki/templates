@@ -26,14 +26,16 @@ def proposed_manifest(
     agents_output_path: str = DEFAULT_AGENTS_OUTPUT_PATH,
     enabled_skills: list[str] | None = None,
 ) -> dict[str, object]:
+    policies = DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    skills = DEFAULT_ENABLED_SKILLS if enabled_skills is None else enabled_skills
     return build_manifest(
         toolchain_revision=toolchain_revision,
         profiles=profiles,
-        project_policy_files=project_policy_files or DEFAULT_PROJECT_POLICY_FILES,
+        project_policy_files=policies,
         verification_command=verification_command,
         agents_output_enabled=agents_output_enabled,
         agents_output_path=agents_output_path,
-        enabled_skills=enabled_skills or DEFAULT_ENABLED_SKILLS,
+        enabled_skills=skills,
     )
 
 
@@ -50,8 +52,17 @@ def run(
     agents_output_path: str = DEFAULT_AGENTS_OUTPUT_PATH,
     enabled_skills: list[str] | None = None,
 ) -> list[Diagnostic]:
-    policies = project_policy_files or DEFAULT_PROJECT_POLICY_FILES
-    skills = enabled_skills or DEFAULT_ENABLED_SKILLS
+    policies = DEFAULT_PROJECT_POLICY_FILES if project_policy_files is None else project_policy_files
+    skills = DEFAULT_ENABLED_SKILLS if enabled_skills is None else enabled_skills
+    if len(policies) != 1:
+        return [
+            Diagnostic(
+                "error",
+                "INIT_PROJECT_POLICY_COUNT",
+                "init requires exactly one project policy scaffold",
+            )
+        ]
+
     config_target = resolve_inside(repository_root, config_path)
     if config_target.exists():
         return [Diagnostic("error", "ALREADY_INITIALIZED", f"{config_path} already exists")]
