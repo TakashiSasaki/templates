@@ -36,5 +36,9 @@ markdown_extensions:
   - toc:
       permalink: true
 
+extra_css:
+  - assets/stylesheets/file-preview.css
+
 extra_javascript:
   - assets/javascripts/pwa.js
+  - assets/javascripts/file-preview.js

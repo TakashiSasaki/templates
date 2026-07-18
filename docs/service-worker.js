@@ -1,4 +1,4 @@
-const CACHE_VERSION = "agent-policy-pwa-v2";
+const CACHE_VERSION = "agent-policy-pwa-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_URL = "/offline.html";
@@ -70,7 +70,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === "navigate" || url.pathname === "/build-info.json") {
+  if (
+    request.mode === "navigate"
+    || url.pathname === "/build-info.json"
+    || url.pathname === "/generated/repository-preview/index.json"
+  ) {
     event.respondWith(networkFirst(request));
     return;
   }
