@@ -97,6 +97,44 @@ def test_init_rejects_multiple_policy_scaffolds(tmp_path: Path) -> None:
     assert diagnostics[0].code == "INIT_PROJECT_POLICY_COUNT"
 
 
+def test_init_rejects_config_policy_collision_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        project_policy_files=[".agent-policy.yml"],
+        enabled_skills=[],
+    )
+
+    assert diagnostics[0].code == "INIT_PATH_COLLISION"
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def test_init_rejects_policy_skill_collision_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    skill_path = ".agents/skills/validate-agent-policy/SKILL.md"
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        project_policy_files=[skill_path],
+        enabled_skills=["validate-agent-policy"],
+    )
+
+    assert diagnostics[0].code == "INIT_PATH_COLLISION"
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / skill_path).exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
 def test_cli_parses_custom_init_options() -> None:
     args = parser().parse_args(
         [
