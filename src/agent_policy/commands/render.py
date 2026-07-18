@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from ..config import load_config, validate_config
 from ..diagnostics import Diagnostic
@@ -14,7 +14,9 @@ from ..renderer import GENERATED_MARKER, render_agents, render_skill
 
 def _write_atomic(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    ) as handle:
         handle.write(content)
         temporary = Path(handle.name)
     os.replace(temporary, path)
@@ -50,8 +52,10 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
         toolchain = config.data["toolchain"]
         inputs = {config.path.name: config.path}
         inputs.update(
-            {relative: resolve_inside(repository_root, relative, allow_missing=False)
-             for relative in config.project_policy_files}
+            {
+                relative: resolve_inside(repository_root, relative, allow_missing=False)
+                for relative in config.project_policy_files
+            }
         )
         lock_content = create_lock(
             toolchain_repository=toolchain["repository"],

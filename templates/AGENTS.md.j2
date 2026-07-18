@@ -16,10 +16,11 @@ These instructions were generated from shared policy profiles and repository-spe
 _Source: `{{ rule.source }}`; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
 
 {% endfor %}
-{% if config.get('verification', {}).get('command') %}
+{% set verification_command = config.data.get('verification', {}).get('command') %}
+{% if verification_command %}
 ## Required verification command
 
 ```bash
-{{ config.verification.command }}
+{{ verification_command }}
 ```
 {% endif %}

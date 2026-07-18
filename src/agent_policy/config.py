@@ -83,7 +83,12 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
             continue
         if not path.is_file():
             diagnostics.append(
-                Diagnostic("error", "MISSING_POLICY", "Project policy file does not exist", policy_file)
+                Diagnostic(
+                    "error",
+                    "MISSING_POLICY",
+                    "Project policy file does not exist",
+                    policy_file,
+                )
             )
 
     output_paths = [path for path in [config.output_agents_path] if path]
@@ -96,6 +101,11 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
             diagnostics.append(Diagnostic("error", "OUTPUT_PATH", str(exc), output))
         if output in config.project_policy_files or output == config.path.name:
             diagnostics.append(
-                Diagnostic("error", "INPUT_OUTPUT_COLLISION", "Output would overwrite an input", output)
+                Diagnostic(
+                    "error",
+                    "INPUT_OUTPUT_COLLISION",
+                    "Output would overwrite an input",
+                    output,
+                )
             )
     return diagnostics

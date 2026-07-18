@@ -37,9 +37,19 @@ def run(
         return [Diagnostic("error", "ALREADY_INITIALIZED", f"{config_path} already exists")]
     project_target = resolve_inside(repository_root, "policy/project.md")
     agents_target = resolve_inside(repository_root, "AGENTS.md")
-    conflicts = [str(path.relative_to(repository_root)) for path in [project_target, agents_target] if path.exists()]
+    conflicts = [
+        str(path.relative_to(repository_root))
+        for path in [project_target, agents_target]
+        if path.exists()
+    ]
     if conflicts:
-        return [Diagnostic("error", "FILE_CONFLICT", f"Existing files would conflict: {', '.join(conflicts)}")]
+        return [
+            Diagnostic(
+                "error",
+                "FILE_CONFLICT",
+                f"Existing files would conflict: {', '.join(conflicts)}",
+            )
+        ]
     if not apply:
         return [
             Diagnostic("info", "CREATE", config_path),
@@ -49,8 +59,12 @@ def run(
             Diagnostic("info", "GENERATE", ".agent-policy.lock"),
         ]
     config_target.parent.mkdir(parents=True, exist_ok=True)
-    config_target.write_text(dump_yaml(proposed_manifest(toolchain_revision, profiles)), encoding="utf-8")
+    config_target.write_text(
+        dump_yaml(proposed_manifest(toolchain_revision, profiles)), encoding="utf-8"
+    )
     project_target.parent.mkdir(parents=True, exist_ok=True)
-    project_template = (package_root() / "templates" / "project-policy.md.j2").read_text(encoding="utf-8")
+    project_template = (package_root() / "templates" / "project-policy.md.j2").read_text(
+        encoding="utf-8"
+    )
     project_target.write_text(project_template, encoding="utf-8")
     return render_run(repository_root, config_path)

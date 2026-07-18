@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
 import json
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -12,17 +12,14 @@ class Diagnostic:
     message: str
     path: str | None = None
 
-    def as_dict(self) -> dict[str, object]:
-        return asdict(self)
 
-
-def print_diagnostics(items: Iterable[Diagnostic], output_format: str = "text") -> None:
-    values = list(items)
+def print_diagnostics(diagnostics: Iterable[Diagnostic], output_format: str) -> None:
+    values = list(diagnostics)
     if output_format == "json":
-        print(json.dumps([item.as_dict() for item in values], indent=2, ensure_ascii=False))
+        print(json.dumps([asdict(item) for item in values], ensure_ascii=False, indent=2))
         return
     if not values:
-        print("No diagnostics.")
+        print("OK")
         return
     for item in values:
         location = f" [{item.path}]" if item.path else ""

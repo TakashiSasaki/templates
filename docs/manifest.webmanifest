@@ -1,0 +1,65 @@
+{
+  "id": "/",
+  "name": "agent-policy",
+  "short_name": "agent-policy",
+  "description": "複数のリポジトリとエージェントで共有する規約を、検証・合成・配布するためのポリシーツールチェーン",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#022642",
+  "theme_color": "#063b5a",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "categories": ["developer", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "CLI",
+      "short_name": "CLI",
+      "description": "agent-policy CLIの使用方法",
+      "url": "/cli/",
+      "icons": [
+        {
+          "src": "/assets/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "ブートストラップスキル",
+      "short_name": "Bootstrap",
+      "description": "未導入リポジトリへagent-policyを導入する方法",
+      "url": "/bootstrap/",
+      "icons": [
+        {
+          "src": "/assets/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

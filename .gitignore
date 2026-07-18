@@ -7,3 +7,6 @@ build/
 *.egg-info/
 .coverage
 htmlcov/
+site/
+docs/build-info.json
+docs/assets/social/agent-policy-og.png
