@@ -10,7 +10,7 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 ## `init`
 
-未導入リポジトリの初期化計画を作成します。既定ではファイルを書き換えません。
+未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は、後続の`adopt`機能を使用し、`init`で競合を回避しないでください。
 
 ```bash
 agent-policy --repository /path/to/repository init
@@ -23,6 +23,7 @@ agent-policy --repository /path/to/repository init \
   --toolchain-revision <FULL_COMMIT_SHA> \
   --profile core \
   --profile security-baseline \
+  --verification-command "npm run verify:pr" \
   --apply
 ```
 
@@ -34,8 +35,18 @@ agent-policy --repository /path/to/repository init \
 | `--apply` | 計画を実際に適用する |
 | `--toolchain-revision SHA` | 設定とロックへ記録するツールチェーンの完全なコミットSHA |
 | `--profile NAME` | 初期プロファイル。複数指定可能 |
+| `--project-policy PATH` | 作成する単一のproject policy scaffold。既定は `policy/project.md` |
+| `--verification-command COMMAND` | 生成指示へ記載する検証コマンド。既定は `./scripts/verify.sh` |
+| `--no-verification` | `verification` セクションを初期設定へ含めない |
+| `--agents-output-path PATH` | agent instructionの生成先。既定は `AGENTS.md` |
+| `--disable-agents-output` | agent instruction生成を初期設定で無効にする。pathは将来の有効化に備えて保持される |
+| `--skill NAME` | 初期状態で生成するskill。`[a-z0-9][a-z0-9-]*`形式で複数指定可能。省略時は `validate-agent-policy` |
 
-プロファイルを省略した場合は `core` と `security-baseline` が選択されます。
+プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
+
+`init`は書き込み前に、skill名をschema相当の形式で検証し、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。同一path、一方が他方の親pathとなる組合せ、いずれかの生成先の途中に既存の通常ファイルがある場合を拒否し、部分的な初期化を行いません。生成予定物同士の重複は`INIT_PATH_COLLISION`、既存pathによる妨害は`FILE_CONFLICT`として報告します。
+
+既存挙動との互換性のため、verificationを指定しない場合は`./scripts/verify.sh`が設定されます。そのコマンドを持たないリポジトリでは、実際の検証コマンドを明示するか、`--no-verification`を指定します。
 
 ## `validate`
 
