@@ -59,6 +59,7 @@ def _source(repository_root: Path, relative: str) -> AdoptionSource:
 
 
 def discover_sources(repository_root: Path) -> tuple[AdoptionSource, ...]:
+    repository_root = repository_root.resolve()
     candidates: set[str] = set()
     for relative in KNOWN_INSTRUCTION_FILES:
         path = resolve_inside(repository_root, relative, allow_missing=True)
@@ -88,13 +89,16 @@ def inspect_repository(
     config_path: str = ".agent-policy.yml",
     state_path: str = ".agent-policy/adoption.json",
 ) -> AdoptionInspection:
+    repository_root = repository_root.resolve()
     config_target = resolve_inside(repository_root, config_path, allow_missing=True)
     state_target = resolve_inside(repository_root, state_path, allow_missing=True)
     lock_target = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
     sources = discover_sources(repository_root)
 
-    if config_target.exists():
+    if config_target.exists() and config_target.is_file():
         state = "managed"
+    elif config_target.exists():
+        state = "inconsistent"
     elif state_target.exists() or lock_target.exists() or any(item.generated for item in sources):
         state = "inconsistent"
     elif sources:
