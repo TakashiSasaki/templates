@@ -2,7 +2,6 @@ from pathlib import Path
 
 from agent_policy.commands import check, render
 
-
 PROJECT_POLICY = """---
 id: project.rule
 severity: mandatory
