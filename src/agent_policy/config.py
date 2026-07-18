@@ -7,6 +7,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .diagnostics import Diagnostic
+from .lockfile import LOCK_PATH, resolve_lock_path
 from .paths import resolve_inside
 from .yamlutil import load_yaml
 
@@ -56,6 +57,10 @@ def load_config(repository_root: Path, config_path: str | Path) -> Config:
     return Config(path=path, data=value)
 
 
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
+
+
 def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
     import json
 
@@ -91,14 +96,30 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                 )
             )
 
+    try:
+        reserved_lock_path = resolve_lock_path(repository_root, allow_missing=True)
+    except ValueError as exc:
+        diagnostics.append(Diagnostic("error", "LOCK_PATH", str(exc), LOCK_PATH))
+        reserved_lock_path = None
+
     output_paths = [path for path in [config.output_agents_path] if path]
     if len(output_paths) != len(set(output_paths)):
         diagnostics.append(Diagnostic("error", "OUTPUT_COLLISION", "Output paths must be unique"))
     for output in output_paths:
         try:
-            resolve_inside(repository_root, output, allow_missing=True)
+            resolved_output = resolve_inside(repository_root, output, allow_missing=True)
         except ValueError as exc:
             diagnostics.append(Diagnostic("error", "OUTPUT_PATH", str(exc), output))
+            continue
+        if reserved_lock_path is not None and _paths_overlap(resolved_output, reserved_lock_path):
+            diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "RESERVED_OUTPUT_PATH",
+                    f"Output overlaps reserved generated path: {LOCK_PATH}",
+                    output,
+                )
+            )
         if output in config.project_policy_files or output == config.path.name:
             diagnostics.append(
                 Diagnostic(
