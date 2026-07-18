@@ -81,6 +81,34 @@ def _planned_path_collision(
     )
 
 
+def _planned_path_conflict(
+    repository_root: Path,
+    planned: list[tuple[str, str, Path]],
+    *,
+    ignore_existing: set[Path],
+) -> Diagnostic | None:
+    conflicts: list[str] = []
+    for role, relative, target in planned:
+        if target not in ignore_existing and target.exists():
+            conflicts.append(f"{relative} ({role}) already exists")
+        for parent in target.parents:
+            if parent == repository_root:
+                break
+            if parent.exists() and not parent.is_dir():
+                parent_name = parent.relative_to(repository_root).as_posix()
+                conflicts.append(
+                    f"{relative} ({role}) is blocked by non-directory ancestor {parent_name}"
+                )
+                break
+    if not conflicts:
+        return None
+    return Diagnostic(
+        "error",
+        "FILE_CONFLICT",
+        f"Existing paths would conflict: {'; '.join(conflicts)}",
+    )
+
+
 def run(
     repository_root: Path,
     config_path: str,
@@ -135,21 +163,13 @@ def run(
     if collision is not None:
         return [collision]
 
-    conflicts = sorted(
-        {
-            target.relative_to(repository_root).as_posix()
-            for _role, _relative, target in planned
-            if target != config_target and target.exists()
-        }
+    conflict = _planned_path_conflict(
+        repository_root,
+        planned,
+        ignore_existing={config_target},
     )
-    if conflicts:
-        return [
-            Diagnostic(
-                "error",
-                "FILE_CONFLICT",
-                f"Existing files would conflict: {', '.join(conflicts)}",
-            )
-        ]
+    if conflict is not None:
+        return [conflict]
 
     generated_skills = [relative for _role, relative in generated_skill_outputs]
     if not apply:
