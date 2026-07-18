@@ -5,13 +5,13 @@ import tempfile
 from pathlib import Path
 
 from ..diagnostics import Diagnostic
-from ..lockfile import LOCK_PATH, load_lock_output_paths
+from ..lockfile import LOCK_PATH, load_lock_output_paths, resolve_lock_path
 from ..paths import resolve_inside
 from .render import run as render_run
 
 
 def _locked_outputs(repository_root: Path) -> set[str]:
-    lock_path = repository_root / LOCK_PATH
+    lock_path = resolve_lock_path(repository_root, allow_missing=True)
     if not lock_path.exists():
         return set()
     return set(load_lock_output_paths(lock_path))
