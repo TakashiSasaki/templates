@@ -48,7 +48,7 @@ skills:
 
 
 def _diagnostic_pairs(repository: Path) -> set[tuple[str, str | None]]:
-    return {(item.code, item.location) for item in check.run(repository, ".agent-policy.yml")}
+    return {(item.code, item.path) for item in check.run(repository, ".agent-policy.yml")}
 
 
 def test_check_uses_configured_agent_output_path(tmp_path: Path) -> None:
