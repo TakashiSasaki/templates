@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from agent_policy.commands import check, render
+from agent_policy.commands import check, render, validate
 
 PROJECT_POLICY = """---
 id: project.rule
@@ -71,6 +71,21 @@ def _assert_generated_output_collision(repository: Path, output_path: str) -> No
     assert not (repository / ".agents").exists()
 
 
+def _assert_reserved_lock_collision(repository: Path, output_path: str) -> None:
+    _write_repository(repository, output_path=output_path)
+
+    for command in (validate.run, render.run, check.run):
+        diagnostics = command(repository, ".agent-policy.yml")
+        assert len(diagnostics) == 1
+        assert diagnostics[0].code == "RESERVED_OUTPUT_PATH"
+        assert diagnostics[0].path == output_path
+        assert ".agent-policy.lock" in diagnostics[0].message
+
+    assert not (repository / ".agent-policy.lock").exists()
+    assert not (repository / ".agents").exists()
+    assert not (repository / output_path).exists()
+
+
 def test_check_uses_configured_agent_output_path(tmp_path: Path) -> None:
     output_path = ".agent-policy/preview/AGENTS.md"
     _write_repository(tmp_path, output_path=output_path)
@@ -135,3 +150,11 @@ def test_render_rejects_parent_generated_output_collision(tmp_path: Path) -> Non
         tmp_path,
         ".agents/skills/validate-agent-policy",
     )
+
+
+def test_commands_reject_lock_file_as_agents_output(tmp_path: Path) -> None:
+    _assert_reserved_lock_collision(tmp_path, ".agent-policy.lock")
+
+
+def test_commands_reject_path_below_lock_file_as_agents_output(tmp_path: Path) -> None:
+    _assert_reserved_lock_collision(tmp_path, ".agent-policy.lock/AGENTS.md")
