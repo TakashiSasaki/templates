@@ -50,6 +50,10 @@ def _diagnostic_pairs(repository: Path) -> set[tuple[str, str | None]]:
     return {(item.code, item.path) for item in check.run(repository, ".agent-policy.yml")}
 
 
+def _append_stale_content(path: Path) -> None:
+    path.write_text(path.read_text(encoding="utf-8") + "\nstale\n", encoding="utf-8")
+
+
 def test_check_uses_configured_agent_output_path(tmp_path: Path) -> None:
     output_path = ".agent-policy/preview/AGENTS.md"
     _write_repository(tmp_path, output_path=output_path)
@@ -57,7 +61,7 @@ def test_check_uses_configured_agent_output_path(tmp_path: Path) -> None:
     assert render.run(tmp_path, ".agent-policy.yml") == []
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
-    (tmp_path / output_path).write_text("stale\n", encoding="utf-8")
+    _append_stale_content(tmp_path / output_path)
     assert ("STALE_OUTPUT", output_path) in _diagnostic_pairs(tmp_path)
 
 
@@ -66,7 +70,7 @@ def test_check_reports_exact_stale_skill_file(tmp_path: Path) -> None:
     assert render.run(tmp_path, ".agent-policy.yml") == []
 
     skill_path = ".agents/skills/validate-agent-policy/SKILL.md"
-    (tmp_path / skill_path).write_text("stale\n", encoding="utf-8")
+    _append_stale_content(tmp_path / skill_path)
 
     assert ("STALE_OUTPUT", skill_path) in _diagnostic_pairs(tmp_path)
 
