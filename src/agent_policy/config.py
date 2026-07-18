@@ -26,9 +26,15 @@ class Config:
         return list(self.data.get("project_policy", {}).get("files", []))
 
     @property
+    def configured_agents_path(self) -> str | None:
+        item = self.data.get("outputs", {}).get("agents", {})
+        path = item.get("path")
+        return path if isinstance(path, str) else None
+
+    @property
     def output_agents_path(self) -> str | None:
         item = self.data.get("outputs", {}).get("agents", {})
-        return item.get("path") if item.get("enabled", False) else None
+        return self.configured_agents_path if item.get("enabled", False) else None
 
     @property
     def enabled_skills(self) -> list[str]:
@@ -102,7 +108,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
         diagnostics.append(Diagnostic("error", "LOCK_PATH", str(exc), LOCK_PATH))
         reserved_lock_path = None
 
-    output_paths = [path for path in [config.output_agents_path] if path]
+    output_paths = [path for path in [config.configured_agents_path] if path]
     if len(output_paths) != len(set(output_paths)):
         diagnostics.append(Diagnostic("error", "OUTPUT_COLLISION", "Output paths must be unique"))
     for output in output_paths:
