@@ -5,55 +5,64 @@ import tempfile
 from pathlib import Path
 
 from ..diagnostics import Diagnostic
+from ..lockfile import load_lock_output_paths
+from ..paths import resolve_inside
 from .render import run as render_run
 
 
+LOCK_PATH = ".agent-policy.lock"
+
+
+def _locked_outputs(repository_root: Path) -> set[str]:
+    lock_path = repository_root / LOCK_PATH
+    if not lock_path.exists():
+        return set()
+    return set(load_lock_output_paths(lock_path))
+
+
+def _resolve_candidate(repository_root: Path, relative: str) -> Path:
+    return resolve_inside(repository_root, relative, allow_missing=True)
+
+
+def _is_stale(left: Path, right: Path) -> bool:
+    return (
+        not left.is_file()
+        or not right.is_file()
+        or left.read_bytes() != right.read_bytes()
+    )
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
-    with tempfile.TemporaryDirectory(prefix="agent-policy-check-") as temporary:
-        staged = Path(temporary) / "repo"
-        shutil.copytree(repository_root, staged, ignore=shutil.ignore_patterns(".git"))
-        diagnostics = render_run(staged, config_path)
-        if diagnostics:
-            return diagnostics
-        candidates = [".agent-policy.lock", "AGENTS.md", ".agents/skills"]
-        differences: list[Diagnostic] = []
-        for relative in candidates:
-            left = repository_root / relative
-            right = staged / relative
-            if left.is_dir() or right.is_dir():
-                left_files = (
-                    {
-                        str(path.relative_to(left)): path.read_bytes()
-                        for path in left.rglob("*")
-                        if path.is_file()
-                    }
-                    if left.is_dir()
-                    else {}
-                )
-                right_files = (
-                    {
-                        str(path.relative_to(right)): path.read_bytes()
-                        for path in right.rglob("*")
-                        if path.is_file()
-                    }
-                    if right.is_dir()
-                    else {}
-                )
-                if left_files != right_files:
-                    differences.append(
-                        Diagnostic(
-                            "error",
-                            "STALE_OUTPUT",
-                            "Generated directory is stale",
-                            relative,
-                        )
-                    )
-            elif (
-                not left.exists()
-                or not right.exists()
-                or left.read_bytes() != right.read_bytes()
-            ):
+    try:
+        previous_outputs = _locked_outputs(repository_root)
+        with tempfile.TemporaryDirectory(prefix="agent-policy-check-") as temporary:
+            staged = Path(temporary) / "repo"
+            shutil.copytree(repository_root, staged, ignore=shutil.ignore_patterns(".git"))
+            diagnostics = render_run(staged, config_path)
+            if diagnostics:
+                return diagnostics
+
+            expected_outputs = _locked_outputs(staged)
+            differences: list[Diagnostic] = []
+
+            for relative in sorted(previous_outputs - expected_outputs):
+                _resolve_candidate(repository_root, relative)
                 differences.append(
-                    Diagnostic("error", "STALE_OUTPUT", "Generated file is stale", relative)
+                    Diagnostic(
+                        "error",
+                        "OBSOLETE_OUTPUT",
+                        "Previously generated output is no longer declared",
+                        relative,
+                    )
                 )
-        return differences
+
+            for relative in sorted({LOCK_PATH, *expected_outputs}):
+                left = _resolve_candidate(repository_root, relative)
+                right = _resolve_candidate(staged, relative)
+                if _is_stale(left, right):
+                    differences.append(
+                        Diagnostic("error", "STALE_OUTPUT", "Generated file is stale", relative)
+                    )
+            return differences
+    except Exception as exc:
+        return [Diagnostic("error", "CHECK", str(exc))]
