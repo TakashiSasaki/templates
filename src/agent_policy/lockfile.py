@@ -4,13 +4,16 @@ import hashlib
 from collections.abc import Mapping
 from pathlib import Path
 
-from .paths import resolve_inside
+from .paths import UnsafePathError, resolve_inside
 from .yamlutil import dump_yaml, load_yaml
 
 LOCK_PATH = ".agent-policy.lock"
 
 
 def resolve_lock_path(repository_root: Path, *, allow_missing: bool = True) -> Path:
+    literal = repository_root.resolve() / LOCK_PATH
+    if literal.is_symlink():
+        raise UnsafePathError(f"Lock path must not be a symlink: {LOCK_PATH}")
     return resolve_inside(repository_root, LOCK_PATH, allow_missing=allow_missing)
 
 
