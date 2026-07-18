@@ -7,16 +7,23 @@ from agent_policy.yamlutil import load_yaml
 
 
 def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
+    profiles = ["core"]
+    project_policy_files = ["policy/a.md", "policy/b.md"]
+    enabled_skills: list[str] = []
     manifest = build_manifest(
         toolchain_revision="LOCAL-DEVELOPMENT",
-        profiles=["core"],
-        project_policy_files=["policy/a.md", "policy/b.md"],
+        profiles=profiles,
+        project_policy_files=project_policy_files,
         verification_command=None,
         agents_output_enabled=True,
         agents_output_path=".agent-policy/preview/AGENTS.md",
-        enabled_skills=[],
+        enabled_skills=enabled_skills,
     )
+    profiles.append("security-baseline")
+    project_policy_files.clear()
+    enabled_skills.append("validate-agent-policy")
 
+    assert manifest["profiles"] == ["core"]
     assert manifest["project_policy"] == {"files": ["policy/a.md", "policy/b.md"]}
     assert "verification" not in manifest
     assert manifest["outputs"] == {
