@@ -36,6 +36,7 @@ def test_preview_regenerates_stale_generated_output(tmp_path: Path) -> None:
     regenerated = preview.read_text(encoding="utf-8")
     assert regenerated != stale_content
     assert "stale fixture" not in regenerated
+    assert GENERATED_MARKER in regenerated
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
 
