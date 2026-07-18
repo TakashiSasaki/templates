@@ -1,23 +1,30 @@
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from ..adoption import (
     LOCK_PATH,
     AdoptionInspection,
     build_adoption_state,
+    changed_adoption_sources,
     dump_adoption_state,
+    finalized_adoption_state,
     inspect_repository,
+    load_adoption_state,
 )
-from ..config import package_root
+from ..config import Config, load_config, package_root
 from ..diagnostics import Diagnostic
 from ..lockfile import load_lock_output_paths
 from ..manifest import build_manifest
 from ..paths import resolve_inside
-from ..renderer import render_skill
+from ..renderer import GENERATED_MARKER, render_skill
 from ..yamlutil import dump_yaml
+from .check import run as check_run
 from .render import run as render_run
 
 DEFAULT_STATE_PATH = ".agent-policy/adoption.json"
@@ -25,6 +32,7 @@ DEFAULT_PRIMARY_INSTRUCTIONS = "AGENTS.md"
 DEFAULT_PREVIEW_OUTPUT_PATH = ".agent-policy/preview/AGENTS.md"
 DEFAULT_PROJECT_POLICY_FILES = ["policy/project.md"]
 DEFAULT_ENABLED_SKILLS = ["validate-agent-policy"]
+DEFAULT_BACKUP_PATH = ".agent-policy/adoption/original/AGENTS.md"
 
 
 def _inspection_diagnostics(inspection: AdoptionInspection) -> list[Diagnostic]:
@@ -91,6 +99,21 @@ def _write_new_file(path: Path, content: bytes) -> None:
         raise
 
 
+def _write_atomic_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("wb", dir=path.parent, delete=False) as handle:
+        handle.write(content)
+        temporary = Path(handle.name)
+    try:
+        os.replace(temporary, path)
+    except Exception:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def _remove_created(paths: list[Path]) -> None:
     for path in reversed(paths):
         try:
@@ -119,6 +142,59 @@ def _state_error(state: str) -> Diagnostic | None:
             "Repository contains partial or generated agent-policy artifacts",
         )
     return None
+
+
+def _verification_command(config: Config) -> str | None:
+    verification = config.data.get("verification")
+    if not isinstance(verification, dict):
+        return None
+    command = verification.get("command")
+    return command if isinstance(command, str) else None
+
+
+def _load_prepared_context(
+    repository_root: Path,
+    state_path: str,
+) -> tuple[dict[str, Any], Config, str]:
+    repository_root = repository_root.resolve()
+    state_target = resolve_inside(repository_root, state_path, allow_missing=False)
+    state_name = _relative_name(repository_root, state_target)
+    state = load_adoption_state(repository_root, state_name)
+    if state["state_path"] != state_name:
+        raise ValueError("Adoption state path does not match its recorded path")
+    if state["status"] != "prepared":
+        raise ValueError(f"Adoption state is not prepared: {state['status']}")
+
+    config = load_config(repository_root, state["config_path"])
+    toolchain = config.data.get("toolchain")
+    if toolchain != state["toolchain"]:
+        raise ValueError("Configuration toolchain does not match adoption state")
+    if config.profiles != state["selected_profiles"]:
+        raise ValueError("Configuration profiles do not match adoption state")
+    if config.project_policy_files != state["project_policy_files"]:
+        raise ValueError("Configuration project policies do not match adoption state")
+    if config.output_agents_path != state["preview_output"]:
+        raise ValueError("Configuration output does not match adoption preview path")
+    if config.enabled_skills != state["generated_skills"]:
+        raise ValueError("Configuration skills do not match adoption state")
+    if _verification_command(config) != state["verification_command"]:
+        raise ValueError("Configuration verification does not match adoption state")
+    return state, config, state_name
+
+
+def _source_change_diagnostics(
+    repository_root: Path,
+    state: dict[str, Any],
+) -> list[Diagnostic]:
+    return [
+        Diagnostic(
+            "error",
+            "ADOPTION_SOURCE_CHANGED",
+            "Recorded adoption source changed after preparation",
+            relative,
+        )
+        for relative in changed_adoption_sources(repository_root, state)
+    ]
 
 
 def prepare_run(
@@ -316,3 +392,224 @@ def prepare_run(
     except Exception as exc:
         _remove_created(created)
         return [Diagnostic("error", "ADOPT_PREPARE", str(exc))]
+
+
+def preview_run(
+    repository_root: Path,
+    *,
+    state_path: str = DEFAULT_STATE_PATH,
+) -> list[Diagnostic]:
+    try:
+        repository_root = repository_root.resolve()
+        state, _, _ = _load_prepared_context(repository_root, state_path)
+        source_diagnostics = _source_change_diagnostics(repository_root, state)
+        if source_diagnostics:
+            return source_diagnostics
+        diagnostics = render_run(repository_root, state["config_path"])
+        if diagnostics:
+            return diagnostics
+        return check_run(repository_root, state["config_path"])
+    except Exception as exc:
+        return [Diagnostic("error", "ADOPT_PREVIEW", str(exc))]
+
+
+def _validate_backup_path(
+    repository_root: Path,
+    state: dict[str, Any],
+    backup_path: str,
+) -> str:
+    backup_target = resolve_inside(repository_root, backup_path, allow_missing=True)
+    backup_name = _relative_name(repository_root, backup_target)
+    protected = {
+        state["config_path"],
+        state["state_path"],
+        state["primary_instructions"],
+        state["preview_output"],
+        LOCK_PATH,
+        *state["project_policy_files"],
+        *(item["path"] for item in state["sources"]),
+        *(_generated_skill_files(state["generated_skills"])),
+    }
+    if backup_name in protected:
+        raise ValueError("Backup path overlaps an adoption input or generated output")
+    if backup_target.exists():
+        raise FileExistsError(f"Backup path already exists: {backup_name}")
+    return backup_name
+
+
+def _stage_finalization(
+    repository_root: Path,
+    state: dict[str, Any],
+    backup_name: str,
+) -> tuple[dict[str, bytes], list[str]]:
+    with tempfile.TemporaryDirectory(prefix="agent-policy-finalize-") as temporary:
+        staged = Path(temporary) / "repo"
+        shutil.copytree(
+            repository_root,
+            staged,
+            ignore=shutil.ignore_patterns(".git"),
+            symlinks=True,
+        )
+
+        primary_name = state["primary_instructions"]
+        preview_name = state["preview_output"]
+        config_name = state["config_path"]
+        state_name = state["state_path"]
+        staged_primary = resolve_inside(staged, primary_name, allow_missing=False)
+        staged_backup = resolve_inside(staged, backup_name, allow_missing=True)
+        _write_new_file(staged_backup, staged_primary.read_bytes())
+
+        final_manifest = build_manifest(
+            toolchain_revision=state["toolchain"]["revision"],
+            profiles=state["selected_profiles"],
+            project_policy_files=state["project_policy_files"],
+            verification_command=state["verification_command"],
+            agents_output_enabled=True,
+            agents_output_path=primary_name,
+            enabled_skills=state["generated_skills"],
+        )
+        staged_config = resolve_inside(staged, config_name, allow_missing=False)
+        staged_config.write_text(dump_yaml(final_manifest), encoding="utf-8")
+        staged_primary.unlink()
+
+        diagnostics = render_run(staged, config_name)
+        if diagnostics:
+            raise RuntimeError(
+                "; ".join(f"{item.code}: {item.message}" for item in diagnostics)
+            )
+        generated_primary = resolve_inside(staged, primary_name, allow_missing=False)
+        if GENERATED_MARKER.encode("utf-8") not in generated_primary.read_bytes():
+            raise ValueError("Final primary instructions do not contain the generated marker")
+
+        staged_preview = resolve_inside(staged, preview_name, allow_missing=True)
+        if staged_preview.exists():
+            if not staged_preview.is_file():
+                raise ValueError("Preview output is not a file")
+            if GENERATED_MARKER.encode("utf-8") not in staged_preview.read_bytes():
+                raise ValueError("Refusing to delete a non-generated preview file")
+            staged_preview.unlink()
+
+        final_state = finalized_adoption_state(
+            state,
+            backup_path=backup_name,
+            final_output=primary_name,
+        )
+        staged_state = resolve_inside(staged, state_name, allow_missing=False)
+        staged_state.write_text(dump_adoption_state(final_state), encoding="utf-8")
+
+        diagnostics = check_run(staged, config_name)
+        if diagnostics:
+            raise RuntimeError(
+                "; ".join(f"{item.code}: {item.message}" for item in diagnostics)
+            )
+
+        write_names = [config_name, state_name, LOCK_PATH, primary_name, backup_name]
+        writes = {
+            relative: resolve_inside(staged, relative, allow_missing=False).read_bytes()
+            for relative in write_names
+        }
+        return writes, [preview_name]
+
+
+def _apply_transaction(
+    repository_root: Path,
+    writes: dict[str, bytes],
+    deletes: list[str],
+    *,
+    must_be_absent: set[str],
+    verify: Callable[[], list[Diagnostic]] | None = None,
+) -> None:
+    names = sorted({*writes, *deletes})
+    snapshots: dict[str, bytes | None] = {}
+    for relative in names:
+        path = resolve_inside(repository_root, relative, allow_missing=True)
+        if path.exists() and not path.is_file():
+            raise ValueError(f"Transaction path is not a file: {relative}")
+        snapshots[relative] = path.read_bytes() if path.is_file() else None
+    conflicts = sorted(relative for relative in must_be_absent if snapshots[relative] is not None)
+    if conflicts:
+        raise FileExistsError(f"Paths must not exist: {', '.join(conflicts)}")
+
+    try:
+        for relative in sorted(writes):
+            path = resolve_inside(repository_root, relative, allow_missing=True)
+            if relative in must_be_absent:
+                _write_new_file(path, writes[relative])
+            else:
+                _write_atomic_bytes(path, writes[relative])
+        for relative in sorted(deletes):
+            path = resolve_inside(repository_root, relative, allow_missing=False)
+            path.unlink()
+        if verify is not None:
+            diagnostics = verify()
+            if diagnostics:
+                raise RuntimeError(
+                    "; ".join(f"{item.code}: {item.message}" for item in diagnostics)
+                )
+    except Exception as exc:
+        rollback_errors: list[str] = []
+        for relative in reversed(names):
+            path = resolve_inside(repository_root, relative, allow_missing=True)
+            original = snapshots[relative]
+            try:
+                if original is None:
+                    if path.exists():
+                        path.unlink()
+                else:
+                    _write_atomic_bytes(path, original)
+            except Exception as rollback_exc:
+                rollback_errors.append(f"{relative}: {rollback_exc}")
+        if rollback_errors:
+            raise RuntimeError(
+                f"Transaction failed ({exc}); rollback failed: {', '.join(rollback_errors)}"
+            ) from exc
+        raise
+
+
+def finalize_run(
+    repository_root: Path,
+    *,
+    state_path: str = DEFAULT_STATE_PATH,
+    backup_path: str = DEFAULT_BACKUP_PATH,
+    apply: bool,
+) -> list[Diagnostic]:
+    try:
+        repository_root = repository_root.resolve()
+        state, _, _ = _load_prepared_context(repository_root, state_path)
+        source_diagnostics = _source_change_diagnostics(repository_root, state)
+        if source_diagnostics:
+            return source_diagnostics
+
+        diagnostics = check_run(repository_root, state["config_path"])
+        if diagnostics:
+            return diagnostics
+        backup_name = _validate_backup_path(repository_root, state, backup_path)
+        writes, deletes = _stage_finalization(repository_root, state, backup_name)
+        plan = [
+            Diagnostic("info", "CREATE", "Backup original instructions", backup_name),
+            Diagnostic(
+                "info",
+                "REPLACE",
+                "Replace primary instructions with generated output",
+                state["primary_instructions"],
+            ),
+            Diagnostic("info", "UPDATE", "Activate final instruction output", state["config_path"]),
+            Diagnostic("info", "UPDATE", "Record finalized adoption state", state["state_path"]),
+            Diagnostic("info", "DELETE", "Remove generated preview", state["preview_output"]),
+        ]
+        if not apply:
+            return plan
+
+        source_diagnostics = _source_change_diagnostics(repository_root, state)
+        if source_diagnostics:
+            return source_diagnostics
+        _apply_transaction(
+            repository_root,
+            writes,
+            deletes,
+            must_be_absent={backup_name},
+            verify=lambda: check_run(repository_root, state["config_path"]),
+        )
+        return []
+    except Exception as exc:
+        return [Diagnostic("error", "ADOPT_FINALIZE", str(exc))]
