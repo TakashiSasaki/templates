@@ -202,6 +202,30 @@ def test_prepare_reuses_multiple_existing_project_policies(tmp_path: Path) -> No
     assert state["generated_skills"] == []
 
 
+def test_prepare_rejects_existing_generated_skill_tree_overlap(tmp_path: Path) -> None:
+    _initialize_repository(tmp_path)
+    (tmp_path / "AGENTS.md").write_text("handwritten\n", encoding="utf-8")
+    readme = tmp_path / ".agents/skills/validate-agent-policy/README.md"
+    readme.parent.mkdir(parents=True)
+    readme.write_text("handwritten skill documentation\n", encoding="utf-8")
+    original = readme.read_bytes()
+
+    diagnostics = adopt.prepare_run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+    )
+
+    assert diagnostics[0].code == "ADOPT_PREPARE"
+    assert ".agents/skills/validate-agent-policy/README.md" in diagnostics[0].message
+    assert readme.read_bytes() == original
+    assert not (tmp_path / ".agents/skills/validate-agent-policy/SKILL.md").exists()
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
 def test_prepare_without_generated_skills_preserves_handwritten_default_skill(
     tmp_path: Path,
 ) -> None:
