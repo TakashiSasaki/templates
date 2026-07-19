@@ -20,11 +20,11 @@ nav:
       - はじめに: getting-started.md
       - CLI: cli.md
       - ブートストラップスキル: bootstrap.md
+      - 既存リポジトリの導入: adoption.md
       - PWAとして利用する: pwa.md
   - 設計:
       - リポジトリ構造: repository-structure.md
       - アーキテクチャ: architecture.md
-      - 既存リポジトリ導入（設計）: adoption.md
       - 設定ファイル: configuration.md
       - 規約の作成: policy-authoring.md
       - Webアプリケーション規約: web-application-profile.md
