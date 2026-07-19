@@ -8,13 +8,25 @@ DO NOT EDIT DIRECTLY
 
 These instructions were generated from shared policy profiles and repository-specific policy files.
 
+## Policy system
+
+- Semantic configuration: `.agent-policy.yml`
+- Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
+{% if config.project_policy_files %}- Repository policy inputs:
+{% for path in config.project_policy_files %}  - `{{ path }}`
+{% endfor %}{% endif %}{% if config.enabled_skills %}- Generated operational skills:
+{% for skill in config.enabled_skills %}  - `.agents/skills/{{ skill }}/SKILL.md`
+{% endfor %}{% endif %}
+Do not edit this generated file directly. Change `.agent-policy.yml` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
+
 {% for rule in rules %}
 ## {{ rule.title }}
 
 {{ rule.body.split('\n', 1)[1].strip() if '\n' in rule.body else rule.body }}
 
-_Source: `{{ rule.source }}`; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
-
+{% if rule.origin == 'toolchain' %}_Source: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}:{{ rule.source }}`; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
+{% else %}_Source: `{{ rule.source }}` in this repository; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
+{% endif %}
 {% endfor %}
 {% set verification_command = config.data.get('verification', {}).get('command') %}
 {% if verification_command %}
