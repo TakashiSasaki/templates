@@ -43,7 +43,7 @@ The CLI does not embed a language model and does not automatically convert free-
 
 ## Adoption state machine
 
-The planned state progression is:
+The implemented state progression is:
 
 ```text
 unmanaged
@@ -55,7 +55,7 @@ unmanaged
         +-- prepare --> prepared --> previewed --> finalize --> managed
 ```
 
-Inspection is always read-only. Commands that can mutate default to dry-run. Preparation never replaces the primary handwritten instruction file. Finalization is a separate, explicitly authorized transactional operation.
+Inspection is always read-only. `init`, `adopt prepare`, and `adopt finalize` default to dry-run and require `--apply` for mutation. `adopt preview` is an explicit regeneration command for prepared generated artifacts and the lock. Preparation never replaces the primary handwritten instruction file. Finalization is a separate, explicitly authorized transactional operation.
 
 Repositories that already contain `.agent-policy.yml` use normal `validate`, `render`, and `check` operations. Partial or conflicting onboarding state is classified as inconsistent and is not automatically repaired.
 
