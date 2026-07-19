@@ -11,6 +11,7 @@ from .policy_loader import Rule
 
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 
 
 def environment() -> Environment:
@@ -27,7 +28,11 @@ def render_agents(config: Config, rules: Iterable[Rule]) -> str:
     return template.render(config=config, rules=list(rules))
 
 
-def render_skill(skill_name: str) -> dict[str, str]:
+def render_skill(
+    skill_name: str,
+    *,
+    config_path: str = ".agent-policy.yml",
+) -> dict[str, str]:
     if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
         raise ValueError(f"Invalid generated skill name: {skill_name}")
     skill_root = package_root() / "skills" / skill_name
@@ -37,7 +42,8 @@ def render_skill(skill_name: str) -> dict[str, str]:
     for path in sorted(skill_root.rglob("*")):
         if path.is_file():
             relative = str(path.relative_to(skill_root))
-            result[relative] = path.read_text(encoding="utf-8")
+            content = path.read_text(encoding="utf-8")
+            result[relative] = content.replace(SKILL_CONFIG_PATH_TOKEN, config_path)
     return result
 
 
