@@ -74,6 +74,25 @@ def _source(repository_root: Path, relative: str) -> AdoptionSource:
     )
 
 
+def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
+    repository_root = repository_root.resolve()
+    for relative in KNOWN_INSTRUCTION_FILES:
+        lexical_name = lexical_relative_name(repository_root, relative)
+        literal = repository_root / lexical_name
+        resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
+        if (literal.exists() or literal.is_symlink()) and not resolved.is_file():
+            return True
+
+    for relative in KNOWN_INSTRUCTION_DIRECTORIES:
+        lexical_name = lexical_relative_name(repository_root, relative)
+        literal = repository_root / lexical_name
+        resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
+        if (literal.exists() or literal.is_symlink()) and not resolved.is_dir():
+            return True
+
+    return False
+
+
 def discover_sources(repository_root: Path) -> tuple[AdoptionSource, ...]:
     repository_root = repository_root.resolve()
     candidates: set[str] = set()
@@ -122,6 +141,9 @@ def inspect_repository(
     config_target = resolve_inside(repository_root, config_name, allow_missing=True)
     state_target = resolve_inside(repository_root, state_name, allow_missing=True)
     lock_target = resolve_inside(repository_root, lock_name, allow_missing=True)
+    inconsistent_source_artifact = _has_inconsistent_known_source_artifact(
+        repository_root
+    )
     sources = discover_sources(repository_root)
 
     config_artifact = config_literal.exists() or config_literal.is_symlink()
@@ -133,7 +155,8 @@ def inspect_repository(
     elif config_artifact:
         state = "inconsistent"
     elif (
-        state_artifact
+        inconsistent_source_artifact
+        or state_artifact
         or lock_artifact
         or state_target.exists()
         or lock_target.exists()
