@@ -95,11 +95,20 @@ def _obsolete_generated_outputs(
         return []
 
     planned_targets = {target for target, _content in planned.values()}
+    locked_targets: dict[Path, str] = {}
     obsolete: list[Path] = []
     for relative, locked_digest in load_lock_outputs(lock_path).items():
+        target = _literal_output_path(repository_root, relative)
+        previous_relative = locked_targets.get(target)
+        if previous_relative is not None:
+            raise ValueError(
+                "Lock output paths normalize to the same target: "
+                f"{previous_relative} and {relative}"
+            )
+        locked_targets[target] = relative
+
         if relative in planned:
             continue
-        target = _literal_output_path(repository_root, relative)
         if target in planned_targets or target in protected_inputs or not target.exists():
             continue
         if not target.is_file():
@@ -118,21 +127,25 @@ def _obsolete_generated_outputs(
     return obsolete
 
 
-def _reject_obsolete_ancestor_migrations(
+def _reject_obsolete_output_overlaps(
     repository_root: Path,
     obsolete: list[Path],
     planned: dict[str, tuple[Path, str]],
 ) -> None:
     root = repository_root.resolve()
     for obsolete_target in obsolete:
+        obsolete_relative = obsolete_target.relative_to(root).as_posix()
         for planned_relative, (planned_target, _content) in planned.items():
-            if obsolete_target not in planned_target.parents:
-                continue
-            obsolete_relative = obsolete_target.relative_to(root).as_posix()
-            raise ValueError(
-                "Refusing to replace obsolete generated file with nested output: "
-                f"{obsolete_relative} is an ancestor of {planned_relative}"
-            )
+            if obsolete_target in planned_target.parents:
+                raise ValueError(
+                    "Refusing to replace obsolete generated file with nested output: "
+                    f"{obsolete_relative} is an ancestor of {planned_relative}"
+                )
+            if planned_target in obsolete_target.parents:
+                raise ValueError(
+                    "Refusing to replace obsolete nested output with parent output: "
+                    f"{obsolete_relative} is a descendant of {planned_relative}"
+                )
 
 
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
@@ -168,7 +181,7 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             planned,
             set(inputs.values()),
         )
-        _reject_obsolete_ancestor_migrations(repository_root, obsolete, planned)
+        _reject_obsolete_output_overlaps(repository_root, obsolete, planned)
 
         outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
