@@ -69,3 +69,41 @@ def test_merged_pr_must_match_current_branch_tip():
     assert not maintenance.merged_pr_matches_branch(
         pr, "owner/repo", "feature", "new-head"
     )
+
+
+def test_open_pr_base_branch_is_not_deleted():
+    repository = "owner/repo"
+    open_pr = maintenance.PullRequest(
+        number=12,
+        title="Stacked child",
+        base=maintenance.PullRequestRef(repository, "stack-base", "base-tip"),
+        head=maintenance.PullRequestRef(repository, "stack-child", "child-tip"),
+        merged_at=None,
+    )
+
+    class FakeApi:
+        def branches(self):
+            return [
+                {
+                    "name": "stack-base",
+                    "commit": {"sha": "base-tip"},
+                    "protected": False,
+                }
+            ]
+
+        def pulls_for_commit(self, sha):
+            raise AssertionError(f"unexpected merged-PR lookup for protected branch {sha}")
+
+        def delete_branch(self, branch):
+            raise AssertionError(f"unexpected deletion of protected branch {branch}")
+
+    deleted = maintenance.delete_merged_branches(
+        FakeApi(),
+        repository,
+        "main",
+        set(),
+        [open_pr],
+        apply=True,
+    )
+
+    assert deleted == []

@@ -11,6 +11,9 @@ def build_manifest(
     agents_output_path: str,
     enabled_skills: list[str],
 ) -> dict[str, object]:
+    if verification_command is not None and not verification_command.strip():
+        raise ValueError("Verification command must not be empty")
+
     manifest: dict[str, object] = {
         "schema_version": 1,
         "toolchain": {

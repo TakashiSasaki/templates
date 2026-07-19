@@ -135,12 +135,32 @@ def run(
                 "init requires exactly one project policy scaffold",
             )
         ]
+    if verification_command is not None and not verification_command.strip():
+        return [
+            Diagnostic(
+                "error",
+                "INIT_VERIFICATION",
+                "Verification command must not be empty",
+                "verification.command",
+            )
+        ]
 
     config_target = resolve_inside(repository_root, config_path)
     if config_target.exists():
         return [Diagnostic("error", "ALREADY_INITIALIZED", f"{config_path} already exists")]
 
     project_targets = [resolve_inside(repository_root, relative) for relative in policies]
+    try:
+        agents_target = resolve_inside(repository_root, agents_output_path)
+    except ValueError as exc:
+        return [
+            Diagnostic(
+                "error",
+                "INIT_AGENTS_OUTPUT_PATH",
+                str(exc),
+                agents_output_path,
+            )
+        ]
     try:
         generated_skill_outputs = _generated_skill_outputs(skills)
     except Exception as exc:
@@ -152,14 +172,19 @@ def run(
         for relative, target in zip(policies, project_targets, strict=True)
     )
     if agents_output_enabled:
-        agents_target = resolve_inside(repository_root, agents_output_path)
         planned.append(("agent output", agents_output_path, agents_target))
     for role, relative in generated_skill_outputs:
         planned.append((role, relative, resolve_inside(repository_root, relative)))
     lock_target = resolve_inside(repository_root, LOCK_PATH)
     planned.append(("lock", LOCK_PATH, lock_target))
 
-    collision = _planned_path_collision(repository_root, planned)
+    declared_paths = planned
+    if not agents_output_enabled:
+        declared_paths = [
+            *planned,
+            ("configured agent output", agents_output_path, agents_target),
+        ]
+    collision = _planned_path_collision(repository_root, declared_paths)
     if collision is not None:
         return [collision]
 

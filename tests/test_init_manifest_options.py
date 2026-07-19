@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from agent_policy.cli import parser
 from agent_policy.commands import check, init, validate
 from agent_policy.manifest import build_manifest
@@ -33,6 +35,19 @@ def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
         }
     }
     assert manifest["skills"] == {"enabled": []}
+
+
+def test_manifest_builder_rejects_empty_verification_command() -> None:
+    with pytest.raises(ValueError, match="Verification command must not be empty"):
+        build_manifest(
+            toolchain_revision="LOCAL-DEVELOPMENT",
+            profiles=["core"],
+            project_policy_files=["policy/project.md"],
+            verification_command="   ",
+            agents_output_enabled=True,
+            agents_output_path="AGENTS.md",
+            enabled_skills=[],
+        )
 
 
 def test_init_defaults_remain_compatible() -> None:
@@ -95,6 +110,67 @@ def test_init_rejects_multiple_policy_scaffolds(tmp_path: Path) -> None:
     )
 
     assert diagnostics[0].code == "INIT_PROJECT_POLICY_COUNT"
+
+
+def test_init_rejects_disabled_output_escape_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    escaped_name = f"{tmp_path.name}-escaped-agents.md"
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        agents_output_enabled=False,
+        agents_output_path=f"../{escaped_name}",
+        enabled_skills=[],
+    )
+
+    assert diagnostics[0].code == "INIT_AGENTS_OUTPUT_PATH"
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / "policy/project.md").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+    assert not (tmp_path.parent / escaped_name).exists()
+
+
+def test_init_rejects_disabled_output_collision_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        agents_output_enabled=False,
+        agents_output_path=".agent-policy.lock",
+        enabled_skills=[],
+    )
+
+    assert diagnostics[0].code == "INIT_PATH_COLLISION"
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / "policy/project.md").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
+
+
+def test_init_rejects_empty_verification_before_writing(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        verification_command="   ",
+        enabled_skills=[],
+    )
+
+    assert diagnostics[0].code == "INIT_VERIFICATION"
+    assert not (tmp_path / ".agent-policy.yml").exists()
+    assert not (tmp_path / "policy/project.md").exists()
+    assert not (tmp_path / ".agent-policy.lock").exists()
 
 
 def test_init_rejects_config_policy_collision_before_writing(tmp_path: Path) -> None:

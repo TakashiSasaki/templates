@@ -6,4 +6,4 @@ order: 300
 ---
 # Run the repository's required verification
 
-Use the verification command declared by the repository. Report checks that were not run, failed, or were blocked by the environment. Never infer successful verification from code inspection alone.
+Use the verification command declared by the repository and add focused checks needed for the changed behavior or failure mode. Confirm that the executed checks cover the changed surface and the current revision; a check that is pending, skipped, not triggered, stale, blocked, or merely inspected is not a passing result. Report every required check that was not run or did not pass.
