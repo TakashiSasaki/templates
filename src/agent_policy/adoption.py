@@ -103,7 +103,7 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
                 child_name,
                 allow_missing=True,
             )
-            if not child_target.exists():
+            if not child_target.is_file():
                 return True
 
     return False
