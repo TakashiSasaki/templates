@@ -10,15 +10,18 @@ from ..paths import resolve_inside
 from .render import run as render_run
 
 
+def _resolve_candidate(repository_root: Path, relative: str) -> Path:
+    return resolve_inside(repository_root, relative, allow_missing=True)
+
+
 def _locked_outputs(repository_root: Path) -> set[str]:
     lock_path = resolve_lock_path(repository_root, allow_missing=True)
     if not lock_path.exists():
         return set()
-    return set(load_lock_output_paths(lock_path))
-
-
-def _resolve_candidate(repository_root: Path, relative: str) -> Path:
-    return resolve_inside(repository_root, relative, allow_missing=True)
+    outputs = set(load_lock_output_paths(lock_path))
+    for relative in outputs:
+        _resolve_candidate(repository_root, relative)
+    return outputs
 
 
 def _is_stale(left: Path, right: Path) -> bool:
@@ -43,7 +46,6 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             differences: list[Diagnostic] = []
 
             for relative in sorted(previous_outputs - expected_outputs):
-                _resolve_candidate(repository_root, relative)
                 differences.append(
                     Diagnostic(
                         "error",

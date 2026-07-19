@@ -41,7 +41,7 @@ def create_lock(
     return dump_yaml(value)
 
 
-def load_lock_output_paths(path: Path) -> tuple[str, ...]:
+def load_lock_outputs(path: Path) -> dict[str, str]:
     value = load_yaml(path)
     if not isinstance(value, dict):
         raise ValueError("Lock file root must be a mapping")
@@ -52,7 +52,7 @@ def load_lock_output_paths(path: Path) -> tuple[str, ...]:
     if not isinstance(outputs, dict):
         raise ValueError("Lock file outputs must be a mapping")
 
-    result: list[str] = []
+    result: dict[str, str] = {}
     for relative, metadata in outputs.items():
         if not isinstance(relative, str) or not relative:
             raise ValueError("Lock output paths must be non-empty strings")
@@ -65,5 +65,9 @@ def load_lock_output_paths(path: Path) -> tuple[str, ...]:
             or any(character not in "0123456789abcdef" for character in digest)
         ):
             raise ValueError(f"Lock output sha256 is invalid: {relative}")
-        result.append(relative)
-    return tuple(sorted(result))
+        result[relative] = digest
+    return dict(sorted(result.items()))
+
+
+def load_lock_output_paths(path: Path) -> tuple[str, ...]:
+    return tuple(load_lock_outputs(path))

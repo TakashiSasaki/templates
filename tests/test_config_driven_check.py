@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from agent_policy.commands import check, render, validate
+from agent_policy.lockfile import sha256_file
+from agent_policy.yamlutil import dump_yaml, load_yaml
 
 PROJECT_POLICY = """---
 id: project.rule
@@ -54,6 +56,25 @@ def _diagnostic_pairs(repository: Path) -> set[tuple[str, str | None]]:
 
 def _append_stale_content(path: Path) -> None:
     path.write_text(path.read_text(encoding="utf-8") + "\nstale\n", encoding="utf-8")
+
+
+def _disable_agent_output(repository: Path) -> None:
+    config_path = repository / ".agent-policy.yml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "enabled: true\n    path: AGENTS.md",
+            "enabled: false\n    path: AGENTS.md",
+        ),
+        encoding="utf-8",
+    )
+
+
+def _replace_locked_outputs(repository: Path, relative: str) -> None:
+    lock_path = repository / ".agent-policy.lock"
+    lock = load_yaml(lock_path)
+    assert isinstance(lock, dict)
+    lock["outputs"] = {relative: {"sha256": sha256_file(repository / relative)}}
+    lock_path.write_text(dump_yaml(lock), encoding="utf-8")
 
 
 def _assert_generated_output_collision(repository: Path, output_path: str) -> None:
@@ -130,16 +151,87 @@ def test_check_reports_output_removed_from_configuration(tmp_path: Path) -> None
     _write_repository(tmp_path)
     assert render.run(tmp_path, ".agent-policy.yml") == []
 
-    config_path = tmp_path / ".agent-policy.yml"
-    config_path.write_text(
-        config_path.read_text(encoding="utf-8").replace(
-            "enabled: true\n    path: AGENTS.md",
-            "enabled: false\n    path: AGENTS.md",
-        ),
-        encoding="utf-8",
-    )
+    _disable_agent_output(tmp_path)
 
     assert ("OBSOLETE_OUTPUT", "AGENTS.md") in _diagnostic_pairs(tmp_path)
+
+
+def test_render_removes_output_removed_from_configuration(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert (tmp_path / "AGENTS.md").is_file()
+
+    _disable_agent_output(tmp_path)
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert not (tmp_path / "AGENTS.md").exists()
+    assert check.run(tmp_path, ".agent-policy.yml") == []
+
+
+def test_render_refuses_to_remove_modified_obsolete_output(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    agents_path = tmp_path / "AGENTS.md"
+    _append_stale_content(agents_path)
+    modified = agents_path.read_text(encoding="utf-8")
+
+    _disable_agent_output(tmp_path)
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "modified obsolete generated output: AGENTS.md" in diagnostics[0].message
+    assert agents_path.read_text(encoding="utf-8") == modified
+    assert "AGENTS.md" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
+
+
+def test_render_refuses_symlinked_obsolete_output(tmp_path: Path) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    agents_path = tmp_path / "AGENTS.md"
+    target_path = tmp_path / "generated-copy.md"
+    generated_content = agents_path.read_bytes()
+    target_path.write_bytes(generated_content)
+    agents_path.unlink()
+    try:
+        agents_path.symlink_to(target_path.name)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable: {exc}")
+
+    _disable_agent_output(tmp_path)
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "RENDER"
+    assert "must not contain symlinks: AGENTS.md" in diagnostics[0].message
+    assert agents_path.is_symlink()
+    assert target_path.read_bytes() == generated_content
+    assert "AGENTS.md" in (tmp_path / ".agent-policy.lock").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("relative", [".agent-policy.yml", "policy/project.md"])
+def test_render_preserves_current_input_listed_as_obsolete_output(
+    tmp_path: Path,
+    relative: str,
+) -> None:
+    _write_repository(tmp_path)
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+
+    input_path = tmp_path / relative
+    original = input_path.read_text(encoding="utf-8")
+    if relative == ".agent-policy.yml":
+        protected_content = f"# agent-policy-generated: true\n{original}"
+    else:
+        protected_content = f"{original}\nagent-policy-generated: true\n"
+    input_path.write_text(protected_content, encoding="utf-8")
+    _replace_locked_outputs(tmp_path, relative)
+
+    assert render.run(tmp_path, ".agent-policy.yml") == []
+    assert input_path.read_text(encoding="utf-8") == protected_content
+
+    lock = load_yaml(tmp_path / ".agent-policy.lock")
+    assert isinstance(lock, dict)
+    assert relative not in lock["outputs"]
 
 
 def test_check_rejects_locked_output_outside_repository(tmp_path: Path) -> None:
