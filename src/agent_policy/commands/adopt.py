@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 from ..adoption import (
+    KNOWN_INSTRUCTION_FILES,
     LOCK_PATH,
     AdoptionInspection,
     build_adoption_state,
@@ -185,18 +186,22 @@ def prepare_run(
             return [error]
 
         source_paths = {item.path for item in inspection.sources}
+        instruction_source_paths = source_paths & set(KNOWN_INSTRUCTION_FILES)
         primary_name = lexical_relative_name(repository_root, primary_instructions)
         primary_target = resolve_inside(
             repository_root,
             primary_name,
             allow_missing=True,
         )
-        if not primary_target.is_file() or primary_name not in source_paths:
+        if (
+            not primary_target.is_file()
+            or primary_name not in instruction_source_paths
+        ):
             return [
                 Diagnostic(
                     "error",
                     "PRIMARY_INSTRUCTIONS",
-                    "Primary instructions must be one of the discovered sources",
+                    "Primary instructions must be one of the discovered instruction files",
                     primary_name,
                 )
             ]
