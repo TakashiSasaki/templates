@@ -48,6 +48,67 @@ agent-policy --repository /path/to/repository init \
 
 既存挙動との互換性のため、verificationを指定しない場合は`./scripts/verify.sh`が設定されます。そのコマンドを持たないリポジトリでは、実際の検証コマンドを明示するか、`--no-verification`を指定します。
 
+## `adopt inspect`
+
+既存のagent instruction、`.agents/policies`、`.agents/skills`を読み取り専用で調査し、リポジトリを次のいずれかへ分類します。
+
+- `unmanaged-empty`
+- `unmanaged-existing`
+- `managed`
+- `inconsistent`
+
+```bash
+agent-policy --repository . adopt inspect
+agent-policy --repository . --format json adopt inspect
+```
+
+各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。既知のsource tree配下では、既存の通常ファイルを指すsymlinkだけをsourceとして許可します。directory、dangling target、その他の非通常ファイルを指すsymlinkは`inconsistent`として拒否し、repository外を指すsymlinkも拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
+
+## `adopt prepare`
+
+既存instructionを正本として保持したまま、agent-policy管理へ移行する準備状態を作ります。既定ではdry-runであり、実リポジトリには書き込みません。
+
+```bash
+agent-policy --repository . adopt prepare \
+  --primary-instructions AGENTS.md \
+  --profile core \
+  --profile security-baseline \
+  --project-policy .agents/policies/repository.md \
+  --verification-command "npm run verify:pr"
+```
+
+適用する場合は`--apply`を明示します。
+
+```bash
+agent-policy --repository . adopt prepare \
+  --primary-instructions AGENTS.md \
+  --verification-command "npm run verify:pr" \
+  --apply
+```
+
+`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。適用時の各fileはexclusive createで作成し、その呼出しが作成に成功したfileだけを失敗時cleanupの対象にします。
+
+主なオプション:
+
+| オプション | 説明 |
+| --- | --- |
+| `--config PATH` | 作成する設定ファイル。既定は `.agent-policy.yml` |
+| `--state PATH` | adoption state。既定は `.agent-policy/adoption.json` |
+| `--apply` | 検証済み準備状態を実際に作成する |
+| `--toolchain-revision SHA` | 設定、lock、stateへ記録するtoolchain revision |
+| `--profile NAME` | 選択するprofile。複数指定可能 |
+| `--primary-instructions PATH` | 保持する既存instruction file。既定は `AGENTS.md` |
+| `--project-policy PATH` | 既存または作成対象のproject policy。複数指定可能 |
+| `--verification-command COMMAND` | repositoryの検証コマンド |
+| `--no-verification` | verificationを設定しない。adoptionではこれが実質的な既定 |
+| `--preview-output-path PATH` | shadow instructionの生成先 |
+| `--skill NAME` | 生成するskill。複数指定可能。省略時は `validate-agent-policy` |
+| `--no-skills` | generated skillを作成しない。`--skill`とは同時指定不可 |
+
+`--primary-instructions`は、inspectionで発見された`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md`のいずれかでなければなりません。`.agents/policies`または`.agents/skills`配下のsourceはinventoryとadoption stateには記録されますが、primary instructionとしては選択できません。policyまたはskillだけが存在するrepositoryは、対応するinstruction fileを用意するまで`adopt prepare`を実行できません。
+
+複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
+
 ## `validate`
 
 設定ファイルと参照対象の整合性を検査します。

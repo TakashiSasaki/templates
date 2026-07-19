@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Iterable
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -9,6 +10,7 @@ from .config import Config, package_root
 from .policy_loader import Rule
 
 GENERATED_MARKER = "agent-policy-generated: true"
+SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
 def environment() -> Environment:
@@ -26,6 +28,8 @@ def render_agents(config: Config, rules: Iterable[Rule]) -> str:
 
 
 def render_skill(skill_name: str) -> dict[str, str]:
+    if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
+        raise ValueError(f"Invalid generated skill name: {skill_name}")
     skill_root = package_root() / "skills" / skill_name
     if not skill_root.is_dir():
         raise ValueError(f"Unknown generated skill: {skill_name}")
