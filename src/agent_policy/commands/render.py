@@ -98,6 +98,9 @@ def _obsolete_generated_outputs(
     locked_targets: dict[Path, str] = {}
     obsolete: list[Path] = []
     for relative, locked_digest in load_lock_outputs(lock_path).items():
+        if relative in planned:
+            continue
+
         target = _literal_output_path(repository_root, relative)
         previous_relative = locked_targets.get(target)
         if previous_relative is not None:
@@ -107,8 +110,6 @@ def _obsolete_generated_outputs(
             )
         locked_targets[target] = relative
 
-        if relative in planned:
-            continue
         if target in planned_targets or target in protected_inputs or not target.exists():
             continue
         if not target.is_file():
