@@ -6,7 +6,6 @@ from agent_policy.commands import render
 from agent_policy.lockfile import sha256_file
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
-
 PROJECT_POLICY = """---
 id: project.rule
 severity: mandatory
