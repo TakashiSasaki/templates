@@ -10,6 +10,7 @@ from ..adoption import (
     build_adoption_state,
     dump_adoption_state,
     inspect_repository,
+    lexical_relative_name,
 )
 from ..config import package_root
 from ..diagnostics import Diagnostic
@@ -80,8 +81,9 @@ def _generated_skill_files(skills: list[str]) -> list[str]:
 
 def _write_new_file(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("xb")
     try:
-        with path.open("xb") as handle:
+        with handle:
             handle.write(content)
     except Exception:
         try:
@@ -161,12 +163,12 @@ def prepare_run(
             return [error]
 
         source_paths = {item.path for item in inspection.sources}
+        primary_name = lexical_relative_name(repository_root, primary_instructions)
         primary_target = resolve_inside(
             repository_root,
-            primary_instructions,
+            primary_name,
             allow_missing=True,
         )
-        primary_name = _relative_name(repository_root, primary_target)
         if not primary_target.is_file() or primary_name not in source_paths:
             return [
                 Diagnostic(
