@@ -24,10 +24,16 @@ nav:
   - 設計:
       - リポジトリ構造: repository-structure.md
       - アーキテクチャ: architecture.md
+      - 既存リポジトリ導入（設計）: adoption.md
       - 設定ファイル: configuration.md
       - 規約の作成: policy-authoring.md
+      - Webアプリケーション規約: web-application-profile.md
+      - 退行防止の普遍規約: regression-prevention.md
       - ブートストラップモデル: bootstrap-model.md
       - 脅威モデル: threat-model.md
+      - Architecture decisions:
+          - ADR-0001 Bootstrap history: adr/0001-unrelated-bootstrap-history.md
+          - ADR-0002 Repository adoption: adr/0002-repository-adoption.md
 
 markdown_extensions:
   - admonition

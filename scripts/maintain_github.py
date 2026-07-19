@@ -234,6 +234,18 @@ def close_noop_pull_requests(
     return remaining, closed_branches
 
 
+def open_pull_request_branches(
+    open_prs: list[PullRequest],
+    repository: str,
+) -> set[str]:
+    return {
+        ref.branch
+        for pr in open_prs
+        for ref in (pr.base, pr.head)
+        if ref.repository == repository
+    }
+
+
 def delete_merged_branches(
     api: GitHubApi,
     repository: str,
@@ -242,9 +254,7 @@ def delete_merged_branches(
     open_prs: list[PullRequest],
     apply: bool,
 ) -> list[str]:
-    open_heads = {
-        pr.head.branch for pr in open_prs if pr.head.repository == repository
-    }
+    open_branches = open_pull_request_branches(open_prs, repository)
     deleted: list[str] = []
     for branch in api.branches():
         name = str(branch["name"])
@@ -256,7 +266,7 @@ def delete_merged_branches(
         if bool(branch.get("protected")):
             print(f"Keeping GitHub-protected branch {name}.")
             continue
-        if name in open_heads:
+        if name in open_branches:
             print(f"Keeping branch {name}: it is used by an open pull request.")
             continue
 
