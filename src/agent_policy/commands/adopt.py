@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from ..adoption import (
     LOCK_PATH,
@@ -77,6 +77,12 @@ def _generated_skill_files(skills: list[str]) -> list[str]:
         for relative in render_skill(skill):
             result.append(f".agents/skills/{skill}/{relative}")
     return sorted(result)
+
+
+def _is_at_or_below(relative: str, directory: str) -> bool:
+    path = PurePosixPath(relative)
+    root = PurePosixPath(directory)
+    return path == root or root in path.parents
 
 
 def _write_new_file(path: Path, content: bytes) -> None:
@@ -201,6 +207,7 @@ def prepare_run(
             raise ValueError("adopt prepare can scaffold at most one missing project policy")
 
         generated_skill_files = _generated_skill_files(skills)
+        generated_skill_roots = [f".agents/skills/{skill}" for skill in skills]
         reserved = {
             config_name,
             state_name,
@@ -211,9 +218,15 @@ def prepare_run(
         policy_names = {relative for relative, _ in policy_targets}
         if len(reserved) != 4 + len(generated_skill_files):
             raise ValueError("Generated and management paths must be unique")
-        collisions = sorted(reserved & source_paths)
+        collisions = set(reserved & source_paths)
+        collisions.update(
+            source
+            for source in source_paths
+            if any(_is_at_or_below(source, root) for root in generated_skill_roots)
+        )
         if collisions:
-            raise ValueError(f"Adoption outputs overlap existing sources: {', '.join(collisions)}")
+            names = ", ".join(sorted(collisions))
+            raise ValueError(f"Adoption outputs overlap existing sources: {names}")
         if reserved & policy_names:
             raise ValueError("Generated or management paths overlap project policy files")
 
