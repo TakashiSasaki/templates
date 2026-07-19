@@ -226,6 +226,8 @@ def build_adoption_state(
         "project_policy_files": list(project_policy_files),
         "verification_command": verification_command,
         "generated_skills": list(generated_skills),
+        "backup_path": None,
+        "final_output": None,
     }
 
 
@@ -240,6 +242,48 @@ def validate_adoption_state(value: object) -> None:
         raise ValueError(f"Invalid adoption state at {location}: {errors[0].message}")
 
 
+def load_adoption_state(repository_root: Path, state_path: str) -> dict[str, Any]:
+    state_name = lexical_relative_name(repository_root, state_path)
+    path = resolve_inside(repository_root, state_name, allow_missing=False)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    validate_adoption_state(value)
+    if not isinstance(value, dict):
+        raise ValueError("Adoption state root must be an object")
+    return value
+
+
 def dump_adoption_state(value: object) -> str:
     validate_adoption_state(value)
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def changed_adoption_sources(
+    repository_root: Path,
+    state: dict[str, Any],
+) -> tuple[str, ...]:
+    editable_policy_paths = set(state["project_policy_files"])
+    editable_policy_paths.discard(state["primary_instructions"])
+    changed: list[str] = []
+    for item in state["sources"]:
+        relative = item["path"]
+        if relative in editable_policy_paths:
+            continue
+        lexical_name = lexical_relative_name(repository_root, relative)
+        path = resolve_inside(repository_root, lexical_name, allow_missing=True)
+        if not path.is_file() or sha256_file(path) != item["sha256"]:
+            changed.append(relative)
+    return tuple(sorted(changed))
+
+
+def finalized_adoption_state(
+    state: dict[str, Any],
+    *,
+    backup_path: str,
+    final_output: str,
+) -> dict[str, Any]:
+    result = dict(state)
+    result["status"] = "finalized"
+    result["backup_path"] = backup_path
+    result["final_output"] = final_output
+    validate_adoption_state(result)
+    return result
