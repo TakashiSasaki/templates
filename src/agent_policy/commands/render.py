@@ -61,13 +61,19 @@ def _add_planned_output(
     planned[relative] = (target, content)
 
 
-def _literal_output_path(repository_root: Path, relative: str) -> Path:
+def _literal_repository_path(repository_root: Path, relative: str | Path) -> Path:
     root = repository_root.resolve()
     literal = Path(os.path.abspath(root / relative))
     try:
         literal.relative_to(root)
     except ValueError as exc:
         raise ValueError(f"Path escapes repository root: {relative}") from exc
+    return literal
+
+
+def _literal_output_path(repository_root: Path, relative: str) -> Path:
+    root = repository_root.resolve()
+    literal = _literal_repository_path(root, relative)
 
     for component in (literal, *literal.parents):
         if component == root:
@@ -99,6 +105,10 @@ def _obsolete_generated_outputs(
     obsolete: list[Path] = []
     for relative, locked_digest in load_lock_outputs(lock_path).items():
         if relative in planned:
+            continue
+
+        literal_target = _literal_repository_path(repository_root, relative)
+        if literal_target in protected_inputs:
             continue
 
         target = _literal_output_path(repository_root, relative)
@@ -177,10 +187,15 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 for relative in config.project_policy_files
             }
         )
+        protected_inputs = set(inputs.values())
+        protected_inputs.update(
+            _literal_repository_path(repository_root, relative)
+            for relative in (config_path, *config.project_policy_files)
+        )
         obsolete = _obsolete_generated_outputs(
             repository_root,
             planned,
-            set(inputs.values()),
+            protected_inputs,
         )
         _reject_obsolete_output_overlaps(repository_root, obsolete, planned)
 
