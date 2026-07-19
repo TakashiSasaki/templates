@@ -59,10 +59,6 @@ def inspect_run(
         return [Diagnostic("error", "ADOPT_INSPECT", str(exc))]
 
 
-def _relative_name(repository_root: Path, path: Path) -> str:
-    return path.relative_to(repository_root.resolve()).as_posix()
-
-
 def _lexical_target(repository_root: Path, relative: str) -> tuple[str, Path]:
     repository_root = repository_root.resolve()
     name = lexical_relative_name(repository_root, relative)
@@ -79,11 +75,15 @@ def _has_symlink_component(repository_root: Path, target: Path) -> bool:
     return False
 
 
-def _resolve_names(repository_root: Path, values: list[str]) -> list[tuple[str, Path]]:
-    result: list[tuple[str, Path]] = []
+def _resolve_names(
+    repository_root: Path,
+    values: list[str],
+) -> list[tuple[str, Path, Path]]:
+    result: list[tuple[str, Path, Path]] = []
     for value in values:
-        path = resolve_inside(repository_root, value, allow_missing=True)
-        result.append((_relative_name(repository_root, path), path))
+        name, literal = _lexical_target(repository_root, value)
+        resolved = resolve_inside(repository_root, name, allow_missing=True)
+        result.append((name, literal, resolved))
     return result
 
 
@@ -210,11 +210,24 @@ def prepare_run(
 
         policy_targets = _resolve_names(repository_root, policies)
         missing_policies: list[str] = []
-        for relative, target in policy_targets:
+        policy_conflicts: list[str] = []
+        for relative, literal, target in policy_targets:
             if target.exists() and not target.is_file():
                 raise ValueError(f"Project policy path is not a file: {relative}")
             if not target.exists():
-                missing_policies.append(relative)
+                if literal.is_symlink() or _has_symlink_component(repository_root, literal):
+                    policy_conflicts.append(relative)
+                else:
+                    missing_policies.append(relative)
+        if policy_conflicts:
+            return [
+                Diagnostic(
+                    "error",
+                    "FILE_CONFLICT",
+                    "Existing files would conflict: "
+                    + ", ".join(sorted(policy_conflicts)),
+                )
+            ]
         if len(missing_policies) > 1:
             raise ValueError("adopt prepare can scaffold at most one missing project policy")
 
@@ -227,7 +240,7 @@ def prepare_run(
             preview_name,
             *generated_skill_files,
         }
-        policy_names = {relative for relative, _ in policy_targets}
+        policy_names = {relative for relative, _literal, _target in policy_targets}
         if len(reserved) != 4 + len(generated_skill_files):
             raise ValueError("Generated and management paths must be unique")
         collisions = set(reserved & source_paths)
@@ -265,7 +278,9 @@ def prepare_run(
         manifest = build_manifest(
             toolchain_revision=toolchain_revision,
             profiles=profiles,
-            project_policy_files=[relative for relative, _ in policy_targets],
+            project_policy_files=[
+                relative for relative, _literal, _target in policy_targets
+            ],
             verification_command=verification_command,
             agents_output_enabled=True,
             agents_output_path=preview_name,
@@ -315,7 +330,9 @@ def prepare_run(
                 sources=inspection.sources,
                 preview_output=preview_name,
                 selected_profiles=profiles,
-                project_policy_files=[relative for relative, _ in policy_targets],
+                project_policy_files=[
+                    relative for relative, _literal, _target in policy_targets
+                ],
                 verification_command=verification_command,
                 generated_skills=skills,
             )
