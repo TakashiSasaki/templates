@@ -4,10 +4,11 @@ import os
 import shutil
 import tempfile
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ..adoption import (
+    KNOWN_INSTRUCTION_FILES,
     LOCK_PATH,
     AdoptionInspection,
     build_adoption_state,
@@ -15,6 +16,7 @@ from ..adoption import (
     dump_adoption_state,
     finalized_adoption_state,
     inspect_repository,
+    lexical_relative_name,
     load_adoption_state,
 )
 from ..config import Config, load_config, package_root
@@ -66,15 +68,31 @@ def inspect_run(
         return [Diagnostic("error", "ADOPT_INSPECT", str(exc))]
 
 
-def _relative_name(repository_root: Path, path: Path) -> str:
-    return path.relative_to(repository_root.resolve()).as_posix()
+def _lexical_target(repository_root: Path, relative: str) -> tuple[str, Path]:
+    repository_root = repository_root.resolve()
+    name = lexical_relative_name(repository_root, relative)
+    return name, repository_root / name
 
 
-def _resolve_names(repository_root: Path, values: list[str]) -> list[tuple[str, Path]]:
-    result: list[tuple[str, Path]] = []
+def _has_symlink_component(repository_root: Path, target: Path) -> bool:
+    repository_root = repository_root.resolve()
+    for component in (target, *target.parents):
+        if component == repository_root:
+            break
+        if component.is_symlink():
+            return True
+    return False
+
+
+def _resolve_names(
+    repository_root: Path,
+    values: list[str],
+) -> list[tuple[str, Path, Path]]:
+    result: list[tuple[str, Path, Path]] = []
     for value in values:
-        path = resolve_inside(repository_root, value, allow_missing=True)
-        result.append((_relative_name(repository_root, path), path))
+        name, literal = _lexical_target(repository_root, value)
+        resolved = resolve_inside(repository_root, name, allow_missing=True)
+        result.append((name, literal, resolved))
     return result
 
 
@@ -84,6 +102,12 @@ def _generated_skill_files(skills: list[str]) -> list[str]:
         for relative in render_skill(skill):
             result.append(f".agents/skills/{skill}/{relative}")
     return sorted(result)
+
+
+def _is_at_or_below(relative: str, directory: str) -> bool:
+    path = PurePosixPath(relative)
+    root = PurePosixPath(directory)
+    return path == root or root in path.parents
 
 
 def _write_new_file(path: Path, content: bytes) -> None:
@@ -158,8 +182,7 @@ def _load_prepared_context(
     state_path: str,
 ) -> tuple[dict[str, Any], Config, str]:
     repository_root = repository_root.resolve()
-    state_target = resolve_inside(repository_root, state_path, allow_missing=False)
-    state_name = _relative_name(repository_root, state_target)
+    state_name = lexical_relative_name(repository_root, state_path)
     state = load_adoption_state(repository_root, state_name)
     if state["state_path"] != state_name:
         raise ValueError("Adoption state path does not match its recorded path")
@@ -238,44 +261,58 @@ def prepare_run(
             return [error]
 
         source_paths = {item.path for item in inspection.sources}
+        instruction_source_paths = source_paths & set(KNOWN_INSTRUCTION_FILES)
+        primary_name = lexical_relative_name(repository_root, primary_instructions)
         primary_target = resolve_inside(
             repository_root,
-            primary_instructions,
+            primary_name,
             allow_missing=True,
         )
-        primary_name = _relative_name(repository_root, primary_target)
-        if not primary_target.is_file() or primary_name not in source_paths:
+        if (
+            not primary_target.is_file()
+            or primary_name not in instruction_source_paths
+        ):
             return [
                 Diagnostic(
                     "error",
                     "PRIMARY_INSTRUCTIONS",
-                    "Primary instructions must be one of the discovered sources",
+                    "Primary instructions must be one of the discovered instruction files",
                     primary_name,
                 )
             ]
 
-        config_target = resolve_inside(repository_root, config_path, allow_missing=True)
-        state_target = resolve_inside(repository_root, state_path, allow_missing=True)
-        preview_target = resolve_inside(
+        config_name, _config_target = _lexical_target(repository_root, config_path)
+        state_name, _state_target = _lexical_target(repository_root, state_path)
+        preview_name, _preview_target = _lexical_target(
             repository_root,
             preview_output_path,
-            allow_missing=True,
         )
-        config_name = _relative_name(repository_root, config_target)
-        state_name = _relative_name(repository_root, state_target)
-        preview_name = _relative_name(repository_root, preview_target)
 
         policy_targets = _resolve_names(repository_root, policies)
         missing_policies: list[str] = []
-        for relative, target in policy_targets:
+        policy_conflicts: list[str] = []
+        for relative, literal, target in policy_targets:
             if target.exists() and not target.is_file():
                 raise ValueError(f"Project policy path is not a file: {relative}")
             if not target.exists():
-                missing_policies.append(relative)
+                if literal.is_symlink() or _has_symlink_component(repository_root, literal):
+                    policy_conflicts.append(relative)
+                else:
+                    missing_policies.append(relative)
+        if policy_conflicts:
+            return [
+                Diagnostic(
+                    "error",
+                    "FILE_CONFLICT",
+                    "Existing files would conflict: "
+                    + ", ".join(sorted(policy_conflicts)),
+                )
+            ]
         if len(missing_policies) > 1:
             raise ValueError("adopt prepare can scaffold at most one missing project policy")
 
         generated_skill_files = _generated_skill_files(skills)
+        generated_skill_roots = [f".agents/skills/{skill}" for skill in skills]
         reserved = {
             config_name,
             state_name,
@@ -283,20 +320,31 @@ def prepare_run(
             preview_name,
             *generated_skill_files,
         }
-        policy_names = {relative for relative, _ in policy_targets}
+        policy_names = {relative for relative, _literal, _target in policy_targets}
         if len(reserved) != 4 + len(generated_skill_files):
             raise ValueError("Generated and management paths must be unique")
-        collisions = sorted(reserved & source_paths)
+        collisions = set(reserved & source_paths)
+        collisions.update(
+            source
+            for source in source_paths
+            if any(_is_at_or_below(source, root) for root in generated_skill_roots)
+        )
         if collisions:
-            raise ValueError(f"Adoption outputs overlap existing sources: {', '.join(collisions)}")
+            names = ", ".join(sorted(collisions))
+            raise ValueError(f"Adoption outputs overlap existing sources: {names}")
         if reserved & policy_names:
             raise ValueError("Generated or management paths overlap project policy files")
 
         conflict_names = [config_name, state_name, LOCK_PATH, preview_name, *generated_skill_files]
+        conflict_targets = [
+            _lexical_target(repository_root, relative) for relative in conflict_names
+        ]
         conflicts = [
             relative
-            for relative in conflict_names
-            if resolve_inside(repository_root, relative, allow_missing=True).exists()
+            for relative, target in conflict_targets
+            if target.exists()
+            or target.is_symlink()
+            or _has_symlink_component(repository_root, target)
         ]
         if conflicts:
             return [
@@ -310,7 +358,9 @@ def prepare_run(
         manifest = build_manifest(
             toolchain_revision=toolchain_revision,
             profiles=profiles,
-            project_policy_files=[relative for relative, _ in policy_targets],
+            project_policy_files=[
+                relative for relative, _literal, _target in policy_targets
+            ],
             verification_command=verification_command,
             agents_output_enabled=True,
             agents_output_path=preview_name,
@@ -360,7 +410,9 @@ def prepare_run(
                 sources=inspection.sources,
                 preview_output=preview_name,
                 selected_profiles=profiles,
-                project_policy_files=[relative for relative, _ in policy_targets],
+                project_policy_files=[
+                    relative for relative, _literal, _target in policy_targets
+                ],
                 verification_command=verification_command,
                 generated_skills=skills,
             )
@@ -383,10 +435,16 @@ def prepare_run(
                 }
             )
             for relative in apply_names:
-                source = resolve_inside(staged, relative, allow_missing=False)
-                target = resolve_inside(repository_root, relative, allow_missing=True)
-                if target.exists():
-                    raise FileExistsError(f"Refusing to overwrite existing file: {relative}")
+                target_name, target = _lexical_target(repository_root, relative)
+                source = resolve_inside(staged, target_name, allow_missing=False)
+                if (
+                    target.exists()
+                    or target.is_symlink()
+                    or _has_symlink_component(repository_root, target)
+                ):
+                    raise FileExistsError(
+                        f"Refusing to overwrite existing file: {target_name}"
+                    )
                 _write_new_file(target, source.read_bytes())
                 created.append(target)
         return []
@@ -419,8 +477,7 @@ def _validate_backup_path(
     state: dict[str, Any],
     backup_path: str,
 ) -> str:
-    backup_target = resolve_inside(repository_root, backup_path, allow_missing=True)
-    backup_name = _relative_name(repository_root, backup_target)
+    backup_name, backup_target = _lexical_target(repository_root, backup_path)
     protected = {
         state["config_path"],
         state["state_path"],
@@ -433,7 +490,11 @@ def _validate_backup_path(
     }
     if backup_name in protected:
         raise ValueError("Backup path overlaps an adoption input or generated output")
-    if backup_target.exists():
+    if (
+        backup_target.exists()
+        or backup_target.is_symlink()
+        or _has_symlink_component(repository_root, backup_target)
+    ):
         raise FileExistsError(f"Backup path already exists: {backup_name}")
     return backup_name
 
@@ -512,22 +573,45 @@ def _stage_finalization(
         return writes, [preview_name]
 
 
+def _snapshot_required_files(
+    repository_root: Path,
+    names: list[str],
+) -> dict[str, bytes]:
+    snapshots: dict[str, bytes] = {}
+    for relative in names:
+        name = lexical_relative_name(repository_root, relative)
+        path = resolve_inside(repository_root, name, allow_missing=False)
+        if not path.is_file():
+            raise ValueError(f"Required adoption artifact is not a file: {name}")
+        snapshots[name] = path.read_bytes()
+    return snapshots
+
+
 def _apply_transaction(
     repository_root: Path,
     writes: dict[str, bytes],
     deletes: list[str],
     *,
     must_be_absent: set[str],
+    must_match: dict[str, bytes] | None = None,
     verify: Callable[[], list[Diagnostic]] | None = None,
 ) -> None:
-    names = sorted({*writes, *deletes})
+    expected = {} if must_match is None else dict(must_match)
+    names = sorted({*writes, *deletes, *expected})
     snapshots: dict[str, bytes | None] = {}
     for relative in names:
         path = resolve_inside(repository_root, relative, allow_missing=True)
         if path.exists() and not path.is_file():
             raise ValueError(f"Transaction path is not a file: {relative}")
-        snapshots[relative] = path.read_bytes() if path.is_file() else None
-    conflicts = sorted(relative for relative in must_be_absent if snapshots[relative] is not None)
+        current = path.read_bytes() if path.is_file() else None
+        snapshots[relative] = current
+        if relative in expected and current != expected[relative]:
+            raise RuntimeError(
+                f"Adoption artifact changed during finalization: {relative}"
+            )
+    conflicts = sorted(
+        relative for relative in must_be_absent if snapshots.get(relative) is not None
+    )
     if conflicts:
         raise FileExistsError(f"Paths must not exist: {', '.join(conflicts)}")
 
@@ -588,6 +672,15 @@ def finalize_run(
         if diagnostics:
             return diagnostics
         backup_name = _validate_backup_path(repository_root, state, backup_path)
+        live_artifacts = _snapshot_required_files(
+            repository_root,
+            [
+                state["config_path"],
+                state["state_path"],
+                LOCK_PATH,
+                state["preview_output"],
+            ],
+        )
         writes, deletes = _stage_finalization(repository_root, state, backup_name)
         plan = [
             Diagnostic("info", "CREATE", "Backup original instructions", backup_name),
@@ -597,9 +690,24 @@ def finalize_run(
                 "Replace primary instructions with generated output",
                 state["primary_instructions"],
             ),
-            Diagnostic("info", "UPDATE", "Activate final instruction output", state["config_path"]),
-            Diagnostic("info", "UPDATE", "Record finalized adoption state", state["state_path"]),
-            Diagnostic("info", "DELETE", "Remove generated preview", state["preview_output"]),
+            Diagnostic(
+                "info",
+                "UPDATE",
+                "Activate final instruction output",
+                state["config_path"],
+            ),
+            Diagnostic(
+                "info",
+                "UPDATE",
+                "Record finalized adoption state",
+                state["state_path"],
+            ),
+            Diagnostic(
+                "info",
+                "DELETE",
+                "Remove generated preview",
+                state["preview_output"],
+            ),
         ]
         if not apply:
             return plan
@@ -612,6 +720,7 @@ def finalize_run(
             writes,
             deletes,
             must_be_absent={backup_name},
+            must_match=live_artifacts,
             verify=lambda: check_run(repository_root, state["config_path"]),
         )
         return []
