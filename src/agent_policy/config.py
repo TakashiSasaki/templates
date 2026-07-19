@@ -16,6 +16,13 @@ from .yamlutil import load_yaml
 class Config:
     path: Path
     data: dict[str, Any]
+    repository_root: Path | None = None
+
+    @property
+    def relative_path(self) -> str:
+        if self.repository_root is None:
+            return self.path.name
+        return self.path.relative_to(self.repository_root).as_posix()
 
     @property
     def profiles(self) -> list[str]:
@@ -56,11 +63,12 @@ def schema_path() -> Path:
 
 
 def load_config(repository_root: Path, config_path: str | Path) -> Config:
-    path = resolve_inside(repository_root, config_path, allow_missing=False)
+    root = repository_root.resolve()
+    path = resolve_inside(root, config_path, allow_missing=False)
     value = load_yaml(path)
     if not isinstance(value, dict):
         raise ValueError("Configuration root must be a mapping")
-    return Config(path=path, data=value)
+    return Config(path=path, data=value, repository_root=root)
 
 
 def _paths_overlap(left: Path, right: Path) -> bool:
@@ -126,7 +134,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                     output,
                 )
             )
-        if output in config.project_policy_files or output == config.path.name:
+        if output in config.project_policy_files or output == config.relative_path:
             diagnostics.append(
                 Diagnostic(
                     "error",
