@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted and implemented.
 
 ## Context
 
@@ -28,7 +28,7 @@ The CLI adoption workflow has four explicit phases:
 3. `preview`: regenerate and verify the preview while reporting whether inventoried source files changed.
 4. `finalize`: after explicit authorization, atomically preserve the original instruction file, switch the configured output to its final path, render generated instructions, update the lock, and mark adoption complete.
 
-Dry-run is the default for every phase that can write. `finalize` is never selected implicitly by automatic repository classification or by a generic bootstrap `--apply` operation.
+Dry-run is the default for `init`, `adopt prepare`, and `adopt finalize`. `adopt preview` is an explicit regeneration operation for prepared generated artifacts. `finalize` is never selected implicitly by automatic repository classification or by a generic bootstrap `--apply` operation.
 
 ## Responsibility boundary
 
@@ -81,7 +81,7 @@ File hashes, not Git ancestry, are the cutover precondition. Unrelated working-t
 
 ## Preview and cutover
 
-Preparation renders to a non-conflicting preview path, initially `.agent-policy/preview/AGENTS.md`. The normal renderer and checker must treat configured output paths generically rather than special-casing `AGENTS.md`.
+Preparation renders to a non-conflicting preview path, initially `.agent-policy/preview/AGENTS.md`. The normal renderer and checker treat configured output paths generically rather than special-casing `AGENTS.md`.
 
 Finalization requires all of the following:
 
@@ -92,7 +92,7 @@ Finalization requires all of the following:
 - no non-generated file would be overwritten except the explicitly selected primary instruction after it is preserved;
 - render and check can complete for the final configuration.
 
-The cutover is transactional. If final rendering, lock creation, or state update fails, the original instruction file and pre-finalization configuration are restored.
+The cutover is transactional. If final rendering, lock creation, state update, or post-render checking fails, the original instruction file and pre-finalization configuration are restored.
 
 ## Branch and trust model
 
@@ -101,13 +101,17 @@ No third long-lived or unrelated branch is added.
 - `main` contains the CLI, schemas, renderer, adoption state machine, tests, and documentation.
 - `bootstrap-agent-policy` remains the directly cloneable onboarding skill and trust seed.
 
-The bootstrap manifest continues to pin a full `main` commit SHA. Updating that SHA after adoption support is merged is a separate trust-anchor change and must be reviewed independently from ordinary policy or CLI changes.
+The bootstrap manifest pins a full `main` commit SHA. Updating that SHA is a separate trust-anchor change and must be reviewed independently from ordinary policy or CLI changes.
+
+## Implementation
+
+The four `agent-policy adopt` phases are implemented and tested on `main`. The `bootstrap-agent-policy` branch performs read-only classification, requires an explicit route for mutation, applies either initialization or adoption preparation, and deliberately exposes no automatic finalization route.
 
 ## Consequences
 
 Mature repositories can adopt `agent-policy` without temporarily discarding their existing instructions. The same mechanics can be exercised in tests and CI, while semantic migration remains reviewable and agent-assisted.
 
-The implementation becomes more complex because it needs a state machine, generic output checking, transactional finalization, and rollback tests. This complexity is accepted because replacing handwritten instructions is a destructive operation and cannot depend only on natural-language skill guidance.
+The implementation is more complex because it needs a state machine, generic output checking, transactional finalization, and rollback tests. This complexity is accepted because replacing handwritten instructions is a destructive operation and cannot depend only on natural-language skill guidance.
 
 ## Non-goals
 
