@@ -88,8 +88,9 @@ def _generated_skill_files(skills: list[str]) -> list[str]:
 
 def _write_new_file(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("xb")
     try:
-        with path.open("xb") as handle:
+        with handle:
             handle.write(content)
     except Exception:
         try:
@@ -530,6 +531,7 @@ def _apply_transaction(
     if conflicts:
         raise FileExistsError(f"Paths must not exist: {', '.join(conflicts)}")
 
+    created_by_transaction: set[str] = set()
     try:
         for relative in sorted(writes):
             path = resolve_inside(repository_root, relative, allow_missing=True)
@@ -537,6 +539,8 @@ def _apply_transaction(
                 _write_new_file(path, writes[relative])
             else:
                 _write_atomic_bytes(path, writes[relative])
+            if snapshots[relative] is None:
+                created_by_transaction.add(relative)
         for relative in sorted(deletes):
             path = resolve_inside(repository_root, relative, allow_missing=False)
             path.unlink()
@@ -553,7 +557,7 @@ def _apply_transaction(
             original = snapshots[relative]
             try:
                 if original is None:
-                    if path.exists():
+                    if relative in created_by_transaction and path.exists():
                         path.unlink()
                 else:
                     _write_atomic_bytes(path, original)
