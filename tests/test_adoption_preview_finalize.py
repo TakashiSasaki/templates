@@ -8,6 +8,14 @@ from agent_policy.commands import adopt, check
 from agent_policy.renderer import GENERATED_MARKER
 from agent_policy.yamlutil import load_yaml
 
+POLICY_HEADER = """---
+id: project.repository
+severity: mandatory
+overridable: true
+order: 1000
+---
+"""
+
 
 def _prepare_repository(path: Path) -> bytes:
     (path / ".git").mkdir()
@@ -58,7 +66,7 @@ def test_existing_project_policy_can_change_before_preview(tmp_path: Path) -> No
     (tmp_path / "AGENTS.md").write_text("handwritten instructions\n", encoding="utf-8")
     policy = tmp_path / ".agents/policies/repository.md"
     policy.parent.mkdir(parents=True)
-    policy.write_text("Initial project policy.\n", encoding="utf-8")
+    policy.write_text(f"{POLICY_HEADER}Initial project policy.\n", encoding="utf-8")
 
     diagnostics = adopt.prepare_run(
         tmp_path,
@@ -71,7 +79,7 @@ def test_existing_project_policy_can_change_before_preview(tmp_path: Path) -> No
     )
     assert diagnostics == []
 
-    policy.write_text("Reviewed project policy.\n", encoding="utf-8")
+    policy.write_text(f"{POLICY_HEADER}Reviewed project policy.\n", encoding="utf-8")
 
     assert adopt.preview_run(tmp_path) == []
     assert not any(
