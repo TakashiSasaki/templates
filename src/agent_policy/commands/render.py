@@ -176,11 +176,14 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 render_agents(config, rules),
             )
         for skill in config.enabled_skills:
-            for relative, content in render_skill(skill).items():
+            for relative, content in render_skill(
+                skill,
+                config_path=config.relative_path,
+            ).items():
                 target_name = f".agents/skills/{skill}/{relative}"
                 _add_planned_output(repository_root, planned, target_name, content)
 
-        inputs = {config.path.name: config.path}
+        inputs = {config.relative_path: config.path}
         inputs.update(
             {
                 relative: resolve_inside(repository_root, relative, allow_missing=False)

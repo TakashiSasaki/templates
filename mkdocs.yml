@@ -18,6 +18,7 @@ nav:
   - ホーム: index.md
   - 導入:
       - はじめに: getting-started.md
+      - Managed repository operation: managed-operation.md
       - CLI: cli.md
       - ブートストラップスキル: bootstrap.md
       - 既存リポジトリの導入: adoption.md

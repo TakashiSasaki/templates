@@ -1,12 +1,7 @@
 name: Check agent policy
 on:
-  pull_request:
-    paths:
-      - .agent-policy.yml
-      - .agent-policy.lock
-      - policy/**
-      - AGENTS.md
-      - .agents/skills/**
+  pull_request: {}
+  workflow_dispatch: {}
 permissions:
   contents: read
 jobs:

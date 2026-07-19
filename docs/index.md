@@ -40,6 +40,7 @@ agent-policy check
 ## 次に読むページ
 
 - [はじめに](getting-started.md)
+- [Managed repository operation](managed-operation.md)
 - [CLIリファレンス](cli.md)
 - [ブートストラップスキル](bootstrap.md)
 - [アーキテクチャ](architecture.md)
