@@ -1,17 +1,14 @@
 # Existing repository adoption
 
-!!! warning "Design specification — not yet executable"
-    This page defines the proposed repository-adoption interface. The documentation-only revision that introduces this page does not add the `agent-policy adopt` subcommands to `main`. Do not copy these command examples as operational instructions until the implementation has merged and the CLI reference documents them as supported.
-
 ## Purpose
 
-Adoption is intended to bring an existing repository under `agent-policy` management without replacing handwritten instructions before their policy meaning has been reviewed.
+Adoption brings an existing repository under `agent-policy` management without replacing handwritten instructions before their policy meaning has been reviewed.
 
-The proposed onboarding split uses initialization when the repository has no conflicting instruction output. It uses adoption when files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, repository-local policies, or existing agent skills are already present.
+The onboarding split uses initialization when the repository has no conflicting instruction output. It uses adoption when files such as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, repository-local policies, or existing agent skills are already present.
 
 ## Command model
 
-The proposed CLI workflow is:
+The implemented CLI workflow is:
 
 ```text
 agent-policy --repository /path/to/product adopt inspect
@@ -20,15 +17,14 @@ agent-policy --repository /path/to/product adopt preview
 agent-policy --repository /path/to/product adopt finalize
 ```
 
-In the proposed design, commands that can write default to dry-run and require `--apply` for mutation. The implemented CLI reference remains the source of truth for available commands and options.
+`inspect` is read-only. `prepare` and `finalize` default to dry-run and require `--apply` for mutation. `preview` is an explicit regeneration command for the prepared generated outputs and lock; it has no `--apply` option and never performs final cutover.
 
 ## Phase 1: inspect
 
-Inspection is designed as a read-only operation that classifies the repository and inventories adoption-relevant assets.
+Inspection classifies the repository and inventories adoption-relevant assets without writing files.
 
-Proposed interface:
-
-```text
+```bash
+agent-policy --repository . adopt inspect
 agent-policy --repository . --format json adopt inspect
 ```
 
@@ -39,34 +35,36 @@ The report distinguishes:
 | `unmanaged-empty` | No manifest and no existing instruction assets | `init` |
 | `unmanaged-existing` | No manifest, but existing instructions or policies exist | `adopt prepare` |
 | `managed` | `.agent-policy.yml` exists | `validate`, `render`, `check` |
-| `inconsistent` | Partial, conflicting, or unsafe state | Repair before onboarding |
+| `inconsistent` | Partial, conflicting, generated-only, or unsafe state | Repair before onboarding |
 
-Inventory records paths, file kinds, generation markers, and byte hashes. It does not copy complete instruction contents into the machine report.
+Inventory diagnostics record lexical paths, SHA-256 hashes, and generation-marker state. They do not copy complete instruction contents into the machine report.
+
+Repository-internal symbolic links are accepted as discovered sources only when they resolve safely to regular files. Directory targets, dangling targets, repository-external targets, absolute symlinks in a source path, and other unsafe source shapes classify the repository as inconsistent.
 
 ## Phase 2: prepare
 
-Preparation is designed to create an adoption scaffold while preserving the existing primary instruction file.
+Preparation creates an adoption scaffold while preserving the existing primary instruction file. The first invocation is a dry-run.
 
-Proposed invocation:
-
-```text
+```bash
 agent-policy --repository . adopt prepare \
+  --primary-instructions AGENTS.md \
   --profile core \
   --profile security-baseline \
   --verification-command "npm run verify:pr"
 ```
 
-The proposed first invocation is a dry-run. Mutation requires explicit application after reviewing paths and conflicts:
+Mutation requires explicit application after reviewing paths and conflicts:
 
-```text
+```bash
 agent-policy --repository . adopt prepare \
+  --primary-instructions AGENTS.md \
   --profile core \
   --profile security-baseline \
   --verification-command "npm run verify:pr" \
   --apply
 ```
 
-Preparation is expected to create or generate the following conceptual state:
+Preparation creates or generates the following default state:
 
 ```text
 .agent-policy.yml
@@ -77,37 +75,43 @@ policy/project.md
 .agents/skills/validate-agent-policy/SKILL.md
 ```
 
-The manifest initially renders agent instructions to the preview path rather than to the handwritten `AGENTS.md`.
+The manifest initially renders agent instructions to the preview path rather than to the handwritten primary path.
 
-Preparation must stop rather than overwrite:
+`prepare` constructs and validates the complete result in a temporary repository before applying anything. It then creates only new files using exclusive creation. If an applied preparation fails, it removes only files created successfully by that invocation.
+
+Preparation stops rather than overwrite:
 
 - an existing `.agent-policy.yml`;
 - a conflicting adoption-state file;
 - a non-generated preview output;
-- a non-generated `validate-agent-policy` skill;
-- an unsafe path or symbolic-link escape.
+- a non-generated generated-skill target;
+- an unsafe path or symbolic-link boundary;
+- an existing source that overlaps a management or generated output.
+
+The selected primary instructions must be one of the discovered supported instruction files: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md`. Files under `.agents/policies` and `.agents/skills` are inventoried and protected but cannot be selected as the primary instructions.
+
+Multiple project-policy inputs may be retained. Preparation can scaffold at most one missing project-policy file; existing policy files remain byte-for-byte unchanged.
 
 ## Policy migration
 
-After the proposed preparation phase, the handwritten instructions are reviewed and repository-local policy modules are created.
+After preparation, review the handwritten instructions and express their durable meaning in shared profiles or repository-local project policy.
 
 Shared profiles should contain reusable rules. Product-specific invariants, branch topology, verification tiers, compatibility constraints, and justified exceptions remain in project policy.
 
-The CLI does not decide whether a paragraph is permanent policy, temporary priority, historical context, or obsolete guidance. That classification is performed by a human or an agent operating under the bootstrap skill.
+The CLI does not decide whether a paragraph is permanent policy, temporary priority, historical context, or obsolete guidance. That classification is performed by a human or an agent operating under the bootstrap skill. The primary instruction and every inventoried immutable source remain protected until finalization.
 
 ## Phase 3: preview
 
-Preview is designed to regenerate the configured non-final output and verify that it matches the current profile and project-policy inputs.
+Preview checks that recorded immutable sources have not changed, regenerates the configured shadow instruction, generated skills, and lock, and then runs the normal consistency check.
 
-Proposed interface:
-
-```text
+```bash
 agent-policy --repository . adopt preview
+agent-policy --repository . adopt preview --state .agent-policy/adoption.json
 ```
 
-The operation reports whether inventoried handwritten sources changed after preparation. A changed source does not get silently accepted into the cutover baseline; preparation must be reviewed or refreshed.
+Project-policy files are editable manifest inputs. Changes to them are expected and are incorporated into the regenerated preview. By contrast, a changed or deleted inventoried handwritten source produces `ADOPTION_SOURCE_CHANGED` and stops preview.
 
-The handwritten instructions and generated preview are reviewed for semantic coverage, including:
+The handwritten instructions and generated preview should be reviewed for semantic coverage, including:
 
 - preserved invariants and prohibitions;
 - project-specific exceptions;
@@ -116,22 +120,20 @@ The handwritten instructions and generated preview are reviewed for semantic cov
 - temporary priorities that should not become permanent policy;
 - obsolete or contradictory guidance that should not be revived.
 
-`agent-policy check` must validate the configured preview path rather than assuming that generated instructions are always named `AGENTS.md`.
+`agent-policy check` validates the configured preview path rather than assuming that generated instructions are always named `AGENTS.md`.
 
 ## Phase 4: finalize
 
-Finalization is designed as the explicit cutover from handwritten instructions to generated instructions.
+Finalization performs the explicit cutover from handwritten instructions to generated instructions. The first invocation validates the complete transaction without changing the live repository.
 
-Proposed dry-run interface:
-
-```text
+```bash
 agent-policy --repository . adopt finalize \
   --backup-path .agent-policy/adoption/original/AGENTS.md
 ```
 
-The proposed flow requires reviewing the dry-run before applying explicitly:
+Apply the cutover only after reviewing the dry-run:
 
-```text
+```bash
 agent-policy --repository . adopt finalize \
   --backup-path .agent-policy/adoption/original/AGENTS.md \
   --apply
@@ -139,36 +141,39 @@ agent-policy --repository . adopt finalize \
 
 The primary instruction path is recorded during preparation and read from adoption state during finalization; it is not supplied again as a finalize option.
 
-Finalization requires unchanged source hashes, a current preview, valid configuration and policy, a safe and unused backup path, and a final output path that can be generated without overwriting unrelated files.
+Finalization requires unchanged immutable source hashes, matching configuration and adoption state, a current preview and lock, valid project-policy inputs, and a safe unused backup path. Strict finalization paths must be lexical regular files without symlink components. A repository-internal primary symlink accepted during inspection and preparation must be materialized as the same intended regular file before finalization.
 
-The operation preserves the original file byte-for-byte before changing the manifest output path. Rendering, lock generation, and adoption-state update are transactional. Failure restores the pre-finalization configuration and original instruction file.
+The transaction:
 
-Finalization is never performed by automatic repository classification, generic bootstrap `--apply`, or an unattended update.
+- preserves the original primary instructions byte-for-byte at the backup path;
+- changes the manifest output from the shadow preview to the retained primary path;
+- renders generated instructions at the primary path;
+- updates `.agent-policy.lock`;
+- marks adoption state as finalized;
+- removes the shadow preview.
+
+The implementation stages the complete final state in a temporary repository, rechecks live input bytes immediately before the first write, and rolls back files changed by the transaction if rendering, locking, checking, or state update fails.
+
+Finalization is never performed by automatic repository classification, bootstrap automatic routing, generic bootstrap `--apply`, or an unattended update.
 
 ## Bootstrap skill behavior
 
-The `bootstrap-agent-policy` orphan branch remains the single directly cloneable onboarding skill.
-
-The skill invokes one pinned full SHA from `main` and uses CLI inspection to select the safe workflow:
+The `bootstrap-agent-policy` orphan branch is the single directly cloneable onboarding skill. It invokes one pinned full SHA from `main` and uses CLI inspection to select the safe workflow:
 
 ```text
-unmanaged-empty     -> propose init
-unmanaged-existing  -> propose adoption preparation
+unmanaged-empty     -> recommend init
+unmanaged-existing  -> recommend adoption preparation
 managed             -> stop bootstrap and use normal validation
 inconsistent        -> stop mutation and explain required repair
 ```
 
-Automatic selection is read-only. Applying a change requires an explicit mode. Adoption application stops at preparation; finalization requires a separate, explicit instruction after semantic review.
+Automatic selection is read-only advice. Applying a change requires explicit `--route init` or `--route adopt`. Adoption application stops at preparation and runs preview; finalization requires a separate explicit instruction after semantic review. The bootstrap manifest exposes no finalization route.
 
-## Publication transition
+## Trust-anchor updates
 
-This page remains a design document until the corresponding CLI implementation is merged and verified on `main`. At that point, the command examples must be checked against the implemented parser and tests before this page is promoted into the user-facing onboarding navigation.
+The bootstrap manifest pins the exact reviewed CLI implementation commit. Changing the pinned SHA, route declarations, invocation script, or bootstrap safety constraints is a separate trust-anchor change.
 
-## Trust-anchor update
-
-CLI adoption support is merged and tested on `main` before the bootstrap manifest is updated. The manifest update pins the exact reviewed commit and is handled as a separate trust-anchor change.
-
-The bootstrap skill must never replace that SHA with `main`, another branch, a tag, or any mutable reference.
+The bootstrap skill must never replace the full SHA with `main`, another branch, a tag, a short SHA, or any mutable reference.
 
 ## Non-goals
 
