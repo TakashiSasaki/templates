@@ -733,6 +733,10 @@ def finalize_run(
             LOCK_PATH,
             state["preview_output"],
         ]
+        strict_symlink_names = {
+            *management_names,
+            state["primary_instructions"],
+        }
         live_artifacts = _snapshot_required_files(
             repository_root,
             management_names,
@@ -758,7 +762,7 @@ def finalize_run(
             state,
             backup_name,
             expected_inputs=live_artifacts,
-            reject_symlink_names=set(management_names),
+            reject_symlink_names=strict_symlink_names,
         )
         plan = [
             Diagnostic("info", "CREATE", "Backup original instructions", backup_name),
@@ -799,7 +803,7 @@ def finalize_run(
             deletes,
             must_be_absent={backup_name},
             must_match=live_artifacts,
-            reject_symlink_names=set(management_names),
+            reject_symlink_names=strict_symlink_names,
             verify=lambda: check_run(repository_root, state["config_path"]),
         )
         return []
