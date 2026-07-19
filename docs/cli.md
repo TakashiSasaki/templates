@@ -97,13 +97,15 @@ agent-policy --repository . adopt prepare \
 | `--apply` | 検証済み準備状態を実際に作成する |
 | `--toolchain-revision SHA` | 設定、lock、stateへ記録するtoolchain revision |
 | `--profile NAME` | 選択するprofile。複数指定可能 |
-| `--primary-instructions PATH` | 保持する既存instruction。既定は `AGENTS.md` |
+| `--primary-instructions PATH` | 保持する既存instruction file。既定は `AGENTS.md` |
 | `--project-policy PATH` | 既存または作成対象のproject policy。複数指定可能 |
 | `--verification-command COMMAND` | repositoryの検証コマンド |
 | `--no-verification` | verificationを設定しない。adoptionではこれが実質的な既定 |
 | `--preview-output-path PATH` | shadow instructionの生成先 |
 | `--skill NAME` | 生成するskill。複数指定可能。省略時は `validate-agent-policy` |
 | `--no-skills` | generated skillを作成しない。`--skill`とは同時指定不可 |
+
+`--primary-instructions`は、inspectionで発見された`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md`のいずれかでなければなりません。`.agents/policies`または`.agents/skills`配下のsourceはinventoryとadoption stateには記録されますが、primary instructionとしては選択できません。policyまたはskillだけが存在するrepositoryは、対応するinstruction fileを用意するまで`adopt prepare`を実行できません。
 
 複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
 
