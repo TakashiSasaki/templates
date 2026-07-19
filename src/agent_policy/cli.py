@@ -96,14 +96,6 @@ def parser() -> argparse.ArgumentParser:
         dest="enabled_skills",
         const=[],
     )
-
-    preview = adopt_sub.add_parser("preview")
-    preview.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
-
-    finalize = adopt_sub.add_parser("finalize")
-    finalize.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
-    finalize.add_argument("--backup-path", default=adopt_command.DEFAULT_BACKUP_PATH)
-    finalize.add_argument("--apply", action="store_true")
     return root
 
 
@@ -127,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.config,
                 state_path=args.state,
             )
-        elif args.adopt_command == "prepare":
+        else:
             diagnostics = adopt_command.prepare_run(
                 repository_root,
                 args.config,
@@ -140,18 +132,6 @@ def main(argv: list[str] | None = None) -> int:
                 verification_command=args.verification_command,
                 preview_output_path=args.preview_output_path,
                 enabled_skills=args.enabled_skills,
-            )
-        elif args.adopt_command == "preview":
-            diagnostics = adopt_command.preview_run(
-                repository_root,
-                state_path=args.state,
-            )
-        else:
-            diagnostics = adopt_command.finalize_run(
-                repository_root,
-                state_path=args.state,
-                backup_path=args.backup_path,
-                apply=args.apply,
             )
     else:
         project_policy_files = [args.project_policy] if args.project_policy else None
