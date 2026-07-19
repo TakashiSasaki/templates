@@ -1,3 +1,5 @@
+import json
+import shlex
 from pathlib import Path
 
 import yaml
@@ -72,6 +74,33 @@ def test_custom_config_path_is_discoverable_in_generated_instructions(tmp_path: 
     assert config_path in lock["inputs"]
     assert "agent-policy.yml" not in lock["inputs"]
 
+    assert validate.run(tmp_path, config_path) == []
+    assert check.run(tmp_path, config_path) == []
+
+
+def test_generated_skill_quotes_shell_sensitive_config_path(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    config_path = "config dir/agent policy;echo-danger.yml"
+
+    diagnostics = init.run(
+        tmp_path,
+        config_path,
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+    )
+
+    assert diagnostics == []
+    skill = (tmp_path / ".agents/skills/validate-agent-policy/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    quoted = shlex.quote(config_path)
+    assert f"--config {quoted}" in skill
+    assert f"--config {config_path}" not in skill
+    assert f"config: {json.dumps(config_path)}" in skill
+
+    lock = yaml.safe_load((tmp_path / ".agent-policy.lock").read_text(encoding="utf-8"))
+    assert config_path in lock["inputs"]
     assert validate.run(tmp_path, config_path) == []
     assert check.run(tmp_path, config_path) == []
 
