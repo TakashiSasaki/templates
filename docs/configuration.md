@@ -47,7 +47,7 @@ Newly prepared states also serialize `backup_path: null` and `final_output: null
 
 `adopt preview` requires the state to remain `prepared`, verifies the recorded immutable-source hashes and exact agreement with `.agent-policy.yml`, then regenerates the shadow output and lock. Project-policy files are editable manifest inputs and are intentionally excluded from the immutable-source hash guard unless one is also the retained primary instruction.
 
-Before `adopt finalize --apply` performs its first live write, it compares the current config, state, lock, and preview bytes with the versions validated before staging. A concurrent change or replacement aborts the cutover rather than being overwritten.
+Before `adopt finalize --apply` stages or writes the cutover, it snapshots the config, adoption state, lock, preview, retained primary instruction, and every project-policy input. The temporary repository must contain exactly those bytes before rendering, and the live repository must still contain them immediately before the transaction. A concurrent change therefore aborts rather than producing instructions from an unvalidated primary or policy revision. Config, state, lock, and preview are required to remain regular files at their lexical paths; replacing one with a symlink, or introducing a symlinked path component, is rejected even when the referent has identical bytes.
 
 After a successful finalization, the state remains in the repository with:
 
