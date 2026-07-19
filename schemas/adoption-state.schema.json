@@ -15,9 +15,7 @@
     "selected_profiles",
     "project_policy_files",
     "verification_command",
-    "generated_skills",
-    "backup_path",
-    "final_output"
+    "generated_skills"
   ],
   "properties": {
     "schema_version": {
@@ -178,6 +176,10 @@
         }
       },
       "then": {
+        "required": [
+          "backup_path",
+          "final_output"
+        ],
         "properties": {
           "backup_path": {
             "type": "string",
