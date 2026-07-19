@@ -257,17 +257,30 @@ def dump_adoption_state(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def immutable_adoption_sources(
+    state: dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    editable_policy_paths = set(state["project_policy_files"])
+    editable_policy_paths.discard(state["primary_instructions"])
+    return tuple(
+        sorted(
+            (
+                item
+                for item in state["sources"]
+                if item["path"] not in editable_policy_paths
+            ),
+            key=lambda item: item["path"],
+        )
+    )
+
+
 def changed_adoption_sources(
     repository_root: Path,
     state: dict[str, Any],
 ) -> tuple[str, ...]:
-    editable_policy_paths = set(state["project_policy_files"])
-    editable_policy_paths.discard(state["primary_instructions"])
     changed: list[str] = []
-    for item in state["sources"]:
+    for item in immutable_adoption_sources(state):
         relative = item["path"]
-        if relative in editable_policy_paths:
-            continue
         lexical_name = lexical_relative_name(repository_root, relative)
         path = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if not path.is_file() or sha256_file(path) != item["sha256"]:

@@ -15,6 +15,7 @@ from ..adoption import (
     changed_adoption_sources,
     dump_adoption_state,
     finalized_adoption_state,
+    immutable_adoption_sources,
     inspect_repository,
     lexical_relative_name,
     load_adoption_state,
@@ -737,13 +738,14 @@ def finalize_run(
             management_names,
             reject_symlinks=True,
         )
+        guarded_source_names = {
+            item["path"] for item in immutable_adoption_sources(state)
+        }
+        guarded_source_names.update(state["project_policy_files"])
         live_artifacts.update(
             _snapshot_required_files(
                 repository_root,
-                [
-                    state["primary_instructions"],
-                    *state["project_policy_files"],
-                ],
+                sorted(guarded_source_names),
             )
         )
 

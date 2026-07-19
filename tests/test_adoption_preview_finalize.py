@@ -353,6 +353,55 @@ def test_finalize_rejects_symlinked_live_artifact(
     assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
 
 
+@pytest.mark.parametrize(
+    ("relative", "content"),
+    [
+        ("CLAUDE.md", b"secondary instructions\n"),
+        (".agents/skills/manual/SKILL.md", b"# Manual skill\n"),
+    ],
+)
+def test_finalize_rejects_other_immutable_source_change_at_transaction_boundary(
+    tmp_path: Path,
+    monkeypatch,
+    relative: str,
+    content: bytes,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    primary = tmp_path / "AGENTS.md"
+    primary.write_text("handwritten instructions\n", encoding="utf-8")
+    original_primary = primary.read_bytes()
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    diagnostics = adopt.prepare_run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core", "security-baseline"],
+        verification_command="npm run verify:pr",
+    )
+    assert diagnostics == []
+
+    concurrent = b"concurrent immutable source change\n"
+    original_apply = adopt._apply_transaction
+
+    def race_then_apply(*args, **kwargs):
+        target.write_bytes(concurrent)
+        return original_apply(*args, **kwargs)
+
+    monkeypatch.setattr(adopt, "_apply_transaction", race_then_apply)
+
+    diagnostics = adopt.finalize_run(tmp_path, apply=True)
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "ADOPT_FINALIZE"
+    assert "changed during finalization" in diagnostics[0].message
+    assert target.read_bytes() == concurrent
+    assert primary.read_bytes() == original_primary
+    assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
+
+
 def test_finalized_state_cannot_preview_or_finalize_again(tmp_path: Path) -> None:
     _prepare_repository(tmp_path)
     assert adopt.finalize_run(tmp_path, apply=True) == []
