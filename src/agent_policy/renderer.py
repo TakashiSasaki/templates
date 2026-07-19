@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+import shlex
 from collections.abc import Iterable
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -12,6 +14,8 @@ from .policy_loader import Rule
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
+SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
+SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
 
 
 def environment() -> Environment:
@@ -38,12 +42,19 @@ def render_skill(
     skill_root = package_root() / "skills" / skill_name
     if not skill_root.is_dir():
         raise ValueError(f"Unknown generated skill: {skill_name}")
+    replacements = {
+        SKILL_CONFIG_PATH_SHELL_TOKEN: shlex.quote(config_path),
+        SKILL_CONFIG_PATH_YAML_TOKEN: json.dumps(config_path),
+        SKILL_CONFIG_PATH_TOKEN: config_path,
+    }
     result: dict[str, str] = {}
     for path in sorted(skill_root.rglob("*")):
         if path.is_file():
             relative = str(path.relative_to(skill_root))
             content = path.read_text(encoding="utf-8")
-            result[relative] = content.replace(SKILL_CONFIG_PATH_TOKEN, config_path)
+            for token, value in replacements.items():
+                content = content.replace(token, value)
+            result[relative] = content
     return result
 
 
