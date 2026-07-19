@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/agent-policy/schemas/adoption-state.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "toolchain",
+    "config_path",
+    "state_path",
+    "primary_instructions",
+    "sources",
+    "preview_output",
+    "selected_profiles",
+    "project_policy_files",
+    "verification_command",
+    "generated_skills"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "enum": [
+        "prepared",
+        "finalized"
+      ]
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision"
+      ],
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/agent-policy"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|LOCAL-DEVELOPMENT)$"
+        }
+      }
+    },
+    "config_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_instructions": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "generated"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "generated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "preview_output": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selected_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "project_policy_files": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "verification_command": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "generated_skills": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "backup_path": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "final_output": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "prepared"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "backup_path": {
+            "type": "null"
+          },
+          "final_output": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "finalized"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "backup_path",
+          "final_output"
+        ],
+        "properties": {
+          "backup_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "final_output": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

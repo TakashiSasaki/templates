@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .commands import adopt as adopt_command
 from .commands import check as check_command
 from .commands import init as init_command
 from .commands import render as render_command
@@ -33,6 +34,7 @@ def parser() -> argparse.ArgumentParser:
     for name in ["validate", "render", "check"]:
         item = sub.add_parser(name)
         item.add_argument("--config", default=".agent-policy.yml")
+
     init = sub.add_parser("init")
     init.add_argument("--config", default=".agent-policy.yml")
     init.add_argument("--apply", action="store_true")
@@ -56,6 +58,52 @@ def parser() -> argparse.ArgumentParser:
     )
     init.add_argument("--disable-agents-output", action="store_true")
     init.add_argument("--skill", action="append", dest="enabled_skills")
+
+    adopt = sub.add_parser("adopt")
+    adopt_sub = adopt.add_subparsers(dest="adopt_command", required=True)
+    inspect = adopt_sub.add_parser("inspect")
+    inspect.add_argument("--config", default=".agent-policy.yml")
+    inspect.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
+
+    prepare = adopt_sub.add_parser("prepare")
+    prepare.add_argument("--config", default=".agent-policy.yml")
+    prepare.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
+    prepare.add_argument("--apply", action="store_true")
+    prepare.add_argument("--toolchain-revision", default=current_revision())
+    prepare.add_argument("--profile", action="append", dest="profiles")
+    prepare.add_argument(
+        "--primary-instructions",
+        default=adopt_command.DEFAULT_PRIMARY_INSTRUCTIONS,
+    )
+    prepare.add_argument("--project-policy", action="append", dest="project_policy_files")
+    adopt_verification = prepare.add_mutually_exclusive_group()
+    adopt_verification.add_argument("--verification-command", default=None)
+    adopt_verification.add_argument(
+        "--no-verification",
+        action="store_const",
+        dest="verification_command",
+        const=None,
+    )
+    prepare.add_argument(
+        "--preview-output-path",
+        default=adopt_command.DEFAULT_PREVIEW_OUTPUT_PATH,
+    )
+    adopt_skills = prepare.add_mutually_exclusive_group()
+    adopt_skills.add_argument("--skill", action="append", dest="enabled_skills")
+    adopt_skills.add_argument(
+        "--no-skills",
+        action="store_const",
+        dest="enabled_skills",
+        const=[],
+    )
+
+    preview = adopt_sub.add_parser("preview")
+    preview.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
+
+    finalize = adopt_sub.add_parser("finalize")
+    finalize.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
+    finalize.add_argument("--backup-path", default=adopt_command.DEFAULT_BACKUP_PATH)
+    finalize.add_argument("--apply", action="store_true")
     return root
 
 
@@ -72,6 +120,39 @@ def main(argv: list[str] | None = None) -> int:
         diagnostics = render_command.run(repository_root, args.config)
     elif args.command == "check":
         diagnostics = check_command.run(repository_root, args.config)
+    elif args.command == "adopt":
+        if args.adopt_command == "inspect":
+            diagnostics = adopt_command.inspect_run(
+                repository_root,
+                args.config,
+                state_path=args.state,
+            )
+        elif args.adopt_command == "prepare":
+            diagnostics = adopt_command.prepare_run(
+                repository_root,
+                args.config,
+                apply=args.apply,
+                toolchain_revision=args.toolchain_revision,
+                profiles=args.profiles or ["core", "security-baseline"],
+                primary_instructions=args.primary_instructions,
+                state_path=args.state,
+                project_policy_files=args.project_policy_files,
+                verification_command=args.verification_command,
+                preview_output_path=args.preview_output_path,
+                enabled_skills=args.enabled_skills,
+            )
+        elif args.adopt_command == "preview":
+            diagnostics = adopt_command.preview_run(
+                repository_root,
+                state_path=args.state,
+            )
+        else:
+            diagnostics = adopt_command.finalize_run(
+                repository_root,
+                state_path=args.state,
+                backup_path=args.backup_path,
+                apply=args.apply,
+            )
     else:
         project_policy_files = [args.project_policy] if args.project_policy else None
         diagnostics = init_command.run(
