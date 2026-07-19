@@ -62,7 +62,7 @@ agent-policy --repository . adopt inspect
 agent-policy --repository . --format json adopt inspect
 ```
 
-各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
+各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。repository外を指すsymlinkは拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
 
 ## `adopt prepare`
 
@@ -86,7 +86,7 @@ agent-policy --repository . adopt prepare \
   --apply
 ```
 
-`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。
+`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。適用時の各fileはexclusive createで作成し、その呼出しが作成に成功したfileだけを失敗時cleanupの対象にします。
 
 主なオプション:
 
@@ -102,9 +102,10 @@ agent-policy --repository . adopt prepare \
 | `--verification-command COMMAND` | repositoryの検証コマンド |
 | `--no-verification` | verificationを設定しない。adoptionではこれが実質的な既定 |
 | `--preview-output-path PATH` | shadow instructionの生成先 |
-| `--skill NAME` | 生成するskill。複数指定可能 |
+| `--skill NAME` | 生成するskill。複数指定可能。省略時は `validate-agent-policy` |
+| `--no-skills` | generated skillを作成しない。`--skill`とは同時指定不可 |
 
-複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。
+複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
 
 ## `validate`
 
