@@ -118,6 +118,23 @@ def _obsolete_generated_outputs(
     return obsolete
 
 
+def _reject_obsolete_ancestor_migrations(
+    repository_root: Path,
+    obsolete: list[Path],
+    planned: dict[str, tuple[Path, str]],
+) -> None:
+    root = repository_root.resolve()
+    for obsolete_target in obsolete:
+        for planned_relative, (planned_target, _content) in planned.items():
+            if obsolete_target not in planned_target.parents:
+                continue
+            obsolete_relative = obsolete_target.relative_to(root).as_posix()
+            raise ValueError(
+                "Refusing to replace obsolete generated file with nested output: "
+                f"{obsolete_relative} is an ancestor of {planned_relative}"
+            )
+
+
 def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
     try:
         config = load_config(repository_root, config_path)
@@ -151,6 +168,8 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
             planned,
             set(inputs.values()),
         )
+        _reject_obsolete_ancestor_migrations(repository_root, obsolete, planned)
+
         outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
             _safe_generated_write(target, content)
