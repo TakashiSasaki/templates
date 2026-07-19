@@ -88,7 +88,14 @@ def parser() -> argparse.ArgumentParser:
         "--preview-output-path",
         default=adopt_command.DEFAULT_PREVIEW_OUTPUT_PATH,
     )
-    prepare.add_argument("--skill", action="append", dest="enabled_skills")
+    adopt_skills = prepare.add_mutually_exclusive_group()
+    adopt_skills.add_argument("--skill", action="append", dest="enabled_skills")
+    adopt_skills.add_argument(
+        "--no-skills",
+        action="store_const",
+        dest="enabled_skills",
+        const=[],
+    )
     return root
 
 
