@@ -42,11 +42,14 @@ When `enabled` is `false`, the path remains declarative but no agent instruction
 - selected profiles and project policy inputs
 - the verification command, if any
 - generated skill names
-- `backup_path: null` and `final_output: null`
 
-`adopt preview` requires the state to remain `prepared`, verifies the recorded source hashes and exact agreement with `.agent-policy.yml`, then regenerates the shadow output and lock.
+Newly prepared states also serialize `backup_path: null` and `final_output: null`. These fields remain optional while `status` is `prepared` so that repositories prepared by the earlier command version can be previewed and finalized after upgrading. A `finalized` state requires both fields to contain non-empty repository-local paths.
 
-After a successful `adopt finalize --apply`, the state remains in the repository with:
+`adopt preview` requires the state to remain `prepared`, verifies the recorded immutable-source hashes and exact agreement with `.agent-policy.yml`, then regenerates the shadow output and lock. Project-policy files are editable manifest inputs and are intentionally excluded from the immutable-source hash guard unless one is also the retained primary instruction.
+
+Before `adopt finalize --apply` performs its first live write, it compares the current config, state, lock, and preview bytes with the versions validated before staging. A concurrent change or replacement aborts the cutover rather than being overwritten.
+
+After a successful finalization, the state remains in the repository with:
 
 - `status: finalized`
 - the immutable backup path containing the original primary instruction bytes
