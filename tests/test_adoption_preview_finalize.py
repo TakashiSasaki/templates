@@ -53,6 +53,35 @@ def test_preview_and_finalize_reject_changed_source(tmp_path: Path) -> None:
     assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
 
 
+def test_existing_project_policy_can_change_before_preview(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "AGENTS.md").write_text("handwritten instructions\n", encoding="utf-8")
+    policy = tmp_path / ".agents/policies/repository.md"
+    policy.parent.mkdir(parents=True)
+    policy.write_text("Initial project policy.\n", encoding="utf-8")
+
+    diagnostics = adopt.prepare_run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core", "security-baseline"],
+        project_policy_files=[".agents/policies/repository.md"],
+        verification_command="npm run verify:pr",
+    )
+    assert diagnostics == []
+
+    policy.write_text("Reviewed project policy.\n", encoding="utf-8")
+
+    assert adopt.preview_run(tmp_path) == []
+    assert not any(
+        item.code == "ADOPTION_SOURCE_CHANGED"
+        for item in adopt.finalize_run(tmp_path, apply=False)
+    )
+    preview = tmp_path / adopt.DEFAULT_PREVIEW_OUTPUT_PATH
+    assert "Reviewed project policy." in preview.read_text(encoding="utf-8")
+
+
 def test_finalize_dry_run_is_read_only(tmp_path: Path) -> None:
     _prepare_repository(tmp_path)
     watched = [
