@@ -238,8 +238,13 @@ def test_finalize_rejects_live_artifact_change_during_staging(
     target = tmp_path / relative
     original_stage = adopt._stage_finalization
 
-    def stage_then_race(repository_root: Path, state: dict, backup_name: str):
-        result = original_stage(repository_root, state, backup_name)
+    def stage_then_race(
+        repository_root: Path,
+        state: dict,
+        backup_name: str,
+        **kwargs,
+    ):
+        result = original_stage(repository_root, state, backup_name, **kwargs)
         target.write_bytes(b"concurrent user change")
         return result
 
@@ -251,6 +256,91 @@ def test_finalize_rejects_live_artifact_change_during_staging(
     assert diagnostics[0].code == "ADOPT_FINALIZE"
     assert "changed during finalization" in diagnostics[0].message
     assert target.read_bytes() == b"concurrent user change"
+    assert (tmp_path / "AGENTS.md").read_bytes() == original_primary
+    assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
+
+
+def test_finalize_rejects_primary_change_at_transaction_boundary(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _prepare_repository(tmp_path)
+    primary = tmp_path / "AGENTS.md"
+    concurrent = b"concurrent primary change\n"
+    original_apply = adopt._apply_transaction
+
+    def race_then_apply(*args, **kwargs):
+        primary.write_bytes(concurrent)
+        return original_apply(*args, **kwargs)
+
+    monkeypatch.setattr(adopt, "_apply_transaction", race_then_apply)
+
+    diagnostics = adopt.finalize_run(tmp_path, apply=True)
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "ADOPT_FINALIZE"
+    assert "changed during finalization" in diagnostics[0].message
+    assert primary.read_bytes() == concurrent
+    assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
+
+
+def test_finalize_rejects_policy_change_after_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    original_primary = _prepare_repository(tmp_path)
+    policy = tmp_path / "policy/project.md"
+    concurrent = b"concurrent policy change\n"
+    original_check = adopt.check_run
+    calls = 0
+
+    def check_then_race(repository_root: Path, config_path: str):
+        nonlocal calls
+        diagnostics = original_check(repository_root, config_path)
+        calls += 1
+        if calls == 1:
+            policy.write_bytes(concurrent)
+        return diagnostics
+
+    monkeypatch.setattr(adopt, "check_run", check_then_race)
+
+    diagnostics = adopt.finalize_run(tmp_path, apply=True)
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "ADOPT_FINALIZE"
+    assert "input changed during finalization" in diagnostics[0].message
+    assert policy.read_bytes() == concurrent
+    assert (tmp_path / "AGENTS.md").read_bytes() == original_primary
+    assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        ".agent-policy.yml",
+        ".agent-policy/adoption.json",
+        ".agent-policy.lock",
+        ".agent-policy/preview/AGENTS.md",
+    ],
+)
+def test_finalize_rejects_symlinked_live_artifact(
+    tmp_path: Path,
+    relative: str,
+) -> None:
+    original_primary = _prepare_repository(tmp_path)
+    target = tmp_path / relative
+    referent = target.with_name(f"{target.name}.referent")
+    target.rename(referent)
+    original_referent = referent.read_bytes()
+    target.symlink_to(referent.name)
+
+    diagnostics = adopt.finalize_run(tmp_path, apply=True)
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "ADOPT_FINALIZE"
+    assert "symlinked" in diagnostics[0].message
+    assert target.is_symlink()
+    assert referent.read_bytes() == original_referent
     assert (tmp_path / "AGENTS.md").read_bytes() == original_primary
     assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
 
