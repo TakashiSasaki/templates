@@ -22,9 +22,9 @@ def environment() -> Environment:
     )
 
 
-def render_agents(config: Config, rules: Iterable[Rule], *, config_path: str) -> str:
+def render_agents(config: Config, rules: Iterable[Rule]) -> str:
     template = environment().get_template("AGENTS.md.j2")
-    return template.render(config=config, config_path=config_path, rules=list(rules))
+    return template.render(config=config, rules=list(rules))
 
 
 def render_skill(skill_name: str) -> dict[str, str]:
