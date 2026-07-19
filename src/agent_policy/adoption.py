@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .config import package_root
-from .paths import resolve_inside
+from .paths import UnsafePathError, resolve_inside
 from .renderer import GENERATED_MARKER
 
 KNOWN_INSTRUCTION_FILES = (
@@ -44,15 +45,30 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _relative_name(repository_root: Path, path: Path) -> str:
-    return path.relative_to(repository_root.resolve()).as_posix()
+def lexical_relative_name(repository_root: Path, relative: str | Path) -> str:
+    repository_root = repository_root.resolve()
+    raw = Path(relative)
+    if raw.is_absolute():
+        raise UnsafePathError(f"Absolute paths are not allowed: {relative}")
+
+    literal = Path(os.path.abspath(repository_root / raw))
+    try:
+        normalized = literal.relative_to(repository_root)
+    except ValueError as exc:
+        raise UnsafePathError(f"Path escapes repository root: {relative}") from exc
+
+    git_path = repository_root / ".git"
+    if literal == git_path or git_path in literal.parents:
+        raise UnsafePathError(f"Writing under .git is forbidden: {relative}")
+    return normalized.as_posix()
 
 
 def _source(repository_root: Path, relative: str) -> AdoptionSource:
-    path = resolve_inside(repository_root, relative, allow_missing=False)
-    content = path.read_bytes()
+    lexical_name = lexical_relative_name(repository_root, relative)
+    resolved_path = resolve_inside(repository_root, lexical_name, allow_missing=False)
+    content = resolved_path.read_bytes()
     return AdoptionSource(
-        path=_relative_name(repository_root, path),
+        path=lexical_name,
         sha256=hashlib.sha256(content).hexdigest(),
         generated=GENERATED_MARKER.encode("utf-8") in content,
     )
@@ -62,23 +78,30 @@ def discover_sources(repository_root: Path) -> tuple[AdoptionSource, ...]:
     repository_root = repository_root.resolve()
     candidates: set[str] = set()
     for relative in KNOWN_INSTRUCTION_FILES:
-        path = resolve_inside(repository_root, relative, allow_missing=True)
+        lexical_name = lexical_relative_name(repository_root, relative)
+        path = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if path.is_file():
-            candidates.add(relative)
+            candidates.add(lexical_name)
 
     for relative in KNOWN_INSTRUCTION_DIRECTORIES:
-        directory = resolve_inside(repository_root, relative, allow_missing=True)
-        if not directory.is_dir():
+        lexical_directory = lexical_relative_name(repository_root, relative)
+        resolved_directory = resolve_inside(
+            repository_root,
+            lexical_directory,
+            allow_missing=True,
+        )
+        if not resolved_directory.is_dir():
             continue
-        for path in sorted(directory.rglob("*")):
+        literal_directory = repository_root / lexical_directory
+        for path in sorted(literal_directory.rglob("*")):
             if not path.is_file():
                 continue
-            safe_path = resolve_inside(
+            lexical_name = lexical_relative_name(
                 repository_root,
                 path.relative_to(repository_root),
-                allow_missing=False,
             )
-            candidates.add(_relative_name(repository_root, safe_path))
+            resolve_inside(repository_root, lexical_name, allow_missing=False)
+            candidates.add(lexical_name)
 
     return tuple(_source(repository_root, relative) for relative in sorted(candidates))
 
