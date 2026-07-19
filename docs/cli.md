@@ -10,7 +10,7 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 ## `init`
 
-未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は`adopt`を使用し、`init`で競合を回避しないでください。
+未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は、後続の`adopt`機能を使用し、`init`で競合を回避しないでください。
 
 ```bash
 agent-policy --repository /path/to/repository init
@@ -39,7 +39,7 @@ agent-policy --repository /path/to/repository init \
 | `--verification-command COMMAND` | 生成指示へ記載する検証コマンド。既定は `./scripts/verify.sh` |
 | `--no-verification` | `verification` セクションを初期設定へ含めない |
 | `--agents-output-path PATH` | agent instructionの生成先。既定は `AGENTS.md` |
-| `--disable-agents-output` | agent instruction生成を初期設定で無効にする |
+| `--disable-agents-output` | agent instruction生成を初期設定で無効にする。pathは将来の有効化に備えて保持される |
 | `--skill NAME` | 初期状態で生成するskill。`[a-z0-9][a-z0-9-]*`形式で複数指定可能。省略時は `validate-agent-policy` |
 
 プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
@@ -62,7 +62,7 @@ agent-policy --repository . adopt inspect
 agent-policy --repository . --format json adopt inspect
 ```
 
-各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
+各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。既知のsource tree配下では、既存の通常ファイルを指すsymlinkだけをsourceとして許可します。directory、dangling target、その他の非通常ファイルを指すsymlinkは`inconsistent`として拒否し、repository外を指すsymlinkも拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
 
 ## `adopt prepare`
 
@@ -86,7 +86,7 @@ agent-policy --repository . adopt prepare \
   --apply
 ```
 
-`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。
+`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。適用時の各fileはexclusive createで作成し、その呼出しが作成に成功したfileだけを失敗時cleanupの対象にします。
 
 主なオプション:
 
@@ -97,25 +97,28 @@ agent-policy --repository . adopt prepare \
 | `--apply` | 検証済み準備状態を実際に作成する |
 | `--toolchain-revision SHA` | 設定、lock、stateへ記録するtoolchain revision |
 | `--profile NAME` | 選択するprofile。複数指定可能 |
-| `--primary-instructions PATH` | 保持する既存instruction。既定は `AGENTS.md` |
+| `--primary-instructions PATH` | 保持する既存instruction file。既定は `AGENTS.md` |
 | `--project-policy PATH` | 既存または作成対象のproject policy。複数指定可能 |
 | `--verification-command COMMAND` | repositoryの検証コマンド |
 | `--no-verification` | verificationを設定しない。adoptionではこれが実質的な既定 |
 | `--preview-output-path PATH` | shadow instructionの生成先 |
-| `--skill NAME` | 生成するskill。複数指定可能 |
+| `--skill NAME` | 生成するskill。複数指定可能。省略時は `validate-agent-policy` |
+| `--no-skills` | generated skillを作成しない。`--skill`とは同時指定不可 |
 
-複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。
+`--primary-instructions`は、inspectionで発見された`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md`のいずれかでなければなりません。`.agents/policies`または`.agents/skills`配下のsourceはinventoryとadoption stateには記録されますが、primary instructionとしては選択できません。policyまたはskillだけが存在するrepositoryは、対応するinstruction fileを用意するまで`adopt prepare`を実行できません。
+
+複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
 
 ## `adopt preview`
 
-prepared stateに記録されたsource hashと設定の整合性を検査し、現在のprofileとproject policyからshadow instruction、generated skill、lockを再生成します。
+prepared stateに記録された不変sourceのhashと設定の整合性を検査し、現在のprofileとproject policyからshadow instruction、generated skill、lockを再生成します。project policyは編集可能なmanifest inputであり、prepare後に変更してpreviewへ反映できます。
 
 ```bash
 agent-policy --repository . adopt preview
 agent-policy --repository . adopt preview --state .agent-policy/adoption.json
 ```
 
-prepare後にproject policyを編集した場合は、このコマンドでpreviewを更新してから`adopt finalize`へ進みます。prepare時に記録したprimary instructionなどの既存sourceが変更または削除されている場合は、`ADOPTION_SOURCE_CHANGED`として停止します。
+prepare時に記録したprimary instructionなどの不変sourceが変更または削除されている場合は、`ADOPTION_SOURCE_CHANGED`として停止します。
 
 ## `adopt finalize`
 
@@ -142,7 +145,7 @@ finalizeは次の変更を一つのtransactionとして扱います。
 - adoption stateを`finalized`へ更新する
 - shadow previewを削除する
 
-適用後の`check`が失敗した場合を含め、transaction途中の失敗では変更前のファイルを復元します。backup pathが既に存在する場合、primary sourceがprepare後に変化した場合、previewまたはlockがstaleな場合はcutoverしません。
+一時コピーでの検証後、最初の実書込み直前にconfig、state、lock、previewのbytesを再比較します。検証中にいずれかが変更・置換された場合はcutoverせず停止します。適用後の`check`が失敗した場合を含め、transaction途中の失敗では変更前のファイルを復元します。backup pathが既に存在する場合、primary sourceがprepare後に変化した場合、previewまたはlockがstaleな場合もcutoverしません。
 
 主なオプション:
 
