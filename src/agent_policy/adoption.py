@@ -67,6 +67,19 @@ def _is_absolute_symlink(path: Path) -> bool:
     return path.is_symlink() and path.readlink().is_absolute()
 
 
+def _has_absolute_symlink_component(
+    repository_root: Path,
+    target: Path,
+) -> bool:
+    repository_root = repository_root.resolve()
+    for component in (target, *target.parents):
+        if component == repository_root:
+            break
+        if _is_absolute_symlink(component):
+            return True
+    return False
+
+
 def _source(repository_root: Path, relative: str) -> AdoptionSource:
     lexical_name = lexical_relative_name(repository_root, relative)
     resolved_path = resolve_inside(repository_root, lexical_name, allow_missing=False)
@@ -83,7 +96,7 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
     for relative in KNOWN_INSTRUCTION_FILES:
         lexical_name = lexical_relative_name(repository_root, relative)
         literal = repository_root / lexical_name
-        if _is_absolute_symlink(literal):
+        if _has_absolute_symlink_component(repository_root, literal):
             return True
         resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if (literal.exists() or literal.is_symlink()) and not resolved.is_file():
@@ -92,7 +105,7 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
     for relative in KNOWN_INSTRUCTION_DIRECTORIES:
         lexical_name = lexical_relative_name(repository_root, relative)
         literal = repository_root / lexical_name
-        if _is_absolute_symlink(literal):
+        if _has_absolute_symlink_component(repository_root, literal):
             return True
         resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if (literal.exists() or literal.is_symlink()) and not resolved.is_dir():
@@ -102,7 +115,7 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
         for path in sorted(literal.rglob("*")):
             if not path.is_symlink():
                 continue
-            if _is_absolute_symlink(path):
+            if _has_absolute_symlink_component(repository_root, path):
                 return True
             child_name = lexical_relative_name(
                 repository_root,
