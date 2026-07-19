@@ -63,6 +63,22 @@ def _relative_name(repository_root: Path, path: Path) -> str:
     return path.relative_to(repository_root.resolve()).as_posix()
 
 
+def _lexical_target(repository_root: Path, relative: str) -> tuple[str, Path]:
+    repository_root = repository_root.resolve()
+    name = lexical_relative_name(repository_root, relative)
+    return name, repository_root / name
+
+
+def _has_symlink_component(repository_root: Path, target: Path) -> bool:
+    repository_root = repository_root.resolve()
+    for component in (target, *target.parents):
+        if component == repository_root:
+            break
+        if component.is_symlink():
+            return True
+    return False
+
+
 def _resolve_names(repository_root: Path, values: list[str]) -> list[tuple[str, Path]]:
     result: list[tuple[str, Path]] = []
     for value in values:
@@ -185,16 +201,12 @@ def prepare_run(
                 )
             ]
 
-        config_target = resolve_inside(repository_root, config_path, allow_missing=True)
-        state_target = resolve_inside(repository_root, state_path, allow_missing=True)
-        preview_target = resolve_inside(
+        config_name, _config_target = _lexical_target(repository_root, config_path)
+        state_name, _state_target = _lexical_target(repository_root, state_path)
+        preview_name, _preview_target = _lexical_target(
             repository_root,
             preview_output_path,
-            allow_missing=True,
         )
-        config_name = _relative_name(repository_root, config_target)
-        state_name = _relative_name(repository_root, state_target)
-        preview_name = _relative_name(repository_root, preview_target)
 
         policy_targets = _resolve_names(repository_root, policies)
         missing_policies: list[str] = []
@@ -231,10 +243,15 @@ def prepare_run(
             raise ValueError("Generated or management paths overlap project policy files")
 
         conflict_names = [config_name, state_name, LOCK_PATH, preview_name, *generated_skill_files]
+        conflict_targets = [
+            _lexical_target(repository_root, relative) for relative in conflict_names
+        ]
         conflicts = [
             relative
-            for relative in conflict_names
-            if resolve_inside(repository_root, relative, allow_missing=True).exists()
+            for relative, target in conflict_targets
+            if target.exists()
+            or target.is_symlink()
+            or _has_symlink_component(repository_root, target)
         ]
         if conflicts:
             return [
@@ -321,10 +338,16 @@ def prepare_run(
                 }
             )
             for relative in apply_names:
-                source = resolve_inside(staged, relative, allow_missing=False)
-                target = resolve_inside(repository_root, relative, allow_missing=True)
-                if target.exists():
-                    raise FileExistsError(f"Refusing to overwrite existing file: {relative}")
+                target_name, target = _lexical_target(repository_root, relative)
+                source = resolve_inside(staged, target_name, allow_missing=False)
+                if (
+                    target.exists()
+                    or target.is_symlink()
+                    or _has_symlink_component(repository_root, target)
+                ):
+                    raise FileExistsError(
+                        f"Refusing to overwrite existing file: {target_name}"
+                    )
                 _write_new_file(target, source.read_bytes())
                 created.append(target)
         return []
