@@ -5,7 +5,6 @@ import pytest
 from agent_policy.commands import render
 from agent_policy.renderer import GENERATED_MARKER
 
-
 PROJECT_POLICY = """---
 id: project.rule
 severity: mandatory
