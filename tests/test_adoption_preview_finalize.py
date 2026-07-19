@@ -147,6 +147,37 @@ def test_finalize_rejects_stale_preview_and_backup_conflict(tmp_path: Path) -> N
     assert "already exists" in diagnostics[0].message
 
 
+def test_write_new_file_does_not_delete_existing_destination(tmp_path: Path) -> None:
+    destination = tmp_path / "owned-by-another-process.txt"
+    destination.write_bytes(b"user data")
+
+    with pytest.raises(FileExistsError):
+        adopt._write_new_file(destination, b"transaction data")
+
+    assert destination.read_bytes() == b"user data"
+
+
+def test_transaction_preserves_raced_in_file(tmp_path: Path, monkeypatch) -> None:
+    destination = tmp_path / "backup.txt"
+
+    def race_then_fail(path: Path, content: bytes) -> None:
+        assert path == destination
+        path.write_bytes(b"raced-in user data")
+        raise FileExistsError("simulated exclusive-create race")
+
+    monkeypatch.setattr(adopt, "_write_new_file", race_then_fail)
+
+    with pytest.raises(FileExistsError, match="simulated exclusive-create race"):
+        adopt._apply_transaction(
+            tmp_path,
+            {"backup.txt": b"transaction data"},
+            [],
+            must_be_absent={"backup.txt"},
+        )
+
+    assert destination.read_bytes() == b"raced-in user data"
+
+
 def test_transaction_rolls_back_partial_replacement(tmp_path: Path, monkeypatch) -> None:
     first = tmp_path / "a.txt"
     first.write_bytes(b"old")
