@@ -499,10 +499,56 @@ def _validate_backup_path(
     return backup_name
 
 
+def _snapshot_required_files(
+    repository_root: Path,
+    names: list[str],
+    *,
+    reject_symlinks: bool = False,
+) -> dict[str, bytes]:
+    snapshots: dict[str, bytes] = {}
+    for relative in names:
+        name, literal = _lexical_target(repository_root, relative)
+        if reject_symlinks and (
+            literal.is_symlink()
+            or _has_symlink_component(repository_root, literal)
+        ):
+            raise ValueError(f"Required adoption artifact is symlinked: {name}")
+        path = resolve_inside(repository_root, name, allow_missing=False)
+        if not path.is_file():
+            raise ValueError(f"Required adoption artifact is not a file: {name}")
+        snapshots[name] = path.read_bytes()
+    return snapshots
+
+
+def _assert_snapshot_matches(
+    repository_root: Path,
+    expected: dict[str, bytes],
+    *,
+    reject_symlink_names: set[str],
+) -> None:
+    strict = {
+        lexical_relative_name(repository_root, relative)
+        for relative in reject_symlink_names
+    }
+    for relative, expected_content in expected.items():
+        current = _snapshot_required_files(
+            repository_root,
+            [relative],
+            reject_symlinks=relative in strict,
+        )[relative]
+        if current != expected_content:
+            raise RuntimeError(
+                f"Adoption input changed during finalization: {relative}"
+            )
+
+
 def _stage_finalization(
     repository_root: Path,
     state: dict[str, Any],
     backup_name: str,
+    *,
+    expected_inputs: dict[str, bytes] | None = None,
+    reject_symlink_names: set[str] | None = None,
 ) -> tuple[dict[str, bytes], list[str]]:
     with tempfile.TemporaryDirectory(prefix="agent-policy-finalize-") as temporary:
         staged = Path(temporary) / "repo"
@@ -512,6 +558,14 @@ def _stage_finalization(
             ignore=shutil.ignore_patterns(".git"),
             symlinks=True,
         )
+        if expected_inputs is not None:
+            _assert_snapshot_matches(
+                staged,
+                expected_inputs,
+                reject_symlink_names=(
+                    set() if reject_symlink_names is None else reject_symlink_names
+                ),
+            )
 
         primary_name = state["primary_instructions"]
         preview_name = state["preview_output"]
@@ -573,20 +627,6 @@ def _stage_finalization(
         return writes, [preview_name]
 
 
-def _snapshot_required_files(
-    repository_root: Path,
-    names: list[str],
-) -> dict[str, bytes]:
-    snapshots: dict[str, bytes] = {}
-    for relative in names:
-        name = lexical_relative_name(repository_root, relative)
-        path = resolve_inside(repository_root, name, allow_missing=False)
-        if not path.is_file():
-            raise ValueError(f"Required adoption artifact is not a file: {name}")
-        snapshots[name] = path.read_bytes()
-    return snapshots
-
-
 def _apply_transaction(
     repository_root: Path,
     writes: dict[str, bytes],
@@ -594,39 +634,56 @@ def _apply_transaction(
     *,
     must_be_absent: set[str],
     must_match: dict[str, bytes] | None = None,
+    reject_symlink_names: set[str] | None = None,
     verify: Callable[[], list[Diagnostic]] | None = None,
 ) -> None:
     expected = {} if must_match is None else dict(must_match)
-    names = sorted({*writes, *deletes, *expected})
+    strict = {
+        lexical_relative_name(repository_root, relative)
+        for relative in (
+            set() if reject_symlink_names is None else reject_symlink_names
+        )
+    }
+    mutation_names = sorted({*writes, *deletes})
+    names = sorted({*mutation_names, *expected})
     snapshots: dict[str, bytes | None] = {}
     for relative in names:
-        path = resolve_inside(repository_root, relative, allow_missing=True)
+        name, literal = _lexical_target(repository_root, relative)
+        if name in strict and (
+            literal.is_symlink()
+            or _has_symlink_component(repository_root, literal)
+        ):
+            raise ValueError(f"Required adoption artifact is symlinked: {name}")
+        if name in must_be_absent and (
+            literal.exists()
+            or literal.is_symlink()
+            or _has_symlink_component(repository_root, literal)
+        ):
+            raise FileExistsError(f"Paths must not exist: {name}")
+        path = resolve_inside(repository_root, name, allow_missing=True)
         if path.exists() and not path.is_file():
-            raise ValueError(f"Transaction path is not a file: {relative}")
+            raise ValueError(f"Transaction path is not a file: {name}")
         current = path.read_bytes() if path.is_file() else None
-        snapshots[relative] = current
-        if relative in expected and current != expected[relative]:
+        snapshots[name] = current
+        if name in expected and current != expected[name]:
             raise RuntimeError(
-                f"Adoption artifact changed during finalization: {relative}"
+                f"Adoption artifact changed during finalization: {name}"
             )
-    conflicts = sorted(
-        relative for relative in must_be_absent if snapshots.get(relative) is not None
-    )
-    if conflicts:
-        raise FileExistsError(f"Paths must not exist: {', '.join(conflicts)}")
 
     created_by_transaction: set[str] = set()
     try:
         for relative in sorted(writes):
-            path = resolve_inside(repository_root, relative, allow_missing=True)
-            if relative in must_be_absent:
+            name = lexical_relative_name(repository_root, relative)
+            path = resolve_inside(repository_root, name, allow_missing=True)
+            if name in must_be_absent:
                 _write_new_file(path, writes[relative])
             else:
                 _write_atomic_bytes(path, writes[relative])
-            if snapshots[relative] is None:
-                created_by_transaction.add(relative)
+            if snapshots[name] is None:
+                created_by_transaction.add(name)
         for relative in sorted(deletes):
-            path = resolve_inside(repository_root, relative, allow_missing=False)
+            name = lexical_relative_name(repository_root, relative)
+            path = resolve_inside(repository_root, name, allow_missing=False)
             path.unlink()
         if verify is not None:
             diagnostics = verify()
@@ -636,17 +693,18 @@ def _apply_transaction(
                 )
     except Exception as exc:
         rollback_errors: list[str] = []
-        for relative in reversed(names):
-            path = resolve_inside(repository_root, relative, allow_missing=True)
-            original = snapshots[relative]
+        for relative in reversed(mutation_names):
+            name = lexical_relative_name(repository_root, relative)
+            path = resolve_inside(repository_root, name, allow_missing=True)
+            original = snapshots[name]
             try:
                 if original is None:
-                    if relative in created_by_transaction and path.exists():
+                    if name in created_by_transaction and path.exists():
                         path.unlink()
                 else:
                     _write_atomic_bytes(path, original)
             except Exception as rollback_exc:
-                rollback_errors.append(f"{relative}: {rollback_exc}")
+                rollback_errors.append(f"{name}: {rollback_exc}")
         if rollback_errors:
             raise RuntimeError(
                 f"Transaction failed ({exc}); rollback failed: {', '.join(rollback_errors)}"
@@ -668,20 +726,38 @@ def finalize_run(
         if source_diagnostics:
             return source_diagnostics
 
+        management_names = [
+            state["config_path"],
+            state["state_path"],
+            LOCK_PATH,
+            state["preview_output"],
+        ]
+        live_artifacts = _snapshot_required_files(
+            repository_root,
+            management_names,
+            reject_symlinks=True,
+        )
+        live_artifacts.update(
+            _snapshot_required_files(
+                repository_root,
+                [
+                    state["primary_instructions"],
+                    *state["project_policy_files"],
+                ],
+            )
+        )
+
         diagnostics = check_run(repository_root, state["config_path"])
         if diagnostics:
             return diagnostics
         backup_name = _validate_backup_path(repository_root, state, backup_path)
-        live_artifacts = _snapshot_required_files(
+        writes, deletes = _stage_finalization(
             repository_root,
-            [
-                state["config_path"],
-                state["state_path"],
-                LOCK_PATH,
-                state["preview_output"],
-            ],
+            state,
+            backup_name,
+            expected_inputs=live_artifacts,
+            reject_symlink_names=set(management_names),
         )
-        writes, deletes = _stage_finalization(repository_root, state, backup_name)
         plan = [
             Diagnostic("info", "CREATE", "Backup original instructions", backup_name),
             Diagnostic(
@@ -721,6 +797,7 @@ def finalize_run(
             deletes,
             must_be_absent={backup_name},
             must_match=live_artifacts,
+            reject_symlink_names=set(management_names),
             verify=lambda: check_run(repository_root, state["config_path"]),
         )
         return []
