@@ -89,6 +89,22 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
         resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if (literal.exists() or literal.is_symlink()) and not resolved.is_dir():
             return True
+        if not resolved.is_dir():
+            continue
+        for path in sorted(literal.rglob("*")):
+            if not path.is_symlink():
+                continue
+            child_name = lexical_relative_name(
+                repository_root,
+                path.relative_to(repository_root),
+            )
+            child_target = resolve_inside(
+                repository_root,
+                child_name,
+                allow_missing=True,
+            )
+            if not child_target.exists():
+                return True
 
     return False
 
