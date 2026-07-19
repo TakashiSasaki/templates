@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import yaml
+
 from agent_policy.commands import check, init, validate
 
 
@@ -33,7 +35,10 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
     )
     assert "_Source: `policy/project.md` in this repository" in agents
     assert (tmp_path / ".agent-policy.lock").is_file()
-    assert (tmp_path / ".agents/skills/validate-agent-policy/SKILL.md").is_file()
+    skill_path = tmp_path / ".agents/skills/validate-agent-policy/SKILL.md"
+    assert skill_path.is_file()
+    skill = skill_path.read_text(encoding="utf-8")
+    assert "--config .agent-policy.yml" in skill
     assert validate.run(tmp_path, ".agent-policy.yml") == []
     assert check.run(tmp_path, ".agent-policy.yml") == []
 
@@ -55,6 +60,18 @@ def test_custom_config_path_is_discoverable_in_generated_instructions(tmp_path: 
     assert f"configuration: {config_path}" in agents
     assert f"Semantic configuration: `{config_path}`" in agents
     assert f"Change `{config_path}` or its repository policy inputs" in agents
+
+    skill = (tmp_path / ".agents/skills/validate-agent-policy/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert f"`{config_path}`" in skill
+    assert f"--config {config_path}" in skill
+    assert "--config .agent-policy.yml" not in skill
+
+    lock = yaml.safe_load((tmp_path / ".agent-policy.lock").read_text(encoding="utf-8"))
+    assert config_path in lock["inputs"]
+    assert "agent-policy.yml" not in lock["inputs"]
+
     assert validate.run(tmp_path, config_path) == []
     assert check.run(tmp_path, config_path) == []
 
