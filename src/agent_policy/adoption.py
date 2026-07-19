@@ -182,9 +182,13 @@ def changed_adoption_sources(
     repository_root: Path,
     state: dict[str, Any],
 ) -> tuple[str, ...]:
+    editable_policy_paths = set(state["project_policy_files"])
+    editable_policy_paths.discard(state["primary_instructions"])
     changed: list[str] = []
     for item in state["sources"]:
         relative = item["path"]
+        if relative in editable_policy_paths:
+            continue
         path = resolve_inside(repository_root, relative, allow_missing=True)
         if not path.is_file() or sha256_file(path) != item["sha256"]:
             changed.append(relative)
