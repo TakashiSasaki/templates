@@ -10,7 +10,7 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 ## `init`
 
-未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は`adopt`を使用し、`init`で競合を回避しないでください。
+未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は、後続の`adopt`機能を使用し、`init`で競合を回避しないでください。
 
 ```bash
 agent-policy --repository /path/to/repository init
@@ -39,7 +39,7 @@ agent-policy --repository /path/to/repository init \
 | `--verification-command COMMAND` | 生成指示へ記載する検証コマンド。既定は `./scripts/verify.sh` |
 | `--no-verification` | `verification` セクションを初期設定へ含めない |
 | `--agents-output-path PATH` | agent instructionの生成先。既定は `AGENTS.md` |
-| `--disable-agents-output` | agent instruction生成を初期設定で無効にする |
+| `--disable-agents-output` | agent instruction生成を初期設定で無効にする。pathは将来の有効化に備えて保持される |
 | `--skill NAME` | 初期状態で生成するskill。`[a-z0-9][a-z0-9-]*`形式で複数指定可能。省略時は `validate-agent-policy` |
 
 プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
