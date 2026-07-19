@@ -1,6 +1,6 @@
 <!--
 agent-policy-generated: true
-configuration: .agent-policy.yml
+configuration: {{ config_path }}
 DO NOT EDIT DIRECTLY
 -->
 
@@ -10,14 +10,14 @@ These instructions were generated from shared policy profiles and repository-spe
 
 ## Policy system
 
-- Semantic configuration: `.agent-policy.yml`
+- Semantic configuration: `{{ config_path }}`
 - Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
 {% if config.project_policy_files %}- Repository policy inputs:
 {% for path in config.project_policy_files %}  - `{{ path }}`
 {% endfor %}{% endif %}{% if config.enabled_skills %}- Generated operational skills:
 {% for skill in config.enabled_skills %}  - `.agents/skills/{{ skill }}/SKILL.md`
 {% endfor %}{% endif %}
-Do not edit this generated file directly. Change `.agent-policy.yml` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
+Do not edit this generated file directly. Change `{{ config_path }}` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
 
 {% for rule in rules %}
 ## {{ rule.title }}
