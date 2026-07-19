@@ -116,6 +116,7 @@ def test_prepare_rejects_dangling_project_policy_scaffold_symlink(
         "preview_output_path",
         "link_name",
         "referent_name",
+        "expected_code",
     ),
     [
         (
@@ -124,6 +125,7 @@ def test_prepare_rejects_dangling_project_policy_scaffold_symlink(
             ".agent-policy/preview/AGENTS.md",
             ".agent-policy.yml",
             "future/config.yml",
+            "ADOPTION_INCONSISTENT",
         ),
         (
             ".agent-policy.yml",
@@ -131,6 +133,7 @@ def test_prepare_rejects_dangling_project_policy_scaffold_symlink(
             ".agent-policy/preview/AGENTS.md",
             ".agent-policy/adoption.json",
             "future/adoption.json",
+            "ADOPTION_INCONSISTENT",
         ),
         (
             ".agent-policy.yml",
@@ -138,6 +141,7 @@ def test_prepare_rejects_dangling_project_policy_scaffold_symlink(
             ".agent-policy/preview/AGENTS.md",
             ".agent-policy/preview/AGENTS.md",
             "future/preview.md",
+            "FILE_CONFLICT",
         ),
     ],
 )
@@ -148,6 +152,7 @@ def test_prepare_rejects_dangling_management_output_symlink(
     preview_output_path: str,
     link_name: str,
     referent_name: str,
+    expected_code: str,
 ) -> None:
     (tmp_path / ".git").mkdir()
     (tmp_path / "AGENTS.md").write_text("handwritten\n", encoding="utf-8")
@@ -172,8 +177,9 @@ def test_prepare_rejects_dangling_management_output_symlink(
     )
 
     assert len(diagnostics) == 1
-    assert diagnostics[0].code == "FILE_CONFLICT"
-    assert link_name in diagnostics[0].message
+    assert diagnostics[0].code == expected_code
+    if expected_code == "FILE_CONFLICT":
+        assert link_name in diagnostics[0].message
     assert link.is_symlink()
     assert not referent.exists()
     assert not (tmp_path / ".agent-policy.lock").exists()
