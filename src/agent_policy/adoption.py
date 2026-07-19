@@ -113,16 +113,32 @@ def inspect_repository(
     state_path: str = ".agent-policy/adoption.json",
 ) -> AdoptionInspection:
     repository_root = repository_root.resolve()
-    config_target = resolve_inside(repository_root, config_path, allow_missing=True)
-    state_target = resolve_inside(repository_root, state_path, allow_missing=True)
-    lock_target = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
+    config_name = lexical_relative_name(repository_root, config_path)
+    state_name = lexical_relative_name(repository_root, state_path)
+    lock_name = lexical_relative_name(repository_root, LOCK_PATH)
+    config_literal = repository_root / config_name
+    state_literal = repository_root / state_name
+    lock_literal = repository_root / lock_name
+    config_target = resolve_inside(repository_root, config_name, allow_missing=True)
+    state_target = resolve_inside(repository_root, state_name, allow_missing=True)
+    lock_target = resolve_inside(repository_root, lock_name, allow_missing=True)
     sources = discover_sources(repository_root)
+
+    config_artifact = config_literal.exists() or config_literal.is_symlink()
+    state_artifact = state_literal.exists() or state_literal.is_symlink()
+    lock_artifact = lock_literal.exists() or lock_literal.is_symlink()
 
     if config_target.exists() and config_target.is_file():
         state = "managed"
-    elif config_target.exists():
+    elif config_artifact:
         state = "inconsistent"
-    elif state_target.exists() or lock_target.exists() or any(item.generated for item in sources):
+    elif (
+        state_artifact
+        or lock_artifact
+        or state_target.exists()
+        or lock_target.exists()
+        or any(item.generated for item in sources)
+    ):
         state = "inconsistent"
     elif sources:
         state = "unmanaged-existing"
