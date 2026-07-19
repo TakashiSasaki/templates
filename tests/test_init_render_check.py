@@ -16,6 +16,8 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
     agents_path = tmp_path / "AGENTS.md"
     assert agents_path.is_file()
     agents = agents_path.read_text(encoding="utf-8")
+    assert "configuration: .agent-policy.yml" in agents
+    assert "Semantic configuration: `.agent-policy.yml`" in agents
     assert (
         "Pinned shared toolchain: `TakashiSasaki/agent-policy@LOCAL-DEVELOPMENT`"
         in agents
@@ -34,6 +36,27 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
     assert (tmp_path / ".agents/skills/validate-agent-policy/SKILL.md").is_file()
     assert validate.run(tmp_path, ".agent-policy.yml") == []
     assert check.run(tmp_path, ".agent-policy.yml") == []
+
+
+def test_custom_config_path_is_discoverable_in_generated_instructions(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    config_path = "config/agent-policy.yml"
+
+    diagnostics = init.run(
+        tmp_path,
+        config_path,
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+    )
+
+    assert diagnostics == []
+    agents = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert f"configuration: {config_path}" in agents
+    assert f"Semantic configuration: `{config_path}`" in agents
+    assert f"Change `{config_path}` or its repository policy inputs" in agents
+    assert validate.run(tmp_path, config_path) == []
+    assert check.run(tmp_path, config_path) == []
 
 
 def test_init_refuses_handwritten_agents_file(tmp_path: Path) -> None:
