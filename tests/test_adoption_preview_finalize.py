@@ -82,6 +82,22 @@ def test_existing_project_policy_can_change_before_preview(tmp_path: Path) -> No
     assert "Reviewed project policy." in preview.read_text(encoding="utf-8")
 
 
+def test_legacy_prepared_state_can_preview_and_finalize(tmp_path: Path) -> None:
+    _prepare_repository(tmp_path)
+    state_path = tmp_path / adopt.DEFAULT_STATE_PATH
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state.pop("backup_path")
+    state.pop("final_output")
+    state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    assert adopt.preview_run(tmp_path) == []
+    diagnostics = adopt.finalize_run(tmp_path, apply=False)
+
+    assert diagnostics
+    assert not any(item.level == "error" for item in diagnostics)
+    assert {item.code for item in diagnostics} == {"CREATE", "REPLACE", "UPDATE", "DELETE"}
+
+
 def test_finalize_dry_run_is_read_only(tmp_path: Path) -> None:
     _prepare_repository(tmp_path)
     watched = [
@@ -202,6 +218,41 @@ def test_transaction_rolls_back_partial_replacement(tmp_path: Path, monkeypatch)
 
     assert first.read_bytes() == b"old"
     assert not (tmp_path / "b.txt").exists()
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        ".agent-policy.yml",
+        ".agent-policy/adoption.json",
+        ".agent-policy.lock",
+        ".agent-policy/preview/AGENTS.md",
+    ],
+)
+def test_finalize_rejects_live_artifact_change_during_staging(
+    tmp_path: Path,
+    monkeypatch,
+    relative: str,
+) -> None:
+    original_primary = _prepare_repository(tmp_path)
+    target = tmp_path / relative
+    original_stage = adopt._stage_finalization
+
+    def stage_then_race(repository_root: Path, state: dict, backup_name: str):
+        result = original_stage(repository_root, state, backup_name)
+        target.write_bytes(b"concurrent user change")
+        return result
+
+    monkeypatch.setattr(adopt, "_stage_finalization", stage_then_race)
+
+    diagnostics = adopt.finalize_run(tmp_path, apply=True)
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "ADOPT_FINALIZE"
+    assert "changed during finalization" in diagnostics[0].message
+    assert target.read_bytes() == b"concurrent user change"
+    assert (tmp_path / "AGENTS.md").read_bytes() == original_primary
+    assert not (tmp_path / adopt.DEFAULT_BACKUP_PATH).exists()
 
 
 def test_finalized_state_cannot_preview_or_finalize_again(tmp_path: Path) -> None:
