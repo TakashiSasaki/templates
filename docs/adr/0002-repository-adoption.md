@@ -75,7 +75,7 @@ Preparation records a generated, schema-validated adoption-state file under `.ag
 - inventoried source paths and byte hashes;
 - selected profiles;
 - preview and final output paths;
-- the repository revision when available as non-authoritative context.
+- project-policy paths, verification configuration, and generated-skill selection.
 
 File hashes, not Git ancestry, are the cutover precondition. Unrelated working-tree changes do not automatically block adoption, but changes to inventoried source files do.
 
