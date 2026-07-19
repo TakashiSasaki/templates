@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 
 from .config import package_root
 from .paths import resolve_inside
 from .yamlutil import load_yaml
+
+PolicyOrigin = Literal["toolchain", "repository"]
 
 
 @dataclass(frozen=True)
@@ -19,10 +21,11 @@ class Rule:
     overridable: bool
     order: int
     source: str
+    origin: PolicyOrigin
     body: str
 
 
-def parse_policy(path: Path, source_label: str) -> Rule:
+def parse_policy(path: Path, source_label: str, origin: PolicyOrigin) -> Rule:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         raise ValueError(f"Policy file lacks YAML front matter: {source_label}")
@@ -42,6 +45,7 @@ def parse_policy(path: Path, source_label: str) -> Rule:
         overridable=bool(metadata["overridable"]),
         order=int(metadata["order"]),
         source=source_label,
+        origin=origin,
         body=body.strip(),
     )
 
@@ -59,14 +63,18 @@ def load_rules(repository_root: Path, profiles: list[str], local_files: list[str
     seen: dict[str, Rule] = {}
     for profile in profiles:
         for path in profile_policy_paths(profile):
-            rule = parse_policy(path, str(path.relative_to(package_root())))
+            rule = parse_policy(
+                path,
+                str(path.relative_to(package_root())),
+                "toolchain",
+            )
             if rule.id in seen:
                 raise ValueError(f"Duplicate rule ID: {rule.id}")
             seen[rule.id] = rule
             rules.append(rule)
     for relative in local_files:
         path = resolve_inside(repository_root, relative, allow_missing=False)
-        rule = parse_policy(path, relative)
+        rule = parse_policy(path, relative, "repository")
         previous = seen.get(rule.id)
         if previous is not None and not previous.overridable:
             raise ValueError(f"Rule {rule.id} is not overridable (defined in {previous.source})")
