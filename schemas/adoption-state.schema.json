@@ -22,7 +22,10 @@
       "const": 1
     },
     "status": {
-      "const": "prepared"
+      "enum": [
+        "prepared",
+        "finalized"
+      ]
     },
     "toolchain": {
       "type": "object",
@@ -120,6 +123,74 @@
         "type": "string",
         "pattern": "^[a-z0-9][a-z0-9-]*$"
       }
+    },
+    "backup_path": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "final_output": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "prepared"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "backup_path": {
+            "type": "null"
+          },
+          "final_output": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "finalized"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "backup_path",
+          "final_output"
+        ],
+        "properties": {
+          "backup_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "final_output": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
 }

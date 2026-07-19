@@ -63,6 +63,23 @@ def lexical_relative_name(repository_root: Path, relative: str | Path) -> str:
     return normalized.as_posix()
 
 
+def _is_absolute_symlink(path: Path) -> bool:
+    return path.is_symlink() and path.readlink().is_absolute()
+
+
+def _has_absolute_symlink_component(
+    repository_root: Path,
+    target: Path,
+) -> bool:
+    repository_root = repository_root.resolve()
+    for component in (target, *target.parents):
+        if component == repository_root:
+            break
+        if _is_absolute_symlink(component):
+            return True
+    return False
+
+
 def _source(repository_root: Path, relative: str) -> AdoptionSource:
     lexical_name = lexical_relative_name(repository_root, relative)
     resolved_path = resolve_inside(repository_root, lexical_name, allow_missing=False)
@@ -79,6 +96,8 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
     for relative in KNOWN_INSTRUCTION_FILES:
         lexical_name = lexical_relative_name(repository_root, relative)
         literal = repository_root / lexical_name
+        if _has_absolute_symlink_component(repository_root, literal):
+            return True
         resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if (literal.exists() or literal.is_symlink()) and not resolved.is_file():
             return True
@@ -86,6 +105,8 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
     for relative in KNOWN_INSTRUCTION_DIRECTORIES:
         lexical_name = lexical_relative_name(repository_root, relative)
         literal = repository_root / lexical_name
+        if _has_absolute_symlink_component(repository_root, literal):
+            return True
         resolved = resolve_inside(repository_root, lexical_name, allow_missing=True)
         if (literal.exists() or literal.is_symlink()) and not resolved.is_dir():
             return True
@@ -94,6 +115,8 @@ def _has_inconsistent_known_source_artifact(repository_root: Path) -> bool:
         for path in sorted(literal.rglob("*")):
             if not path.is_symlink():
                 continue
+            if _has_absolute_symlink_component(repository_root, path):
+                return True
             child_name = lexical_relative_name(
                 repository_root,
                 path.relative_to(repository_root),
@@ -226,6 +249,8 @@ def build_adoption_state(
         "project_policy_files": list(project_policy_files),
         "verification_command": verification_command,
         "generated_skills": list(generated_skills),
+        "backup_path": None,
+        "final_output": None,
     }
 
 
@@ -240,6 +265,61 @@ def validate_adoption_state(value: object) -> None:
         raise ValueError(f"Invalid adoption state at {location}: {errors[0].message}")
 
 
+def load_adoption_state(repository_root: Path, state_path: str) -> dict[str, Any]:
+    state_name = lexical_relative_name(repository_root, state_path)
+    path = resolve_inside(repository_root, state_name, allow_missing=False)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    validate_adoption_state(value)
+    if not isinstance(value, dict):
+        raise ValueError("Adoption state root must be an object")
+    return value
+
+
 def dump_adoption_state(value: object) -> str:
     validate_adoption_state(value)
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def immutable_adoption_sources(
+    state: dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    editable_policy_paths = set(state["project_policy_files"])
+    editable_policy_paths.discard(state["primary_instructions"])
+    return tuple(
+        sorted(
+            (
+                item
+                for item in state["sources"]
+                if item["path"] not in editable_policy_paths
+            ),
+            key=lambda item: item["path"],
+        )
+    )
+
+
+def changed_adoption_sources(
+    repository_root: Path,
+    state: dict[str, Any],
+) -> tuple[str, ...]:
+    changed: list[str] = []
+    for item in immutable_adoption_sources(state):
+        relative = item["path"]
+        lexical_name = lexical_relative_name(repository_root, relative)
+        path = resolve_inside(repository_root, lexical_name, allow_missing=True)
+        if not path.is_file() or sha256_file(path) != item["sha256"]:
+            changed.append(relative)
+    return tuple(sorted(changed))
+
+
+def finalized_adoption_state(
+    state: dict[str, Any],
+    *,
+    backup_path: str,
+    final_output: str,
+) -> dict[str, Any]:
+    result = dict(state)
+    result["status"] = "finalized"
+    result["backup_path"] = backup_path
+    result["final_output"] = final_output
+    validate_adoption_state(result)
+    return result

@@ -62,7 +62,7 @@ agent-policy --repository . adopt inspect
 agent-policy --repository . --format json adopt inspect
 ```
 
-各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。既知のsource tree配下では、既存の通常ファイルを指すsymlinkだけをsourceとして許可します。directory、dangling target、その他の非通常ファイルを指すsymlinkは`inconsistent`として拒否し、repository外を指すsymlinkも拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
+各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。既知のsource tree配下では、既存の通常ファイルを指すsymlinkだけをsourceとして許可します。directory、dangling target、その他の非通常ファイルを指すsymlinkは`inconsistent`として拒否し、repository外を指すsymlinkも拒否します。absolute symlinkはsource自身だけでなく、`.agents`や`.github`などlexical source pathのancestor componentに含まれる場合も`inconsistent`として拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
 
 ## `adopt prepare`
 
@@ -108,6 +108,52 @@ agent-policy --repository . adopt prepare \
 `--primary-instructions`は、inspectionで発見された`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md`のいずれかでなければなりません。`.agents/policies`または`.agents/skills`配下のsourceはinventoryとadoption stateには記録されますが、primary instructionとしては選択できません。policyまたはskillだけが存在するrepositoryは、対応するinstruction fileを用意するまで`adopt prepare`を実行できません。
 
 複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
+
+## `adopt preview`
+
+prepared stateに記録された不変sourceのhashと設定の整合性を検査し、現在のprofileとproject policyからshadow instruction、generated skill、lockを再生成します。project policyは編集可能なmanifest inputであり、prepare後に変更してpreviewへ反映できます。
+
+```bash
+agent-policy --repository . adopt preview
+agent-policy --repository . adopt preview --state .agent-policy/adoption.json
+```
+
+prepare時に記録したprimary instructionなどの不変sourceが変更または削除されている場合は、`ADOPTION_SOURCE_CHANGED`として停止します。
+
+## `adopt finalize`
+
+prepared stateを正式なmanaged stateへ切り替えます。既定ではdry-runであり、source hash、state/config整合性、preview freshness、backup path、最終renderを一時コピー上で検証するだけです。
+
+```bash
+agent-policy --repository . adopt finalize
+```
+
+cutoverを適用する場合は`--apply`を明示します。
+
+```bash
+agent-policy --repository . adopt finalize \
+  --backup-path .agent-policy/adoption/original/AGENTS.md \
+  --apply
+```
+
+finalizeは次の変更を一つのtransactionとして扱います。
+
+- handwritten primary instructionをbackup pathへbyte-for-byteで保存する
+- `.agent-policy.yml`のagent outputをprimary instruction pathへ切り替える
+- primary instructionを生成済みinstructionへ置き換える
+- `.agent-policy.lock`を更新する
+- adoption stateを`finalized`へ更新する
+- shadow previewを削除する
+
+finalizeはconfig、state、lock、preview、adoption stateに記録された全immutable source、project policyを一つの入力snapshotとして扱います。temporary repositoryがそのsnapshotと一致することをrender前に検査し、最初の実書込み直前にもlive repositoryのbytesを再比較します。したがって、validationとstagingの間、またはstagingとtransactionの間にprimary、追加instruction、handwritten skill、policyのいずれかが変更された場合もcutoverせず停止します。config、state、lock、preview、primary instructionはlexical path上の通常ファイルでなければなりません。prepareとpreviewではrepository内の安全なprimary symlinkを保持できますが、finalize前には同じ意図した内容を持つ通常ファイルへmaterializeする必要があります。strict finalization pathがsymlinkへ置換された場合やsymlinked ancestorが導入された場合は、referentを変更せず拒否します。適用後の`check`が失敗した場合を含め、transaction途中の失敗ではtransactionが変更したfileだけを変更前へ戻します。backup pathが既に存在する場合、previewまたはlockがstaleな場合もcutoverしません。
+
+主なオプション:
+
+| オプション | 説明 |
+| --- | --- |
+| `--state PATH` | prepared adoption state。既定は `.agent-policy/adoption.json` |
+| `--backup-path PATH` | handwritten primary instructionの保存先 |
+| `--apply` | 検証済みcutoverを実際に適用する |
 
 ## `validate`
 
