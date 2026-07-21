@@ -63,7 +63,8 @@ async function staleWhileRevalidate(request) {
       return response;
     })
     .catch(() => undefined);
-  return cached || network || Response.error();
+  if (cached) return cached;
+  return (await network) || Response.error();
 }
 
 self.addEventListener("fetch", (event) => {
