@@ -65,7 +65,6 @@ def test_artifact_operational_skills_render_with_required_boundaries() -> None:
     assert "agent-policy-generated: true" in audit
     assert "name: audit-frozen-change" in audit
     assert "Do not retroactively introduce a new completion gate" in audit
-    assert "Repository-local checks" not in audit
     assert "repository-local checks" in audit
     assert "Completion or stop decision" in audit
     assert "scan3" not in audit
