@@ -1,0 +1,7 @@
+policy_files:
+  - policy/artifacts/provenance-boundaries.md
+  - policy/artifacts/validation-order.md
+  - policy/artifacts/declared-intent.md
+  - policy/artifacts/staging-boundaries.md
+  - policy/artifacts/transport-isolation.md
+  - policy/artifacts/dependency-closure.md
