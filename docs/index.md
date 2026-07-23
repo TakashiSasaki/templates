@@ -41,6 +41,7 @@ agent-policy check
 
 - [はじめに](getting-started.md)
 - [Managed repository operation](managed-operation.md)
+- [Google AI Studio Build mode operation](agent-environments/google-ai-studio.md)
 - [CLIリファレンス](cli.md)
 - [ブートストラップスキル](bootstrap.md)
 - [アーキテクチャ](architecture.md)

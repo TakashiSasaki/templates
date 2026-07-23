@@ -23,6 +23,8 @@ nav:
       - ブートストラップスキル: bootstrap.md
       - 既存リポジトリの導入: adoption.md
       - PWAとして利用する: pwa.md
+  - エージェント環境:
+      - Google AI Studio Build mode: agent-environments/google-ai-studio.md
   - 設計:
       - リポジトリ構造: repository-structure.md
       - アーキテクチャ: architecture.md
