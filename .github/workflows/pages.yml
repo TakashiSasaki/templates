@@ -1,0 +1,29 @@
+name: Publish template documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - SKILL.md
+      - INTERFACES.md
+      - RUNTIME.md
+      - docs/**
+      - assets/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'TakashiSasaki/templates'
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
+    with:
+      source_ref: ${{ github.sha }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
