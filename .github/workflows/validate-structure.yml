@@ -1,0 +1,61 @@
+name: Validate template structure
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required files and template invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            SKILL.md
+            AGENTS.md
+            README.md
+            RUNTIME.md
+            INTERFACES.md
+            references/README.md
+            docs/architecture.md
+            docs/runtime-selection.md
+          )
+
+          for path in "${required[@]}"; do
+            if [[ ! -f "$path" ]]; then
+              echo "Missing required file: $path" >&2
+              exit 1
+            fi
+          done
+
+          first_line="$(head -n 1 SKILL.md)"
+          if [[ "$first_line" != "---" ]]; then
+            echo "SKILL.md must begin with YAML frontmatter." >&2
+            exit 1
+          fi
+
+          if ! grep -Eq '^name: [a-z0-9-]+$' SKILL.md; then
+            echo "SKILL.md must contain a lowercase hyphenated name." >&2
+            exit 1
+          fi
+
+          if ! grep -Eq '^description: .+' SKILL.md; then
+            echo "SKILL.md must contain a non-empty description." >&2
+            exit 1
+          fi
+
+          if grep -RIn --exclude-dir=.git -E '(API_KEY|TOKEN|PASSWORD)=[^[:space:]<][^[:space:]]*' .; then
+            echo "Possible committed secret assignment found." >&2
+            exit 1
+          fi
+
+          echo "Template structure is valid."

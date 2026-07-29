@@ -1,0 +1,36 @@
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Generic build, cache, and coverage output
+build/
+dist/
+coverage/
+.cache/
+.tmp/
+tmp/
+
+# Python, when selected
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js or bun, when selected
+node_modules/
+.npm/
+.pnpm-store/
+
+# Keep only the lockfile belonging to the selected runtime/package manager.
