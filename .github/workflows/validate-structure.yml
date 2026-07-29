@@ -74,8 +74,8 @@ jobs:
           end
 
           name = metadata["name"]
-          unless name.is_a?(String) && /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/.match?(name)
-            warn "SKILL.md frontmatter name must be a lowercase hyphenated string."
+          unless name.is_a?(String) && name.length.between?(1, 64) && /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/.match?(name)
+            warn "SKILL.md frontmatter name must be a 1-64 character lowercase hyphenated string."
             exit 1
           end
 
