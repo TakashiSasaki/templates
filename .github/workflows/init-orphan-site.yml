@@ -6,19 +6,32 @@ on:
       - main
     paths:
       - .github/workflows/init-orphan-site.yml
+  pull_request_target:
+    types:
+      - edited
 
 permissions:
   contents: write
 
 jobs:
   initialize:
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      (
+        github.event_name == 'push' ||
+        (
+          github.event_name == 'pull_request_target' &&
+          github.event.pull_request.number == 2 &&
+          contains(github.event.pull_request.body, '<!-- initialize-orphan-site -->')
+        )
+      )
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository history
+      - name: Check out trusted default-branch code
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Replace site with an orphan root commit
