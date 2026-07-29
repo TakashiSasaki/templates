@@ -1,0 +1,40 @@
+{
+  "pages": [
+    {
+      "title": "Overview",
+      "source": "README.md",
+      "destination": "index.md"
+    },
+    {
+      "title": "Skill contract",
+      "source": "SKILL.md",
+      "destination": "SKILL.md"
+    },
+    {
+      "title": "Interface contracts",
+      "source": "INTERFACES.md",
+      "destination": "INTERFACES.md"
+    },
+    {
+      "title": "Runtime decision record",
+      "source": "RUNTIME.md",
+      "destination": "RUNTIME.md"
+    },
+    {
+      "title": "Architecture",
+      "source": "docs/architecture.md",
+      "destination": "docs/architecture.md"
+    },
+    {
+      "title": "Runtime selection",
+      "source": "docs/runtime-selection.md",
+      "destination": "docs/runtime-selection.md"
+    },
+    {
+      "title": "MCP transports",
+      "source": "docs/mcp-transports.md",
+      "destination": "docs/mcp-transports.md",
+      "optional": true
+    }
+  ]
+}
