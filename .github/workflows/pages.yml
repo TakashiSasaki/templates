@@ -23,6 +23,7 @@ jobs:
     uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
     with:
       source_ref: ${{ github.sha }}
+      deploy: true
     permissions:
       contents: read
       pages: write
