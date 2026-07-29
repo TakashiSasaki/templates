@@ -1,6 +1,9 @@
 name: Build and deploy documentation
 
 on:
+  pull_request:
+    branches:
+      - site
   push:
     branches:
       - site
@@ -14,35 +17,27 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: github-pages
+  group: documentation-${{ github.event_name == 'pull_request' && github.ref || 'deployment' }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     if: github.repository == 'TakashiSasaki/templates'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: site
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'push' && github.sha || 'site' }}
           path: site-source
 
       - name: Check out canonical documentation
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || 'main' }}
+          ref: ${{ github.event_name == 'workflow_call' && inputs.source_ref || 'main' }}
           path: canonical-source
 
       - name: Set up Python
@@ -70,6 +65,21 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
 
       - name: Deploy to GitHub Pages
         id: deployment
