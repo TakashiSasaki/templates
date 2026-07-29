@@ -16,11 +16,11 @@ The template defines stable responsibilities rather than language-specific boile
 
 - `SKILL.md`: runtime instructions presented to an agent;
 - `AGENTS.md`: development rules for agents modifying the skill;
-- `RUNTIME.md`: the selected runtime, package manager, commands, and lockfile policy;
+- `RUNTIME.md`: the selected runtime, package manager, commands, lockfile policy, and MCP transport decisions;
 - `INTERFACES.md`: the public CLI and MCP contracts;
 - `references/`: documents read while the skill is being used;
 - `scripts/`: stable in-place launchers or helper commands, when needed;
-- `mcp/`: an optional MCP adapter and ad hoc client;
+- `mcp/`: optional stdio and local Streamable HTTP MCP adapters plus ad hoc clients;
 - `src/`: implementation selected by the concrete skill;
 - `tests/`: language-appropriate tests;
 - `docs/`: maintainer documentation not normally loaded during skill execution.
@@ -34,9 +34,10 @@ The template defines stable responsibilities rather than language-specific boile
 5. Complete the execution-policy section of `INTERFACES.md`.
 6. Select one primary implementation runtime.
 7. Add only the manifests and lockfiles required by that runtime.
-8. Implement a human-usable CLI and, when justified, an MCP adapter over the same application logic.
-9. Replace `LICENSE.template` with the selected license.
-10. Remove template guidance that no longer applies.
+8. Implement a human-usable CLI and, when justified, MCP adapters over the same application logic.
+9. Decide independently whether the skill supports ad hoc stdio MCP, a standalone local Streamable HTTP MCP server, or both.
+10. Replace `LICENSE.template` with the selected license.
+11. Remove template guidance that no longer applies.
 
 ## Installation modes
 
@@ -78,10 +79,17 @@ Add only the files for the selected implementation and distribution model. Guida
 A concrete skill should normally have one reusable application layer with thin adapters:
 
 ```text
-Agent Skill instructions ─┐
-Human CLI ────────────────┼──> application/domain implementation
-stdio MCP server ─────────┤
-Ad hoc MCP client ────────┘
+Agent Skill instructions ─────┐
+Human CLI ────────────────────┤
+stdio MCP server ─────────────┼──> shared server factory/application/domain
+Local Streamable HTTP server ─┤
+Ad hoc MCP clients ───────────┘
 ```
 
-The exact commands and preferred agent execution route are declared in `RUNTIME.md` and `INTERFACES.md`. The agent should not have to guess between equivalent entry points.
+The stdio variant is normally launched on demand by an MCP host or by the skill's bundled ad hoc client. It uses no listening socket and exits with the client session.
+
+The standalone local variant should use the standard Streamable HTTP transport over a loopback TCP socket, normally at an endpoint such as `http://127.0.0.1:<port>/mcp`. “Raw TCP MCP” is not the standard interoperable network transport.
+
+Both MCP variants must reuse the same tool definitions and application logic. The exact commands, endpoint, lifecycle, security policy, and preferred agent execution route are declared in `RUNTIME.md` and `INTERFACES.md`. The agent should not have to guess between equivalent entry points.
+
+See `docs/mcp-transports.md` for the transport and security decision model.
