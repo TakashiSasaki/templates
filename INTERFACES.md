@@ -131,7 +131,9 @@ When supported:
 - bind to a loopback address by default;
 - do not bind to `0.0.0.0` or `::` by default;
 - validate the HTTP Host header and provide DNS-rebinding protection;
-- document allowed origins when browser-based clients are possible;
+- validate the `Origin` header on every incoming connection;
+- return HTTP 403 when an `Origin` header is present but not explicitly allowed;
+- define whether an absent `Origin` is accepted for documented non-browser clients;
 - require an explicit security design before allowing non-loopback clients;
 - document authentication when the endpoint is accessible beyond the current user or machine;
 - define deterministic startup, readiness, shutdown, restart, and stale-process behavior;
@@ -139,7 +141,7 @@ When supported:
 - avoid placing secrets in command-line arguments or committed configuration;
 - keep transport-specific HTTP behavior out of the domain layer.
 
-A concrete skill must state whether this variant is intended only for the local machine, for a trusted LAN, or for broader deployment. The last two cases require additional authentication and transport-security decisions beyond this template's loopback default.
+Origin validation is required even when browser clients are not an intended interface. A concrete skill must state whether this variant is intended only for the local machine, for a trusted LAN, or for broader deployment. The last two cases require additional authentication and transport-security decisions beyond this template's loopback default.
 
 ## Ad hoc MCP client
 
