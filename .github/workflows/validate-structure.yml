@@ -1,0 +1,94 @@
+name: Validate template structure
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required files and template invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            SKILL.md
+            AGENTS.md
+            README.md
+            RUNTIME.md
+            INTERFACES.md
+            references/README.md
+            docs/architecture.md
+            docs/runtime-selection.md
+          )
+
+          for path in "${required[@]}"; do
+            if [[ ! -f "$path" ]]; then
+              echo "Missing required file: $path" >&2
+              exit 1
+            fi
+          done
+
+          ruby <<'RUBY'
+          require "yaml"
+
+          path = "SKILL.md"
+          lines = File.readlines(path, chomp: true)
+
+          unless lines.first == "---"
+            warn "SKILL.md must begin with YAML frontmatter."
+            exit 1
+          end
+
+          closing_index = (1...lines.length).find { |index| lines[index] == "---" }
+          unless closing_index
+            warn "SKILL.md YAML frontmatter must have a closing --- delimiter."
+            exit 1
+          end
+
+          frontmatter = lines[1...closing_index].join("\n")
+
+          begin
+            metadata = YAML.safe_load(
+              frontmatter,
+              permitted_classes: [],
+              permitted_symbols: [],
+              aliases: false
+            )
+          rescue Psych::Exception => error
+            warn "SKILL.md contains invalid YAML frontmatter: #{error.message}"
+            exit 1
+          end
+
+          unless metadata.is_a?(Hash)
+            warn "SKILL.md YAML frontmatter must be a mapping."
+            exit 1
+          end
+
+          name = metadata["name"]
+          unless name.is_a?(String) && name.length.between?(1, 64) && /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/.match?(name)
+            warn "SKILL.md frontmatter name must be a 1-64 character lowercase hyphenated string."
+            exit 1
+          end
+
+          description = metadata["description"]
+          unless description.is_a?(String) && !description.strip.empty?
+            warn "SKILL.md frontmatter description must be a non-empty string."
+            exit 1
+          end
+          RUBY
+
+          if grep -RIn --exclude-dir=.git -E '(API_KEY|TOKEN|PASSWORD)=[^[:space:]<][^[:space:]]*' .; then
+            echo "Possible committed secret assignment found." >&2
+            exit 1
+          fi
+
+          echo "Template structure is valid."
