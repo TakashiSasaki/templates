@@ -28,6 +28,7 @@ jobs:
             references/README.md
             docs/architecture.md
             docs/runtime-selection.md
+            docs/mcp-transports.md
           )
 
           for path in "${required[@]}"; do
