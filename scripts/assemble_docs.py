@@ -60,6 +60,21 @@ def copy_directory_if_present(source: Path, destination: Path) -> None:
         shutil.copytree(source, destination, dirs_exist_ok=True)
 
 
+def copy_canonical_assets(source: Path, destination: Path) -> None:
+    """Copy non-Markdown assets without introducing unlisted pages."""
+    if not source.is_dir():
+        return
+    for path in source.rglob("*"):
+        if path.is_symlink():
+            raise AssemblyError(f"Canonical assets must not contain symlinks: {path}")
+        if not path.is_file() or path.suffix.lower() == ".md":
+            continue
+        relative = path.relative_to(source)
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+
+
 def assemble(source_root: Path, site_root: Path, output_root: Path) -> list[str]:
     source_root = source_root.resolve(strict=True)
     site_root = site_root.resolve(strict=True)
@@ -130,7 +145,7 @@ def assemble(source_root: Path, site_root: Path, output_root: Path) -> list[str]
     if not included or included[0][1] != PurePosixPath("index.md"):
         raise AssemblyError("The first included page must generate index.md")
 
-    copy_directory_if_present(source_root / "assets", docs_root / "assets")
+    copy_canonical_assets(source_root / "assets", docs_root / "assets")
     copy_directory_if_present(site_root / "assets", docs_root)
 
     config = template.replace(NAV_PLACEHOLDER, render_nav(included))
