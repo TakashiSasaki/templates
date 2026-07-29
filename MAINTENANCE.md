@@ -13,7 +13,8 @@ This file applies only to the unrelated `site` branch.
 1. Branch from `site`, not from `main`.
 2. Open a pull request whose base branch is `site`.
 3. Require the documentation-site build to succeed before merging.
-4. Keep canonical prose changes on `main`; update `site-manifest.json` only when the published page set or navigation changes.
+4. Keep canonical prose changes on `main`.
+5. Update `site-manifest.json` when the published page set, navigation, destination path, or canonical source path changes. A rename or move on `main` requires a matching manifest update even when the public page remains otherwise unchanged.
 
 ## Dependency updates
 
