@@ -9,6 +9,11 @@ site_dir = "site"
 extra_css = ["stylesheets/extra.css"]
 nav = __GENERATED_NAV__
 
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" }
+]
+
 [project.theme]
 font = false
 features = [
