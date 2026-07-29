@@ -76,14 +76,14 @@ Add only the files for the selected implementation and distribution model. Guida
 
 ## CLI and MCP
 
-A concrete skill should normally have one reusable application layer with thin adapters:
+A concrete skill should normally have one reusable application layer with thin interfaces and adapters:
 
-```text
-Agent Skill instructions ─────┐
-Human CLI ────────────────────┤
-stdio MCP server ─────────────┼──> shared server factory/application/domain
-Local Streamable HTTP server ─┤
-Ad hoc MCP clients ───────────┘
+```mermaid
+flowchart TB
+    interfaces["Thin interfaces and adapters<br/><br/>Agent Skill instructions<br/>Human CLI<br/>stdio MCP server<br/>Local Streamable HTTP server<br/>Ad hoc MCP clients"]
+    shared["Shared server factory<br/>and application/domain implementation"]
+
+    interfaces --> shared
 ```
 
 The stdio variant is normally launched on demand by an MCP host or by the skill's bundled ad hoc client. It uses no listening socket and exits with the client session.
