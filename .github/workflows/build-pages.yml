@@ -9,6 +9,11 @@ on:
       - site
   workflow_call:
     inputs:
+      site_ref:
+        description: Commit, branch, or tag containing the site implementation
+        required: false
+        type: string
+        default: site
       source_ref:
         description: Commit, branch, or tag containing the canonical documentation
         required: false
@@ -36,7 +41,7 @@ jobs:
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || 'site' }}
+          ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || 'site' }}
           path: site-source
 
       - name: Check out canonical documentation
