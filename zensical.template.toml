@@ -1,0 +1,18 @@
+[project]
+site_name = "Language-neutral Agent Skill Template"
+site_url = "https://takashisasaki.github.io/templates/"
+site_description = "A language-neutral repository template for portable Agent Skills with CLI and MCP interfaces."
+repo_url = "https://github.com/TakashiSasaki/templates"
+repo_name = "TakashiSasaki/templates"
+docs_dir = "docs"
+site_dir = "site"
+extra_css = ["stylesheets/extra.css"]
+nav = __GENERATED_NAV__
+
+[project.theme]
+font = false
+features = [
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.footer"
+]
