@@ -14,17 +14,12 @@ on:
         required: false
         type: string
         default: main
-      deploy:
-        description: Deploy the generated artifact to GitHub Pages
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: documentation-${{ inputs.deploy == true && 'deployment' || github.ref }}
+  group: documentation-${{ github.event_name == 'pull_request' && github.ref || 'deployment' }}
   cancel-in-progress: true
 
 jobs:
@@ -36,13 +31,13 @@ jobs:
       - name: Check out site implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha || 'site' }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'push' && github.sha || 'site' }}
           path: site-source
 
       - name: Check out canonical documentation
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || 'main' }}
+          ref: ${{ github.event_name == 'workflow_call' && inputs.source_ref || 'main' }}
           path: canonical-source
 
       - name: Set up Python
@@ -72,7 +67,7 @@ jobs:
           path: build/site
 
   deploy:
-    if: inputs.deploy == true
+    if: github.event_name != 'pull_request'
     needs: build
     permissions:
       pages: write
