@@ -79,14 +79,16 @@ The default network variant must:
 
 - bind to `127.0.0.1` or `::1`;
 - validate the Host header;
+- validate the `Origin` header on every incoming connection;
+- return HTTP 403 when an `Origin` header is present but not explicitly allowed;
+- define whether an absent `Origin` is accepted for documented non-browser clients;
 - enable DNS-rebinding protection;
-- constrain browser origins when browser access is possible;
 - avoid exposing secrets in URLs or command-line arguments;
 - use an explicit endpoint path, normally `/mcp`;
 - reject requests that exceed documented size or timeout limits;
 - preserve the same workspace and write restrictions as stdio.
 
-Loopback-only access reduces exposure but does not make browser-origin attacks impossible.
+Origin validation is required even when browser clients are not an intended interface. Loopback-only access reduces exposure but does not make browser-origin or DNS-rebinding attacks impossible.
 
 ## Non-loopback access
 
@@ -128,6 +130,8 @@ A concrete implementation supporting both variants should test:
 - stdio exit on client disconnect;
 - Streamable HTTP readiness and graceful shutdown;
 - loopback-only default binding;
-- Host-header and origin rejection;
+- Host-header rejection;
+- HTTP 403 for a present but disallowed `Origin`;
+- documented handling of requests without an `Origin` header;
 - concurrent-client behavior;
 - configured stateful or stateless session behavior.
