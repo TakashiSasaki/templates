@@ -20,7 +20,7 @@ The template defines stable responsibilities rather than language-specific boile
 - `INTERFACES.md`: the public CLI and MCP contracts;
 - `references/`: documents read while the skill is being used;
 - `scripts/`: stable in-place launchers or helper commands, when needed;
-- `mcp/`: optional stdio and local Streamable HTTP MCP adapters plus ad hoc clients;
+- `mcp/`: optional stdio and local Streamable HTTP MCP adapters plus bounded ad hoc MCP tool clients;
 - `src/`: implementation selected by the concrete skill;
 - `tests/`: language-appropriate tests;
 - `docs/`: maintainer documentation not normally loaded during skill execution.
@@ -80,16 +80,18 @@ A concrete skill should normally have one reusable application layer with thin i
 
 ```mermaid
 flowchart TB
-    interfaces["Thin interfaces and adapters<br/><br/>Agent Skill instructions<br/>Human CLI<br/>stdio MCP server<br/>Local Streamable HTTP server<br/>Ad hoc MCP clients"]
+    interfaces["Thin interfaces and adapters<br/><br/>Agent Skill instructions<br/>Human CLI<br/>stdio MCP server<br/>Local Streamable HTTP server<br/>Ad hoc MCP tool client"]
     shared["Shared server factory<br/>and application/domain implementation"]
 
     interfaces --> shared
 ```
 
-The stdio variant is normally launched on demand by an MCP host or by the skill's bundled ad hoc client. It uses no listening socket and exits with the client session.
+The stdio variant is normally launched on demand by an MCP host or by the skill's bundled ad hoc MCP tool client. It uses no listening socket and exits with the client connection or invocation.
 
 The standalone local variant should use the standard Streamable HTTP transport over a loopback TCP socket, normally at an endpoint such as `http://127.0.0.1:<port>/mcp`. “Raw TCP MCP” is not the standard interoperable network transport.
 
-Both MCP variants must reuse the same tool definitions and application logic. The exact commands, endpoint, lifecycle, security policy, and preferred agent execution route are declared in `RUNTIME.md` and `INTERFACES.md`. The agent should not have to guess between equivalent entry points.
+A bundled command that only discovers and invokes tools should be described as an **ad hoc MCP tool client**, not as a complete MCP host. Its command-line syntax is local to the skill; MCP standardizes protocol methods, messages, capabilities, lifecycle, and transports rather than CLI option names. `INTERFACES.md` must map each client command to the MCP methods it uses and declare supported protocol revisions and optional features.
 
-See `docs/mcp-transports.md` for the transport and security decision model.
+Both MCP variants must reuse the same tool definitions and application logic. The exact commands, endpoint, lifecycle, security policy, protocol support, and preferred agent execution route are declared in `RUNTIME.md` and `INTERFACES.md`. The agent should not have to guess between equivalent entry points.
+
+See `docs/mcp-transports.md` for the transport, protocol-client, and security decision model.
