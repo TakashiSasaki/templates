@@ -7,3 +7,18 @@
 .md-typeset pre {
   font-variant-ligatures: none;
 }
+
+/* Preserve the two-dimensional structure of directory trees and ASCII diagrams. */
+.md-typeset .highlight,
+.md-typeset pre {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.md-typeset pre > code {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
