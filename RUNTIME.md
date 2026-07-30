@@ -143,9 +143,12 @@ Complete this section only when the skill bundles a command that discovers or in
 | Tool-show command | TODO or NOT SUPPORTED; local filtering over `tools/list` |
 | Single tool-call command | TODO or NOT SUPPORTED; maps to `tools/call` |
 | Sequential tool-run command | TODO or NOT SUPPORTED; repeated `tools/call`, not JSON-RPC batch |
-| Pagination and list-cache policy | TODO |
-| Lossless output mode | TODO |
-| Presentation output modes | TODO |
+| Pagination request policy | TODO |
+| Lossless tool-list page format | TODO: ordered page records preserving each raw `tools/list` result |
+| Flattened inventory presentation | TODO: derived view, not lossless protocol output |
+| Page-level cache-hint policy | TODO: do not invent a global value without a documented rule |
+| Lossless call-result mode | TODO |
+| Other presentation output modes | TODO |
 | Modern MRTR policy | TODO or NOT SUPPORTED |
 | Initialization-era elicitation policy | TODO or NOT SUPPORTED |
 | Non-interactive policy | TODO |
@@ -155,6 +158,8 @@ Complete this section only when the skill bundles a command that discovers or in
 | Exit-code mapping | TODO; keep consistent with `INTERFACES.md` |
 
 The client command-line syntax is local to this skill. MCP standardizes protocol behavior, not names such as `tools show`, `tools run`, `--arguments-file`, or `--output`.
+
+For paginated `tools/list`, lossless output must retain an ordered record for every page. Each record should include the request cursor used for that page as local metadata and the complete raw result object exactly as received, preserving page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extensions. A flattened inventory may concatenate tool definitions for convenience, but it is a derived presentation and must not overwrite or claim to preserve page-level metadata. Single-page results use the same representation with one page record.
 
 A tools-only client must preserve the complete result object returned by the selected SDK or wire-level parser, including `resultType`, `content`, `structuredContent`, `isError`, `_meta`, and unknown extension fields when present. In modern mode, an absent `resultType` from an earlier peer may be interpreted as `complete` for behavior, but a lossless raw mode must not fabricate fields in the preserved result.
 
@@ -193,6 +198,7 @@ Explain separately:
 5. how protocol revisions are negotiated and tested;
 6. how modern MRTR and initialization-era elicitation are handled;
 7. how cancellation, lossless results, and exit codes are handled;
-8. how all adapters share implementation and tests.
+8. how paginated raw page preservation, flattened inventory presentation, and page-level cache hints are handled;
+9. how all adapters share implementation and tests.
 
 TODO
