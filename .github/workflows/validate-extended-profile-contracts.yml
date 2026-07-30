@@ -16,16 +16,16 @@ jobs:
 
       - name: Validate scaffold, helper, and MCP contracts
         shell: bash
-        run: ruby .github/scripts/validate-extended-profile-contracts.rb
+        run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-extended-profile-contracts.rb
 
       - name: Validate concrete profile consistency
         shell: bash
-        run: ruby .github/scripts/validate-concrete-profile-consistency.rb
+        run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-concrete-profile-consistency.rb
 
       - name: Validate review follow-up contracts
         shell: bash
-        run: ruby .github/scripts/validate-review-followup-contracts.rb
+        run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-review-followup-contracts.rb
 
       - name: Validate late-review runtime contracts
         shell: bash
-        run: ruby .github/scripts/validate-late-review-contracts.rb
+        run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-late-review-contracts.rb
