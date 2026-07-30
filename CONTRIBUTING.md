@@ -9,7 +9,8 @@
    - helper scripts with runtime dependencies: the applicable runtime record when one is retained;
    - packaged CLI: `RUNTIME.md` and `INTERFACES.md`;
    - MCP: `RUNTIME.md`, `INTERFACES.md`, and `docs/mcp-transports.md`;
-   - Web or service interface: `RUNTIME.md` and `WEB_INTERFACE.md`.
+   - browser-facing interface: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
+   - headless network service: the authoritative runtime/service record and applicable security, health, lifecycle, and deployment documentation.
 4. Do not retain unsupported placeholder contracts merely to satisfy a generic checklist.
 5. Avoid adding unused ecosystem boilerplate.
 
@@ -19,6 +20,7 @@
 - Put runtime-loaded detail in `references/`.
 - Put static workflow resources in `assets/`.
 - Use `scripts/` for bounded helpers or stable launchers when needed.
+- Declare every retained reference, asset, and script by exact path in `SKILL.md`; linked references may supplement but not replace those declarations.
 - Do not use symlinks under `references/`, `assets/`, or `scripts/`; retained operational resources must be regular files inside the installable skill.
 - Keep CLI, MCP, and Web adapters thin only when those interfaces exist.
 - Add tests at the lowest layer that can establish the behavior.
