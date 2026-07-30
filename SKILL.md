@@ -30,7 +30,7 @@ Before using it as a concrete skill:
 - Map bundled client commands to standard MCP methods and distinguish local conveniences such as “show” or sequential “run” from protocol methods.
 - Record supported MCP revisions, the selected SDK, negotiation behavior, compatibility policy, schema dialects, and optional extensions in `RUNTIME.md`.
 - Define public interaction, cancellation, output, exit-code, and fallback behavior in `INTERFACES.md`.
-- Preserve the complete MCP result object, including `resultType`, standard result fields, `_meta`, and unknown extension fields where present.
+- Preserve complete MCP call results and, for paginated `tools/list`, preserve every raw page result in order; treat a flattened inventory as a separate derived presentation.
 - Distinguish modern multi-round-trip `input_required` results from initialization-era server-to-client elicitation requests.
 - Document one preferred agent execution path and explicit fallbacks.
 - Do not require an agent to infer whether it should use an existing MCP endpoint, launch stdio, invoke a direct CLI, or use a bundled tool client.
