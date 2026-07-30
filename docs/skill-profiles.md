@@ -41,7 +41,7 @@ Allowed concrete-skill tags are:
 - `browser-interface`;
 - `headless-service`.
 
-The special value `template-scaffold` is valid only while the skill name remains `agent-skill-template`. Replace it when creating a concrete skill. Structural validation uses the selected tags to activate profile-specific contract requirements; in particular, `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`.
+The special value `template-scaffold` is valid only while the skill name remains `agent-skill-template` and no operational files have been added under `references/`, `assets/`, `scripts/`, or `mcp/`. Replace it before customizing the template. Structural validation uses the selected tags to activate profile-specific contract requirements; `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`, and `headless-service` requires a completed `RUNTIME.md`.
 
 ## Profile 0: Instruction-only
 
@@ -162,15 +162,14 @@ Apply the protocol, negotiation, lifecycle, pagination, lossless-result, cancell
 
 Supporting MCP does not require supporting both transports, multiple protocol eras, a bundled client, or a Web interface.
 
-## Profile 6: Web or service-enabled application
+## Profile 6: Browser or headless service application
 
 Select `browser-interface`, `headless-service`, or both as applicable.
 
-Typical additions for any independently reachable service:
+Required authority for either service profile:
 
 ```text
-RUNTIME.md or another authoritative runtime/service record
-deployment and service configuration as needed
+RUNTIME.md
 ```
 
 Additional required contract when a browser-facing interface exists:
@@ -181,7 +180,7 @@ WEB_INTERFACE.md
 
 Use when a browser-facing page or independently reachable headless network service is an intentional interface.
 
-A headless service records its endpoint, authentication, authorization, exposure, health, lifecycle, shutdown, failure, and deployment decisions in the applicable runtime and service configuration. It does not retain `WEB_INTERFACE.md` unless a browser-facing surface also exists.
+A headless service must complete `RUNTIME.md` and record its endpoint, authentication, authorization, exposure, health, lifecycle, shutdown, failure, and deployment decisions there or in directly referenced deployment configuration. It does not retain `WEB_INTERFACE.md` unless a browser-facing surface also exists.
 
 A browser-facing interface must retain `WEB_INTERFACE.md` for browser-visible routing, interaction, security, operation policy, redaction, health semantics, and failure behavior.
 
@@ -210,7 +209,7 @@ For a concrete skill, remove optional template material when unsupported:
 - no operational knowledge: remove `references/`;
 - no static resources: remove `assets/`;
 - no helpers: remove `scripts/`;
-- no maintained implementation runtime: remove `RUNTIME.md` when it has no remaining purpose;
+- no runtime-dependent or service profile: remove `RUNTIME.md` when it has no remaining purpose;
 - no packaged CLI or MCP contract: remove `INTERFACES.md`;
 - no MCP: remove `mcp/` and MCP-specific maintainer guidance if it is not useful;
 - no browser-facing interface: remove `WEB_INTERFACE.md`, even when a headless service remains;
@@ -230,6 +229,7 @@ Validation should be profile-aware:
 | Script-assisted | representative execution, failure behavior, side effects, permissions, idempotency |
 | Packaged CLI | installation, commands, output, exit codes, compatibility |
 | MCP-enabled | protocol and transport contracts, security, cancellation, result preservation |
-| Web/service-enabled | routing, authentication, authorization, exposure, health and deployment smoke tests |
+| Browser-interface | routing, authentication, authorization, browser exposure, health separation, deployment smoke tests |
+| Headless-service | endpoint, authentication, authorization, exposure, health, lifecycle, shutdown, deployment smoke tests |
 
 The template's generic structural workflow validates the universal skill core plus requirements activated by `Selected profiles:` and retained operational resources.
