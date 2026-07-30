@@ -40,9 +40,10 @@ Profiles are cumulative design patterns, not mandatory product tiers.
 | Script-assisted | `SKILL.md`, `scripts/`, optional tests/runtime record | Small deterministic helpers improve accuracy or repeatability |
 | Packaged CLI | runtime files, `src/`, tests, `RUNTIME.md`, `INTERFACES.md` | A stable human or automation command is a maintained public interface |
 | MCP-enabled | CLI/application profile plus `mcp/` and MCP contract documentation | The skill must expose operations through MCP hosts or clients |
-| Web/service-enabled | application profile plus deployment decisions; `WEB_INTERFACE.md` only for browser-facing behavior | A browser or independently reachable network service is an intentional interface |
+| Browser-interface | application profile, `RUNTIME.md`, `WEB_INTERFACE.md` | A browser-facing interface is intentional |
+| Headless-service | application profile, `RUNTIME.md`, deployment configuration | An independently reachable non-browser service is intentional |
 
-Every concrete skill records its selected tags on exactly one `Selected profiles:` line in `SKILL.md`. The special `template-scaffold` value is valid only for this uncustomized template. Structural validation uses the tags to activate profile requirements; selecting `packaged-cli`, for example, requires both `RUNTIME.md` and `INTERFACES.md`.
+Every concrete skill records its selected tags on exactly one `Selected profiles:` line in `SKILL.md`. The special `template-scaffold` value is valid only for the uncustomized template and cannot be retained after operational resources are added. Structural validation uses the tags to activate profile requirements; selecting `packaged-cli`, for example, requires both `RUNTIME.md` and `INTERFACES.md`.
 
 See `docs/skill-profiles.md` for the allowed tags, selection rules, and removal rules.
 
@@ -52,7 +53,7 @@ See `docs/skill-profiles.md` for the allowed tags, selection rules, and removal 
 - `references/`: optional knowledge read only when the workflow requires it;
 - `assets/`: optional static templates, examples, configuration skeletons, or output resources;
 - `scripts/`: optional deterministic helpers or stable in-place launchers;
-- `RUNTIME.md`: optional runtime and command decision record for implemented software;
+- `RUNTIME.md`: runtime and command authority when retained; required for packaged CLI, MCP, browser-interface, and headless-service profiles;
 - `INTERFACES.md`: required public contract for a packaged CLI or MCP interface, otherwise optional;
 - `WEB_INTERFACE.md`: optional browser-facing contract, not a generic headless-service contract;
 - `mcp/`: optional MCP adapters and bounded MCP clients;
@@ -68,9 +69,9 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 1. Create a repository from this template.
 2. Choose the final lowercase hyphenated skill name.
 3. Rewrite `SKILL.md` around the actual trigger, workflow, resources, outputs, and safety constraints.
-4. Replace `Selected profiles: template-scaffold` with the smallest sufficient concrete profile tags.
+4. Replace `Selected profiles: template-scaffold` with the smallest sufficient concrete profile tags before adding operational resources.
 5. Add `references/`, `assets/`, or `scripts/` only when they have a defined operational use.
-6. Add `RUNTIME.md` only when runtime selection, dependency installation, or executable commands need a maintained record, except where a selected application profile requires it.
+6. Add and complete `RUNTIME.md` when runtime selection, dependencies, executable commands, or service lifecycle need a maintained record, and whenever `packaged-cli`, `mcp-enabled`, `browser-interface`, or `headless-service` is selected.
 7. Add and complete `INTERFACES.md` whenever `packaged-cli` or `mcp-enabled` is selected; private helper scripts do not require it.
 8. Keep MCP files only when MCP is supported, and keep `WEB_INTERFACE.md` only when `browser-interface` is selected.
 9. Add only the manifests, lockfiles, source layout, and tests required by the selected implementation.
@@ -86,7 +87,7 @@ The same principle applies to maintainers:
 - script changes require the applicable runtime and script contracts;
 - MCP changes require the MCP contract and transport documents;
 - browser-interface changes require the Web and deployment documents;
-- headless-service changes require runtime, service, security, health, and deployment documentation, but not `WEB_INTERFACE.md` unless a browser surface also exists.
+- headless-service changes require the completed `RUNTIME.md` service authority and applicable security, health, and deployment documentation, but not `WEB_INTERFACE.md` unless a browser surface also exists.
 
 ## Helper scripts versus public CLIs
 
@@ -106,7 +107,7 @@ Do not add competing manifests or lockfiles for unused runtimes. A knowledge-onl
 
 CLI, MCP, and Web interfaces remain supported as advanced profiles. When several interfaces expose the same operations, keep adapters thin and share implementation where that separation provides real value. Do not impose an application/domain architecture on a small self-contained helper solely to match the advanced profile.
 
-MCP-specific revision, transport, pagination, result-preservation, and HTTP-security guidance remains in `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`. Browser topology and browser-facing behavior remain in `RUNTIME.md` and `WEB_INTERFACE.md`. A headless network service records its runtime, endpoint, security, lifecycle, health, and deployment decisions without retaining a browser-only contract.
+MCP-specific revision, transport, pagination, result-preservation, and HTTP-security guidance remains in `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`. Browser topology and browser-facing behavior remain in `RUNTIME.md` and `WEB_INTERFACE.md`. A headless network service records its runtime, endpoint, security, lifecycle, health, and deployment decisions in the completed `RUNTIME.md` without retaining a browser-only contract.
 
 ## Installation modes
 
