@@ -84,14 +84,16 @@ Recommended local operations:
 | Local operation | MCP behavior |
 |---|---|
 | `server-info` | Modern `server/discover` or initialization-era negotiated server information |
-| `tools list` | `tools/list` with complete opaque-cursor pagination |
-| `tools show TOOL` | Local filtering over `tools/list`; not an MCP method |
+| `tools list` | `tools/list` with an ordered raw-page lossless mode and an optional flattened presentation mode |
+| `tools show TOOL` | Local filtering over the flattened inventory derived from all pages; not an MCP method |
 | `tools call TOOL` | One `tools/call` request |
 | `tools run` | Several independent `tools/call` requests; not an MCP or JSON-RPC batch |
 
 The client must:
 
-- preserve complete list and call result objects, including `resultType`, cache fields, `_meta`, and unknown extensions;
+- preserve each raw `tools/list` page result in order, including page-specific cursors, cache fields, `_meta`, and unknown extensions;
+- keep a flattened inventory separate and label its aggregate metadata as derived;
+- preserve complete tool-call result objects, including `resultType`, standard fields, `_meta`, and unknown extensions;
 - keep tool names case-sensitive and cursors opaque;
 - support JSON Schema 2020-12 where required;
 - accept any permitted JSON type in `structuredContent`;
@@ -100,6 +102,8 @@ The client must:
 - avoid arbitrary server shell commands;
 - capability-gate tasks, elicitation, sampling, roots, and other features;
 - distinguish MCP roots from skill-specific workspace configuration.
+
+For paginated lists, store the cursor used to request each page as client metadata outside the raw `mcpResult`. Do not merge page-level `ttlMs`, `cacheScope`, `_meta`, or unknown fields into one alleged lossless result. A single-page response uses the same page-record representation with one element.
 
 ## Additional input
 
@@ -123,9 +127,10 @@ Test every claimed revision, transport, and optional feature. At minimum verify:
 
 - negotiation and compatibility fallback;
 - equivalent operations under the same identity, authorization, configuration, and workspace policy;
-- full pagination and cache scope;
+- ordered raw-page preservation and flattened inventory derivation;
+- page-specific cursors, cache fields, `_meta`, and unknown extensions;
 - schema dialects and `structuredContent` types;
-- lossless result and unknown-field preservation;
+- lossless tool-call result and unknown-field preservation;
 - modern multi-round-trip and legacy elicitation behavior;
 - cancellation, maximum timeout, and child-process cleanup;
 - modern HTTP headers, JSON/SSE responses, and `x-mcp-header`;
