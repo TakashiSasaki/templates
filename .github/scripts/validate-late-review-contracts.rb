@@ -63,7 +63,7 @@ else
 
   ignored_root_names = %w[
     README.md SKILL.md AGENTS.md CONTRIBUTING.md RUNTIME.md INTERFACES.md WEB_INTERFACE.md
-    LICENSE LICENSE.md COPYING COPYING.md SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
+    LICENSE LICENSE.md LICENSE.template COPYING COPYING.md SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
   ]
   guidance_extensions = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf]
 
