@@ -14,7 +14,7 @@ Do not add an additional enclosing `skill/` directory.
 
 Treat `SKILL.md` as the operational center of the repository. A concrete skill may be complete with `SKILL.md` alone. Do not require a programming runtime, CLI, MCP server, Web interface, or application-layer architecture unless the workflow needs it.
 
-Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it in every concrete skill.
+Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it before adding any operational resource or interface implementation.
 
 Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill.
 
@@ -33,7 +33,7 @@ Read additional material only when applicable:
 - packaged CLI changes: `RUNTIME.md` and `INTERFACES.md`;
 - MCP changes: `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`;
 - browser-interface changes: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
-- headless-service changes: the authoritative runtime/service record and applicable security, health, lifecycle, and deployment documentation;
+- headless-service changes: completed `RUNTIME.md` plus applicable security, health, lifecycle, and deployment configuration;
 - repository-wide architecture or packaging changes: the applicable files under `docs/`.
 
 Do not load MCP or browser-interface documentation merely because it exists in the template.
@@ -46,7 +46,7 @@ Every retained operational resource under `references/`, `assets/`, or `scripts/
 - be declared by its exact repository-relative path in the corresponding `Reference:`, `Asset:`, or `Script:` entry in `SKILL.md`;
 - have its trigger, purpose, handling, or execution contract documented with that entry.
 
-Do not use symlinks under these directories. Symlinked resources can escape the skill root, become broken after cloning or vendoring, and make validation environment-dependent.
+Do not use symlinks or Git submodules/gitlinks under these directories. External links can escape the skill root, become absent after cloning or vendoring, and make validation environment-dependent.
 
 ### Operational references
 
@@ -85,7 +85,8 @@ This template is language-neutral.
 - Instruction-only, knowledge-augmented, and asset-driven skills need no runtime selection.
 - Select a runtime only when scripts or maintained application code require one.
 - Do not add manifests or lockfiles for unused runtimes.
-- When `RUNTIME.md` is retained, it is the source of truth for runtime, dependency, command, transport, and deployment selections that apply to the chosen profile.
+- `RUNTIME.md` is required and must be completed when `packaged-cli`, `mcp-enabled`, `browser-interface`, or `headless-service` is selected.
+- When `RUNTIME.md` is retained, it is the source of truth for runtime, dependency, command, transport, service lifecycle, and deployment selections that apply to the chosen profile.
 - Supporting a second runtime requires a documented reason and proportionate equivalence tests.
 
 ## Public interfaces
@@ -94,7 +95,7 @@ Direct helper invocation may be documented entirely in `SKILL.md`.
 
 Selecting `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`. Retain and complete `INTERFACES.md` whenever the skill maintains a packaged CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
 
-Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported. A headless network service does not retain that browser-only contract unless it also exposes a browser surface.
+Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported. A headless network service requires completed `RUNTIME.md` but does not retain the browser-only contract unless it also exposes a browser surface.
 
 Do not describe a local helper command as a public CLI or protocol method unless that compatibility contract is intentional.
 
@@ -145,7 +146,8 @@ Validation must match the selected profile and risk.
 - script-assisted: helper contract tests, failure behavior, side effects, permissions, and representative execution;
 - packaged CLI: stable command, structured output, exit codes, compatibility, and installation tests;
 - MCP: protocol, transport, pagination, result preservation, cancellation, security, and compatibility tests;
-- Web/service: routing, authentication, authorization, health separation, exposure, and deployment smoke tests.
+- browser-interface: routing, authentication, authorization, health separation, browser exposure, and deployment smoke tests;
+- headless-service: endpoint, authentication, authorization, health, lifecycle, shutdown, exposure, and deployment smoke tests.
 
 Do not require service-grade tests from an instruction-only skill, and do not under-test executable or networked profiles.
 
@@ -154,11 +156,12 @@ Do not require service-grade tests from an instruction-only skill, and do not un
 Before reporting a change complete:
 
 1. Update `SKILL.md` whenever operational behavior, resource usage, helper invocation, outputs, safety, or selected profiles change.
-2. Confirm that the single `Selected profiles:` line matches the implemented interfaces and resources.
+2. Confirm that the single `Selected profiles:` line matches the implemented interfaces and resources, and that `template-scaffold` has been removed before customization.
 3. Update only the optional contracts applicable to the selected profile.
 4. Remove files and directories that no longer serve an operational or maintainer purpose.
 5. Run the validation and tests appropriate to the selected profile.
 6. Confirm that references, assets, and scripts are declared by exact path and reachable through explicit instructions rather than accidental discovery.
-7. Confirm that operational resource directories contain no symlinks.
-8. Confirm that no secrets or environment-specific credentials are committed.
-9. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
+7. Confirm that operational resource directories contain no symlinks or gitlinks.
+8. Confirm that selected application and service profiles have completed contract status and required fields.
+9. Confirm that no secrets or environment-specific credentials are committed.
+10. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
