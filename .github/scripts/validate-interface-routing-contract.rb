@@ -99,10 +99,19 @@ elsif routing_selected
     unless concrete_value.call(field_value.call(execution, "Preferred agent interface"))
       errors << "#{ROUTING_PATH} requires a concrete 'Preferred agent interface:' value."
     end
-    ["Fallback 1", "Fallback 2"].each do |label|
-      unless resolved_value.call(field_value.call(execution, label))
+
+    fallbacks = ["Fallback 1", "Fallback 2"].to_h do |label|
+      [label, field_value.call(execution, label)]
+    end
+    fallbacks.each do |label, value|
+      unless resolved_value.call(value)
         errors << "#{ROUTING_PATH} requires a resolved '#{label}:' value; use NONE when no route is permitted."
       end
+    end
+    if fallbacks["Fallback 1"]&.casecmp?("NONE") &&
+       resolved_value.call(fallbacks["Fallback 2"]) &&
+       !fallbacks["Fallback 2"].casecmp?("NONE")
+      errors << "#{ROUTING_PATH} cannot define Fallback 2 after Fallback 1 is NONE."
     end
 
     availability = markdown_section.call(document, "## Availability and failure behavior")
