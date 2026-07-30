@@ -42,11 +42,13 @@ Profiles are cumulative design patterns, not mandatory product tiers.
 | MCP-enabled | CLI/application profile plus `mcp/` and MCP contract documentation | The skill must expose operations through MCP hosts or clients |
 | Web/service-enabled | application profile plus deployment decisions; `WEB_INTERFACE.md` only for browser-facing behavior | A browser or independently reachable network service is an intentional interface |
 
-See `docs/skill-profiles.md` for selection and removal rules.
+Every concrete skill records its selected tags on exactly one `Selected profiles:` line in `SKILL.md`. The special `template-scaffold` value is valid only for this uncustomized template. Structural validation uses the tags to activate profile requirements; selecting `packaged-cli`, for example, requires both `RUNTIME.md` and `INTERFACES.md`.
+
+See `docs/skill-profiles.md` for the allowed tags, selection rules, and removal rules.
 
 ## Repository areas
 
-- `SKILL.md`: operational instructions loaded by an agent;
+- `SKILL.md`: operational instructions loaded by an agent and the machine-readable profile selection;
 - `references/`: optional knowledge read only when the workflow requires it;
 - `assets/`: optional static templates, examples, configuration skeletons, or output resources;
 - `scripts/`: optional deterministic helpers or stable in-place launchers;
@@ -66,11 +68,11 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 1. Create a repository from this template.
 2. Choose the final lowercase hyphenated skill name.
 3. Rewrite `SKILL.md` around the actual trigger, workflow, resources, outputs, and safety constraints.
-4. Select the smallest profile that fully supports the workflow.
+4. Replace `Selected profiles: template-scaffold` with the smallest sufficient concrete profile tags.
 5. Add `references/`, `assets/`, or `scripts/` only when they have a defined operational use.
-6. Add `RUNTIME.md` only when runtime selection, dependency installation, or executable commands need a maintained record.
-7. Add and complete `INTERFACES.md` whenever a packaged CLI or MCP interface is maintained; private helper scripts do not require it.
-8. Keep MCP files only when MCP is supported, and keep `WEB_INTERFACE.md` only when a browser-facing interface is supported.
+6. Add `RUNTIME.md` only when runtime selection, dependency installation, or executable commands need a maintained record, except where a selected application profile requires it.
+7. Add and complete `INTERFACES.md` whenever `packaged-cli` or `mcp-enabled` is selected; private helper scripts do not require it.
+8. Keep MCP files only when MCP is supported, and keep `WEB_INTERFACE.md` only when `browser-interface` is selected.
 9. Add only the manifests, lockfiles, source layout, and tests required by the selected implementation.
 10. Replace `LICENSE.template` with the selected license and remove unused template guidance.
 
@@ -92,7 +94,7 @@ A helper script is not automatically a public CLI.
 
 A helper may be narrow, agent-oriented, and documented directly in `SKILL.md`. It still needs a clear invocation, inputs, outputs, side effects, permissions, and failure behavior, but it does not need a large compatibility contract unless callers rely on one.
 
-Create a packaged CLI and complete `INTERFACES.md` when command names, structured output, exit codes, or backward compatibility are intentionally maintained for humans, agents, or CI.
+Select `packaged-cli` and complete `INTERFACES.md` when command names, structured output, exit codes, or backward compatibility are intentionally maintained for humans, agents, or CI.
 
 ## Runtime neutrality
 
