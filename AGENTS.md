@@ -33,9 +33,9 @@ This template is intentionally language-neutral.
 
 ## Authority boundaries
 
-- `RUNTIME.md` is the source of truth for language, runtime, package manager, MCP SDK, supported protocol revisions, compatibility policy, transport modes, supported deployment choices, and exact commands.
+- `RUNTIME.md` is the source of truth for language, runtime, package manager, MCP SDK, supported protocol revisions, compatibility policy, transport modes, Web deployment topology and exposure capabilities, and exact commands.
 - `INTERFACES.md` is the source of truth for public CLI and MCP commands, structured output, exit codes, interaction behavior, and deterministic fallback order.
-- `WEB_INTERFACE.md` is the source of truth for an optional browser-facing verification, debugging, demonstration, or limited-operations interface.
+- `WEB_INTERFACE.md` is the source of truth for browser-facing purpose, UI interaction, routing behavior, authentication, authorization, operation policy, redaction, health semantics, and failure behavior. It references deployment choices from `RUNTIME.md` rather than repeating them.
 - `SKILL.md` contains the operational instructions an agent actually follows.
 - Maintainer documents explain rationale but must not silently redefine public contracts.
 
@@ -47,23 +47,23 @@ Separate these concerns:
 
 1. `SKILL.md`: when and how an agent should use the skill.
 2. CLI adapter: human terminal interface and optional stable agent launcher.
-3. Optional human verification Web interface: browser-facing presentation and, when needed, a backend-for-frontend.
-4. Bundled MCP tool client: a bounded protocol client that invokes MCP server adapters.
+3. Optional human verification Web interface: browser-facing presentation and, when needed, a backend-for-frontend or non-MCP Web API adapter.
+4. Reusable or bundled MCP client adapter: a bounded protocol client that invokes MCP server adapters.
 5. MCP server factory or operation registry: shared server-side tool definitions.
 6. stdio MCP adapter: child-process transport and revision-aware lifecycle.
 7. Streamable HTTP MCP adapter: network transport and revision-aware request handling.
 8. Application/domain implementation: reusable behavior.
 9. Tests: contract, adapter, integration, transport, compatibility, security, and deployment-topology verification.
 
-The CLI and MCP server adapters must call the same application logic. stdio and Streamable HTTP adapters must share tool definitions rather than registering parallel copies. The bundled tool client must exercise the actual MCP path and must not call the application layer directly while claiming an MCP invocation.
+The CLI and MCP server adapters must call the same application logic. stdio and Streamable HTTP adapters must share tool definitions rather than registering parallel copies. An MCP client adapter must exercise the actual MCP path and must not call the application layer directly while claiming an MCP invocation.
 
-A human page that claims to verify MCP must also traverse the actual MCP client, protocol, transport, and server adapter. It may reuse the same MCP client library and result representations as the bundled tool client.
+A human page that claims to verify MCP must also traverse the actual MCP client, protocol, transport, and server adapter. A deliberately non-MCP Web API may call the application layer directly, but must not describe that path as MCP verification. Direct browser-to-MCP access is optional and must be selected and secured explicitly.
 
 ## Optional human Web interface policy
 
-Do not assume that a Web interface exists. When it is supported, complete `WEB_INTERFACE.md` and record its runtime commands and supported deployment choices in `RUNTIME.md`.
+Do not assume that a Web interface exists. When it is supported, record runtime commands, deployment topology, listener and exposure capabilities in `RUNTIME.md`, then complete the browser-facing contract in `WEB_INTERFACE.md`.
 
-The final process, port, container, Pod, service, gateway, or reverse-proxy topology may remain deployment-selected. The template must support documenting a set of valid topologies instead of forcing one prematurely.
+The final process, port, container, Pod, task, service, gateway, or reverse-proxy topology may remain deployment-selected. `RUNTIME.md` may document a set of valid topologies instead of forcing one prematurely.
 
 A debug-only Web interface may share the MCP server process, listener, or container. Even in that arrangement:
 
@@ -90,29 +90,25 @@ A separate port is optional. Shared-listener routing and reverse-proxy routing a
 - lossless and presentation-oriented output formats;
 - for paginated `tools/list`, an ordered lossless page representation that preserves every raw page result separately from any flattened inventory view;
 - exit-code meanings, including non-interactive additional-input behavior;
-- legacy elicitation behavior and modern multi-round-trip behavior when either is supported.
+- initialization-era elicitation behavior and modern multi-round-trip behavior when either is supported.
 
 `WEB_INTERFACE.md` must state, when supported:
 
 - purpose and default enablement;
 - production availability policy;
-- supported deployment topologies without requiring a premature final choice;
-- listener, path, port, and reverse-proxy options;
-- whether the backend acts as an MCP client or the browser calls MCP directly;
+- browser-visible paths or URLs under the topology selected in `RUNTIME.md`;
+- whether the backend acts as an MCP client, the browser calls MCP directly, a non-MCP Web API is used, or a mixed model applies;
 - authentication, authorization, tool visibility, confirmation, and redaction policy;
 - independent Web and MCP readiness behavior;
-- tests for each claimed exposure and deployment mode.
+- tests for each claimed browser exposure and selected deployment mode.
 
 An agent must not be left to choose arbitrarily between equivalent execution paths. It must know whether to connect to an existing endpoint, launch stdio through the bundled client, or use the CLI. The human Web interface is not an implicit agent fallback unless explicitly selected as one.
 
 ## MCP protocol requirements
 
-A concrete skill must verify the current official MCP specification and selected SDK before implementation. At the time this template was aligned:
+A concrete skill must verify the current official MCP specification and selected SDK before implementation. Exact supported revisions, era boundaries, compatibility rules, and schema dialects are recorded only in `RUNTIME.md`.
 
-- `2026-07-28` is the current modern revision with stateless, self-contained requests and `server/discover`;
-- `2025-11-25` and earlier revisions use the `initialize` / `notifications/initialized` lifecycle.
-
-The template does not require support for both eras. Every claimed revision and negotiation path must be tested.
+The template does not require support for more than one protocol era. Every claimed revision and negotiation path must be tested.
 
 When stdio MCP exists:
 
@@ -134,7 +130,7 @@ When Streamable HTTP MCP exists:
 - repeat Origin validation for each request on HTTP keep-alive connections and for each request or stream on multiplexed HTTP connections;
 - return HTTP 403 for every request with a present disallowed Origin;
 - document handling of requests without `Origin`;
-- when supporting `2026-07-28`, implement required request metadata headers, JSON and SSE responses, and `x-mcp-header` processing;
+- when the selected revision requires modern request metadata, implement the required headers, JSON and SSE responses, and tool-defined HTTP-header processing;
 - require explicit authentication and network-security decisions before non-loopback access;
 - keep HTTP and service-management concerns out of the application/domain layer.
 
@@ -145,9 +141,9 @@ Connection reuse must not reuse an earlier request's Origin decision. Host, Orig
 Before reporting a change complete:
 
 1. Update `SKILL.md` when operational behavior changes.
-2. Update `RUNTIME.md` when commands, runtimes, SDKs, protocol revisions, endpoints, supported topologies, or service lifecycle change.
+2. Update `RUNTIME.md` when commands, runtimes, SDKs, protocol revisions, endpoints, supported deployment topologies, or service lifecycle change.
 3. Update `INTERFACES.md` when public CLI or MCP behavior changes.
-4. Update `WEB_INTERFACE.md` when browser-facing behavior, enablement, security, or deployment support changes.
+4. Update `WEB_INTERFACE.md` when browser-facing behavior, enablement, security, or health semantics change.
 5. Update `AGENTS.md` and maintainer docs when architecture or contributor rules change.
 6. Run the selected runtime's tests and static checks.
 7. Verify CLI, stdio MCP, and Streamable HTTP MCP semantic equivalence under the same revision, identity, authorization, configuration, and workspace policy.
@@ -156,6 +152,6 @@ Before reporting a change complete:
 10. Test lossless call-result preservation, cancellation, additional-input behavior, and any claimed extension.
 11. Test loopback binding, request-scoped Host/Origin validation, and rejection behavior when the network variant exists.
 12. Include a connection-reuse test that sends at least two requests over one keep-alive or multiplexed connection with different Origin values and verifies HTTP 403 for every present disallowed Origin.
-13. When the Web interface exists, test disabled-by-default behavior, actual MCP-path verification, independent health checks, security policy, redaction, and each claimed topology or deployment-specific smoke test.
+13. When the Web interface exists, test disabled-by-default behavior, actual MCP-path verification, independent health checks, security policy, redaction, and every deployment topology selected in `RUNTIME.md` or its deployment-specific smoke test.
 14. Confirm generated files and lockfiles correspond only to selected tooling.
 15. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
