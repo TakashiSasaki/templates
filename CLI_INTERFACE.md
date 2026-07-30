@@ -114,4 +114,6 @@ When the same operation is exposed through CLI, MCP, Web, or a headless service 
 
 Explain why a maintained packaged CLI is warranted instead of direct helper invocation, which compatibility guarantees callers may rely on, and why the selected command and output contracts fit the skill.
 
-TODO
+```text
+Rationale: TODO
+```
