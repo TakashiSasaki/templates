@@ -129,8 +129,7 @@ resolved_value = lambda do |value|
 end
 
 section = lambda do |text, heading|
-  level = heading[/\A#+/].length
-  pattern = /^#{Regexp.escape(heading)}\s*$\n(.*?)(?=^#{1,#{level}}\s|\z)/m
+  pattern = /^#{Regexp.escape(heading)}\s*$\n(.*?)(?=^##\s|\z)/m
   match = text.match(pattern)
   match && match[1]
 end
