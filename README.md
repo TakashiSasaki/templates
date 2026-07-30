@@ -38,9 +38,9 @@ Profiles are cumulative design patterns, not mandatory product tiers.
 | Knowledge-augmented | `SKILL.md`, `references/` | The workflow needs domain terminology, policies, schemas, or bounded procedures |
 | Asset-driven | `SKILL.md`, `assets/` | The skill copies, fills, transforms, or emits templates and static resources |
 | Script-assisted | `SKILL.md`, `scripts/`, optional tests/runtime record | Small deterministic helpers improve accuracy or repeatability |
-| Packaged CLI | runtime files, `src/`, tests, `RUNTIME.md`, usually `INTERFACES.md` | A stable human or automation command is a maintained public interface |
+| Packaged CLI | runtime files, `src/`, tests, `RUNTIME.md`, `INTERFACES.md` | A stable human or automation command is a maintained public interface |
 | MCP-enabled | CLI/application profile plus `mcp/` and MCP contract documentation | The skill must expose operations through MCP hosts or clients |
-| Web/service-enabled | application profile plus `WEB_INTERFACE.md` and deployment decisions | A browser or network service is an intentional interface |
+| Web/service-enabled | application profile plus deployment decisions; `WEB_INTERFACE.md` only for browser-facing behavior | A browser or independently reachable network service is an intentional interface |
 
 See `docs/skill-profiles.md` for selection and removal rules.
 
@@ -51,8 +51,8 @@ See `docs/skill-profiles.md` for selection and removal rules.
 - `assets/`: optional static templates, examples, configuration skeletons, or output resources;
 - `scripts/`: optional deterministic helpers or stable in-place launchers;
 - `RUNTIME.md`: optional runtime and command decision record for implemented software;
-- `INTERFACES.md`: optional public CLI and MCP contract for maintained interfaces;
-- `WEB_INTERFACE.md`: optional browser-facing contract;
+- `INTERFACES.md`: required public contract for a packaged CLI or MCP interface, otherwise optional;
+- `WEB_INTERFACE.md`: optional browser-facing contract, not a generic headless-service contract;
 - `mcp/`: optional MCP adapters and bounded MCP clients;
 - `src/`: optional application implementation;
 - `tests/`: tests appropriate to the selected profile and risk;
@@ -69,8 +69,8 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 4. Select the smallest profile that fully supports the workflow.
 5. Add `references/`, `assets/`, or `scripts/` only when they have a defined operational use.
 6. Add `RUNTIME.md` only when runtime selection, dependency installation, or executable commands need a maintained record.
-7. Add `INTERFACES.md` only when a stable CLI or MCP interface has a public contract beyond the instructions in `SKILL.md`.
-8. Keep MCP and Web files only when those interfaces are supported.
+7. Add and complete `INTERFACES.md` whenever a packaged CLI or MCP interface is maintained; private helper scripts do not require it.
+8. Keep MCP files only when MCP is supported, and keep `WEB_INTERFACE.md` only when a browser-facing interface is supported.
 9. Add only the manifests, lockfiles, source layout, and tests required by the selected implementation.
 10. Replace `LICENSE.template` with the selected license and remove unused template guidance.
 
@@ -83,7 +83,8 @@ The same principle applies to maintainers:
 - instruction and resource changes should not require reading MCP or Web documents;
 - script changes require the applicable runtime and script contracts;
 - MCP changes require the MCP contract and transport documents;
-- Web changes require the Web and deployment documents.
+- browser-interface changes require the Web and deployment documents;
+- headless-service changes require runtime, service, security, health, and deployment documentation, but not `WEB_INTERFACE.md` unless a browser surface also exists.
 
 ## Helper scripts versus public CLIs
 
@@ -91,7 +92,7 @@ A helper script is not automatically a public CLI.
 
 A helper may be narrow, agent-oriented, and documented directly in `SKILL.md`. It still needs a clear invocation, inputs, outputs, side effects, permissions, and failure behavior, but it does not need a large compatibility contract unless callers rely on one.
 
-Create a packaged CLI and `INTERFACES.md` when command names, structured output, exit codes, or backward compatibility are intentionally maintained for humans, agents, or CI.
+Create a packaged CLI and complete `INTERFACES.md` when command names, structured output, exit codes, or backward compatibility are intentionally maintained for humans, agents, or CI.
 
 ## Runtime neutrality
 
@@ -103,7 +104,7 @@ Do not add competing manifests or lockfiles for unused runtimes. A knowledge-onl
 
 CLI, MCP, and Web interfaces remain supported as advanced profiles. When several interfaces expose the same operations, keep adapters thin and share implementation where that separation provides real value. Do not impose an application/domain architecture on a small self-contained helper solely to match the advanced profile.
 
-MCP-specific revision, transport, pagination, result-preservation, and HTTP-security guidance remains in `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`. Web topology and browser-facing behavior remain in `RUNTIME.md` and `WEB_INTERFACE.md`. These documents are optional for skills that do not support those interfaces.
+MCP-specific revision, transport, pagination, result-preservation, and HTTP-security guidance remains in `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`. Browser topology and browser-facing behavior remain in `RUNTIME.md` and `WEB_INTERFACE.md`. A headless network service records its runtime, endpoint, security, lifecycle, health, and deployment decisions without retaining a browser-only contract.
 
 ## Installation modes
 
