@@ -177,6 +177,12 @@ jobs:
 
           resource_specs.each_value do |spec|
             directory = spec[:directory]
+
+            if File.symlink?(directory)
+              errors << "Operational resource directory symlinks are not allowed: #{directory}"
+              next
+            end
+
             next unless Dir.exist?(directory)
 
             Find.find(directory) do |path|
