@@ -4,7 +4,9 @@ This directory is optional in a concrete skill.
 
 Use it for small deterministic helpers, validators, converters, generators, or stable in-place launchers that the skill invokes directly. A helper script is not automatically a packaged public CLI and does not automatically require `INTERFACES.md`.
 
-For every retained script, `SKILL.md` or a directly linked operational reference must document:
+Every retained script must have an exact `Script: scripts/...` declaration in `SKILL.md`. That declaration must state when the agent may run the script and the basic execution contract. A directly linked operational reference may provide supplemental detail, but it must not replace the declaration in `SKILL.md`.
+
+For every retained script, document:
 
 - when the agent should run it;
 - the exact invocation and working directory;
