@@ -196,8 +196,8 @@ The command-line syntax is local to the skill. MCP standardizes protocol methods
 | Local client operation | Protocol behavior |
 |---|---|
 | `server-info` | Modern mode uses `server/discover`; initialization-era mode reports the negotiated `initialize` result and capabilities |
-| `tools list` | Send `tools/list`, follow opaque pagination cursors, and return the complete inventory unless a single-page mode is explicitly requested |
-| `tools show TOOL` | Filter the complete `tools/list` result locally; there is no standard `tools/show`, `tools/get`, or `tools/describe` method |
+| `tools list` | Send `tools/list`; lossless output retains every page result in order, while presentation output may return a derived flattened inventory |
+| `tools show TOOL` | Filter the flattened inventory derived from the complete `tools/list` page sequence; there is no standard `tools/show`, `tools/get`, or `tools/describe` method |
 | `tools call TOOL` | Send one `tools/call` request using the declared input arguments |
 | `tools run` | Send multiple independent `tools/call` requests sequentially or with documented concurrency; do not represent this as an MCP or JSON-RPC batch method |
 
@@ -236,8 +236,8 @@ The client must:
 - treat tool names as case-sensitive;
 - follow `tools/list` pagination until no next cursor remains unless the caller explicitly requests a single page;
 - treat cursors as opaque values, including an empty-string cursor when the selected revision permits it;
-- preserve the complete list result, including `resultType`, `ttlMs`, `cacheScope`, tool definitions, `_meta`, and unknown extension fields where present;
-- apply cache hints only within their documented identity, authorization, revision, and cache scope;
+- retain every raw page result as a separate ordered record instead of overwriting page-level fields during aggregation;
+- apply cache hints only within their documented identity, authorization, revision, page, and cache scope;
 - preserve tool fields supplied by the server, including input and output schemas, annotations, execution metadata, icons, and future extension fields where practical;
 - support JSON Schema 2020-12 where the selected revision requires it and respect an explicit supported `$schema`;
 - treat annotations from an untrusted server as hints rather than verified safety properties;
@@ -248,9 +248,48 @@ The client must:
 
 Tool inventories may differ by per-request authorization. Equivalence tests must compare calls made under the same revision, identity, authorization, configuration, and workspace policy.
 
-### Tool results and errors
+### Lossless paginated tool-list output
 
-A lossless output mode must preserve the complete result object rather than replacing it with a domain-only envelope.
+Lossless and presentation-oriented list output are separate contracts.
+
+A lossless `tools/list` mode must retain the ordered page sequence. Each page record contains local request metadata and the complete result object exactly as received:
+
+```json
+{
+  "contractVersion": "1",
+  "operation": "tools/list",
+  "pages": [
+    {
+      "requestCursor": null,
+      "mcpResult": {
+        "tools": [],
+        "nextCursor": "opaque-next-cursor",
+        "ttlMs": 30000,
+        "cacheScope": "example-scope",
+        "_meta": {}
+      }
+    },
+    {
+      "requestCursor": "opaque-next-cursor",
+      "mcpResult": {
+        "tools": [],
+        "_meta": {}
+      }
+    }
+  ],
+  "metadata": {
+    "pageCount": 2
+  }
+}
+```
+
+The `mcpResult` value in each page record must not be normalized, merged, or stripped. It preserves that page's `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extension fields when present. `requestCursor` is client metadata recording the opaque cursor used to request the page; it is not inserted into `mcpResult`.
+
+A single-page response uses the same representation with one page record. A flattened inventory may concatenate the page `tools` arrays and add explicitly derived metadata for human or agent convenience, but it is not lossless protocol output. The flattened view must not choose one page's cache fields as global values or silently merge page-level `_meta`. Any cache expiration or scope reported for the flattened view must use a documented conservative derivation rule and be labeled as derived.
+
+### Tool-call results and errors
+
+A lossless tool-call output mode must preserve the complete result object rather than replacing it with a domain-only envelope.
 
 Modern complete result example:
 
@@ -365,4 +404,4 @@ For an operation exposed through CLI, stdio MCP, or Streamable HTTP MCP, under t
 - differences in presentation or transport must not change domain behavior;
 - transport adapters must use the same operation registry or server factory where practical;
 - contract tests must exercise all supported adapters against the same fixtures;
-- protocol-client tests must additionally exercise pagination, caching, schema dialects, result preservation, result types, cancellation, interaction policy, request metadata, custom headers, and every claimed protocol revision.
+- protocol-client tests must additionally exercise ordered raw-page preservation, flattened list derivation, page-level cache and metadata fields, pagination, schema dialects, call-result preservation, result types, cancellation, interaction policy, request metadata, custom headers, and every claimed protocol revision.
