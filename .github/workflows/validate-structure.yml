@@ -25,10 +25,12 @@ jobs:
           fi
 
           ruby <<'RUBY'
+          require "find"
+          require "pathname"
           require "yaml"
 
-          path = "SKILL.md"
-          lines = File.readlines(path, chomp: true)
+          skill_path = "SKILL.md"
+          lines = File.readlines(skill_path, chomp: true)
 
           unless lines.first == "---"
             warn "SKILL.md must begin with YAML frontmatter."
@@ -71,85 +73,150 @@ jobs:
             warn "SKILL.md frontmatter description must be a non-empty string."
             exit 1
           end
+
+          resource_specs = {
+            "Reference" => {
+              directory: "references",
+              placeholder: "references/TODO.md",
+              required_fields: ["Read when", "Provides"]
+            },
+            "Asset" => {
+              directory: "assets",
+              placeholder: "assets/TODO",
+              required_fields: ["Use when", "Handling"]
+            },
+            "Script" => {
+              directory: "scripts",
+              placeholder: "scripts/TODO",
+              required_fields: ["Run when", "Exact invocation"]
+            }
+          }
+
+          normalize_line = lambda do |line|
+            normalized = line.strip
+            normalized = normalized[2..].strip if normalized.start_with?("- ")
+            normalized
+          end
+
+          strip_backticks = lambda do |value|
+            normalized = value.strip
+            if normalized.length >= 2 && normalized.start_with?("`") && normalized.end_with?("`")
+              normalized[1...-1]
+            else
+              normalized
+            end
+          end
+
+          declarations = []
+          current = nil
+
+          lines.each_with_index do |raw_line, index|
+            line = normalize_line.call(raw_line)
+
+            if (match = line.match(/\A(Reference|Asset|Script):\s*(.+?)\s*\z/))
+              current = {
+                label: match[1],
+                path: strip_backticks.call(match[2]),
+                line: index + 1,
+                fields: {}
+              }
+              declarations << current
+              next
+            end
+
+            next unless current
+
+            if line.start_with?("#") || line == "```"
+              current = nil
+              next
+            end
+
+            if (match = line.match(/\A([^:]+):\s*(.*?)\s*\z/))
+              current[:fields][match[1].strip] = strip_backticks.call(match[2])
+            end
+          end
+
+          concrete_declarations = {}
+          errors = []
+
+          declarations.each do |declaration|
+            spec = resource_specs.fetch(declaration[:label])
+            path = declaration[:path]
+
+            next if path == spec[:placeholder]
+
+            pathname = Pathname.new(path)
+            clean_path = pathname.cleanpath.to_s
+            expected_prefix = "#{spec[:directory]}/"
+
+            if pathname.absolute? || clean_path != path || !path.start_with?(expected_prefix)
+              errors << "SKILL.md line #{declaration[:line]} has an invalid #{declaration[:label]} path: #{path}"
+              next
+            end
+
+            if concrete_declarations.key?(path)
+              errors << "SKILL.md declares the same operational resource more than once: #{path}"
+              next
+            end
+
+            concrete_declarations[path] = declaration
+
+            spec[:required_fields].each do |field|
+              value = declaration[:fields][field]
+              if value.nil? || value.strip.empty? || /\bTODO\b/i.match?(value)
+                errors << "SKILL.md declaration for #{path} must include a concrete '#{field}:' value."
+              end
+            end
+
+            unless File.file?(path) && !File.symlink?(path)
+              errors << "SKILL.md declares a missing or non-regular operational resource: #{path}"
+            end
+          end
+
+          operational_files = []
+
+          resource_specs.each_value do |spec|
+            directory = spec[:directory]
+            next unless Dir.exist?(directory)
+
+            Find.find(directory) do |path|
+              next if path == directory
+
+              if File.symlink?(path)
+                errors << "Operational resource symlinks are not allowed: #{path}"
+                next
+              end
+
+              next if File.directory?(path)
+              next if path == "#{directory}/README.md"
+
+              unless File.file?(path)
+                errors << "Operational resources must be regular files: #{path}"
+                next
+              end
+
+              operational_files << path
+            end
+          end
+
+          operational_files.each do |path|
+            declaration = concrete_declarations[path]
+            unless declaration
+              label = resource_specs.find { |_name, spec| path.start_with?("#{spec[:directory]}/") }&.first
+              errors << "SKILL.md must declare the exact retained resource path as '#{label}: #{path}'."
+            end
+          end
+
+          unless errors.empty?
+            errors.uniq.each { |error| warn error }
+            exit 1
+          end
           RUBY
 
           has_operational_files() {
             local directory="$1"
-            [[ -d "$directory" ]] && find "$directory" -type f ! -name README.md -print -quit | grep -q .
+            [[ -d "$directory" ]] && find "$directory" -type f ! -path "$directory/README.md" -print -quit | grep -q .
           }
-
-          reject_operational_symlinks() {
-            local directory="$1"
-            local path
-
-            [[ -d "$directory" ]] || return 0
-
-            while IFS= read -r -d '' path; do
-              echo "Operational resource symlinks are not allowed: $path" >&2
-              exit 1
-            done < <(find "$directory" -type l -print0)
-          }
-
-          validate_operational_file_references() {
-            local directory="$1"
-            local label
-            local path
-
-            [[ -d "$directory" ]] || return 0
-
-            case "$directory" in
-              references) label="Reference" ;;
-              assets) label="Asset" ;;
-              scripts) label="Script" ;;
-              *)
-                echo "Unsupported operational resource directory: $directory" >&2
-                exit 1
-                ;;
-            esac
-
-            while IFS= read -r -d '' path; do
-              if ! awk -v expected="$path" -v label="$label" '
-                function trim(value) {
-                  sub(/^[[:space:]]+/, "", value)
-                  sub(/[[:space:]]+$/, "", value)
-                  return value
-                }
-
-                {
-                  line = trim($0)
-                  if (substr(line, 1, 2) == "- ") {
-                    line = trim(substr(line, 3))
-                  }
-
-                  prefix = label ":"
-                  if (index(line, prefix) != 1) {
-                    next
-                  }
-
-                  value = trim(substr(line, length(prefix) + 1))
-                  if (length(value) >= 2 && substr(value, 1, 1) == "`" && substr(value, length(value), 1) == "`") {
-                    value = substr(value, 2, length(value) - 2)
-                  }
-
-                  if (value == expected) {
-                    found = 1
-                  }
-                }
-
-                END {
-                  exit found ? 0 : 1
-                }
-              ' SKILL.md; then
-                echo "SKILL.md must declare the exact retained resource path as '$label: $path'." >&2
-                exit 1
-              fi
-            done < <(find "$directory" -type f ! -name README.md -print0)
-          }
-
-          for directory in references assets scripts; do
-            reject_operational_symlinks "$directory"
-            validate_operational_file_references "$directory"
-          done
 
           if has_operational_files mcp; then
             required_mcp_contracts=(
