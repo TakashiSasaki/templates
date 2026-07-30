@@ -6,19 +6,19 @@ When MCP is supported, this directory may contain:
 
 - a shared MCP server factory or operation registry;
 - a stdio server entry point;
-- a local Streamable HTTP server entry point;
+- a Streamable HTTP server entry point;
 - a bounded ad hoc MCP tool client used by the skill or contract tests;
 - MCP-specific schemas and adapter tests.
 
-The implementation language, SDK, protocol revisions, compatibility policy, and exact commands are selected in `RUNTIME.md`.
+The implementation language, SDK, exact protocol revisions, compatibility policy, era boundary, and commands are selected only in `RUNTIME.md`.
 
 ## Standard terminology
 
-MCP defines stdio and Streamable HTTP as standard transports. A server listening on a TCP port should normally be described as a **local Streamable HTTP MCP server**, not a raw TCP MCP transport.
+MCP defines stdio and Streamable HTTP as standard transports. A server listening on a TCP port should normally be described as a **Streamable HTTP MCP server**, not a raw TCP MCP transport.
 
 A command that only discovers and invokes tools is an **ad hoc MCP tool client**. It is not automatically a native agent tool, complete MCP host, or general-purpose MCP client.
 
-At the time this template was aligned, `2026-07-28` is the modern stateless, per-request revision, while `2025-11-25` and earlier revisions use the initialization-era model. Recheck the current specification before implementation.
+Use revision-neutral terms such as selected modern mode and selected initialization-era mode in this document. Do not maintain a separate date-based revision boundary here.
 
 ## Required architecture
 
@@ -45,7 +45,7 @@ MCP server adapters call the same application/domain implementation used by the 
 - reserve stdout for protocol messages;
 - send diagnostics to stderr;
 - do not daemonize or open a listening socket;
-- perform the discovery or initialization behavior required by the selected revision;
+- perform the discovery, initialization, or negotiation behavior required by the selected revision;
 - implement only advertised server-to-client capabilities;
 - use revision-appropriate cancellation;
 - close stdin or the connection according to the SDK contract;
@@ -56,7 +56,7 @@ MCP server adapters call the same application/domain implementation used by the 
 
 General requirements:
 
-- bind to `127.0.0.1` or `::1` by default;
+- bind to `127.0.0.1` or `::1` by default for local-only deployments;
 - expose a documented endpoint, normally `/mcp`;
 - validate Host and protect against DNS rebinding on every HTTP request;
 - validate Origin independently on every HTTP request before dispatch;
@@ -67,17 +67,17 @@ General requirements:
 - define supported protocol eras, concurrency, readiness, cancellation, and shutdown;
 - require a separate security design for non-loopback access.
 
-For `2026-07-28` support:
+When the selected modern revision requires the modern Streamable HTTP contract:
 
 - use one POST for each JSON-RPC request;
 - accept both JSON and SSE response media types;
 - send required protocol-version and method/name request headers;
 - keep request headers consistent with JSON body metadata;
 - support request-scoped SSE cancellation;
-- do not use modern-mode session IDs, independent GET/DELETE endpoints, or resumability;
-- validate `x-mcp-header` tool declarations;
+- avoid initialization-era session IDs, independent GET/DELETE endpoints, or resumability in modern mode;
+- validate tool-defined HTTP-header declarations;
 - exclude invalid HTTP tool definitions from the usable inventory;
-- move designated arguments into encoded `Mcp-Param-*` headers;
+- move designated arguments into encoded transport headers;
 - test any initialization-era compatibility separately.
 
 ## Bundled tool-client behavior
@@ -86,7 +86,7 @@ Recommended local operations:
 
 | Local operation | MCP behavior |
 |---|---|
-| `server-info` | Modern `server/discover` or initialization-era negotiated server information |
+| `server-info` | Report discovery or negotiated server information according to the selected revision |
 | `tools list` | `tools/list` with ordered raw-page lossless output and optional flattened presentation |
 | `tools show TOOL` | Local filtering over the derived flattened inventory; not an MCP method |
 | `tools call TOOL` | One `tools/call` request |
@@ -98,7 +98,7 @@ The client must:
 - keep a flattened inventory separate and label aggregate metadata as derived;
 - preserve complete tool-call results, including `resultType`, standard fields, `_meta`, and unknown extensions;
 - keep tool names case-sensitive and cursors opaque;
-- support JSON Schema 2020-12 where required;
+- support the schema dialects selected in `RUNTIME.md`;
 - accept any permitted JSON type in `structuredContent`;
 - distinguish transport, protocol, invalid-result, input-required, tool-error, and success outcomes;
 - generate request IDs internally;
@@ -110,13 +110,13 @@ For paginated lists, store the cursor used to request each page as client metada
 
 ## Additional input
 
-Modern `2026-07-28` multi-round-trip behavior:
+Selected modern multi-round-trip behavior:
 
-- preserve an `input_required` result in non-interactive mode;
+- preserve an `input_required` result in non-interactive mode when permitted by the selected revision;
 - in interactive or response-file mode, retry with `inputResponses` and echoed `requestState`;
 - use a new JSON-RPC request ID for every retry.
 
-Initialization-era behavior:
+Selected initialization-era behavior:
 
 - advertise elicitation or other client capabilities only when implemented;
 - answer form elicitation with `accept`, `decline`, or `cancel`;
@@ -132,11 +132,11 @@ Test every claimed revision, transport, and optional feature. At minimum verify:
 - equivalent operations under the same identity, authorization, configuration, and workspace policy;
 - ordered raw-page preservation and flattened inventory derivation;
 - page-specific cursors, cache fields, `_meta`, and unknown extensions;
-- schema dialects and `structuredContent` types;
+- selected schema dialects and `structuredContent` types;
 - lossless tool-call result and unknown-field preservation;
-- modern multi-round-trip and legacy elicitation behavior;
+- selected modern multi-round-trip and initialization-era elicitation behavior;
 - cancellation, maximum timeout, and child-process cleanup;
-- modern HTTP headers, JSON/SSE responses, and `x-mcp-header`;
+- modern HTTP headers, JSON/SSE responses, and tool-defined HTTP headers when required by the selected revision;
 - loopback binding and per-request Host/Origin validation;
 - at least two requests on one reused or multiplexed HTTP connection with different Origin values;
 - HTTP 403 for every present disallowed Origin and documented absent-Origin handling;
