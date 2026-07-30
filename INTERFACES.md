@@ -10,7 +10,7 @@ Private helper scripts are not public interfaces. Their bounded invocation contr
 Selection status: UNSELECTED
 ```
 
-Change the status to `SELECTED` only after the preferred route, fallbacks, and every retained profile-specific contract are complete.
+Change the status to `SELECTED` only after the preferred route, fallbacks, availability behavior, rationale, and every retained profile-specific contract are complete.
 
 ## Execution policy
 
@@ -76,6 +76,8 @@ Distinguish an unavailable interface from a negative domain result. Do not treat
 
 ## Decision rationale
 
-Explain why the preferred interface and fallback order fit the skill, which routes are intentionally unavailable, and how the policy avoids unnecessary process or network startup.
+```text
+Rationale: TODO
+```
 
-TODO
+Explain why the preferred interface and fallback order fit the skill, which routes are intentionally unavailable, and how the policy avoids unnecessary process or network startup.
