@@ -14,11 +14,11 @@ The implementation language, SDK, protocol revisions, compatibility policy, and 
 
 ## Standard terminology
 
-MCP defines stdio and Streamable HTTP as standard transports. A local server that listens on a TCP port should normally be described as a **local Streamable HTTP MCP server**, not as a raw TCP MCP transport.
+MCP defines stdio and Streamable HTTP as standard transports. A server listening on a TCP port should normally be described as a **local Streamable HTTP MCP server**, not a raw TCP MCP transport.
 
 A command that only discovers and invokes tools is an **ad hoc MCP tool client**. It is not automatically a native agent tool, complete MCP host, or general-purpose MCP client.
 
-At the time this template was aligned, `2026-07-28` is the modern stateless, per-request revision, while `2025-11-25` and earlier revisions use the initialization-era protocol model. Recheck the current specification before implementation.
+At the time this template was aligned, `2026-07-28` is the modern stateless, per-request revision, while `2025-11-25` and earlier revisions use the initialization-era model. Recheck the current specification before implementation.
 
 ## Required architecture
 
@@ -37,12 +37,12 @@ bundled MCP tool client
 
 Transport entry points may configure protocol, lifecycle, framing, request metadata, cancellation, and security. They must not duplicate tool definitions or domain logic.
 
-The MCP server adapters call the same application/domain implementation used by the CLI. The bundled tool client must traverse an MCP adapter rather than call the application layer directly.
+MCP server adapters call the same application/domain implementation used by the CLI. The bundled tool client must traverse an MCP adapter rather than call the application layer directly.
 
 ## stdio implementation checklist
 
 - launch only a trusted bundled server command;
-- reserve stdout for MCP protocol messages;
+- reserve stdout for protocol messages;
 - send diagnostics to stderr;
 - do not daemonize or open a listening socket;
 - perform the discovery or initialization behavior required by the selected revision;
@@ -58,9 +58,12 @@ General requirements:
 
 - bind to `127.0.0.1` or `::1` by default;
 - expose a documented endpoint, normally `/mcp`;
-- validate Host and protect against DNS rebinding;
-- validate Origin and reject a present disallowed value with HTTP 403;
+- validate Host and protect against DNS rebinding on every HTTP request;
+- validate Origin independently on every HTTP request before dispatch;
+- do not reuse an earlier request's Origin decision when HTTP/1.1 keep-alive, HTTP/2, or later protocols reuse or multiplex a connection;
+- return HTTP 403 for every request with a present disallowed Origin;
 - document absent-Origin behavior;
+- perform authentication, authorization, size-limit, and protocol-header checks per request;
 - define supported protocol eras, concurrency, readiness, cancellation, and shutdown;
 - require a separate security design for non-loopback access.
 
@@ -84,16 +87,16 @@ Recommended local operations:
 | Local operation | MCP behavior |
 |---|---|
 | `server-info` | Modern `server/discover` or initialization-era negotiated server information |
-| `tools list` | `tools/list` with an ordered raw-page lossless mode and an optional flattened presentation mode |
-| `tools show TOOL` | Local filtering over the flattened inventory derived from all pages; not an MCP method |
+| `tools list` | `tools/list` with ordered raw-page lossless output and optional flattened presentation |
+| `tools show TOOL` | Local filtering over the derived flattened inventory; not an MCP method |
 | `tools call TOOL` | One `tools/call` request |
 | `tools run` | Several independent `tools/call` requests; not an MCP or JSON-RPC batch |
 
 The client must:
 
-- preserve each raw `tools/list` page result in order, including page-specific cursors, cache fields, `_meta`, and unknown extensions;
-- keep a flattened inventory separate and label its aggregate metadata as derived;
-- preserve complete tool-call result objects, including `resultType`, standard fields, `_meta`, and unknown extensions;
+- preserve each raw `tools/list` page in order, including page-specific cursors, cache fields, `_meta`, and unknown extensions;
+- keep a flattened inventory separate and label aggregate metadata as derived;
+- preserve complete tool-call results, including `resultType`, standard fields, `_meta`, and unknown extensions;
 - keep tool names case-sensitive and cursors opaque;
 - support JSON Schema 2020-12 where required;
 - accept any permitted JSON type in `structuredContent`;
@@ -134,6 +137,9 @@ Test every claimed revision, transport, and optional feature. At minimum verify:
 - modern multi-round-trip and legacy elicitation behavior;
 - cancellation, maximum timeout, and child-process cleanup;
 - modern HTTP headers, JSON/SSE responses, and `x-mcp-header`;
-- loopback binding, Host/Origin rejection, readiness, concurrency, and shutdown;
+- loopback binding and per-request Host/Origin validation;
+- at least two requests on one reused or multiplexed HTTP connection with different Origin values;
+- HTTP 403 for every present disallowed Origin and documented absent-Origin handling;
+- readiness, concurrency, graceful shutdown, restart, and stale-process behavior;
 - no transport-specific domain behavior;
 - local `tools show` and `tools run` remain conveniences rather than nonexistent methods.
