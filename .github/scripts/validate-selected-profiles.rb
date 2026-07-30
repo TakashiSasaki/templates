@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require "find"
 require "yaml"
 
 skill_path = "SKILL.md"
@@ -95,13 +96,42 @@ profile_requirements = {
   "browser-interface" => ["RUNTIME.md", "WEB_INTERFACE.md"]
 }
 
+resource_profile_requirements = {
+  "references" => "knowledge-augmented",
+  "assets" => "asset-driven",
+  "scripts" => "script-assisted"
+}
+
+operational_files_present = lambda do |directory|
+  next false unless Dir.exist?(directory) && !File.symlink?(directory)
+
+  found = false
+  Find.find(directory) do |path|
+    next if path == directory
+    next if File.directory?(path)
+    next if path == "#{directory}/README.md"
+
+    found = true
+    break
+  end
+  found
+end
+
 errors = []
+
 selected_profiles.each do |profile|
   profile_requirements.fetch(profile, []).each do |required_path|
     unless File.file?(required_path)
       errors << "Selected profile '#{profile}' requires contract file: #{required_path}"
     end
   end
+end
+
+resource_profile_requirements.each do |directory, required_profile|
+  next unless operational_files_present.call(directory)
+  next if selected_profiles.include?(required_profile)
+
+  errors << "Retained operational files under #{directory}/ require selected profile '#{required_profile}'."
 end
 
 unless errors.empty?
