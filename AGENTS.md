@@ -10,148 +10,140 @@ The repository root is the Agent Skill root. It must remain suitable for install
 
 Do not add an additional enclosing `skill/` directory.
 
-## Required reading
+## Core rule
 
-Before changing implementation or packaging, read:
+Treat `SKILL.md` as the operational center of the repository. A concrete skill may be complete with `SKILL.md` alone. Do not require a programming runtime, CLI, MCP server, Web interface, or application-layer architecture unless the workflow needs it.
 
-- `RUNTIME.md`
-- `INTERFACES.md`
-- `WEB_INTERFACE.md`
-- `docs/architecture.md`
-- `docs/runtime-selection.md`
-- `docs/mcp-transports.md`
+Select the smallest sufficient profile described in `docs/skill-profiles.md`. Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill.
+
+## Progressive maintainer reading
+
+Always read:
+
+- `SKILL.md`;
+- files directly named by the current task.
+
+Read additional material only when applicable:
+
+- knowledge or procedure changes: the affected files under `references/`;
+- asset changes: the affected files under `assets/` and their usage instructions in `SKILL.md`;
+- helper-script changes: the affected scripts, their execution contracts in `SKILL.md`, and `RUNTIME.md` when a runtime record exists;
+- packaged CLI changes: `RUNTIME.md` and `INTERFACES.md`;
+- MCP changes: `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`;
+- Web or service changes: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
+- repository-wide architecture or packaging changes: the applicable files under `docs/`.
+
+Do not load MCP or Web documentation merely because it exists in the template.
+
+## Skill resources
+
+### Operational references
+
+Keep runtime knowledge under `references/` only when the agent may need it while performing the skill.
+
+- `SKILL.md` must state when each reference should be read and what it provides.
+- Prefer bounded, task-specific references over general documentation dumps.
+- Record authority, version, provenance, or freshness requirements when stale knowledge could change the result.
+- Avoid deep chains of references.
+
+### Assets
+
+Use `assets/` for static resources consumed or emitted by the workflow.
+
+- `SKILL.md` must state when and how each retained asset is used.
+- Do not treat an asset as an instruction source unless the skill explicitly says to read it as one.
+- Preserve immutable template regions and licenses where applicable.
+
+### Helper scripts
+
+Use `scripts/` for small deterministic helpers or stable in-place launchers.
+
+- A helper script is not automatically a public CLI.
+- Document its invocation, working directory, inputs, outputs, exit behavior, side effects, permissions, network use, approval policy, and retry/idempotency behavior in `SKILL.md` or a directly linked operational reference.
+- Resolve the skill root from the script location when possible; do not assume the caller's current directory.
+- Do not install runtimes or package managers silently.
+- Preserve delegated exit status and emit actionable diagnostics.
+- A small helper may remain self-contained. Do not force adapter/domain layering onto trivial code.
 
 ## Runtime policy
 
-This template is intentionally language-neutral.
+This template is language-neutral.
 
-- Do not assume Python or Node.js.
-- Do not assume uv, pip, npm, pnpm, yarn, or bun.
-- Do not add manifests or lockfiles for runtimes that are not selected.
-- A concrete skill must record one primary runtime and its exact commands in `RUNTIME.md`.
-- Supporting a second runtime requires a documented reason and tests proving equivalent behavior.
+- Instruction-only, knowledge-augmented, and asset-driven skills need no runtime selection.
+- Select a runtime only when scripts or maintained application code require one.
+- Do not add manifests or lockfiles for unused runtimes.
+- When `RUNTIME.md` is retained, it is the source of truth for runtime, dependency, command, transport, and deployment selections that apply to the chosen profile.
+- Supporting a second runtime requires a documented reason and proportionate equivalence tests.
 
-## Authority boundaries
+## Public interfaces
 
-- `RUNTIME.md` is the source of truth for language, runtime, package manager, MCP SDK, supported protocol revisions, compatibility policy, transport modes, Web deployment topology and exposure capabilities, and exact commands.
-- `INTERFACES.md` is the source of truth for public CLI and MCP commands, structured output, exit codes, interaction behavior, and deterministic fallback order.
-- `WEB_INTERFACE.md` is the source of truth for browser-facing purpose, UI interaction, routing behavior, authentication, authorization, operation policy, redaction, health semantics, and failure behavior. It references deployment choices from `RUNTIME.md` rather than repeating them.
-- `SKILL.md` contains the operational instructions an agent actually follows.
-- Maintainer documents explain rationale but must not silently redefine public contracts.
+Direct helper invocation may be documented entirely in `SKILL.md`.
 
-Do not duplicate revision, SDK, or deployment selections in several files. Reference the authoritative record and update all affected documents when behavior changes.
+Retain and complete `INTERFACES.md` when the skill intentionally maintains a stable CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
 
-## Architecture
+Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported.
 
-Separate these concerns:
+Do not describe a local helper command as a public CLI or protocol method unless that compatibility contract is intentional.
 
-1. `SKILL.md`: when and how an agent should use the skill.
-2. CLI adapter: human terminal interface and optional stable agent launcher.
-3. Optional human verification Web interface: browser-facing presentation and, when needed, a backend-for-frontend or non-MCP Web API adapter.
-4. Reusable or bundled MCP client adapter: a bounded protocol client that invokes MCP server adapters.
-5. MCP server factory or operation registry: shared server-side tool definitions.
-6. stdio MCP adapter: child-process transport and revision-aware lifecycle.
-7. Streamable HTTP MCP adapter: network transport and revision-aware request handling.
-8. Application/domain implementation: reusable behavior.
-9. Tests: contract, adapter, integration, transport, compatibility, security, and deployment-topology verification.
+## Optional application architecture
 
-The CLI and MCP server adapters must call the same application logic. stdio and Streamable HTTP adapters must share tool definitions rather than registering parallel copies. An MCP client adapter must exercise the actual MCP path and must not call the application layer directly while claiming an MCP invocation.
+Use a shared application/domain implementation with thin adapters when multiple maintained interfaces expose the same behavior or when complexity and testing justify the separation.
 
-A human page that claims to verify MCP must also traverse the actual MCP client, protocol, transport, and server adapter. A deliberately non-MCP Web API may call the application layer directly, but must not describe that path as MCP verification. Direct browser-to-MCP access is optional and must be selected and secured explicitly.
+When applicable:
 
-## Optional human Web interface policy
+1. CLI, MCP, and Web adapters remain separate from domain behavior.
+2. stdio and Streamable HTTP MCP adapters share tool definitions.
+3. MCP clients traverse an actual MCP adapter rather than bypassing the protocol.
+4. A Web path claiming MCP verification traverses the MCP client, protocol, transport, and server adapter.
+5. A deliberately non-MCP Web API may call the application layer directly but must not be described as MCP verification.
 
-Do not assume that a Web interface exists. When it is supported, record runtime commands, deployment topology, listener and exposure capabilities in `RUNTIME.md`, then complete the browser-facing contract in `WEB_INTERFACE.md`.
+These rules do not require a small one-purpose helper script to be decomposed into application and domain layers.
 
-The final process, port, container, Pod, task, service, gateway, or reverse-proxy topology may remain deployment-selected. `RUNTIME.md` may document a set of valid topologies instead of forcing one prematurely.
+## MCP-specific requirements
 
-A debug-only Web interface may share the MCP server process, listener, or container. Even in that arrangement:
+Apply this section only when MCP is supported.
 
-- keep the UI, UI backend, MCP endpoint, and health endpoints as separate logical interfaces;
-- make enablement explicit and normally disabled outside development or diagnostics;
-- avoid loading UI-only assets and debug state when the UI is disabled;
-- keep authentication, authorization, routing, logging, redaction, and error handling explicit;
-- do not equate Web UI readiness with MCP readiness;
-- do not let a successful Web page response stand in for an MCP invocation test;
-- do not expose mutating or destructive tools without trusted local policy and confirmation rules.
+- Verify the current official specification and selected SDK before implementation.
+- Record exact revisions, compatibility, schema, transport, and command decisions in `RUNTIME.md`.
+- Reserve stdout for stdio protocol traffic and send diagnostics to stderr.
+- Use Streamable HTTP rather than describing a normal HTTP server as raw TCP MCP.
+- Keep Host, Origin, authentication, authorization, size-limit, and protocol-header decisions request-scoped.
+- Validate Origin on every HTTP request before dispatch and do not reuse an allow decision across connection reuse or multiplexing.
+- Preserve the complete protocol result where a lossless mode is claimed.
+- Preserve each paginated `tools/list` page separately from any flattened presentation.
+- Test every claimed revision, fallback, interaction model, cancellation path, and transport exposure.
 
-A separate port is optional. Shared-listener routing and reverse-proxy routing are valid when their security boundaries and path behavior are documented and tested.
+## Web-specific requirements
 
-## Interface policy
+Apply this section only when a Web interface is supported.
 
-`INTERFACES.md` must state:
+- Record deployment topology and exposure capabilities in `RUNTIME.md`.
+- Record browser-visible behavior, security, operation policy, redaction, health semantics, and failure behavior in `WEB_INTERFACE.md`.
+- Keep the Web interface optional and normally disabled when it is only for debugging.
+- Do not equate Web readiness with MCP readiness.
+- A separate process, port, or container is optional; logical security and lifecycle boundaries are not.
 
-- the canonical human CLI command;
-- the canonical in-place agent command, if different;
-- the stdio MCP server launch command, if supported;
-- the bundled MCP tool-client command and supported transports, if supported;
-- the Streamable HTTP server start, stop, endpoint, and readiness contract, if supported;
-- the preferred agent interface and deterministic fallback order;
-- lossless and presentation-oriented output formats;
-- for paginated `tools/list`, an ordered lossless page representation that preserves every raw page result separately from any flattened inventory view;
-- exit-code meanings, including non-interactive additional-input behavior;
-- initialization-era elicitation behavior and modern multi-round-trip behavior when either is supported.
+## Validation proportionality
 
-`WEB_INTERFACE.md` must state, when supported:
+Validation must match the selected profile and risk.
 
-- purpose and default enablement;
-- production availability policy;
-- browser-visible paths or URLs under the topology selected in `RUNTIME.md`;
-- whether the backend acts as an MCP client, the browser calls MCP directly, a non-MCP Web API is used, or a mixed model applies;
-- authentication, authorization, tool visibility, confirmation, and redaction policy;
-- independent Web and MCP readiness behavior;
-- tests for each claimed browser exposure and selected deployment mode.
+- instruction-only: frontmatter, trigger clarity, workflow completeness, output and safety checks;
+- knowledge or asset profiles: resource existence, correct linkage, provenance/freshness where applicable;
+- script-assisted: helper contract tests, failure behavior, side effects, permissions, and representative execution;
+- packaged CLI: stable command, structured output, exit codes, compatibility, and installation tests;
+- MCP: protocol, transport, pagination, result preservation, cancellation, security, and compatibility tests;
+- Web/service: routing, authentication, authorization, health separation, exposure, and deployment smoke tests.
 
-An agent must not be left to choose arbitrarily between equivalent execution paths. It must know whether to connect to an existing endpoint, launch stdio through the bundled client, or use the CLI. The human Web interface is not an implicit agent fallback unless explicitly selected as one.
-
-## MCP protocol requirements
-
-A concrete skill must verify the current official MCP specification and selected SDK before implementation. Exact supported revisions, era boundaries, compatibility rules, and schema dialects are recorded only in `RUNTIME.md`.
-
-The template does not require support for more than one protocol era. Every claimed revision and negotiation path must be tested.
-
-When stdio MCP exists:
-
-- stdout is reserved for MCP protocol traffic;
-- diagnostics and logs go to stderr;
-- startup performs no expensive repository-wide scan;
-- shutdown follows the selected SDK and revision, with bounded escalation if a child process does not exit;
-- paths are resolved and constrained to the allowed workspace policy;
-- tools expose narrow domain operations, not arbitrary shell execution.
-
-When Streamable HTTP MCP exists:
-
-- call it Streamable HTTP, not raw TCP, unless a non-standard transport is intentional;
-- bind to `127.0.0.1` or `::1` by default for local-only deployment;
-- do not bind to `0.0.0.0` or `::` merely for convenience;
-- define endpoint path, port policy, revision-specific state behavior, concurrency, readiness, cancellation, and shutdown;
-- validate Host headers and protect against DNS rebinding;
-- validate `Origin` on every HTTP request before dispatch, not once per accepted connection;
-- repeat Origin validation for each request on HTTP keep-alive connections and for each request or stream on multiplexed HTTP connections;
-- return HTTP 403 for every request with a present disallowed Origin;
-- document handling of requests without `Origin`;
-- when the selected revision requires modern request metadata, implement the required headers, JSON and SSE responses, and tool-defined HTTP-header processing;
-- require explicit authentication and network-security decisions before non-loopback access;
-- keep HTTP and service-management concerns out of the application/domain layer.
-
-Connection reuse must not reuse an earlier request's Origin decision. Host, Origin, authentication, authorization, and protocol-header validation must be request-scoped.
+Do not require service-grade tests from an instruction-only skill, and do not under-test executable or networked profiles.
 
 ## Completion criteria
 
 Before reporting a change complete:
 
-1. Update `SKILL.md` when operational behavior changes.
-2. Update `RUNTIME.md` when commands, runtimes, SDKs, protocol revisions, endpoints, supported deployment topologies, or service lifecycle change.
-3. Update `INTERFACES.md` when public CLI or MCP behavior changes.
-4. Update `WEB_INTERFACE.md` when browser-facing behavior, enablement, security, or health semantics change.
-5. Update `AGENTS.md` and maintainer docs when architecture or contributor rules change.
-6. Run the selected runtime's tests and static checks.
-7. Verify CLI, stdio MCP, and Streamable HTTP MCP semantic equivalence under the same revision, identity, authorization, configuration, and workspace policy.
-8. Test every claimed negotiation and fallback path.
-9. Test ordered per-page `tools/list` preservation separately from flattened inventory presentation, including page-specific cursors, cache hints, `_meta`, and unknown fields.
-10. Test lossless call-result preservation, cancellation, additional-input behavior, and any claimed extension.
-11. Test loopback binding, request-scoped Host/Origin validation, and rejection behavior when the network variant exists.
-12. Include a connection-reuse test that sends at least two requests over one keep-alive or multiplexed connection with different Origin values and verifies HTTP 403 for every present disallowed Origin.
-13. When the Web interface exists, test disabled-by-default behavior, actual MCP-path verification, independent health checks, security policy, redaction, and every deployment topology selected in `RUNTIME.md` or its deployment-specific smoke test.
-14. Confirm generated files and lockfiles correspond only to selected tooling.
-15. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
+1. Update `SKILL.md` whenever operational behavior, resource usage, helper invocation, outputs, or safety changes.
+2. Update only the optional contracts applicable to the selected profile.
+3. Remove files and directories that no longer serve an operational or maintainer purpose.
+4. Run the validation and tests appropriate to the selected profile.
+5. Confirm that references, assets, and scripts are reachable through explicit instructions rather than accidental discovery.
+6. Confirm that no secrets or environment-specific credentials are committed.
+7. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
