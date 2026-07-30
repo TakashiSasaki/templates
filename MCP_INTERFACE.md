@@ -254,4 +254,6 @@ Protocol and transport tests must additionally cover every claimed revision and 
 
 Explain why each MCP variant is supported or omitted, how agents choose among native MCP, an existing endpoint, bundled stdio launch, and CLI fallback, and how the selected design preserves compatibility and security.
 
-TODO
+```text
+Rationale: TODO
+```
