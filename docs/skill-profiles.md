@@ -16,6 +16,33 @@ A profile is sufficient when the agent can:
 
 Do not select a more complex profile solely because the template contains files for it.
 
+## Machine-readable selection
+
+Every `SKILL.md` must contain exactly one line in this form:
+
+```text
+Selected profiles: instruction-only
+```
+
+Combine profiles with comma-separated tags, for example:
+
+```text
+Selected profiles: knowledge-augmented, asset-driven, script-assisted
+```
+
+Allowed concrete-skill tags are:
+
+- `instruction-only`;
+- `knowledge-augmented`;
+- `asset-driven`;
+- `script-assisted`;
+- `packaged-cli`;
+- `mcp-enabled`;
+- `browser-interface`;
+- `headless-service`.
+
+The special value `template-scaffold` is valid only while the skill name remains `agent-skill-template`. Replace it when creating a concrete skill. Structural validation uses the selected tags to activate profile-specific contract requirements; in particular, `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`.
+
 ## Profile 0: Instruction-only
 
 Typical contents:
@@ -89,6 +116,8 @@ Retain `RUNTIME.md` when runtime installation, dependencies, exact commands, or 
 
 ## Profile 4: Packaged CLI application
 
+Select the `packaged-cli` tag.
+
 Required profile contents:
 
 ```text
@@ -117,6 +146,8 @@ Separate adapters from reusable application or domain behavior when complexity, 
 
 ## Profile 5: MCP-enabled application
 
+Select the `mcp-enabled` tag.
+
 Typical additions:
 
 ```text
@@ -132,6 +163,8 @@ Apply the protocol, negotiation, lifecycle, pagination, lossless-result, cancell
 Supporting MCP does not require supporting both transports, multiple protocol eras, a bundled client, or a Web interface.
 
 ## Profile 6: Web or service-enabled application
+
+Select `browser-interface`, `headless-service`, or both as applicable.
 
 Typical additions for any independently reachable service:
 
@@ -199,4 +232,4 @@ Validation should be profile-aware:
 | MCP-enabled | protocol and transport contracts, security, cancellation, result preservation |
 | Web/service-enabled | routing, authentication, authorization, exposure, health and deployment smoke tests |
 
-The template's generic structural workflow should validate the universal skill core and avoid making optional advanced documents mandatory for every concrete skill.
+The template's generic structural workflow validates the universal skill core plus requirements activated by `Selected profiles:` and retained operational resources.
