@@ -75,6 +75,17 @@ source_artifact_extensions = %w[
   .erl .hrl .c .h .cc .cpp .cxx .hpp .m .mm .dart .groovy .gradle .bats .feature .t
 ]
 
+guidance_artifact_extensions = %w[
+  .md .markdown .mdx .rst .adoc .asciidoc .txt .pdf
+]
+
+guidance_artifact_names = %w[
+  README README.md README.markdown README.rst
+  NOTES NOTES.md
+  ARCHITECTURE ARCHITECTURE.md
+  CONTRIBUTING CONTRIBUTING.md
+]
+
 code_artifact_present = lambda do |directory|
   next false unless Dir.exist?(directory) && !File.symlink?(directory)
 
@@ -84,8 +95,10 @@ code_artifact_present = lambda do |directory|
     next if File.directory?(path)
     next unless File.file?(path) && !File.symlink?(path)
 
+    basename = File.basename(path)
     extension = File.extname(path).downcase
-    next unless source_artifact_extensions.include?(extension) || File.executable?(path)
+    next if guidance_artifact_names.any? { |name| basename.casecmp?(name) }
+    next if guidance_artifact_extensions.include?(extension)
 
     found = true
     break
@@ -118,6 +131,21 @@ else
       errors << "'template-scaffold' cannot be retained after adding root-level implementation files: #{root_implementation_files.sort.join(', ')}."
     end
   else
+    required_core_sections = [
+      "## Purpose",
+      "## Use this skill when",
+      "## Workflow",
+      "## Output requirements",
+      "## Validation",
+      "## Safety and approval"
+    ]
+    required_core_sections.each do |heading|
+      section = markdown_section.call(text, heading)
+      unless concrete_value.call(section&.strip)
+        errors << "A concrete SKILL.md requires non-sentinel operational content under '#{heading}'."
+      end
+    end
+
     application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
     if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
       errors << "Root-level implementation files require an application or service profile (packaged-cli, mcp-enabled, browser-interface, or headless-service): #{root_implementation_files.sort.join(', ')}."
@@ -227,10 +255,10 @@ else
 
     if selected_profiles.include?("packaged-cli")
       unless code_artifact_present.call("src")
-        errors << "Selected profile 'packaged-cli' requires at least one source artifact or executable file under src/."
+        errors << "Selected profile 'packaged-cli' requires at least one non-guidance regular source artifact under src/."
       end
       unless code_artifact_present.call("tests")
-        errors << "Selected profile 'packaged-cli' requires at least one test source artifact or executable test under tests/."
+        errors << "Selected profile 'packaged-cli' requires at least one non-guidance regular test artifact under tests/."
       end
 
       unless File.file?("RUNTIME.md")
