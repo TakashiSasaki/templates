@@ -213,6 +213,8 @@ jobs:
           end
           RUBY
 
+          ruby .github/scripts/validate-selected-profiles.rb
+
           has_operational_files() {
             local directory="$1"
             [[ -d "$directory" ]] && find "$directory" -type f ! -path "$directory/README.md" -print -quit | grep -q .
