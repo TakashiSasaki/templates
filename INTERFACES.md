@@ -1,10 +1,10 @@
 # Public interface contracts
 
-This file prevents humans and agents from having to infer which equivalent interface to use. Runtime, SDK, protocol revision, and transport support are selected in `RUNTIME.md`; this file defines the public behavior built on those selections.
+This file defines the public behavior of the concrete skill. Runtime, SDK, protocol revision, and transport support are selected in `RUNTIME.md`.
 
 ## Execution policy
 
-A concrete skill must select exactly one preferred agent interface and define a deterministic fallback order.
+Select exactly one preferred agent interface and define a deterministic fallback order.
 
 ```text
 Preferred agent interface: UNSELECTED
@@ -20,15 +20,15 @@ Allowed interface categories:
 - stable in-place CLI launcher;
 - installed human CLI command.
 
-Do not write “use whichever is appropriate” unless all routes are intentionally interchangeable and nondeterminism is acceptable.
+Do not write “use whichever is appropriate” unless the routes are intentionally interchangeable and nondeterminism is acceptable.
 
-When both MCP variants are supported, state whether an agent should:
+When both MCP transports are supported, state whether an agent should:
 
-1. connect to an already-running local Streamable HTTP endpoint;
+1. connect to an already-running Streamable HTTP endpoint;
 2. fall back to launching the bundled stdio server through the ad hoc MCP tool client; or
-3. bypass MCP and use the CLI.
+3. bypass MCP and use the structured CLI.
 
-The skill must not start a second network server merely because the configured endpoint is unavailable unless that behavior is explicitly documented.
+Do not start a second network server merely because the configured endpoint is unavailable unless that fallback is explicitly documented.
 
 ## Human CLI
 
@@ -41,10 +41,10 @@ The CLI should:
 
 - provide `--help`;
 - emit readable terminal output by default;
-- provide a structured output mode when results are consumed by an agent or CI;
+- provide a structured output mode for agents and CI;
 - send diagnostics to stderr;
-- use documented, stable exit codes;
-- avoid embedding domain logic in argument parsing or formatting code.
+- use documented stable exit codes;
+- keep domain logic out of parsing and presentation code.
 
 ### Structured output
 
@@ -53,7 +53,7 @@ Format: TODO, normally JSON
 Contract version field: TODO
 ```
 
-Suggested result envelope:
+Suggested envelope:
 
 ```json
 {
@@ -78,9 +78,9 @@ Suggested result envelope:
 | 5 | Protocol, transport, or unexpected internal failure |
 | 6 | Operation is incomplete because additional input is required in non-interactive mode |
 
-A concrete skill may revise these codes, but CLI documentation and tests must remain consistent.
+A concrete skill may revise these codes, but its documentation and tests must remain consistent.
 
-For a modern MCP `input_required` result, a non-interactive tool client may return the preserved result and exit 6. Initialization-era elicitation is different: the client responds to the server request with the documented `accept`, `decline`, or `cancel` action and then classifies the final operation response. Do not use exit 6 as a substitute for a required legacy elicitation response.
+For a modern MCP `input_required` result, a non-interactive tool client may preserve the result and exit 6. Initialization-era elicitation is different: the client must respond with the documented `accept`, `decline`, or `cancel` action and classify the original operation's terminal response. Do not use exit 6 as a substitute for a required legacy elicitation response.
 
 ## In-place agent launcher
 
@@ -88,7 +88,7 @@ For a modern MCP `input_required` result, a non-interactive tool client may retu
 Command: TODO
 ```
 
-Use a stable launcher only when it adds value over the installed CLI. A launcher may locate the skill root and delegate to the selected runtime, but it must not implement domain behavior.
+Use a stable launcher only when it adds value over the installed CLI. It may locate the skill root and delegate to the selected runtime, but it must not implement domain behavior.
 
 ## MCP protocol reference
 
@@ -98,9 +98,9 @@ Public negotiation and fallback behavior: TODO
 Public compatibility statement: TODO
 ```
 
-Do not duplicate the selected SDK version or revision list here. `RUNTIME.md` owns those values. This contract must explain what a caller observes when negotiation succeeds, falls back, or fails.
+Do not duplicate the selected SDK version or revision list here. Explain what callers observe when negotiation succeeds, falls back, or fails.
 
-At the time this template was aligned, `2026-07-28` is the current modern revision and `2025-11-25` and earlier revisions use the initialization-era model. A concrete skill must verify the current specification and SDK before publishing its compatibility claim.
+At the time this template was aligned, `2026-07-28` is the current modern revision, while `2025-11-25` and earlier revisions use the initialization-era model. Verify the current specification and SDK before publishing compatibility claims.
 
 ## stdio MCP server variant
 
@@ -112,23 +112,24 @@ Lifecycle owner: MCP host / bundled tool client / other: TODO
 
 When supported:
 
-- the host or bundled client launches the server as a trusted child process;
+- launch the server as a trusted child process;
 - expose purpose-specific tools with typed inputs;
-- keep stdout exclusively for protocol traffic;
+- reserve stdout for protocol traffic;
 - send logs and diagnostics to stderr;
 - perform the lifecycle, discovery, request-metadata, and capability behavior required by the selected revision;
+- use revision-appropriate cancellation;
 - terminate according to the selected SDK's connection and child-process lifecycle;
 - use bounded shutdown escalation when the process does not exit;
-- return standard MCP results without losing protocol fields;
+- preserve standard MCP results and extension fields;
 - reuse the same application/domain implementation as the CLI;
-- document workspace and write restrictions;
+- enforce the documented workspace and write restrictions;
 - avoid generic `run_command` or arbitrary-code tools.
 
-This is normally the preferred MCP variant for ad hoc use from a skill because it requires no listening socket and ties the server process lifetime to the invoking host or client.
+This is normally the preferred MCP transport for ad hoc use because it opens no listening socket and ties the server process lifetime to the invoking host or client.
 
 ## Local Streamable HTTP MCP server variant
 
-MCP does not define a raw TCP transport as a standard transport. A standalone local server that listens on a TCP port should normally expose the standard **Streamable HTTP** transport.
+MCP does not define raw TCP as a standard transport. A standalone local server should normally expose Streamable HTTP.
 
 ```text
 Supported: UNSELECTED; see RUNTIME.md
@@ -145,38 +146,42 @@ Health/readiness check: TODO
 
 When supported:
 
-- use the same server factory, tool definitions, schemas, safety checks, and application/domain implementation as the stdio variant;
+- use the same server factory, tool definitions, schemas, safety checks, and application/domain implementation as stdio;
 - bind to a loopback address by default;
 - do not bind to `0.0.0.0` or `::` by default;
-- validate the HTTP Host header and provide DNS-rebinding protection;
-- validate the `Origin` header on every incoming connection;
-- return HTTP 403 when an `Origin` header is present but not explicitly allowed;
+- validate the HTTP Host header and protect against DNS rebinding;
+- validate `Origin` on **every HTTP request before dispatch**, not merely when a connection is accepted;
+- repeat Origin validation for every request carried by HTTP/1.1 keep-alive and every stream or request carried by HTTP/2 or later multiplexed connections;
+- return HTTP 403 for each request whose present `Origin` is not explicitly allowed;
 - define whether an absent `Origin` is accepted for documented non-browser clients;
+- perform Host, Origin, authentication, authorization, size-limit, and protocol-header checks before parsing or dispatching the MCP operation where practical;
 - require an explicit security design before allowing non-loopback clients;
 - document authentication when the endpoint is accessible beyond the current user or machine;
 - define deterministic startup, readiness, cancellation, shutdown, restart, and stale-process behavior;
 - define concurrent-client behavior and revision-specific state assumptions;
 - avoid placing secrets in command-line arguments or committed configuration;
-- keep transport-specific HTTP behavior out of the domain layer.
+- keep HTTP behavior out of the domain layer.
 
-When `2026-07-28` is supported, the implementation contract must also state that:
+A connection-level approval must never be treated as authorization for later requests on that connection. Request headers, including `Origin`, may change between requests.
 
-- clients use one HTTP POST for each JSON-RPC request;
-- clients send `Accept` with both `application/json` and `text/event-stream`;
-- clients and servers support both JSON and request-scoped SSE responses;
-- every POST carries `MCP-Protocol-Version`, and its value matches the request `_meta`;
-- every request carries `Mcp-Method`, with `Mcp-Name` where required;
-- header values are encoded and checked against the request body;
-- Streamable HTTP tool clients validate `x-mcp-header`, exclude invalid tool definitions, and emit the required `Mcp-Param-*` headers;
-- cancellation closes the request's SSE stream when applicable;
-- modern mode does not use `Mcp-Session-Id`, standalone GET or DELETE endpoints, or resumable `Last-Event-ID` streams;
-- any initialization-era compatibility on the same endpoint is explicitly implemented and tested.
+When `2026-07-28` is supported, also require:
 
-Origin validation is required even when browser clients are not an intended interface. A concrete skill must state whether this variant is intended only for the local machine, for a trusted LAN, or for broader deployment. The last two cases require additional authentication and transport-security decisions beyond this template's loopback default.
+- one HTTP POST for each JSON-RPC request;
+- `Accept` support for both `application/json` and `text/event-stream`;
+- JSON and request-scoped SSE responses;
+- `MCP-Protocol-Version` on every POST, consistent with request `_meta`;
+- `Mcp-Method` on every request and `Mcp-Name` where required;
+- encoded transport headers that agree with the JSON body;
+- `x-mcp-header` validation, exclusion of invalid tool definitions, and required `Mcp-Param-*` emission;
+- cancellation by closing the applicable request-scoped SSE stream;
+- no `Mcp-Session-Id`, standalone GET or DELETE endpoint, or resumable `Last-Event-ID` stream in modern mode;
+- explicit tests for any initialization-era compatibility on the same endpoint.
+
+Origin validation is required even when browser clients are not intended. State whether the endpoint is local-machine-only, trusted-LAN, or broader deployment. The latter two require additional authentication and transport-security decisions.
 
 ## Bundled ad hoc MCP tool client
 
-A command that only discovers and invokes MCP tools should be described as an **ad hoc MCP tool client**, not as a complete MCP host or general MCP client.
+A command that only discovers and invokes MCP tools is an **ad hoc MCP tool client**, not a complete MCP host or general MCP client.
 
 ```text
 Supported: UNSELECTED; see RUNTIME.md
@@ -189,19 +194,19 @@ Interaction modes: non-interactive / interactive / response file: TODO
 Task or extension support: TODO or NOT SUPPORTED
 ```
 
-The command-line syntax is local to the skill. MCP standardizes protocol methods, messages, capabilities, lifecycle, and transports; it does not standardize CLI names or option names.
+MCP standardizes protocol methods, messages, capabilities, lifecycle, and transports. It does not standardize CLI command or option names.
 
 ### Recommended command mapping
 
-| Local client operation | Protocol behavior |
+| Local operation | Protocol behavior |
 |---|---|
 | `server-info` | Modern mode uses `server/discover`; initialization-era mode reports the negotiated `initialize` result and capabilities |
-| `tools list` | Send `tools/list`; lossless output retains every page result in order, while presentation output may return a derived flattened inventory |
-| `tools show TOOL` | Filter the flattened inventory derived from the complete `tools/list` page sequence; there is no standard `tools/show`, `tools/get`, or `tools/describe` method |
-| `tools call TOOL` | Send one `tools/call` request using the declared input arguments |
-| `tools run` | Send multiple independent `tools/call` requests sequentially or with documented concurrency; do not represent this as an MCP or JSON-RPC batch method |
+| `tools list` | Send `tools/list`; preserve an ordered raw-page sequence and optionally derive a flattened inventory |
+| `tools show TOOL` | Filter the derived flattened inventory locally; there is no standard `tools/show`, `tools/get`, or `tools/describe` method |
+| `tools call TOOL` | Send one `tools/call` request |
+| `tools run` | Send multiple independent `tools/call` requests; do not represent this as an MCP or JSON-RPC batch method |
 
-A minimal tools-only client should normally expose `server-info`, `tools list`, and `tools call`. `tools show` and `tools run` are optional local conveniences.
+A minimal tools-only client should normally expose `server-info`, `tools list`, and `tools call`.
 
 ### Recommended options
 
@@ -219,7 +224,7 @@ A minimal tools-only client should normally expose `server-info`, `tools list`, 
 --version
 ```
 
-Tool arguments may be accepted through mutually exclusive forms such as:
+Tool arguments may be accepted through mutually exclusive forms:
 
 ```text
 --arguments JSON
@@ -227,32 +232,32 @@ Tool arguments may be accepted through mutually exclusive forms such as:
 --arguments-stdin
 ```
 
-These option names are recommendations, not MCP-standard names.
+These names are recommendations, not MCP-standard names.
 
 ### Tool inventory, schemas, and caching
 
 The client must:
 
 - treat tool names as case-sensitive;
-- follow `tools/list` pagination until no next cursor remains unless the caller explicitly requests a single page;
-- treat cursors as opaque values, including an empty-string cursor when the selected revision permits it;
-- retain every raw page result as a separate ordered record instead of overwriting page-level fields during aggregation;
+- follow `tools/list` pagination until no next cursor remains unless single-page mode is explicitly requested;
+- treat cursors as opaque, including an empty-string cursor when permitted by the selected revision;
+- retain every raw page result as a separate ordered record;
 - apply cache hints only within their documented identity, authorization, revision, page, and cache scope;
-- preserve tool fields supplied by the server, including input and output schemas, annotations, execution metadata, icons, and future extension fields where practical;
-- support JSON Schema 2020-12 where the selected revision requires it and respect an explicit supported `$schema`;
-- treat annotations from an untrusted server as hints rather than verified safety properties;
-- validate arguments locally only as an early diagnostic; the server remains responsible for authoritative validation;
+- preserve tool fields supplied by the server, including schemas, annotations, execution metadata, icons, and future fields where practical;
+- support JSON Schema 2020-12 where required and respect supported explicit `$schema` values;
+- treat annotations from an untrusted server as hints;
+- use local argument validation only as an early diagnostic;
 - validate `structuredContent` against a declared output schema when supported;
-- allow `structuredContent` to contain any JSON value when the selected revision permits it;
-- implement the selected transport's `x-mcp-header` rules when using modern Streamable HTTP.
+- allow `structuredContent` to contain any JSON value when permitted by the selected revision;
+- apply modern `x-mcp-header` processing only to Streamable HTTP.
 
-Tool inventories may differ by per-request authorization. Equivalence tests must compare calls made under the same revision, identity, authorization, configuration, and workspace policy.
+Tool inventories may differ by per-request authorization. Equivalence tests must use the same revision, identity, authorization, configuration, and workspace policy.
 
 ### Lossless paginated tool-list output
 
-Lossless and presentation-oriented list output are separate contracts.
+Lossless and presentation-oriented list outputs are separate contracts.
 
-A lossless `tools/list` mode must retain the ordered page sequence. Each page record contains local request metadata and the complete result object exactly as received:
+A lossless `tools/list` mode retains the ordered page sequence. Each page record contains local request metadata and the complete result object exactly as received:
 
 ```json
 {
@@ -283,13 +288,13 @@ A lossless `tools/list` mode must retain the ordered page sequence. Each page re
 }
 ```
 
-The `mcpResult` value in each page record must not be normalized, merged, or stripped. It preserves that page's `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extension fields when present. `requestCursor` is client metadata recording the opaque cursor used to request the page; it is not inserted into `mcpResult`.
+Each page's `mcpResult` must not be normalized, merged, or stripped. Preserve page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown fields. `requestCursor` is client metadata and must not be inserted into the received result.
 
-A single-page response uses the same representation with one page record. A flattened inventory may concatenate the page `tools` arrays and add explicitly derived metadata for human or agent convenience, but it is not lossless protocol output. The flattened view must not choose one page's cache fields as global values or silently merge page-level `_meta`. Any cache expiration or scope reported for the flattened view must use a documented conservative derivation rule and be labeled as derived.
+A single-page response uses the same representation with one page record. A flattened inventory may concatenate tool arrays and add explicitly derived metadata, but it is not lossless output. It must not select one page's cache fields as global values or silently merge page-level `_meta`. Any aggregate expiration or cache scope must use a documented conservative rule and be marked as derived.
 
 ### Tool-call results and errors
 
-A lossless tool-call output mode must preserve the complete result object rather than replacing it with a domain-only envelope.
+A lossless tool-call output mode preserves the complete result object rather than replacing it with a domain-only envelope.
 
 Modern complete result example:
 
@@ -303,7 +308,7 @@ Modern complete result example:
 }
 ```
 
-Modern additional-input result example:
+Modern additional-input example:
 
 ```json
 {
@@ -313,95 +318,84 @@ Modern additional-input result example:
 }
 ```
 
-Earlier revisions omit `resultType`. A client may interpret an absent value as `complete` for normalized behavior when the selected compatibility contract requires it, but lossless output must preserve the result exactly as received.
-
-The client may wrap the original result for stable CLI metadata:
-
-```json
-{
-  "contractVersion": "1",
-  "ok": true,
-  "transport": "stdio",
-  "tool": "example.tool",
-  "effectiveResultType": "complete",
-  "mcpResult": {
-    "resultType": "complete",
-    "content": [],
-    "structuredContent": ["example"],
-    "isError": false,
-    "_meta": {}
-  },
-  "metadata": {}
-}
-```
+Earlier revisions omit `resultType`. A compatibility layer may treat an absent value as `complete` for behavior, but lossless output must preserve the result exactly as received.
 
 The client must distinguish:
 
 1. transport failures;
 2. JSON-RPC or MCP protocol errors;
-3. an unrecognized or invalid result type;
-4. a modern `input_required` result;
-5. a complete `tools/call` result whose `isError` value is true;
-6. a complete successful domain result.
+3. unrecognized or invalid result types;
+4. modern `input_required` results;
+5. complete `tools/call` results with `isError: true`;
+6. complete successful domain results.
 
 Do not infer that stderr output from a stdio server is necessarily a failure.
 
 ### Multiple calls and application state
 
-A local `tools run` command means orchestration by the client. Each item remains a separate `tools/call` request. State must not be assumed merely because calls reuse one process, connection, or HTTP client. Required application state should be represented by documented tool arguments, resource identifiers, handles, storage, or server configuration.
+A local `tools run` command is client-side orchestration. Each item remains a separate `tools/call` request. Do not assume hidden application state merely because calls reuse a process, connection, or HTTP client. Represent required state using documented arguments, resource identifiers, handles, storage, or server configuration.
 
 ### Modern multi-round-trip requests
 
-For `2026-07-28`, a tool may return `resultType: "input_required"`.
+For `2026-07-28`, a request may return `resultType: "input_required"`.
 
-- In non-interactive mode, the client may preserve and return that result without retrying, using the documented incomplete-operation exit code.
-- In interactive or response-file mode, the client resolves each input request, then retries the original method with `inputResponses` and the echoed `requestState`.
+- Non-interactive mode may preserve and return that result without retrying.
+- Interactive or response-file mode resolves the input requests and retries the original method with `inputResponses` and echoed `requestState`.
 - Every retry uses a new JSON-RPC request ID.
-- Decline or cancel actions are represented in the applicable input response; the client must not invent a generic “incomplete” tool result.
+- Decline or cancel choices are represented in the applicable input response; do not invent a generic incomplete result.
 
 ### Initialization-era server-to-client requests
 
-For `2025-11-25` and earlier compatible modes, elicitation and other server-to-client requests use the negotiated client capability and request channel.
+For `2025-11-25` and earlier compatible modes:
 
-- A tools-only client must not advertise elicitation, sampling, or roots support unless it implements the corresponding request handler.
-- Form elicitation responses use the protocol-defined `accept`, `decline`, or `cancel` action.
-- A non-interactive implementation must document whether it automatically declines or cancels unsupported prompts.
-- After responding, the client waits for the original operation's terminal response and maps that response to its normal result and exit-code rules.
-- It must not synthesize a nonstandard `input_required` or incomplete tool result for an initialization-era elicitation request.
+- do not advertise elicitation, sampling, roots, or other client capabilities without implementing their handlers;
+- answer form elicitation with `accept`, `decline`, or `cancel`;
+- document automatic decline or cancellation in non-interactive mode;
+- wait for the original operation's terminal response;
+- do not synthesize a modern `input_required` result for legacy elicitation.
 
-### Cancellation and timeouts
+### Cancellation, tasks, and extensions
 
-Timeout handling must use the selected revision and transport's cancellation behavior and then clean up the request, connection, and child process as applicable.
+Timeout handling must use the selected revision and transport's cancellation behavior, followed by cleanup of requests, connections, and child processes.
 
-- Initialization-era and modern stdio may use the revision-supported cancellation notification.
-- Modern Streamable HTTP cancellation closes the request-scoped SSE response stream; it does not send a cancellation notification over HTTP.
-- A maximum timeout should remain enforceable even when progress is reported.
+- Applicable stdio modes may use the revision-supported cancellation notification.
+- Modern Streamable HTTP cancellation closes the request-scoped SSE stream and does not send a cancellation notification over HTTP.
+- A maximum timeout must remain enforceable even when progress is reported.
 - Child-process shutdown escalation must be bounded and documented.
+- Tasks and extensions must be revision- and capability-gated and fully tested before being advertised.
 
-### Tasks and extensions
+Do not confuse a Tasks extension status with a modern core input-required result or initialization-era elicitation.
 
-Tasks and other extensions must be capability- and revision-gated. Do not expose task commands or claim task support unless the selected SDK implements the applicable extension, the server advertises it, and polling, additional input, cancellation, retention, and terminal results are tested.
+### Ownership and workspace policy
 
-Do not confuse a Tasks extension status such as `input_required` with the core modern `InputRequiredResult` returned by a normal request, or with initialization-era elicitation.
+For stdio, the client normally launches and owns a trusted bundled server command. Do not expose an arbitrary shell command or caller-selected JSON-RPC request ID as a normal public option.
 
-### stdio and Streamable HTTP ownership
+For Streamable HTTP, the client normally connects to an existing endpoint and must not silently create another standalone server unless the execution policy explicitly allows it.
 
-For stdio, the client normally launches and owns the trusted, bundled server process. Do not accept an arbitrary shell command or user-selected JSON-RPC request ID as a normal public option.
+MCP roots and skill-specific workspace restrictions are different concepts. Use documented capabilities, server configuration, resource URIs, or explicit tool arguments rather than inventing a universal MCP `--workspace` semantic.
 
-For Streamable HTTP, the client normally connects to an existing endpoint and must not silently create another standalone server unless the execution policy explicitly says so.
+The presence of a server under `mcp/` neither registers it with an agent host nor starts a network listener automatically.
 
-Generic workspace restrictions are not a universal MCP client option. Distinguish revision-specific roots support from skill-specific workspace configuration. Use documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than inventing a universal MCP `--workspace` semantic.
+## Semantic-equivalence and test requirements
 
-The presence of a server under `mcp/` does not register it automatically with an agent host and does not start a network listener automatically.
+For an operation exposed through CLI, stdio MCP, or Streamable HTTP MCP under the same revision, identity, authorization, configuration, and workspace policy:
 
-## Semantic-equivalence requirement
+- inputs, results, and safety checks must have equivalent meaning;
+- presentation or transport differences must not change domain behavior;
+- server adapters should share one operation registry or server factory;
+- contract tests must exercise all supported adapters against the same fixtures.
 
-For an operation exposed through CLI, stdio MCP, or Streamable HTTP MCP, under the same protocol revision, identity, authorization, configuration, and workspace policy:
+Protocol and transport tests must additionally cover:
 
-- inputs must have equivalent meaning;
-- results must have equivalent meaning;
-- safety checks must be identical;
-- differences in presentation or transport must not change domain behavior;
-- transport adapters must use the same operation registry or server factory where practical;
-- contract tests must exercise all supported adapters against the same fixtures;
-- protocol-client tests must additionally exercise ordered raw-page preservation, flattened list derivation, page-level cache and metadata fields, pagination, schema dialects, call-result preservation, result types, cancellation, interaction policy, request metadata, custom headers, and every claimed protocol revision.
+- every claimed revision, negotiation path, and fallback;
+- ordered raw-page preservation and flattened inventory derivation;
+- page-specific cursors, cache hints, `_meta`, and unknown fields;
+- schema dialects and tool-call result preservation;
+- result types, cancellation, interaction policy, and extension gating;
+- modern request metadata, JSON/SSE behavior, and `x-mcp-header`;
+- loopback binding and Host validation;
+- Origin validation on every HTTP request before dispatch;
+- two or more requests on the same keep-alive or multiplexed connection with different Origin values, including rejection of each present disallowed Origin with HTTP 403;
+- documented absent-Origin behavior;
+- readiness, concurrency, graceful shutdown, restart, and stale-process handling;
+- confirmation that local `tools show` and `tools run` do not send nonexistent MCP methods or JSON-RPC batches.
