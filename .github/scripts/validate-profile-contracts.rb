@@ -23,7 +23,7 @@ validators.each do |validator|
   end
 
   success = system(environment, RbConfig.ruby, validator)
-  exit($CHILD_STATUS&.exitstatus || 1) unless success
+  exit($?.exitstatus || 1) unless success
 end
 
 puts "All requested Agent Skill profile validators passed."
