@@ -144,14 +144,19 @@ Document bounded recovery behavior, when to stop, and what must be reported rath
 
 ## Maintainer profile selection
 
-Select the smallest sufficient profile described in `docs/skill-profiles.md`:
+Record the selected profiles on exactly one machine-readable line. Use comma-separated tags when profiles are combined.
 
-- instruction-only;
-- knowledge-augmented;
-- asset-driven;
-- script-assisted;
-- packaged CLI;
-- MCP-enabled;
-- Web/service-enabled.
+Selected profiles: template-scaffold
 
-Profiles are cumulative patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories should be removed when they do not apply.
+Replace `template-scaffold` in every concrete skill with one or more of:
+
+- `instruction-only`;
+- `knowledge-augmented`;
+- `asset-driven`;
+- `script-assisted`;
+- `packaged-cli`;
+- `mcp-enabled`;
+- `browser-interface`;
+- `headless-service`.
+
+`template-scaffold` is reserved for this uncustomized template. Profiles are cumulative patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories should be removed when they do not apply.
