@@ -1,6 +1,6 @@
 # Runtime decision record
 
-Complete this file before implementing a concrete skill. This is the authoritative index of toolchain, command, MCP SDK, protocol revision, compatibility, transport, and supported deployment choices.
+Retain and complete this file when the selected profile needs a maintained runtime, command, protocol, service, or deployment authority. It is required for `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service`, and optional for `script-assisted` when the helper runtime needs a separate record.
 
 ## Status
 
@@ -8,7 +8,7 @@ Complete this file before implementing a concrete skill. This is the authoritati
 Selection status: UNSELECTED
 ```
 
-Change the status to `SELECTED` after completing every required field.
+Change the status to `SELECTED` only after completing the common fields and every section activated by `Selected profiles:`. Unselected profile sections may retain template guidance until the corresponding profile is selected, but concrete selected sections must contain no unresolved `TODO` or `UNSELECTED` values.
 
 ## Primary implementation
 
@@ -23,7 +23,7 @@ Change the status to `SELECTED` after completing every required field.
 | Source layout | TODO |
 | Supported operating systems | TODO |
 
-Examples of valid decisions include Python with pip, Python with uv, Node.js with npm, Node.js with pnpm, or bun as the runtime and package manager. These are examples, not defaults.
+Examples of valid decisions include Python with pip, Python with uv, Node.js with npm, Node.js with pnpm, or bun as the runtime and package manager. These are examples, not defaults. Use an explicit value such as `NONE` or `NOT APPLICABLE` when a field genuinely does not apply.
 
 ## Commands
 
@@ -47,6 +47,9 @@ Commands must work from an explicitly documented working directory.
 | Start human verification Web UI | TODO or NOT SUPPORTED |
 | Stop human verification Web UI | TODO or NOT SUPPORTED |
 | Check human verification Web UI readiness | TODO or NOT SUPPORTED |
+| Start headless service | TODO or NOT SUPPORTED |
+| Stop headless service | TODO or NOT SUPPORTED |
+| Check headless service readiness | TODO or NOT SUPPORTED |
 | Test | TODO |
 | Lint/static analysis | TODO |
 | Format check | TODO |
@@ -54,7 +57,7 @@ Commands must work from an explicitly documented working directory.
 
 ## MCP protocol support
 
-The template does not force a protocol revision. Verify the current official MCP specification and selected SDK before completing this section.
+Complete this section when `mcp-enabled` is selected. The template does not force a protocol revision. Verify the current official MCP specification and selected SDK before completing this section.
 
 At the time this template was aligned:
 
@@ -174,7 +177,7 @@ Do not expose an arbitrary server command, shell command, or user-selected JSON-
 
 ## Optional human verification Web interface deployment
 
-Complete this section when the skill supports the optional browser-facing interface. This section is the sole source of truth for its process, listener, port, container, service, gateway, external-origin, and deployment-selection capabilities. `WEB_INTERFACE.md` defines browser-visible behavior and must reference these selections rather than repeat them.
+Complete this section when `browser-interface` is selected. This section is the sole source of truth for its process, listener, port, container, service, gateway, external-origin, and deployment-selection capabilities. `WEB_INTERFACE.md` defines browser-visible behavior and must reference these selections rather than repeat them.
 
 | Item | Selected value |
 |---|---|
@@ -201,6 +204,33 @@ A debug-only Web interface may share the MCP server process or container. Even t
 
 A separate port is optional. One listener may route `/`, `/api/`, and `/mcp`, or a reverse proxy may present one external origin while forwarding to different internal processes or containers.
 
+## Headless service deployment
+
+Complete this section when `headless-service` is selected. This section applies to an independently reachable non-browser service, whether or not it also exposes MCP.
+
+| Item | Selected value |
+|---|---|
+| Supported | TODO: YES or NO |
+| Service runtime or entry point | TODO |
+| Protocol or API surface | TODO |
+| Endpoint or listener model | TODO |
+| Default bind address | TODO |
+| Port policy | TODO |
+| Authentication | TODO |
+| Authorization | TODO |
+| Exposure and non-loopback policy | TODO |
+| Request size and rate limits | TODO |
+| Concurrent request policy | TODO |
+| State or session model | TODO |
+| Readiness check | TODO |
+| Liveness check | TODO |
+| Timeout and cancellation policy | TODO |
+| Graceful shutdown and restart policy | TODO |
+| Deployment topology | same process / same container / sidecar / separate service / orchestrated deployment / other: TODO |
+| Security and deployment smoke tests | TODO |
+
+A selected headless service must define how another node reaches it, which identities may invoke it, how readiness differs from liveness, how in-flight requests terminate during shutdown, and which deployment-specific tests establish those guarantees. Browser-facing behavior does not belong in this section.
+
 ## Distribution
 
 | Item | Selected value |
@@ -214,7 +244,7 @@ A separate port is optional. One listener may route `/`, `/api/`, and `/mcp`, or
 
 ## Environment and configuration
 
-Document required environment variables without placing secrets in this repository.
+Document required environment variables without placing secrets in this repository. Replace the example row with concrete variables or an explicit `NONE` record.
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
@@ -224,15 +254,15 @@ Network-server configuration should normally permit explicit values for bind add
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, optional client features, and optional human Web interface fit this skill better than credible alternatives.
+Explain why the selected runtime, package manager, public interfaces, service variants, supported revisions, compatibility policy, and deployment choices fit this skill better than credible alternatives.
 
-Explain separately:
+Explain the applicable decisions, including:
 
-1. why stdio is or is not supported;
+1. why stdio MCP is or is not supported;
 2. why a standalone Streamable HTTP server is or is not supported;
-3. whether the server is loopback-only or accepts requests from other nodes;
+3. whether any server is loopback-only or accepts requests from other nodes;
 4. how request-scoped Host/Origin and authorization checks are implemented and tested across connection reuse;
-5. whether the bundled client is tools-only or broader in scope;
+5. whether a bundled MCP client is tools-only or broader in scope;
 6. how protocol revisions are negotiated and tested;
 7. how modern MRTR and initialization-era elicitation are handled;
 8. how cancellation, lossless results, and exit codes are handled;
@@ -240,6 +270,7 @@ Explain separately:
 10. whether a human Web interface is supported and why it is enabled or disabled by default;
 11. which Web-interface deployment topologies are supported without forcing one final topology;
 12. how Web and MCP health, security, and failure boundaries remain distinct when they share a process, listener, or container;
-13. how all adapters share implementation and tests.
+13. how a headless service authenticates and authorizes callers, exposes readiness and liveness, and performs graceful shutdown;
+14. how all adapters share implementation and tests.
 
 TODO
