@@ -78,11 +78,22 @@ jobs:
             [[ -d "$directory" ]] && find "$directory" -type f ! -name README.md -print -quit | grep -q .
           }
 
+          validate_operational_file_references() {
+            local directory="$1"
+            local path
+
+            [[ -d "$directory" ]] || return 0
+
+            while IFS= read -r -d '' path; do
+              if ! grep -Fq -- "$path" SKILL.md; then
+                echo "SKILL.md must explicitly reference retained operational file: $path" >&2
+                exit 1
+              fi
+            done < <(find "$directory" -type f ! -name README.md -print0)
+          }
+
           for directory in references assets scripts; do
-            if has_operational_files "$directory" && ! grep -q "$directory/" SKILL.md; then
-              echo "SKILL.md must explicitly reference retained operational files under $directory/." >&2
-              exit 1
-            fi
+            validate_operational_file_references "$directory"
           done
 
           if has_operational_files mcp; then
