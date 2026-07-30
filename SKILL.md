@@ -1,6 +1,6 @@
 ---
 name: agent-skill-template
-description: Template scaffold for creating a portable Agent Skill from the smallest instruction-only form through optional knowledge, asset, helper-script, CLI, MCP, and Web profiles. Use when creating or restructuring an Agent Skill repository; replace this description with the concrete skill trigger and purpose.
+description: Template scaffold for creating a portable Agent Skill from the smallest instruction-only form through optional knowledge, asset, helper-script, packaged CLI, MCP, browser, and headless-service profiles. Use when creating or restructuring an Agent Skill repository; replace this description with the concrete skill trigger and purpose.
 ---
 
 # Agent Skill Template
@@ -90,23 +90,26 @@ Human confirmation required: TODO
 Idempotency and retry behavior: TODO
 ```
 
-Small deterministic helpers may remain self-contained. Introduce a reusable application/domain layer only when complexity, testing, or multiple interfaces justify it.
+Small deterministic helpers may remain self-contained. Introduce a reusable application/domain layer only when complexity, testing, or multiple maintained interfaces justify it.
 
 Delete this section and `scripts/` when no helper is needed.
 
 ## Public execution interfaces
 
-Most simple skills do not need a separate public-interface document. Describe direct helper invocation above.
+Most simple skills do not need a public-interface document. Describe direct helper invocation above.
 
-When the skill intentionally maintains a stable human or automation CLI, complete the applicable parts of `RUNTIME.md` and `INTERFACES.md`, then summarize the canonical command here.
+When the skill intentionally maintains a stable packaged CLI, complete `RUNTIME.md`, `INTERFACES.md`, and `CLI_INTERFACE.md`, then summarize the canonical command here.
 
 ```text
 Canonical command: TODO or NOT APPLICABLE
-Working directory: TODO
-Interface contract: INTERFACES.md or NOT APPLICABLE
+Working directory: TODO or NOT APPLICABLE
+Preferred agent route: see INTERFACES.md or NOT APPLICABLE
+Detailed interface contract: CLI_INTERFACE.md / MCP_INTERFACE.md / NOT APPLICABLE
 ```
 
-When MCP is supported, state the selected agent path and fallback order from `INTERFACES.md`. When a human Web interface is supported, state whether it is available in the current environment. Delete unused MCP or Web files from the concrete skill.
+When MCP is supported, state the preferred route and fallback order from `INTERFACES.md`; keep caller-visible MCP behavior in `MCP_INTERFACE.md` and exact runtime, SDK, transport, command, and deployment selections in `RUNTIME.md`.
+
+When a human Web interface is supported, state whether it is available in the current environment and retain `WEB_INTERFACE.md`. Delete unused interface files from the concrete skill.
 
 ## Output requirements
 
@@ -128,7 +131,7 @@ State actions that are read-only, automatically allowed, mutating, destructive, 
 
 - TODO
 
-Do not infer permission merely because a script, CLI, MCP tool, or Web action exists.
+Do not infer permission merely because a script, CLI, MCP tool, Web action, or service endpoint exists.
 
 ## Examples
 
@@ -159,4 +162,4 @@ Replace `template-scaffold` in every concrete skill with one or more of:
 - `browser-interface`;
 - `headless-service`.
 
-`template-scaffold` is reserved for this uncustomized template. Profiles are cumulative patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories should be removed when they do not apply.
+`template-scaffold` is reserved for this uncustomized template. Profiles are cumulative patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories must be removed when they do not apply. See `docs/profile-contract-map.md` for profile-specific contract ownership.
