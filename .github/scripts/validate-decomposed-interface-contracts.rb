@@ -17,6 +17,14 @@ strip_backticks = lambda do |value|
   end
 end
 
+resolved_value = lambda do |value|
+  value && !value.strip.empty? && !/\b(?:TODO|UNSELECTED)\b/i.match?(value)
+end
+
+concrete_value = lambda do |value|
+  resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
+end
+
 markdown_section = lambda do |document, heading|
   level = heading[/\A#+/].length
   boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
@@ -29,6 +37,15 @@ end
 field_value = lambda do |section, label|
   match = section&.match(/^#{Regexp.escape(label)}:\s*(.*?)\s*$/)
   match && strip_backticks.call(match[1])
+end
+
+table_value = lambda do |section, item|
+  match = section&.match(/^\|\s*#{Regexp.escape(item)}\s*\|\s*(.*?)\s*\|\s*$/)
+  match && strip_backticks.call(match[1])
+end
+
+support_token = lambda do |value|
+  value&.strip&.split(/[;\s]/)&.first&.upcase
 end
 
 lines = File.readlines(SKILL_PATH, chomp: true)
@@ -45,60 +62,20 @@ if profile_values.length != 1
 end
 
 selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
-exit 0 if selected_profiles == ["template-scaffold"]
-
-contract_specs = {
-  "packaged-cli" => {
-    path: "CLI_INTERFACE.md",
-    sections: [
-      "## Status",
-      "## Human CLI",
-      "## Inputs, outputs, and side effects",
-      "## Compatibility and versioning",
-      "## Semantic-equivalence and test requirements",
-      "## Decision rationale"
-    ]
-  },
-  "mcp-enabled" => {
-    path: "MCP_INTERFACE.md",
-    sections: [
-      "## Status",
-      "## MCP protocol reference",
-      "## stdio MCP server variant",
-      "## Streamable HTTP MCP server variant",
-      "## Bundled ad hoc MCP tool client",
-      "## Semantic-equivalence and test requirements",
-      "## Decision rationale"
-    ]
-  }
-}
+if selected_profiles == ["template-scaffold"]
+  puts "Decomposed public interface contracts are valid for the template scaffold."
+  exit 0
+end
 
 errors = []
 
-contract_specs.each do |profile, spec|
-  next unless selected_profiles.include?(profile)
-
-  path = spec[:path]
-  unless File.file?(path)
+required_contracts = {
+  "packaged-cli" => "CLI_INTERFACE.md",
+  "mcp-enabled" => "MCP_INTERFACE.md"
+}
+required_contracts.each do |profile, path|
+  if selected_profiles.include?(profile) && !File.file?(path)
     errors << "Selected profile '#{profile}' requires contract file: #{path}"
-    next
-  end
-
-  contract = File.read(path)
-  status = field_value.call(markdown_section.call(contract, "## Status"), "Selection status")
-  unless status == "SELECTED"
-    errors << "Selected profile '#{profile}' requires 'Selection status: SELECTED' in #{path}."
-  end
-
-  if /\b(?:TODO|UNSELECTED)\b/i.match?(contract)
-    errors << "Selected profile '#{profile}' must resolve every TODO and UNSELECTED value in #{path}."
-  end
-
-  spec[:sections].each do |heading|
-    section = markdown_section.call(contract, heading)
-    if section.nil? || section.strip.empty? || /\b(?:TODO|UNSELECTED)\b/i.match?(section)
-      errors << "Selected profile '#{profile}' requires concrete content under '#{heading}' in #{path}."
-    end
   end
 end
 
@@ -110,6 +87,188 @@ end
   next unless (selected_profiles & profiles).empty?
 
   errors << "Retained contract #{path} is unsupported by the selected profiles."
+end
+
+validate_common_contract = lambda do |path, required_headings|
+  next nil unless File.file?(path)
+
+  document = File.read(path)
+  status = field_value.call(document, "Selection status")
+  unless status == "SELECTED"
+    errors << "Selected contract #{path} requires 'Selection status: SELECTED'."
+  end
+
+  if /\b(?:TODO|UNSELECTED)\b/i.match?(document)
+    errors << "Selected contract #{path} must not retain TODO or UNSELECTED placeholders."
+  end
+
+  required_headings.each do |heading|
+    section = markdown_section.call(document, heading)
+    if section.nil? || section.strip.empty?
+      errors << "Selected contract #{path} requires non-empty section '#{heading}'."
+    end
+  end
+
+  document
+end
+
+if selected_profiles.include?("packaged-cli")
+  cli = validate_common_contract.call(
+    "CLI_INTERFACE.md",
+    [
+      "## Status",
+      "## Human CLI",
+      "## In-place agent launcher",
+      "## Inputs, outputs, and side effects",
+      "## Compatibility and versioning",
+      "## Semantic-equivalence and test requirements",
+      "## Decision rationale"
+    ]
+  )
+
+  if cli
+    human_cli = markdown_section.call(cli, "## Human CLI")
+    ["Command", "Working directory", "Format", "Contract version field"].each do |label|
+      unless concrete_value.call(field_value.call(human_cli, label))
+        errors << "Selected contract CLI_INTERFACE.md requires a concrete '#{label}:' value."
+      end
+    end
+
+    launcher = markdown_section.call(cli, "## In-place agent launcher")
+    launcher_support = support_token.call(field_value.call(launcher, "Supported"))
+    unless %w[YES NO].include?(launcher_support)
+      errors << "CLI_INTERFACE.md must set the in-place launcher 'Supported:' value to YES or NO."
+    end
+    ["Command", "Delegates to"].each do |label|
+      value = field_value.call(launcher, label)
+      valid = launcher_support == "YES" ? concrete_value.call(value) : resolved_value.call(value)
+      unless valid
+        errors << "CLI_INTERFACE.md requires a resolved '#{label}:' value for the selected launcher support state."
+      end
+    end
+
+    io_contract = markdown_section.call(cli, "## Inputs, outputs, and side effects")
+    absence_allowed = ["Files or external state modified", "Network access", "Required permissions"]
+    [
+      "Input forms and precedence",
+      "Standard output",
+      "Standard error",
+      "Files or external state modified",
+      "Network access",
+      "Required permissions",
+      "Confirmation policy",
+      "Timeout and cancellation",
+      "Idempotency and retry behavior"
+    ].each do |item|
+      value = table_value.call(io_contract, item)
+      valid = absence_allowed.include?(item) ? resolved_value.call(value) : concrete_value.call(value)
+      unless valid
+        errors << "CLI_INTERFACE.md requires a resolved '#{item}' behavior."
+      end
+    end
+
+    compatibility = markdown_section.call(cli, "## Compatibility and versioning")
+    ["Compatibility policy", "Deprecation policy", "Structured contract version source"].each do |label|
+      unless concrete_value.call(field_value.call(compatibility, label))
+        errors << "CLI_INTERFACE.md requires a concrete '#{label}:' value."
+      end
+    end
+
+    rationale = markdown_section.call(cli, "## Decision rationale")
+    unless concrete_value.call(field_value.call(rationale, "Rationale"))
+      errors << "CLI_INTERFACE.md requires a concrete 'Rationale:' value."
+    end
+  end
+end
+
+if selected_profiles.include?("mcp-enabled")
+  mcp = validate_common_contract.call(
+    "MCP_INTERFACE.md",
+    [
+      "## Status",
+      "## MCP protocol reference",
+      "## stdio MCP server variant",
+      "## Streamable HTTP MCP server variant",
+      "## Bundled ad hoc MCP tool client",
+      "## Semantic-equivalence and test requirements",
+      "## Decision rationale"
+    ]
+  )
+
+  if mcp
+    protocol = markdown_section.call(mcp, "## MCP protocol reference")
+    ["Public negotiation and fallback behavior", "Public compatibility statement"].each do |label|
+      unless concrete_value.call(field_value.call(protocol, label))
+        errors << "MCP_INTERFACE.md requires a concrete '#{label}:' value."
+      end
+    end
+
+    variants = {
+      "stdio" => {
+        heading: "## stdio MCP server variant",
+        fields: ["Launch command", "Lifecycle owner"]
+      },
+      "Streamable HTTP" => {
+        heading: "## Streamable HTTP MCP server variant",
+        fields: [
+          "Start command",
+          "Stop command or shutdown method",
+          "Endpoint URL",
+          "Bind address",
+          "Port selection",
+          "Supported protocol eras",
+          "Revision-specific state model",
+          "Authentication",
+          "Health/readiness check"
+        ]
+      },
+      "bundled MCP client" => {
+        heading: "## Bundled ad hoc MCP tool client",
+        fields: [
+          "Scope",
+          "Command",
+          "Transport used",
+          "Negotiation and compatibility behavior",
+          "Invocation scope",
+          "Interaction modes",
+          "Task or extension support"
+        ],
+        allow_not_supported: ["Task or extension support"]
+      }
+    }
+
+    support_values = {}
+    variants.each do |variant, specification|
+      section = markdown_section.call(mcp, specification[:heading])
+      support = support_token.call(field_value.call(section, "Supported"))
+      support_values[variant] = support
+      unless %w[YES NO].include?(support)
+        errors << "MCP_INTERFACE.md must set '#{variant}' Supported to YES or NO."
+      end
+
+      specification[:fields].each do |label|
+        value = field_value.call(section, label)
+        allow_not_supported = Array(specification[:allow_not_supported]).include?(label)
+        valid = if support == "YES"
+                  allow_not_supported ? resolved_value.call(value) : concrete_value.call(value)
+                else
+                  resolved_value.call(value)
+                end
+        unless valid
+          errors << "MCP_INTERFACE.md requires a resolved '#{label}:' value for '#{variant}'."
+        end
+      end
+    end
+
+    unless support_values.values_at("stdio", "Streamable HTTP").include?("YES")
+      errors << "Selected profile 'mcp-enabled' requires at least one supported MCP server variant in MCP_INTERFACE.md."
+    end
+
+    rationale = markdown_section.call(mcp, "## Decision rationale")
+    unless concrete_value.call(field_value.call(rationale, "Rationale"))
+      errors << "MCP_INTERFACE.md requires a concrete 'Rationale:' value."
+    end
+  end
 end
 
 unless errors.empty?
