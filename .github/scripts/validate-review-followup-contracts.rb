@@ -49,6 +49,21 @@ table_value = lambda do |section, item|
   match && strip_backticks.call(match[1])
 end
 
+operational_file_present = lambda do |directory|
+  next false unless Dir.exist?(directory) && !File.symlink?(directory)
+
+  found = false
+  Find.find(directory) do |path|
+    next if path == directory
+    next if File.directory?(path)
+    next if path == "#{directory}/README.md"
+
+    found = true
+    break
+  end
+  found
+end
+
 profile_values = lines.filter_map do |raw_line|
   line = normalize_line.call(raw_line)
   match = line.match(/\ASelected profiles:\s*(.+?)\s*\z/)
@@ -63,7 +78,33 @@ else
   selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
   template_scaffold = selected_profiles == ["template-scaffold"]
 
-  unless template_scaffold
+  root_source_extensions = %w[
+    .py .rb .js .mjs .cjs .jsx .ts .tsx .go .rs .java .kt .kts .cs .php
+    .sh .bash .zsh .fish .ps1 .pl .lua .r .swift .scala .clj .ex .exs .erl
+  ]
+  root_implementation_files = Dir.children(".").select do |path|
+    next false unless File.file?(path) && !File.symlink?(path)
+
+    root_source_extensions.include?(File.extname(path).downcase)
+  end
+
+  if template_scaffold
+    unless root_implementation_files.empty?
+      errors << "'template-scaffold' cannot be retained after adding root-level implementation files: #{root_implementation_files.sort.join(', ')}."
+    end
+  else
+    resource_profile_directories = {
+      "knowledge-augmented" => "references",
+      "asset-driven" => "assets",
+      "script-assisted" => "scripts"
+    }
+    resource_profile_directories.each do |profile, directory|
+      next unless selected_profiles.include?(profile)
+      next if operational_file_present.call(directory)
+
+      errors << "Selected profile '#{profile}' requires at least one operational file under #{directory}/."
+    end
+
     parse_declarations = lambda do |label|
       declarations = []
       current = nil
@@ -138,21 +179,6 @@ else
     end
 
     if selected_profiles.include?("packaged-cli")
-      operational_file_present = lambda do |directory|
-        next false unless Dir.exist?(directory) && !File.symlink?(directory)
-
-        found = false
-        Find.find(directory) do |path|
-          next if path == directory
-          next if File.directory?(path)
-          next if path == "#{directory}/README.md"
-
-          found = true
-          break
-        end
-        found
-      end
-
       unless operational_file_present.call("src")
         errors << "Selected profile 'packaged-cli' requires at least one non-guidance implementation file under src/."
       end
