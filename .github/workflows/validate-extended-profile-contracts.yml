@@ -25,3 +25,7 @@ jobs:
       - name: Validate review follow-up contracts
         shell: bash
         run: ruby .github/scripts/validate-review-followup-contracts.rb
+
+      - name: Validate late-review runtime contracts
+        shell: bash
+        run: ruby .github/scripts/validate-late-review-contracts.rb
