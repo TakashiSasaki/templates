@@ -21,3 +21,7 @@ jobs:
       - name: Validate concrete profile consistency
         shell: bash
         run: ruby .github/scripts/validate-concrete-profile-consistency.rb
+
+      - name: Validate review follow-up contracts
+        shell: bash
+        run: ruby .github/scripts/validate-review-followup-contracts.rb
