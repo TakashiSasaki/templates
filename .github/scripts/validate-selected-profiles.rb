@@ -60,7 +60,7 @@ resolved_value = lambda do |value|
 end
 
 concrete_value = lambda do |value|
-  resolved_value.call(value) && !/\bNOT\s+(?:SUPPORTED|APPLICABLE)\b/i.match?(value)
+  resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
 end
 
 profile_declarations = []
@@ -478,6 +478,9 @@ end
 
 if selected_profiles.include?("browser-interface") && File.file?("WEB_INTERFACE.md")
   web_interface = File.read("WEB_INTERFACE.md")
+  if /\b(?:TODO|UNSELECTED)\b/i.match?(web_interface)
+    errors << "Selected profile 'browser-interface' must resolve every TODO and UNSELECTED value in WEB_INTERFACE.md."
+  end
   unless field_value.call(web_interface, "Supported") == "YES"
     errors << "Selected profile 'browser-interface' requires 'Supported: YES' in WEB_INTERFACE.md."
   end
@@ -485,6 +488,54 @@ if selected_profiles.include?("browser-interface") && File.file?("WEB_INTERFACE.
     unless resolved_value.call(field_value.call(web_interface, label))
       errors << "Selected profile 'browser-interface' requires a concrete '#{label}:' value in WEB_INTERFACE.md."
     end
+  end
+
+  [
+    "External base URL",
+    "Web UI path or URL",
+    "MCP endpoint visible to the browser",
+    "MCP endpoint used by the UI backend",
+    "Authentication",
+    "Allowed users or network boundary",
+    "Read-only operations",
+    "Mutating operations",
+    "Destructive operations",
+    "Confirmation policy",
+    "Sensitive argument masking",
+    "Sensitive result masking",
+    "Audit logging",
+    "Web health behavior",
+    "Failure relationship"
+  ].each do |label|
+    unless resolved_value.call(field_value.call(web_interface, label))
+      errors << "Selected profile 'browser-interface' requires a concrete '#{label}:' value in WEB_INTERFACE.md."
+    end
+  end
+
+  interaction_model = markdown_section.call(web_interface, "## Relationship to MCP")
+  interaction_values = [
+    "backend acts as an MCP client",
+    "browser calls MCP directly",
+    "UI uses a non-MCP application API",
+    "mixed model"
+  ].map { |label| field_value.call(interaction_model, "- #{label}") || field_value.call(interaction_model, label) }
+  unless interaction_values.any? { |value| value == "YES" || (resolved_value.call(value) && value != "NO") }
+    errors << "Selected profile 'browser-interface' requires one concrete UI interaction model in WEB_INTERFACE.md."
+  end
+
+  capabilities = markdown_section.call(web_interface, "## UI capabilities")
+  if capabilities.nil? || /\b(?:TODO|UNSELECTED)\b/i.match?(capabilities)
+    errors << "Selected profile 'browser-interface' must resolve every UI capability field in WEB_INTERFACE.md."
+  end
+
+  required_tests = markdown_section.call(web_interface, "## Required tests")
+  if required_tests.nil? || required_tests.strip.empty?
+    errors << "Selected profile 'browser-interface' requires a non-empty Required tests section in WEB_INTERFACE.md."
+  end
+
+  decision_rationale = markdown_section.call(web_interface, "## Decision rationale")
+  if decision_rationale.nil? || decision_rationale.strip.empty? || /\bTODO\b/i.match?(decision_rationale)
+    errors << "Selected profile 'browser-interface' requires a concrete decision rationale in WEB_INTERFACE.md."
   end
 end
 
