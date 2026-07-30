@@ -172,29 +172,24 @@ A tools-only client must preserve the complete result object returned by the sel
 
 Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio launcher should be fixed or selected from trusted configuration. Implement workspace restrictions through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
 
-## Optional human verification Web interface
+## Optional human verification Web interface deployment
 
-Complete `WEB_INTERFACE.md` when this interface is supported. Do not force a final container or service topology before the concrete deployment requires one.
+Complete this section when the skill supports the optional browser-facing interface. This section is the sole source of truth for its process, listener, port, container, service, gateway, external-origin, and deployment-selection capabilities. `WEB_INTERFACE.md` defines browser-visible behavior and must reference these selections rather than repeat them.
 
 | Item | Selected value |
 |---|---|
 | Supported | TODO: YES or NO |
-| Purpose | verification / debugging / demonstration / limited operations / other: TODO |
-| Default enablement | disabled / development-only / explicit opt-in / always enabled: TODO |
-| Production policy | disabled / restricted / supported: TODO |
-| Deployment selection | fixed now / selected at installation / selected at startup / selected by deployment: TODO |
-| Supported topologies | same process / same container / sidecar / separate service / reverse-proxied combination: TODO |
+| Web runtime or entry point | TODO or NOT SUPPORTED |
+| Deployment selection time | build / installation / startup / deployment: TODO |
+| Supported topologies | same process and listener / same process separate listener / same container separate process / sidecar / separate service / reverse-proxied combination: TODO |
+| Default topology | TODO or NONE; may remain deployment-selected |
 | Shared-listener support | YES / NO / TODO |
 | Separate-listener support | YES / NO / TODO |
-| External routing | same origin / separate origin / deployment-selected: TODO |
-| UI-to-MCP model | backend MCP client / direct browser MCP / non-MCP API / mixed: TODO |
-| MCP client library reuse | TODO |
-| Authentication and authorization | TODO |
-| Allowed operation policy | TODO |
-| Readiness relationship | independent from MCP / shared process with separate checks / other: TODO |
+| External-origin model | same origin / separate origin / deployment-selected: TODO |
+| Browser-visible MCP exposure capability | direct / backend-only / deployment-selected / not supported: TODO |
 | Enablement configuration | TODO |
 
-The final process, port, container, Pod, or service layout may remain deployment-selected. The concrete skill must instead document the supported layouts and the invariants that hold across them.
+The final process, port, container, Pod, task, service, gateway, or reverse-proxy layout may remain deployment-selected. Document the supported set and the invariants that hold across it. Public purpose, UI interaction model, authentication, authorization, operation policy, redaction, and failure behavior belong in `WEB_INTERFACE.md`.
 
 A debug-only Web interface may share the MCP server process or container. Even then:
 
