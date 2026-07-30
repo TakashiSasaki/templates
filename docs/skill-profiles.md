@@ -56,7 +56,7 @@ assets/
 
 Use when the workflow copies, fills, transforms, compares, or emits static templates and resources.
 
-Every asset must have a documented handling rule. State which parts may be modified, which must remain stable, and what output relationship is expected.
+Every asset must have an exact `Asset: assets/...` declaration and a handling trigger in `SKILL.md`. Supplemental detail may live in a directly linked reference, but the reference does not replace the `SKILL.md` declaration. State which parts may be modified, which must remain stable, and what output relationship is expected.
 
 Assets are not automatically instructions.
 
@@ -89,7 +89,7 @@ Retain `RUNTIME.md` when runtime installation, dependencies, exact commands, or 
 
 ## Profile 4: Packaged CLI application
 
-Typical contents:
+Required profile contents:
 
 ```text
 SKILL.md
@@ -101,6 +101,8 @@ manifest and lockfile for one selected runtime
 ```
 
 Use when a stable human, agent, or CI command is an intentionally maintained public interface.
+
+`INTERFACES.md` is required for this profile because the packaged command intentionally maintains public behavior. Private helper scripts remain covered by Profile 3 and do not require that contract.
 
 This profile should define:
 
@@ -131,14 +133,24 @@ Supporting MCP does not require supporting both transports, multiple protocol er
 
 ## Profile 6: Web or service-enabled application
 
-Typical additions:
+Typical additions for any independently reachable service:
 
 ```text
-WEB_INTERFACE.md
+RUNTIME.md or another authoritative runtime/service record
 deployment and service configuration as needed
 ```
 
-Use when a browser-facing page or independently reachable network service is an intentional interface.
+Additional required contract when a browser-facing interface exists:
+
+```text
+WEB_INTERFACE.md
+```
+
+Use when a browser-facing page or independently reachable headless network service is an intentional interface.
+
+A headless service records its endpoint, authentication, authorization, exposure, health, lifecycle, shutdown, failure, and deployment decisions in the applicable runtime and service configuration. It does not retain `WEB_INTERFACE.md` unless a browser-facing surface also exists.
+
+A browser-facing interface must retain `WEB_INTERFACE.md` for browser-visible routing, interaction, security, operation policy, redaction, health semantics, and failure behavior.
 
 The final process, port, container, Pod or task, service, gateway, and reverse-proxy topology may remain deployment-selected. Logical routing, security, health, lifecycle, and failure boundaries must still be explicit.
 
@@ -152,6 +164,7 @@ Profiles may be combined selectively. Examples:
 - assets plus one validation helper;
 - a packaged CLI with no MCP;
 - stdio MCP with no standalone HTTP service;
+- a headless HTTP service with no browser contract;
 - a Web UI backed by a non-MCP application API;
 - a Web verification UI backed by an MCP client.
 
@@ -165,9 +178,9 @@ For a concrete skill, remove optional template material when unsupported:
 - no static resources: remove `assets/`;
 - no helpers: remove `scripts/`;
 - no maintained implementation runtime: remove `RUNTIME.md` when it has no remaining purpose;
-- no stable CLI or MCP contract: remove `INTERFACES.md`;
+- no packaged CLI or MCP contract: remove `INTERFACES.md`;
 - no MCP: remove `mcp/` and MCP-specific maintainer guidance if it is not useful;
-- no Web interface: remove `WEB_INTERFACE.md`;
+- no browser-facing interface: remove `WEB_INTERFACE.md`, even when a headless service remains;
 - no maintainer need for a document: remove or shorten the applicable file under `docs/`.
 
 Do not retain a large file filled with `NOT SUPPORTED` solely to resemble the full template.
