@@ -64,6 +64,30 @@ operational_file_present = lambda do |directory|
   found
 end
 
+source_artifact_extensions = %w[
+  .py .pyw .rb .js .mjs .cjs .jsx .ts .tsx .go .rs .java .kt .kts .cs .fs .fsx
+  .php .sh .bash .zsh .fish .ps1 .pl .pm .lua .r .swift .scala .clj .cljs .ex .exs
+  .erl .hrl .c .h .cc .cpp .cxx .hpp .m .mm .dart .groovy .gradle .bats .feature .t
+]
+
+code_artifact_present = lambda do |directory|
+  next false unless Dir.exist?(directory) && !File.symlink?(directory)
+
+  found = false
+  Find.find(directory) do |path|
+    next if path == directory
+    next if File.directory?(path)
+    next unless File.file?(path) && !File.symlink?(path)
+
+    extension = File.extname(path).downcase
+    next unless source_artifact_extensions.include?(extension) || File.executable?(path)
+
+    found = true
+    break
+  end
+  found
+end
+
 profile_values = lines.filter_map do |raw_line|
   line = normalize_line.call(raw_line)
   match = line.match(/\ASelected profiles:\s*(.+?)\s*\z/)
@@ -78,14 +102,10 @@ else
   selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
   template_scaffold = selected_profiles == ["template-scaffold"]
 
-  root_source_extensions = %w[
-    .py .rb .js .mjs .cjs .jsx .ts .tsx .go .rs .java .kt .kts .cs .php
-    .sh .bash .zsh .fish .ps1 .pl .lua .r .swift .scala .clj .ex .exs .erl
-  ]
   root_implementation_files = Dir.children(".").select do |path|
     next false unless File.file?(path) && !File.symlink?(path)
 
-    root_source_extensions.include?(File.extname(path).downcase)
+    source_artifact_extensions.include?(File.extname(path).downcase) || File.executable?(path)
   end
 
   if template_scaffold
@@ -93,6 +113,11 @@ else
       errors << "'template-scaffold' cannot be retained after adding root-level implementation files: #{root_implementation_files.sort.join(', ')}."
     end
   else
+    application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
+    if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
+      errors << "Root-level implementation files require an application or service profile (packaged-cli, mcp-enabled, browser-interface, or headless-service): #{root_implementation_files.sort.join(', ')}."
+    end
+
     resource_profile_directories = {
       "knowledge-augmented" => "references",
       "asset-driven" => "assets",
@@ -179,11 +204,11 @@ else
     end
 
     if selected_profiles.include?("packaged-cli")
-      unless operational_file_present.call("src")
-        errors << "Selected profile 'packaged-cli' requires at least one non-guidance implementation file under src/."
+      unless code_artifact_present.call("src")
+        errors << "Selected profile 'packaged-cli' requires at least one source artifact or executable file under src/."
       end
-      unless operational_file_present.call("tests")
-        errors << "Selected profile 'packaged-cli' requires at least one non-guidance test file under tests/."
+      unless code_artifact_present.call("tests")
+        errors << "Selected profile 'packaged-cli' requires at least one test source artifact or executable test under tests/."
       end
 
       unless File.file?("RUNTIME.md")
