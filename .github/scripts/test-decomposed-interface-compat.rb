@@ -21,7 +21,7 @@ valid_cli_router = <<~MARKDOWN
   ## Execution policy
 
   Preferred agent interface: installed human CLI command
-  Fallback 1: stable in-place CLI launcher
+  Fallback 1: NONE
   Fallback 2: NONE
 
   ## Contract index
@@ -34,13 +34,13 @@ valid_cli_router = <<~MARKDOWN
 
   ## Availability and failure behavior
 
-  Unavailable preferred interface behavior: try the documented in-place launcher
-  Fallback activation conditions: activate only when the installed command is unavailable
+  Unavailable preferred interface behavior: report that no permitted fallback is configured
+  Fallback activation conditions: no fallback is activated
   Failure classification exposed to callers: distinguish unavailability, refusal, and domain failure
 
   ## Decision rationale
 
-  Rationale: prefer the installed command and use the in-place launcher only when installation is unavailable.
+  Rationale: use the installed command and avoid implicit process startup when it is unavailable.
 MARKDOWN
 
 valid_mcp_router = <<~MARKDOWN
@@ -202,7 +202,7 @@ cases = [
     name: "rejects an unresolved routing fallback",
     profile: "packaged-cli",
     files: {
-      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: stable in-place CLI launcher", "Fallback 1: TODO"),
+      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: NONE", "Fallback 1: TODO"),
       "CLI_INTERFACE.md" => valid_cli
     },
     success: false
@@ -212,7 +212,7 @@ cases = [
     profile: "packaged-cli",
     files: {
       "INTERFACES.md" => valid_cli_router.sub(
-        "Rationale: prefer the installed command and use the in-place launcher only when installation is unavailable.",
+        "Rationale: use the installed command and avoid implicit process startup when it is unavailable.",
         "Rationale: TODO"
       ),
       "CLI_INTERFACE.md" => valid_cli
