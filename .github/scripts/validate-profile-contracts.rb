@@ -7,7 +7,7 @@ DIRECT_VALIDATORS = %w[
   .github/scripts/validate-interface-routing-contract.rb
   .github/scripts/validate-decomposed-interface-contracts.rb
 ].freeze
-DEFAULT_VALIDATORS = %w[
+DEFAULT_LEGACY_VALIDATORS = %w[
   .github/scripts/validate-selected-profiles.rb
   .github/scripts/validate-extended-profile-contracts.rb
   .github/scripts/validate-concrete-profile-consistency.rb
@@ -15,18 +15,28 @@ DEFAULT_VALIDATORS = %w[
   .github/scripts/validate-late-review-contracts.rb
 ].freeze
 
-validators = DIRECT_VALIDATORS + (ARGV.empty? ? DEFAULT_VALIDATORS : ARGV)
+legacy_validators = ARGV.empty? ? DEFAULT_LEGACY_VALIDATORS : ARGV
 shim = File.expand_path("decomposed-interface-compat.rb", __dir__)
 rubyopt_parts = [ENV["RUBYOPT"], "-r#{shim}"].compact.reject(&:empty?)
-environment = { "RUBYOPT" => rubyopt_parts.join(" ") }
+legacy_environment = { "RUBYOPT" => rubyopt_parts.join(" ") }
 
-validators.uniq.each do |validator|
+DIRECT_VALIDATORS.each do |validator|
   unless File.file?(validator)
-    warn "Missing profile validator: #{validator}"
+    warn "Missing direct profile validator: #{validator}"
     exit 1
   end
 
-  success = system(environment, RbConfig.ruby, validator)
+  success = system({ "RUBYOPT" => nil }, RbConfig.ruby, validator)
+  exit($?.exitstatus || 1) unless success
+end
+
+legacy_validators.uniq.each do |validator|
+  unless File.file?(validator)
+    warn "Missing legacy profile validator: #{validator}"
+    exit 1
+  end
+
+  success = system(legacy_environment, RbConfig.ruby, validator)
   exit($?.exitstatus || 1) unless success
 end
 
