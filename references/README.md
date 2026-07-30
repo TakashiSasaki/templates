@@ -14,12 +14,12 @@ Useful reference types include:
 - worked examples that materially reduce ambiguity;
 - environment-specific operational notes.
 
-For every retained reference, `SKILL.md` must state:
+Every retained reference must have an exact `Reference: references/...` declaration in `SKILL.md`. That declaration must state when the file should be read and what question or workflow step it supports. Supplemental details may remain in the reference itself, but no other document replaces the declaration and trigger in `SKILL.md`.
 
-- when it should be read;
-- what question or workflow step it supports;
+For every retained reference, also record as applicable:
+
 - whether it is authoritative, advisory, or illustrative;
-- applicable product, schema, protocol, or policy versions when relevant;
+- applicable product, schema, protocol, or policy versions;
 - provenance or source when correctness depends on it;
 - freshness or re-verification requirements when the information may become stale.
 
