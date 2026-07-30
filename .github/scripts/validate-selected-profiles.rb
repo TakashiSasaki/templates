@@ -61,15 +61,14 @@ allowed_profiles = %w[
   headless-service
 ]
 
-if selected_profiles == ["template-scaffold"]
+template_scaffold = selected_profiles == ["template-scaffold"]
+
+if template_scaffold
   unless name == "agent-skill-template"
     warn "'template-scaffold' is valid only for the uncustomized agent-skill-template."
     exit 1
   end
-  exit 0
-end
-
-if selected_profiles.include?("template-scaffold")
+elsif selected_profiles.include?("template-scaffold")
   warn "'template-scaffold' cannot be combined with concrete skill profiles."
   exit 1
 end
@@ -79,22 +78,25 @@ if selected_profiles.empty?
   exit 1
 end
 
-duplicates = selected_profiles.group_by(&:itself).select { |_profile, values| values.length > 1 }.keys
-unless duplicates.empty?
-  warn "SKILL.md contains duplicate selected profiles: #{duplicates.join(', ')}"
-  exit 1
-end
+unless template_scaffold
+  duplicates = selected_profiles.group_by(&:itself).select { |_profile, values| values.length > 1 }.keys
+  unless duplicates.empty?
+    warn "SKILL.md contains duplicate selected profiles: #{duplicates.join(', ')}"
+    exit 1
+  end
 
-invalid_profiles = selected_profiles - allowed_profiles
-unless invalid_profiles.empty?
-  warn "SKILL.md contains unknown selected profiles: #{invalid_profiles.join(', ')}"
-  exit 1
+  invalid_profiles = selected_profiles - allowed_profiles
+  unless invalid_profiles.empty?
+    warn "SKILL.md contains unknown selected profiles: #{invalid_profiles.join(', ')}"
+    exit 1
+  end
 end
 
 profile_requirements = {
   "packaged-cli" => ["RUNTIME.md", "INTERFACES.md"],
   "mcp-enabled" => ["RUNTIME.md", "INTERFACES.md", "docs/mcp-transports.md"],
-  "browser-interface" => ["RUNTIME.md", "WEB_INTERFACE.md"]
+  "browser-interface" => ["RUNTIME.md", "WEB_INTERFACE.md"],
+  "headless-service" => ["RUNTIME.md"]
 }
 
 resource_profile_requirements = {
@@ -136,19 +138,28 @@ end
 
 errors = []
 
-selected_profiles.each do |profile|
-  profile_requirements.fetch(profile, []).each do |required_path|
-    unless File.file?(required_path)
-      errors << "Selected profile '#{profile}' requires contract file: #{required_path}"
+if template_scaffold
+  customized_directories = resource_profile_requirements.keys.select do |directory|
+    operational_files_present.call(directory)
+  end
+  unless customized_directories.empty?
+    errors << "'template-scaffold' cannot be retained after adding operational files under: #{customized_directories.join(', ')}."
+  end
+else
+  selected_profiles.each do |profile|
+    profile_requirements.fetch(profile, []).each do |required_path|
+      unless File.file?(required_path)
+        errors << "Selected profile '#{profile}' requires contract file: #{required_path}"
+      end
     end
   end
-end
 
-resource_profile_requirements.each do |directory, required_profile|
-  next unless operational_files_present.call(directory)
-  next if selected_profiles.include?(required_profile)
+  resource_profile_requirements.each do |directory, required_profile|
+    next unless operational_files_present.call(directory)
+    next if selected_profiles.include?(required_profile)
 
-  errors << "Retained operational files under #{directory}/ require selected profile '#{required_profile}'."
+    errors << "Retained operational files under #{directory}/ require selected profile '#{required_profile}'."
+  end
 end
 
 index_output, index_status = Open3.capture2e(
@@ -165,12 +176,12 @@ else
   errors << "Unable to inspect the Git index for operational resource gitlinks: #{index_output.strip}"
 end
 
-runtime_profiles = %w[packaged-cli mcp-enabled browser-interface]
+runtime_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
 if (selected_profiles & runtime_profiles).any? && File.file?("RUNTIME.md")
   runtime = File.read("RUNTIME.md")
   runtime_status = field_value.call(runtime, "Selection status")
   unless runtime_status == "SELECTED"
-    errors << "Selected application profiles require 'Selection status: SELECTED' in RUNTIME.md."
+    errors << "Selected application or service profiles require 'Selection status: SELECTED' in RUNTIME.md."
   end
 end
 
