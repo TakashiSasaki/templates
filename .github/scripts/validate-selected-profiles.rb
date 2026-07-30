@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "find"
+require "open3"
 require "yaml"
 
 skill_path = "SKILL.md"
@@ -149,6 +150,20 @@ resource_profile_requirements.each do |directory, required_profile|
   next if selected_profiles.include?(required_profile)
 
   errors << "Retained operational files under #{directory}/ require selected profile '#{required_profile}'."
+end
+
+index_output, index_status = Open3.capture2e(
+  "git", "ls-files", "--stage", "-z", "--", "references", "assets", "scripts"
+)
+if index_status.success?
+  index_output.split("\0").each do |record|
+    next if record.empty?
+    match = record.match(/\A(\d+)\s+[0-9a-f]+\s+\d+\t(.+)\z/m)
+    next unless match
+    errors << "Operational resource gitlinks are not allowed: #{match[2]}" if match[1] == "160000"
+  end
+else
+  errors << "Unable to inspect the Git index for operational resource gitlinks: #{index_output.strip}"
 end
 
 runtime_profiles = %w[packaged-cli mcp-enabled browser-interface]
