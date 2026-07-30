@@ -3,7 +3,10 @@
 
 require "rbconfig"
 
-DIRECT_VALIDATOR = ".github/scripts/validate-decomposed-interface-contracts.rb"
+DIRECT_VALIDATORS = %w[
+  .github/scripts/validate-interface-routing-contract.rb
+  .github/scripts/validate-decomposed-interface-contracts.rb
+].freeze
 DEFAULT_VALIDATORS = %w[
   .github/scripts/validate-selected-profiles.rb
   .github/scripts/validate-extended-profile-contracts.rb
@@ -12,7 +15,7 @@ DEFAULT_VALIDATORS = %w[
   .github/scripts/validate-late-review-contracts.rb
 ].freeze
 
-validators = [DIRECT_VALIDATOR] + (ARGV.empty? ? DEFAULT_VALIDATORS : ARGV)
+validators = DIRECT_VALIDATORS + (ARGV.empty? ? DEFAULT_VALIDATORS : ARGV)
 shim = File.expand_path("decomposed-interface-compat.rb", __dir__)
 rubyopt_parts = [ENV["RUBYOPT"], "-r#{shim}"].compact.reject(&:empty?)
 environment = { "RUBYOPT" => rubyopt_parts.join(" ") }
