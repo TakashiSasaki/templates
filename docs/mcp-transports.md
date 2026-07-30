@@ -154,8 +154,8 @@ The client CLI is local to the skill. Recommended mapping:
 | Local operation | Required protocol behavior |
 |---|---|
 | `server-info` | Modern: `server/discover`; initialization-era: report the negotiated `initialize` result and capabilities |
-| `tools list` | Send `tools/list`; follow opaque pagination cursors unless one-page mode is explicitly requested |
-| `tools show TOOL` | Filter the complete `tools/list` result locally; do not send nonexistent `tools/show`, `tools/get`, or `tools/describe` methods |
+| `tools list` | Send `tools/list`; retain the ordered raw page sequence for lossless output and optionally derive a flattened inventory |
+| `tools show TOOL` | Filter the flattened inventory derived from the complete page sequence; do not send nonexistent `tools/show`, `tools/get`, or `tools/describe` methods |
 | `tools call TOOL` | Send one `tools/call` request |
 | `tools run` | Orchestrate several independent `tools/call` requests; do not describe this as an MCP or JSON-RPC batch method |
 
@@ -167,8 +167,8 @@ A tools-only client must:
 
 - treat tool names as case-sensitive;
 - follow `tools/list` pagination and keep cursors opaque;
-- preserve the complete list result, including result type, cache hints, `_meta`, and unknown extension fields;
-- scope cached inventories to the documented revision, endpoint, identity, authorization, and cache scope;
+- retain each raw page result as a separate ordered record;
+- scope cached pages and derived inventories to the documented revision, endpoint, identity, authorization, and cache scope;
 - preserve tool input and output schemas, annotations, execution metadata, icons, and future fields where practical;
 - support JSON Schema 2020-12 where required and respect supported explicit `$schema` declarations;
 - treat annotations from untrusted servers as hints;
@@ -178,9 +178,22 @@ A tools-only client must:
 
 Tool inventories may vary by authorization. Transport-equivalence tests must use the same revision, identity, authorization, configuration, and workspace policy.
 
-## Lossless results and error classification
+## Lossless paginated tool lists
 
-A lossless output mode preserves the complete result object exactly as received, including:
+A paginated `tools/list` operation has two distinct output representations:
+
+1. **Lossless page sequence:** an ordered collection of page records. Each record contains the opaque request cursor used for that request as client metadata and the complete raw MCP result object exactly as received.
+2. **Flattened inventory:** a derived convenience view formed by concatenating tool arrays and adding explicitly derived metadata.
+
+The raw result for every page preserves page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extension fields. The client must not overwrite earlier page metadata with values from later pages. The request cursor is stored outside the raw result object so the received result remains unchanged.
+
+Single-page operations use the same page-sequence representation with one record. A flattened inventory is not lossless protocol output. It must not silently choose one page's cache hint or `_meta` as the value for the whole inventory. Any aggregate expiration or cache scope must follow a documented conservative derivation rule and be marked as derived.
+
+Tests should include pages with different cache hints, `_meta`, unknown fields, empty and nonempty cursors, and repeated or conflicting metadata to demonstrate that raw pages remain independently recoverable.
+
+## Lossless tool-call results and error classification
+
+A lossless tool-call output mode preserves the complete result object exactly as received, including:
 
 - `resultType` when present;
 - `content`;
@@ -287,9 +300,10 @@ A concrete implementation should test every claimed feature, including:
 
 - each revision, era, negotiation path, and fallback;
 - equivalent operations under the same identity and authorization context;
-- full `tools/list` pagination and cache-scope behavior;
+- ordered raw-page preservation and flattened inventory derivation for `tools/list`;
+- page-specific cursors, cache hints, `_meta`, and unknown fields across pagination;
 - JSON Schema dialect handling;
-- preservation of standard and unknown result fields;
+- preservation of standard and unknown tool-call result fields;
 - result-type and error classification;
 - modern multi-round-trip retries and new request IDs;
 - legacy elicitation actions and capability gating;
