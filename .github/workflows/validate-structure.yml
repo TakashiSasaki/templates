@@ -14,30 +14,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate required files and template invariants
+      - name: Validate universal skill core and selected resources
         shell: bash
         run: |
           set -euo pipefail
 
-          required=(
-            SKILL.md
-            AGENTS.md
-            README.md
-            RUNTIME.md
-            INTERFACES.md
-            WEB_INTERFACE.md
-            references/README.md
-            docs/architecture.md
-            docs/runtime-selection.md
-            docs/mcp-transports.md
-          )
-
-          for path in "${required[@]}"; do
-            if [[ ! -f "$path" ]]; then
-              echo "Missing required file: $path" >&2
-              exit 1
-            fi
-          done
+          if [[ ! -f SKILL.md ]]; then
+            echo "Missing universally required file: SKILL.md" >&2
+            exit 1
+          fi
 
           ruby <<'RUBY'
           require "yaml"
@@ -88,9 +73,36 @@ jobs:
           end
           RUBY
 
+          has_operational_files() {
+            local directory="$1"
+            [[ -d "$directory" ]] && find "$directory" -type f ! -name README.md -print -quit | grep -q .
+          }
+
+          for directory in references assets scripts; do
+            if has_operational_files "$directory" && ! grep -q "$directory/" SKILL.md; then
+              echo "SKILL.md must explicitly reference retained operational files under $directory/." >&2
+              exit 1
+            fi
+          done
+
+          if has_operational_files mcp; then
+            required_mcp_contracts=(
+              RUNTIME.md
+              INTERFACES.md
+              docs/mcp-transports.md
+            )
+
+            for path in "${required_mcp_contracts[@]}"; do
+              if [[ ! -f "$path" ]]; then
+                echo "MCP implementation files require contract file: $path" >&2
+                exit 1
+              fi
+            done
+          fi
+
           if grep -RIn --exclude-dir=.git -E '(API_KEY|TOKEN|PASSWORD)=[^[:space:]<][^[:space:]]*' .; then
             echo "Possible committed secret assignment found." >&2
             exit 1
           fi
 
-          echo "Template structure is valid."
+          echo "Agent Skill structure is valid for its selected profile."
