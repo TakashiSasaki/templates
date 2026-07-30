@@ -6,7 +6,74 @@ require "open3"
 require "rbconfig"
 require "tmpdir"
 
-validator = File.expand_path("validate-decomposed-interface-contracts.rb", __dir__)
+validators = [
+  File.expand_path("validate-interface-routing-contract.rb", __dir__),
+  File.expand_path("validate-decomposed-interface-contracts.rb", __dir__)
+].freeze
+
+valid_cli_router = <<~MARKDOWN
+  # Public interface selection contract
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ## Execution policy
+
+  Preferred agent interface: installed human CLI command
+  Fallback 1: stable in-place CLI launcher
+  Fallback 2: NONE
+
+  ## Contract index
+
+  CLI_INTERFACE.md is authoritative for caller-visible CLI behavior.
+
+  ## Cross-interface invariants
+
+  All routes preserve authorization, confirmation, and result semantics.
+
+  ## Availability and failure behavior
+
+  Unavailable preferred interface behavior: try the documented in-place launcher
+  Fallback activation conditions: activate only when the installed command is unavailable
+  Failure classification exposed to callers: distinguish unavailability, refusal, and domain failure
+
+  ## Decision rationale
+
+  Rationale: prefer the installed command and use the in-place launcher only when installation is unavailable.
+MARKDOWN
+
+valid_mcp_router = <<~MARKDOWN
+  # Public interface selection contract
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ## Execution policy
+
+  Preferred agent interface: native MCP tool already registered in the host
+  Fallback 1: NONE
+  Fallback 2: NONE
+
+  ## Contract index
+
+  MCP_INTERFACE.md is authoritative for caller-visible MCP behavior.
+
+  ## Cross-interface invariants
+
+  Every supported MCP route preserves identity, authorization, and operation semantics.
+
+  ## Availability and failure behavior
+
+  Unavailable preferred interface behavior: report that no permitted fallback is configured
+  Fallback activation conditions: no fallback is activated
+  Failure classification exposed to callers: distinguish host registration, transport, protocol, and domain failure
+
+  ## Decision rationale
+
+  Rationale: use the host-registered MCP route and avoid implicit process or network startup.
+MARKDOWN
 
 valid_cli = <<~MARKDOWN
   # Packaged CLI interface contract
@@ -114,15 +181,49 @@ MARKDOWN
 
 cases = [
   {
-    name: "accepts a completed packaged CLI contract",
+    name: "accepts completed packaged CLI routing and interface contracts",
     profile: "packaged-cli",
-    files: { "CLI_INTERFACE.md" => valid_cli },
+    files: {
+      "INTERFACES.md" => valid_cli_router,
+      "CLI_INTERFACE.md" => valid_cli
+    },
     success: true
+  },
+  {
+    name: "rejects an unselected routing contract",
+    profile: "packaged-cli",
+    files: {
+      "INTERFACES.md" => valid_cli_router.sub("Selection status: SELECTED", "Selection status: UNSELECTED"),
+      "CLI_INTERFACE.md" => valid_cli
+    },
+    success: false
+  },
+  {
+    name: "rejects an unresolved routing fallback",
+    profile: "packaged-cli",
+    files: {
+      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: stable in-place CLI launcher", "Fallback 1: TODO"),
+      "CLI_INTERFACE.md" => valid_cli
+    },
+    success: false
+  },
+  {
+    name: "rejects an unresolved routing rationale",
+    profile: "packaged-cli",
+    files: {
+      "INTERFACES.md" => valid_cli_router.sub(
+        "Rationale: prefer the installed command and use the in-place launcher only when installation is unavailable.",
+        "Rationale: TODO"
+      ),
+      "CLI_INTERFACE.md" => valid_cli
+    },
+    success: false
   },
   {
     name: "rejects an unselected packaged CLI contract",
     profile: "packaged-cli",
     files: {
+      "INTERFACES.md" => valid_cli_router,
       "CLI_INTERFACE.md" => valid_cli.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
     },
     success: false
@@ -131,6 +232,7 @@ cases = [
     name: "rejects an unresolved packaged CLI rationale",
     profile: "packaged-cli",
     files: {
+      "INTERFACES.md" => valid_cli_router,
       "CLI_INTERFACE.md" => valid_cli.sub(
         "Rationale: a stable packaged command is required by human users and CI.",
         "Rationale: TODO"
@@ -139,15 +241,19 @@ cases = [
     success: false
   },
   {
-    name: "accepts a completed MCP contract",
+    name: "accepts completed MCP routing and interface contracts",
     profile: "mcp-enabled",
-    files: { "MCP_INTERFACE.md" => valid_mcp },
+    files: {
+      "INTERFACES.md" => valid_mcp_router,
+      "MCP_INTERFACE.md" => valid_mcp
+    },
     success: true
   },
   {
     name: "rejects an unselected MCP contract",
     profile: "mcp-enabled",
     files: {
+      "INTERFACES.md" => valid_mcp_router,
       "MCP_INTERFACE.md" => valid_mcp.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
     },
     success: false
@@ -156,6 +262,7 @@ cases = [
     name: "rejects an unresolved MCP rationale",
     profile: "mcp-enabled",
     files: {
+      "INTERFACES.md" => valid_mcp_router,
       "MCP_INTERFACE.md" => valid_mcp.sub(
         "Rationale: stdio provides bounded local MCP access without a listening socket.",
         "Rationale: TODO"
@@ -180,18 +287,22 @@ cases.each do |test_case|
       File.write(absolute_path, content)
     end
 
-    _stdout, stderr, status = Open3.capture3(
-      { "RUBYOPT" => nil },
-      RbConfig.ruby,
-      validator,
-      chdir: directory
-    )
+    diagnostics = []
+    actual_success = validators.all? do |validator|
+      _stdout, stderr, status = Open3.capture3(
+        { "RUBYOPT" => nil },
+        RbConfig.ruby,
+        validator,
+        chdir: directory
+      )
+      diagnostics << "#{File.basename(validator)}: #{stderr.strip}" unless stderr.strip.empty?
+      status.success?
+    end
 
-    actual_success = status.success?
     next if actual_success == test_case.fetch(:success)
 
     failures << "#{test_case.fetch(:name)}: expected success=#{test_case.fetch(:success)}, " \
-                "got success=#{actual_success}; stderr=#{stderr.strip.inspect}"
+                "got success=#{actual_success}; diagnostics=#{diagnostics.join(' | ').inspect}"
   end
 end
 
@@ -200,4 +311,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Decomposed interface contract validation tests passed."
+puts "Decomposed interface and routing contract validation tests passed."
