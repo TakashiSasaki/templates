@@ -30,10 +30,11 @@ Read additional material only when applicable:
 - helper-script changes: the affected scripts, their execution contracts in `SKILL.md`, and `RUNTIME.md` when a runtime record exists;
 - packaged CLI changes: `RUNTIME.md` and `INTERFACES.md`;
 - MCP changes: `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`;
-- Web or service changes: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
+- browser-interface changes: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
+- headless-service changes: the authoritative runtime/service record and applicable security, health, lifecycle, and deployment documentation;
 - repository-wide architecture or packaging changes: the applicable files under `docs/`.
 
-Do not load MCP or Web documentation merely because it exists in the template.
+Do not load MCP or browser-interface documentation merely because it exists in the template.
 
 ## Skill resources
 
@@ -58,7 +59,8 @@ Keep runtime knowledge under `references/` only when the agent may need it while
 
 Use `assets/` for static resources consumed or emitted by the workflow.
 
-- `SKILL.md` must state when and how each retained asset is used.
+- `SKILL.md` must contain the exact `Asset:` declaration and state when and how each retained asset is used.
+- A directly linked reference may add detail but does not replace the declaration or trigger in `SKILL.md`.
 - Do not treat an asset as an instruction source unless the skill explicitly says to read it as one.
 - Preserve immutable template regions and licenses where applicable.
 
@@ -67,7 +69,8 @@ Use `assets/` for static resources consumed or emitted by the workflow.
 Use `scripts/` for small deterministic helpers or stable in-place launchers.
 
 - A helper script is not automatically a public CLI.
-- Document its invocation, working directory, inputs, outputs, exit behavior, side effects, permissions, network use, approval policy, and retry/idempotency behavior in `SKILL.md` or a directly linked operational reference.
+- `SKILL.md` must contain the exact `Script:` declaration and the bounded execution trigger for every retained script.
+- A directly linked operational reference may add invocation or failure detail but does not replace the declaration in `SKILL.md`.
 - Resolve the skill root from the script location when possible; do not assume the caller's current directory.
 - Do not install runtimes or package managers silently.
 - Preserve delegated exit status and emit actionable diagnostics.
@@ -87,9 +90,9 @@ This template is language-neutral.
 
 Direct helper invocation may be documented entirely in `SKILL.md`.
 
-Retain and complete `INTERFACES.md` when the skill intentionally maintains a stable CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
+Retain and complete `INTERFACES.md` whenever the skill maintains a packaged CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
 
-Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported.
+Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported. A headless network service does not retain that browser-only contract unless it also exposes a browser surface.
 
 Do not describe a local helper command as a public CLI or protocol method unless that compatibility contract is intentional.
 
@@ -123,7 +126,7 @@ Apply this section only when MCP is supported.
 
 ## Web-specific requirements
 
-Apply this section only when a Web interface is supported.
+Apply this section only when a browser-facing interface is supported.
 
 - Record deployment topology and exposure capabilities in `RUNTIME.md`.
 - Record browser-visible behavior, security, operation policy, redaction, health semantics, and failure behavior in `WEB_INTERFACE.md`.
