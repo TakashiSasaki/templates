@@ -104,12 +104,16 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Revision-specific state model | TODO; do not infer from transport alone |
 | Concurrent-client policy | TODO |
 | Authentication | TODO |
-| Host-header validation | TODO |
+| Host-header validation | TODO: every HTTP request before dispatch |
+| Origin validation granularity | TODO: EVERY HTTP REQUEST before dispatch; never connection-scoped |
 | Allowed origins and absent-Origin policy | TODO |
+| Connection-reuse security tests | TODO: keep-alive or multiplexed requests with different Origin values |
 | Readiness check | TODO |
 | Cancellation behavior | TODO |
 | Shutdown/restart policy | TODO |
 | Non-loopback support | TODO: NO or documented security design |
+
+Host, Origin, authentication, authorization, size-limit, and protocol-header decisions are request-scoped. A valid first request must not authorize later requests on the same HTTP/1.1 keep-alive, HTTP/2, or later multiplexed connection. Every present disallowed Origin must produce HTTP 403 for that request.
 
 When `2026-07-28` is supported, also complete:
 
@@ -159,11 +163,11 @@ Complete this section only when the skill bundles a command that discovers or in
 
 The client command-line syntax is local to this skill. MCP standardizes protocol behavior, not names such as `tools show`, `tools run`, `--arguments-file`, or `--output`.
 
-For paginated `tools/list`, lossless output must retain an ordered record for every page. Each record should include the request cursor used for that page as local metadata and the complete raw result object exactly as received, preserving page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extensions. A flattened inventory may concatenate tool definitions for convenience, but it is a derived presentation and must not overwrite or claim to preserve page-level metadata. Single-page results use the same representation with one page record.
+For paginated `tools/list`, lossless output must retain an ordered record for every page. Each record includes the request cursor used for that page as local metadata and the complete raw result exactly as received, preserving page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extensions. A flattened inventory may concatenate tools, but it is a derived presentation and must not overwrite page-level metadata. Single-page results use the same representation with one page record.
 
-A tools-only client must preserve the complete result object returned by the selected SDK or wire-level parser, including `resultType`, `content`, `structuredContent`, `isError`, `_meta`, and unknown extension fields when present. In modern mode, an absent `resultType` from an earlier peer may be interpreted as `complete` for behavior, but a lossless raw mode must not fabricate fields in the preserved result.
+A tools-only client must preserve the complete result object returned by the selected SDK or parser, including `resultType`, `content`, `structuredContent`, `isError`, `_meta`, and unknown extensions. An absent legacy `resultType` may be interpreted as effective type `complete`, but a lossless mode must not fabricate the field.
 
-Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio server launcher should be fixed or selected from trusted configuration. Generic workspace restrictions should be implemented through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
+Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio launcher should be fixed or selected from trusted configuration. Implement workspace restrictions through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
 
 ## Distribution
 
@@ -187,18 +191,19 @@ Network-server configuration should normally permit explicit values for bind add
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, and optional client features fit this skill better than the credible alternatives.
+Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, and optional client features fit this skill better than credible alternatives.
 
 Explain separately:
 
 1. why stdio is or is not supported;
 2. why a standalone local Streamable HTTP server is or is not supported;
 3. whether the local server is loopback-only;
-4. whether the bundled client is tools-only or broader in scope;
-5. how protocol revisions are negotiated and tested;
-6. how modern MRTR and initialization-era elicitation are handled;
-7. how cancellation, lossless results, and exit codes are handled;
-8. how paginated raw page preservation, flattened inventory presentation, and page-level cache hints are handled;
-9. how all adapters share implementation and tests.
+4. how request-scoped Host/Origin and authorization checks are implemented and tested across connection reuse;
+5. whether the bundled client is tools-only or broader in scope;
+6. how protocol revisions are negotiated and tested;
+7. how modern MRTR and initialization-era elicitation are handled;
+8. how cancellation, lossless results, and exit codes are handled;
+9. how paginated raw-page preservation, flattened inventory, and page-level cache hints are handled;
+10. how all adapters share implementation and tests.
 
 TODO
