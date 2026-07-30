@@ -14,7 +14,9 @@ Do not add an additional enclosing `skill/` directory.
 
 Treat `SKILL.md` as the operational center of the repository. A concrete skill may be complete with `SKILL.md` alone. Do not require a programming runtime, CLI, MCP server, Web interface, or application-layer architecture unless the workflow needs it.
 
-Select the smallest sufficient profile described in `docs/skill-profiles.md`. Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill.
+Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it in every concrete skill.
+
+Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill.
 
 ## Progressive maintainer reading
 
@@ -90,7 +92,7 @@ This template is language-neutral.
 
 Direct helper invocation may be documented entirely in `SKILL.md`.
 
-Retain and complete `INTERFACES.md` whenever the skill maintains a packaged CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
+Selecting `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`. Retain and complete `INTERFACES.md` whenever the skill maintains a packaged CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
 
 Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported. A headless network service does not retain that browser-only contract unless it also exposes a browser surface.
 
@@ -151,11 +153,12 @@ Do not require service-grade tests from an instruction-only skill, and do not un
 
 Before reporting a change complete:
 
-1. Update `SKILL.md` whenever operational behavior, resource usage, helper invocation, outputs, or safety changes.
-2. Update only the optional contracts applicable to the selected profile.
-3. Remove files and directories that no longer serve an operational or maintainer purpose.
-4. Run the validation and tests appropriate to the selected profile.
-5. Confirm that references, assets, and scripts are declared by exact path and reachable through explicit instructions rather than accidental discovery.
-6. Confirm that operational resource directories contain no symlinks.
-7. Confirm that no secrets or environment-specific credentials are committed.
-8. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
+1. Update `SKILL.md` whenever operational behavior, resource usage, helper invocation, outputs, safety, or selected profiles change.
+2. Confirm that the single `Selected profiles:` line matches the implemented interfaces and resources.
+3. Update only the optional contracts applicable to the selected profile.
+4. Remove files and directories that no longer serve an operational or maintainer purpose.
+5. Run the validation and tests appropriate to the selected profile.
+6. Confirm that references, assets, and scripts are declared by exact path and reachable through explicit instructions rather than accidental discovery.
+7. Confirm that operational resource directories contain no symlinks.
+8. Confirm that no secrets or environment-specific credentials are committed.
+9. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
