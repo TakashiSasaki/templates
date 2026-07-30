@@ -14,6 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test decomposed interface contract validation
+        shell: bash
+        run: ruby .github/scripts/test-decomposed-interface-compat.rb
+
       - name: Validate scaffold, helper, and MCP contracts
         shell: bash
         run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-extended-profile-contracts.rb
