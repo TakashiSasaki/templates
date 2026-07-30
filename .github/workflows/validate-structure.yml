@@ -25,6 +25,7 @@ jobs:
             README.md
             RUNTIME.md
             INTERFACES.md
+            WEB_INTERFACE.md
             references/README.md
             docs/architecture.md
             docs/runtime-selection.md
