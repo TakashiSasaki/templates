@@ -65,6 +65,7 @@ The CLI and MCP server adapters must call the same application logic. stdio and 
 - the local Streamable HTTP server start, stop, endpoint, and readiness contract, if supported;
 - the preferred agent interface and deterministic fallback order;
 - lossless and presentation-oriented output formats;
+- for paginated `tools/list`, an ordered lossless page representation that preserves every raw page result separately from any flattened inventory view;
 - exit-code meanings, including non-interactive additional-input behavior;
 - legacy elicitation behavior and modern multi-round-trip behavior when either is supported.
 
@@ -112,7 +113,8 @@ Before reporting a change complete:
 5. Run the selected runtime's tests and static checks.
 6. Verify CLI, stdio MCP, and Streamable HTTP MCP semantic equivalence under the same revision, identity, authorization, configuration, and workspace policy.
 7. Test every claimed negotiation and fallback path.
-8. Test lossless result preservation, pagination, cancellation, additional-input behavior, and any claimed extension.
-9. Test loopback binding and host/origin rejection when the network variant exists.
-10. Confirm generated files and lockfiles correspond only to selected tooling.
-11. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
+8. Test ordered per-page `tools/list` preservation separately from flattened inventory presentation, including page-specific cursors, cache hints, `_meta`, and unknown fields.
+9. Test lossless call-result preservation, cancellation, additional-input behavior, and any claimed extension.
+10. Test loopback binding and host/origin rejection when the network variant exists.
+11. Confirm generated files and lockfiles correspond only to selected tooling.
+12. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
