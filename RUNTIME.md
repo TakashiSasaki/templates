@@ -1,6 +1,6 @@
 # Runtime decision record
 
-Complete this file before implementing a concrete skill. This is the authoritative index of toolchain, command, protocol, and transport choices.
+Complete this file before implementing a concrete skill. This is the authoritative index of toolchain, command, MCP SDK, protocol revision, compatibility, and transport choices.
 
 ## Status
 
@@ -51,18 +51,27 @@ Commands must work from an explicitly documented working directory.
 
 ## MCP protocol support
 
-The template does not select a protocol revision. A concrete skill must verify the current MCP specification and the selected SDK before completing this section. Do not treat a draft or release candidate as a universal baseline.
+The template does not force a protocol revision. Verify the current official MCP specification and selected SDK before completing this section.
+
+At the time this template was aligned:
+
+- `2026-07-28` is the current modern revision with stateless, self-contained requests, per-request metadata, and `server/discover`;
+- `2025-11-25` and earlier revisions use the `initialize` / `notifications/initialized` lifecycle.
 
 | Item | Selected value |
 |---|---|
 | Supported protocol revisions | TODO |
+| Supported protocol eras | modern / initialization-era / both: TODO |
 | Default revision or negotiation mode | TODO: automatic negotiation / fixed revision / other |
 | MCP SDK or protocol library | TODO |
 | SDK version | TODO |
 | Legacy compatibility policy | TODO |
+| JSON Schema dialects | TODO; MUST include 2020-12 when required by the selected revision |
 | Optional MCP extensions | TODO or NONE |
+| Deprecated feature policy | TODO |
+| Negotiation and compatibility tests | TODO |
 
-Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task behavior can differ between revisions. Prefer an SDK-supported negotiation path over handwritten version probing. Tests must cover every revision the concrete skill claims to support.
+Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task behavior differ between revisions. Prefer an SDK-supported negotiation path over handwritten probing. Tests must cover every revision and fallback path the concrete skill claims.
 
 ## MCP variants
 
@@ -77,9 +86,10 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Lifecycle owner | MCP host / bundled tool client / other: TODO |
 | Invocation scope | one operation / multiple sequential operations: TODO |
 | Protocol negotiation/discovery | TODO |
+| Request metadata behavior | TODO |
 | Startup cost policy | TODO |
 | Cancellation behavior | TODO |
-| Shutdown behavior | TODO |
+| Child-process shutdown and escalation | TODO |
 
 ### Local Streamable HTTP variant
 
@@ -90,17 +100,33 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Endpoint path | TODO, normally `/mcp` |
 | Default bind address | TODO, normally `127.0.0.1` or `::1` |
 | Port | TODO: fixed, configurable, or dynamically assigned |
-| Protocol state model | TODO: revision-dependent; do not infer from transport alone |
+| Supported protocol eras | modern / initialization-era / both: TODO |
+| Revision-specific state model | TODO; do not infer from transport alone |
 | Concurrent-client policy | TODO |
 | Authentication | TODO |
 | Host-header validation | TODO |
-| Allowed origins | TODO |
+| Allowed origins and absent-Origin policy | TODO |
 | Readiness check | TODO |
 | Cancellation behavior | TODO |
 | Shutdown/restart policy | TODO |
 | Non-loopback support | TODO: NO or documented security design |
 
-The stdio and Streamable HTTP variants must expose the same domain operations unless a documented protocol limitation prevents exact parity.
+When `2026-07-28` is supported, also complete:
+
+| Modern Streamable HTTP requirement | Selected behavior |
+|---|---|
+| POST request model | TODO |
+| `Accept: application/json, text/event-stream` | TODO |
+| `MCP-Protocol-Version` and request `_meta` consistency | TODO |
+| Required `Mcp-Method` and conditional `Mcp-Name` headers | TODO |
+| Header value encoding | TODO |
+| `x-mcp-header` validation and `Mcp-Param-*` emission | TODO |
+| JSON and request-scoped SSE response handling | TODO |
+| SSE-stream cancellation | TODO |
+| `Mcp-Session-Id`, GET, DELETE, and resumability | TODO: NOT USED in modern mode |
+| Initialization-era fallback on the same endpoint | TODO or NOT SUPPORTED |
+
+The stdio and Streamable HTTP variants must expose equivalent domain operations under the same revision, identity, authorization, configuration, and workspace policy unless a documented protocol limitation prevents parity.
 
 ### Bundled ad hoc MCP tool client
 
@@ -117,18 +143,22 @@ Complete this section only when the skill bundles a command that discovers or in
 | Tool-show command | TODO or NOT SUPPORTED; local filtering over `tools/list` |
 | Single tool-call command | TODO or NOT SUPPORTED; maps to `tools/call` |
 | Sequential tool-run command | TODO or NOT SUPPORTED; repeated `tools/call`, not JSON-RPC batch |
-| Pagination policy | TODO: normally retrieve all pages using opaque cursors |
-| Output modes | TODO: include a lossless MCP JSON mode |
-| Interaction policy | non-interactive / interactive / response file: TODO |
+| Pagination and list-cache policy | TODO |
+| Lossless output mode | TODO |
+| Presentation output modes | TODO |
+| Modern MRTR policy | TODO or NOT SUPPORTED |
+| Initialization-era elicitation policy | TODO or NOT SUPPORTED |
+| Non-interactive policy | TODO |
 | Timeout and cancellation policy | TODO |
 | Task or extension support | TODO or NOT SUPPORTED |
 | Roots/workspace policy | TODO: distinguish MCP roots from skill-specific workspace configuration |
+| Exit-code mapping | TODO; keep consistent with `INTERFACES.md` |
 
 The client command-line syntax is local to this skill. MCP standardizes protocol behavior, not names such as `tools show`, `tools run`, `--arguments-file`, or `--output`.
 
-A tools-only client must preserve standard tool result fields such as `content`, `structuredContent`, `isError`, and `_meta` when present. It must distinguish JSON-RPC or transport failures from successful `tools/call` responses whose tool result reports `isError: true`.
+A tools-only client must preserve the complete result object returned by the selected SDK or wire-level parser, including `resultType`, `content`, `structuredContent`, `isError`, `_meta`, and unknown extension fields when present. In modern mode, an absent `resultType` from an earlier peer may be interpreted as `complete` for behavior, but a lossless raw mode must not fabricate fields in the preserved result.
 
-Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio server launcher should be fixed or selected from trusted configuration. Generic workspace restrictions should be implemented through documented MCP capabilities, server configuration, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
+Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio server launcher should be fixed or selected from trusted configuration. Generic workspace restrictions should be implemented through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
 
 ## Distribution
 
@@ -152,7 +182,7 @@ Network-server configuration should normally permit explicit values for bind add
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, CLI interface, MCP variants, supported protocol revisions, and optional client features fit this skill better than the credible alternatives.
+Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, and optional client features fit this skill better than the credible alternatives.
 
 Explain separately:
 
@@ -161,7 +191,8 @@ Explain separately:
 3. whether the local server is loopback-only;
 4. whether the bundled client is tools-only or broader in scope;
 5. how protocol revisions are negotiated and tested;
-6. how cancellation and additional-input requests are handled;
-7. how all adapters share implementation and tests.
+6. how modern MRTR and initialization-era elicitation are handled;
+7. how cancellation, lossless results, and exit codes are handled;
+8. how all adapters share implementation and tests.
 
 TODO
