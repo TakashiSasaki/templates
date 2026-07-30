@@ -16,6 +16,11 @@
       "destination": "INTERFACES.md"
     },
     {
+      "title": "Human Web interface",
+      "source": "WEB_INTERFACE.md",
+      "destination": "WEB_INTERFACE.md"
+    },
+    {
       "title": "Runtime decision record",
       "source": "RUNTIME.md",
       "destination": "RUNTIME.md"
