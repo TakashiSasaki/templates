@@ -5,125 +5,130 @@ Delete this directory when the concrete skill does not expose MCP.
 When MCP is supported, this directory may contain:
 
 - a shared MCP server factory or operation registry;
-- an stdio server entry point;
+- a stdio server entry point;
 - a local Streamable HTTP server entry point;
 - a bounded ad hoc MCP tool client used by the skill or contract tests;
 - MCP-specific schemas and adapter tests.
 
-The implementation language is selected in `RUNTIME.md`.
+The implementation language, SDK, protocol revisions, compatibility policy, and exact commands are selected in `RUNTIME.md`.
 
-## Standard transport terminology
+## Standard terminology
 
 MCP defines stdio and Streamable HTTP as standard transports. A local server that listens on a TCP port should normally be described as a **local Streamable HTTP MCP server**, not as a raw TCP MCP transport.
 
-A custom raw TCP transport is outside the normal interoperability contract and should only be added with an explicit compatibility requirement.
+A command that only discovers and invokes tools is an **ad hoc MCP tool client**. It is not automatically a native agent tool, complete MCP host, or general-purpose MCP client.
 
-Protocol revision is separate from transport. Complete the supported revisions, SDK version, negotiation policy, and optional extensions in `RUNTIME.md` and `INTERFACES.md`.
+At the time this template was aligned, `2026-07-28` is the modern stateless, per-request revision, while `2025-11-25` and earlier revisions use the initialization-era protocol model. Recheck the current specification before implementation.
 
 ## Required architecture
 
-Use one shared server factory, operation registry, or equivalent composition root:
-
 ```text
-                       +--> stdio transport entry point
-shared MCP server -----+
-factory / registry     +--> Streamable HTTP entry point
-                       +--> in-memory or contract-test adapter
+shared MCP server factory / registry
+              |
+              +--> stdio server adapter
+              +--> Streamable HTTP server adapter
+              +--> in-memory or contract-test adapter
+
+bundled MCP tool client
+              |
+              +--> stdio server adapter
+              +--> existing Streamable HTTP endpoint
 ```
 
-Transport entry points may configure lifecycle and protocol-specific concerns, but they must not duplicate tool definitions or domain logic.
+Transport entry points may configure protocol, lifecycle, framing, request metadata, cancellation, and security. They must not duplicate tool definitions or domain logic.
 
-The MCP adapters must call the same application/domain implementation used by the CLI. Handlers should validate protocol inputs, call the application layer, and translate results.
+The MCP server adapters call the same application/domain implementation used by the CLI. The bundled tool client must traverse an MCP adapter rather than call the application layer directly.
 
-A bundled tool client must drive these entry points through MCP rather than bypassing the protocol and calling the application layer directly.
+## stdio implementation checklist
 
-## stdio variant
+- launch only a trusted bundled server command;
+- reserve stdout for MCP protocol messages;
+- send diagnostics to stderr;
+- do not daemonize or open a listening socket;
+- perform the discovery or initialization behavior required by the selected revision;
+- implement only advertised server-to-client capabilities;
+- use revision-appropriate cancellation;
+- close stdin or the connection according to the SDK contract;
+- wait for process exit and use bounded shutdown escalation;
+- avoid hidden application-state assumptions across calls.
 
-Use this variant when an MCP host or bundled tool client owns the server process.
+## Streamable HTTP implementation checklist
 
-Constraints:
+General requirements:
 
-- the host or client launches the server as a child process;
-- stdin and stdout carry protocol messages;
-- logs and diagnostics go to stderr;
-- the server must not daemonize;
-- the server must terminate when the client connection or invocation closes;
-- the client and server must perform the lifecycle or discovery exchange required by the selected protocol revision;
-- expensive initialization should be delayed until an operation requires it;
-- no listening socket is opened.
+- bind to `127.0.0.1` or `::1` by default;
+- expose a documented endpoint, normally `/mcp`;
+- validate Host and protect against DNS rebinding;
+- validate Origin and reject a present disallowed value with HTTP 403;
+- document absent-Origin behavior;
+- define supported protocol eras, concurrency, readiness, cancellation, and shutdown;
+- require a separate security design for non-loopback access.
 
-This is normally the preferred variant for an Agent Skill that launches MCP only while performing a particular workflow.
+For `2026-07-28` support:
 
-## Local Streamable HTTP variant
+- use one POST for each JSON-RPC request;
+- accept both JSON and SSE response media types;
+- send required protocol-version and method/name request headers;
+- keep request headers consistent with JSON body metadata;
+- support request-scoped SSE cancellation;
+- do not use modern-mode session IDs, independent GET/DELETE endpoints, or resumability;
+- validate `x-mcp-header` tool declarations;
+- exclude invalid HTTP tool definitions from the usable inventory;
+- move designated arguments into encoded `Mcp-Param-*` headers;
+- test any initialization-era compatibility separately.
 
-Use this variant when the MCP server must run independently and serve one or more clients through a local TCP listening socket.
+## Bundled tool-client behavior
 
-Default constraints:
-
-- bind to `127.0.0.1` or `::1`;
-- expose an explicitly documented endpoint, normally `/mcp`;
-- validate the Host header and protect against DNS rebinding;
-- validate `Origin` on every incoming connection and reject a present disallowed origin with HTTP 403;
-- document how an absent `Origin` is handled for non-browser clients;
-- define revision-specific state behavior rather than assuming the transport is always stateful or stateless;
-- define concurrent-client behavior;
-- define startup, readiness, cancellation, shutdown, restart, and stale-process handling;
-- keep bind address and port configurable without changing tool behavior;
-- do not bind to all interfaces by default;
-- do not assume loopback removes every browser-origin risk;
-- document authentication before enabling non-loopback access.
-
-Binding to `0.0.0.0` or `::` changes the security model. A concrete skill must not do so merely for convenience. It requires explicit allowed-host/origin policy, authentication, firewall assumptions, and—where traffic leaves the machine—transport-security decisions.
-
-## Ad hoc MCP tool-client behavior
-
-A bundled command that only discovers and invokes tools is an **ad hoc MCP tool client**. It is not automatically a native agent tool or a complete MCP host. From the host's perspective it is normally a program invoked through a shell or process tool.
-
-For stdio, the client normally starts and owns the trusted server child process. For Streamable HTTP, it normally connects to an already-running endpoint. It must not silently start another network server unless `INTERFACES.md` explicitly defines that fallback.
-
-The client CLI is local to the skill. Recommended operations map as follows:
+Recommended local operations:
 
 | Local operation | MCP behavior |
 |---|---|
-| `server-info` | Revision-appropriate lifecycle or discovery exchange |
-| `tools list` | `tools/list`, including opaque cursor pagination |
+| `server-info` | Modern `server/discover` or initialization-era negotiated server information |
+| `tools list` | `tools/list` with complete opaque-cursor pagination |
 | `tools show TOOL` | Local filtering over `tools/list`; not an MCP method |
 | `tools call TOOL` | One `tools/call` request |
-| `tools run` | Several independent `tools/call` requests; not an MCP or JSON-RPC batch method |
+| `tools run` | Several independent `tools/call` requests; not an MCP or JSON-RPC batch |
 
 The client must:
 
-- declare supported protocol revisions and negotiation behavior;
-- preserve standard tool definitions and result fields, including `content`, `structuredContent`, `isError`, and `_meta` when present;
-- distinguish transport failures, protocol errors, returned tool errors, and successful results;
-- treat tool annotations from untrusted servers as hints;
+- preserve complete list and call result objects, including `resultType`, cache fields, `_meta`, and unknown extensions;
 - keep tool names case-sensitive and cursors opaque;
-- expose a lossless MCP JSON output mode;
-- document additional-input behavior for non-interactive, interactive, and response-file use;
-- apply revision-appropriate cancellation and clean up requests, connections, and child processes;
-- capability-gate tasks and extensions;
-- avoid arbitrary server shell commands and caller-selected JSON-RPC request IDs;
+- support JSON Schema 2020-12 where required;
+- accept any permitted JSON type in `structuredContent`;
+- distinguish transport, protocol, invalid-result, input-required, tool-error, and success outcomes;
+- generate request IDs internally;
+- avoid arbitrary server shell commands;
+- capability-gate tasks, elicitation, sampling, roots, and other features;
 - distinguish MCP roots from skill-specific workspace configuration.
 
-Do not add resources, prompts, completion, subscriptions, tasks, sampling, elicitation, roots, or other client features merely to make the client appear complete. Implement and advertise only what the concrete skill needs and tests.
+## Additional input
+
+Modern `2026-07-28` multi-round-trip behavior:
+
+- preserve an `input_required` result in non-interactive mode;
+- in interactive or response-file mode, retry with `inputResponses` and echoed `requestState`;
+- use a new JSON-RPC request ID for every retry.
+
+Initialization-era behavior:
+
+- advertise elicitation or other client capabilities only when implemented;
+- answer form elicitation with `accept`, `decline`, or `cancel`;
+- document automatic decline or cancellation in non-interactive mode;
+- wait for the original request's final result;
+- do not synthesize a modern input-required result.
 
 ## Test requirements
 
-When both variants or a bundled tool client exist, tests should verify:
+Test every claimed revision, transport, and optional feature. At minimum verify:
 
-- every claimed protocol revision and negotiation path;
-- identical tool names and input schemas across transports;
-- complete `tools/list` pagination;
-- semantically equivalent results and errors;
-- preservation of MCP result and extension fields;
-- correct separation of transport, protocol, and `isError` failures;
-- identical workspace and write restrictions;
-- clean stdio shutdown on client disconnect;
-- timeout cancellation and process cleanup;
-- documented non-interactive handling of additional-input results;
-- any claimed task or extension behavior;
-- local HTTP readiness and shutdown behavior;
-- rejection of disallowed hosts or origins;
-- loopback bind as the default;
+- negotiation and compatibility fallback;
+- equivalent operations under the same identity, authorization, configuration, and workspace policy;
+- full pagination and cache scope;
+- schema dialects and `structuredContent` types;
+- lossless result and unknown-field preservation;
+- modern multi-round-trip and legacy elicitation behavior;
+- cancellation, maximum timeout, and child-process cleanup;
+- modern HTTP headers, JSON/SSE responses, and `x-mcp-header`;
+- loopback binding, Host/Origin rejection, readiness, concurrency, and shutdown;
 - no transport-specific domain behavior;
-- confirmation that `tools show` and `tools run` remain local conveniences rather than nonexistent MCP methods.
+- local `tools show` and `tools run` remain conveniences rather than nonexistent methods.
