@@ -78,21 +78,76 @@ jobs:
             [[ -d "$directory" ]] && find "$directory" -type f ! -name README.md -print -quit | grep -q .
           }
 
-          validate_operational_file_references() {
+          reject_operational_symlinks() {
             local directory="$1"
             local path
 
             [[ -d "$directory" ]] || return 0
 
             while IFS= read -r -d '' path; do
-              if ! grep -Fq -- "$path" SKILL.md; then
-                echo "SKILL.md must explicitly reference retained operational file: $path" >&2
+              echo "Operational resource symlinks are not allowed: $path" >&2
+              exit 1
+            done < <(find "$directory" -type l -print0)
+          }
+
+          validate_operational_file_references() {
+            local directory="$1"
+            local label
+            local path
+
+            [[ -d "$directory" ]] || return 0
+
+            case "$directory" in
+              references) label="Reference" ;;
+              assets) label="Asset" ;;
+              scripts) label="Script" ;;
+              *)
+                echo "Unsupported operational resource directory: $directory" >&2
+                exit 1
+                ;;
+            esac
+
+            while IFS= read -r -d '' path; do
+              if ! awk -v expected="$path" -v label="$label" '
+                function trim(value) {
+                  sub(/^[[:space:]]+/, "", value)
+                  sub(/[[:space:]]+$/, "", value)
+                  return value
+                }
+
+                {
+                  line = trim($0)
+                  if (substr(line, 1, 2) == "- ") {
+                    line = trim(substr(line, 3))
+                  }
+
+                  prefix = label ":"
+                  if (index(line, prefix) != 1) {
+                    next
+                  }
+
+                  value = trim(substr(line, length(prefix) + 1))
+                  if (length(value) >= 2 && substr(value, 1, 1) == "`" && substr(value, length(value), 1) == "`") {
+                    value = substr(value, 2, length(value) - 2)
+                  }
+
+                  if (value == expected) {
+                    found = 1
+                  }
+                }
+
+                END {
+                  exit found ? 0 : 1
+                }
+              ' SKILL.md; then
+                echo "SKILL.md must declare the exact retained resource path as '$label: $path'." >&2
                 exit 1
               fi
             done < <(find "$directory" -type f ! -name README.md -print0)
           }
 
           for directory in references assets scripts; do
+            reject_operational_symlinks "$directory"
             validate_operational_file_references "$directory"
           done
 
