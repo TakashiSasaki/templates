@@ -6,7 +6,7 @@ require "open3"
 require "rbconfig"
 require "tmpdir"
 
-shim = File.expand_path("decomposed-interface-compat.rb", __dir__)
+validator = File.expand_path("validate-decomposed-interface-contracts.rb", __dir__)
 
 valid_cli = <<~MARKDOWN
   # Packaged CLI interface contract
@@ -183,9 +183,7 @@ cases.each do |test_case|
     _stdout, stderr, status = Open3.capture3(
       { "RUBYOPT" => nil },
       RbConfig.ruby,
-      "-r#{shim}",
-      "-e",
-      "exit 0",
+      validator,
       chdir: directory
     )
 
