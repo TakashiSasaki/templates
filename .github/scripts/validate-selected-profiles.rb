@@ -99,7 +99,8 @@ profile_requirements = {
 resource_profile_requirements = {
   "references" => "knowledge-augmented",
   "assets" => "asset-driven",
-  "scripts" => "script-assisted"
+  "scripts" => "script-assisted",
+  "mcp" => "mcp-enabled"
 }
 
 operational_files_present = lambda do |directory|
@@ -117,6 +118,22 @@ operational_files_present = lambda do |directory|
   found
 end
 
+field_value = lambda do |text, label|
+  match = text.match(/^#{Regexp.escape(label)}:\s*(.*?)\s*$/)
+  match && match[1].strip
+end
+
+resolved_value = lambda do |value|
+  value && !value.empty? && !/\b(?:UNSELECTED|TODO)\b/i.match?(value)
+end
+
+section = lambda do |text, heading|
+  level = heading[/\A#+/].length
+  pattern = /^#{Regexp.escape(heading)}\s*$\n(.*?)(?=^#{1,#{level}}\s|\z)/m
+  match = text.match(pattern)
+  match && match[1]
+end
+
 errors = []
 
 selected_profiles.each do |profile|
@@ -132,6 +149,76 @@ resource_profile_requirements.each do |directory, required_profile|
   next if selected_profiles.include?(required_profile)
 
   errors << "Retained operational files under #{directory}/ require selected profile '#{required_profile}'."
+end
+
+runtime_profiles = %w[packaged-cli mcp-enabled browser-interface]
+if (selected_profiles & runtime_profiles).any? && File.file?("RUNTIME.md")
+  runtime = File.read("RUNTIME.md")
+  runtime_status = field_value.call(runtime, "Selection status")
+  unless runtime_status == "SELECTED"
+    errors << "Selected application profiles require 'Selection status: SELECTED' in RUNTIME.md."
+  end
+end
+
+interface_profiles = %w[packaged-cli mcp-enabled]
+if (selected_profiles & interface_profiles).any? && File.file?("INTERFACES.md")
+  interfaces = File.read("INTERFACES.md")
+  preferred_interface = field_value.call(interfaces, "Preferred agent interface")
+  unless resolved_value.call(preferred_interface)
+    errors << "Selected CLI or MCP profiles require a concrete 'Preferred agent interface:' in INTERFACES.md."
+  end
+
+  if selected_profiles.include?("packaged-cli")
+    human_cli = section.call(interfaces, "## Human CLI")
+    if human_cli.nil?
+      errors << "Selected profile 'packaged-cli' requires a '## Human CLI' contract in INTERFACES.md."
+    else
+      {
+        "Command" => "canonical command",
+        "Working directory" => "working directory",
+        "Format" => "structured output format",
+        "Contract version field" => "structured output contract version"
+      }.each do |label, description|
+        value = field_value.call(human_cli, label)
+        unless resolved_value.call(value) && !/\bNOT APPLICABLE\b/i.match?(value)
+          errors << "Selected profile 'packaged-cli' requires a concrete #{description} in INTERFACES.md."
+        end
+      end
+    end
+  end
+
+  if selected_profiles.include?("mcp-enabled")
+    mcp_reference = section.call(interfaces, "## MCP protocol reference")
+    if mcp_reference.nil?
+      errors << "Selected profile 'mcp-enabled' requires an MCP protocol reference contract in INTERFACES.md."
+    else
+      ["Public negotiation and fallback behavior", "Public compatibility statement"].each do |label|
+        unless resolved_value.call(field_value.call(mcp_reference, label))
+          errors << "Selected profile 'mcp-enabled' requires a concrete '#{label}:' value in INTERFACES.md."
+        end
+      end
+    end
+
+    support_values = interfaces.scan(/^Supported:\s*(.*?)\s*$/).flatten.map(&:strip)
+    if support_values.empty? || support_values.none? { |value| value == "YES" }
+      errors << "Selected profile 'mcp-enabled' requires at least one MCP interface with 'Supported: YES' in INTERFACES.md."
+    end
+    if support_values.any? { |value| /\bUNSELECTED\b/i.match?(value) }
+      errors << "Selected profile 'mcp-enabled' must resolve every retained MCP 'Supported:' field in INTERFACES.md."
+    end
+  end
+end
+
+if selected_profiles.include?("browser-interface") && File.file?("WEB_INTERFACE.md")
+  web_interface = File.read("WEB_INTERFACE.md")
+  unless field_value.call(web_interface, "Supported") == "YES"
+    errors << "Selected profile 'browser-interface' requires 'Supported: YES' in WEB_INTERFACE.md."
+  end
+  ["Purpose", "Default enablement", "Production policy"].each do |label|
+    unless resolved_value.call(field_value.call(web_interface, label))
+      errors << "Selected profile 'browser-interface' requires a concrete '#{label}:' value in WEB_INTERFACE.md."
+    end
+  end
 end
 
 unless errors.empty?
