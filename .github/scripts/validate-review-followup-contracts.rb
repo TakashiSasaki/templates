@@ -44,6 +44,11 @@ markdown_section = lambda do |document, heading|
   match && match[1]
 end
 
+field_value = lambda do |section, item|
+  match = section&.match(/^#{Regexp.escape(item)}:\s*(.*?)\s*$/)
+  match && strip_backticks.call(match[1])
+end
+
 table_value = lambda do |section, item|
   match = section&.match(/^\|\s*#{Regexp.escape(item)}\s*\|\s*(.*?)\s*\|\s*$/)
   match && strip_backticks.call(match[1])
@@ -200,6 +205,23 @@ else
         unless resolved_value.call(table_value.call(protocol, "Optional MCP extensions"))
           errors << "Selected profile 'mcp-enabled' must resolve 'Optional MCP extensions' to a concrete list or NONE in RUNTIME.md."
         end
+
+        streamable_http = markdown_section.call(runtime, "### Streamable HTTP variant")
+        if table_value.call(streamable_http, "Supported") == "YES"
+          mandatory_http_security_items = [
+            "Authentication",
+            "Host-header validation",
+            "Origin validation granularity",
+            "Allowed origins and absent-Origin policy",
+            "Connection-reuse security tests"
+          ]
+
+          mandatory_http_security_items.each do |item|
+            unless concrete_value.call(table_value.call(streamable_http, item))
+              errors << "Supported Streamable HTTP requires a concrete '#{item}' security decision in RUNTIME.md; absence sentinels are not allowed."
+            end
+          end
+        end
       end
     end
 
@@ -245,6 +267,20 @@ else
 
         if manifest_path && lockfile_path && manifest_path == lockfile_path
           errors << "Selected profile 'packaged-cli' must use distinct retained manifest and lockfile files."
+        end
+
+        if File.file?("INTERFACES.md")
+          commands = markdown_section.call(runtime, "## Commands")
+          runtime_command = table_value.call(commands, "Human CLI")
+
+          interfaces = File.read("INTERFACES.md")
+          human_cli = markdown_section.call(interfaces, "## Human CLI")
+          interface_command = field_value.call(human_cli, "Command")
+
+          if concrete_value.call(runtime_command) && concrete_value.call(interface_command) &&
+             runtime_command != interface_command
+            errors << "The packaged CLI command must match between RUNTIME.md ('#{runtime_command}') and INTERFACES.md ('#{interface_command}')."
+          end
         end
       end
     end
