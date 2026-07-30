@@ -37,6 +37,14 @@ Do not load MCP or Web documentation merely because it exists in the template.
 
 ## Skill resources
 
+Every retained operational resource under `references/`, `assets/`, or `scripts/` must:
+
+- be a regular file contained within the installable skill;
+- be declared by its exact repository-relative path in the corresponding `Reference:`, `Asset:`, or `Script:` entry in `SKILL.md`;
+- have its trigger, purpose, handling, or execution contract documented with that entry.
+
+Do not use symlinks under these directories. Symlinked resources can escape the skill root, become broken after cloning or vendoring, and make validation environment-dependent.
+
 ### Operational references
 
 Keep runtime knowledge under `references/` only when the agent may need it while performing the skill.
@@ -128,7 +136,7 @@ Apply this section only when a Web interface is supported.
 Validation must match the selected profile and risk.
 
 - instruction-only: frontmatter, trigger clarity, workflow completeness, output and safety checks;
-- knowledge or asset profiles: resource existence, correct linkage, provenance/freshness where applicable;
+- knowledge or asset profiles: resource existence, exact linkage, provenance/freshness where applicable;
 - script-assisted: helper contract tests, failure behavior, side effects, permissions, and representative execution;
 - packaged CLI: stable command, structured output, exit codes, compatibility, and installation tests;
 - MCP: protocol, transport, pagination, result preservation, cancellation, security, and compatibility tests;
@@ -144,6 +152,7 @@ Before reporting a change complete:
 2. Update only the optional contracts applicable to the selected profile.
 3. Remove files and directories that no longer serve an operational or maintainer purpose.
 4. Run the validation and tests appropriate to the selected profile.
-5. Confirm that references, assets, and scripts are reachable through explicit instructions rather than accidental discovery.
-6. Confirm that no secrets or environment-specific credentials are committed.
-7. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
+5. Confirm that references, assets, and scripts are declared by exact path and reachable through explicit instructions rather than accidental discovery.
+6. Confirm that operational resource directories contain no symlinks.
+7. Confirm that no secrets or environment-specific credentials are committed.
+8. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
