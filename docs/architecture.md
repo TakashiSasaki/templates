@@ -6,43 +6,43 @@ The repository root is both the development repository and the deployable skill 
 
 ## Layers
 
-```text
-SKILL.md and references
-        |
-        v
-public execution policy
-        |
-        +----------------+----------------------+-------------------+------------------+
-        |                |                      |                   |                  |
-        v                v                      v                   v                  v
-      CLI adapter   optional Web UI/BFF   bundled MCP tool client   native MCP host   service control
-        |                |                      |                   |                  |
-        |                +----------+-----------+                   |                  |
-        |                           |                               |                  |
-        |               +-----------+-----------+                   |                  |
-        |               |                       |                   |                  |
-        |               v                       v                   |                  |
-        |        Web MCP client adapter   non-MCP Web API adapter   |                  |
-        |               |                       |                   |                  |
-        |               +-----------+           |                   |                  |
-        |                           |            |                   |                  |
-        |               +-----------+------------+-------------------+                  |
-        |               |                           |                                  |
-        |               v                           v                                  |
-human browser --> Streamable HTTP adapter     stdio MCP adapter <---------------------+
-   (direct MCP,          |                           |
-    only when selected)  +-------------+-------------+
-                                       |
-        +------------------------------+-------------------+
-        |                                                  |
-        +---------------------> shared MCP registry and <---+
-                               application layer
-                                       |
-                                       v
-                                  domain core
-                                       |
-                                       v
-                       infrastructure/filesystem/network
+```mermaid
+flowchart TB
+    policy["SKILL.md, references,<br/>and public execution policy"]
+    browser["Human browser"]
+    cli["CLI adapter"]
+    web["Optional Web UI / BFF"]
+    bundled["Bundled MCP tool client"]
+    webmcp["Web MCP client adapter"]
+    webapi["Non-MCP Web API adapter"]
+    host["Native MCP host"]
+    service["Service control"]
+    stdio["stdio MCP adapter"]
+    http["Streamable HTTP MCP adapter"]
+    shared["Shared MCP registry<br/>and application layer"]
+    domain["Domain core"]
+    infra["Infrastructure / filesystem / network"]
+
+    policy --> cli
+    policy --> web
+    policy --> bundled
+    browser --> web
+    browser -. "direct MCP only when selected" .-> http
+    web --> webmcp
+    web --> webapi
+    bundled --> stdio
+    bundled --> http
+    webmcp --> stdio
+    webmcp --> http
+    host --> stdio
+    host --> http
+    service --> http
+    cli --> shared
+    webapi --> shared
+    stdio --> shared
+    http --> shared
+    shared --> domain
+    domain --> infra
 ```
 
 The diagram shows permitted dependency directions, not a required deployment topology. `RUNTIME.md` selects whether components share a process, listener, container, Pod or task, service, gateway, or reverse proxy.
