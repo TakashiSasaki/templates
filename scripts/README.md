@@ -1,17 +1,35 @@
-# Scripts and stable launchers
+# Helper scripts and stable launchers
 
 This directory is optional in a concrete skill.
 
-Use it for stable in-place launchers or small deterministic helpers that the skill invokes directly. The selected runtime may instead expose an installed CLI through its normal packaging mechanism.
+Use it for small deterministic helpers, validators, converters, generators, or stable in-place launchers that the skill invokes directly. A helper script is not automatically a packaged public CLI and does not automatically require `INTERFACES.md`.
 
-Rules:
+For every retained script, `SKILL.md` or a directly linked operational reference must document:
 
-- record every public command in `RUNTIME.md` and `INTERFACES.md`;
-- locate the skill root from the launcher location rather than assuming the caller's current directory;
-- delegate to reusable implementation code;
-- do not duplicate domain logic here;
-- do not install runtimes or package managers silently;
-- fail with a clear diagnostic when prerequisites are missing;
-- preserve the delegated command's exit status.
+- when the agent should run it;
+- the exact invocation and working directory;
+- arguments, stdin, files, and environment inputs;
+- stdout or generated-result expectations;
+- stderr and diagnostic behavior;
+- exit-status meanings when nontrivial;
+- files, repositories, services, or external state it may modify;
+- network access and required permissions;
+- whether automatic execution is allowed;
+- whether human confirmation is required;
+- idempotency, retry, timeout, and partial-failure behavior where relevant.
 
-Delete this directory if the concrete skill has no in-place scripts.
+Implementation rules:
+
+- locate the skill root from the script location rather than assuming the caller's current directory;
+- do not install runtimes, package managers, or dependencies silently;
+- fail with an actionable diagnostic when prerequisites are missing;
+- avoid exposing secrets through arguments, output, logs, or committed configuration;
+- preserve delegated exit status when acting as a launcher;
+- keep side effects narrow and explicit;
+- add tests proportional to the script's risk and complexity.
+
+A short one-purpose helper may remain self-contained. Delegate to reusable implementation code when several scripts or public adapters share substantial behavior, not merely to satisfy an architectural pattern.
+
+Use `RUNTIME.md` when runtime, dependency, installation, or command decisions need a maintained authority. Use `INTERFACES.md` only when command compatibility, structured output, or other public-interface guarantees are intentionally maintained.
+
+Delete this directory if the concrete skill has no helper scripts or in-place launchers.
