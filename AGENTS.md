@@ -69,7 +69,7 @@ The CLI and MCP server adapters must call the same application logic. stdio and 
 - exit-code meanings, including non-interactive additional-input behavior;
 - legacy elicitation behavior and modern multi-round-trip behavior when either is supported.
 
-An agent must not be left to choose arbitrarily between equivalent execution paths. In particular, it must know whether to connect to an existing local endpoint, launch stdio through the bundled client, or use the CLI.
+An agent must not be left to choose arbitrarily between equivalent execution paths. It must know whether to connect to an existing local endpoint, launch stdio through the bundled client, or use the CLI.
 
 ## MCP protocol requirements
 
@@ -96,11 +96,15 @@ When Streamable HTTP MCP exists:
 - do not bind to `0.0.0.0` or `::` merely for convenience;
 - define endpoint path, port policy, revision-specific state behavior, concurrency, readiness, cancellation, and shutdown;
 - validate Host headers and protect against DNS rebinding;
-- validate `Origin` and reject a present disallowed origin with HTTP 403;
-- document the handling of requests without `Origin`;
+- validate `Origin` on every HTTP request before dispatch, not once per accepted connection;
+- repeat Origin validation for each request on HTTP keep-alive connections and for each request or stream on multiplexed HTTP connections;
+- return HTTP 403 for every request with a present disallowed Origin;
+- document handling of requests without `Origin`;
 - when supporting `2026-07-28`, implement required request metadata headers, JSON and SSE responses, and `x-mcp-header` processing;
 - require explicit authentication and network-security decisions before non-loopback access;
 - keep HTTP and service-management concerns out of the application/domain layer.
+
+Connection reuse must not reuse an earlier request's Origin decision. Host, Origin, authentication, authorization, and protocol-header validation must be request-scoped.
 
 ## Completion criteria
 
@@ -115,6 +119,7 @@ Before reporting a change complete:
 7. Test every claimed negotiation and fallback path.
 8. Test ordered per-page `tools/list` preservation separately from flattened inventory presentation, including page-specific cursors, cache hints, `_meta`, and unknown fields.
 9. Test lossless call-result preservation, cancellation, additional-input behavior, and any claimed extension.
-10. Test loopback binding and host/origin rejection when the network variant exists.
-11. Confirm generated files and lockfiles correspond only to selected tooling.
-12. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
+10. Test loopback binding, request-scoped Host/Origin validation, and rejection behavior when the network variant exists.
+11. Include a connection-reuse test that sends at least two requests over one keep-alive or multiplexed connection with different Origin values and verifies HTTP 403 for every present disallowed Origin.
+12. Confirm generated files and lockfiles correspond only to selected tooling.
+13. Review the final repository as if it were cloned directly into `.agents/skills/<skill-name>/`.
