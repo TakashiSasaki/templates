@@ -17,3 +17,7 @@ jobs:
       - name: Validate scaffold, helper, and MCP contracts
         shell: bash
         run: ruby .github/scripts/validate-extended-profile-contracts.rb
+
+      - name: Validate concrete profile consistency
+        shell: bash
+        run: ruby .github/scripts/validate-concrete-profile-consistency.rb
