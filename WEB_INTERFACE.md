@@ -13,23 +13,18 @@ Production policy: disabled / restricted / supported: TODO
 
 A debug or verification page should normally be disabled unless explicitly enabled. Do not make the MCP server depend on the page being available.
 
-## Deployment-neutral contract
+## Deployment authority
 
-The template does not require one process, port, container, Pod, or service topology. Record the supported deployment choices and the invariants that remain true across them.
+`RUNTIME.md` is the sole source of truth for process, listener, port, container, Pod or task, service, gateway, reverse-proxy, external-origin, and deployment-selection choices. Do not repeat those selections here.
 
 ```text
-Deployment selection time: build time / installation time / startup time / deployment time: TODO
-Supported topologies:
-- same process and same listener with different paths: YES / NO / TODO
-- same process with a separate listener or port: YES / NO / TODO
-- separate process in the same container: YES / NO / TODO
-- separate container in the same Pod or task: YES / NO / TODO
-- separate service or deployment: YES / NO / TODO
-- reverse proxy or gateway presenting one external origin: YES / NO / TODO
-Selected default, if any: TODO or NONE
+Deployment topology: see RUNTIME.md
+Listener and port model: see RUNTIME.md
+External-origin model: see RUNTIME.md
+Deployment selection time: see RUNTIME.md
 ```
 
-A concrete skill may deliberately leave the final topology to deployment configuration. In that case, document the supported set and test the shared behavior independently of topology.
+This file defines the browser-visible behavior and safety contract that must remain valid under every topology selected in `RUNTIME.md`.
 
 Using the same process or container is acceptable for a debug-only page when it reduces operational complexity. Logical boundaries must remain explicit even when process and deployment boundaries are collapsed.
 
@@ -41,11 +36,10 @@ Web UI path or URL: TODO
 UI backend API path or URL: TODO or NOT APPLICABLE
 MCP endpoint visible to the browser: YES / NO / DEPLOYMENT-SELECTED
 MCP endpoint used by the UI backend: TODO
-Same external origin for UI and MCP: YES / NO / DEPLOYMENT-SELECTED
-Listener and port policy: shared / separate / reverse-proxied / deployment-selected: TODO
+Selected topology and listener model: see RUNTIME.md
 ```
 
-A separate port is not required. One listener may route `/`, `/api/`, and `/mcp` separately, or a reverse proxy may present one external origin while forwarding to different internal processes or containers.
+A separate port is not required. When `RUNTIME.md` selects a shared listener, one listener may route `/`, `/api/`, and `/mcp` separately. A reverse proxy may also present one external origin while forwarding to different internal processes or containers.
 
 Path sharing does not merge security policies. The UI, its backend API, the MCP endpoint, and health endpoints remain separate logical interfaces even when they share a host and port.
 
@@ -110,7 +104,7 @@ Server-supplied tool annotations are hints, not an authorization policy. Use tru
 
 For debug-only deployments:
 
-- bind to loopback by default unless remote access is explicitly designed;
+- bind to loopback by default unless remote access is explicitly designed in `RUNTIME.md`;
 - do not expose the page merely because the MCP service is externally reachable;
 - do not enable mutating or destructive operations by default;
 - do not display secrets, authorization headers, cookies, tokens, or unredacted sensitive results;
@@ -119,11 +113,9 @@ For debug-only deployments:
 ## Lifecycle and failure isolation
 
 ```text
-Start command: TODO or NOT SUPPORTED
-Stop command: TODO or NOT SUPPORTED
-Enablement flag or configuration: TODO
-Web readiness check: TODO
-Web health check: TODO
+Start, stop, and readiness commands: see RUNTIME.md
+Enablement configuration: see RUNTIME.md
+Web health behavior: TODO
 MCP readiness check: see RUNTIME.md
 Failure relationship: independent / shared process with isolated routing / other: TODO
 ```
@@ -155,9 +147,9 @@ It must not duplicate domain behavior or create a second, inconsistent tool regi
 When the Web UI is supported, test the applicable cases:
 
 - disabled-by-default behavior and explicit enablement;
-- each claimed topology or a topology-independent contract test plus deployment-specific smoke tests;
-- shared-listener path isolation and separate-listener behavior where supported;
-- reverse-proxy routing where supported;
+- every deployment topology selected in `RUNTIME.md`, or a topology-independent contract suite plus deployment-specific smoke tests;
+- shared-listener path isolation and separate-listener behavior where selected;
+- reverse-proxy routing where selected;
 - UI authentication and authorization;
 - operation allow, deny, and confirmation policy;
 - secret and sensitive-result redaction;
@@ -170,6 +162,6 @@ When the Web UI is supported, test the applicable cases:
 
 ## Decision rationale
 
-Explain why a human-facing page is or is not supported, why its default enablement is appropriate, which topologies are supported, and which security and lifecycle properties remain invariant across deployments.
+Explain why a human-facing page is or is not supported, why its default enablement is appropriate, how the deployment selections recorded in `RUNTIME.md` support the intended uses, and which security and lifecycle properties remain invariant across those deployments.
 
 TODO
