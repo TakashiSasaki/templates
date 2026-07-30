@@ -1,6 +1,6 @@
 # Runtime decision record
 
-Complete this file before implementing a concrete skill. This is the authoritative index of toolchain, command, MCP SDK, protocol revision, compatibility, and transport choices.
+Complete this file before implementing a concrete skill. This is the authoritative index of toolchain, command, MCP SDK, protocol revision, compatibility, transport, and supported deployment choices.
 
 ## Status
 
@@ -39,11 +39,14 @@ Commands must work from an explicitly documented working directory.
 | Inspect MCP server and tool inventory | TODO or NOT SUPPORTED |
 | Invoke one MCP tool over stdio | TODO or NOT SUPPORTED |
 | Invoke sequential MCP tool calls over stdio | TODO or NOT SUPPORTED |
-| Start local Streamable HTTP MCP server | TODO or NOT SUPPORTED |
-| Stop local Streamable HTTP MCP server | TODO or NOT SUPPORTED |
+| Start Streamable HTTP MCP server | TODO or NOT SUPPORTED |
+| Stop Streamable HTTP MCP server | TODO or NOT SUPPORTED |
 | Invoke one MCP tool over Streamable HTTP | TODO or NOT SUPPORTED |
 | Invoke sequential MCP tool calls over Streamable HTTP | TODO or NOT SUPPORTED |
-| Check local MCP readiness | TODO or NOT SUPPORTED |
+| Check MCP readiness | TODO or NOT SUPPORTED |
+| Start human verification Web UI | TODO or NOT SUPPORTED |
+| Stop human verification Web UI | TODO or NOT SUPPORTED |
+| Check human verification Web UI readiness | TODO or NOT SUPPORTED |
 | Test | TODO |
 | Lint/static analysis | TODO |
 | Format check | TODO |
@@ -75,7 +78,7 @@ Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task 
 
 ## MCP variants
 
-Use standard MCP transport names. Do not describe a raw socket protocol as “TCP MCP” unless the project intentionally implements a non-standard custom transport. A standalone local MCP server should normally use Streamable HTTP over a loopback TCP socket.
+Use standard MCP transport names. Do not describe a raw socket protocol as “TCP MCP” unless the project intentionally implements a non-standard custom transport. A standalone network MCP server should normally use Streamable HTTP.
 
 ### stdio variant
 
@@ -91,15 +94,15 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Cancellation behavior | TODO |
 | Child-process shutdown and escalation | TODO |
 
-### Local Streamable HTTP variant
+### Streamable HTTP variant
 
 | Item | Selected value |
 |---|---|
 | Supported | TODO: YES or NO |
 | Server entry point | TODO or NOT SUPPORTED |
 | Endpoint path | TODO, normally `/mcp` |
-| Default bind address | TODO, normally `127.0.0.1` or `::1` |
-| Port | TODO: fixed, configurable, or dynamically assigned |
+| Default bind address | TODO, normally `127.0.0.1` or `::1` for local-only use |
+| Port | TODO: fixed, configurable, dynamically assigned, shared listener, or deployment-selected |
 | Supported protocol eras | modern / initialization-era / both: TODO |
 | Revision-specific state model | TODO; do not infer from transport alone |
 | Concurrent-client policy | TODO |
@@ -169,6 +172,40 @@ A tools-only client must preserve the complete result object returned by the sel
 
 Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio launcher should be fixed or selected from trusted configuration. Implement workspace restrictions through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
 
+## Optional human verification Web interface
+
+Complete `WEB_INTERFACE.md` when this interface is supported. Do not force a final container or service topology before the concrete deployment requires one.
+
+| Item | Selected value |
+|---|---|
+| Supported | TODO: YES or NO |
+| Purpose | verification / debugging / demonstration / limited operations / other: TODO |
+| Default enablement | disabled / development-only / explicit opt-in / always enabled: TODO |
+| Production policy | disabled / restricted / supported: TODO |
+| Deployment selection | fixed now / selected at installation / selected at startup / selected by deployment: TODO |
+| Supported topologies | same process / same container / sidecar / separate service / reverse-proxied combination: TODO |
+| Shared-listener support | YES / NO / TODO |
+| Separate-listener support | YES / NO / TODO |
+| External routing | same origin / separate origin / deployment-selected: TODO |
+| UI-to-MCP model | backend MCP client / direct browser MCP / non-MCP API / mixed: TODO |
+| MCP client library reuse | TODO |
+| Authentication and authorization | TODO |
+| Allowed operation policy | TODO |
+| Readiness relationship | independent from MCP / shared process with separate checks / other: TODO |
+| Enablement configuration | TODO |
+
+The final process, port, container, Pod, or service layout may remain deployment-selected. The concrete skill must instead document the supported layouts and the invariants that hold across them.
+
+A debug-only Web interface may share the MCP server process or container. Even then:
+
+- the UI and MCP endpoint remain separate logical interfaces;
+- routing, authentication, authorization, health checks, and error handling remain explicit;
+- disabling the UI must avoid loading UI-only assets or debug state on MCP-only startup paths;
+- UI failure must not be treated as proof that MCP is unhealthy, and UI health must not prove MCP invocation works;
+- a page claiming to verify MCP must exercise the actual MCP client, protocol, transport, and server path.
+
+A separate port is optional. One listener may route `/`, `/api/`, and `/mcp`, or a reverse proxy may present one external origin while forwarding to different internal processes or containers.
+
 ## Distribution
 
 | Item | Selected value |
@@ -176,7 +213,8 @@ Do not expose an arbitrary server command, shell command, or user-selected JSON-
 | Skill distribution | Git clone / submodule / release archive / other: TODO |
 | CLI distribution | TODO |
 | MCP distribution | bundled / separate package / not supported: TODO |
-| Local server service integration | none / systemd / launchd / Windows service / container / other: TODO |
+| Human Web interface distribution | same artifact / optional artifact / separate artifact / not supported: TODO |
+| Service integration | none / systemd / launchd / Windows service / container / orchestrator / other: TODO |
 | Version source of truth | TODO |
 
 ## Environment and configuration
@@ -187,23 +225,26 @@ Document required environment variables without placing secrets in this reposito
 |---|---:|---|---:|
 | TODO | TODO | TODO | TODO |
 
-Network-server configuration should normally permit explicit values for bind address, port, endpoint path, authentication material location, and log level. Secret values must not be committed or passed through public process listings when a safer mechanism is available.
+Network-server configuration should normally permit explicit values for bind address, port, endpoint path, authentication material location, log level, and optional Web-interface enablement. Secret values must not be committed or passed through public process listings when a safer mechanism is available.
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, and optional client features fit this skill better than credible alternatives.
+Explain why the selected runtime, package manager, CLI interface, MCP variants, supported revisions, compatibility policy, optional client features, and optional human Web interface fit this skill better than credible alternatives.
 
 Explain separately:
 
 1. why stdio is or is not supported;
-2. why a standalone local Streamable HTTP server is or is not supported;
-3. whether the local server is loopback-only;
+2. why a standalone Streamable HTTP server is or is not supported;
+3. whether the server is loopback-only or accepts requests from other nodes;
 4. how request-scoped Host/Origin and authorization checks are implemented and tested across connection reuse;
 5. whether the bundled client is tools-only or broader in scope;
 6. how protocol revisions are negotiated and tested;
 7. how modern MRTR and initialization-era elicitation are handled;
 8. how cancellation, lossless results, and exit codes are handled;
 9. how paginated raw-page preservation, flattened inventory, and page-level cache hints are handled;
-10. how all adapters share implementation and tests.
+10. whether a human Web interface is supported and why it is enabled or disabled by default;
+11. which Web-interface deployment topologies are supported without forcing one final topology;
+12. how Web and MCP health, security, and failure boundaries remain distinct when they share a process, listener, or container;
+13. how all adapters share implementation and tests.
 
 TODO
