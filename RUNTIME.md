@@ -1,6 +1,8 @@
 # Runtime decision record
 
-Retain and complete this file when the selected profile needs a maintained runtime, command, protocol, service, or deployment authority. It is required for `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service`, and optional for `script-assisted` when the helper runtime needs a separate record.
+Retain and complete this file when the selected profile needs a maintained runtime, command, package, service, or deployment authority. It is required for `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service`, and optional for `script-assisted` when helper-runtime decisions need a separate record.
+
+Caller-visible CLI behavior belongs in `CLI_INTERFACE.md`; caller-visible MCP behavior belongs in `MCP_INTERFACE.md`; browser-visible behavior belongs in `WEB_INTERFACE.md`. This file remains authoritative for implementation runtime, exact commands, package and distribution choices, protocol and transport selections, and deployment lifecycle.
 
 ## Status
 
@@ -8,7 +10,21 @@ Retain and complete this file when the selected profile needs a maintained runti
 Selection status: UNSELECTED
 ```
 
-Change the status to `SELECTED` only after completing the common fields and every section activated by `Selected profiles:`. Unselected profile sections may retain template guidance until the corresponding profile is selected, but concrete selected sections must contain no unresolved `TODO` or `UNSELECTED` values.
+Change the status to `SELECTED` only after completing the common fields and every section activated by `Selected profiles:`. Unselected profile sections may retain template guidance. A selected section must contain no unresolved `TODO` or `UNSELECTED` values.
+
+## Profile applicability
+
+| Section | Activated by |
+|---|---|
+| Primary implementation | every retained runtime record |
+| Shared development commands | every retained runtime record |
+| Packaged CLI commands and distribution | `packaged-cli` |
+| MCP protocol and variants | `mcp-enabled` |
+| Web deployment | `browser-interface` |
+| Headless service deployment | `headless-service` |
+| Environment and rationale | every retained runtime record |
+
+A `script-assisted` skill may retain only the common runtime identity, applicable shared commands, environment, distribution, and rationale. It does not need to resolve packaged CLI, MCP, browser, or service fields.
 
 ## Primary implementation
 
@@ -23,18 +39,38 @@ Change the status to `SELECTED` only after completing the common fields and ever
 | Source layout | TODO |
 | Supported operating systems | TODO |
 
-Examples of valid decisions include Python with pip, Python with uv, Node.js with npm, Node.js with pnpm, or bun as the runtime and package manager. These are examples, not defaults. Use an explicit value such as `NONE` or `NOT APPLICABLE` when a field genuinely does not apply.
+Select one implementation ecosystem actually used by the skill. Use an explicit value such as `NONE` or `NOT APPLICABLE` only when absence is semantically valid; do not add competing manifests or lockfiles for unused runtimes.
 
 ## Commands
 
-Commands must work from an explicitly documented working directory.
+Every command must state or imply an exact working directory. Rows activated by an unselected profile may remain `NOT APPLICABLE` or `NOT SUPPORTED`; rows activated by a selected profile must be concrete.
+
+### Shared development commands
 
 | Purpose | Exact command |
 |---|---|
 | Install development dependencies | TODO |
 | Run in place | TODO |
-| Human CLI | TODO |
-| Agent launcher | TODO |
+| Agent launcher | TODO or NOT APPLICABLE |
+| Test | TODO |
+| Lint/static analysis | TODO |
+| Format check | TODO |
+| Build/package | TODO or NOT APPLICABLE |
+
+### Packaged CLI commands
+
+Complete only when `packaged-cli` is selected. The canonical command must agree with `CLI_INTERFACE.md`.
+
+| Purpose | Exact command |
+|---|---|
+| Human CLI | TODO or NOT APPLICABLE |
+
+### MCP commands
+
+Complete only when `mcp-enabled` is selected. Public behavior and compatibility remain in `MCP_INTERFACE.md`.
+
+| Purpose | Exact command |
+|---|---|
 | Start stdio MCP server | TODO or NOT SUPPORTED |
 | Inspect MCP server and tool inventory | TODO or NOT SUPPORTED |
 | Invoke one MCP tool over stdio | TODO or NOT SUPPORTED |
@@ -44,25 +80,26 @@ Commands must work from an explicitly documented working directory.
 | Invoke one MCP tool over Streamable HTTP | TODO or NOT SUPPORTED |
 | Invoke sequential MCP tool calls over Streamable HTTP | TODO or NOT SUPPORTED |
 | Check MCP readiness | TODO or NOT SUPPORTED |
+
+### Browser-interface commands
+
+| Purpose | Exact command |
+|---|---|
 | Start human verification Web UI | TODO or NOT SUPPORTED |
 | Stop human verification Web UI | TODO or NOT SUPPORTED |
 | Check human verification Web UI readiness | TODO or NOT SUPPORTED |
+
+### Headless-service commands
+
+| Purpose | Exact command |
+|---|---|
 | Start headless service | TODO or NOT SUPPORTED |
 | Stop headless service | TODO or NOT SUPPORTED |
 | Check headless service readiness | TODO or NOT SUPPORTED |
-| Test | TODO |
-| Lint/static analysis | TODO |
-| Format check | TODO |
-| Build/package | TODO or NOT APPLICABLE |
 
 ## MCP protocol support
 
-Complete this section when `mcp-enabled` is selected. The template does not force a protocol revision. Verify the current official MCP specification and selected SDK before completing this section.
-
-At the time this template was aligned:
-
-- `2026-07-28` is the current modern revision with stateless, self-contained requests, per-request metadata, and `server/discover`;
-- `2025-11-25` and earlier revisions use the `initialize` / `notifications/initialized` lifecycle.
+Complete this section only when `mcp-enabled` is selected. Verify the current official MCP specification and selected SDK before completing it. `MCP_INTERFACE.md` defines caller-visible negotiation, fallback, result, interaction, and compatibility behavior without duplicating these exact selections.
 
 | Item | Selected value |
 |---|---|
@@ -77,11 +114,11 @@ At the time this template was aligned:
 | Deprecated feature policy | TODO |
 | Negotiation and compatibility tests | TODO |
 
-Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task behavior differ between revisions. Prefer an SDK-supported negotiation path over handwritten probing. Tests must cover every revision and fallback path the concrete skill claims.
+Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task behavior differ between revisions. Prefer an SDK-supported negotiation path over handwritten probing. Tests must cover every revision and fallback the concrete skill claims.
 
 ## MCP variants
 
-Use standard MCP transport names. Do not describe a raw socket protocol as “TCP MCP” unless the project intentionally implements a non-standard custom transport. A standalone network MCP server should normally use Streamable HTTP.
+Use standard MCP transport names. Do not describe a raw socket protocol as “TCP MCP” unless the project intentionally implements a non-standard custom transport.
 
 ### stdio variant
 
@@ -96,6 +133,8 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Startup cost policy | TODO |
 | Cancellation behavior | TODO |
 | Child-process shutdown and escalation | TODO |
+
+When supported, stdout is protocol-only, diagnostics use stderr, the launcher is trusted and bounded, and shutdown escalation is deterministic.
 
 ### Streamable HTTP variant
 
@@ -119,7 +158,7 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Shutdown/restart policy | TODO |
 | Non-loopback support | TODO: NO or documented security design |
 
-Host, Origin, authentication, authorization, size-limit, and protocol-header decisions are request-scoped. A valid first request must not authorize later requests on the same HTTP/1.1 keep-alive, HTTP/2, or later multiplexed connection. Every present disallowed Origin must produce HTTP 403 for that request.
+Host, Origin, authentication, authorization, size-limit, and protocol-header decisions are request-scoped. A valid first request must not authorize later requests on the same keep-alive or multiplexed connection. Every present disallowed Origin must produce HTTP 403 for that request.
 
 When `2026-07-28` is supported, also complete:
 
@@ -165,19 +204,13 @@ Complete this section only when the skill bundles a command that discovers or in
 | Timeout and cancellation policy | TODO |
 | Task or extension support | TODO or NOT SUPPORTED |
 | Roots/workspace policy | TODO: distinguish MCP roots from skill-specific workspace configuration |
-| Exit-code mapping | TODO; keep consistent with `INTERFACES.md` |
+| Exit-code mapping | TODO; keep consistent with `MCP_INTERFACE.md` and `CLI_INTERFACE.md` when both apply |
 
-The client command-line syntax is local to this skill. MCP standardizes protocol behavior, not names such as `tools show`, `tools run`, `--arguments-file`, or `--output`.
-
-For paginated `tools/list`, lossless output must retain an ordered record for every page. Each record includes the request cursor used for that page as local metadata and the complete raw result exactly as received, preserving page-specific `tools`, `nextCursor`, `resultType`, `ttlMs`, `cacheScope`, `_meta`, and unknown extensions. A flattened inventory may concatenate tools, but it is a derived presentation and must not overwrite page-level metadata. Single-page results use the same representation with one page record.
-
-A tools-only client must preserve the complete result object returned by the selected SDK or parser, including `resultType`, `content`, `structuredContent`, `isError`, `_meta`, and unknown extensions. An absent legacy `resultType` may be interpreted as effective type `complete`, but a lossless mode must not fabricate the field.
-
-Do not expose an arbitrary server command, shell command, or user-selected JSON-RPC request ID merely for convenience. The bundled stdio launcher should be fixed or selected from trusted configuration. Implement workspace restrictions through documented MCP capabilities, server configuration, resource URIs, or explicit tool arguments rather than an invented universal MCP `--workspace` option.
+The bundled launcher must not expose arbitrary shell commands or caller-selected JSON-RPC request IDs. Preserve every raw `tools/list` page and complete tool-call result in lossless modes; flattened views are derived presentations.
 
 ## Optional human verification Web interface deployment
 
-Complete this section when `browser-interface` is selected. This section is the sole source of truth for its process, listener, port, container, service, gateway, external-origin, and deployment-selection capabilities. `WEB_INTERFACE.md` defines browser-visible behavior and must reference these selections rather than repeat them.
+Complete this section when `browser-interface` is selected. This section is the sole source of truth for process, listener, port, container, service, gateway, external-origin, and deployment-selection capabilities. `WEB_INTERFACE.md` defines browser-visible behavior.
 
 | Item | Selected value |
 |---|---|
@@ -192,21 +225,11 @@ Complete this section when `browser-interface` is selected. This section is the 
 | Browser-visible MCP exposure capability | direct / backend-only / deployment-selected / not supported: TODO |
 | Enablement configuration | TODO |
 
-The final process, port, container, Pod, task, service, gateway, or reverse-proxy layout may remain deployment-selected. Document the supported set and the invariants that hold across it. Public purpose, UI interaction model, authentication, authorization, operation policy, redaction, and failure behavior belong in `WEB_INTERFACE.md`.
-
-A debug-only Web interface may share the MCP server process or container. Even then:
-
-- the UI and MCP endpoint remain separate logical interfaces;
-- routing, authentication, authorization, health checks, and error handling remain explicit;
-- disabling the UI must avoid loading UI-only assets or debug state on MCP-only startup paths;
-- UI failure must not be treated as proof that MCP is unhealthy, and UI health must not prove MCP invocation works;
-- a page claiming to verify MCP must exercise the actual MCP client, protocol, transport, and server path.
-
-A separate port is optional. One listener may route `/`, `/api/`, and `/mcp`, or a reverse proxy may present one external origin while forwarding to different internal processes or containers.
+The final deployment topology may remain deployment-selected, but routing, authentication, authorization, health checks, and failure boundaries remain explicit. Disabling a debug UI must avoid loading UI-only assets or state on non-UI startup paths.
 
 ## Headless service deployment
 
-Complete this section when `headless-service` is selected. This section applies to an independently reachable non-browser service, whether or not it also exposes MCP.
+Complete this section when `headless-service` is selected. It applies to an independently reachable non-browser service, whether or not that service also exposes MCP.
 
 | Item | Selected value |
 |---|---|
@@ -229,14 +252,16 @@ Complete this section when `headless-service` is selected. This section applies 
 | Deployment topology | same process / same container / sidecar / separate service / orchestrated deployment / other: TODO |
 | Security and deployment smoke tests | TODO |
 
-A selected headless service must define how another node reaches it, which identities may invoke it, how readiness differs from liveness, how in-flight requests terminate during shutdown, and which deployment-specific tests establish those guarantees. Browser-facing behavior does not belong in this section.
+Define how another node reaches the service, which identities may invoke it, how readiness differs from liveness, how in-flight requests terminate during shutdown, and which tests establish those guarantees.
 
 ## Distribution
+
+Resolve the common rows for every retained runtime record and the profile-specific rows activated by `Selected profiles:`.
 
 | Item | Selected value |
 |---|---|
 | Skill distribution | Git clone / submodule / release archive / other: TODO |
-| CLI distribution | TODO |
+| CLI distribution | TODO or NOT APPLICABLE |
 | MCP distribution | bundled / separate package / not supported: TODO |
 | Human Web interface distribution | same artifact / optional artifact / separate artifact / not supported: TODO |
 | Service integration | none / systemd / launchd / Windows service / container / orchestrator / other: TODO |
@@ -250,27 +275,10 @@ Document required environment variables without placing secrets in this reposito
 |---|---:|---|---:|
 | TODO | TODO | TODO | TODO |
 
-Network-server configuration should normally permit explicit values for bind address, port, endpoint path, authentication material location, log level, and optional Web-interface enablement. Secret values must not be committed or passed through public process listings when a safer mechanism is available.
+Network-server configuration should normally permit explicit bind address, port, endpoint path, authentication material location, log level, and optional Web-interface enablement. Secret values must not be committed or passed through public process listings when a safer mechanism exists.
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, public interfaces, service variants, supported revisions, compatibility policy, and deployment choices fit this skill better than credible alternatives.
-
-Explain the applicable decisions, including:
-
-1. why stdio MCP is or is not supported;
-2. why a standalone Streamable HTTP server is or is not supported;
-3. whether any server is loopback-only or accepts requests from other nodes;
-4. how request-scoped Host/Origin and authorization checks are implemented and tested across connection reuse;
-5. whether a bundled MCP client is tools-only or broader in scope;
-6. how protocol revisions are negotiated and tested;
-7. how modern MRTR and initialization-era elicitation are handled;
-8. how cancellation, lossless results, and exit codes are handled;
-9. how paginated raw-page preservation, flattened inventory, and page-level cache hints are handled;
-10. whether a human Web interface is supported and why it is enabled or disabled by default;
-11. which Web-interface deployment topologies are supported without forcing one final topology;
-12. how Web and MCP health, security, and failure boundaries remain distinct when they share a process, listener, or container;
-13. how a headless service authenticates and authorizes callers, exposes readiness and liveness, and performs graceful shutdown;
-14. how all adapters share implementation and tests.
+Explain why the selected runtime, package manager, commands, public-interface support, protocol revisions, transport variants, distribution, and deployment choices fit this skill better than credible alternatives. Address only activated profiles, but include how adapters share implementation and tests when several interfaces expose the same operations.
 
 TODO
