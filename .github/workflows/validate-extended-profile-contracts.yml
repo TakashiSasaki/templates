@@ -14,6 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test shared profile contract model
+        shell: bash
+        run: ruby .github/scripts/test-profile-contract-model.rb
+
       - name: Test decomposed interface contract validation
         shell: bash
         run: ruby .github/scripts/test-decomposed-interface-compat.rb

@@ -1,51 +1,19 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require_relative "lib/profile_contracts"
+
 SKILL_PATH = "SKILL.md"
 CLI_PATH = "CLI_INTERFACE.md"
 
-unless File.file?(SKILL_PATH)
-  warn "Missing universally required file: #{SKILL_PATH}"
+begin
+  selection = ProfileContracts::ProfileSelection.load(SKILL_PATH)
+rescue ProfileContracts::ParseError => error
+  warn error.message
   exit 1
 end
 
-strip_backticks = lambda do |value|
-  normalized = value.to_s.strip
-  if normalized.length >= 2 && normalized.start_with?("`") && normalized.end_with?("`")
-    normalized[1...-1]
-  else
-    normalized
-  end
-end
-
-markdown_section = lambda do |document, heading|
-  level = heading[/\A#+/].length
-  boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
-  match = document.match(
-    Regexp.new("^#{Regexp.escape(heading)}\\s*$\\n(.*?)(?=#{boundary})", Regexp::MULTILINE)
-  )
-  match && match[1]
-end
-
-field_value = lambda do |section, label|
-  match = section&.match(/^#{Regexp.escape(label)}:\s*(.*?)\s*$/)
-  match && strip_backticks.call(match[1])
-end
-
-profile_values = File.readlines(SKILL_PATH, chomp: true).filter_map do |raw_line|
-  normalized = raw_line.strip
-  normalized = normalized[2..].strip if normalized.start_with?("- ")
-  match = normalized.match(/\ASelected profiles:\s*(.+?)\s*\z/)
-  strip_backticks.call(match[1]) if match
-end
-
-if profile_values.length != 1
-  warn "#{SKILL_PATH} must contain exactly one 'Selected profiles:' declaration."
-  exit 1
-end
-
-selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
-if selected_profiles == ["template-scaffold"] || !selected_profiles.include?("packaged-cli")
+if selection.template_scaffold? || !selection.selected?("packaged-cli")
   puts "CLI structured-output contract is not activated."
   exit 0
 end
@@ -55,15 +23,16 @@ errors = []
 unless File.file?(CLI_PATH)
   errors << "Selected profile 'packaged-cli' requires contract file: #{CLI_PATH}"
 else
-  cli = File.read(CLI_PATH)
-  structured = markdown_section.call(cli, "### Structured output")
+  cli = ProfileContracts::MarkdownDocument.read(CLI_PATH)
+  structured = cli.section("### Structured output")
 
   if structured.nil? || structured.strip.empty?
     errors << "#{CLI_PATH} requires a non-empty '### Structured output' section."
   else
-    mode_selector = field_value.call(structured, "Mode selector")
-    format = field_value.call(structured, "Format")
-    version_field = field_value.call(structured, "Contract version field")
+    structured_document = ProfileContracts::MarkdownDocument.new(structured, path: CLI_PATH)
+    mode_selector = structured_document.field("Mode selector")
+    format = structured_document.field("Format")
+    version_field = structured_document.field("Contract version field")
 
     unresolved_selector = /\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)\z/i
     unresolved_selector_payload = /(?:\A|[:=]|\s)(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)(?=\z|[\s.,;])/i

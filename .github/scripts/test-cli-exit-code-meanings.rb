@@ -60,6 +60,56 @@ cases.each do |name, zero_meaning, nonzero_meaning, expected_success|
   end
 end
 
+[
+  [
+    "rejects duplicate code with an escaped pipe meaning",
+    <<~MARKDOWN
+      # Packaged CLI interface contract
+
+      ## Human CLI
+
+      ### Exit codes
+
+      | Code | Meaning |
+      |---:|---|
+      | 0 | Successful execution |
+      | 1 | Validation failure |
+      | 1 | Validation \\| runtime failure |
+    MARKDOWN
+  ],
+  [
+    "rejects an unexpected third table cell",
+    <<~MARKDOWN
+      # Packaged CLI interface contract
+
+      ## Human CLI
+
+      ### Exit codes
+
+      | Code | Meaning |
+      |---:|---|
+      | 0 | Successful execution |
+      | 1 | Invalid invocation |
+      | bogus | Invalid | extra |
+    MARKDOWN
+  ]
+].each do |name, contract|
+  Dir.mktmpdir("cli-exit-code-table-shape-test") do |directory|
+    File.write(File.join(directory, "SKILL.md"), "Selected profiles: packaged-cli\n")
+    File.write(File.join(directory, "CLI_INTERFACE.md"), contract)
+
+    _stdout, stderr, status = Open3.capture3(
+      { "RUBYOPT" => nil },
+      RbConfig.ruby,
+      validator,
+      chdir: directory
+    )
+    if status.success?
+      failures << "#{name}: expected failure; diagnostics=#{stderr.strip.inspect}"
+    end
+  end
+end
+
 unless failures.empty?
   failures.each { |failure| warn failure }
   exit 1
