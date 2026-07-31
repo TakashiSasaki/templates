@@ -30,6 +30,10 @@ concrete_value = lambda do |value|
   resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
 end
 
+fully_concrete_value = lambda do |value|
+  resolved_value.call(value) && !/\b(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\b/i.match?(value)
+end
+
 runtime_reference = lambda do |value|
   /\Asee\s+RUNTIME\.md\z/i.match?(value.to_s.strip)
 end
@@ -80,6 +84,35 @@ if selected_profiles == ["template-scaffold"]
 end
 
 errors = []
+public_profiles = selected_profiles & %w[packaged-cli mcp-enabled]
+
+unless public_profiles.empty?
+  route_summaries = summary_values.call(skill_lines, "Preferred agent route")
+  if route_summaries.length != 1
+    errors << "Selected public-interface profiles require exactly one 'Preferred agent route:' summary in #{SKILL_PATH}."
+  elsif !fully_concrete_value.call(route_summaries.first)
+    errors << "#{SKILL_PATH} requires a concrete 'Preferred agent route:' summary."
+  elsif route_summaries.first != "see INTERFACES.md"
+    errors << "Preferred agent route must be 'see INTERFACES.md' for selected public-interface profiles."
+  end
+
+  contract_summaries = summary_values.call(skill_lines, "Detailed interface contract")
+  expected_contracts = []
+  expected_contracts << CLI_PATH if selected_profiles.include?("packaged-cli")
+  expected_contracts << MCP_PATH if selected_profiles.include?("mcp-enabled")
+
+  if contract_summaries.length != 1
+    errors << "Selected public-interface profiles require exactly one 'Detailed interface contract:' summary in #{SKILL_PATH}."
+  elsif !fully_concrete_value.call(contract_summaries.first)
+    errors << "#{SKILL_PATH} requires a concrete 'Detailed interface contract:' summary."
+  else
+    selected_contracts = contract_summaries.first.scan(/(?:CLI|MCP)_INTERFACE\.md/).uniq
+    unless selected_contracts.sort == expected_contracts.sort
+      errors << "Detailed interface contract must reference exactly the selected caller contracts: " \
+                "expected #{expected_contracts.join(' and ')}, got #{contract_summaries.first.inspect}."
+    end
+  end
+end
 
 if selected_profiles.include?("packaged-cli")
   unless File.file?(CLI_PATH)
