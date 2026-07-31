@@ -16,7 +16,9 @@ jobs:
 
       - name: Test documentation publication catalog validation
         shell: bash
-        run: ruby .github/scripts/test-publication-catalog.rb
+        run: |
+          ruby .github/scripts/test-publication-catalog.rb
+          ruby .github/scripts/test-publication-schema-version.rb
 
       - name: Validate documentation publication catalog
         shell: bash
