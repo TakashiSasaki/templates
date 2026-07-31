@@ -59,12 +59,17 @@ module PublicationCatalog
       raise ValidationError, "Publication catalog must not be a symlink: #{path}"
     end
 
-    JSON.parse(path.read(encoding: "UTF-8"))
+    content = path.binread.force_encoding(Encoding::UTF_8)
+    unless content.valid_encoding?
+      raise ValidationError, "Invalid publication catalog JSON #{path}: content is not valid UTF-8"
+    end
+
+    JSON.parse(content)
   rescue Errno::ENOENT
     raise ValidationError, "Publication catalog does not exist: #{path}"
   rescue Errno::EACCES => e
     raise ValidationError, "Unable to read publication catalog #{path}: #{e.message}"
-  rescue JSON::ParserError, Encoding::InvalidByteSequenceError => e
+  rescue JSON::ParserError => e
     raise ValidationError, "Invalid publication catalog JSON #{path}: #{e.message}"
   end
 
