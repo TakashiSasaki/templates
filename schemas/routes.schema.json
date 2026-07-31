@@ -28,18 +28,18 @@
         ],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "path": {"type": "string", "pattern": "^/(?:[^/]+(?:/[^/]+)*)?$"},
+          "path": {"type": "string", "pattern": "^/(?:[^/?#]+(?:/[^/?#]+)*)?$"},
           "surface": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "canonical": {"type": "boolean"},
+          "canonical": {"const": true},
           "aliases": {
             "type": "array",
             "uniqueItems": true,
-            "items": {"type": "string", "pattern": "^/(?:[^/]+(?:/[^/]+)*)?$"}
+            "items": {"type": "string", "pattern": "^/(?:[^/?#]+(?:/[^/?#]+)*)?$"}
           },
           "authentication": {"enum": ["none", "optional", "required"]},
           "deepLink": {"type": "boolean"},
           "historyBehavior": {"enum": ["push", "replace", "external"]},
-          "authenticationReturn": {"enum": ["same-route", "fixed-route", "not-applicable"]},
+          "authenticationReturn": {"enum": ["same-route", "not-applicable"]},
           "states": {
             "type": "array",
             "minItems": 1,
