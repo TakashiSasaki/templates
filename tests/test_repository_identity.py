@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 MIGRATION = ROOT / "docs/migration-from-agent-policy.md"
+MKDOCS = ROOT / "mkdocs.yml"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 SOURCE_HEAD = "22ac788d456bf0d9904e1d23492b01296de167a1"
 
@@ -25,6 +26,15 @@ def test_migration_provenance_records_filtered_source_history() -> None:
     assert SOURCE_HEAD in migration
     assert "`.github/workflows` was removed from every imported revision" in migration
     assert "imported commit SHAs are not expected to equal the original SHAs" in migration
+
+
+def test_documentation_metadata_points_to_templates_policy() -> None:
+    configuration = MKDOCS.read_text(encoding="utf-8")
+
+    assert "repo_url: https://github.com/TakashiSasaki/templates" in configuration
+    assert "repo_name: TakashiSasaki/templates" in configuration
+    assert "edit_uri: edit/policy/docs/" in configuration
+    assert "edit/main/docs/" not in configuration
 
 
 def test_policy_ci_is_branch_portable_and_does_not_target_legacy_main() -> None:
