@@ -19,12 +19,34 @@ strip_backticks = lambda do |value|
   end
 end
 
+unresolved_scalar = lambda do |value|
+  normalized = strip_backticks.call(value).gsub(/\s+/, " ").strip
+  marker = /\A(?:TBD|FIXME|PLACEHOLDER)\.?\z/i
+  phrase = /\A(?:(?:details?|behavior|contract|implementation|documentation)\s+(?:forthcoming|pending|to\s+follow)|to\s+be\s+(?:added|decided|determined|defined|documented|specified)|will\s+be\s+(?:added|defined|documented|specified)(?:\s+later)?)\.?\z/i
+  marker.match?(normalized) || phrase.match?(normalized)
+end
+
 resolved_value = lambda do |value|
-  value && !value.strip.empty? && !/\b(?:TODO|UNSELECTED)\b/i.match?(value)
+  value && !value.strip.empty? &&
+    !/\b(?:TODO|UNSELECTED)\b/i.match?(value) &&
+    !unresolved_scalar.call(value)
 end
 
 concrete_value = lambda do |value|
   resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
+end
+
+success_meaning = lambda do |value|
+  next false unless concrete_value.call(value)
+
+  normalized = strip_backticks.call(value).gsub(/\s+/, " ").strip
+  success_token = /\b(?:success|successful|successfully|succeeded)\b/i
+  negated_success = /\b(?:not|non[-\s]?)\s*(?:success|successful)\b/i
+  failure_token = /\b(?:failure|failed|error|invalid|negative|refusal|refused|denied)\b/i
+
+  success_token.match?(normalized) &&
+    !negated_success.match?(normalized) &&
+    !failure_token.match?(normalized)
 end
 
 markdown_section = lambda do |document, heading|
@@ -112,6 +134,12 @@ else
         unless concrete_value.call(meaning)
           errors << "#{CLI_PATH} exit code #{code} requires a concrete caller-visible meaning."
         end
+      end
+
+      zero_meaning = rows.find { |code, _meaning| code.zero? }&.last
+      if zero_meaning && !success_meaning.call(zero_meaning)
+        errors << "#{CLI_PATH} exit code 0 must explicitly denote success and must not describe a failure, " \
+                  "error, invalid input, refusal, or negative outcome."
       end
     end
   end
