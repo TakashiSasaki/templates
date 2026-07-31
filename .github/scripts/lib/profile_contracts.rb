@@ -252,7 +252,7 @@ module ProfileContracts
     attr_reader :path, :profiles
 
     def self.load(path = "SKILL.md", document: nil)
-      document ||= SkillDocument.read(path)
+      document ||= MarkdownDocument.read(path)
       declarations = document.summary_values("Selected profiles")
       unless declarations.length == 1
         raise ParseError, "#{path} must contain exactly one 'Selected profiles:' declaration."
