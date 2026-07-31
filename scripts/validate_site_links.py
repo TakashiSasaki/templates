@@ -36,15 +36,35 @@ class PageParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.ids: set[str] = set()
-        self.links: list[LinkReference] = []
+        self._all_links: list[LinkReference] = []
+        self._main_links: list[LinkReference] = []
+        self._main_depth = 0
+        self._saw_main = False
+
+    @property
+    def links(self) -> list[LinkReference]:
+        return self._main_links if self._saw_main else self._all_links
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() == "main":
+            self._saw_main = True
+            self._main_depth += 1
         self._handle_tag(tag, attrs)
 
     def handle_startendtag(
         self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
+        is_main = tag.lower() == "main"
+        if is_main:
+            self._saw_main = True
+            self._main_depth += 1
         self._handle_tag(tag, attrs)
+        if is_main:
+            self._main_depth -= 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "main" and self._main_depth > 0:
+            self._main_depth -= 1
 
     def _handle_tag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {name.lower(): value for name, value in attrs}
@@ -60,7 +80,10 @@ class PageParser(HTMLParser):
         if href is None:
             return
         line, column = self.getpos()
-        self.links.append(LinkReference(href=href, line=line, column=column))
+        reference = LinkReference(href=href, line=line, column=column)
+        self._all_links.append(reference)
+        if self._main_depth > 0:
+            self._main_links.append(reference)
 
 
 def parse_args() -> argparse.Namespace:
