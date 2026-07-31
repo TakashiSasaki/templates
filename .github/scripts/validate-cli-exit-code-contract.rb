@@ -3,6 +3,7 @@
 
 SKILL_PATH = "SKILL.md"
 CLI_PATH = "CLI_INTERFACE.md"
+PORTABLE_EXIT_CODE_RANGE = (0..255)
 
 unless File.file?(SKILL_PATH)
   warn "Missing universally required file: SKILL.md"
@@ -60,13 +61,35 @@ else
   if section.nil? || section.strip.empty?
     errors << "#{CLI_PATH} requires a non-empty '### Exit codes' section."
   else
-    rows = section.scan(/^\|\s*(-?\d+)\s*\|\s*(.*?)\s*\|\s*$/).map do |code, meaning|
-      [Integer(code, 10), strip_backticks.call(meaning)]
+    table_rows = section.lines.filter_map do |line|
+      match = line.match(/^\|\s*([^|]+?)\s*\|\s*(.*?)\s*\|\s*$/)
+      next unless match
+
+      code_text = strip_backticks.call(match[1])
+      meaning = strip_backticks.call(match[2])
+      next if code_text.casecmp?("Code") || /\A:?-+:?\z/.match?(code_text)
+
+      [code_text, meaning]
     end
 
-    if rows.empty?
-      errors << "#{CLI_PATH} requires an integer exit-code mapping table."
+    if table_rows.empty?
+      errors << "#{CLI_PATH} requires an exit-code mapping table."
     else
+      rows = table_rows.filter_map do |code_text, meaning|
+        unless /\A\d+\z/.match?(code_text)
+          errors << "#{CLI_PATH} exit code #{code_text.inspect} must be an integer in 0..255."
+          next
+        end
+
+        code = Integer(code_text, 10)
+        unless PORTABLE_EXIT_CODE_RANGE.cover?(code)
+          errors << "#{CLI_PATH} exit code #{code} is outside the portable process-status range 0..255."
+          next
+        end
+
+        [code, meaning]
+      end
+
       codes = rows.map(&:first)
       duplicates = codes.tally.select { |_code, count| count > 1 }.keys
       unless duplicates.empty?
