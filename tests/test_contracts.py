@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import copy
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 
@@ -16,8 +19,11 @@ import validate_contracts  # noqa: E402
 class ContractValidationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.documents = validate_contracts.load_contract_documents(ROOT)
-        route_schema = validate_contracts.load_json(ROOT / "schemas/routes.schema.json")
-        self.route_validator = Draft202012Validator(route_schema)
+        self.validators = {
+            name: Draft202012Validator(validate_contracts.load_json(ROOT / schema_path))
+            for name, (_, schema_path) in validate_contracts.CONTRACT_SCHEMAS.items()
+        }
+        self.route_validator = self.validators["routes"]
 
     def route_document_is_valid(self, route: dict[str, object]) -> bool:
         document = {
@@ -27,8 +33,51 @@ class ContractValidationTests(unittest.TestCase):
         }
         return self.route_validator.is_valid(document)
 
+    @staticmethod
+    def set_nested(document: Any, path: tuple[str | int, ...], value: Any) -> None:
+        target = document
+        for part in path[:-1]:
+            target = target[part]
+        target[path[-1]] = value
+
     def test_repository_contracts_are_valid(self) -> None:
         self.assertEqual([], validate_contracts.validate_repository(ROOT))
+
+    def test_duplicate_json_object_keys_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", temporary_root / "contracts")
+            shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
+            duplicate_contract = (
+                '{"$schema":"../schemas/routes.schema.json",'
+                '"schemaVersion":1,"schemaVersion":1,"routes":[]}'
+            )
+            (temporary_root / "contracts/routes.json").write_text(
+                duplicate_contract,
+                encoding="utf-8",
+            )
+            errors = validate_contracts.validate_repository(temporary_root)
+        self.assertTrue(any("duplicate object key 'schemaVersion'" in error for error in errors))
+
+    def test_identifier_fields_reject_terminal_newlines(self) -> None:
+        cases = (
+            ("surfaces", ("surfaces", 0, "id"), "public\n"),
+            ("surfaces", ("surfaces", 0, "audiences", 0), "anonymous\n"),
+            ("surfaces", ("surfaces", 1, "authorization", "roles", 0), "application-user\n"),
+            ("surfaces", ("surfaces", 0, "dataClassifications", 0), "public\n"),
+            ("surfaces", ("surfaces", 0, "startupDependencies"), ["application\n"]),
+            ("routes", ("routes", 0, "id"), "home\n"),
+            ("routes", ("routes", 0, "surface"), "public\n"),
+            ("routes", ("routes", 0, "states", 0), "loading\n"),
+            ("ui_states", ("states", 0, "id"), "loading\n"),
+            ("ui_states", ("states", 1, "recoveryActions", 0), "create\n"),
+            ("viewports", ("viewports", 0, "id"), "compact\n"),
+        )
+        for contract_name, path, invalid_value in cases:
+            with self.subTest(contract=contract_name, path=path):
+                document = copy.deepcopy(self.documents[contract_name])
+                self.set_nested(document, path, invalid_value)
+                self.assertFalse(self.validators[contract_name].is_valid(document))
 
     def test_unknown_route_surface_is_rejected(self) -> None:
         documents = copy.deepcopy(self.documents)
@@ -43,6 +92,16 @@ class ContractValidationTests(unittest.TestCase):
         surfaces[1]["startupDependencies"] = [surfaces[0]["id"]]
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("dependency cycle" in error for error in errors))
+
+    def test_public_authorization_must_not_require_authentication(self) -> None:
+        documents = copy.deepcopy(self.documents)
+        surface = documents["surfaces"]["surfaces"][0]
+        route = documents["routes"]["routes"][0]
+        surface["authentication"] = "required"
+        route["authentication"] = "required"
+        route["authenticationReturn"] = "same-route"
+        errors = validate_contracts.cross_validate(documents)
+        self.assertTrue(any("public authorization must not require authentication" in error for error in errors))
 
     def test_principal_authorization_requires_required_authentication(self) -> None:
         for mode, roles in (("authenticated", []), ("role", ["application-user"])):
