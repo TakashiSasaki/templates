@@ -100,17 +100,15 @@ unless public_profiles.empty?
   expected_contracts = []
   expected_contracts << CLI_PATH if selected_profiles.include?("packaged-cli")
   expected_contracts << MCP_PATH if selected_profiles.include?("mcp-enabled")
+  expected_contract_summary = expected_contracts.join(" and ")
 
   if contract_summaries.length != 1
     errors << "Selected public-interface profiles require exactly one 'Detailed interface contract:' summary in #{SKILL_PATH}."
   elsif !fully_concrete_value.call(contract_summaries.first)
     errors << "#{SKILL_PATH} requires a concrete 'Detailed interface contract:' summary."
-  else
-    selected_contracts = contract_summaries.first.scan(/(?:CLI|MCP)_INTERFACE\.md/).uniq
-    unless selected_contracts.sort == expected_contracts.sort
-      errors << "Detailed interface contract must reference exactly the selected caller contracts: " \
-                "expected #{expected_contracts.join(' and ')}, got #{contract_summaries.first.inspect}."
-    end
+  elsif contract_summaries.first != expected_contract_summary
+    errors << "Detailed interface contract must reference exactly the selected caller contracts: " \
+              "expected #{expected_contract_summary.inspect}, got #{contract_summaries.first.inspect}."
   end
 end
 
