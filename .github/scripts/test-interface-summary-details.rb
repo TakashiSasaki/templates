@@ -107,6 +107,26 @@ cases = [
     success: false
   },
   {
+    name: "rejects an extra detailed caller contract path",
+    skill: skill_text.call(
+      "packaged-cli",
+      working_directory: "repository root",
+      contracts: "CLI_INTERFACE.md and WRONG_INTERFACE.md"
+    ),
+    files: { "CLI_INTERFACE.md" => valid_cli },
+    success: false
+  },
+  {
+    name: "rejects alternate text around the expected detailed caller contract",
+    skill: skill_text.call(
+      "packaged-cli",
+      working_directory: "repository root",
+      contracts: "See CLI_INTERFACE.md for details"
+    ),
+    files: { "CLI_INTERFACE.md" => valid_cli },
+    success: false
+  },
+  {
     name: "rejects a detailed caller contract with a sentinel",
     skill: skill_text.call("packaged-cli", working_directory: "repository root", contracts: "CLI_INTERFACE.md / NOT APPLICABLE"),
     files: { "CLI_INTERFACE.md" => valid_cli },
