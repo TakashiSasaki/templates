@@ -1,0 +1,150 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+SKILL_PATH = "SKILL.md"
+CLI_PATH = "CLI_INTERFACE.md"
+PORTABLE_EXIT_CODE_RANGE = (0..255)
+
+unless File.file?(SKILL_PATH)
+  warn "Missing universally required file: SKILL.md"
+  exit 1
+end
+
+strip_backticks = lambda do |value|
+  normalized = value.to_s.strip
+  if normalized.length >= 2 && normalized.start_with?("`") && normalized.end_with?("`")
+    normalized[1...-1]
+  else
+    normalized
+  end
+end
+
+unresolved_scalar = lambda do |value|
+  normalized = strip_backticks.call(value).gsub(/\s+/, " ").strip
+  marker = /\A(?:TBD|FIXME|PLACEHOLDER)\.?\z/i
+  phrase = /\A(?:(?:details?|behavior|contract|implementation|documentation)\s+(?:forthcoming|pending|to\s+follow)|to\s+be\s+(?:added|decided|determined|defined|documented|specified)|will\s+be\s+(?:added|defined|documented|specified)(?:\s+later)?)\.?\z/i
+  marker.match?(normalized) || phrase.match?(normalized)
+end
+
+resolved_value = lambda do |value|
+  value && !value.strip.empty? &&
+    !/\b(?:TODO|UNSELECTED)\b/i.match?(value) &&
+    !unresolved_scalar.call(value)
+end
+
+concrete_value = lambda do |value|
+  resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
+end
+
+success_meaning = lambda do |value|
+  next false unless concrete_value.call(value)
+
+  normalized = strip_backticks.call(value).gsub(/\s+/, " ").strip
+  negated_success = /\b(?:not|non[-\s]?)\s*(?:success|successful)\b/i
+  non_success_outcome = /\b(?:failure|failed|error|invalid|negative|refusal|refused|denied|unsuccessful|timeout|timed\s+out|cancel(?:led|ed)?|aborted|interrupted)\b/i
+
+  !negated_success.match?(normalized) && !non_success_outcome.match?(normalized)
+end
+
+markdown_section = lambda do |document, heading|
+  level = heading[/\A#+/].length
+  boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
+  match = document.match(
+    Regexp.new("^#{Regexp.escape(heading)}\\s*$\\n(.*?)(?=#{boundary})", Regexp::MULTILINE)
+  )
+  match && match[1]
+end
+
+profile_values = File.readlines(SKILL_PATH, chomp: true).filter_map do |raw_line|
+  normalized = raw_line.strip
+  normalized = normalized[2..].strip if normalized.start_with?("- ")
+  match = normalized.match(/\ASelected profiles:\s*(.+?)\s*\z/)
+  strip_backticks.call(match[1]) if match
+end
+
+if profile_values.length != 1
+  warn "SKILL.md must contain exactly one 'Selected profiles:' declaration."
+  exit 1
+end
+
+selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
+if selected_profiles == ["template-scaffold"] || !selected_profiles.include?("packaged-cli")
+  puts "CLI exit-code contract is not activated."
+  exit 0
+end
+
+errors = []
+
+unless File.file?(CLI_PATH)
+  errors << "Selected profile 'packaged-cli' requires contract file: #{CLI_PATH}"
+else
+  cli = File.read(CLI_PATH)
+  section = markdown_section.call(cli, "### Exit codes")
+
+  if section.nil? || section.strip.empty?
+    errors << "#{CLI_PATH} requires a non-empty '### Exit codes' section."
+  else
+    table_rows = section.lines.filter_map do |line|
+      match = line.match(/^\|\s*([^|]+?)\s*\|\s*(.*?)\s*\|\s*$/)
+      next unless match
+
+      code_text = strip_backticks.call(match[1])
+      meaning = strip_backticks.call(match[2])
+      next if code_text.casecmp?("Code") || /\A:?-+:?\z/.match?(code_text)
+
+      [code_text, meaning]
+    end
+
+    if table_rows.empty?
+      errors << "#{CLI_PATH} requires an exit-code mapping table."
+    else
+      rows = table_rows.filter_map do |code_text, meaning|
+        unless /\A\d+\z/.match?(code_text)
+          errors << "#{CLI_PATH} exit code #{code_text.inspect} must be an integer in 0..255."
+          next
+        end
+
+        code = Integer(code_text, 10)
+        unless PORTABLE_EXIT_CODE_RANGE.cover?(code)
+          errors << "#{CLI_PATH} exit code #{code} is outside the portable process-status range 0..255."
+          next
+        end
+
+        [code, meaning]
+      end
+
+      codes = rows.map(&:first)
+      duplicates = codes.tally.select { |_code, count| count > 1 }.keys
+      unless duplicates.empty?
+        errors << "#{CLI_PATH} exit codes must be unique; duplicated: #{duplicates.sort.join(', ')}."
+      end
+
+      unless codes.include?(0)
+        errors << "#{CLI_PATH} exit-code mapping must include code 0 for successful execution."
+      end
+
+      unless codes.any? { |code| code != 0 }
+        errors << "#{CLI_PATH} exit-code mapping must include at least one nonzero outcome or failure code."
+      end
+
+      rows.each do |code, meaning|
+        unless concrete_value.call(meaning)
+          errors << "#{CLI_PATH} exit code #{code} requires a concrete caller-visible meaning."
+        end
+      end
+
+      zero_meaning = rows.find { |code, _meaning| code.zero? }&.last
+      if zero_meaning && !success_meaning.call(zero_meaning)
+        errors << "#{CLI_PATH} exit code 0 must denote normal completion and must not describe a failure, " \
+                  "error, invalid input, refusal, negative outcome, timeout, cancellation, or interruption."
+      end
+    end
+  end
+end
+
+unless errors.empty?
+  errors.uniq.each { |error| warn error }
+  exit 1
+end
+
+puts "CLI exit-code contract is valid."

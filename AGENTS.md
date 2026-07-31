@@ -14,9 +14,9 @@ Do not add an additional enclosing `skill/` directory.
 
 Treat `SKILL.md` as the operational center of the repository. A concrete skill may be complete with `SKILL.md` alone. Do not require a programming runtime, CLI, MCP server, Web interface, or application-layer architecture unless the workflow needs it.
 
-Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it before adding any operational resource or interface implementation.
+Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it before adding operational resources, implementation, runtime manifests, or interface contracts.
 
-Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill.
+Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill. Use `docs/profile-contract-map.md` to identify the source of truth for each decision.
 
 ## Progressive maintainer reading
 
@@ -29,11 +29,11 @@ Read additional material only when applicable:
 
 - knowledge or procedure changes: the affected files under `references/`;
 - asset changes: the affected files under `assets/` and their usage instructions in `SKILL.md`;
-- helper-script changes: the affected scripts, their execution contracts in `SKILL.md`, and `RUNTIME.md` when a runtime record exists;
-- packaged CLI changes: `RUNTIME.md` and `INTERFACES.md`;
-- MCP changes: `RUNTIME.md`, `INTERFACES.md`, `docs/mcp-transports.md`, and `mcp/README.md`;
+- helper-script changes: the affected scripts, their execution contracts in `SKILL.md`, and `RUNTIME.md` only when a separate runtime record exists;
+- packaged CLI changes: `RUNTIME.md`, `INTERFACES.md`, and `CLI_INTERFACE.md`;
+- MCP changes: `RUNTIME.md`, `INTERFACES.md`, `MCP_INTERFACE.md`, `docs/mcp-transports.md`, and `mcp/README.md`;
 - browser-interface changes: `RUNTIME.md`, `WEB_INTERFACE.md`, and applicable architecture/deployment documentation;
-- headless-service changes: completed `RUNTIME.md` plus applicable security, health, lifecycle, and deployment configuration;
+- headless-service changes: completed `RUNTIME.md` plus applicable API, security, health, lifecycle, and deployment configuration;
 - repository-wide architecture or packaging changes: the applicable files under `docs/`.
 
 Do not load MCP or browser-interface documentation merely because it exists in the template.
@@ -71,7 +71,7 @@ Use `assets/` for static resources consumed or emitted by the workflow.
 Use `scripts/` for small deterministic helpers or stable in-place launchers.
 
 - A helper script is not automatically a public CLI.
-- `SKILL.md` must contain the exact `Script:` declaration and the bounded execution trigger for every retained script.
+- `SKILL.md` must contain the exact `Script:` declaration and bounded execution trigger for every retained script.
 - A directly linked operational reference may add invocation or failure detail but does not replace the declaration in `SKILL.md`.
 - Resolve the skill root from the script location when possible; do not assume the caller's current directory.
 - Do not install runtimes or package managers silently.
@@ -86,18 +86,20 @@ This template is language-neutral.
 - Select a runtime only when scripts or maintained application code require one.
 - Do not add manifests or lockfiles for unused runtimes.
 - `RUNTIME.md` is required and must be completed when `packaged-cli`, `mcp-enabled`, `browser-interface`, or `headless-service` is selected.
-- When `RUNTIME.md` is retained, it is the source of truth for runtime, dependency, command, transport, service lifecycle, and deployment selections that apply to the chosen profile.
+- `RUNTIME.md` is authoritative for runtime identity, dependencies, exact commands, packaging, distribution, exact MCP selections, service lifecycle, and deployment topology.
+- Caller-visible CLI behavior belongs in `CLI_INTERFACE.md`; caller-visible MCP behavior belongs in `MCP_INTERFACE.md`; browser-visible behavior belongs in `WEB_INTERFACE.md`.
 - Supporting a second runtime requires a documented reason and proportionate equivalence tests.
 
 ## Public interfaces
 
 Direct helper invocation may be documented entirely in `SKILL.md`.
 
-Selecting `packaged-cli` requires both `RUNTIME.md` and `INTERFACES.md`. Retain and complete `INTERFACES.md` whenever the skill maintains a packaged CLI or MCP contract, including command compatibility, structured output, exit codes, negotiation, or fallback behavior.
+- `INTERFACES.md` records the preferred agent interface and deterministic fallback order when `packaged-cli` or `mcp-enabled` is selected.
+- `CLI_INTERFACE.md` is required only for `packaged-cli` and records the canonical command, working directory, structured output, diagnostics, exit codes, side effects, compatibility, and versioning.
+- `MCP_INTERFACE.md` is required only for `mcp-enabled` and records caller-visible negotiation, transport behavior, pagination, lossless results, interaction, cancellation, compatibility, and test invariants.
+- `WEB_INTERFACE.md` is retained only for a browser-facing interface. A headless network service does not retain that browser-only contract unless it also exposes a browser surface.
 
-Retain and complete `WEB_INTERFACE.md` only when a browser-facing interface is supported. A headless network service requires completed `RUNTIME.md` but does not retain the browser-only contract unless it also exposes a browser surface.
-
-Do not describe a local helper command as a public CLI or protocol method unless that compatibility contract is intentional.
+Do not duplicate a profile-specific public contract in `INTERFACES.md`. Do not describe a local helper command as a public CLI or protocol method unless that compatibility contract is intentional.
 
 ## Optional application architecture
 
@@ -118,7 +120,8 @@ These rules do not require a small one-purpose helper script to be decomposed in
 Apply this section only when MCP is supported.
 
 - Verify the current official specification and selected SDK before implementation.
-- Record exact revisions, compatibility, schema, transport, and command decisions in `RUNTIME.md`.
+- Record exact revisions, SDK, schema dialects, entry points, bind, command, and distribution selections in `RUNTIME.md`.
+- Record caller-visible negotiation, fallback, pagination, result preservation, interaction, cancellation, and compatibility in `MCP_INTERFACE.md`.
 - Reserve stdout for stdio protocol traffic and send diagnostics to stderr.
 - Use Streamable HTTP rather than describing a normal HTTP server as raw TCP MCP.
 - Keep Host, Origin, authentication, authorization, size-limit, and protocol-header decisions request-scoped.
@@ -150,6 +153,14 @@ Validation must match the selected profile and risk.
 - headless-service: endpoint, authentication, authorization, health, lifecycle, shutdown, exposure, and deployment smoke tests.
 
 Do not require service-grade tests from an instruction-only skill, and do not under-test executable or networked profiles.
+
+During the Phase 2 document transition, run:
+
+```sh
+ruby .github/scripts/validate-profile-contracts.rb
+```
+
+The compatibility adapter assembles split interface files only in memory for legacy validators. Do not reintroduce duplicated committed contracts to satisfy those parsers.
 
 ## Completion criteria
 

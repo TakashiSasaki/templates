@@ -2,9 +2,9 @@
 
 This directory is optional in a concrete skill.
 
-Use it for small deterministic helpers, validators, converters, generators, or stable in-place launchers that the skill invokes directly. A helper script is not automatically a packaged public CLI and does not automatically require `INTERFACES.md`.
+Use it for small deterministic helpers, validators, converters, generators, or stable in-place launchers that the skill invokes directly. A helper script is not automatically a packaged public CLI and does not automatically require `INTERFACES.md` or `CLI_INTERFACE.md`.
 
-Every retained script must have an exact `Script: scripts/...` declaration in `SKILL.md`. That declaration must state when the agent may run the script and the basic execution contract. A directly linked operational reference may provide supplemental detail, but it must not replace the declaration in `SKILL.md`.
+Every retained script must have an exact `Script: scripts/...` declaration in `SKILL.md`. That declaration must state when the agent may run the script and the bounded execution contract. A directly linked operational reference may provide supplemental detail, but it must not replace the declaration in `SKILL.md`.
 
 For every retained script, document:
 
@@ -32,6 +32,6 @@ Implementation rules:
 
 A short one-purpose helper may remain self-contained. Delegate to reusable implementation code when several scripts or public adapters share substantial behavior, not merely to satisfy an architectural pattern.
 
-Use `RUNTIME.md` when runtime, dependency, installation, or command decisions need a maintained authority. Use `INTERFACES.md` only when command compatibility, structured output, or other public-interface guarantees are intentionally maintained.
+Use `RUNTIME.md` when runtime, dependency, installation, distribution, or shared command decisions need a maintained authority. Select `packaged-cli` and retain `INTERFACES.md` plus `CLI_INTERFACE.md` only when command compatibility, structured output, stable exit codes, or other caller-visible guarantees are intentionally maintained.
 
 Delete this directory if the concrete skill has no helper scripts or in-place launchers.

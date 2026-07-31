@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 
+require_relative "decomposed-interface-compat"
+
 # Normalize the documented MCP support annotation before loading the core
-# validator. INTERFACES.md may record authority text after the leading support
-# token, for example `Supported: YES; see RUNTIME.md`. The public support value
-# remains the leading YES, NO, or UNSELECTED token.
+# validator. MCP_INTERFACE.md may record authority text after the leading
+# support token. The public support value remains the leading YES, NO, or
+# UNSELECTED token.
 class << File
   alias_method :read_without_mcp_support_normalization, :read
 
