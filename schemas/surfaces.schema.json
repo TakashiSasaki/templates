@@ -47,7 +47,7 @@
             "additionalProperties": false,
             "required": ["mode", "roles"],
             "properties": {
-              "mode": {"enum": ["public", "authenticated", "role", "policy"]},
+              "mode": {"enum": ["public", "authenticated", "role"]},
               "roles": {
                 "type": "array",
                 "uniqueItems": true,
