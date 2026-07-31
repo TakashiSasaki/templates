@@ -13,6 +13,20 @@ validators = [
   File.expand_path("validate-interface-runtime-consistency.rb", __dir__)
 ].freeze
 
+pages_workflow_path = File.expand_path("../workflows/pages.yml", __dir__)
+unless File.file?(pages_workflow_path)
+  warn "Missing documentation publishing workflow: #{pages_workflow_path}"
+  exit 1
+end
+
+pages_workflow = File.read(pages_workflow_path)
+%w[CLI_INTERFACE.md MCP_INTERFACE.md].each do |path|
+  unless /^\s*-\s+#{Regexp.escape(path)}\s*$/.match?(pages_workflow)
+    warn "Publish template documentation must trigger when #{path} changes."
+    exit 1
+  end
+end
+
 valid_cli_router = <<~MARKDOWN
   # Public interface selection contract
 
@@ -158,16 +172,16 @@ valid_mcp = <<~MARKDOWN
 
   ## Streamable HTTP MCP server variant
 
-  Supported: NO
-  Start command: NOT SUPPORTED
-  Stop command or shutdown method: NOT SUPPORTED
-  Endpoint URL: NOT SUPPORTED
-  Bind address: NOT SUPPORTED
-  Port selection: NOT SUPPORTED
-  Supported protocol eras: NOT SUPPORTED
-  Revision-specific state model: NOT SUPPORTED
-  Authentication: NOT SUPPORTED
-  Health/readiness check: NOT SUPPORTED
+  Supported: YES
+  Start command: skill-tool mcp http
+  Stop command or shutdown method: skill-tool mcp stop
+  Endpoint URL: http://127.0.0.1:3000/mcp
+  Bind address: 127.0.0.1
+  Port selection: 3000
+  Supported protocol eras: modern
+  Revision-specific state model: request-scoped
+  Authentication: bearer token
+  Health/readiness check: skill-tool mcp ready
 
   ## Bundled ad hoc MCP tool client
 
@@ -214,11 +228,11 @@ valid_mcp = <<~MARKDOWN
 
   ## Semantic-equivalence and test requirements
 
-  The stdio adapter uses the shared operation registry and contract fixtures.
+  Both MCP transports use the shared operation registry and contract fixtures.
 
   ## Decision rationale
 
-  Rationale: stdio provides bounded local MCP access without a listening socket.
+  Rationale: stdio and loopback HTTP provide bounded MCP access for local hosts and existing clients.
 MARKDOWN
 
 valid_cli_runtime = <<~MARKDOWN
@@ -249,9 +263,9 @@ valid_mcp_runtime = <<~MARKDOWN
   | Purpose | Exact command |
   |---|---|
   | Start stdio MCP server | skill-tool mcp stdio |
-  | Start Streamable HTTP MCP server | NOT SUPPORTED |
-  | Stop Streamable HTTP MCP server | NOT SUPPORTED |
-  | Check MCP readiness | NOT SUPPORTED |
+  | Start Streamable HTTP MCP server | skill-tool mcp http |
+  | Stop Streamable HTTP MCP server | skill-tool mcp stop |
+  | Check MCP readiness | skill-tool mcp ready |
 
   ## MCP variants
 
@@ -261,13 +275,19 @@ valid_mcp_runtime = <<~MARKDOWN
   |---|---|
   | Supported | YES |
   | Server entry point | lib/mcp/server.rb |
+  | Lifecycle owner | MCP host |
 
   ### Streamable HTTP variant
 
   | Item | Selected value |
   |---|---|
-  | Supported | NO |
-  | Server entry point | NOT SUPPORTED |
+  | Supported | YES |
+  | Server entry point | lib/mcp/http_server.rb |
+  | Default bind address | 127.0.0.1 |
+  | Port | 3000 |
+  | Supported protocol eras | modern |
+  | Revision-specific state model | request-scoped |
+  | Authentication | bearer token |
 
   ### Bundled ad hoc MCP tool client
 
@@ -275,6 +295,7 @@ valid_mcp_runtime = <<~MARKDOWN
   |---|---|
   | Supported | NO |
   | Stable public command | NOT SUPPORTED |
+  | Supported transports | NOT SUPPORTED |
 MARKDOWN
 
 cli_files = {
@@ -314,6 +335,22 @@ cases = [
     success: false
   },
   {
+    name: "rejects a negative CLI exit code",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub("| 2 | Invalid invocation or internal failure |", "| -1 | Invalid invocation or internal failure |")
+    ),
+    success: false
+  },
+  {
+    name: "rejects a CLI exit code above 255",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub("| 2 | Invalid invocation or internal failure |", "| 256 | Invalid invocation or internal failure |")
+    ),
+    success: false
+  },
+  {
     name: "rejects a missing CLI exit-code section",
     profile: "packaged-cli",
     files: cli_files.merge(
@@ -341,9 +378,30 @@ cases = [
     success: false
   },
   {
-    name: "accepts completed MCP caller-visible behavior sections",
+    name: "rejects a stale SKILL.md canonical command",
+    profile: "packaged-cli",
+    canonical_command: "other-tool",
+    files: cli_files,
+    success: false
+  },
+  {
+    name: "accepts completed MCP caller-visible and runtime selections",
     profile: "mcp-enabled",
     files: mcp_files,
+    success: true
+  },
+  {
+    name: "accepts explicit references to runtime-owned MCP selections",
+    profile: "mcp-enabled",
+    files: mcp_files.merge(
+      "MCP_INTERFACE.md" => valid_mcp
+        .sub("Lifecycle owner: MCP host", "Lifecycle owner: see RUNTIME.md")
+        .sub("Bind address: 127.0.0.1", "Bind address: see RUNTIME.md")
+        .sub("Port selection: 3000", "Port selection: see RUNTIME.md")
+        .sub("Supported protocol eras: modern", "Supported protocol eras: see RUNTIME.md")
+        .sub("Revision-specific state model: request-scoped", "Revision-specific state model: see RUNTIME.md")
+        .sub("Authentication: bearer token", "Authentication: see RUNTIME.md")
+    ),
     success: true
   },
   {
@@ -354,6 +412,22 @@ cases = [
         "| Start stdio MCP server | skill-tool mcp stdio |",
         "| Start stdio MCP server | other-tool mcp stdio |"
       )
+    ),
+    success: false
+  },
+  {
+    name: "rejects a stdio lifecycle-owner mismatch with runtime",
+    profile: "mcp-enabled",
+    files: mcp_files.merge(
+      "RUNTIME.md" => valid_mcp_runtime.sub("| Lifecycle owner | MCP host |", "| Lifecycle owner | bundled tool client |")
+    ),
+    success: false
+  },
+  {
+    name: "rejects an HTTP bind-address mismatch with runtime",
+    profile: "mcp-enabled",
+    files: mcp_files.merge(
+      "RUNTIME.md" => valid_mcp_runtime.sub("| Default bind address | 127.0.0.1 |", "| Default bind address | 0.0.0.0 |")
     ),
     success: false
   }
@@ -383,9 +457,13 @@ failures = []
 
 cases.each do |test_case|
   Dir.mktmpdir("decomposed-contract-test") do |directory|
+    canonical_command = test_case.fetch(
+      :canonical_command,
+      test_case.fetch(:profile) == "packaged-cli" ? "skill-tool" : "NOT APPLICABLE"
+    )
     File.write(
       File.join(directory, "SKILL.md"),
-      "Selected profiles: #{test_case.fetch(:profile)}\n"
+      "Selected profiles: #{test_case.fetch(:profile)}\nCanonical command: #{canonical_command}\n"
     )
 
     test_case.fetch(:files).each do |path, content|
@@ -418,4 +496,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Decomposed interface, routing, exit-code, and runtime consistency tests passed."
+puts "Decomposed interface, routing, exit-code, runtime consistency, and publishing tests passed."
