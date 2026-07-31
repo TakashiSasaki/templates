@@ -64,8 +64,19 @@ def read_json_object(path: Path, description: str) -> dict[str, Any]:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise AssemblyError(f"{description} must be valid UTF-8: {path}") from exc
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise AssemblyError(
+                    f"{description} contains duplicate object member: {key}"
+                )
+            result[key] = value
+        return result
+
     try:
-        data = json.loads(text)
+        data = json.loads(text, object_pairs_hook=unique_object)
     except json.JSONDecodeError as exc:
         raise AssemblyError(f"Unable to parse {description} {path}: {exc}") from exc
     if not isinstance(data, dict):
