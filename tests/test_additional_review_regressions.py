@@ -73,6 +73,39 @@ class AdditionalReviewRegressionTests(unittest.TestCase):
         document["constraints"]["orientationIndependent"] = False
         self.assertFalse(self.validators["viewports"].is_valid(document))
 
+    def test_viewport_contract_requires_keyboard_capability(self) -> None:
+        document = copy.deepcopy(self.documents["viewports"])
+        self.assertIn("keyboard", document["inputCapabilities"])
+        self.assertTrue(self.validators["viewports"].is_valid(document))
+
+        document["inputCapabilities"] = ["touch"]
+        self.assertFalse(self.validators["viewports"].is_valid(document))
+
+    def test_deep_surface_dependency_chain_uses_iterative_traversal(self) -> None:
+        documents = copy.deepcopy(self.documents)
+        template = documents["surfaces"]["surfaces"][0]
+        surface_count = 1500
+        surfaces = []
+
+        for index in range(surface_count):
+            surface = copy.deepcopy(template)
+            surface["id"] = f"surface-{index}"
+            surface["title"] = f"Surface {index}"
+            surface["purpose"] = f"Dependency-chain surface {index}"
+            surface["startupDependencies"] = (
+                [] if index == 0 else [f"surface-{index - 1}"]
+            )
+            surfaces.append(surface)
+
+        documents["surfaces"]["surfaces"] = surfaces
+        documents["routes"]["routes"] = []
+        errors = validate_contracts.cross_validate(documents)
+        self.assertFalse(any("dependency cycle" in error for error in errors))
+
+        surfaces[0]["startupDependencies"] = [f"surface-{surface_count - 1}"]
+        errors = validate_contracts.cross_validate(documents)
+        self.assertTrue(any("dependency cycle" in error for error in errors))
+
     def test_invalid_utf8_is_reported_for_contracts_and_schemas(self) -> None:
         cases = (
             ("contracts/routes.json", "contracts/routes.json"),
