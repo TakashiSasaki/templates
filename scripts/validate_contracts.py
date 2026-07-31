@@ -24,6 +24,10 @@ class DuplicateKeyError(ValueError):
     """Raised when a JSON object contains the same member name more than once."""
 
 
+class NonStandardJsonConstantError(ValueError):
+    """Raised when JSON text contains NaN or an infinity constant."""
+
+
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -33,9 +37,17 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _reject_nonstandard_constant(value: str) -> Any:
+    raise NonStandardJsonConstantError(f"non-standard JSON numeric constant {value!r}")
+
+
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle, object_pairs_hook=_reject_duplicate_keys)
+        return json.load(
+            handle,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_nonstandard_constant,
+        )
 
 
 def load_contract_documents(root: Path) -> dict[str, Any]:
@@ -186,18 +198,19 @@ def validate_repository(root: Path) -> list[str]:
     errors: list[str] = []
     documents: dict[str, Any] = {}
     all_documents_structurally_valid = True
+    load_errors = (OSError, json.JSONDecodeError, DuplicateKeyError, NonStandardJsonConstantError)
 
     for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
         try:
             document = load_json(root / contract_path)
-        except (OSError, json.JSONDecodeError, DuplicateKeyError) as exc:
+        except load_errors as exc:
             errors.append(f"{contract_path}: unable to load JSON: {exc}")
             all_documents_structurally_valid = False
             continue
 
         try:
             schema = load_json(root / schema_path)
-        except (OSError, json.JSONDecodeError, DuplicateKeyError) as exc:
+        except load_errors as exc:
             errors.append(f"{schema_path}: unable to load JSON: {exc}")
             all_documents_structurally_valid = False
             continue
