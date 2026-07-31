@@ -3,7 +3,7 @@
   "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/viewports.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "viewports", "inputCapabilities", "constraints"],
+  "required": ["$schema", "schemaVersion", "viewports", "inputCapabilities", "constraints"],
   "$defs": {
     "identifier": {
       "type": "string",
@@ -14,7 +14,7 @@
     }
   },
   "properties": {
-    "$schema": {"type": "string"},
+    "$schema": {"const": "../schemas/viewports.schema.json"},
     "schemaVersion": {"const": 1},
     "viewports": {
       "type": "array",
