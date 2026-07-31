@@ -75,6 +75,19 @@
                 "authenticationReturn": {"const": "same-route"}
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "authentication": {"const": "none"}
+              },
+              "required": ["authentication"]
+            },
+            "then": {
+              "properties": {
+                "authenticationReturn": {"const": "not-applicable"}
+              }
+            }
           }
         ]
       }
