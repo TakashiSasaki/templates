@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import json
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,16 @@ def _duplicate_values(values: list[str]) -> set[str]:
     return duplicates
 
 
+def _has_visible_character(value: str) -> bool:
+    """Return whether text contains a visible base character.
+
+    Unicode control, format, surrogate, private-use, unassigned, combining-mark,
+    and separator categories do not independently provide visible content.
+    """
+
+    return any(unicodedata.category(character)[0] not in {"C", "M", "Z"} for character in value)
+
+
 def _surface_dependency_cycles(surfaces: list[dict[str, Any]]) -> list[list[str]]:
     graph = {surface["id"]: surface["startupDependencies"] for surface in surfaces}
     visiting: list[str] = []
@@ -129,6 +140,11 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
 
     for surface in surfaces:
         surface_id = surface["id"]
+        for field_name in ("title", "purpose"):
+            if not _has_visible_character(surface[field_name]):
+                errors.append(
+                    f"surface {surface_id}: {field_name} must contain at least one visible character"
+                )
         authorization = surface["authorization"]
         authorization_mode = authorization["mode"]
         authentication = surface["authentication"]
@@ -142,6 +158,10 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(
                 f"surface {surface_id}: {authorization_mode} authorization requires authentication required"
             )
+        if authentication == "required" and "anonymous" in surface["audiences"]:
+            errors.append(
+                f"surface {surface_id}: required authentication must not include anonymous audience"
+            )
         for dependency in surface["startupDependencies"]:
             if dependency not in known_surfaces:
                 errors.append(f"surface {surface_id}: unknown startup dependency {dependency}")
@@ -151,6 +171,14 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     for cycle in _surface_dependency_cycles(surfaces):
         errors.append(f"surface startup dependency cycle: {' -> '.join(cycle)}")
 
+    for state in states:
+        state_id = state["id"]
+        for field_name in ("description", "focusStrategy"):
+            if not _has_visible_character(state[field_name]):
+                errors.append(
+                    f"UI state {state_id}: {field_name} must contain at least one visible character"
+                )
+
     route_paths: list[str] = []
     aliases: list[str] = []
     surfaces_by_id = {surface["id"]: surface for surface in surfaces}
@@ -158,6 +186,8 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         route_id = route["id"]
         route_paths.append(route["path"])
         aliases.extend(route["aliases"])
+        if not _has_visible_character(route["accessibility"]["focusTarget"]):
+            errors.append(f"route {route_id}: focusTarget must contain at least one visible character")
         if route["surface"] not in known_surfaces:
             errors.append(f"route {route_id}: unknown surface {route['surface']}")
         else:
@@ -179,6 +209,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         errors.append(f"duplicate route alias: {duplicate}")
     for collision in sorted(set(route_paths) & set(aliases)):
         errors.append(f"route path is both canonical and alias: {collision}")
+
+    for viewport in viewports:
+        if not _has_visible_character(viewport["description"]):
+            errors.append(
+                f"viewport {viewport['id']}: description must contain at least one visible character"
+            )
 
     if viewports:
         first_minimum = viewports[0]["minWidthPx"]
