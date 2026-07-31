@@ -63,7 +63,7 @@ A concrete skill may use another envelope, but must document field stability, fo
 | 5 | Protocol, transport, or unexpected internal failure |
 | 6 | Operation incomplete because additional input is required in non-interactive mode |
 
-A concrete skill may revise this mapping, but documentation, tests, and every adapter exposing the same operation must remain consistent.
+A concrete skill may revise this mapping, but every documented code must be an integer from `0` through `255` so that its meaning survives portable process-status reporting. Documentation, tests, and every adapter exposing the same operation must remain consistent.
 
 ## In-place agent launcher
 
