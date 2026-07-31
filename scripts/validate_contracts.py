@@ -103,10 +103,16 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     for surface in surfaces:
         surface_id = surface["id"]
         authorization = surface["authorization"]
-        if authorization["mode"] == "role" and not authorization["roles"]:
+        authorization_mode = authorization["mode"]
+        authentication = surface["authentication"]
+        if authorization_mode == "role" and not authorization["roles"]:
             errors.append(f"surface {surface_id}: role authorization requires at least one role")
-        if authorization["mode"] == "public" and authorization["roles"]:
-            errors.append(f"surface {surface_id}: public authorization must not declare roles")
+        if authorization_mode in {"public", "authenticated"} and authorization["roles"]:
+            errors.append(f"surface {surface_id}: {authorization_mode} authorization must not declare roles")
+        if authorization_mode in {"authenticated", "role"} and authentication != "required":
+            errors.append(
+                f"surface {surface_id}: {authorization_mode} authorization requires authentication required"
+            )
         for dependency in surface["startupDependencies"]:
             if dependency not in known_surfaces:
                 errors.append(f"surface {surface_id}: unknown startup dependency {dependency}")
