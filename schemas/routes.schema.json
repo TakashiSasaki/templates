@@ -28,13 +28,19 @@
         ],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "path": {"type": "string", "pattern": "^/(?:[^/?#]+(?:/[^/?#]+)*)?$"},
+          "path": {
+            "type": "string",
+            "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[^/?#\\\\]+(?:/(?!\\.{1,2}(?:/|$))[^/?#\\\\]+)*)?$"
+          },
           "surface": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
           "canonical": {"const": true},
           "aliases": {
             "type": "array",
             "uniqueItems": true,
-            "items": {"type": "string", "pattern": "^/(?:[^/?#]+(?:/[^/?#]+)*)?$"}
+            "items": {
+              "type": "string",
+              "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[^/?#\\\\]+(?:/(?!\\.{1,2}(?:/|$))[^/?#\\\\]+)*)?$"
+            }
           },
           "authentication": {"enum": ["none", "optional", "required"]},
           "deepLink": {"type": "boolean"},
@@ -55,7 +61,22 @@
               "focusTarget": {"type": "string", "minLength": 1}
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "authentication": {"const": "required"}
+              },
+              "required": ["authentication"]
+            },
+            "then": {
+              "properties": {
+                "authenticationReturn": {"const": "same-route"}
+              }
+            }
+          }
+        ]
       }
     }
   }
