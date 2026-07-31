@@ -18,6 +18,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-decomposed-interface-compat.rb
 
+      - name: Test endpoint and working-directory consistency
+        shell: bash
+        run: ruby .github/scripts/test-interface-summary-details.rb
+
       - name: Validate scaffold, helper, and MCP contracts
         shell: bash
         run: ruby .github/scripts/validate-profile-contracts.rb .github/scripts/validate-extended-profile-contracts.rb
