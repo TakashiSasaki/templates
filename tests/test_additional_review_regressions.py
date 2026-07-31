@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import shutil
 import sys
 import tempfile
@@ -105,6 +106,31 @@ class AdditionalReviewRegressionTests(unittest.TestCase):
         surfaces[0]["startupDependencies"] = [f"surface-{surface_count - 1}"]
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("dependency cycle" in error for error in errors))
+
+    def test_unresolved_schema_reference_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", temporary_root / "contracts")
+            shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
+
+            schema_path = temporary_root / "schemas/routes.schema.json"
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            schema["properties"]["routes"]["items"]["properties"]["id"] = {
+                "$ref": "#/$defs/missing"
+            }
+            schema_path.write_text(json.dumps(schema), encoding="utf-8")
+
+            errors = validate_contracts.validate_repository(temporary_root)
+
+        self.assertTrue(
+            any(
+                error.startswith(
+                    "schemas/routes.schema.json: unresolved JSON Schema reference:"
+                )
+                and "missing" in error
+                for error in errors
+            )
+        )
 
     def test_invalid_utf8_is_reported_for_contracts_and_schemas(self) -> None:
         cases = (
