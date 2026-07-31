@@ -75,6 +75,22 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 5 local links across 2 generated HTML pages", result.stdout)
 
+    def test_uses_main_content_links_when_generated_chrome_is_present(self) -> None:
+        self.write(
+            "index.html",
+            """<!doctype html>
+<html><body>
+<a href="#__skip">Generated skip link without a target</a>
+<main><h1 id="content">Content</h1><a href="#content">Content link</a></main>
+</body></html>
+""",
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
+
     def test_rejects_missing_generated_target(self) -> None:
         self.write("index.html", '<a href="missing/">Missing</a>')
 
