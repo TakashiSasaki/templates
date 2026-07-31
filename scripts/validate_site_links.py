@@ -9,7 +9,7 @@ import tomllib
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import unquote, urljoin, urlsplit, urlunsplit
+from urllib.parse import SplitResult, unquote, urljoin, urlsplit, urlunsplit
 
 
 class SiteLinkError(RuntimeError):
@@ -93,6 +93,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, int]:
+    scheme = parts.scheme.lower()
+    hostname = parts.hostname
+    if scheme not in {"http", "https"} or hostname is None:
+        raise SiteLinkError(f"{description} must contain a valid HTTP or HTTPS origin")
+    try:
+        explicit_port = parts.port
+    except ValueError as exc:
+        raise SiteLinkError(f"{description} contains an invalid port") from exc
+    effective_port = explicit_port or (443 if scheme == "https" else 80)
+    return scheme, hostname.lower(), effective_port
+
+
 def load_site_url(config_file: Path) -> str:
     try:
         with config_file.open("rb") as handle:
@@ -106,8 +119,7 @@ def load_site_url(config_file: Path) -> str:
         raise SiteLinkError("Site configuration must define a non-empty project.site_url")
 
     parts = urlsplit(site_url.strip())
-    if parts.scheme.lower() not in {"http", "https"} or not parts.netloc:
-        raise SiteLinkError("project.site_url must be an absolute HTTP or HTTPS URL")
+    normalized_origin(parts, "project.site_url")
     if parts.query or parts.fragment:
         raise SiteLinkError("project.site_url must not contain a query or fragment")
 
@@ -150,10 +162,10 @@ def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
     parser.close()
 
     relative_path = PurePosixPath(path.relative_to(site_root).as_posix())
-    base_path = urlsplit(base_url).path
-    public_path = canonical_public_path(relative_path, base_path)
+    base_parts = urlsplit(base_url)
+    public_path = canonical_public_path(relative_path, base_parts.path)
     public_url = urlunsplit(
-        (urlsplit(base_url).scheme, urlsplit(base_url).netloc, public_path, "", "")
+        (base_parts.scheme, base_parts.netloc, public_path, "", "")
     )
     return HtmlPage(
         path=path,
@@ -193,7 +205,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     base_url = load_site_url(config_file)
     base_parts = urlsplit(base_url)
     base_path = base_parts.path
-    origin = (base_parts.scheme.lower(), base_parts.netloc.lower())
+    origin = normalized_origin(base_parts, "project.site_url")
 
     html_paths = sorted(site_root.rglob("*.html"))
     if not html_paths:
@@ -221,7 +233,15 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
                 continue
 
             resolved = urlsplit(urljoin(source.public_url, raw))
-            resolved_origin = (resolved.scheme.lower(), resolved.netloc.lower())
+            try:
+                resolved_origin = normalized_origin(
+                    resolved,
+                    f"{source.relative_path}:{reference.line}:{reference.column}: "
+                    f"link {reference.href!r}",
+                )
+            except SiteLinkError as exc:
+                diagnostics.add(str(exc))
+                continue
             if resolved_origin != origin:
                 continue
 
@@ -250,8 +270,9 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
                 )
                 continue
 
-            fragment = unquote(resolved.fragment)
-            if not fragment or fragment.startswith(":~:text="):
+            decoded_fragment = unquote(resolved.fragment)
+            fragment = decoded_fragment.partition(":~:")[0]
+            if not fragment:
                 continue
             if target_page is None:
                 diagnostics.add(
