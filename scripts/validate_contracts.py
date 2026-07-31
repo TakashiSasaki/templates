@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
 CONTRACT_SCHEMAS = {
     "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
@@ -117,6 +118,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
 
     route_paths: list[str] = []
     aliases: list[str] = []
+    surfaces_by_id = {surface["id"]: surface for surface in surfaces}
     for route in routes:
         route_id = route["id"]
         route_paths.append(route["path"])
@@ -124,7 +126,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         if route["surface"] not in known_surfaces:
             errors.append(f"route {route_id}: unknown surface {route['surface']}")
         else:
-            surface = next(item for item in surfaces if item["id"] == route["surface"])
+            surface = surfaces_by_id[route["surface"]]
             if route["authentication"] != surface["authentication"]:
                 errors.append(
                     f"route {route_id}: authentication {route['authentication']} does not match "
@@ -172,6 +174,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
 def validate_repository(root: Path) -> list[str]:
     errors: list[str] = []
     documents: dict[str, Any] = {}
+    all_documents_structurally_valid = True
 
     for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
         try:
@@ -179,14 +182,28 @@ def validate_repository(root: Path) -> list[str]:
             schema = load_json(root / schema_path)
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"{name}: unable to load JSON: {exc}")
+            all_documents_structurally_valid = False
+            continue
+
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as exc:
+            errors.append(f"{schema_path}: invalid JSON Schema: {exc.message}")
+            all_documents_structurally_valid = False
             continue
 
         documents[name] = document
         validator = Draft202012Validator(schema)
-        for error in sorted(validator.iter_errors(document), key=lambda item: list(item.absolute_path)):
+        document_errors = sorted(
+            validator.iter_errors(document),
+            key=lambda item: _json_path(list(item.absolute_path)),
+        )
+        if document_errors:
+            all_documents_structurally_valid = False
+        for error in document_errors:
             errors.append(f"{contract_path}:{_json_path(list(error.absolute_path))}: {error.message}")
 
-    if len(documents) == len(CONTRACT_SCHEMAS):
+    if all_documents_structurally_valid and len(documents) == len(CONTRACT_SCHEMAS):
         errors.extend(cross_validate(copy.deepcopy(documents)))
 
     return errors
