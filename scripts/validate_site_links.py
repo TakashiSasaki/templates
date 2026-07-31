@@ -108,7 +108,7 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
         if explicit_port is not None
         else (443 if scheme == "https" else 80)
     )
-    return scheme, hostname.lower(), effective_port
+    return scheme, unquote(hostname).lower(), effective_port
 
 
 def load_site_url(config_file: Path) -> str:
