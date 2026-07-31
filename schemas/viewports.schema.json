@@ -4,6 +4,12 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "viewports", "constraints"],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"
+    }
+  },
   "properties": {
     "$schema": {"type": "string"},
     "schemaVersion": {"const": 1},
@@ -15,7 +21,7 @@
         "additionalProperties": false,
         "required": ["id", "minWidthPx", "interactionModes", "description"],
         "properties": {
-          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "id": {"$ref": "#/$defs/identifier"},
           "minWidthPx": {"type": "integer", "minimum": 0},
           "maxWidthPx": {"type": "integer", "minimum": 0},
           "interactionModes": {
