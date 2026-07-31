@@ -2,12 +2,7 @@ name: Contract validation
 
 on:
   push:
-    branches:
-      - webapp
-      - "agent/**"
   pull_request:
-    branches:
-      - webapp
 
 permissions:
   contents: read
