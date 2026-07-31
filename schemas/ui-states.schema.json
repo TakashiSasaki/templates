@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/ui-states.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schemaVersion", "states"],
@@ -8,6 +7,11 @@
     "identifier": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     }
   },
   "properties": {
@@ -23,14 +27,14 @@
         "properties": {
           "id": {"$ref": "#/$defs/identifier"},
           "category": {"enum": ["progress", "content", "degraded", "error", "connectivity", "access", "navigation"]},
-          "description": {"type": "string", "minLength": 1},
+          "description": {"$ref": "#/$defs/nonBlankText"},
           "recoveryActions": {
             "type": "array",
             "uniqueItems": true,
             "items": {"$ref": "#/$defs/identifier"}
           },
           "announcement": {"enum": ["none", "polite", "assertive"]},
-          "focusStrategy": {"type": "string", "minLength": 1, "pattern": "\\S"}
+          "focusStrategy": {"$ref": "#/$defs/nonBlankText"}
         }
       }
     }
