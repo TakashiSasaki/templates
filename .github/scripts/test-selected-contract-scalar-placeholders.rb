@@ -7,6 +7,66 @@ require "tmpdir"
 
 validator = File.expand_path("validate-selected-contract-scalar-placeholders.rb", __dir__)
 
+valid_instruction_skill = <<~MARKDOWN
+  # Concrete instruction-only skill
+
+  ## Purpose
+
+  Produce a deterministic summary.
+
+  ## Use this skill when
+
+  Use it for supplied text.
+
+  ## Workflow
+
+  Read the input and produce the requested summary.
+
+  ## Output requirements
+
+  Return concise prose.
+
+  ## Validation
+
+  Confirm the output reflects the input.
+
+  ## Safety and approval
+
+  Do not invent missing facts.
+
+  Selected profiles: instruction-only
+MARKDOWN
+
+incomplete_instruction_skill = <<~MARKDOWN
+  # Incomplete instruction-only skill
+
+  ## Purpose
+
+  TBD
+
+  ## Use this skill when
+
+  TBD
+
+  ## Workflow
+
+  TBD
+
+  ## Output requirements
+
+  TBD
+
+  ## Validation
+
+  TBD
+
+  ## Safety and approval
+
+  TBD
+
+  Selected profiles: instruction-only
+MARKDOWN
+
 valid_routing = <<~MARKDOWN
   # Public interface selection contract
 
@@ -215,6 +275,8 @@ combined_files = cli_files.merge(
 ).freeze
 
 cases = [
+  { name: "accepts a concrete instruction-only SKILL", skill: valid_instruction_skill, files: {}, success: true },
+  { name: "rejects placeholders across instruction-only operational sections", skill: incomplete_instruction_skill, files: {}, success: false },
   { name: "accepts concrete CLI scalar values", skill: cli_skill, files: cli_files, success: true },
   { name: "accepts concrete MCP scalar values", skill: mcp_skill, files: mcp_files, success: true },
   { name: "accepts concrete browser scalar values", skill: browser_skill, files: browser_files, success: true },
@@ -314,6 +376,21 @@ cases = [
     success: false
   },
   {
+    name: "rejects a placeholder in the first environment-table column",
+    skill: browser_skill,
+    files: browser_files.merge(
+      "RUNTIME.md" => valid_browser_runtime + <<~MARKDOWN
+
+        ## Environment and configuration
+
+        | Variable | Required | Purpose | Secret |
+        |---|---:|---|---:|
+        | TBD | YES | configure service | NO |
+      MARKDOWN
+    ),
+    success: false
+  },
+  {
     name: "rejects forthcoming text in a table value",
     skill: cli_skill,
     files: cli_files.merge(
@@ -365,4 +442,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Selected routing, interface, and runtime scalar placeholder tests passed."
+puts "Concrete SKILL, selected interface, and runtime scalar placeholder tests passed."
