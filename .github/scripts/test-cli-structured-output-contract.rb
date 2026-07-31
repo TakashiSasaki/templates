@@ -27,7 +27,13 @@ cases = [
   ["accepts JSON with a top-level version field", "JSON", "contractVersion", true],
   ["accepts NDJSON with a dotted version path", "NDJSON", "metadata.contractVersion", true],
   ["accepts a JSON Pointer version path", "JSON", "/metadata/contractVersion", true],
+  ["accepts TOML without a format whitelist entry", "TOML", "contractVersion", true],
+  ["accepts Apache Avro without a format whitelist entry", "Apache Avro", "metadata.contractVersion", true],
+  ["accepts a vendor media-type serialization", "application/vnd.example+json", "contractVersion", true],
   ["rejects plain-text-only output", "plain text only", "contractVersion", false],
+  ["rejects human-readable output", "human readable", "contractVersion", false],
+  ["rejects an unstructured declaration", "unstructured output", "contractVersion", false],
+  ["rejects a generic custom nonchoice", "custom", "contractVersion", false],
   ["rejects a missing version field", "JSON", "no version field", false],
   ["rejects a prose version-field description", "JSON", "the version field in metadata", false]
 ]
