@@ -23,7 +23,7 @@ module PublicationCatalog
     validate_exact_keys(catalog, ROOT_KEYS, "publication catalog")
 
     unless catalog["schema_version"].is_a?(Integer) && catalog["schema_version"] == 1
-      raise ValidationError, "publication catalog schema_version must be integer 1"
+      raise ValidationError, "publication catalog schema_version must be 1 and use an integer JSON value"
     end
 
     raw_documents = catalog["documents"]
