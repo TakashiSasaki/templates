@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import shutil
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import validate_contracts  # noqa: E402
+
 RESPONSIBILITY_DOCUMENT = ROOT / "docs/architecture/responsibility-boundaries.md"
 DEPRECATED_MAPPING = ROOT / (
     "docs/provenance/" + "agent-" + "policy-mapping.md"
 )
-POLICY_NAME = "agent-" + "policy"
-POLICY_GENERATED_ARTIFACTS = (
-    ROOT / (".agent-" + "policy.yml"),
-    ROOT / (".agent-" + "policy.lock"),
-)
+OPTIONAL_POLICY_ARTIFACTS = {
+    ".agent-policy.yml": "profiles:\n  - core\n",
+    ".agent-policy.lock": '{"version": 1}\n',
+}
 
 
 class ResponsibilityBoundaryTests(unittest.TestCase):
@@ -24,21 +30,38 @@ class ResponsibilityBoundaryTests(unittest.TestCase):
         self.assertIn("Product-repository concerns", document)
         self.assertIn("Concerns outside the Webapp contract", document)
         self.assertIn("Independence invariant", document)
+        self.assertIn(
+            "A product repository may adopt such mechanisms independently.",
+            document,
+        )
+        self.assertIn(
+            "must not become prerequisites for validating or using the Webapp contracts",
+            document,
+        )
 
-    def test_template_documentation_does_not_delegate_design_authority(self) -> None:
-        documentation_paths = [ROOT / "README.md", ROOT / "TEMPLATE.md"]
-        documentation_paths.extend(sorted((ROOT / "docs").rglob("*.md")))
+    def test_template_documents_keep_webapp_validation_independent(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        template = (ROOT / "TEMPLATE.md").read_text(encoding="utf-8")
 
-        for path in documentation_paths:
-            with self.subTest(path=path.relative_to(ROOT)):
-                text = path.read_text(encoding="utf-8").lower()
-                self.assertNotIn(POLICY_NAME, text)
+        self.assertIn("coding-agent operating policy", readme)
+        self.assertIn("outside the Webapp template contract", template)
+        self.assertIn("may adopt such mechanisms independently", template)
+        self.assertIn("not a prerequisite for using or validating this template", template)
 
-    def test_obsolete_mapping_and_policy_generated_artifacts_are_absent(self) -> None:
+    def test_obsolete_mapping_is_absent(self) -> None:
         self.assertFalse(DEPRECATED_MAPPING.exists())
-        for path in POLICY_GENERATED_ARTIFACTS:
-            with self.subTest(path=path.relative_to(ROOT)):
-                self.assertFalse(path.exists())
+
+    def test_optional_policy_artifacts_do_not_affect_contract_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", temporary_root / "contracts")
+            shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
+            for relative_path, content in OPTIONAL_POLICY_ARTIFACTS.items():
+                (temporary_root / relative_path).write_text(content, encoding="utf-8")
+
+            errors = validate_contracts.validate_repository(temporary_root)
+
+        self.assertEqual([], errors)
 
 
 if __name__ == "__main__":
