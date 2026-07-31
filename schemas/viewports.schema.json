@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/viewports.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "viewports", "constraints"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schemaVersion": {"const": 1},
+    "viewports": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "minWidthPx", "interactionModes", "description"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "minWidthPx": {"type": "integer", "minimum": 0},
+          "maxWidthPx": {"type": "integer", "minimum": 0},
+          "interactionModes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"enum": ["touch", "pointer", "keyboard", "voice", "switch"]}
+          },
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zoomSupported", "horizontalScrolling", "orientationIndependent"],
+      "properties": {
+        "zoomSupported": {"const": true},
+        "horizontalScrolling": {"enum": ["never", "content-specific"]},
+        "orientationIndependent": {"type": "boolean"}
+      }
+    }
+  }
+}
