@@ -5,22 +5,20 @@
     {
       "id": "compact",
       "minWidthPx": 0,
-      "interactionModes": ["touch", "keyboard"],
       "description": "Narrow layouts where content prioritization and reflow are required."
     },
     {
       "id": "regular",
       "minWidthPx": 768,
-      "interactionModes": ["touch", "pointer", "keyboard"],
       "description": "Intermediate layouts suitable for tablets and constrained desktop windows."
     },
     {
       "id": "wide",
       "minWidthPx": 1280,
-      "interactionModes": ["pointer", "keyboard"],
       "description": "Wide layouts that may expose additional context without making it mandatory."
     }
   ],
+  "inputCapabilities": ["touch", "pointer", "keyboard"],
   "constraints": {
     "zoomSupported": true,
     "horizontalScrolling": "content-specific",
