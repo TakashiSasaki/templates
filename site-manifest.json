@@ -11,9 +11,29 @@
       "destination": "SKILL.md"
     },
     {
-      "title": "Interface contracts",
+      "title": "Skill profiles",
+      "source": "docs/skill-profiles.md",
+      "destination": "docs/skill-profiles.md"
+    },
+    {
+      "title": "Profile contract map",
+      "source": "docs/profile-contract-map.md",
+      "destination": "docs/profile-contract-map.md"
+    },
+    {
+      "title": "Interface routing",
       "source": "INTERFACES.md",
       "destination": "INTERFACES.md"
+    },
+    {
+      "title": "Packaged CLI interface",
+      "source": "CLI_INTERFACE.md",
+      "destination": "CLI_INTERFACE.md"
+    },
+    {
+      "title": "MCP interface",
+      "source": "MCP_INTERFACE.md",
+      "destination": "MCP_INTERFACE.md"
     },
     {
       "title": "Human Web interface",
