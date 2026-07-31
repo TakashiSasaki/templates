@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "overview",
+      "source": "README.md",
+      "optional": false,
+      "home": true
+    },
+    {
+      "id": "skill-contract",
+      "source": "SKILL.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "skill-profiles",
+      "source": "docs/skill-profiles.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "profile-contract-map",
+      "source": "docs/profile-contract-map.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "runtime-decision-record",
+      "source": "RUNTIME.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "interface-routing",
+      "source": "INTERFACES.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "packaged-cli-interface",
+      "source": "CLI_INTERFACE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "mcp-interface",
+      "source": "MCP_INTERFACE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "human-web-interface",
+      "source": "WEB_INTERFACE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "architecture",
+      "source": "docs/architecture.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "runtime-selection",
+      "source": "docs/runtime-selection.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "mcp-transports",
+      "source": "docs/mcp-transports.md",
+      "optional": true,
+      "home": false
+    }
+  ]
+}
