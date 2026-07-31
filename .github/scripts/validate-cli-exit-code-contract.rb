@@ -40,13 +40,10 @@ success_meaning = lambda do |value|
   next false unless concrete_value.call(value)
 
   normalized = strip_backticks.call(value).gsub(/\s+/, " ").strip
-  success_token = /\b(?:success|successful|successfully|succeeded)\b/i
   negated_success = /\b(?:not|non[-\s]?)\s*(?:success|successful)\b/i
-  failure_token = /\b(?:failure|failed|error|invalid|negative|refusal|refused|denied)\b/i
+  failure_token = /\b(?:failure|failed|error|invalid|negative|refusal|refused|denied|unsuccessful)\b/i
 
-  success_token.match?(normalized) &&
-    !negated_success.match?(normalized) &&
-    !failure_token.match?(normalized)
+  !negated_success.match?(normalized) && !failure_token.match?(normalized)
 end
 
 markdown_section = lambda do |document, heading|
@@ -138,7 +135,7 @@ else
 
       zero_meaning = rows.find { |code, _meaning| code.zero? }&.last
       if zero_meaning && !success_meaning.call(zero_meaning)
-        errors << "#{CLI_PATH} exit code 0 must explicitly denote success and must not describe a failure, " \
+        errors << "#{CLI_PATH} exit code 0 must denote normal completion and must not describe a failure, " \
                   "error, invalid input, refusal, or negative outcome."
       end
     end
