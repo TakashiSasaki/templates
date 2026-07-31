@@ -3,11 +3,14 @@
   "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/viewports.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "viewports", "constraints"],
+  "required": ["schemaVersion", "viewports", "inputCapabilities", "constraints"],
   "$defs": {
     "identifier": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"
+    },
+    "inputCapability": {
+      "enum": ["touch", "pointer", "keyboard", "voice", "switch"]
     }
   },
   "properties": {
@@ -19,19 +22,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "minWidthPx", "interactionModes", "description"],
+        "required": ["id", "minWidthPx", "description"],
         "properties": {
           "id": {"$ref": "#/$defs/identifier"},
           "minWidthPx": {"type": "integer", "minimum": 0},
-          "interactionModes": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": {"enum": ["touch", "pointer", "keyboard", "voice", "switch"]}
-          },
           "description": {"type": "string", "minLength": 1}
         }
       }
+    },
+    "inputCapabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/inputCapability"}
     },
     "constraints": {
       "type": "object",
