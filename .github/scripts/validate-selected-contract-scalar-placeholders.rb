@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 SKILL_PATH = "SKILL.md"
+RUNTIME_PATH = "RUNTIME.md"
 
 unless File.file?(SKILL_PATH)
   warn "Missing universally required file: #{SKILL_PATH}"
@@ -35,6 +36,56 @@ summary_values = lambda do |lines, label|
   end
 end
 
+markdown_section = lambda do |document, heading|
+  level = heading[/\A#+/].length
+  boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
+  match = document.match(
+    Regexp.new("^#{Regexp.escape(heading)}\\s*$\\n(.*?)(?=#{boundary})", Regexp::MULTILINE)
+  )
+  match && match[1]
+end
+
+errors = []
+
+scan_scalar_values = lambda do |path, document, context = nil|
+  document.lines.each_with_index do |raw_line, index|
+    line_number = index + 1
+    normalized = raw_line.strip
+    next if normalized.empty? || normalized.match?(/\A```/)
+
+    location = context ? "#{path} #{context}" : "#{path}:#{line_number}"
+
+    if unresolved_scalar.call(normalized)
+      errors << "#{location} must not contain standalone unresolved scalar placeholder " \
+                "#{strip_backticks.call(normalized).inspect}."
+    end
+
+    field_match = normalized.match(/\A(?:[-*]\s+)?([^|#`][^:]{0,120}?):\s*(.*?)\s*\z/)
+    if field_match
+      label = field_match[1].strip
+      value = field_match[2]
+      if unresolved_scalar.call(value)
+        errors << "#{location} '#{label}:' must not use unresolved scalar placeholder " \
+                  "#{strip_backticks.call(value).inspect}."
+      end
+    end
+
+    next unless normalized.start_with?("|") && normalized.end_with?("|")
+
+    cells = normalized.split("|", -1)[1...-1].map(&:strip)
+    next if cells.empty?
+    next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
+
+    cells.each_with_index do |cell, cell_index|
+      next if cell_index.zero?
+      next unless unresolved_scalar.call(cell)
+
+      errors << "#{location} table value must not use unresolved scalar placeholder " \
+                "#{strip_backticks.call(cell).inspect}."
+    end
+  end
+end
+
 skill_lines = File.readlines(SKILL_PATH, chomp: true)
 profile_values = summary_values.call(skill_lines, "Selected profiles")
 if profile_values.length != 1
@@ -47,8 +98,6 @@ if selected_profiles == ["template-scaffold"]
   puts "Selected-contract scalar placeholder validation is not activated for the template scaffold."
   exit 0
 end
-
-errors = []
 
 if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
   [
@@ -75,33 +124,36 @@ selected_contracts.each do |path|
     next
   end
 
-  File.readlines(path, chomp: true).each_with_index do |raw_line, index|
-    line_number = index + 1
-    normalized = raw_line.strip
-    next if normalized.empty?
+  scan_scalar_values.call(path, File.read(path))
+end
 
-    field_match = normalized.match(/\A(?:[-*]\s+)?([^|#`][^:]{0,120}?):\s*(.*?)\s*\z/)
-    if field_match
-      label = field_match[1].strip
-      value = field_match[2]
-      if unresolved_scalar.call(value)
-        errors << "#{path}:#{line_number} '#{label}:' must not use unresolved scalar placeholder " \
-                  "#{strip_backticks.call(value).inspect}."
-      end
+if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+  unless File.file?(RUNTIME_PATH)
+    errors << "Selected public-interface profile requires contract file: #{RUNTIME_PATH}"
+  else
+    runtime = File.read(RUNTIME_PATH)
+    runtime_headings = [
+      "## Status",
+      "## Primary implementation",
+      "### Shared development commands",
+      "## Distribution",
+      "## Environment and configuration",
+      "## Decision rationale"
+    ]
+    runtime_headings << "### Packaged CLI commands" if selected_profiles.include?("packaged-cli")
+    if selected_profiles.include?("mcp-enabled")
+      runtime_headings.concat([
+        "### MCP commands",
+        "## MCP protocol support",
+        "### stdio variant",
+        "### Streamable HTTP variant",
+        "### Bundled ad hoc MCP tool client"
+      ])
     end
 
-    next unless normalized.start_with?("|") && normalized.end_with?("|")
-
-    cells = normalized.split("|", -1)[1...-1].map(&:strip)
-    next if cells.empty?
-    next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
-
-    cells.each_with_index do |cell, cell_index|
-      next if cell_index.zero?
-      next unless unresolved_scalar.call(cell)
-
-      errors << "#{path}:#{line_number} table value must not use unresolved scalar placeholder " \
-                "#{strip_backticks.call(cell).inspect}."
+    runtime_headings.each do |heading|
+      section = markdown_section.call(runtime, heading)
+      scan_scalar_values.call(RUNTIME_PATH, section, heading) if section
     end
   end
 end
@@ -111,4 +163,4 @@ unless errors.empty?
   exit 1
 end
 
-puts "Selected public-interface scalar values contain no unresolved placeholders."
+puts "Selected public-interface and runtime scalar values contain no unresolved placeholders."
