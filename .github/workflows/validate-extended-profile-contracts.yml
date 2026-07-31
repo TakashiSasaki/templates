@@ -26,6 +26,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-cli-structured-output-contract.rb
 
+      - name: Test MCP runtime-authority declaration
+        shell: bash
+        run: ruby .github/scripts/test-mcp-runtime-authority.rb
+
       - name: Test browser-interface routing
         shell: bash
         run: ruby .github/scripts/test-browser-interface-routing.rb
