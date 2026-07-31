@@ -4,6 +4,12 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "routes"],
+  "$defs": {
+    "routePath": {
+      "type": "string",
+      "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]+(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+)*)?$"
+    }
+  },
   "properties": {
     "$schema": {"type": "string"},
     "schemaVersion": {"const": 1},
@@ -28,19 +34,13 @@
         ],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "path": {
-            "type": "string",
-            "pattern": "^/(?!(?:\\.|%2[eE]){1,2}(?:/|$))(?:[^/?#\\\\]+(?:/(?!(?:\\.|%2[eE]){1,2}(?:/|$))[^/?#\\\\]+)*)?$"
-          },
+          "path": {"$ref": "#/$defs/routePath"},
           "surface": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
           "canonical": {"const": true},
           "aliases": {
             "type": "array",
             "uniqueItems": true,
-            "items": {
-              "type": "string",
-              "pattern": "^/(?!(?:\\.|%2[eE]){1,2}(?:/|$))(?:[^/?#\\\\]+(?:/(?!(?:\\.|%2[eE]){1,2}(?:/|$))[^/?#\\\\]+)*)?$"
-            }
+            "items": {"$ref": "#/$defs/routePath"}
           },
           "authentication": {"enum": ["none", "optional", "required"]},
           "deepLink": {"type": "boolean"},
