@@ -86,6 +86,9 @@ class ContractValidationTests(unittest.TestCase):
             "/foo\nbar",
             "/foo\rbar",
             "/foo\tbar",
+            "/foo\n",
+            "/foo\r",
+            "/foo\t",
             "/foo bar",
             "/é",
             "/\t/evil.example",
@@ -101,7 +104,7 @@ class ContractValidationTests(unittest.TestCase):
 
     def test_route_alias_uses_the_same_stable_path_syntax(self) -> None:
         original = self.documents["routes"]["routes"][0]
-        for invalid_alias in ("/legacy path", "/legacy\npath", "/旧", "/%6cegacy"):
+        for invalid_alias in ("/legacy path", "/legacy\npath", "/legacy\n", "/旧", "/%6cegacy"):
             with self.subTest(alias=invalid_alias):
                 route = copy.deepcopy(original)
                 route["aliases"] = [invalid_alias]
