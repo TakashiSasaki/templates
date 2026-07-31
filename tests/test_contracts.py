@@ -44,6 +44,20 @@ class ContractValidationTests(unittest.TestCase):
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("dependency cycle" in error for error in errors))
 
+    def test_principal_authorization_requires_required_authentication(self) -> None:
+        for mode, roles in (("authenticated", []), ("role", ["application-user"])):
+            with self.subTest(mode=mode):
+                documents = copy.deepcopy(self.documents)
+                surface = documents["surfaces"]["surfaces"][1]
+                route = documents["routes"]["routes"][1]
+                surface["authentication"] = "none"
+                surface["authorization"] = {"mode": mode, "roles": roles}
+                route["authentication"] = "none"
+                errors = validate_contracts.cross_validate(documents)
+                self.assertTrue(
+                    any(f"{mode} authorization requires authentication required" in error for error in errors)
+                )
+
     def test_viewport_gap_is_rejected(self) -> None:
         documents = copy.deepcopy(self.documents)
         documents["viewports"]["viewports"][1]["minWidthPx"] = 800
@@ -58,6 +72,9 @@ class ContractValidationTests(unittest.TestCase):
             "/./admin",
             "/x/../admin",
             "/admin\\settings",
+            "/x/%2e%2e/admin",
+            "/x/%2E./admin",
+            "/x/.%2e/admin",
         )
         for invalid_path in invalid_paths:
             with self.subTest(path=invalid_path):
