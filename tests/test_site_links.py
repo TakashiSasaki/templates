@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "validate_site_links.py"
+
+
+class GeneratedSiteLinkTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary_directory.name)
+        self.site_root = self.root / "site"
+        self.site_root.mkdir()
+        self.config_file = self.root / "zensical.toml"
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://example.test/docs/"\n',
+            encoding="utf-8",
+        )
+
+    def tearDown(self) -> None:
+        self.temporary_directory.cleanup()
+
+    def write(self, relative_path: str, content: str) -> None:
+        path = self.site_root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def run_validator(self) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--site-root",
+                str(self.site_root),
+                "--config-file",
+                str(self.config_file),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_accepts_pages_fragments_assets_and_external_links(self) -> None:
+        self.write(
+            "index.html",
+            """<!doctype html>
+<html><body id="home">
+<a href="guide/#details">Guide</a>
+<a href="guide/#caf%C3%A9">Unicode fragment</a>
+<a href="asset.txt">Asset</a>
+<a href="#home">Home fragment</a>
+<a href="https://other.example/path">External</a>
+<a href="https://example.test/outside/">Same-origin outside project</a>
+<a href="mailto:docs@example.test">Mail</a>
+</body></html>
+""",
+        )
+        self.write(
+            "guide/index.html",
+            """<!doctype html>
+<html><body><h2 id="details">Details</h2><h2 id="café">Café</h2>
+<a href="../">Back</a>
+</body></html>
+""",
+        )
+        self.write("asset.txt", "asset\n")
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 6 local links across 2 generated HTML pages", result.stdout)
+
+    def test_rejects_missing_generated_target(self) -> None:
+        self.write("index.html", '<a href="missing/">Missing</a>')
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+        self.assertIn("'missing/'", result.stderr)
+
+    def test_rejects_missing_fragment(self) -> None:
+        self.write("index.html", '<a href="guide/#missing">Missing</a>')
+        self.write("guide/index.html", '<h2 id="present">Present</h2>')
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("references missing fragment 'missing'", result.stderr)
+        self.assertIn("guide/index.html", result.stderr)
+
+    def test_rejects_same_origin_absolute_target_inside_site_when_missing(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https://example.test/docs/absent/">Absent</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_rejects_relative_link_that_escapes_site_path(self) -> None:
+        self.write("index.html", "<p>Home</p>")
+        self.write(
+            "guide/index.html",
+            '<a href="../../outside/">Outside</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("resolves outside project.site_url", result.stderr)
+
+    def test_rejects_fragment_on_non_html_asset(self) -> None:
+        self.write("index.html", '<a href="asset.txt#part">Asset fragment</a>')
+        self.write("asset.txt", "asset\n")
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("uses a fragment on a non-HTML target", result.stderr)
+
+    def test_rejects_missing_site_url(self) -> None:
+        self.write("index.html", "<p>Home</p>")
+        self.config_file.write_text("[project]\n", encoding="utf-8")
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("must define a non-empty project.site_url", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
