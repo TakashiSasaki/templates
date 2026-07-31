@@ -64,10 +64,16 @@ else
     format = field_value.call(structured, "Format")
     version_field = field_value.call(structured, "Contract version field")
 
-    machine_readable_format = /\b(?:JSON|JSONL|NDJSON|JSON\s+LINES|YAML|XML|CSV|TSV|CBOR|MESSAGEPACK|PROTOBUF)\b/i
-    negative_format = /\b(?:PLAIN\s+TEXT|HUMAN[-\s]+READABLE|TEXT\s+ONLY|NO\s+STRUCTURED|UNSTRUCTURED)\b/i
-    unless format && machine_readable_format.match?(format) && !negative_format.match?(format)
-      errors << "#{CLI_PATH} 'Format:' must select an explicit machine-readable structured format."
+    # Format names are intentionally open-ended. A concrete skill may select a
+    # standard or application-specific serialization without waiting for this
+    # template's validator to add it to a whitelist. Reject only declarations
+    # that explicitly deny structured machine readability, generic nonchoices,
+    # placeholders, or prose too vague to identify a serialization contract.
+    negative_format = /\b(?:PLAIN\s+TEXT|HUMAN[-\s]+READABLE|TEXT\s+ONLY|NO\s+STRUCTURED|UNSTRUCTURED|NOT\s+MACHINE[-\s]+READABLE)\b/i
+    generic_format = /\A(?:TEXT|BINARY|CUSTOM|OTHER|UNKNOWN|NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|UNSELECTED)\z/i
+    format_name = /\A(?=.{1,80}\z)(?:[A-Za-z0-9][A-Za-z0-9._+\/-]*)(?:[ -][A-Za-z0-9][A-Za-z0-9._+\/-]*){0,5}\z/
+    unless format && format_name.match?(format) && !negative_format.match?(format) && !generic_format.match?(format)
+      errors << "#{CLI_PATH} 'Format:' must name an explicit machine-readable structured serialization format."
     end
 
     negative_version = /\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|NO\s+VERSION\s+FIELD)\z|\b(?:WITHOUT|OMITTED|ABSENT)\b/i
