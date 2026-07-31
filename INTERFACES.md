@@ -29,6 +29,7 @@ Allowed interface categories:
 - bundled ad hoc MCP tool client over stdio or Streamable HTTP;
 - stable in-place CLI launcher;
 - installed human CLI command;
+- browser Web interface, only when `browser-interface` is selected and `WEB_INTERFACE.md` is retained;
 - NONE when no further fallback is permitted.
 
 Do not write “use whichever is appropriate” unless the routes are intentionally interchangeable and nondeterminism is acceptable.
@@ -40,6 +41,8 @@ When both MCP transports are supported, state whether an agent should:
 3. bypass MCP and use the structured CLI.
 
 Do not start a second network server merely because the configured endpoint is unavailable unless that fallback is explicitly documented.
+
+The optional browser Web interface is never an implicit agent fallback. It may appear in the preferred/fallback order only when `browser-interface` is selected and the browser-facing contract is retained.
 
 ## Contract index
 
