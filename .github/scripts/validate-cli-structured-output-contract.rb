@@ -61,8 +61,22 @@ else
   if structured.nil? || structured.strip.empty?
     errors << "#{CLI_PATH} requires a non-empty '### Structured output' section."
   else
+    mode_selector = field_value.call(structured, "Mode selector")
     format = field_value.call(structured, "Format")
     version_field = field_value.call(structured, "Contract version field")
+
+    unresolved_selector = /\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|UNSELECTED|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)\z/i
+    option_selector = /(?:\A|\s)--?[A-Za-z0-9][A-Za-z0-9_-]*(?:[=\s]\S+)?(?:\s|\z)/
+    environment_selector = /(?:\A|\s)[A-Z][A-Z0-9_]*=\S+(?:\s|\z)/
+    named_selector = /\A(?:subcommand|command|environment(?:\s+variable)?|option|flag)\s*:\s*\S(?:.*\S)?\z/i
+    selector_is_explicit = mode_selector && (
+      option_selector.match?(mode_selector) ||
+      environment_selector.match?(mode_selector) ||
+      named_selector.match?(mode_selector)
+    )
+    unless selector_is_explicit && !unresolved_selector.match?(mode_selector)
+      errors << "#{CLI_PATH} 'Mode selector:' must record an exact caller-visible option, subcommand, or environment assignment that activates structured output."
+    end
 
     # Format names are intentionally open-ended. A concrete skill may select a
     # standard or application-specific serialization without waiting for this
