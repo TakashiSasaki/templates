@@ -32,9 +32,12 @@ The CLI must:
 ### Structured output
 
 ```text
+Mode selector: TODO, for example --output json, --json, a documented subcommand, or SKILL_OUTPUT=json
 Format: TODO, normally JSON
 Contract version field: TODO
 ```
+
+`Mode selector` must record the exact caller-visible option, subcommand, or environment assignment that activates structured output. It must be sufficient for an agent or CI job to construct the structured-output invocation without inferring behavior from implementation details.
 
 Suggested envelope:
 
