@@ -61,7 +61,7 @@
             "additionalProperties": false,
             "required": ["documentTitleRequired", "focusTarget"],
             "properties": {
-              "documentTitleRequired": {"type": "boolean"},
+              "documentTitleRequired": {"const": true},
               "focusTarget": {"type": "string", "minLength": 1}
             }
           }
