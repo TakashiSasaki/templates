@@ -133,6 +133,15 @@ class ContractValidationTests(unittest.TestCase):
         document["viewports"][0]["maxWidthPx"] = 767
         self.assertFalse(self.validators["viewports"].is_valid(document))
 
+    def test_input_capabilities_are_global_not_breakpoint_specific(self) -> None:
+        document = copy.deepcopy(self.documents["viewports"])
+        document["viewports"][0]["interactionModes"] = ["pointer"]
+        self.assertFalse(self.validators["viewports"].is_valid(document))
+
+        document = copy.deepcopy(self.documents["viewports"])
+        del document["inputCapabilities"]
+        self.assertFalse(self.validators["viewports"].is_valid(document))
+
     def test_route_path_accepts_only_stable_unreserved_segments(self) -> None:
         original = self.documents["routes"]["routes"][0]
         for valid_path in ("/", "/.well-known", "/user_profile-1~draft", "/alpha/beta.gamma"):
