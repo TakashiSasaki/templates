@@ -9,7 +9,8 @@ ROUTE_LABELS = [
   "existing Streamable HTTP MCP endpoint",
   "bundled ad hoc MCP tool client over stdio or Streamable HTTP",
   "stable in-place CLI launcher",
-  "installed human CLI command"
+  "installed human CLI command",
+  "browser Web interface"
 ].freeze
 
 unless File.file?(SKILL_PATH)
@@ -160,6 +161,8 @@ elsif routing_selected
         selected_profiles.include?("mcp-enabled") && mcp_http_support == "YES"
       when "bundled ad hoc MCP tool client over stdio or Streamable HTTP"
         selected_profiles.include?("mcp-enabled") && mcp_client_support == "YES"
+      when "browser Web interface"
+        selected_profiles.include?("browser-interface") && File.file?("WEB_INTERFACE.md")
       else
         false
       end
@@ -186,7 +189,7 @@ elsif routing_selected
       end
 
       unless route_available.call(canonical)
-        errors << "#{ROUTING_PATH} route '#{canonical}' is not implemented by the selected profiles and support declarations."
+        errors << "#{ROUTING_PATH} route '#{canonical}' is not implemented by the selected profiles and retained contracts."
       end
 
       canonical
