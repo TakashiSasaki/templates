@@ -5,14 +5,12 @@
     {
       "id": "compact",
       "minWidthPx": 0,
-      "maxWidthPx": 767,
       "interactionModes": ["touch", "keyboard"],
       "description": "Narrow layouts where content prioritization and reflow are required."
     },
     {
       "id": "regular",
       "minWidthPx": 768,
-      "maxWidthPx": 1279,
       "interactionModes": ["touch", "pointer", "keyboard"],
       "description": "Intermediate layouts suitable for tablets and constrained desktop windows."
     },
