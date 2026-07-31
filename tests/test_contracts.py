@@ -64,7 +64,15 @@ class ContractValidationTests(unittest.TestCase):
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("viewport boundary compact -> regular: gap" in error for error in errors))
 
-    def test_route_path_rejects_nonpathname_and_normalized_forms(self) -> None:
+    def test_route_path_accepts_only_stable_unreserved_segments(self) -> None:
+        original = self.documents["routes"]["routes"][0]
+        for valid_path in ("/", "/.well-known", "/user_profile-1~draft", "/alpha/beta.gamma"):
+            with self.subTest(path=valid_path):
+                route = copy.deepcopy(original)
+                route["path"] = valid_path
+                self.assertTrue(self.route_document_is_valid(route))
+
+    def test_route_path_rejects_normalized_or_unstable_forms(self) -> None:
         original = self.documents["routes"]["routes"][0]
         invalid_paths = (
             "/search?q=x",
@@ -75,11 +83,28 @@ class ContractValidationTests(unittest.TestCase):
             "/x/%2e%2e/admin",
             "/x/%2E./admin",
             "/x/.%2e/admin",
+            "/foo\nbar",
+            "/foo\rbar",
+            "/foo\tbar",
+            "/foo bar",
+            "/é",
+            "/\t/evil.example",
+            "//evil.example",
+            "/trailing/",
+            "/double//slash",
         )
         for invalid_path in invalid_paths:
             with self.subTest(path=invalid_path):
                 route = copy.deepcopy(original)
                 route["path"] = invalid_path
+                self.assertFalse(self.route_document_is_valid(route))
+
+    def test_route_alias_uses_the_same_stable_path_syntax(self) -> None:
+        original = self.documents["routes"]["routes"][0]
+        for invalid_alias in ("/legacy path", "/legacy\npath", "/旧", "/%6cegacy"):
+            with self.subTest(alias=invalid_alias):
+                route = copy.deepcopy(original)
+                route["aliases"] = [invalid_alias]
                 self.assertFalse(self.route_document_is_valid(route))
 
     def test_route_contract_requires_canonical_routes(self) -> None:
