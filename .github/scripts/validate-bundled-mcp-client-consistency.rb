@@ -54,6 +54,17 @@ support_token = lambda do |value|
   value&.strip&.split(/[;\s]/)&.first&.upcase
 end
 
+transport_category = lambda do |value|
+  case value.to_s.strip.downcase
+  when "stdio"
+    :stdio
+  when "streamable http"
+    :http
+  when "both"
+    :both
+  end
+end
+
 profile_values = File.readlines(SKILL_PATH, chomp: true).filter_map do |raw_line|
   normalized = raw_line.strip
   normalized = normalized[2..].strip if normalized.start_with?("- ")
@@ -131,6 +142,53 @@ if File.file?(MCP_PATH) && File.file?(RUNTIME_PATH)
       errors << "Bundled MCP client #{public_label} must match #{RUNTIME_PATH} exactly or explicitly say " \
                 "'see RUNTIME.md': #{public_value.inspect} != #{runtime_value.inspect}."
     end
+
+    public_transport = field_value.call(public_client, "Transport used")
+    runtime_transport = table_value.call(runtime_client, "Supported transports")
+    runtime_category = transport_category.call(runtime_transport)
+    public_category = runtime_reference.call(public_transport) ? runtime_category : transport_category.call(public_transport)
+
+    unless runtime_category
+      errors << "Bundled MCP client Supported transports in #{RUNTIME_PATH} must be one of: stdio, Streamable HTTP, both."
+    end
+    unless runtime_reference.call(public_transport) || public_category
+      errors << "Bundled MCP client Transport used in #{MCP_PATH} must be one of: stdio, Streamable HTTP, both, or 'see RUNTIME.md'."
+    end
+    if public_category && runtime_category && public_category != runtime_category
+      errors << "Bundled MCP client Transport used must match #{RUNTIME_PATH} exactly or explicitly say 'see RUNTIME.md'."
+    end
+
+    required_variants = case runtime_category
+                        when :stdio then [:stdio]
+                        when :http then [:http]
+                        when :both then %i[stdio http]
+                        else []
+                        end
+
+    variant_sections = {
+      stdio: [
+        markdown_section.call(mcp, "## stdio MCP server variant"),
+        markdown_section.call(runtime, "### stdio variant")
+      ],
+      http: [
+        markdown_section.call(mcp, "## Streamable HTTP MCP server variant"),
+        markdown_section.call(runtime, "### Streamable HTTP variant")
+      ]
+    }
+
+    required_variants.each do |variant|
+      public_variant, runtime_variant = variant_sections.fetch(variant)
+      public_variant_support = support_token.call(field_value.call(public_variant, "Supported"))
+      runtime_variant_support = support_token.call(table_value.call(runtime_variant, "Supported"))
+      display_name = variant == :stdio ? "stdio" : "Streamable HTTP"
+
+      unless public_variant_support == "YES"
+        errors << "Bundled MCP client transport '#{display_name}' requires that variant to set 'Supported: YES' in #{MCP_PATH}."
+      end
+      unless runtime_variant_support == "YES"
+        errors << "Bundled MCP client transport '#{display_name}' requires that variant to set 'Supported: YES' in #{RUNTIME_PATH}."
+      end
+    end
   end
 end
 
@@ -139,4 +197,4 @@ unless errors.empty?
   exit 1
 end
 
-puts "Bundled MCP client public and runtime selections are consistent."
+puts "Bundled MCP client public, runtime, and transport selections are consistent."
