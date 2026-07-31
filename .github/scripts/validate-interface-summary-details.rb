@@ -184,6 +184,10 @@ if selected_profiles.include?("mcp-enabled")
                 unless uri.is_a?(URI::HTTP) && uri.host
                   errors << "Streamable HTTP Endpoint URL must be an absolute http or https URL."
                 else
+                  if uri.userinfo
+                    errors << "Streamable HTTP Endpoint URL must not embed credentials or other userinfo."
+                  end
+
                   public_host = uri.host.to_s.sub(/\A\[(.*)\]\z/, "\\1")
                   authoritative_host = runtime_bind.to_s.sub(/\A\[(.*)\]\z/, "\\1")
                   wildcard_bind = %w[0.0.0.0 ::].include?(authoritative_host)
