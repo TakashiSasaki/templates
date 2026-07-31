@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 MIGRATION = ROOT / "docs/migration-from-agent-policy.md"
 MKDOCS = ROOT / "mkdocs.yml"
+PWA_SCRIPT = ROOT / "docs/assets/javascripts/pwa.js"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 SOURCE_HEAD = "22ac788d456bf0d9904e1d23492b01296de167a1"
 
@@ -30,11 +31,14 @@ def test_migration_provenance_records_filtered_source_history() -> None:
 
 def test_documentation_metadata_points_to_templates_policy() -> None:
     configuration = MKDOCS.read_text(encoding="utf-8")
+    pwa_script = PWA_SCRIPT.read_text(encoding="utf-8")
 
     assert "repo_url: https://github.com/TakashiSasaki/templates" in configuration
     assert "repo_name: TakashiSasaki/templates" in configuration
     assert "edit_uri: edit/policy/docs/" in configuration
     assert "edit/main/docs/" not in configuration
+    assert "https://github.com/TakashiSasaki/templates/commit/${info.commit}" in pwa_script
+    assert "https://github.com/TakashiSasaki/agent-policy/commit/" not in pwa_script
 
 
 def test_policy_ci_is_branch_portable_and_does_not_target_legacy_main() -> None:
