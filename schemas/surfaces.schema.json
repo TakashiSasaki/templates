@@ -3,7 +3,7 @@
   "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/surfaces.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "surfaces"],
+  "required": ["$schema", "schemaVersion", "surfaces"],
   "$defs": {
     "identifier": {
       "type": "string",
@@ -11,7 +11,7 @@
     }
   },
   "properties": {
-    "$schema": {"type": "string"},
+    "$schema": {"const": "../schemas/surfaces.schema.json"},
     "schemaVersion": {"const": 1},
     "surfaces": {
       "type": "array",
