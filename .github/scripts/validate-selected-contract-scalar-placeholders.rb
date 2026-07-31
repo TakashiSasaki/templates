@@ -79,8 +79,7 @@ scan_scalar_values = lambda do |path, document, context = nil|
     next if cells.empty?
     next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
 
-    cells.each_with_index do |cell, cell_index|
-      next if cell_index.zero?
+    cells.each do |cell|
       next unless unresolved_scalar.call(cell)
 
       errors << "#{location} table value must not use unresolved scalar placeholder " \
@@ -89,7 +88,8 @@ scan_scalar_values = lambda do |path, document, context = nil|
   end
 end
 
-skill_lines = File.readlines(SKILL_PATH, chomp: true)
+skill_document = File.read(SKILL_PATH)
+skill_lines = skill_document.lines(chomp: true)
 profile_values = summary_values.call(skill_lines, "Selected profiles")
 if profile_values.length != 1
   warn "#{SKILL_PATH} must contain exactly one 'Selected profiles:' declaration."
@@ -101,6 +101,12 @@ if selected_profiles == ["template-scaffold"]
   puts "Selected-contract scalar placeholder validation is not activated for the template scaffold."
   exit 0
 end
+
+# Every concrete skill must be operational regardless of whether it retains an
+# implementation runtime. Scan the entire SKILL document so instruction-only,
+# knowledge, asset, and script profiles cannot leave TBD-style placeholders in
+# their purpose, trigger, workflow, output, validation, or safety sections.
+scan_scalar_values.call(SKILL_PATH, skill_document)
 
 routing_selected = (selected_profiles & %w[packaged-cli mcp-enabled]).any?
 runtime_required = (selected_profiles & RUNTIME_REQUIRED_PROFILES).any?
@@ -187,4 +193,4 @@ unless errors.empty?
   exit 1
 end
 
-puts "Selected routing, interface, and runtime scalar values contain no unresolved placeholders."
+puts "Concrete SKILL, selected routing/interface, and runtime scalar values contain no unresolved placeholders."
