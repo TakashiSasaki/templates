@@ -43,6 +43,12 @@ Before a generated repository is treated as operational:
 6. Remove template-only guidance that no longer applies.
 7. Integrate `agent-policy` using a pinned full commit SHA after the repository-specific project policy is written.
 
+## Route-path representation
+
+`contracts/routes.json` records canonical URL pathnames, not arbitrary URLs or framework route-pattern syntax. The foundation accepts `/` or slash-separated, non-empty segments composed only of ASCII URL-unreserved characters: letters, digits, `.`, `_`, `~`, and `-`. A segment may not be exactly `.` or `..`.
+
+Raw whitespace, control characters, non-ASCII characters, percent encoding, query strings, fragments, backslashes, empty segments, and trailing slashes are rejected. Products that require internationalized paths, encoded octets, parameters, query contracts, or fragment contracts must add a normalization model and collision tests before relaxing this conservative representation.
+
 ## Compatibility rule
 
 The contract files are public repository interfaces. Renaming identifiers or changing semantics requires coordinated updates to implementation, navigation, authorization, documentation, deployment configuration, tests, and migration notes.
