@@ -122,11 +122,16 @@ class ContractValidationTests(unittest.TestCase):
                     any(f"{mode} authorization requires authentication required" in error for error in errors)
                 )
 
-    def test_viewport_gap_is_rejected(self) -> None:
+    def test_viewport_breakpoints_must_be_strictly_increasing(self) -> None:
         documents = copy.deepcopy(self.documents)
-        documents["viewports"]["viewports"][1]["minWidthPx"] = 800
+        documents["viewports"]["viewports"][1]["minWidthPx"] = 0
         errors = validate_contracts.cross_validate(documents)
-        self.assertTrue(any("viewport boundary compact -> regular: gap" in error for error in errors))
+        self.assertTrue(any("viewport breakpoints must be strictly increasing" in error for error in errors))
+
+    def test_viewport_upper_bound_is_derived_not_declared(self) -> None:
+        document = copy.deepcopy(self.documents["viewports"])
+        document["viewports"][0]["maxWidthPx"] = 767
+        self.assertFalse(self.validators["viewports"].is_valid(document))
 
     def test_route_path_accepts_only_stable_unreserved_segments(self) -> None:
         original = self.documents["routes"]["routes"][0]
