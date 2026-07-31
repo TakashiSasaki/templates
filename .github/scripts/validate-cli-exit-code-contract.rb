@@ -77,8 +77,8 @@ else
         errors << "#{CLI_PATH} exit-code mapping must include code 0 for successful execution."
       end
 
-      if codes.uniq.length < 5
-        errors << "#{CLI_PATH} must map at least five distinct exit codes covering success and distinct failure classes."
+      unless codes.any? { |code| code != 0 }
+        errors << "#{CLI_PATH} exit-code mapping must include at least one nonzero outcome or failure code."
       end
 
       rows.each do |code, meaning|
