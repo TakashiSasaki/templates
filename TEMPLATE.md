@@ -55,6 +55,8 @@ Raw whitespace, control characters, non-ASCII characters, percent encoding, quer
 
 Upper bounds are deliberately not stored. Deriving them from the next lower bound avoids fractional-width gaps under browser zoom and prevents adjacent declarations from disagreeing about a shared boundary.
 
+Input capabilities are declared once in the top-level `inputCapabilities` collection. They are not attached to breakpoints because viewport width does not determine whether touch, pointer, keyboard, voice, or switch input is available. Responsive layout tests must exercise supported input modes independently of viewport width.
+
 ## Compatibility rule
 
 The contract files are public repository interfaces. Renaming identifiers or changing semantics requires coordinated updates to implementation, navigation, authorization, documentation, deployment configuration, tests, and migration notes.
