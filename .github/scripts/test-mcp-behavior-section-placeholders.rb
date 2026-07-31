@@ -7,7 +7,7 @@ require "rbconfig"
 require "tmpdir"
 
 validator = File.expand_path("validate-decomposed-interface-contracts.rb", __dir__)
-fixture_source = File.read(File.expand_path("test-decomposed-interface-compat.rb", __dir__))
+fixture_source = File.read(File.expand_path("test-decomposed-interface-contracts.rb", __dir__))
 
 extract_heredoc = lambda do |name|
   match = fixture_source.match(/^#{Regexp.escape(name)} = <<~MARKDOWN\n(.*?)^MARKDOWN\n/m)
