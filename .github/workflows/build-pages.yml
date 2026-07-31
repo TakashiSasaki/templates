@@ -74,6 +74,12 @@ jobs:
       - name: Verify the Pages entry point
         run: test -f build/site/index.html
 
+      - name: Validate generated site links
+        run: |
+          python site-source/scripts/validate_site_links.py \
+            --site-root build/site \
+            --config-file build/zensical.toml
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
