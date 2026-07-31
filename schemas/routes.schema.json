@@ -3,7 +3,7 @@
   "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/routes.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "routes"],
+  "required": ["$schema", "schemaVersion", "routes"],
   "$defs": {
     "identifier": {
       "type": "string",
@@ -15,7 +15,7 @@
     }
   },
   "properties": {
-    "$schema": {"type": "string"},
+    "$schema": {"const": "../schemas/routes.schema.json"},
     "schemaVersion": {"const": 1},
     "routes": {
       "type": "array",
