@@ -18,9 +18,13 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-decomposed-interface-compat.rb
 
-      - name: Test endpoint and working-directory consistency
+      - name: Test endpoint and operational-summary consistency
         shell: bash
         run: ruby .github/scripts/test-interface-summary-details.rb
+
+      - name: Test concrete CLI exit-code meanings
+        shell: bash
+        run: ruby .github/scripts/test-cli-exit-code-meanings.rb
 
       - name: Validate scaffold, helper, and MCP contracts
         shell: bash
