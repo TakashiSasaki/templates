@@ -166,27 +166,17 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     for collision in sorted(set(route_paths) & set(aliases)):
         errors.append(f"route path is both canonical and alias: {collision}")
 
-    ordered_viewports = sorted(viewports, key=lambda item: item["minWidthPx"])
-    if ordered_viewports and ordered_viewports[0]["minWidthPx"] != 0:
-        errors.append("viewport coverage must start at 0px")
-    for index, viewport in enumerate(ordered_viewports):
-        minimum = viewport["minWidthPx"]
-        maximum = viewport.get("maxWidthPx")
-        if maximum is not None and maximum < minimum:
-            errors.append(f"viewport {viewport['id']}: maxWidthPx is less than minWidthPx")
-        is_last = index == len(ordered_viewports) - 1
-        if not is_last and maximum is None:
-            errors.append(f"viewport {viewport['id']}: only the final viewport may omit maxWidthPx")
-        if is_last and maximum is not None:
-            errors.append(f"viewport {viewport['id']}: final viewport must be open-ended")
-        if not is_last and maximum is not None:
-            next_minimum = ordered_viewports[index + 1]["minWidthPx"]
-            expected = maximum + 1
-            if next_minimum != expected:
-                relation = "overlap" if next_minimum < expected else "gap"
+    if viewports:
+        first_minimum = viewports[0]["minWidthPx"]
+        if first_minimum != 0:
+            errors.append("viewport coverage must start at 0px")
+        for previous, current in zip(viewports, viewports[1:]):
+            previous_minimum = previous["minWidthPx"]
+            current_minimum = current["minWidthPx"]
+            if current_minimum <= previous_minimum:
                 errors.append(
-                    f"viewport boundary {viewport['id']} -> {ordered_viewports[index + 1]['id']}: "
-                    f"{relation}; expected minWidthPx {expected}, found {next_minimum}"
+                    f"viewport breakpoints must be strictly increasing: "
+                    f"{previous['id']}={previous_minimum}px, {current['id']}={current_minimum}px"
                 )
 
     return errors
