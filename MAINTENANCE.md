@@ -14,7 +14,29 @@ This file applies only to the unrelated `site` branch.
 2. Open a pull request whose base branch is `site`.
 3. Require the documentation-site build to succeed before merging.
 4. Keep canonical prose changes on `main`.
-5. Update `site-manifest.json` when the published page set, navigation, destination path, or canonical source path changes. A rename or move on `main` requires a matching manifest update even when the public page remains otherwise unchanged.
+5. Update `site-manifest.json` when the published page set, navigation hierarchy, destination path, or canonical source path changes. A rename or move on `main` requires a matching manifest update even when the public page remains otherwise unchanged.
+
+## Navigation manifest
+
+`site-manifest.json` contains a top-level `navigation` array. Each item is exactly one of the following node types:
+
+- a page with `title`, `source`, `destination`, and optional boolean `optional` fields;
+- a section with `title` and a non-empty `children` array containing page or nested section nodes.
+
+The assembler enforces these invariants before copying any canonical page:
+
+- page and section fields may not be mixed;
+- unsupported fields are rejected;
+- every navigation title is non-empty and globally unique;
+- every page source and destination is globally unique;
+- source and destination values are safe relative paths;
+- every destination is a Markdown file;
+- the first included navigation entry is a page that generates `index.md`;
+- an explicitly empty section is invalid;
+- an optional missing page is omitted from its section;
+- a section whose children are all omitted optional pages is omitted from generated navigation.
+
+Page order and section order in the manifest are public information architecture. Keep Core Skill and profile-selection material before optional CLI, MCP, Web, and deployment guidance.
 
 ## Build and deployment policy
 
