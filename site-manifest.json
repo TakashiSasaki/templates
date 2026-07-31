@@ -2,7 +2,7 @@
   "navigation": [
     {
       "title": "Overview",
-      "source": "README.md",
+      "document": "overview",
       "destination": "index.md"
     },
     {
@@ -10,17 +10,17 @@
       "children": [
         {
           "title": "Skill contract",
-          "source": "SKILL.md",
+          "document": "skill-contract",
           "destination": "SKILL.md"
         },
         {
           "title": "Skill profiles",
-          "source": "docs/skill-profiles.md",
+          "document": "skill-profiles",
           "destination": "docs/skill-profiles.md"
         },
         {
           "title": "Profile contract map",
-          "source": "docs/profile-contract-map.md",
+          "document": "profile-contract-map",
           "destination": "docs/profile-contract-map.md"
         }
       ]
@@ -30,12 +30,12 @@
       "children": [
         {
           "title": "Runtime decision record",
-          "source": "RUNTIME.md",
+          "document": "runtime-decision-record",
           "destination": "RUNTIME.md"
         },
         {
           "title": "Interface routing",
-          "source": "INTERFACES.md",
+          "document": "interface-routing",
           "destination": "INTERFACES.md"
         }
       ]
@@ -45,17 +45,17 @@
       "children": [
         {
           "title": "Packaged CLI interface",
-          "source": "CLI_INTERFACE.md",
+          "document": "packaged-cli-interface",
           "destination": "CLI_INTERFACE.md"
         },
         {
           "title": "MCP interface",
-          "source": "MCP_INTERFACE.md",
+          "document": "mcp-interface",
           "destination": "MCP_INTERFACE.md"
         },
         {
           "title": "Human Web interface",
-          "source": "WEB_INTERFACE.md",
+          "document": "human-web-interface",
           "destination": "WEB_INTERFACE.md"
         }
       ]
@@ -65,19 +65,18 @@
       "children": [
         {
           "title": "Architecture",
-          "source": "docs/architecture.md",
+          "document": "architecture",
           "destination": "docs/architecture.md"
         },
         {
           "title": "Runtime selection",
-          "source": "docs/runtime-selection.md",
+          "document": "runtime-selection",
           "destination": "docs/runtime-selection.md"
         },
         {
           "title": "MCP transports",
-          "source": "docs/mcp-transports.md",
-          "destination": "docs/mcp-transports.md",
-          "optional": true
+          "document": "mcp-transports",
+          "destination": "docs/mcp-transports.md"
         }
       ]
     }
