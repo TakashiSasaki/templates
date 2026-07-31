@@ -6,6 +6,8 @@ require "rbconfig"
 DIRECT_VALIDATORS = %w[
   .github/scripts/validate-interface-routing-contract.rb
   .github/scripts/validate-decomposed-interface-contracts.rb
+  .github/scripts/validate-cli-exit-code-contract.rb
+  .github/scripts/validate-interface-runtime-consistency.rb
 ].freeze
 DEFAULT_LEGACY_VALIDATORS = %w[
   .github/scripts/validate-selected-profiles.rb
