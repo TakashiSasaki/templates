@@ -5,13 +5,7 @@ on:
     branches:
       - main
     paths:
-      - README.md
-      - SKILL.md
-      - INTERFACES.md
-      - CLI_INTERFACE.md
-      - MCP_INTERFACE.md
-      - WEB_INTERFACE.md
-      - RUNTIME.md
+      - '**/*.md'
       - docs/**
       - assets/**
       - .github/workflows/pages.yml
