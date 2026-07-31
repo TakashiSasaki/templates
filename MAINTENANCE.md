@@ -46,6 +46,23 @@ The assembler enforces these invariants before copying any canonical page:
 
 Page order and section order in the manifest are public information architecture. Keep Core Skill and profile-selection material before optional CLI, MCP, Web, and deployment guidance.
 
+## Generated link integrity
+
+The Pages workflow validates links after Zensical has generated the final HTML. This intentionally checks renderer output rather than trying to reproduce Markdown link and heading rules independently.
+
+`scripts/validate_site_links.py` reads `project.site_url` from the generated Zensical configuration, scans every generated HTML page, and validates:
+
+- relative links and same-origin absolute links that remain inside the configured site path;
+- directory-style page URLs and explicit `index.html` aliases;
+- links to generated non-HTML assets;
+- fragment identifiers against actual generated `id` or legacy anchor `name` values;
+- percent-encoded paths and fragments after URL decoding;
+- locally authored relative or root-relative links that escape the configured site path.
+
+External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not checked. A local link must resolve to a file in the Pages artifact, and a fragment is valid only on an HTML target containing the referenced identifier.
+
+When a canonical heading, destination, or relative link changes on `main`, the exact source commit passed to the reusable workflow is checked against the current `site` implementation before deployment. Broken page and anchor references therefore fail both pull-request builds and deployed `main` builds.
+
 ## Build and deployment policy
 
 - Pull requests targeting `site` build and upload a Pages artifact but do not deploy it.
