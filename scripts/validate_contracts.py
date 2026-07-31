@@ -12,6 +12,8 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
+
 CONTRACT_SCHEMAS = {
     "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
     "routes": ("contracts/routes.json", "schemas/routes.schema.json"),
@@ -212,6 +214,15 @@ def validate_repository(root: Path) -> list[str]:
             schema = load_json(root / schema_path)
         except load_errors as exc:
             errors.append(f"{schema_path}: unable to load JSON: {exc}")
+            all_documents_structurally_valid = False
+            continue
+
+        declared_dialect = schema.get("$schema") if isinstance(schema, dict) else None
+        if declared_dialect != SCHEMA_DIALECT:
+            errors.append(
+                f"{schema_path}: unsupported JSON Schema dialect: "
+                f"expected {SCHEMA_DIALECT!r}, got {declared_dialect!r}"
+            )
             all_documents_structurally_valid = False
             continue
 
