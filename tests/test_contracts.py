@@ -59,6 +59,27 @@ class ContractValidationTests(unittest.TestCase):
             errors = validate_contracts.validate_repository(temporary_root)
         self.assertTrue(any("duplicate object key 'schemaVersion'" in error for error in errors))
 
+    def test_non_standard_json_numeric_constants_are_rejected(self) -> None:
+        for constant in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(constant=constant):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    temporary_root = Path(temporary_directory)
+                    shutil.copytree(ROOT / "contracts", temporary_root / "contracts")
+                    shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
+                    schema_path = temporary_root / "schemas/viewports.schema.json"
+                    schema_text = schema_path.read_text(encoding="utf-8")
+                    schema_path.write_text(
+                        schema_text.replace('"minimum": 0', f'"minimum": {constant}', 1),
+                        encoding="utf-8",
+                    )
+                    errors = validate_contracts.validate_repository(temporary_root)
+                self.assertTrue(
+                    any(
+                        f"non-standard JSON numeric constant {constant!r}" in error
+                        for error in errors
+                    )
+                )
+
     def test_identifier_fields_reject_terminal_newlines(self) -> None:
         cases = (
             ("surfaces", ("surfaces", 0, "id"), "public\n"),
