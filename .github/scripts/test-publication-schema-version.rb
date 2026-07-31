@@ -33,7 +33,7 @@ failures = []
       PublicationCatalog.validate(catalog_path, root: root)
       failures << "schema_version #{schema_version.inspect}: validation unexpectedly succeeded"
     rescue PublicationCatalog::ValidationError => e
-      unless /schema_version must be integer 1/.match?(e.message)
+      unless /schema_version must be 1 and use an integer JSON value/.match?(e.message)
         failures << "schema_version #{schema_version.inspect}: unexpected diagnostic #{e.message.inspect}"
       end
     rescue StandardError => e
