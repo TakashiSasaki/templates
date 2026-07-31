@@ -60,31 +60,53 @@ cases.each do |name, zero_meaning, nonzero_meaning, expected_success|
   end
 end
 
-Dir.mktmpdir("cli-exit-code-escaped-pipe-test") do |directory|
-  escaped_pipe_duplicate_contract = <<~MARKDOWN
-    # Packaged CLI interface contract
+[
+  [
+    "rejects duplicate code with an escaped pipe meaning",
+    <<~MARKDOWN
+      # Packaged CLI interface contract
 
-    ## Human CLI
+      ## Human CLI
 
-    ### Exit codes
+      ### Exit codes
 
-    | Code | Meaning |
-    |---:|---|
-    | 0 | Successful execution |
-    | 1 | Validation failure |
-    | 1 | Validation \\| runtime failure |
-  MARKDOWN
-  File.write(File.join(directory, "SKILL.md"), "Selected profiles: packaged-cli\n")
-  File.write(File.join(directory, "CLI_INTERFACE.md"), escaped_pipe_duplicate_contract)
+      | Code | Meaning |
+      |---:|---|
+      | 0 | Successful execution |
+      | 1 | Validation failure |
+      | 1 | Validation \\| runtime failure |
+    MARKDOWN
+  ],
+  [
+    "rejects an unexpected third table cell",
+    <<~MARKDOWN
+      # Packaged CLI interface contract
 
-  _stdout, stderr, status = Open3.capture3(
-    { "RUBYOPT" => nil },
-    RbConfig.ruby,
-    validator,
-    chdir: directory
-  )
-  if status.success?
-    failures << "rejects duplicate code with an escaped pipe meaning: expected failure; diagnostics=#{stderr.strip.inspect}"
+      ## Human CLI
+
+      ### Exit codes
+
+      | Code | Meaning |
+      |---:|---|
+      | 0 | Successful execution |
+      | 1 | Invalid invocation |
+      | bogus | Invalid | extra |
+    MARKDOWN
+  ]
+].each do |name, contract|
+  Dir.mktmpdir("cli-exit-code-table-shape-test") do |directory|
+    File.write(File.join(directory, "SKILL.md"), "Selected profiles: packaged-cli\n")
+    File.write(File.join(directory, "CLI_INTERFACE.md"), contract)
+
+    _stdout, stderr, status = Open3.capture3(
+      { "RUBYOPT" => nil },
+      RbConfig.ruby,
+      validator,
+      chdir: directory
+    )
+    if status.success?
+      failures << "#{name}: expected failure; diagnostics=#{stderr.strip.inspect}"
+    end
   end
 end
 
