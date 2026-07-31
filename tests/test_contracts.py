@@ -219,6 +219,18 @@ class ContractValidationTests(unittest.TestCase):
         route["accessibility"]["documentTitleRequired"] = False
         self.assertFalse(self.route_document_is_valid(route))
 
+    def test_focus_targets_require_non_whitespace_content(self) -> None:
+        original = self.documents["routes"]["routes"][0]
+        for invalid_target in (" ", "\n", "\t", " \r\n\t"):
+            with self.subTest(focus_target=repr(invalid_target)):
+                route = copy.deepcopy(original)
+                route["accessibility"]["focusTarget"] = invalid_target
+                self.assertFalse(self.route_document_is_valid(route))
+
+        route = copy.deepcopy(original)
+        route["accessibility"]["focusTarget"] = "  #main-content  "
+        self.assertTrue(self.route_document_is_valid(route))
+
     def test_unsupported_fixed_authentication_return_is_rejected(self) -> None:
         route = copy.deepcopy(self.documents["routes"]["routes"][0])
         route["authenticationReturn"] = "fixed-route"
