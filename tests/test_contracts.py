@@ -50,10 +50,18 @@ class ContractValidationTests(unittest.TestCase):
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("viewport boundary compact -> regular: gap" in error for error in errors))
 
-    def test_route_path_rejects_query_and_fragment_delimiters(self) -> None:
-        route = copy.deepcopy(self.documents["routes"]["routes"][0])
-        for invalid_path in ("/search?q=x", "/settings#profile"):
+    def test_route_path_rejects_nonpathname_and_normalized_forms(self) -> None:
+        original = self.documents["routes"]["routes"][0]
+        invalid_paths = (
+            "/search?q=x",
+            "/settings#profile",
+            "/./admin",
+            "/x/../admin",
+            "/admin\\settings",
+        )
+        for invalid_path in invalid_paths:
             with self.subTest(path=invalid_path):
+                route = copy.deepcopy(original)
                 route["path"] = invalid_path
                 self.assertFalse(self.route_document_is_valid(route))
 
@@ -66,6 +74,16 @@ class ContractValidationTests(unittest.TestCase):
         route = copy.deepcopy(self.documents["routes"]["routes"][0])
         route["authenticationReturn"] = "fixed-route"
         self.assertFalse(self.route_document_is_valid(route))
+
+    def test_required_authentication_requires_same_route_return(self) -> None:
+        route = copy.deepcopy(self.documents["routes"]["routes"][1])
+        route["authenticationReturn"] = "not-applicable"
+        self.assertFalse(self.route_document_is_valid(route))
+
+    def test_optional_authentication_can_be_not_applicable(self) -> None:
+        route = copy.deepcopy(self.documents["routes"]["routes"][2])
+        route["authenticationReturn"] = "not-applicable"
+        self.assertTrue(self.route_document_is_valid(route))
 
 
 if __name__ == "__main__":
