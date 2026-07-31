@@ -66,6 +66,13 @@ class AdditionalReviewRegressionTests(unittest.TestCase):
             for invalid_value in (blank_character, f" {blank_character}\t"):
                 self.assert_rejected_as_invisible(invalid_value)
 
+    def test_viewport_contract_requires_orientation_independence(self) -> None:
+        document = copy.deepcopy(self.documents["viewports"])
+        self.assertTrue(self.validators["viewports"].is_valid(document))
+
+        document["constraints"]["orientationIndependent"] = False
+        self.assertFalse(self.validators["viewports"].is_valid(document))
+
     def test_invalid_utf8_is_reported_for_contracts_and_schemas(self) -> None:
         cases = (
             ("contracts/routes.json", "contracts/routes.json"),
