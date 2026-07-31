@@ -98,11 +98,9 @@ valid_cli = <<~MARKDOWN
 
   | Code | Meaning |
   |---:|---|
-  | 0 | Successful execution and successful domain result |
-  | 1 | Successful execution with a negative validation, policy, or domain result |
-  | 2 | Invalid command or input |
-  | 4 | Operation refused by a safety, authorization, or permission rule |
-  | 5 | Protocol, transport, or unexpected internal failure |
+  | 0 | Successful execution |
+  | 1 | Negative domain result |
+  | 2 | Invalid invocation or internal failure |
 
   ## In-place agent launcher
 
@@ -182,6 +180,38 @@ valid_mcp = <<~MARKDOWN
   Interaction modes: NOT SUPPORTED
   Task or extension support: NOT SUPPORTED
 
+  ### Tool inventory, schemas, and caching
+
+  Tool-list pagination follows opaque cursors and preserves every ordered raw page and unknown field.
+
+  ### Lossless paginated tool-list output
+
+  Lossless output stores each received page without merging page-level metadata or cache hints.
+
+  ### Tool-call results and errors
+
+  Tool-call output preserves the complete MCP result and distinguishes transport, protocol, domain-error, and success outcomes.
+
+  ### Multiple calls and application state
+
+  Sequential calls remain independent MCP requests and required state is represented by documented identifiers.
+
+  ### Selected modern multi-round-trip requests
+
+  Non-interactive mode returns input-required results unchanged; explicit responses are required before retrying.
+
+  ### Selected initialization-era server-to-client requests
+
+  Initialization-era capabilities are not advertised unless their handlers and terminal-response behavior are implemented.
+
+  ### Cancellation, tasks, and extensions
+
+  Cancellation uses the selected revision and transport behavior, then cleans up requests, connections, and child processes.
+
+  ### Ownership and workspace policy
+
+  The MCP host owns the stdio process and applies the same documented workspace restrictions as other maintained adapters.
+
   ## Semantic-equivalence and test requirements
 
   The stdio adapter uses the shared operation registry and contract fixtures.
@@ -259,26 +289,35 @@ mcp_files = {
   "RUNTIME.md" => valid_mcp_runtime
 }.freeze
 
+remove_section = lambda do |document, heading|
+  level = heading[/\A#+/].length
+  boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
+  document.sub(
+    Regexp.new("^#{Regexp.escape(heading)}\\s*$\\n.*?(?=#{boundary})", Regexp::MULTILINE),
+    ""
+  )
+end
+
 cases = [
   {
-    name: "accepts completed packaged CLI routing, interface, exit-code, and runtime contracts",
+    name: "accepts a compact three-code CLI mapping",
     profile: "packaged-cli",
     files: cli_files,
     success: true
   },
   {
-    name: "rejects an unselected routing contract",
+    name: "rejects a CLI exit-code mapping with no nonzero result",
     profile: "packaged-cli",
     files: cli_files.merge(
-      "INTERFACES.md" => valid_cli_router.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
+      "CLI_INTERFACE.md" => valid_cli.gsub(/^\| [12] \|.*\n/, "")
     ),
     success: false
   },
   {
-    name: "rejects an unresolved routing fallback",
+    name: "rejects a missing CLI exit-code section",
     profile: "packaged-cli",
     files: cli_files.merge(
-      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: NONE", "Fallback 1: TODO")
+      "CLI_INTERFACE.md" => remove_section.call(valid_cli, "### Exit codes")
     ),
     success: false
   },
@@ -294,39 +333,6 @@ cases = [
     success: false
   },
   {
-    name: "rejects a routing category unsupported by selected profiles",
-    profile: "packaged-cli",
-    files: cli_files.merge(
-      "INTERFACES.md" => valid_cli_router.sub(
-        "Preferred agent interface: installed human CLI command",
-        "Preferred agent interface: existing Streamable HTTP MCP endpoint"
-      )
-    ),
-    success: false
-  },
-  {
-    name: "rejects a missing CLI exit-code section",
-    profile: "packaged-cli",
-    files: cli_files.merge(
-      "CLI_INTERFACE.md" => valid_cli.sub(
-        /\n### Exit codes\n.*?(?=\n## In-place agent launcher)/m,
-        ""
-      )
-    ),
-    success: false
-  },
-  {
-    name: "rejects an incomplete CLI exit-code mapping",
-    profile: "packaged-cli",
-    files: cli_files.merge(
-      "CLI_INTERFACE.md" => valid_cli.sub(
-        "| 5 | Protocol, transport, or unexpected internal failure |\n",
-        ""
-      )
-    ),
-    success: false
-  },
-  {
     name: "rejects a CLI command mismatch with runtime",
     profile: "packaged-cli",
     files: cli_files.merge(
@@ -335,21 +341,10 @@ cases = [
     success: false
   },
   {
-    name: "accepts completed MCP routing, interface, and runtime contracts",
+    name: "accepts completed MCP caller-visible behavior sections",
     profile: "mcp-enabled",
     files: mcp_files,
     success: true
-  },
-  {
-    name: "rejects an MCP route whose transport is unsupported",
-    profile: "mcp-enabled",
-    files: mcp_files.merge(
-      "INTERFACES.md" => valid_mcp_router.sub(
-        "Preferred agent interface: native MCP tool already registered in the host",
-        "Preferred agent interface: existing Streamable HTTP MCP endpoint"
-      )
-    ),
-    success: false
   },
   {
     name: "rejects an MCP launch-command mismatch with runtime",
@@ -361,19 +356,28 @@ cases = [
       )
     ),
     success: false
-  },
-  {
-    name: "rejects an unresolved MCP rationale",
+  }
+]
+
+[
+  "### Tool inventory, schemas, and caching",
+  "### Lossless paginated tool-list output",
+  "### Tool-call results and errors",
+  "### Multiple calls and application state",
+  "### Selected modern multi-round-trip requests",
+  "### Selected initialization-era server-to-client requests",
+  "### Cancellation, tasks, and extensions",
+  "### Ownership and workspace policy"
+].each do |heading|
+  cases << {
+    name: "rejects MCP contract missing #{heading}",
     profile: "mcp-enabled",
     files: mcp_files.merge(
-      "MCP_INTERFACE.md" => valid_mcp.sub(
-        "Rationale: stdio provides bounded local MCP access without a listening socket.",
-        "Rationale: TODO"
-      )
+      "MCP_INTERFACE.md" => remove_section.call(valid_mcp, heading)
     ),
     success: false
   }
-]
+end
 
 failures = []
 
