@@ -23,16 +23,21 @@ DEFAULT_RULE_VALIDATORS = %w[
   validate-late-review-contracts.rb
 ].freeze
 
-rule_validators = ARGV.empty? ? DEFAULT_RULE_VALIDATORS : ARGV
+validator_specs = DIRECT_VALIDATORS.map { |validator| [validator, true] }
+validator_specs.concat(
+  if ARGV.empty?
+    DEFAULT_RULE_VALIDATORS.map { |validator| [validator, true] }
+  else
+    ARGV.map { |validator| [validator, false] }
+  end
+)
 
-resolve_validator = lambda do |validator|
-  return File.expand_path(validator) if File.file?(validator)
+seen_paths = {}
+validator_specs.each do |validator, bundled|
+  path = bundled ? File.expand_path(validator, __dir__) : File.expand_path(validator)
+  next if seen_paths[path]
 
-  File.expand_path(File.basename(validator), __dir__)
-end
-
-(DIRECT_VALIDATORS + rule_validators).uniq.each do |validator|
-  path = resolve_validator.call(validator)
+  seen_paths[path] = true
   unless File.file?(path)
     warn "Missing profile validator: #{validator}"
     exit 1
