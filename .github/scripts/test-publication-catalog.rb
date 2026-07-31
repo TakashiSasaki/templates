@@ -78,6 +78,16 @@ invalid_cases = [
     end
   },
   {
+    name: "rejects malformed UTF-8 before JSON parsing",
+    pattern: /content is not valid UTF-8/,
+    mutate: lambda do |root|
+      path = write_catalog(root)
+      content = File.binread(path)
+      File.binwrite(path, content.sub("guide".b, "guide\xFF".b))
+      path
+    end
+  },
+  {
     name: "rejects duplicate document ids",
     pattern: /Duplicate publication document id: overview/,
     mutate: lambda do |root|
