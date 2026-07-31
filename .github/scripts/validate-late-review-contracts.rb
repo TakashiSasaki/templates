@@ -1,97 +1,54 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require "yaml"
+require_relative "lib/profile_contracts"
 
-skill_path = "SKILL.md"
-unless File.file?(skill_path)
-  warn "Missing universally required file: SKILL.md"
+include ProfileContracts
+
+begin
+  skill = SkillDocument.read("SKILL.md")
+  selection = ProfileSelection.load("SKILL.md", document: skill)
+rescue ParseError => e
+  warn e.message
   exit 1
 end
 
-lines = File.readlines(skill_path, chomp: true)
-text = lines.join("\n")
-
-strip_backticks = lambda do |value|
-  normalized = value.to_s.strip
-  if normalized.length >= 2 && normalized.start_with?("`") && normalized.end_with?("`")
-    normalized[1...-1]
-  else
-    normalized
-  end
-end
-
-resolved_value = lambda do |value|
-  value && !value.strip.empty? && !/\b(?:TODO|UNSELECTED)\b/i.match?(value)
-end
-
-concrete_value = lambda do |value|
-  resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
-end
-
-resolved_allow_not_supported = lambda do |value|
-  resolved_value.call(value) && !/\A(?:NONE|NOT\s+APPLICABLE)\z/i.match?(value.strip)
-end
-
-markdown_section = lambda do |document, heading|
-  level = heading[/\A#+/].length
-  boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
-  match = document.match(
-    Regexp.new("^#{Regexp.escape(heading)}\\s*$\\n(.*?)(?=#{boundary})", Regexp::MULTILINE)
-  )
-  match && match[1]
-end
-
-table_value = lambda do |section, item|
-  match = section&.match(/^\|\s*#{Regexp.escape(item)}\s*\|\s*(.*?)\s*\|\s*$/)
-  match && strip_backticks.call(match[1])
-end
-
-profile_values = lines.filter_map do |raw_line|
-  normalized = raw_line.strip
-  normalized = normalized[2..].strip if normalized.start_with?("- ")
-  match = normalized.match(/\ASelected profiles:\s*(.+?)\s*\z/)
-  strip_backticks.call(match[1]) if match
-end
-
+repository = RepositorySnapshot.new
+selected_profiles = selection.profiles
 errors = []
 
-if profile_values.length != 1
-  errors << "SKILL.md must contain exactly one 'Selected profiles:' declaration."
-else
-  selected_profiles = profile_values.first.split(",").map(&:strip).reject(&:empty?)
-  template_scaffold = selected_profiles == ["template-scaffold"]
+ignored_root_names = %w[
+  README.md SKILL.md AGENTS.md CONTRIBUTING.md RUNTIME.md INTERFACES.md CLI_INTERFACE.md
+  MCP_INTERFACE.md WEB_INTERFACE.md LICENSE LICENSE.md LICENSE.template COPYING COPYING.md
+  SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
+].freeze
+guidance_extensions = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf].freeze
 
-  ignored_root_names = %w[
-    README.md SKILL.md AGENTS.md CONTRIBUTING.md RUNTIME.md INTERFACES.md WEB_INTERFACE.md
-    LICENSE LICENSE.md LICENSE.template COPYING COPYING.md SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
-  ]
-  guidance_extensions = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf]
+root_implementation_files = repository.root_files.select do |path|
+  next false if path.start_with?(".")
+  next false if ignored_root_names.any? { |name| path.casecmp?(name) }
+  next false if guidance_extensions.include?(File.extname(path).downcase)
 
-  root_implementation_files = Dir.children(".").select do |path|
-    next false if path.start_with?(".")
-    next false unless File.file?(path) && !File.symlink?(path)
-    next false if ignored_root_names.any? { |name| path.casecmp?(name) }
-    next false if guidance_extensions.include?(File.extname(path).downcase)
+  true
+end
 
-    true
+if selection.template_scaffold? && !root_implementation_files.empty?
+  errors << "'template-scaffold' cannot be retained after adding language-neutral root implementation signals: #{root_implementation_files.sort.join(', ')}."
+elsif !selection.template_scaffold?
+  application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
+  if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
+    errors << "Language-neutral root implementation files require an application or service profile: #{root_implementation_files.sort.join(', ')}."
   end
+end
 
-  if template_scaffold && !root_implementation_files.empty?
-    errors << "'template-scaffold' cannot be retained after adding language-neutral root implementation signals: #{root_implementation_files.sort.join(', ')}."
-  elsif !template_scaffold
-    application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
-    if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
-      errors << "Language-neutral root implementation files require an application or service profile: #{root_implementation_files.sort.join(', ')}."
-    end
-  end
+if selection.selected?("mcp-enabled")
+  runtime = repository.document("RUNTIME.md")
+  if runtime
+    protocol = runtime.section("## MCP protocol support")
+    revisions = runtime.table_value("Supported protocol revisions", section: protocol).to_s
 
-  if selected_profiles.include?("mcp-enabled") && File.file?("RUNTIME.md")
-    runtime = File.read("RUNTIME.md")
-    protocol = markdown_section.call(runtime, "## MCP protocol support")
-    revisions = table_value.call(protocol, "Supported protocol revisions").to_s
-
-    stdio = markdown_section.call(runtime, "### stdio variant")
-    if table_value.call(stdio, "Supported") == "YES"
+    stdio = runtime.section("### stdio variant")
+    if runtime.table_value("Supported", section: stdio) == "YES"
       [
         "Server entry point",
         "Lifecycle owner",
@@ -102,14 +59,14 @@ else
         "Cancellation behavior",
         "Child-process shutdown and escalation"
       ].each do |item|
-        unless concrete_value.call(table_value.call(stdio, item))
+        unless ValuePolicy.concrete?(runtime.table_value(item, section: stdio))
           errors << "Supported stdio requires a concrete '#{item}' runtime value; NOT SUPPORTED is reserved for Supported: NO."
         end
       end
     end
 
-    http = markdown_section.call(runtime, "### Streamable HTTP variant")
-    http_supported = table_value.call(http, "Supported") == "YES"
+    http = runtime.section("### Streamable HTTP variant")
+    http_supported = runtime.table_value("Supported", section: http) == "YES"
     if http_supported
       [
         "Server entry point",
@@ -129,7 +86,7 @@ else
         "Shutdown/restart policy",
         "Non-loopback support"
       ].each do |item|
-        unless concrete_value.call(table_value.call(http, item))
+        unless ValuePolicy.concrete?(runtime.table_value(item, section: http))
           errors << "Supported Streamable HTTP requires a concrete '#{item}' runtime value; NOT SUPPORTED is reserved for Supported: NO."
         end
       end
@@ -151,13 +108,13 @@ else
         "SSE-stream cancellation",
         "`Mcp-Session-Id`, GET, DELETE, and resumability"
       ].each do |item|
-        unless concrete_value.call(table_value.call(modern_table, item))
+        unless ValuePolicy.concrete?(runtime.table_value(item, section: modern_table))
           errors << "Protocol revision 2026-07-28 with Streamable HTTP requires a concrete modern transport value for '#{item}'."
         end
       end
 
-      fallback = table_value.call(modern_table, "Initialization-era fallback on the same endpoint")
-      unless resolved_allow_not_supported.call(fallback)
+      fallback = runtime.table_value("Initialization-era fallback on the same endpoint", section: modern_table)
+      unless ValuePolicy.resolved_allow_not_supported?(fallback)
         errors << "Protocol revision 2026-07-28 requires a resolved initialization-era fallback decision; NOT SUPPORTED is allowed, NONE is not."
       end
     end
