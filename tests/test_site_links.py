@@ -144,6 +144,17 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
+    def test_rejects_percent_encoded_same_origin_hostname_when_missing(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https://%65xample.test/docs/absent/">Absent</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
     def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:
         self.write(
             "index.html",
