@@ -4,6 +4,13 @@
 SKILL_PATH = "SKILL.md"
 ROUTING_PATH = "INTERFACES.md"
 PUBLIC_INTERFACE_PROFILES = %w[packaged-cli mcp-enabled].freeze
+ROUTE_LABELS = [
+  "native MCP tool already registered in the host",
+  "existing Streamable HTTP MCP endpoint",
+  "bundled ad hoc MCP tool client over stdio or Streamable HTTP",
+  "stable in-place CLI launcher",
+  "installed human CLI command"
+].freeze
 
 unless File.file?(SKILL_PATH)
   warn "Missing universally required file: SKILL.md"
@@ -27,6 +34,10 @@ concrete_value = lambda do |value|
   resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
 end
 
+normalize_route = lambda do |value|
+  value.to_s.strip.gsub(/\s+/, " ").downcase
+end
+
 markdown_section = lambda do |document, heading|
   level = heading[/\A#+/].length
   boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
@@ -41,8 +52,11 @@ field_value = lambda do |section, label|
   match && strip_backticks.call(match[1])
 end
 
-lines = File.readlines(SKILL_PATH, chomp: true)
-profile_values = lines.filter_map do |raw_line|
+support_token = lambda do |value|
+  value&.strip&.split(/[;\s]/)&.first&.upcase
+end
+
+profile_values = File.readlines(SKILL_PATH, chomp: true).filter_map do |raw_line|
   normalized = raw_line.strip
   normalized = normalized[2..].strip if normalized.start_with?("- ")
   match = normalized.match(/\ASelected profiles:\s*(.+?)\s*\z/)
@@ -95,23 +109,106 @@ elsif routing_selected
       errors << "Selected routing contract #{ROUTING_PATH} must not retain TODO or UNSELECTED placeholders."
     end
 
-    execution = markdown_section.call(document, "## Execution policy")
-    unless concrete_value.call(field_value.call(execution, "Preferred agent interface"))
-      errors << "#{ROUTING_PATH} requires a concrete 'Preferred agent interface:' value."
-    end
+    cli = File.file?("CLI_INTERFACE.md") ? File.read("CLI_INTERFACE.md") : nil
+    mcp = File.file?("MCP_INTERFACE.md") ? File.read("MCP_INTERFACE.md") : nil
 
-    fallbacks = ["Fallback 1", "Fallback 2"].to_h do |label|
-      [label, field_value.call(execution, label)]
-    end
-    fallbacks.each do |label, value|
-      unless resolved_value.call(value)
-        errors << "#{ROUTING_PATH} requires a resolved '#{label}:' value; use NONE when no route is permitted."
+    cli_launcher_support = if cli
+                             support_token.call(
+                               field_value.call(
+                                 markdown_section.call(cli, "## In-place agent launcher"),
+                                 "Supported"
+                               )
+                             )
+                           end
+    mcp_stdio_support = if mcp
+                         support_token.call(
+                           field_value.call(
+                             markdown_section.call(mcp, "## stdio MCP server variant"),
+                             "Supported"
+                           )
+                         )
+                       end
+    mcp_http_support = if mcp
+                        support_token.call(
+                          field_value.call(
+                            markdown_section.call(mcp, "## Streamable HTTP MCP server variant"),
+                            "Supported"
+                          )
+                        )
+                      end
+    mcp_client_support = if mcp
+                          support_token.call(
+                            field_value.call(
+                              markdown_section.call(mcp, "## Bundled ad hoc MCP tool client"),
+                              "Supported"
+                            )
+                          )
+                        end
+
+    canonical_routes = ROUTE_LABELS.to_h { |label| [normalize_route.call(label), label] }
+    route_available = lambda do |canonical|
+      case canonical
+      when "installed human CLI command"
+        selected_profiles.include?("packaged-cli") && !cli.nil?
+      when "stable in-place CLI launcher"
+        selected_profiles.include?("packaged-cli") && cli_launcher_support == "YES"
+      when "native MCP tool already registered in the host"
+        selected_profiles.include?("mcp-enabled") &&
+          !mcp.nil? &&
+          [mcp_stdio_support, mcp_http_support].include?("YES")
+      when "existing Streamable HTTP MCP endpoint"
+        selected_profiles.include?("mcp-enabled") && mcp_http_support == "YES"
+      when "bundled ad hoc MCP tool client over stdio or Streamable HTTP"
+        selected_profiles.include?("mcp-enabled") && mcp_client_support == "YES"
+      else
+        false
       end
     end
-    if fallbacks["Fallback 1"]&.casecmp?("NONE") &&
-       resolved_value.call(fallbacks["Fallback 2"]) &&
-       !fallbacks["Fallback 2"].casecmp?("NONE")
+
+    validate_route = lambda do |label, value, allow_none|
+      unless resolved_value.call(value)
+        errors << "#{ROUTING_PATH} requires a resolved '#{label}:' value."
+        next nil
+      end
+
+      normalized = normalize_route.call(value)
+      if normalized == "none"
+        unless allow_none
+          errors << "#{ROUTING_PATH} cannot use NONE as the preferred agent interface."
+        end
+        next "NONE"
+      end
+
+      canonical = canonical_routes[normalized]
+      unless canonical
+        errors << "#{ROUTING_PATH} '#{label}:' must use one documented route category exactly."
+        next nil
+      end
+
+      unless route_available.call(canonical)
+        errors << "#{ROUTING_PATH} route '#{canonical}' is not implemented by the selected profiles and support declarations."
+      end
+
+      canonical
+    end
+
+    execution = markdown_section.call(document, "## Execution policy")
+    preferred = validate_route.call(
+      "Preferred agent interface",
+      field_value.call(execution, "Preferred agent interface"),
+      false
+    )
+    fallback_1 = validate_route.call("Fallback 1", field_value.call(execution, "Fallback 1"), true)
+    fallback_2 = validate_route.call("Fallback 2", field_value.call(execution, "Fallback 2"), true)
+
+    if fallback_1 == "NONE" && fallback_2 && fallback_2 != "NONE"
       errors << "#{ROUTING_PATH} cannot define Fallback 2 after Fallback 1 is NONE."
+    end
+
+    concrete_routes = [preferred, fallback_1, fallback_2].compact.reject { |route| route == "NONE" }
+    duplicates = concrete_routes.tally.select { |_route, count| count > 1 }.keys
+    unless duplicates.empty?
+      errors << "#{ROUTING_PATH} must not repeat a route in the preferred/fallback order: #{duplicates.join(', ')}."
     end
 
     availability = markdown_section.call(document, "## Availability and failure behavior")
