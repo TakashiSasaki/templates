@@ -58,7 +58,7 @@
       if (typeof info.commit === "string" && /^[0-9a-f]{40}$/.test(info.commit)) {
         const separator = document.createTextNode(" — ");
         const link = document.createElement("a");
-        link.href = `https://github.com/TakashiSasaki/agent-policy/commit/${info.commit}`;
+        link.href = `https://github.com/TakashiSasaki/templates/commit/${info.commit}`;
         link.textContent = info.commit.slice(0, 7);
         link.rel = "noopener noreferrer";
         paragraph.append(separator, link);
