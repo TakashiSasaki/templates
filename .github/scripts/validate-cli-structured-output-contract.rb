@@ -65,7 +65,8 @@ else
     format = field_value.call(structured, "Format")
     version_field = field_value.call(structured, "Contract version field")
 
-    unresolved_selector = /\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|UNSELECTED|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)\z/i
+    unresolved_selector = /\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)\z/i
+    unresolved_selector_payload = /(?:\A|[:=]|\s)(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)(?=\z|[\s.,;])/i
     option_selector = /(?:\A|\s)--?[A-Za-z0-9][A-Za-z0-9_-]*(?:[=\s]\S+)?(?:\s|\z)/
     environment_selector = /(?:\A|\s)[A-Z][A-Z0-9_]*=\S+(?:\s|\z)/
     named_selector = /\A(?:subcommand|command|environment(?:\s+variable)?|option|flag)\s*:\s*\S(?:.*\S)?\z/i
@@ -74,8 +75,11 @@ else
       environment_selector.match?(mode_selector) ||
       named_selector.match?(mode_selector)
     )
-    unless selector_is_explicit && !unresolved_selector.match?(mode_selector)
-      errors << "#{CLI_PATH} 'Mode selector:' must record an exact caller-visible option, subcommand, or environment assignment that activates structured output."
+    selector_is_resolved = mode_selector &&
+                           !unresolved_selector.match?(mode_selector) &&
+                           !unresolved_selector_payload.match?(mode_selector)
+    unless selector_is_explicit && selector_is_resolved
+      errors << "#{CLI_PATH} 'Mode selector:' must record an exact, fully resolved caller-visible option, subcommand, or environment assignment that activates structured output."
     end
 
     # Format names are intentionally open-ended. A concrete skill may select a
