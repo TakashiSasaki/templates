@@ -164,6 +164,16 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
 
 
+def normalize_special_url_backslashes(raw_url: str) -> str:
+    """Treat literal backslashes as path separators before query or fragment data."""
+    boundary = len(raw_url)
+    for delimiter in ("?", "#"):
+        position = raw_url.find(delimiter)
+        if position >= 0:
+            boundary = min(boundary, position)
+    return raw_url[:boundary].replace("\\", "/") + raw_url[boundary:]
+
+
 def _decode_path_without_separators(encoded_path: str) -> str:
     """Decode percent escapes while keeping encoded slash and backslash in-segment."""
     protected: list[str] = []
@@ -266,11 +276,12 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     for source in pages:
         for reference in source.links:
             raw = reference.href.strip()
-            raw_parts = urlsplit(raw)
+            normalized_raw = normalize_special_url_backslashes(raw)
+            raw_parts = urlsplit(normalized_raw)
             if raw_parts.scheme and raw_parts.scheme.lower() not in {"http", "https"}:
                 continue
 
-            resolved = urlsplit(urljoin(source.public_url, raw))
+            resolved = urlsplit(urljoin(source.public_url, normalized_raw))
             try:
                 resolved_origin = normalized_origin(
                     resolved,
