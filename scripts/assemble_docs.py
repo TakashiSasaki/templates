@@ -99,8 +99,9 @@ def load_publication_catalog(path: Path) -> tuple[PublicationDocument, ...]:
             "publication catalog contains unsupported top-level fields: "
             + ", ".join(sorted(unknown_top_level))
         )
-    if data.get("schema_version") != 1:
-        raise AssemblyError("publication catalog schema_version must be 1")
+    schema_version = data.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:
+        raise AssemblyError("publication catalog schema_version must be the integer 1")
     raw_documents = data.get("documents")
     if not isinstance(raw_documents, list) or not raw_documents:
         raise AssemblyError("publication catalog documents must be a non-empty array")
