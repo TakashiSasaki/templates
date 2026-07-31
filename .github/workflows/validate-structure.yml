@@ -219,7 +219,7 @@ jobs:
           end
           RUBY
 
-          ruby .github/scripts/validate-core-profile-contracts.rb
+          ruby .github/scripts/validate-profile-contracts.rb
 
           has_operational_files() {
             local directory="$1"
