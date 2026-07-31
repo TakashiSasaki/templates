@@ -23,6 +23,10 @@ resolved_value = lambda do |value|
   value && !value.strip.empty? && !/\b(?:TODO|UNSELECTED)\b/i.match?(value)
 end
 
+concrete_value = lambda do |value|
+  resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
+end
+
 markdown_section = lambda do |document, heading|
   level = heading[/\A#+/].length
   boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
@@ -105,8 +109,8 @@ else
       end
 
       rows.each do |code, meaning|
-        unless resolved_value.call(meaning)
-          errors << "#{CLI_PATH} exit code #{code} requires a resolved meaning."
+        unless concrete_value.call(meaning)
+          errors << "#{CLI_PATH} exit code #{code} requires a concrete caller-visible meaning."
         end
       end
     end
