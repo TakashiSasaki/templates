@@ -69,6 +69,21 @@ valid_mcp = <<~MARKDOWN
   Authentication: NOT SUPPORTED
 MARKDOWN
 
+valid_web = <<~MARKDOWN
+  # Optional human verification web interface
+
+  ## Status and purpose
+
+  Supported: YES
+  Purpose: verification
+
+  ## Human authorization and safety
+
+  Authentication: local session
+  Allowed users or network boundary: loopback users
+  Confirmation policy: required for mutations
+MARKDOWN
+
 valid_cli_runtime = <<~MARKDOWN
   # Runtime decision record
 
@@ -105,8 +120,76 @@ valid_mcp_runtime = <<~MARKDOWN
   | Supported | NO |
 MARKDOWN
 
+valid_browser_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ### Browser-interface commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Start human verification Web UI | bin/skill-web start |
+  | Stop human verification Web UI | bin/skill-web stop |
+  | Check human verification Web UI readiness | bin/skill-web ready |
+
+  ## Optional human verification Web interface deployment
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | YES |
+  | Web runtime or entry point | bin/skill-web |
+  | Enablement configuration | SKILL_WEB_UI=1 |
+MARKDOWN
+
+valid_headless_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ### Headless-service commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Start headless service | bin/skill-service start |
+  | Stop headless service | bin/skill-service stop |
+  | Check headless service readiness | bin/skill-service ready |
+
+  ## Headless service deployment
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | YES |
+  | Service runtime or entry point | bin/skill-service |
+  | Authentication | bearer token from secret store |
+  | Authorization | operation allowlist |
+MARKDOWN
+
+valid_script_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ## Primary implementation
+
+  | Item | Selected value |
+  |---|---|
+  | Language | Ruby |
+  | Runtime | CRuby |
+MARKDOWN
+
 cli_skill = "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n"
 mcp_skill = "Selected profiles: mcp-enabled\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: MCP_INTERFACE.md\n"
+browser_skill = "Selected profiles: browser-interface\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: NOT APPLICABLE\nDetailed interface contract: NOT APPLICABLE\n"
+headless_skill = "Selected profiles: headless-service\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: NOT APPLICABLE\nDetailed interface contract: NOT APPLICABLE\n"
+combined_skill = "Selected profiles: packaged-cli, browser-interface\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n"
+script_skill = "Selected profiles: script-assisted\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\n"
 
 cli_files = {
   "INTERFACES.md" => valid_routing,
@@ -118,18 +201,28 @@ mcp_files = {
   "MCP_INTERFACE.md" => valid_mcp,
   "RUNTIME.md" => valid_mcp_runtime
 }.freeze
+browser_files = {
+  "WEB_INTERFACE.md" => valid_web,
+  "RUNTIME.md" => valid_browser_runtime
+}.freeze
+headless_files = {
+  "RUNTIME.md" => valid_headless_runtime
+}.freeze
+combined_runtime = valid_cli_runtime + "\n" + valid_browser_runtime.sub(/\A# Runtime decision record.*?Selection status: SELECTED\n/m, "")
+combined_files = cli_files.merge(
+  "WEB_INTERFACE.md" => valid_web,
+  "RUNTIME.md" => combined_runtime
+).freeze
 
 cases = [
+  { name: "accepts concrete CLI scalar values", skill: cli_skill, files: cli_files, success: true },
+  { name: "accepts concrete MCP scalar values", skill: mcp_skill, files: mcp_files, success: true },
+  { name: "accepts concrete browser scalar values", skill: browser_skill, files: browser_files, success: true },
+  { name: "accepts concrete headless-service scalar values", skill: headless_skill, files: headless_files, success: true },
   {
-    name: "accepts concrete CLI scalar values",
-    skill: cli_skill,
-    files: cli_files,
-    success: true
-  },
-  {
-    name: "accepts concrete MCP scalar values",
-    skill: mcp_skill,
-    files: mcp_files,
+    name: "accepts an optional script-assisted runtime record",
+    skill: script_skill,
+    files: { "RUNTIME.md" => valid_script_runtime },
     success: true
   },
   {
@@ -178,6 +271,46 @@ cases = [
       "MCP_INTERFACE.md" => valid_mcp.sub("Lifecycle owner: MCP host", "Lifecycle owner: PLACEHOLDER"),
       "RUNTIME.md" => valid_mcp_runtime.sub("| Lifecycle owner | MCP host |", "| Lifecycle owner | PLACEHOLDER |")
     ),
+    success: false
+  },
+  {
+    name: "rejects TBD authentication in WEB_INTERFACE.md",
+    skill: browser_skill,
+    files: browser_files.merge(
+      "WEB_INTERFACE.md" => valid_web.sub("Authentication: local session", "Authentication: TBD")
+    ),
+    success: false
+  },
+  {
+    name: "rejects a browser runtime placeholder",
+    skill: browser_skill,
+    files: browser_files.merge(
+      "RUNTIME.md" => valid_browser_runtime.sub("| Enablement configuration | SKILL_WEB_UI=1 |", "| Enablement configuration | TBD |")
+    ),
+    success: false
+  },
+  {
+    name: "rejects a browser runtime placeholder in a combined profile",
+    skill: combined_skill,
+    files: combined_files.merge(
+      "RUNTIME.md" => combined_runtime.sub("| Enablement configuration | SKILL_WEB_UI=1 |", "| Enablement configuration | TBD |")
+    ),
+    success: false
+  },
+  {
+    name: "rejects headless-service authentication TBD",
+    skill: headless_skill,
+    files: headless_files.merge(
+      "RUNTIME.md" => valid_headless_runtime.sub("| Authentication | bearer token from secret store |", "| Authentication | TBD |")
+    ),
+    success: false
+  },
+  {
+    name: "rejects a placeholder in an optional script-assisted runtime",
+    skill: script_skill,
+    files: {
+      "RUNTIME.md" => valid_script_runtime.sub("| Runtime | CRuby |", "| Runtime | TBD |")
+    },
     success: false
   },
   {
@@ -232,4 +365,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Selected routing, public-contract, and runtime scalar placeholder tests passed."
+puts "Selected routing, interface, and runtime scalar placeholder tests passed."
