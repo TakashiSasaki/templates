@@ -60,6 +60,34 @@ cases.each do |name, zero_meaning, nonzero_meaning, expected_success|
   end
 end
 
+Dir.mktmpdir("cli-exit-code-escaped-pipe-test") do |directory|
+  escaped_pipe_duplicate_contract = <<~MARKDOWN
+    # Packaged CLI interface contract
+
+    ## Human CLI
+
+    ### Exit codes
+
+    | Code | Meaning |
+    |---:|---|
+    | 0 | Successful execution |
+    | 1 | Validation failure |
+    | 1 | Validation \\| runtime failure |
+  MARKDOWN
+  File.write(File.join(directory, "SKILL.md"), "Selected profiles: packaged-cli\n")
+  File.write(File.join(directory, "CLI_INTERFACE.md"), escaped_pipe_duplicate_contract)
+
+  _stdout, stderr, status = Open3.capture3(
+    { "RUBYOPT" => nil },
+    RbConfig.ruby,
+    validator,
+    chdir: directory
+  )
+  if status.success?
+    failures << "rejects duplicate code with an escaped pipe meaning: expected failure; diagnostics=#{stderr.strip.inspect}"
+  end
+end
+
 unless failures.empty?
   failures.each { |failure| warn failure }
   exit 1
