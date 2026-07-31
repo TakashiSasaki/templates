@@ -86,6 +86,18 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
 
+    def test_accepts_percent_encoded_parent_segment_with_fragment(self) -> None:
+        self.write("index.html", '<h1 id="home">Home</h1>')
+        self.write(
+            "guide/index.html",
+            '<a href="%2e%2e/#home">Encoded parent</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
+
     def test_uses_main_content_links_when_generated_chrome_is_present(self) -> None:
         self.write(
             "index.html",
@@ -131,6 +143,17 @@ class GeneratedSiteLinkTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
+
+    def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https://example.test:0/docs/absent/">Different port</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
 
     def test_rejects_relative_link_that_escapes_site_path(self) -> None:
         self.write("index.html", "<p>Home</p>")
