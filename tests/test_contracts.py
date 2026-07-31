@@ -214,6 +214,11 @@ class ContractValidationTests(unittest.TestCase):
         route["canonical"] = False
         self.assertFalse(self.route_document_is_valid(route))
 
+    def test_canonical_routes_require_document_titles(self) -> None:
+        route = copy.deepcopy(self.documents["routes"]["routes"][0])
+        route["accessibility"]["documentTitleRequired"] = False
+        self.assertFalse(self.route_document_is_valid(route))
+
     def test_unsupported_fixed_authentication_return_is_rejected(self) -> None:
         route = copy.deepcopy(self.documents["routes"]["routes"][0])
         route["authenticationReturn"] = "fixed-route"
