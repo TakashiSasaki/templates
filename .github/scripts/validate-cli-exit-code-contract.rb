@@ -41,13 +41,18 @@ else
   if section.nil? || section.strip.empty?
     errors << "#{CLI_PATH} requires a non-empty '### Exit codes' section."
   else
-    table_rows = ProfileContracts::MarkdownDocument.new(section, path: CLI_PATH).table_rows.filter_map do |cells|
-      next unless cells.length == 2
+    table_rows = []
+    ProfileContracts::MarkdownDocument.new(section, path: CLI_PATH).table_rows.each do |cells|
+      if cells.length != 2
+        errors << "#{CLI_PATH} exit-code mapping rows must contain exactly two columns; " \
+                  "found #{cells.length}: #{cells.inspect}."
+        next
+      end
 
       code_text, meaning = cells
       next if code_text.casecmp?("Code") || /\A:?-+:?\z/.match?(code_text)
 
-      [code_text, meaning]
+      table_rows << [code_text, meaning]
     end
 
     if table_rows.empty?
