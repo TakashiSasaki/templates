@@ -122,10 +122,20 @@ class ContractValidationTests(unittest.TestCase):
         route["authenticationReturn"] = "not-applicable"
         self.assertFalse(self.route_document_is_valid(route))
 
-    def test_optional_authentication_can_be_not_applicable(self) -> None:
-        route = copy.deepcopy(self.documents["routes"]["routes"][2])
+    def test_no_authentication_requires_not_applicable_return(self) -> None:
+        route = copy.deepcopy(self.documents["routes"]["routes"][0])
+        route["authentication"] = "none"
+        route["authenticationReturn"] = "same-route"
+        self.assertFalse(self.route_document_is_valid(route))
         route["authenticationReturn"] = "not-applicable"
         self.assertTrue(self.route_document_is_valid(route))
+
+    def test_optional_authentication_allows_both_return_policies(self) -> None:
+        route = copy.deepcopy(self.documents["routes"]["routes"][2])
+        for policy in ("same-route", "not-applicable"):
+            with self.subTest(policy=policy):
+                route["authenticationReturn"] = policy
+                self.assertTrue(self.route_document_is_valid(route))
 
 
 if __name__ == "__main__":
