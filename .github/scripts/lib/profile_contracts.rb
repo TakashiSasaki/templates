@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "find"
+require "yaml"
+
 module ProfileContracts
   class ParseError < StandardError; end
 
@@ -33,9 +36,14 @@ module ProfileContracts
     def concrete?(value)
       resolved?(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(strip_backticks(value))
     end
+
+    def resolved_allow_not_supported?(value)
+      resolved?(value) && !/\A(?:NONE|NOT\s+APPLICABLE)\z/i.match?(strip_backticks(value))
+    end
   end
 
   ScalarEntry = Struct.new(:line_number, :kind, :label, :value, keyword_init: true)
+  Declaration = Struct.new(:path, :line_number, :fields, keyword_init: true)
 
   class MarkdownDocument
     attr_reader :path, :text
@@ -47,6 +55,10 @@ module ProfileContracts
     def initialize(text, path: nil)
       @text = text.to_s
       @path = path
+    end
+
+    def lines
+      @lines ||= text.lines(chomp: true)
     end
 
     def section(heading)
@@ -63,10 +75,14 @@ module ProfileContracts
       match && ValuePolicy.strip_backticks(match[1])
     end
 
+    def list_field(label, section: text)
+      match = section.to_s.match(/^\s*-\s*#{Regexp.escape(label)}:\s*(.*?)\s*$/)
+      match && ValuePolicy.strip_backticks(match[1])
+    end
+
     def summary_values(label)
-      text.lines.filter_map do |raw_line|
-        normalized = raw_line.strip
-        normalized = normalized[2..].strip if normalized.start_with?("- ")
+      lines.filter_map do |raw_line|
+        normalized = normalize_summary_line(raw_line)
         match = normalized.match(/\A#{Regexp.escape(label)}:\s*(.*?)\s*\z/)
         ValuePolicy.strip_backticks(match[1]) if match
       end
@@ -83,19 +99,55 @@ module ProfileContracts
       end
     end
 
+    def table_value(item, section: text)
+      row = table_rows(section).find { |cells| cells.first == item }
+      row && row.length == 2 ? row[1] : nil
+    end
+
+    def support_values
+      text.scan(/^Supported:\s*(.*?)\s*$/).flatten.map { |value| ValuePolicy.strip_backticks(value) }
+    end
+
+    def declarations(label)
+      results = []
+      current = nil
+
+      lines.each_with_index do |raw_line, index|
+        normalized = normalize_summary_line(raw_line)
+        if (match = normalized.match(/\A#{Regexp.escape(label)}:\s*(.+?)\s*\z/))
+          current = Declaration.new(
+            path: ValuePolicy.strip_backticks(match[1]),
+            line_number: index + 1,
+            fields: {}
+          )
+          results << current
+          next
+        end
+
+        next unless current
+
+        if normalized.start_with?("#") || normalized == "```"
+          current = nil
+          next
+        end
+
+        if (match = normalized.match(/\A([^:]+):\s*(.*?)\s*\z/))
+          current.fields[match[1].strip] = ValuePolicy.strip_backticks(match[2])
+        end
+      end
+
+      results
+    end
+
     def each_scalar
       return enum_for(__method__) unless block_given?
 
-      text.lines.each_with_index do |raw_line, index|
+      lines.each_with_index do |raw_line, index|
         normalized = raw_line.strip
         next if normalized.empty? || normalized.match?(/\A```/)
 
         line_number = index + 1
-        yield ScalarEntry.new(
-          line_number: line_number,
-          kind: :line,
-          value: normalized
-        )
+        yield ScalarEntry.new(line_number: line_number, kind: :line, value: normalized)
 
         field_match = normalized.match(/\A(?:[-*]\s+)?([^|#`][^:]{0,120}?):\s*(.*?)\s*\z/)
         if field_match
@@ -113,16 +165,18 @@ module ProfileContracts
         next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
 
         cells.each do |cell|
-          yield ScalarEntry.new(
-            line_number: line_number,
-            kind: :table,
-            value: cell
-          )
+          yield ScalarEntry.new(line_number: line_number, kind: :table, value: cell)
         end
       end
     end
 
     private
+
+    def normalize_summary_line(line)
+      normalized = line.strip
+      normalized = normalized[2..].strip if normalized.start_with?("- ")
+      normalized
+    end
 
     def parse_table_cells(line)
       return nil unless line.start_with?("|") && line.end_with?("|")
@@ -150,15 +204,55 @@ module ProfileContracts
     end
   end
 
-  class ProfileSelection
-    attr_reader :path, :profiles
+  class SkillDocument < MarkdownDocument
+    attr_reader :metadata
 
-    def self.load(path = "SKILL.md")
+    def self.read(path = "SKILL.md")
       unless File.file?(path)
         raise ParseError, "Missing universally required file: #{path}"
       end
 
-      document = MarkdownDocument.read(path)
+      new(File.read(path), path: path)
+    end
+
+    def initialize(text, path: nil)
+      super
+      @metadata = parse_frontmatter
+    end
+
+    private
+
+    def parse_frontmatter
+      unless lines.first == "---"
+        raise ParseError, "#{path || 'SKILL.md'} must begin with YAML frontmatter."
+      end
+
+      closing_index = (1...lines.length).find { |index| lines[index] == "---" }
+      unless closing_index
+        raise ParseError, "#{path || 'SKILL.md'} YAML frontmatter must have a closing --- delimiter."
+      end
+
+      value = YAML.safe_load(
+        lines[1...closing_index].join("\n"),
+        permitted_classes: [],
+        permitted_symbols: [],
+        aliases: false
+      )
+      unless value.is_a?(Hash)
+        raise ParseError, "#{path || 'SKILL.md'} YAML frontmatter must be a mapping."
+      end
+
+      value
+    rescue Psych::Exception => e
+      raise ParseError, "#{path || 'SKILL.md'} YAML frontmatter is invalid: #{e.message}"
+    end
+  end
+
+  class ProfileSelection
+    attr_reader :path, :profiles
+
+    def self.load(path = "SKILL.md", document: nil)
+      document ||= SkillDocument.read(path)
       declarations = document.summary_values("Selected profiles")
       unless declarations.length == 1
         raise ParseError, "#{path} must contain exactly one 'Selected profiles:' declaration."
@@ -184,5 +278,82 @@ module ProfileContracts
     def selected?(profile)
       profiles.include?(profile)
     end
+  end
+
+  class RepositorySnapshot
+    GUIDANCE_ARTIFACT_EXTENSIONS = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf].freeze
+    GUIDANCE_ARTIFACT_NAMES = %w[
+      README README.md README.markdown README.rst NOTES NOTES.md
+      ARCHITECTURE ARCHITECTURE.md CONTRIBUTING CONTRIBUTING.md
+    ].freeze
+
+    attr_reader :root
+
+    def initialize(root = ".")
+      @root = File.expand_path(root)
+    end
+
+    def file?(path)
+      File.file?(absolute(path))
+    end
+
+    def symlink?(path)
+      File.symlink?(absolute(path))
+    end
+
+    def directory?(path)
+      File.directory?(absolute(path))
+    end
+
+    def document(path)
+      return nil unless file?(path)
+
+      MarkdownDocument.read(absolute(path))
+    end
+
+    def operational_file_present?(directory)
+      absolute_directory = absolute(directory)
+      return false unless File.directory?(absolute_directory) && !File.symlink?(absolute_directory)
+
+      Find.find(absolute_directory).any? do |path|
+        next false if path == absolute_directory || File.directory?(path)
+
+        relative = path.delete_prefix("#{root}/")
+        relative != "#{directory}/README.md"
+      end
+    end
+
+    def code_artifact_present?(directory)
+      absolute_directory = absolute(directory)
+      return false unless File.directory?(absolute_directory) && !File.symlink?(absolute_directory)
+
+      Find.find(absolute_directory).any? do |path|
+        next false if path == absolute_directory || File.directory?(path)
+        next false unless File.file?(path) && !File.symlink?(path)
+
+        basename = File.basename(path)
+        extension = File.extname(path).downcase
+        next false if GUIDANCE_ARTIFACT_NAMES.any? { |name| basename.casecmp?(name) }
+        next false if GUIDANCE_ARTIFACT_EXTENSIONS.include?(extension)
+
+        true
+      end
+    end
+
+    def root_files
+      Dir.children(root).select { |path| File.file?(absolute(path)) && !File.symlink?(absolute(path)) }
+    end
+
+    private
+
+    def absolute(path)
+      File.join(root, path)
+    end
+  end
+
+  module_function
+
+  def support_token(value)
+    ValuePolicy.strip_backticks(value).split(/[;\s]/).first&.upcase
   end
 end
