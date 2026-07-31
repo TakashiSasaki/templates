@@ -4,6 +4,8 @@
 SKILL_PATH = "SKILL.md"
 ROUTING_PATH = "INTERFACES.md"
 RUNTIME_PATH = "RUNTIME.md"
+WEB_PATH = "WEB_INTERFACE.md"
+RUNTIME_REQUIRED_PROFILES = %w[packaged-cli mcp-enabled browser-interface headless-service].freeze
 
 unless File.file?(SKILL_PATH)
   warn "Missing universally required file: #{SKILL_PATH}"
@@ -100,15 +102,22 @@ if selected_profiles == ["template-scaffold"]
   exit 0
 end
 
-public_interface_selected = (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+routing_selected = (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+runtime_required = (selected_profiles & RUNTIME_REQUIRED_PROFILES).any?
+runtime_retained = runtime_required || (selected_profiles.include?("script-assisted") && File.file?(RUNTIME_PATH))
 
-if public_interface_selected
-  [
-    "Canonical command",
-    "Working directory",
-    "Preferred agent route",
-    "Detailed interface contract"
-  ].each do |label|
+if runtime_retained
+  ["Canonical command", "Working directory"].each do |label|
+    summary_values.call(skill_lines, label).each do |value|
+      if unresolved_scalar.call(value)
+        errors << "#{SKILL_PATH} '#{label}:' must not use unresolved scalar placeholder #{value.inspect}."
+      end
+    end
+  end
+end
+
+if routing_selected
+  ["Preferred agent route", "Detailed interface contract"].each do |label|
     summary_values.call(skill_lines, label).each do |value|
       if unresolved_scalar.call(value)
         errors << "#{SKILL_PATH} '#{label}:' must not use unresolved scalar placeholder #{value.inspect}."
@@ -118,9 +127,10 @@ if public_interface_selected
 end
 
 selected_contracts = []
-selected_contracts << ROUTING_PATH if public_interface_selected
+selected_contracts << ROUTING_PATH if routing_selected
 selected_contracts << "CLI_INTERFACE.md" if selected_profiles.include?("packaged-cli")
 selected_contracts << "MCP_INTERFACE.md" if selected_profiles.include?("mcp-enabled")
+selected_contracts << WEB_PATH if selected_profiles.include?("browser-interface")
 
 selected_contracts.each do |path|
   unless File.file?(path)
@@ -131,34 +141,44 @@ selected_contracts.each do |path|
   scan_scalar_values.call(path, File.read(path))
 end
 
-if public_interface_selected
-  unless File.file?(RUNTIME_PATH)
-    errors << "Selected public-interface profile requires contract file: #{RUNTIME_PATH}"
-  else
-    runtime = File.read(RUNTIME_PATH)
-    runtime_headings = [
-      "## Status",
-      "## Primary implementation",
-      "### Shared development commands",
-      "## Distribution",
-      "## Environment and configuration",
-      "## Decision rationale"
-    ]
-    runtime_headings << "### Packaged CLI commands" if selected_profiles.include?("packaged-cli")
-    if selected_profiles.include?("mcp-enabled")
-      runtime_headings.concat([
-        "### MCP commands",
-        "## MCP protocol support",
-        "### stdio variant",
-        "### Streamable HTTP variant",
-        "### Bundled ad hoc MCP tool client"
-      ])
-    end
+if runtime_required && !File.file?(RUNTIME_PATH)
+  errors << "Selected runtime-backed profile requires contract file: #{RUNTIME_PATH}"
+elsif runtime_retained
+  runtime = File.read(RUNTIME_PATH)
+  runtime_headings = [
+    "## Status",
+    "## Primary implementation",
+    "### Shared development commands",
+    "## Distribution",
+    "## Environment and configuration",
+    "## Decision rationale"
+  ]
+  runtime_headings << "### Packaged CLI commands" if selected_profiles.include?("packaged-cli")
+  if selected_profiles.include?("mcp-enabled")
+    runtime_headings.concat([
+      "### MCP commands",
+      "## MCP protocol support",
+      "### stdio variant",
+      "### Streamable HTTP variant",
+      "### Bundled ad hoc MCP tool client"
+    ])
+  end
+  if selected_profiles.include?("browser-interface")
+    runtime_headings.concat([
+      "### Browser-interface commands",
+      "## Optional human verification Web interface deployment"
+    ])
+  end
+  if selected_profiles.include?("headless-service")
+    runtime_headings.concat([
+      "### Headless-service commands",
+      "## Headless service deployment"
+    ])
+  end
 
-    runtime_headings.each do |heading|
-      section = markdown_section.call(runtime, heading)
-      scan_scalar_values.call(RUNTIME_PATH, section, heading) if section
-    end
+  runtime_headings.uniq.each do |heading|
+    section = markdown_section.call(runtime, heading)
+    scan_scalar_values.call(RUNTIME_PATH, section, heading) if section
   end
 end
 
@@ -167,4 +187,4 @@ unless errors.empty?
   exit 1
 end
 
-puts "Selected routing, public-interface, and runtime scalar values contain no unresolved placeholders."
+puts "Selected routing, interface, and runtime scalar values contain no unresolved placeholders."
