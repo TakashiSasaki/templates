@@ -69,7 +69,7 @@ else
     unresolved_selector_payload = /(?:\A|[:=]|\s)(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|SEE\s+DOCUMENTATION)(?=\z|[\s.,;])/i
     option_selector = /(?:\A|\s)--?[A-Za-z0-9][A-Za-z0-9_-]*(?:[=\s]\S+)?(?:\s|\z)/
     environment_selector = /(?:\A|\s)[A-Z][A-Z0-9_]*=\S+(?:\s|\z)/
-    named_selector = /\A(?:subcommand|command|environment(?:\s+variable)?|option|flag)\s*:\s*\S(?:.*\S)?\z/i
+    named_selector = /\A(?:subcommand|command|option|flag)\s*:\s*\S(?:.*\S)?\z/i
     selector_is_explicit = mode_selector && (
       option_selector.match?(mode_selector) ||
       environment_selector.match?(mode_selector) ||
