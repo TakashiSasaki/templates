@@ -22,8 +22,8 @@ module PublicationCatalog
     catalog = read_catalog(Pathname.new(catalog_path))
     validate_exact_keys(catalog, ROOT_KEYS, "publication catalog")
 
-    unless catalog["schema_version"] == 1
-      raise ValidationError, "publication catalog schema_version must be 1"
+    unless catalog["schema_version"].is_a?(Integer) && catalog["schema_version"] == 1
+      raise ValidationError, "publication catalog schema_version must be integer 1"
     end
 
     raw_documents = catalog["documents"]
