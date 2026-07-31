@@ -75,6 +75,17 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 5 local links across 2 generated HTML pages", result.stdout)
 
+    def test_accepts_anchor_followed_by_text_fragment_directive(self) -> None:
+        self.write(
+            "index.html",
+            '<h2 id="details">Details</h2><a href="#details:~:text=example">Text</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
+
     def test_uses_main_content_links_when_generated_chrome_is_present(self) -> None:
         self.write(
             "index.html",
@@ -110,10 +121,10 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("references missing fragment 'missing'", result.stderr)
         self.assertIn("guide/index.html", result.stderr)
 
-    def test_rejects_same_origin_absolute_target_inside_site_when_missing(self) -> None:
+    def test_rejects_explicit_default_port_target_when_missing(self) -> None:
         self.write(
             "index.html",
-            '<a href="https://example.test/docs/absent/">Absent</a>',
+            '<a href="https://example.test:443/docs/absent/">Absent</a>',
         )
 
         result = self.run_validator()
