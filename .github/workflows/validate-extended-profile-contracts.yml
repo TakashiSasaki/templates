@@ -22,6 +22,14 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-selected-contract-scalar-placeholders.rb
 
+      - name: Test CLI structured-output contract
+        shell: bash
+        run: ruby .github/scripts/test-cli-structured-output-contract.rb
+
+      - name: Test browser-interface routing
+        shell: bash
+        run: ruby .github/scripts/test-browser-interface-routing.rb
+
       - name: Test MCP caller-behavior placeholder rejection
         shell: bash
         run: ruby .github/scripts/test-mcp-behavior-section-placeholders.rb
