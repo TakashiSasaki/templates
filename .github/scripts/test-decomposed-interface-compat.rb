@@ -8,7 +8,9 @@ require "tmpdir"
 
 validators = [
   File.expand_path("validate-interface-routing-contract.rb", __dir__),
-  File.expand_path("validate-decomposed-interface-contracts.rb", __dir__)
+  File.expand_path("validate-decomposed-interface-contracts.rb", __dir__),
+  File.expand_path("validate-cli-exit-code-contract.rb", __dir__),
+  File.expand_path("validate-interface-runtime-consistency.rb", __dir__)
 ].freeze
 
 valid_cli_router = <<~MARKDOWN
@@ -91,6 +93,16 @@ valid_cli = <<~MARKDOWN
 
   Format: JSON
   Contract version field: contractVersion
+
+  ### Exit codes
+
+  | Code | Meaning |
+  |---:|---|
+  | 0 | Successful execution and successful domain result |
+  | 1 | Successful execution with a negative validation, policy, or domain result |
+  | 2 | Invalid command or input |
+  | 4 | Operation refused by a safety, authorization, or permission rule |
+  | 5 | Protocol, transport, or unexpected internal failure |
 
   ## In-place agent launcher
 
@@ -179,95 +191,186 @@ valid_mcp = <<~MARKDOWN
   Rationale: stdio provides bounded local MCP access without a listening socket.
 MARKDOWN
 
+valid_cli_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Commands
+
+  ### Shared development commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Agent launcher | NOT APPLICABLE |
+
+  ### Packaged CLI commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Human CLI | skill-tool |
+MARKDOWN
+
+valid_mcp_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Commands
+
+  ### MCP commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Start stdio MCP server | skill-tool mcp stdio |
+  | Start Streamable HTTP MCP server | NOT SUPPORTED |
+  | Stop Streamable HTTP MCP server | NOT SUPPORTED |
+  | Check MCP readiness | NOT SUPPORTED |
+
+  ## MCP variants
+
+  ### stdio variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | YES |
+  | Server entry point | lib/mcp/server.rb |
+
+  ### Streamable HTTP variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | NO |
+  | Server entry point | NOT SUPPORTED |
+
+  ### Bundled ad hoc MCP tool client
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | NO |
+  | Stable public command | NOT SUPPORTED |
+MARKDOWN
+
+cli_files = {
+  "INTERFACES.md" => valid_cli_router,
+  "CLI_INTERFACE.md" => valid_cli,
+  "RUNTIME.md" => valid_cli_runtime
+}.freeze
+
+mcp_files = {
+  "INTERFACES.md" => valid_mcp_router,
+  "MCP_INTERFACE.md" => valid_mcp,
+  "RUNTIME.md" => valid_mcp_runtime
+}.freeze
+
 cases = [
   {
-    name: "accepts completed packaged CLI routing and interface contracts",
+    name: "accepts completed packaged CLI routing, interface, exit-code, and runtime contracts",
     profile: "packaged-cli",
-    files: {
-      "INTERFACES.md" => valid_cli_router,
-      "CLI_INTERFACE.md" => valid_cli
-    },
+    files: cli_files,
     success: true
   },
   {
     name: "rejects an unselected routing contract",
     profile: "packaged-cli",
-    files: {
-      "INTERFACES.md" => valid_cli_router.sub("Selection status: SELECTED", "Selection status: UNSELECTED"),
-      "CLI_INTERFACE.md" => valid_cli
-    },
+    files: cli_files.merge(
+      "INTERFACES.md" => valid_cli_router.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
+    ),
     success: false
   },
   {
     name: "rejects an unresolved routing fallback",
     profile: "packaged-cli",
-    files: {
-      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: NONE", "Fallback 1: TODO"),
-      "CLI_INTERFACE.md" => valid_cli
-    },
+    files: cli_files.merge(
+      "INTERFACES.md" => valid_cli_router.sub("Fallback 1: NONE", "Fallback 1: TODO")
+    ),
     success: false
   },
   {
-    name: "rejects an unresolved routing rationale",
+    name: "rejects a noncanonical routing category",
     profile: "packaged-cli",
-    files: {
+    files: cli_files.merge(
       "INTERFACES.md" => valid_cli_router.sub(
-        "Rationale: use the installed command and avoid implicit process startup when it is unavailable.",
-        "Rationale: TODO"
-      ),
-      "CLI_INTERFACE.md" => valid_cli
-    },
-    success: false
-  },
-  {
-    name: "rejects an unselected packaged CLI contract",
-    profile: "packaged-cli",
-    files: {
-      "INTERFACES.md" => valid_cli_router,
-      "CLI_INTERFACE.md" => valid_cli.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
-    },
-    success: false
-  },
-  {
-    name: "rejects an unresolved packaged CLI rationale",
-    profile: "packaged-cli",
-    files: {
-      "INTERFACES.md" => valid_cli_router,
-      "CLI_INTERFACE.md" => valid_cli.sub(
-        "Rationale: a stable packaged command is required by human users and CI.",
-        "Rationale: TODO"
+        "Preferred agent interface: installed human CLI command",
+        "Preferred agent interface: carrier pigeon"
       )
-    },
+    ),
     success: false
   },
   {
-    name: "accepts completed MCP routing and interface contracts",
+    name: "rejects a routing category unsupported by selected profiles",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "INTERFACES.md" => valid_cli_router.sub(
+        "Preferred agent interface: installed human CLI command",
+        "Preferred agent interface: existing Streamable HTTP MCP endpoint"
+      )
+    ),
+    success: false
+  },
+  {
+    name: "rejects a missing CLI exit-code section",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub(
+        /\n### Exit codes\n.*?(?=\n## In-place agent launcher)/m,
+        ""
+      )
+    ),
+    success: false
+  },
+  {
+    name: "rejects an incomplete CLI exit-code mapping",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub(
+        "| 5 | Protocol, transport, or unexpected internal failure |\n",
+        ""
+      )
+    ),
+    success: false
+  },
+  {
+    name: "rejects a CLI command mismatch with runtime",
+    profile: "packaged-cli",
+    files: cli_files.merge(
+      "RUNTIME.md" => valid_cli_runtime.sub("| Human CLI | skill-tool |", "| Human CLI | other-tool |")
+    ),
+    success: false
+  },
+  {
+    name: "accepts completed MCP routing, interface, and runtime contracts",
     profile: "mcp-enabled",
-    files: {
-      "INTERFACES.md" => valid_mcp_router,
-      "MCP_INTERFACE.md" => valid_mcp
-    },
+    files: mcp_files,
     success: true
   },
   {
-    name: "rejects an unselected MCP contract",
+    name: "rejects an MCP route whose transport is unsupported",
     profile: "mcp-enabled",
-    files: {
-      "INTERFACES.md" => valid_mcp_router,
-      "MCP_INTERFACE.md" => valid_mcp.sub("Selection status: SELECTED", "Selection status: UNSELECTED")
-    },
+    files: mcp_files.merge(
+      "INTERFACES.md" => valid_mcp_router.sub(
+        "Preferred agent interface: native MCP tool already registered in the host",
+        "Preferred agent interface: existing Streamable HTTP MCP endpoint"
+      )
+    ),
+    success: false
+  },
+  {
+    name: "rejects an MCP launch-command mismatch with runtime",
+    profile: "mcp-enabled",
+    files: mcp_files.merge(
+      "RUNTIME.md" => valid_mcp_runtime.sub(
+        "| Start stdio MCP server | skill-tool mcp stdio |",
+        "| Start stdio MCP server | other-tool mcp stdio |"
+      )
+    ),
     success: false
   },
   {
     name: "rejects an unresolved MCP rationale",
     profile: "mcp-enabled",
-    files: {
-      "INTERFACES.md" => valid_mcp_router,
+    files: mcp_files.merge(
       "MCP_INTERFACE.md" => valid_mcp.sub(
         "Rationale: stdio provides bounded local MCP access without a listening socket.",
         "Rationale: TODO"
       )
-    },
+    ),
     success: false
   }
 ]
@@ -311,4 +414,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Decomposed interface and routing contract validation tests passed."
+puts "Decomposed interface, routing, exit-code, and runtime consistency tests passed."
