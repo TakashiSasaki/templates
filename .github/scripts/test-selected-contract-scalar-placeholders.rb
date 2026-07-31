@@ -7,6 +7,38 @@ require "tmpdir"
 
 validator = File.expand_path("validate-selected-contract-scalar-placeholders.rb", __dir__)
 
+valid_routing = <<~MARKDOWN
+  # Public interface selection contract
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ## Execution policy
+
+  Preferred agent interface: installed human CLI command
+  Fallback 1: NONE
+  Fallback 2: NONE
+
+  ## Contract index
+
+  The selected profile-specific interface document is authoritative for caller-visible behavior.
+
+  ## Cross-interface invariants
+
+  All maintained routes preserve authorization, confirmation, and result semantics.
+
+  ## Availability and failure behavior
+
+  Unavailable preferred interface behavior: report unavailability
+  Fallback activation conditions: use only documented fallbacks
+  Failure classification exposed to callers: distinguish unavailability, refusal, and execution failure
+
+  ## Decision rationale
+
+  Rationale: keep route selection explicit and deterministic.
+MARKDOWN
+
 valid_cli = <<~MARKDOWN
   # Packaged CLI interface contract
 
@@ -76,68 +108,98 @@ MARKDOWN
 cli_skill = "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n"
 mcp_skill = "Selected profiles: mcp-enabled\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: MCP_INTERFACE.md\n"
 
+cli_files = {
+  "INTERFACES.md" => valid_routing,
+  "CLI_INTERFACE.md" => valid_cli,
+  "RUNTIME.md" => valid_cli_runtime
+}.freeze
+mcp_files = {
+  "INTERFACES.md" => valid_routing,
+  "MCP_INTERFACE.md" => valid_mcp,
+  "RUNTIME.md" => valid_mcp_runtime
+}.freeze
+
 cases = [
   {
     name: "accepts concrete CLI scalar values",
     skill: cli_skill,
-    files: { "CLI_INTERFACE.md" => valid_cli, "RUNTIME.md" => valid_cli_runtime },
+    files: cli_files,
     success: true
   },
   {
     name: "accepts concrete MCP scalar values",
     skill: mcp_skill,
-    files: { "MCP_INTERFACE.md" => valid_mcp, "RUNTIME.md" => valid_mcp_runtime },
+    files: mcp_files,
     success: true
+  },
+  {
+    name: "rejects TBD in the routing contract index",
+    skill: cli_skill,
+    files: cli_files.merge(
+      "INTERFACES.md" => valid_routing.sub(
+        "The selected profile-specific interface document is authoritative for caller-visible behavior.",
+        "TBD"
+      )
+    ),
+    success: false
+  },
+  {
+    name: "rejects FIXME in routing cross-interface invariants",
+    skill: cli_skill,
+    files: cli_files.merge(
+      "INTERFACES.md" => valid_routing.sub(
+        "All maintained routes preserve authorization, confirmation, and result semantics.",
+        "FIXME"
+      )
+    ),
+    success: false
   },
   {
     name: "rejects TBD in a CLI command",
     skill: cli_skill.sub("Canonical command: skill-tool", "Canonical command: TBD"),
-    files: {
+    files: cli_files.merge(
       "CLI_INTERFACE.md" => valid_cli.sub("Command: skill-tool", "Command: TBD"),
       "RUNTIME.md" => valid_cli_runtime.sub("| Human CLI | skill-tool |", "| Human CLI | TBD |")
-    },
+    ),
     success: false
   },
   {
     name: "rejects FIXME in a CLI working directory",
     skill: cli_skill.sub("Working directory: repository root", "Working directory: FIXME"),
-    files: {
-      "CLI_INTERFACE.md" => valid_cli.sub("Working directory: repository root", "Working directory: FIXME"),
-      "RUNTIME.md" => valid_cli_runtime
-    },
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub("Working directory: repository root", "Working directory: FIXME")
+    ),
     success: false
   },
   {
     name: "rejects PLACEHOLDER in an MCP lifecycle owner",
     skill: mcp_skill,
-    files: {
+    files: mcp_files.merge(
       "MCP_INTERFACE.md" => valid_mcp.sub("Lifecycle owner: MCP host", "Lifecycle owner: PLACEHOLDER"),
       "RUNTIME.md" => valid_mcp_runtime.sub("| Lifecycle owner | MCP host |", "| Lifecycle owner | PLACEHOLDER |")
-    },
+    ),
     success: false
   },
   {
     name: "rejects forthcoming text in a table value",
     skill: cli_skill,
-    files: {
-      "CLI_INTERFACE.md" => valid_cli.sub("| Standard output | JSON when requested |", "| Standard output | Details forthcoming. |"),
-      "RUNTIME.md" => valid_cli_runtime
-    },
+    files: cli_files.merge(
+      "CLI_INTERFACE.md" => valid_cli.sub("| Standard output | JSON when requested |", "| Standard output | Details forthcoming. |")
+    ),
     success: false
   },
   {
     name: "rejects a placeholder operational summary",
     skill: cli_skill.sub("Preferred agent route: see INTERFACES.md", "Preferred agent route: TBD"),
-    files: { "CLI_INTERFACE.md" => valid_cli, "RUNTIME.md" => valid_cli_runtime },
+    files: cli_files,
     success: false
   },
   {
     name: "rejects a runtime scalar placeholder behind a concrete public contract",
     skill: cli_skill,
-    files: {
-      "CLI_INTERFACE.md" => valid_cli,
+    files: cli_files.merge(
       "RUNTIME.md" => valid_cli_runtime.sub("| Human CLI | skill-tool |", "| Human CLI | TBD |")
-    },
+    ),
     success: false
   }
 ]
@@ -170,4 +232,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Selected-contract and runtime scalar placeholder tests passed."
+puts "Selected routing, public-contract, and runtime scalar placeholder tests passed."
