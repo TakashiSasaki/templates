@@ -7,6 +7,7 @@ DIRECT_VALIDATORS = %w[
   .github/scripts/validate-interface-routing-contract.rb
   .github/scripts/validate-decomposed-interface-contracts.rb
   .github/scripts/validate-selected-contract-scalar-placeholders.rb
+  .github/scripts/validate-cli-structured-output-contract.rb
   .github/scripts/validate-cli-exit-code-contract.rb
   .github/scripts/validate-interface-runtime-consistency.rb
   .github/scripts/validate-bundled-mcp-client-consistency.rb
