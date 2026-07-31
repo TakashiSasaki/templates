@@ -25,9 +25,13 @@ end
 cases = [
   ["accepts an explicit successful zero meaning", "Successful execution", "Negative domain result", true],
   ["accepts a successfully completed zero meaning", "Command completed successfully", "Invalid invocation", true],
+  ["accepts completed normally as the zero meaning", "Completed normally", "Invalid invocation", true],
+  ["accepts clean termination as the zero meaning", "Clean termination", "Invalid invocation", true],
+  ["accepts OK as the zero meaning", "OK", "Invalid invocation", true],
   ["rejects a negative outcome as the zero meaning", "Negative domain result", "Invalid invocation", false],
   ["rejects a failure as the zero meaning", "Execution failure", "Invalid invocation", false],
   ["rejects negated success as the zero meaning", "Not successful", "Invalid invocation", false],
+  ["rejects unsuccessful as the zero meaning", "Unsuccessful execution", "Invalid invocation", false],
   ["rejects NONE as an exit-code meaning", "Successful execution", "NONE", false],
   ["rejects NOT APPLICABLE as an exit-code meaning", "Successful execution", "NOT APPLICABLE", false],
   ["rejects NOT SUPPORTED as an exit-code meaning", "Successful execution", "NOT SUPPORTED", false],
