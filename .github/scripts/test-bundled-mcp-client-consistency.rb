@@ -10,6 +10,14 @@ validator = File.expand_path("validate-bundled-mcp-client-consistency.rb", __dir
 valid_public = <<~MARKDOWN
   # MCP public interface contract
 
+  ## stdio MCP server variant
+
+  Supported: YES
+
+  ## Streamable HTTP MCP server variant
+
+  Supported: NO
+
   ## Bundled ad hoc MCP tool client
 
   Supported: YES
@@ -24,6 +32,18 @@ MARKDOWN
 
 valid_runtime = <<~MARKDOWN
   # Runtime decision record
+
+  ### stdio variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | YES |
+
+  ### Streamable HTTP variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | NO |
 
   ### Bundled ad hoc MCP tool client
 
@@ -50,6 +70,7 @@ cases = [
     name: "accepts explicit runtime references",
     public: valid_public
       .sub("Scope: tools only", "Scope: see RUNTIME.md")
+      .sub("Transport used: stdio", "Transport used: see RUNTIME.md")
       .sub(
         "Negotiation and compatibility behavior: negotiate the selected revision and fail explicitly",
         "Negotiation and compatibility behavior: see RUNTIME.md"
@@ -58,6 +79,16 @@ cases = [
       .sub("Interaction modes: non-interactive", "Interaction modes: see RUNTIME.md")
       .sub("Task or extension support: NOT SUPPORTED", "Task or extension support: see RUNTIME.md"),
     runtime: valid_runtime,
+    success: true
+  },
+  {
+    name: "accepts both transports when both variants are supported",
+    public: valid_public
+      .sub("Transport used: stdio", "Transport used: both")
+      .sub("## Streamable HTTP MCP server variant\n\nSupported: NO", "## Streamable HTTP MCP server variant\n\nSupported: YES"),
+    runtime: valid_runtime
+      .sub("| Supported transports | stdio |", "| Supported transports | both |")
+      .sub("### Streamable HTTP variant\n\n| Item | Selected value |\n|---|---|\n| Supported | NO |", "### Streamable HTTP variant\n\n| Item | Selected value |\n|---|---|\n| Supported | YES |"),
     success: true
   },
   {
@@ -91,6 +122,50 @@ cases = [
     name: "rejects a bundled-client extension-support mismatch",
     public: valid_public.sub("Task or extension support: NOT SUPPORTED", "Task or extension support: tasks"),
     runtime: valid_runtime,
+    success: false
+  },
+  {
+    name: "rejects a noncanonical public transport",
+    public: valid_public.sub("Transport used: stdio", "Transport used: carrier pigeon"),
+    runtime: valid_runtime.sub("| Supported transports | stdio |", "| Supported transports | carrier pigeon |"),
+    success: false
+  },
+  {
+    name: "rejects a noncanonical runtime transport",
+    public: valid_public,
+    runtime: valid_runtime.sub("| Supported transports | stdio |", "| Supported transports | carrier pigeon |"),
+    success: false
+  },
+  {
+    name: "rejects stdio transport when public stdio support is disabled",
+    public: valid_public.sub("## stdio MCP server variant\n\nSupported: YES", "## stdio MCP server variant\n\nSupported: NO"),
+    runtime: valid_runtime,
+    success: false
+  },
+  {
+    name: "rejects stdio transport when runtime stdio support is disabled",
+    public: valid_public,
+    runtime: valid_runtime.sub("### stdio variant\n\n| Item | Selected value |\n|---|---|\n| Supported | YES |", "### stdio variant\n\n| Item | Selected value |\n|---|---|\n| Supported | NO |"),
+    success: false
+  },
+  {
+    name: "rejects HTTP transport when public HTTP support is disabled",
+    public: valid_public.sub("Transport used: stdio", "Transport used: Streamable HTTP"),
+    runtime: valid_runtime.sub("| Supported transports | stdio |", "| Supported transports | Streamable HTTP |"),
+    success: false
+  },
+  {
+    name: "rejects HTTP transport when runtime HTTP support is disabled",
+    public: valid_public
+      .sub("Transport used: stdio", "Transport used: Streamable HTTP")
+      .sub("## Streamable HTTP MCP server variant\n\nSupported: NO", "## Streamable HTTP MCP server variant\n\nSupported: YES"),
+    runtime: valid_runtime.sub("| Supported transports | stdio |", "| Supported transports | Streamable HTTP |"),
+    success: false
+  },
+  {
+    name: "rejects both transports unless both variants are supported",
+    public: valid_public.sub("Transport used: stdio", "Transport used: both"),
+    runtime: valid_runtime.sub("| Supported transports | stdio |", "| Supported transports | both |"),
     success: false
   }
 ]
