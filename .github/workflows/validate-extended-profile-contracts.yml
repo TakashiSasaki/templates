@@ -18,6 +18,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-decomposed-interface-compat.rb
 
+      - name: Test selected scalar placeholder rejection
+        shell: bash
+        run: ruby .github/scripts/test-selected-contract-scalar-placeholders.rb
+
       - name: Test MCP caller-behavior placeholder rejection
         shell: bash
         run: ruby .github/scripts/test-mcp-behavior-section-placeholders.rb
