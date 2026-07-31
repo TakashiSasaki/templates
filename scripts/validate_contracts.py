@@ -14,7 +14,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
-VISUALLY_BLANK_CHARACTERS = {"\u2800"}
+VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U0001D159"}
 
 CONTRACT_SCHEMAS = {
     "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
@@ -232,7 +232,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             current_minimum = current["minWidthPx"]
             if current_minimum <= previous_minimum:
                 errors.append(
-                    f"viewport breakpoints must be strictly increasing: "
+                    "viewport breakpoints must be strictly increasing: "
                     f"{previous['id']}={previous_minimum}px, {current['id']}={current_minimum}px"
                 )
 
@@ -243,7 +243,13 @@ def validate_repository(root: Path) -> list[str]:
     errors: list[str] = []
     documents: dict[str, Any] = {}
     all_documents_structurally_valid = True
-    load_errors = (OSError, json.JSONDecodeError, DuplicateKeyError, NonStandardJsonConstantError)
+    load_errors = (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        DuplicateKeyError,
+        NonStandardJsonConstantError,
+    )
 
     for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
         try:
