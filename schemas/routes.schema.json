@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/routes.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schemaVersion", "routes"],
@@ -12,6 +11,11 @@
     "routePath": {
       "type": "string",
       "pattern": "^/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]+(?:/(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+)*)?(?![\\s\\S])"
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     }
   },
   "properties": {
@@ -62,7 +66,7 @@
             "required": ["documentTitleRequired", "focusTarget"],
             "properties": {
               "documentTitleRequired": {"const": true},
-              "focusTarget": {"type": "string", "minLength": 1, "pattern": "\\S"}
+              "focusTarget": {"$ref": "#/$defs/nonBlankText"}
             }
           }
         },
