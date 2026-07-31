@@ -115,6 +115,25 @@ cases.each do |test_case|
   end
 end
 
+Dir.mktmpdir("explicit-validator-path-test") do |directory|
+  File.write(File.join(directory, "SKILL.md"), skill)
+  Open3.capture3("git", "init", "--quiet", chdir: directory)
+  Open3.capture3("git", "add", ".", chdir: directory)
+
+  requested = "does/not/exist/validate-core-profile-contracts.rb"
+  _stdout, stderr, status = Open3.capture3(
+    { "RUBYOPT" => nil },
+    RbConfig.ruby,
+    orchestrator,
+    requested,
+    chdir: directory
+  )
+  unless !status.success? && stderr.include?("Missing profile validator: #{requested}")
+    failures << "explicit validator paths must fail exactly when missing; " \
+                "status=#{status.exitstatus.inspect}, diagnostics=#{stderr.strip.inspect}"
+  end
+end
+
 unless failures.empty?
   failures.each { |failure| warn failure }
   exit 1

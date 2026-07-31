@@ -22,6 +22,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-direct-profile-contracts.rb
 
+      - name: Test minimal profile repository layouts
+        shell: bash
+        run: ruby .github/scripts/test-minimal-profile-layouts.rb
+
       - name: Test decomposed interface contract validation
         shell: bash
         run: ruby .github/scripts/test-decomposed-interface-contracts.rb
