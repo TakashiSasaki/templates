@@ -12,6 +12,7 @@ on:
       - MCP_INTERFACE.md
       - WEB_INTERFACE.md
       - RUNTIME.md
+      - '**/*.md'
       - docs/**
       - assets/**
       - .github/workflows/pages.yml
