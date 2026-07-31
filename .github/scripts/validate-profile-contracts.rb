@@ -8,6 +8,7 @@ DIRECT_VALIDATORS = %w[
   .github/scripts/validate-decomposed-interface-contracts.rb
   .github/scripts/validate-cli-exit-code-contract.rb
   .github/scripts/validate-interface-runtime-consistency.rb
+  .github/scripts/validate-bundled-mcp-client-consistency.rb
   .github/scripts/validate-interface-summary-details.rb
 ].freeze
 DEFAULT_LEGACY_VALIDATORS = %w[
