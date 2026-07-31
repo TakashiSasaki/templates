@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 SKILL_PATH = "SKILL.md"
+ROUTING_PATH = "INTERFACES.md"
 RUNTIME_PATH = "RUNTIME.md"
 
 unless File.file?(SKILL_PATH)
@@ -48,7 +49,7 @@ end
 errors = []
 
 scan_scalar_values = lambda do |path, document, context = nil|
-  document.lines.each_with_index do |raw_line, index|
+  document.to_s.lines.each_with_index do |raw_line, index|
     line_number = index + 1
     normalized = raw_line.strip
     next if normalized.empty? || normalized.match?(/\A```/)
@@ -99,7 +100,9 @@ if selected_profiles == ["template-scaffold"]
   exit 0
 end
 
-if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+public_interface_selected = (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+
+if public_interface_selected
   [
     "Canonical command",
     "Working directory",
@@ -115,6 +118,7 @@ if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
 end
 
 selected_contracts = []
+selected_contracts << ROUTING_PATH if public_interface_selected
 selected_contracts << "CLI_INTERFACE.md" if selected_profiles.include?("packaged-cli")
 selected_contracts << "MCP_INTERFACE.md" if selected_profiles.include?("mcp-enabled")
 
@@ -127,7 +131,7 @@ selected_contracts.each do |path|
   scan_scalar_values.call(path, File.read(path))
 end
 
-if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
+if public_interface_selected
   unless File.file?(RUNTIME_PATH)
     errors << "Selected public-interface profile requires contract file: #{RUNTIME_PATH}"
   else
@@ -163,4 +167,4 @@ unless errors.empty?
   exit 1
 end
 
-puts "Selected public-interface and runtime scalar values contain no unresolved placeholders."
+puts "Selected routing, public-interface, and runtime scalar values contain no unresolved placeholders."
