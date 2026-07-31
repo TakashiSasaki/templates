@@ -48,8 +48,7 @@ support_token = lambda do |value|
   value&.strip&.split(/[;\s]/)&.first&.upcase
 end
 
-lines = File.readlines(SKILL_PATH, chomp: true)
-profile_values = lines.filter_map do |raw_line|
+profile_values = File.readlines(SKILL_PATH, chomp: true).filter_map do |raw_line|
   normalized = raw_line.strip
   normalized = normalized[2..].strip if normalized.start_with?("- ")
   match = normalized.match(/\ASelected profiles:\s*(.+?)\s*\z/)
@@ -104,8 +103,8 @@ validate_common_contract = lambda do |path, required_headings|
 
   required_headings.each do |heading|
     section = markdown_section.call(document, heading)
-    if section.nil? || section.strip.empty?
-      errors << "Selected contract #{path} requires non-empty section '#{heading}'."
+    unless resolved_value.call(section)
+      errors << "Selected contract #{path} requires concrete content under '#{heading}'."
     end
   end
 
@@ -182,6 +181,17 @@ if selected_profiles.include?("packaged-cli")
 end
 
 if selected_profiles.include?("mcp-enabled")
+  caller_behavior_headings = [
+    "### Tool inventory, schemas, and caching",
+    "### Lossless paginated tool-list output",
+    "### Tool-call results and errors",
+    "### Multiple calls and application state",
+    "### Selected modern multi-round-trip requests",
+    "### Selected initialization-era server-to-client requests",
+    "### Cancellation, tasks, and extensions",
+    "### Ownership and workspace policy"
+  ]
+
   mcp = validate_common_contract.call(
     "MCP_INTERFACE.md",
     [
@@ -190,6 +200,7 @@ if selected_profiles.include?("mcp-enabled")
       "## stdio MCP server variant",
       "## Streamable HTTP MCP server variant",
       "## Bundled ad hoc MCP tool client",
+      *caller_behavior_headings,
       "## Semantic-equivalence and test requirements",
       "## Decision rationale"
     ]
