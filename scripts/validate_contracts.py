@@ -98,25 +98,44 @@ def _has_visible_character(value: str) -> bool:
 
 def _surface_dependency_cycles(surfaces: list[dict[str, Any]]) -> list[list[str]]:
     graph = {surface["id"]: surface["startupDependencies"] for surface in surfaces}
-    visiting: list[str] = []
     visited: set[str] = set()
     cycles: list[list[str]] = []
 
-    def visit(node: str) -> None:
-        if node in visiting:
-            start = visiting.index(node)
-            cycles.append(visiting[start:] + [node])
-            return
-        if node in visited or node not in graph:
-            return
-        visiting.append(node)
-        for dependency in graph[node]:
-            visit(dependency)
-        visiting.pop()
-        visited.add(node)
+    for root in graph:
+        if root in visited:
+            continue
 
-    for surface_id in graph:
-        visit(surface_id)
+        path: list[str] = []
+        active_index: dict[str, int] = {}
+        stack: list[tuple[str, int]] = [(root, 0)]
+
+        while stack:
+            node, dependency_index = stack[-1]
+
+            if node not in active_index:
+                active_index[node] = len(path)
+                path.append(node)
+
+            dependencies = graph[node]
+            if dependency_index >= len(dependencies):
+                stack.pop()
+                active_index.pop(node)
+                path.pop()
+                visited.add(node)
+                continue
+
+            dependency = dependencies[dependency_index]
+            stack[-1] = (node, dependency_index + 1)
+
+            if dependency not in graph or dependency in visited:
+                continue
+            if dependency in active_index:
+                start = active_index[dependency]
+                cycles.append(path[start:] + [dependency])
+                continue
+
+            stack.append((dependency, 0))
+
     return cycles
 
 
