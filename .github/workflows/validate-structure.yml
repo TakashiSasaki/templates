@@ -14,6 +14,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test documentation publication catalog validation
+        shell: bash
+        run: ruby .github/scripts/test-publication-catalog.rb
+
+      - name: Validate documentation publication catalog
+        shell: bash
+        run: ruby .github/scripts/validate-publication-catalog.rb
+
       - name: Validate repository structure and selected profile contracts
         shell: bash
         run: ruby .github/scripts/validate-skill-repository.rb
