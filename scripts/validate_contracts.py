@@ -12,6 +12,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
+from referencing.exceptions import Unresolvable
 
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U00013441", "\U00013442", "\U0001D159"}
@@ -303,10 +304,15 @@ def validate_repository(root: Path) -> list[str]:
 
         documents[name] = document
         validator = Draft202012Validator(schema)
-        document_errors = sorted(
-            validator.iter_errors(document),
-            key=lambda item: _json_path(list(item.absolute_path)),
-        )
+        try:
+            document_errors = sorted(
+                validator.iter_errors(document),
+                key=lambda item: _json_path(list(item.absolute_path)),
+            )
+        except Unresolvable as exc:
+            errors.append(f"{schema_path}: unresolved JSON Schema reference: {exc}")
+            all_documents_structurally_valid = False
+            continue
         if document_errors:
             all_documents_structurally_valid = False
         for error in document_errors:
