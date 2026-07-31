@@ -43,6 +43,7 @@ class VisibleTextAndAudienceTests(unittest.TestCase):
             "\u034f",
             "\u200b",
             "\u2060",
+            "\u2800",
             "\u3164",
             "\ufe0f",
             " \u200b\t",
@@ -59,13 +60,20 @@ class VisibleTextAndAudienceTests(unittest.TestCase):
                     self.set_nested(document, path, invisible_value)
                     self.assertFalse(self.validators[contract_name].is_valid(document))
 
-    def test_repository_validation_rejects_combining_marks_without_a_base_character(self) -> None:
-        for contract_name, path in self.text_cases:
-            with self.subTest(contract=contract_name, path=path):
-                documents = copy.deepcopy(self.documents)
-                self.set_nested(documents[contract_name], path, "\u0301")
-                errors = validate_contracts.cross_validate(documents)
-                self.assertTrue(any("must contain at least one visible character" in error for error in errors))
+    def test_repository_validation_rejects_invisible_text_not_captured_by_categories(self) -> None:
+        for invisible_value in ("\u0301", "\u2800"):
+            for contract_name, path in self.text_cases:
+                with self.subTest(
+                    contract=contract_name,
+                    path=path,
+                    value=repr(invisible_value),
+                ):
+                    documents = copy.deepcopy(self.documents)
+                    self.set_nested(documents[contract_name], path, invisible_value)
+                    errors = validate_contracts.cross_validate(documents)
+                    self.assertTrue(
+                        any("must contain at least one visible character" in error for error in errors)
+                    )
 
     def test_visible_unicode_text_remains_valid(self) -> None:
         for contract_name, path in self.text_cases:
