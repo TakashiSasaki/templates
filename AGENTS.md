@@ -154,13 +154,13 @@ Validation must match the selected profile and risk.
 
 Do not require service-grade tests from an instruction-only skill, and do not under-test executable or networked profiles.
 
-During the Phase 2 document transition, run:
+Run the supported profile-aware validation entry point:
 
 ```sh
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The compatibility adapter assembles split interface files only in memory for legacy validators. Do not reintroduce duplicated committed contracts to satisfy those parsers.
+The validator reads each retained contract directly through the shared profile contract model. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
 
 ## Completion criteria
 

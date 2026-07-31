@@ -219,7 +219,7 @@ jobs:
           end
           RUBY
 
-          ruby .github/scripts/validate-selected-profiles.rb
+          ruby .github/scripts/validate-profile-contracts.rb
 
           has_operational_files() {
             local directory="$1"
@@ -230,6 +230,7 @@ jobs:
             required_mcp_contracts=(
               RUNTIME.md
               INTERFACES.md
+              MCP_INTERFACE.md
               docs/mcp-transports.md
             )
 
