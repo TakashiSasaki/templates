@@ -74,10 +74,8 @@ module ProfileContracts
 
     def table_rows(section = text)
       section.to_s.lines.filter_map do |raw_line|
-        normalized = raw_line.strip
-        next unless normalized.start_with?("|") && normalized.end_with?("|")
-
-        cells = normalized.split("|", -1)[1...-1].map(&:strip)
+        cells = parse_table_cells(raw_line.strip)
+        next unless cells
         next if cells.empty?
         next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
 
@@ -109,9 +107,8 @@ module ProfileContracts
           )
         end
 
-        next unless normalized.start_with?("|") && normalized.end_with?("|")
-
-        cells = normalized.split("|", -1)[1...-1].map(&:strip)
+        cells = parse_table_cells(normalized)
+        next unless cells
         next if cells.empty?
         next if cells.all? { |cell| /\A:?-+:?\z/.match?(cell) }
 
@@ -123,6 +120,33 @@ module ProfileContracts
           )
         end
       end
+    end
+
+    private
+
+    def parse_table_cells(line)
+      return nil unless line.start_with?("|") && line.end_with?("|")
+
+      cells = []
+      current = +""
+      escaped = false
+
+      line[1...-1].each_char do |character|
+        if character == "|" && !escaped
+          cells << current.strip
+          current = +""
+        else
+          current << character
+        end
+
+        if character == "\\"
+          escaped = !escaped
+        else
+          escaped = false
+        end
+      end
+      cells << current.strip
+      cells
     end
   end
 
@@ -141,6 +165,10 @@ module ProfileContracts
       end
 
       profiles = declarations.first.split(",").map(&:strip).reject(&:empty?)
+      if profiles.empty?
+        raise ParseError, "#{path} 'Selected profiles:' must contain at least one non-empty profile tag."
+      end
+
       new(path, profiles)
     end
 
