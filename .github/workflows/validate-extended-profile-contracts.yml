@@ -22,6 +22,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-mcp-behavior-section-placeholders.rb
 
+      - name: Test bundled MCP client consistency
+        shell: bash
+        run: ruby .github/scripts/test-bundled-mcp-client-consistency.rb
+
       - name: Test endpoint and operational-summary consistency
         shell: bash
         run: ruby .github/scripts/test-interface-summary-details.rb
