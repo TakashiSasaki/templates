@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import posixpath
+import re
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -160,9 +161,26 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
     return (base_path + value,)
 
 
+_ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
+
+
+def _decode_path_without_separators(encoded_path: str) -> str:
+    """Decode percent escapes while keeping encoded slash and backslash in-segment."""
+    protected: list[str] = []
+
+    def preserve_separator(match: re.Match[str]) -> str:
+        protected.append(match.group(0).upper())
+        return f"\ue000{len(protected) - 1}\ue001"
+
+    decoded = unquote(_ENCODED_PATH_SEPARATOR.sub(preserve_separator, encoded_path))
+    for index, value in enumerate(protected):
+        decoded = decoded.replace(f"\ue000{index}\ue001", value)
+    return decoded
+
+
 def normalized_public_path(encoded_path: str) -> str:
-    """Decode a URL path and normalize dot segments before public-path lookup."""
-    decoded_path = unquote(encoded_path)
+    """Decode URL path segments and normalize dots without decoding separators."""
+    decoded_path = _decode_path_without_separators(encoded_path)
     normalized = posixpath.normpath(decoded_path)
     if not normalized.startswith("/"):
         normalized = "/" + normalized
