@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import copy
+import json
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
@@ -53,20 +56,46 @@ class SchemaDeclarationTests(unittest.TestCase):
                 document["$schema"] = "../schemas/unrelated.schema.json"
                 self.assertFalse(self.validators[contract_name].is_valid(document))
 
+    def test_schema_dialects_are_pinned_to_draft_2020_12(self) -> None:
+        for contract_name, (_, schema_path) in validate_contracts.CONTRACT_SCHEMAS.items():
+            with self.subTest(contract=contract_name):
+                schema = validate_contracts.load_json(ROOT / schema_path)
+                self.assertEqual(validate_contracts.SCHEMA_DIALECT, schema["$schema"])
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", temporary_root / "contracts")
+            shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
+            schema_path = temporary_root / "schemas/surfaces.schema.json"
+            schema = validate_contracts.load_json(schema_path)
+            schema["$schema"] = "http://json-schema.org/draft-04/schema#"
+            schema_path.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
+            errors = validate_contracts.validate_repository(temporary_root)
+
+        self.assertTrue(
+            any(
+                "schemas/surfaces.schema.json: unsupported JSON Schema dialect" in error
+                and "draft-04" in error
+                for error in errors
+            )
+        )
+
     def test_template_schemas_do_not_claim_upstream_repository_identity(self) -> None:
         for contract_name, (_, schema_path) in validate_contracts.CONTRACT_SCHEMAS.items():
             with self.subTest(contract=contract_name):
                 schema = validate_contracts.load_json(ROOT / schema_path)
                 self.assertNotIn("$id", schema)
 
-    def test_required_human_readable_fields_reject_whitespace_only(self) -> None:
+    def test_required_human_readable_fields_reject_ecmascript_whitespace_only(self) -> None:
         cases = (
             ("surfaces", ("surfaces", 0, "title")),
             ("surfaces", ("surfaces", 0, "purpose")),
+            ("routes", ("routes", 0, "accessibility", "focusTarget")),
             ("ui_states", ("states", 0, "description")),
+            ("ui_states", ("states", 0, "focusStrategy")),
             ("viewports", ("viewports", 0, "description")),
         )
-        invalid_values = (" ", "\n", "\t", " \r\n\t")
+        invalid_values = (" ", "\n", "\t", " \r\n\t", "\ufeff", " \ufeff\t")
 
         for contract_name, path in cases:
             for invalid_value in invalid_values:
@@ -83,18 +112,6 @@ class SchemaDeclarationTests(unittest.TestCase):
                 document = copy.deepcopy(self.documents[contract_name])
                 self.set_nested(document, path, "  meaningful description  ")
                 self.assertTrue(self.validators[contract_name].is_valid(document))
-
-    def test_focus_strategies_require_non_whitespace_content(self) -> None:
-        original = self.documents["ui_states"]
-        for invalid_strategy in (" ", "\n", "\t", " \r\n\t"):
-            with self.subTest(focus_strategy=repr(invalid_strategy)):
-                document = copy.deepcopy(original)
-                document["states"][0]["focusStrategy"] = invalid_strategy
-                self.assertFalse(self.validators["ui_states"].is_valid(document))
-
-        document = copy.deepcopy(original)
-        document["states"][0]["focusStrategy"] = "  preserve-current-focus  "
-        self.assertTrue(self.validators["ui_states"].is_valid(document))
 
 
 if __name__ == "__main__":
