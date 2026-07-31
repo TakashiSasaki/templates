@@ -37,54 +37,107 @@ valid_mcp = <<~MARKDOWN
   Authentication: NOT SUPPORTED
 MARKDOWN
 
+valid_cli_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ### Packaged CLI commands
+
+  | Purpose | Exact command |
+  |---|---|
+  | Human CLI | skill-tool |
+MARKDOWN
+
+valid_mcp_runtime = <<~MARKDOWN
+  # Runtime decision record
+
+  ## Status
+
+  Selection status: SELECTED
+
+  ### stdio variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | YES |
+  | Server entry point | lib/mcp/server.rb |
+  | Lifecycle owner | MCP host |
+
+  ### Streamable HTTP variant
+
+  | Item | Selected value |
+  |---|---|
+  | Supported | NO |
+MARKDOWN
+
+cli_skill = "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n"
+mcp_skill = "Selected profiles: mcp-enabled\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: MCP_INTERFACE.md\n"
+
 cases = [
   {
     name: "accepts concrete CLI scalar values",
-    skill: "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n",
-    path: "CLI_INTERFACE.md",
-    document: valid_cli,
+    skill: cli_skill,
+    files: { "CLI_INTERFACE.md" => valid_cli, "RUNTIME.md" => valid_cli_runtime },
     success: true
   },
   {
     name: "accepts concrete MCP scalar values",
-    skill: "Selected profiles: mcp-enabled\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: MCP_INTERFACE.md\n",
-    path: "MCP_INTERFACE.md",
-    document: valid_mcp,
+    skill: mcp_skill,
+    files: { "MCP_INTERFACE.md" => valid_mcp, "RUNTIME.md" => valid_mcp_runtime },
     success: true
   },
   {
     name: "rejects TBD in a CLI command",
-    skill: "Selected profiles: packaged-cli\nCanonical command: TBD\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n",
-    path: "CLI_INTERFACE.md",
-    document: valid_cli.sub("Command: skill-tool", "Command: TBD"),
+    skill: cli_skill.sub("Canonical command: skill-tool", "Canonical command: TBD"),
+    files: {
+      "CLI_INTERFACE.md" => valid_cli.sub("Command: skill-tool", "Command: TBD"),
+      "RUNTIME.md" => valid_cli_runtime.sub("| Human CLI | skill-tool |", "| Human CLI | TBD |")
+    },
     success: false
   },
   {
     name: "rejects FIXME in a CLI working directory",
-    skill: "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: FIXME\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n",
-    path: "CLI_INTERFACE.md",
-    document: valid_cli.sub("Working directory: repository root", "Working directory: FIXME"),
+    skill: cli_skill.sub("Working directory: repository root", "Working directory: FIXME"),
+    files: {
+      "CLI_INTERFACE.md" => valid_cli.sub("Working directory: repository root", "Working directory: FIXME"),
+      "RUNTIME.md" => valid_cli_runtime
+    },
     success: false
   },
   {
     name: "rejects PLACEHOLDER in an MCP lifecycle owner",
-    skill: "Selected profiles: mcp-enabled\nCanonical command: NOT APPLICABLE\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: MCP_INTERFACE.md\n",
-    path: "MCP_INTERFACE.md",
-    document: valid_mcp.sub("Lifecycle owner: MCP host", "Lifecycle owner: PLACEHOLDER"),
+    skill: mcp_skill,
+    files: {
+      "MCP_INTERFACE.md" => valid_mcp.sub("Lifecycle owner: MCP host", "Lifecycle owner: PLACEHOLDER"),
+      "RUNTIME.md" => valid_mcp_runtime.sub("| Lifecycle owner | MCP host |", "| Lifecycle owner | PLACEHOLDER |")
+    },
     success: false
   },
   {
     name: "rejects forthcoming text in a table value",
-    skill: "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: see INTERFACES.md\nDetailed interface contract: CLI_INTERFACE.md\n",
-    path: "CLI_INTERFACE.md",
-    document: valid_cli.sub("| Standard output | JSON when requested |", "| Standard output | Details forthcoming. |"),
+    skill: cli_skill,
+    files: {
+      "CLI_INTERFACE.md" => valid_cli.sub("| Standard output | JSON when requested |", "| Standard output | Details forthcoming. |"),
+      "RUNTIME.md" => valid_cli_runtime
+    },
     success: false
   },
   {
     name: "rejects a placeholder operational summary",
-    skill: "Selected profiles: packaged-cli\nCanonical command: skill-tool\nWorking directory: repository root\nPreferred agent route: TBD\nDetailed interface contract: CLI_INTERFACE.md\n",
-    path: "CLI_INTERFACE.md",
-    document: valid_cli,
+    skill: cli_skill.sub("Preferred agent route: see INTERFACES.md", "Preferred agent route: TBD"),
+    files: { "CLI_INTERFACE.md" => valid_cli, "RUNTIME.md" => valid_cli_runtime },
+    success: false
+  },
+  {
+    name: "rejects a runtime scalar placeholder behind a concrete public contract",
+    skill: cli_skill,
+    files: {
+      "CLI_INTERFACE.md" => valid_cli,
+      "RUNTIME.md" => valid_cli_runtime.sub("| Human CLI | skill-tool |", "| Human CLI | TBD |")
+    },
     success: false
   }
 ]
@@ -94,7 +147,9 @@ failures = []
 cases.each do |test_case|
   Dir.mktmpdir("selected-scalar-placeholder-test") do |directory|
     File.write(File.join(directory, "SKILL.md"), test_case.fetch(:skill))
-    File.write(File.join(directory, test_case.fetch(:path)), test_case.fetch(:document))
+    test_case.fetch(:files).each do |path, document|
+      File.write(File.join(directory, path), document)
+    end
 
     _stdout, stderr, status = Open3.capture3(
       { "RUBYOPT" => nil },
@@ -115,4 +170,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Selected-contract scalar placeholder tests passed."
+puts "Selected-contract and runtime scalar placeholder tests passed."
