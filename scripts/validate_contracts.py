@@ -20,9 +20,22 @@ CONTRACT_SCHEMAS = {
 }
 
 
+class DuplicateKeyError(ValueError):
+    """Raised when a JSON object contains the same member name more than once."""
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise DuplicateKeyError(f"duplicate object key {key!r}")
+        result[key] = value
+    return result
+
+
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        return json.load(handle, object_pairs_hook=_reject_duplicate_keys)
 
 
 def load_contract_documents(root: Path) -> dict[str, Any]:
@@ -109,6 +122,8 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(f"surface {surface_id}: role authorization requires at least one role")
         if authorization_mode in {"public", "authenticated"} and authorization["roles"]:
             errors.append(f"surface {surface_id}: {authorization_mode} authorization must not declare roles")
+        if authorization_mode == "public" and authentication == "required":
+            errors.append(f"surface {surface_id}: public authorization must not require authentication")
         if authorization_mode in {"authenticated", "role"} and authentication != "required":
             errors.append(
                 f"surface {surface_id}: {authorization_mode} authorization requires authentication required"
@@ -185,9 +200,15 @@ def validate_repository(root: Path) -> list[str]:
     for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
         try:
             document = load_json(root / contract_path)
+        except (OSError, json.JSONDecodeError, DuplicateKeyError) as exc:
+            errors.append(f"{contract_path}: unable to load JSON: {exc}")
+            all_documents_structurally_valid = False
+            continue
+
+        try:
             schema = load_json(root / schema_path)
-        except (OSError, json.JSONDecodeError) as exc:
-            errors.append(f"{name}: unable to load JSON: {exc}")
+        except (OSError, json.JSONDecodeError, DuplicateKeyError) as exc:
+            errors.append(f"{schema_path}: unable to load JSON: {exc}")
             all_documents_structurally_valid = False
             continue
 
