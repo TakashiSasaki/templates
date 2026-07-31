@@ -41,6 +41,20 @@ check.call("rejects duplicate profile declarations") do
   end
 end
 
+check.call("rejects an empty profile declaration") do
+  Dir.mktmpdir("profile-contract-model-test") do |directory|
+    path = File.join(directory, "SKILL.md")
+    File.write(path, "Selected profiles:\n")
+    begin
+      ProfileContracts::ProfileSelection.load(path)
+    rescue ProfileContracts::ParseError => error
+      assert.call(error.message.include?("at least one"), error.message)
+      next
+    end
+    raise "empty profile declaration was accepted"
+  end
+end
+
 check.call("extracts nested and peer Markdown sections") do
   document = ProfileContracts::MarkdownDocument.new(<<~MARKDOWN)
     ## Parent
@@ -69,11 +83,17 @@ check.call("normalizes scalar fields and table cells") do
     | Item | Value |
     |---|---|
     | TBD | `JSON` |
+    | Failure | Validation \\| runtime failure |
   MARKDOWN
   assert.call(document.field("Mode selector") == "--json", document.field("Mode selector").inspect)
-  assert.call(document.table_rows.last == ["TBD", "JSON"], document.table_rows.inspect)
+  assert.call(document.table_rows[1] == ["TBD", "JSON"], document.table_rows.inspect)
+  assert.call(
+    document.table_rows.last == ["Failure", "Validation \\| runtime failure"],
+    document.table_rows.inspect
+  )
   table_values = document.each_scalar.select { |entry| entry.kind == :table }.map(&:value)
   assert.call(table_values.include?("TBD"), table_values.inspect)
+  assert.call(table_values.include?("Validation \\| runtime failure"), table_values.inspect)
 end
 
 check.call("applies shared unresolved and concrete value policy") do
