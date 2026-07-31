@@ -12,7 +12,13 @@ This branch defines the repository-level foundation for browser-facing web appli
 - supported viewport declarations;
 - JSON Schemas for those contracts;
 - local validation, tests, and CI;
-- traceability to applicable `agent-policy` rules.
+- an explicit boundary between reusable template contracts and product-owned implementation decisions.
+
+## Responsibility boundary
+
+This template owns the reusable shape and validation of Web-application design contracts. A repository created from the template owns the concrete product declarations, implementation, deployment, and evidence that the implementation satisfies those declarations.
+
+Coding-agent operating rules, source-control procedures, approval workflows, repository governance, and unrelated policy tooling are outside the Webapp template contract. A generated repository may adopt such mechanisms independently, but that adoption is not a prerequisite for using or validating this template.
 
 ## Intentionally undecided
 
@@ -41,7 +47,6 @@ Before a generated repository is treated as operational:
 4. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
 5. Add implementation-level tests that prove the declared contracts.
 6. Remove template-only guidance that no longer applies.
-7. Integrate `agent-policy` using a pinned full commit SHA after the repository-specific project policy is written.
 
 ## Route-path representation
 
