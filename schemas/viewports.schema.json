@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/templates/blob/webapp/schemas/viewports.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schemaVersion", "viewports", "inputCapabilities", "constraints"],
@@ -11,6 +10,11 @@
     },
     "inputCapability": {
       "enum": ["touch", "pointer", "keyboard", "voice", "switch"]
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
     }
   },
   "properties": {
@@ -26,7 +30,7 @@
         "properties": {
           "id": {"$ref": "#/$defs/identifier"},
           "minWidthPx": {"type": "integer", "minimum": 0},
-          "description": {"type": "string", "minLength": 1}
+          "description": {"$ref": "#/$defs/nonBlankText"}
         }
       }
     },
