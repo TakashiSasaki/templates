@@ -24,7 +24,7 @@ jobs:
 
       - name: Test decomposed interface contract validation
         shell: bash
-        run: ruby .github/scripts/test-decomposed-interface-compat.rb
+        run: ruby .github/scripts/test-decomposed-interface-contracts.rb
 
       - name: Test selected scalar placeholder rejection
         shell: bash
