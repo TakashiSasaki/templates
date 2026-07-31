@@ -1,65 +1,85 @@
 {
-  "pages": [
+  "navigation": [
     {
       "title": "Overview",
       "source": "README.md",
       "destination": "index.md"
     },
     {
-      "title": "Skill contract",
-      "source": "SKILL.md",
-      "destination": "SKILL.md"
+      "title": "Getting started",
+      "children": [
+        {
+          "title": "Skill contract",
+          "source": "SKILL.md",
+          "destination": "SKILL.md"
+        },
+        {
+          "title": "Skill profiles",
+          "source": "docs/skill-profiles.md",
+          "destination": "docs/skill-profiles.md"
+        },
+        {
+          "title": "Profile contract map",
+          "source": "docs/profile-contract-map.md",
+          "destination": "docs/profile-contract-map.md"
+        }
+      ]
     },
     {
-      "title": "Skill profiles",
-      "source": "docs/skill-profiles.md",
-      "destination": "docs/skill-profiles.md"
+      "title": "Core contracts",
+      "children": [
+        {
+          "title": "Runtime decision record",
+          "source": "RUNTIME.md",
+          "destination": "RUNTIME.md"
+        },
+        {
+          "title": "Interface routing",
+          "source": "INTERFACES.md",
+          "destination": "INTERFACES.md"
+        }
+      ]
     },
     {
-      "title": "Profile contract map",
-      "source": "docs/profile-contract-map.md",
-      "destination": "docs/profile-contract-map.md"
+      "title": "Caller interfaces",
+      "children": [
+        {
+          "title": "Packaged CLI interface",
+          "source": "CLI_INTERFACE.md",
+          "destination": "CLI_INTERFACE.md"
+        },
+        {
+          "title": "MCP interface",
+          "source": "MCP_INTERFACE.md",
+          "destination": "MCP_INTERFACE.md"
+        },
+        {
+          "title": "Human Web interface",
+          "source": "WEB_INTERFACE.md",
+          "destination": "WEB_INTERFACE.md"
+        }
+      ]
     },
     {
-      "title": "Interface routing",
-      "source": "INTERFACES.md",
-      "destination": "INTERFACES.md"
-    },
-    {
-      "title": "Packaged CLI interface",
-      "source": "CLI_INTERFACE.md",
-      "destination": "CLI_INTERFACE.md"
-    },
-    {
-      "title": "MCP interface",
-      "source": "MCP_INTERFACE.md",
-      "destination": "MCP_INTERFACE.md"
-    },
-    {
-      "title": "Human Web interface",
-      "source": "WEB_INTERFACE.md",
-      "destination": "WEB_INTERFACE.md"
-    },
-    {
-      "title": "Runtime decision record",
-      "source": "RUNTIME.md",
-      "destination": "RUNTIME.md"
-    },
-    {
-      "title": "Architecture",
-      "source": "docs/architecture.md",
-      "destination": "docs/architecture.md"
-    },
-    {
-      "title": "Runtime selection",
-      "source": "docs/runtime-selection.md",
-      "destination": "docs/runtime-selection.md"
-    },
-    {
-      "title": "MCP transports",
-      "source": "docs/mcp-transports.md",
-      "destination": "docs/mcp-transports.md",
-      "optional": true
+      "title": "Design guidance",
+      "children": [
+        {
+          "title": "Architecture",
+          "source": "docs/architecture.md",
+          "destination": "docs/architecture.md"
+        },
+        {
+          "title": "Runtime selection",
+          "source": "docs/runtime-selection.md",
+          "destination": "docs/runtime-selection.md"
+        },
+        {
+          "title": "MCP transports",
+          "source": "docs/mcp-transports.md",
+          "destination": "docs/mcp-transports.md",
+          "optional": true
+        }
+      ]
     }
   ]
 }
