@@ -50,8 +50,8 @@ The following material formerly lived in `INTERFACES.md`:
 
 Combined profiles retain the union of their required files. Remove `CLI_INTERFACE.md` when `packaged-cli` is not selected and remove `MCP_INTERFACE.md` when `mcp-enabled` is not selected.
 
-## Validation transition
+## Validation architecture
 
-The current Ruby validators predate the split and still parse the former logical monolith. `.github/scripts/decomposed-interface-compat.rb` assembles the three interface documents only in memory during validation. The committed documents remain separate and non-duplicative.
+`.github/scripts/validate-profile-contracts.rb` is the supported validation entry point. It runs the focused direct validators and the shared-model rule validators once each.
 
-`.github/scripts/validate-profile-contracts.rb` is the supported validation entry point during this transition. The later validator-consolidation phase should replace the compatibility assembly with a shared contract model and direct per-file parsing.
+All rule validators parse `SKILL.md`, `RUNTIME.md`, `INTERFACES.md`, `CLI_INTERFACE.md`, `MCP_INTERFACE.md`, and `WEB_INTERFACE.md` directly through `.github/scripts/lib/profile_contracts.rb`. No in-memory monolithic interface document, `File.read` monkey patch, or `RUBYOPT` compatibility injection is used.
