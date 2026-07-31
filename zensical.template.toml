@@ -19,5 +19,7 @@ font = false
 features = [
   "navigation.instant",
   "navigation.instant.progress",
+  "navigation.sections",
+  "navigation.path",
   "navigation.footer"
 ]
