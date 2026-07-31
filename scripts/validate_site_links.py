@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import posixpath
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -102,7 +103,11 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
         explicit_port = parts.port
     except ValueError as exc:
         raise SiteLinkError(f"{description} contains an invalid port") from exc
-    effective_port = explicit_port or (443 if scheme == "https" else 80)
+    effective_port = (
+        explicit_port
+        if explicit_port is not None
+        else (443 if scheme == "https" else 80)
+    )
     return scheme, hostname.lower(), effective_port
 
 
@@ -149,6 +154,17 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
         directory = base_path + value[: -len("index.html")]
         return (directory, directory.rstrip("/"), base_path + value)
     return (base_path + value,)
+
+
+def normalized_public_path(encoded_path: str) -> str:
+    """Decode a URL path and normalize dot segments before public-path lookup."""
+    decoded_path = unquote(encoded_path)
+    normalized = posixpath.normpath(decoded_path)
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+    if decoded_path.endswith("/") and normalized != "/":
+        normalized += "/"
+    return normalized
 
 
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
@@ -245,7 +261,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
             if resolved_origin != origin:
                 continue
 
-            decoded_path = unquote(resolved.path)
+            decoded_path = normalized_public_path(resolved.path)
             authored_local = not raw_parts.scheme and not raw_parts.netloc
             inside_site = decoded_path == base_path.rstrip("/") or decoded_path.startswith(
                 base_path
