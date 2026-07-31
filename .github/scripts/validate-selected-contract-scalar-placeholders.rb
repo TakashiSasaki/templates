@@ -51,7 +51,12 @@ end
 errors = []
 
 if (selected_profiles & %w[packaged-cli mcp-enabled]).any?
-  %w[Canonical command Working directory Preferred agent route Detailed interface contract].each do |label|
+  [
+    "Canonical command",
+    "Working directory",
+    "Preferred agent route",
+    "Detailed interface contract"
+  ].each do |label|
     summary_values.call(skill_lines, label).each do |value|
       if unresolved_scalar.call(value)
         errors << "#{SKILL_PATH} '#{label}:' must not use unresolved scalar placeholder #{value.inspect}."
