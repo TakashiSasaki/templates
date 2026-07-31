@@ -39,24 +39,32 @@ class AdditionalReviewRegressionTests(unittest.TestCase):
             target = target[part]
         target[path[-1]] = value
 
-    def test_null_notehead_is_not_visible_text(self) -> None:
-        for invalid_value in ("\U0001D159", f" \U0001D159\t"):
-            for contract_name, path in self.text_cases:
-                with self.subTest(
-                    contract=contract_name,
-                    path=path,
-                    value=repr(invalid_value),
-                ):
-                    document = copy.deepcopy(self.documents[contract_name])
-                    self.set_nested(document, path, invalid_value)
-                    self.assertFalse(self.validators[contract_name].is_valid(document))
+    def assert_rejected_as_invisible(self, invalid_value: str) -> None:
+        for contract_name, path in self.text_cases:
+            with self.subTest(
+                contract=contract_name,
+                path=path,
+                value=repr(invalid_value),
+            ):
+                document = copy.deepcopy(self.documents[contract_name])
+                self.set_nested(document, path, invalid_value)
+                self.assertFalse(self.validators[contract_name].is_valid(document))
 
-                    documents = copy.deepcopy(self.documents)
-                    self.set_nested(documents[contract_name], path, invalid_value)
-                    errors = validate_contracts.cross_validate(documents)
-                    self.assertTrue(
-                        any("must contain at least one visible character" in error for error in errors)
-                    )
+                documents = copy.deepcopy(self.documents)
+                self.set_nested(documents[contract_name], path, invalid_value)
+                errors = validate_contracts.cross_validate(documents)
+                self.assertTrue(
+                    any("must contain at least one visible character" in error for error in errors)
+                )
+
+    def test_null_notehead_is_not_visible_text(self) -> None:
+        for invalid_value in ("\U0001D159", " \U0001D159\t"):
+            self.assert_rejected_as_invisible(invalid_value)
+
+    def test_egyptian_hieroglyph_blanks_are_not_visible_text(self) -> None:
+        for blank_character in ("\U00013441", "\U00013442"):
+            for invalid_value in (blank_character, f" {blank_character}\t"):
+                self.assert_rejected_as_invisible(invalid_value)
 
     def test_invalid_utf8_is_reported_for_contracts_and_schemas(self) -> None:
         cases = (
