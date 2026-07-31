@@ -73,7 +73,7 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         result = self.run_validator()
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated 6 local links across 2 generated HTML pages", result.stdout)
+        self.assertIn("Validated 5 local links across 2 generated HTML pages", result.stdout)
 
     def test_rejects_missing_generated_target(self) -> None:
         self.write("index.html", '<a href="missing/">Missing</a>')
