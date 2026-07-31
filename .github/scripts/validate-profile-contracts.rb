@@ -4,34 +4,41 @@
 require "rbconfig"
 
 DIRECT_VALIDATORS = %w[
-  .github/scripts/validate-interface-routing-contract.rb
-  .github/scripts/validate-decomposed-interface-contracts.rb
-  .github/scripts/validate-selected-contract-scalar-placeholders.rb
-  .github/scripts/validate-cli-structured-output-contract.rb
-  .github/scripts/validate-cli-exit-code-contract.rb
-  .github/scripts/validate-mcp-runtime-authority.rb
-  .github/scripts/validate-interface-runtime-consistency.rb
-  .github/scripts/validate-bundled-mcp-client-consistency.rb
-  .github/scripts/validate-interface-summary-details.rb
+  validate-interface-routing-contract.rb
+  validate-decomposed-interface-contracts.rb
+  validate-selected-contract-scalar-placeholders.rb
+  validate-cli-structured-output-contract.rb
+  validate-cli-exit-code-contract.rb
+  validate-mcp-runtime-authority.rb
+  validate-interface-runtime-consistency.rb
+  validate-bundled-mcp-client-consistency.rb
+  validate-interface-summary-details.rb
 ].freeze
 
 DEFAULT_RULE_VALIDATORS = %w[
-  .github/scripts/validate-core-profile-contracts.rb
-  .github/scripts/validate-extended-profile-contracts.rb
-  .github/scripts/validate-concrete-profile-consistency.rb
-  .github/scripts/validate-review-followup-contracts.rb
-  .github/scripts/validate-late-review-contracts.rb
+  validate-core-profile-contracts.rb
+  validate-extended-profile-contracts.rb
+  validate-concrete-profile-consistency.rb
+  validate-review-followup-contracts.rb
+  validate-late-review-contracts.rb
 ].freeze
 
 rule_validators = ARGV.empty? ? DEFAULT_RULE_VALIDATORS : ARGV
 
+resolve_validator = lambda do |validator|
+  return File.expand_path(validator) if File.file?(validator)
+
+  File.expand_path(File.basename(validator), __dir__)
+end
+
 (DIRECT_VALIDATORS + rule_validators).uniq.each do |validator|
-  unless File.file?(validator)
+  path = resolve_validator.call(validator)
+  unless File.file?(path)
     warn "Missing profile validator: #{validator}"
     exit 1
   end
 
-  success = system({ "RUBYOPT" => nil }, RbConfig.ruby, validator)
+  success = system({ "RUBYOPT" => nil }, RbConfig.ruby, path)
   exit($?.exitstatus || 1) unless success
 end
 
