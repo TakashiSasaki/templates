@@ -103,6 +103,11 @@ class ContractValidationTests(unittest.TestCase):
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("public authorization must not require authentication" in error for error in errors))
 
+    def test_unsupported_policy_authorization_is_rejected(self) -> None:
+        document = copy.deepcopy(self.documents["surfaces"])
+        document["surfaces"][1]["authorization"] = {"mode": "policy", "roles": []}
+        self.assertFalse(self.validators["surfaces"].is_valid(document))
+
     def test_principal_authorization_requires_required_authentication(self) -> None:
         for mode, roles in (("authenticated", []), ("role", ["application-user"])):
             with self.subTest(mode=mode):
