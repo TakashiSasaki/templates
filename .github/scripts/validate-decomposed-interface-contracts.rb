@@ -25,6 +25,26 @@ concrete_value = lambda do |value|
   resolved_value.call(value) && !/\A(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))\z/i.match?(value.strip)
 end
 
+concrete_section = lambda do |value|
+  next false unless resolved_value.call(value)
+
+  substantive_lines = value.lines.map(&:strip).reject do |line|
+    line.empty? || line.match?(/\A```/)
+  end
+  normalized = substantive_lines.join(" ").gsub(/\s+/, " ").strip
+
+  placeholder_marker = /\b(?:TBD|FIXME|PLACEHOLDER)\b/i
+  placeholder_phrase = /\b(?:details?|behavior|contract|implementation|documentation)\s+(?:forthcoming|pending|to\s+follow|will\s+be\s+(?:added|defined|documented|specified)(?:\s+later)?|to\s+be\s+(?:added|defined|documented|specified|determined|decided))\b|\bto\s+be\s+(?:decided|determined|defined|documented|specified)\b|\bwill\s+be\s+documented\s+later\b/i
+  guidance_line = /\A(?:describe|document|specify|select|define|explain|replace|complete|state|decide|record)\b/i
+
+  next false if placeholder_marker.match?(normalized) || placeholder_phrase.match?(normalized)
+
+  guidance_only = !substantive_lines.empty? && substantive_lines.all? do |line|
+    guidance_line.match?(line.sub(/\A[-*]\s*/, ""))
+  end
+  !guidance_only
+end
+
 markdown_section = lambda do |document, heading|
   level = heading[/\A#+/].length
   boundary = level == 2 ? "^##\\s|\\z" : "^(?:##|###)\\s|\\z"
@@ -103,8 +123,8 @@ validate_common_contract = lambda do |path, required_headings|
 
   required_headings.each do |heading|
     section = markdown_section.call(document, heading)
-    unless resolved_value.call(section)
-      errors << "Selected contract #{path} requires concrete content under '#{heading}'."
+    unless concrete_section.call(section)
+      errors << "Selected contract #{path} requires concrete, non-placeholder content under '#{heading}'."
     end
   end
 
