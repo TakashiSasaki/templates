@@ -14,7 +14,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
-VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U0001D159"}
+VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U00013441", "\U00013442", "\U0001D159"}
 
 CONTRACT_SCHEMAS = {
     "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
@@ -85,8 +85,8 @@ def _has_visible_character(value: str) -> bool:
 
     Unicode control, format, surrogate, private-use, unassigned, combining-mark,
     and separator categories do not independently provide visible content.
-    Some symbol-category characters are also visually blank and are explicitly
-    excluded.
+    Some symbol- and letter-category characters are also intentionally blank
+    and are explicitly excluded.
     """
 
     return any(
