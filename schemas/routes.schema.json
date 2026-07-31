@@ -62,7 +62,7 @@
             "required": ["documentTitleRequired", "focusTarget"],
             "properties": {
               "documentTitleRequired": {"const": true},
-              "focusTarget": {"type": "string", "minLength": 1}
+              "focusTarget": {"type": "string", "minLength": 1, "pattern": "\\S"}
             }
           }
         },
