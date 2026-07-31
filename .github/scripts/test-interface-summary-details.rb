@@ -159,6 +159,18 @@ cases = [
       "RUNTIME.md" => valid_runtime
     },
     success: false
+  },
+  {
+    name: "rejects credentials embedded in a Streamable HTTP endpoint",
+    skill: skill_text.call("mcp-enabled"),
+    files: {
+      "MCP_INTERFACE.md" => valid_mcp.sub(
+        "http://127.0.0.1:3000/mcp",
+        "http://user:password@127.0.0.1:3000/mcp"
+      ),
+      "RUNTIME.md" => valid_runtime
+    },
+    success: false
   }
 ]
 
