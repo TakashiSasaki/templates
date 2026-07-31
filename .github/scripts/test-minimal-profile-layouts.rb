@@ -57,6 +57,38 @@ expected_files.each do |name, expected|
   end
 end
 
+Dir.mktmpdir("script-assisted-execution") do |directory|
+  copy_fixture.call("script-assisted", directory)
+  File.binwrite(File.join(directory, "input.txt"), "alpha  \r\nbeta\t\r\n")
+  stdout, stderr, status = Open3.capture3(
+    RbConfig.ruby,
+    "scripts/normalize.rb",
+    "input.txt",
+    "output.txt",
+    chdir: directory
+  )
+  output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
+  unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n"
+    failures << "script-assisted helper: expected deterministic normalization; " \
+                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                "stderr=#{stderr.inspect}, output=#{output.inspect}"
+  end
+
+  File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
+  stdout, stderr, status = Open3.capture3(
+    RbConfig.ruby,
+    "scripts/normalize.rb",
+    "invalid.txt",
+    "invalid-output.txt",
+    chdir: directory
+  )
+  unless status.exitstatus == 3 && stdout.empty? && stderr == "invalid UTF-8 input\n" &&
+         !File.exist?(File.join(directory, "invalid-output.txt"))
+    failures << "script-assisted helper: expected bounded invalid UTF-8 failure; " \
+                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+  end
+end
+
 invalid_cases = [
   {
     name: "instruction-only rejects a retained runtime contract",
