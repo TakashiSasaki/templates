@@ -32,10 +32,14 @@ jobs:
       - name: Check formatting and static rules
         run: |
           ruff --version
-          ruff check src tests scripts
+          ruff check src tests scripts skills/bootstrap-agent-policy/scripts
 
       - name: Run tests
         run: pytest
 
       - name: Compile Python sources
-        run: python -m compileall -q src scripts
+        run: >-
+          python -m compileall -q
+          src
+          scripts
+          skills/bootstrap-agent-policy/scripts
