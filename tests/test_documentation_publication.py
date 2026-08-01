@@ -5,9 +5,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
 DOC_REQUIREMENTS = ROOT / "requirements-docs.txt"
-DEPLOY_GUARD = (
-    "if: github.event_name != 'pull_request' "
-    "&& github.ref == 'refs/heads/policy'"
+DISABLED_DEPLOY_GUARD = (
+    "if: ${{ false && github.event_name != 'pull_request' "
+    "&& github.ref == 'refs/heads/policy' }}"
 )
 
 
@@ -26,14 +26,16 @@ def test_pages_workflow_targets_only_policy() -> None:
     assert "git fetch" not in workflow
 
 
-def test_pull_requests_build_but_cannot_deploy() -> None:
+def test_documentation_build_remains_enabled_but_pages_deployment_is_disabled() -> None:
     workflow = workflow_text()
 
-    assert workflow.count(DEPLOY_GUARD) == 2
+    assert workflow.count(DISABLED_DEPLOY_GUARD) == 2
     assert "permissions:\n  contents: read" in workflow
     assert "pages: write" in workflow
     assert "id-token: write" in workflow
     assert "environment:\n      name: github-pages" in workflow
+    assert "actions/upload-pages-artifact@" in workflow
+    assert "actions/deploy-pages@" in workflow
     assert "actions/configure-pages@" not in workflow
 
 
