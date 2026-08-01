@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PINNED_REVISION = "270645381849431b922bee87afecedc540e52ed1"
+FULL_SHA = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 ACTIVE_BOOTSTRAP_DOCS = (
     "README.md",
     "docs/index.md",
@@ -21,6 +22,13 @@ ACTIVE_BOOTSTRAP_DOCS = (
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def stable_toolchain() -> dict[str, str]:
+    release = json.loads((ROOT / "release/toolchain.json").read_text(encoding="utf-8"))
+    toolchain = release["toolchain"]
+    assert isinstance(toolchain, dict)
+    return toolchain
 
 
 def test_bootstrap_package_is_integrated_and_pinned() -> None:
@@ -41,10 +49,7 @@ def test_bootstrap_package_is_integrated_and_pinned() -> None:
     assert actual == expected
 
     manifest = json.loads((skill_root / "bootstrap-manifest.yml").read_text())
-    assert manifest["toolchain"] == {
-        "repository": "TakashiSasaki/templates",
-        "revision": PINNED_REVISION,
-    }
+    assert manifest["toolchain"] == stable_toolchain()
     assert "finalize" not in json.dumps(manifest["routes"])
 
 
@@ -56,6 +61,12 @@ def test_active_documentation_uses_integrated_skill_layout() -> None:
         assert "-b bootstrap-agent-policy" not in content, relative
         assert "TakashiSasaki/agent-policy.git" not in content, relative
         assert "directly cloneable onboarding skill" not in content, relative
+
+
+def test_bootstrap_model_defers_stable_revision_to_release_descriptor() -> None:
+    model = read("docs/bootstrap-model.md")
+    assert "`release/toolchain.json` is the source of truth" in model
+    assert FULL_SHA.search(model) is None
 
 
 def test_repository_structure_and_preview_are_policy_only() -> None:
