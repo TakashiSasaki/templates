@@ -289,10 +289,6 @@ module TextStatsService
       application = Application.new(port: actual_port, token: token, diagnostic: stderr)
       server.mount_proc("/") { |request, response| application.service(request, response) }
 
-      pid_file = configuration.fetch(:pid_file)
-      pid_record = current_pid_record
-      write_pid_record(pid_file, pid_record)
-
       shutdown = proc do
         Thread.new do
           application.mark_draining
@@ -301,6 +297,10 @@ module TextStatsService
       end
       Signal.trap("TERM", &shutdown)
       Signal.trap("INT", &shutdown)
+
+      pid_file = configuration.fetch(:pid_file)
+      pid_record = current_pid_record
+      write_pid_record(pid_file, pid_record)
 
       stderr.puts("text-stats service ready http://#{configuration.fetch(:bind)}:#{actual_port}/")
       server.start
