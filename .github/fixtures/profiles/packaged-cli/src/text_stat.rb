@@ -48,7 +48,12 @@ module TextStat
       end
 
       begin
-        text = argv.first == "-" ? stdin.read : File.binread(argv.first)
+        if argv.first == "-"
+          stdin.binmode if stdin.respond_to?(:binmode)
+          text = stdin.read
+        else
+          text = File.binread(argv.first)
+        end
       rescue SystemCallError, IOError => error
         stderr.puts("unable to read input: #{error.message}")
         return 3
