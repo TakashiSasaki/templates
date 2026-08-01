@@ -4,13 +4,13 @@ The `policy` branch builds this documentation through `.github/workflows/pages.y
 
 ## Current workflow boundary
 
-Both pull requests targeting `policy` and pushes to `policy` install the exactly pinned documentation dependencies, regenerate repository previews and documentation assets, verify the documented tree, and run `mkdocs build --strict --clean`.
+Both pull requests targeting `policy` and pushes to `policy` install the fully resolved documentation dependency graph, regenerate repository previews and documentation assets, verify the documented tree, and run `mkdocs build --strict --clean`.
 
 The Pages artifact-upload step and deployment job remain present for later use, but both are protected by a hard-coded false condition. Therefore no current `policy` event uploads a Pages artifact or deploys a site. Pull-request and push builds receive only `contents: read` unless the disabled deployment job is explicitly enabled by a reviewed change.
 
 The workflow does not fetch `main`, `site`, `webapp`, the former orphan bootstrap branch, or the former `TakashiSasaki/agent-policy` repository. The repository default branch is `main`, while this workflow intentionally exists only in the unrelated `policy` history. GitHub manual dispatch requires the workflow file to exist on the default branch, so this workflow deliberately omits `workflow_dispatch`.
 
-All third-party actions are pinned to full commit SHAs. Documentation dependencies are exactly pinned in `requirements-docs.txt`.
+All third-party actions are pinned to full commit SHAs. `requirements-docs.txt` records the direct documentation dependencies, while `requirements-docs.lock` records the complete dependency graph resolved and validated for Python 3.12 on `ubuntu-24.04`. The workflow installs only from the lock file. Dependency updates require a reviewed re-resolution and successful strict build.
 
 ## Deployment enablement boundary
 
@@ -27,6 +27,7 @@ Until that change is approved and merged, Pages settings and custom-domain migra
 
 The currently enabled documentation build is successful only when all of the following pass:
 
+- installation from the complete dependency lock;
 - repository preview generation;
 - documented-tree verification;
 - documentation asset generation;
