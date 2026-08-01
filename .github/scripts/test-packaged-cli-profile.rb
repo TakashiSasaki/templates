@@ -24,6 +24,13 @@ expected_files = %w[
 ].sort.freeze
 
 failures = []
+json_contract_matches = lambda do |parsed, expected_result|
+  parsed.is_a?(Hash) &&
+    parsed["contractVersion"] == "1" &&
+    parsed["ok"] == true &&
+    parsed["result"].is_a?(Hash) &&
+    expected_result.all? { |field, expected| parsed["result"][field] == expected }
+end
 
 actual_files = Find.find(fixture_root).filter_map do |path|
   next if path == fixture_root || File.directory?(path)
@@ -96,22 +103,45 @@ Dir.mktmpdir("packaged-cli-profile") do |directory|
     input = File.join(directory, "input.txt")
     File.write(input, "one two\n")
     command = File.join(bindir, "text-stat")
+    environment = { "GEM_HOME" => gem_home, "GEM_PATH" => gem_home }
+
     stdout, stderr, status = Open3.capture3(
-      { "GEM_HOME" => gem_home, "GEM_PATH" => gem_home },
+      environment,
       command,
       "--output",
       "json",
       input,
       chdir: directory
     )
-    expected = {
-      "contractVersion" => "1",
-      "ok" => true,
-      "result" => { "bytes" => 8, "lines" => 1, "words" => 2 }
-    }
     parsed = JSON.parse(stdout) rescue nil
-    unless status.success? && stderr.empty? && parsed == expected
-      failures << "packaged-cli installed command: expected deterministic JSON; " \
+    expected_result = { "bytes" => 8, "lines" => 1, "words" => 2 }
+    unless status.success? && stderr.empty? && json_contract_matches.call(parsed, expected_result)
+      failures << "packaged-cli installed command: expected compatible deterministic JSON; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    end
+
+    stdout, stderr, status = Open3.capture3(
+      environment,
+      command,
+      input,
+      chdir: directory
+    )
+    expected_human = "bytes: 8\nlines: 1\nwords: 2\n"
+    unless status.success? && stderr.empty? && stdout == expected_human
+      failures << "packaged-cli installed command: expected deterministic human output; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    end
+
+    invalid_input = File.join(directory, "invalid-utf8.txt")
+    File.binwrite(invalid_input, [0xFF].pack("C"))
+    stdout, stderr, status = Open3.capture3(
+      environment,
+      command,
+      invalid_input,
+      chdir: directory
+    )
+    unless status.exitstatus == 2 && stdout.empty? && stderr == "input is not valid UTF-8\n"
+      failures << "packaged-cli installed command: expected invalid UTF-8 rejection; " \
                   "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
     end
   end
