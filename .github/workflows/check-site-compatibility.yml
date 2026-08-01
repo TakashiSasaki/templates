@@ -29,6 +29,8 @@ jobs:
       site_ref: site
       source_ref: ${{ github.sha }}
       deploy: false
+    # The reusable workflow declares a conditional deploy job, so GitHub
+    # requires its permission ceiling even though deployment is disabled here.
     permissions:
       contents: read
       pages: write
