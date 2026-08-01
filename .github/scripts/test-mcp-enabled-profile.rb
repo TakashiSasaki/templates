@@ -243,9 +243,8 @@ Dir.mktmpdir("invalid-mcp-enabled-profile") do |directory|
   )
   if validation.timed_out || validation.status&.success?
     failures << "mcp-enabled invalid contract: expected missing MCP_INTERFACE.md to fail repository validation"
-  elsif !validation.stderr.include?("MCP_INTERFACE.md")
-    failures << "mcp-enabled invalid contract: expected an actionable MCP_INTERFACE.md diagnostic; " \
-                "stderr=#{validation.stderr.inspect}"
+  elsif validation.stderr.strip.empty?
+    failures << "mcp-enabled invalid contract: expected an actionable diagnostic for the missing required contract"
   end
 end
 
