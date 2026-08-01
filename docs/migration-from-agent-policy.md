@@ -48,13 +48,14 @@ Completed work:
 4. Migrated generated manifests, adoption state, schemas, and consumer workflow templates from `TakashiSasaki/agent-policy` to `TakashiSasaki/templates`.
 5. Reviewed and integrated the bootstrap trust seed at `skills/bootstrap-agent-policy/`.
 6. Pinned its manifest to the reviewed full-SHA toolchain revision `270645381849431b922bee87afecedc540e52ed1`, which contains the repository-identity migration and precedes the bootstrap-package commit.
+7. Restored a branch-appropriate strict documentation build for `templates:policy` without importing the former workflow history or fetching unrelated branches. The retained Pages artifact-upload and deployment paths are intentionally disabled.
 
 The old orphan branch was not merged into the new history. Its relevant source files were reviewed and adapted to the new repository, path layout, pin, route boundary, and documentation model.
 
 ## Remaining migration work
 
 1. Identify and update consumer repositories that still pin `TakashiSasaki/agent-policy` or a rewritten pre-migration SHA.
-2. Restore documentation publication from `templates:policy` with repository-appropriate permissions and Pages settings.
+2. Decide through a separate reviewed change whether and when to enable Pages deployment. Only after enablement should repository Pages settings, custom-domain cutover, deployment, and public-endpoint verification proceed as described in `documentation-publication.md`.
 3. Add a deprecation notice to `TakashiSasaki/agent-policy` and stop active automation there.
 4. Archive the former repository only after all active consumers have migrated.
 
