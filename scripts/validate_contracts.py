@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
 import validate_contracts_impl as _impl
 
 for _name in dir(_impl):
@@ -27,11 +29,42 @@ def _path_contains_symlink(root: Path, relative: str) -> bool:
     return False
 
 
+def _directory_symlink_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    for directory_name in ("contracts", "schemas"):
+        directory = root / directory_name
+        if directory.is_symlink():
+            errors.append(
+                f"{directory_name}: repository-owned directory must not be a symbolic link"
+            )
+            continue
+        if not directory.is_dir():
+            continue
+        for current, directory_names, _ in os.walk(directory, followlinks=False):
+            current_path = Path(current)
+            for name in directory_names:
+                candidate = current_path / name
+                if candidate.is_symlink():
+                    relative = candidate.relative_to(root).as_posix()
+                    errors.append(
+                        f"{relative}: repository-owned directory must not be a symbolic link"
+                    )
+    return errors
+
+
 def _symlink_preflight(root: Path) -> list[str]:
     if _path_contains_symlink(root, _impl.MANIFEST_PATH):
         return [
             f"{_impl.MANIFEST_PATH}: manifest must not be a symbolic link"
         ]
+    if _path_contains_symlink(root, _impl.MANIFEST_SCHEMA_PATH):
+        return [
+            f"{_impl.MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
+        ]
+
+    directory_errors = _directory_symlink_errors(root)
+    if directory_errors:
+        return directory_errors
 
     try:
         manifest = _impl.load_contract_manifest(root)
@@ -65,7 +98,7 @@ def _symlink_preflight(root: Path) -> list[str]:
 
     actual_schemas = {
         path.relative_to(root).as_posix()
-        for path in (root / "schemas").glob("*.json")
+        for path in (root / "schemas").rglob("*.json")
         if path.is_file() or path.is_symlink()
     } - {_impl.MANIFEST_SCHEMA_PATH}
     for relative in sorted(actual_schemas - registered_schemas):
@@ -74,11 +107,28 @@ def _symlink_preflight(root: Path) -> list[str]:
     return errors
 
 
+def _document_metadata_errors(root: Path) -> list[str]:
+    manifest = _impl.load_contract_manifest(root)
+    errors: list[str] = []
+    for entry in manifest["contracts"]:
+        document_path = entry["document"]
+        document = _impl.load_json(root / document_path)
+        if not isinstance(document, dict):
+            errors.append(
+                f"{document_path}: registered contract document must be a JSON object "
+                "with $schema and schemaVersion metadata"
+            )
+    return errors
+
+
 def validate_repository(root: Path) -> list[str]:
     errors = _symlink_preflight(root)
     if errors:
         return errors
-    return _impl.validate_repository(root)
+    errors = _impl.validate_repository(root)
+    if errors:
+        return errors
+    return _document_metadata_errors(root)
 
 
 def main() -> int:
