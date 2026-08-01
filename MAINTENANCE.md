@@ -63,6 +63,19 @@ External origins, non-HTTP schemes, same-origin URLs outside the configured proj
 
 When a canonical heading, destination, or relative link changes on `main`, the exact source commit passed to the reusable workflow is checked against the current `site` implementation before deployment. Broken page and anchor references therefore fail both pull-request builds and deployed `main` builds.
 
+## Build provenance
+
+Every uploaded Pages artifact contains `/build-provenance.json`. The deterministic schema records:
+
+- `schema_version`, currently the integer `1`;
+- `repository`, currently `TakashiSasaki/templates`;
+- `site_commit`, the full commit SHA actually checked out into `site-source`;
+- `canonical_source_commit`, the full commit SHA actually checked out into `canonical-source`.
+
+The workflow derives both commits from the checkout worktrees after the static build, then writes the provenance file before generated-link validation and artifact upload. Commit values must be lowercase, full-length 40-character SHAs; branch names, tags, and abbreviated SHAs are not accepted.
+
+The file deliberately excludes timestamps, workflow run IDs, and mutable refs. Identical source commits therefore produce identical provenance content. The provenance file identifies build inputs but is not a cryptographic signature or an attestation of the artifact contents.
+
 ## Build and deployment policy
 
 - Pull requests targeting `site` build and upload a Pages artifact but do not deploy it.
