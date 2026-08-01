@@ -7,7 +7,8 @@
     "schema_version",
     "channel",
     "toolchain",
-    "contracts"
+    "contracts",
+    "verifier"
   ],
   "properties": {
     "schema_version": {
@@ -58,6 +59,18 @@
         "lock": {
           "type": "integer",
           "minimum": 1
+        }
+      }
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirements"
+      ],
+      "properties": {
+        "requirements": {
+          "const": "release/verifier-requirements.lock"
         }
       }
     }
