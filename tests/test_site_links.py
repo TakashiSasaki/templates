@@ -81,6 +81,12 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
 
+    def test_allows_external_hostname_with_underscore(self) -> None:
+        self.write("index.html", '<a href="https://docs_test.example/path">External</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
+
     def test_rejects_same_scheme_shorthand_when_local_target_is_missing(self) -> None:
         self.write("index.html", '<a href="https:absent/">Absent</a>')
         result = self.run_validator()
@@ -137,6 +143,19 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("'%2e%2e%2fpresent/'", result.stderr)
+
+    def test_preserves_encoded_separator_in_configured_base_path(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://example.test/do%2Fcs/"\n',
+            encoding="utf-8",
+        )
+        self.write(
+            "index.html",
+            '<a href="https://example.test/do%2Fcs/absent/">Absent</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
 
     def test_rejects_repeated_slash_when_single_slash_page_exists(self) -> None:
         self.write("guide/present/index.html", "<p>Present</p>")
