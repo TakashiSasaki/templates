@@ -53,9 +53,9 @@ class ReviewRegressionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
 
-    def test_preserves_escaped_query_delimiter_in_configured_base_path(self) -> None:
+    def test_preserves_escaped_query_and_fragment_delimiters_in_base_path(self) -> None:
         self.config_file.write_text(
-            '[project]\nsite_url = "https://example.test/do%3Fcs/"\n',
+            '[project]\nsite_url = "https://example.test/do%3Fcs%23part/"\n',
             encoding="utf-8",
         )
         self.write("index.html", '<a href="present/">Present</a>')
