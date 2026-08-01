@@ -21,7 +21,9 @@ A product repository keeps a single semantic configuration entry point, `.agent-
 
 The onboarding trust seed is maintained at `skills/bootstrap-agent-policy/` in this branch. Its manifest pins one reviewed full commit SHA from `TakashiSasaki/templates`; it does not execute the mutable `policy` branch tip.
 
-Install it from a reviewed checkout:
+`release/toolchain.json` records the stable toolchain pin and contract versions. The bootstrap manifest must carry exactly the same repository and revision. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
+
+Install the bootstrap skill from a reviewed checkout:
 
 ```bash
 python skills/bootstrap-agent-policy/scripts/install.py \
@@ -40,6 +42,7 @@ python -m venv .venv
 pip install -r requirements-ci.lock
 pip install --no-deps --no-build-isolation -e .
 pip check
+python scripts/verify-release-state.py
 ruff check src tests scripts skills/bootstrap-agent-policy/scripts
 pytest
 python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
@@ -57,10 +60,13 @@ Completed migration work includes:
 - The former built-in `web-application` profile and its application-architecture rules were removed;
 - executable toolchain identity migration to `TakashiSasaki/templates`;
 - consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`;
+- a schema-validated stable release descriptor and full-SHA synchronization verifier;
 - restoration of a `policy`-scoped strict documentation build with retained but disabled GitHub Pages upload and deployment steps.
 
 Consumer pin updates, any later decision to enable Pages deployment, Pages settings and custom-domain cutover, and deprecation and archival of the former repository remain separate follow-up changes. See `docs/documentation-publication.md` for the disabled deployment boundary.
 
 ## Trust model
 
-Mutable branches are not used as executable toolchain references. Product manifests, generated workflows, adoption state, and bootstrap metadata pin the toolchain using a full Git commit SHA. Bootstrap pin, route, script, or safety-constraint changes are reviewed as trust-anchor changes even though the skill now shares the `policy` history.
+Mutable branches are not used as executable toolchain references. The stable release descriptor, bootstrap metadata, product manifests, adoption state, generated lock files, and generated workflows identify the toolchain using a full Git commit SHA. `scripts/verify-release-state.py` checks the branch-local release contract, and Policy CI verifies that the stable revision is a strict ancestor of the reviewed `policy` source history.
+
+Bootstrap pin, release descriptor, route, script, or safety-constraint changes are reviewed as trust-anchor changes even though the bootstrap skill shares the `policy` history.

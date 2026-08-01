@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .identity import TOOLCHAIN_REPOSITORY
+from .identity import toolchain_reference
 
 
 def build_manifest(
@@ -18,10 +18,7 @@ def build_manifest(
 
     manifest: dict[str, object] = {
         "schema_version": 1,
-        "toolchain": {
-            "repository": TOOLCHAIN_REPOSITORY,
-            "revision": toolchain_revision,
-        },
+        "toolchain": toolchain_reference(toolchain_revision),
         "profiles": list(profiles),
         "project_policy": {"files": list(project_policy_files)},
         "outputs": {

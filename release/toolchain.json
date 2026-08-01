@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "channel": "stable",
+  "toolchain": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "270645381849431b922bee87afecedc540e52ed1"
+  },
+  "contracts": {
+    "agent_policy_schema": 1,
+    "adoption_state_schema": 1,
+    "bootstrap_manifest": 2,
+    "lock": 1
+  },
+  "verifier": {
+    "requirements": "release/verifier-requirements.lock"
+  }
+}

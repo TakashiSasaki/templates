@@ -22,6 +22,7 @@ nav:
       - CLI: cli.md
       - ブートストラップスキル: bootstrap.md
       - 既存リポジトリの導入: adoption.md
+      - Toolchain release lifecycle: release-lifecycle.md
       - Documentation publication: documentation-publication.md
       - PWAとして利用する: pwa.md
   - エージェント環境:

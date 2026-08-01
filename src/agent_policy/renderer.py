@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from .config import Config, package_root
+from .identity import toolchain_reference
 from .policy_loader import Rule
 
 GENERATED_MARKER = "agent-policy-generated: true"
@@ -31,6 +32,12 @@ def environment() -> Environment:
 def render_agents(config: Config, rules: Iterable[Rule]) -> str:
     template = environment().get_template("AGENTS.md.j2")
     return template.render(config=config, rules=list(rules))
+
+
+def render_consumer_workflow(toolchain_revision: str) -> str:
+    toolchain = toolchain_reference(toolchain_revision)
+    template = environment().get_template("workflows/check-agent-policy.yml.j2")
+    return template.render(revision=toolchain["revision"])
 
 
 def render_skill(

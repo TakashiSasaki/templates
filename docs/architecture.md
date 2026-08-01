@@ -67,15 +67,26 @@ The `policy` branch is an orphan history unrelated to the repository's `main`, `
 
 - policy modules, profiles, schemas, compiler, adoption mechanics, templates, tests, and documentation are maintained together;
 - the bootstrap trust seed is stored under `skills/bootstrap-agent-policy/`;
-- product manifests, adoption state, and generated workflow templates identify the executable repository as `TakashiSasaki/templates`;
+- `release/toolchain.json` records the stable executable revision and contract versions;
+- product manifests, adoption state, locks, and generated workflow templates identify the executable repository as `TakashiSasaki/templates`;
 - the Python distribution and command retain the compatibility name `agent-policy`.
 
 No separate bootstrap or adoption branch is required. Initialization and adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
 
+## Stable release promotion
+
+The development branch and executable release are different concepts. `policy` may advance while the stable release descriptor continues to point at an earlier reviewed commit.
+
+A candidate commit first receives complete CI and review. A later promotion change updates both `release/toolchain.json` and the integrated bootstrap manifest to that candidate SHA. The candidate must be a strict ancestor of the promotion state. This two-step model avoids recursive self-reference and allows the promoted toolchain to be identified before the pin is committed.
+
+The release verifier checks the stable descriptor, bootstrap manifest, configuration schema, adoption-state schema, generated lock format, and rendered consumer workflow as one synchronized contract. Policy CI fetches the pull-request head or current pushed ref and verifies ancestry and required executable files at the pinned revision.
+
+Consumer repositories are not rewritten by promotion. Each consumer updates its manifest pin and regenerates its derived artifacts in a separate reviewed change.
+
 ## Trust-anchor isolation without a separate history
 
-The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records one full toolchain commit SHA and a closed route set. The pinned commit contains the executable repository-identity migration and precedes the bootstrap-package commit, preventing recursive self-reference.
+The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records the same full toolchain commit SHA as the stable release descriptor and a closed route set. The pinned candidate precedes the promotion commit, preventing recursive self-reference.
 
 The orchestration script may apply initialization or adoption preparation and preview. It cannot finalize adoption because no finalize route is present in the manifest or script.
 
-A change to the bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change even though it shares the `policy` Git history.
+A change to the stable release descriptor, bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change even though it shares the `policy` Git history.
