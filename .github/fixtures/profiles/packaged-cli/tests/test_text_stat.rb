@@ -29,6 +29,20 @@ class TextStatTest < Minitest::Test
     end
   end
 
+  class FailingOutput
+    def initialize(failure)
+      @failure = failure
+    end
+
+    def puts(*)
+      raise IOError, "simulated write failure" if @failure == :write
+    end
+
+    def flush
+      raise IOError, "simulated flush failure" if @failure == :flush
+    end
+  end
+
   def run_cli(*arguments, stdin_data: "")
     Open3.capture3(*COMMAND, *arguments, stdin_data: stdin_data, chdir: ROOT)
   end
@@ -43,6 +57,17 @@ class TextStatTest < Minitest::Test
     expected_result.each do |field, expected|
       assert_equal expected, result.fetch(field), "unexpected #{field} result"
     end
+  end
+
+  def assert_output_failure(failure)
+    stdin = BinaryModeInput.new("one two\n".b)
+    stdout = FailingOutput.new(failure)
+    stderr = StringIO.new
+
+    status = TextStat::CLI.run(["-"], stdin: stdin, stdout: stdout, stderr: stderr)
+
+    assert_equal 5, status
+    assert_equal "unable to write output: simulated #{failure} failure\n", stderr.string
   end
 
   def test_analyze_counts_utf8_bytes_lines_and_words
@@ -116,6 +141,14 @@ class TextStatTest < Minitest::Test
       assert_json_contract(output, "bytes" => 8, "lines" => 1, "words" => 2)
     end
     assert_includes error.message, "words"
+  end
+
+  def test_output_write_failure_uses_exit_code_five
+    assert_output_failure(:write)
+  end
+
+  def test_output_flush_failure_uses_exit_code_five
+    assert_output_failure(:flush)
   end
 
   def test_invalid_invocation_uses_exit_code_two
