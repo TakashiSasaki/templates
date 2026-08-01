@@ -27,11 +27,12 @@ def test_pages_workflow_targets_only_policy() -> None:
 def test_pull_requests_build_but_cannot_deploy() -> None:
     workflow = workflow_text()
 
-    assert workflow.count(DEPLOY_GUARD) == 3
+    assert workflow.count(DEPLOY_GUARD) == 2
     assert "permissions:\n  contents: read" in workflow
     assert "pages: write" in workflow
     assert "id-token: write" in workflow
     assert "environment:\n      name: github-pages" in workflow
+    assert "actions/configure-pages@" not in workflow
 
 
 def test_documentation_build_is_reproducible_and_strict() -> None:
@@ -57,7 +58,6 @@ def test_pages_actions_are_immutably_pinned() -> None:
     expected_actions = (
         "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
         "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
-        "actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b",
         "actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b",
         "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
     )
