@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  patch-review-fixes:
+  patch-review-tests:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'site-generated-link-validation'
     runs-on: ubuntu-latest
 
@@ -48,38 +48,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Apply focused review fixes
+      - name: Add focused regression tests
         run: |
-          if [ "$(git log -1 --pretty=%s)" = "Apply mixed IDNA and encoded-delimiter review fixes" ]; then
+          if grep -q 'test_accepts_external_mixed_unicode_non_std3_hostname' tests/test_site_links.py; then
             exit 0
           fi
 
           python - <<'PY'
           from pathlib import Path
-
-          script_path = Path('scripts/validate_site_links.py')
-          text = script_path.read_text(encoding='utf-8')
-
-          old_label = 'labels.append(idna.alabel(label).decode("ascii").lower())'
-          new_label = '''labels.append(
-                "xn--" + label.encode("punycode").decode("ascii").lower()
-            )'''
-          if old_label not in text:
-              raise SystemExit('mixed Unicode hostname label block not found')
-          text = text.replace(old_label, new_label)
-
-          old_delimiters = 're.compile(r"%(?:2f|5c)", re.IGNORECASE)'
-          new_delimiters = 're.compile(r"%(?:23|2f|3f|5c)", re.IGNORECASE)'
-          if old_delimiters not in text:
-              raise SystemExit('encoded path delimiter pattern not found')
-          text = text.replace(old_delimiters, new_delimiters)
-
-          old_docstring = 'Decode percent escapes while keeping encoded slash and backslash in-segment.'
-          new_docstring = 'Decode percent escapes while keeping encoded URL delimiters in-segment.'
-          if old_docstring not in text:
-              raise SystemExit('path decoder docstring not found')
-          text = text.replace(old_docstring, new_docstring)
-          script_path.write_text(text, encoding='utf-8')
 
           tests_path = Path('tests/test_site_links.py')
           tests = tests_path.read_text(encoding='utf-8')
@@ -116,8 +92,8 @@ jobs:
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add scripts/validate_site_links.py tests/test_site_links.py
-          git commit -m 'Apply mixed IDNA and encoded-delimiter review fixes'
+          git add tests/test_site_links.py
+          git commit -m 'Add mixed IDNA and encoded-delimiter regressions'
           git push origin HEAD:site-generated-link-validation
 
   build:
