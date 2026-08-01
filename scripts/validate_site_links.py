@@ -10,7 +10,7 @@ import tomllib
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import SplitResult, unquote, urljoin, urlsplit, urlunsplit
+from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
 
 class SiteLinkError(RuntimeError):
@@ -161,6 +161,7 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 
 
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
+_SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
 
 
 def normalize_special_url_backslashes(raw_url: str) -> str:
@@ -173,27 +174,75 @@ def normalize_special_url_backslashes(raw_url: str) -> str:
     return raw_url[:boundary].replace("\\", "/") + raw_url[boundary:]
 
 
+def _split_reference(raw_url: str) -> tuple[str, str, str]:
+    before_fragment, fragment_separator, fragment = raw_url.partition("#")
+    before_query, query_separator, query = before_fragment.partition("?")
+    return (
+        before_query,
+        query if query_separator else "",
+        fragment if fragment_separator else "",
+    )
+
+
+def _special_absolute_parts(
+    scheme: str, remainder: str, query: str, fragment: str
+) -> SplitResult:
+    """Parse a special-scheme authority after one or more leading slashes."""
+    authority_and_path = remainder.lstrip("/")
+    if not authority_and_path:
+        return SplitResult(scheme, "", "", query, fragment)
+    authority, separator, tail = authority_and_path.partition("/")
+    path = f"/{tail}" if separator else "/"
+    return SplitResult(scheme, authority, path, query, fragment)
+
+
+def _combine_relative_path(base_path: str, reference_path: str) -> str:
+    if reference_path.startswith("/"):
+        return reference_path
+    if not reference_path:
+        return base_path
+    base_directory = base_path[: base_path.rfind("/") + 1]
+    return base_directory + reference_path
+
+
 def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bool]:
     """Resolve HTTP(S) references using browser-like special-scheme semantics."""
     normalized_raw = normalize_special_url_backslashes(raw_url)
-    raw_parts = urlsplit(normalized_raw)
-    scheme = raw_parts.scheme.lower()
-    authored_local = not raw_parts.scheme and not raw_parts.netloc
+    reference, query, fragment = _split_reference(normalized_raw)
+    base_parts = urlsplit(base_url)
+    base_scheme = base_parts.scheme.lower()
+    scheme_match = _SCHEME_PREFIX.match(reference)
+    scheme = scheme_match.group(1).lower() if scheme_match else ""
 
-    if not scheme and normalized_raw.startswith("///"):
-        authority_reference = "//" + normalized_raw.lstrip("/")
-        return urlsplit(urljoin(base_url, authority_reference)), False
+    if scheme and scheme not in {"http", "https"}:
+        return SplitResult(scheme, "", reference, query, fragment), False
 
-    if scheme not in {"http", "https"}:
-        return urlsplit(urljoin(base_url, normalized_raw)), authored_local
+    if scheme:
+        remainder = reference[scheme_match.end() :]
+        if scheme != base_scheme:
+            return _special_absolute_parts(scheme, remainder, query, fragment), False
+        if remainder.startswith("//"):
+            return _special_absolute_parts(scheme, remainder, query, fragment), False
+        combined_path = _combine_relative_path(base_parts.path, remainder)
+        return SplitResult(
+            base_parts.scheme,
+            base_parts.netloc,
+            combined_path,
+            query,
+            fragment,
+        ), True
 
-    remainder = normalized_raw[len(raw_parts.scheme) + 1 :]
-    base_scheme = urlsplit(base_url).scheme.lower()
-    if remainder.startswith("//") or scheme != base_scheme:
-        absolute = f"{scheme}://{remainder.lstrip('/')}"
-        return urlsplit(absolute), False
+    if reference.startswith("//"):
+        return _special_absolute_parts(base_scheme, reference, query, fragment), False
 
-    return urlsplit(urljoin(base_url, remainder)), True
+    combined_path = _combine_relative_path(base_parts.path, reference)
+    return SplitResult(
+        base_parts.scheme,
+        base_parts.netloc,
+        combined_path,
+        query,
+        fragment,
+    ), True
 
 
 def _decode_path_without_separators(encoded_path: str) -> str:
