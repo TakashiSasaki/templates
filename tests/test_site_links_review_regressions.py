@@ -83,6 +83,21 @@ class ReviewRegressionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 2 local links across 1 generated HTML pages", result.stdout)
 
+    def test_preserves_double_encoded_delimiter_when_rebuilding_base_url(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://example.test/do%253Fcs/"\n',
+            encoding="utf-8",
+        )
+        self.write(
+            "index.html",
+            '<a href="https://example.test/do%253Fcs/absent/">Absent</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
