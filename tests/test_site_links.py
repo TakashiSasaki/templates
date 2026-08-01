@@ -178,6 +178,14 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("'missing/'", result.stderr)
 
+    def test_rejects_trailing_slash_on_generated_file(self) -> None:
+        self.write("index.html", '<a href="asset.txt/">Asset directory</a>')
+        self.write("asset.txt", "asset\n")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+        self.assertIn("asset.txt/", result.stderr)
+
     def test_rejects_missing_fragment(self) -> None:
         self.write("index.html", '<a href="guide/#missing">Missing</a>')
         self.write("guide/index.html", '<h2 id="present">Present</h2>')
@@ -214,6 +222,22 @@ class GeneratedSiteLinkTests(unittest.TestCase):
             "index.html",
             '<a href="https://ｔａｋａｓｈｉｓａｓａｋｉ.github.io/templates/absent/">Absent</a>',
         )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_rejects_numeric_ipv4_same_origin_hostname_when_missing(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://127.0.0.1/docs/"\n',
+            encoding="utf-8",
+        )
+        self.write("index.html", '<a href="https://127.1/docs/absent/">Absent</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_preserves_non_ascii_whitespace_in_href(self) -> None:
+        self.write("index.html", '<a href="\u00a0https://other.example/path">NBSP path</a>')
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
