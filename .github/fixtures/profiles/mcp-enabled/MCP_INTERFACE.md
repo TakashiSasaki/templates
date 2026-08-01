@@ -7,7 +7,7 @@ Selection status: SELECTED
 ## MCP protocol reference
 
 Runtime, SDK, revision, era boundary, and schema source of truth: RUNTIME.md
-Public negotiation and fallback behavior: The caller must initialize with revision `2025-11-25`; another revision receives a JSON-RPC invalid-params error and no fallback is attempted.
+Public negotiation and fallback behavior: The server selects revision `2025-11-25`. If a caller requests another revision, initialization still succeeds with `2025-11-25` in the response; the caller must decide whether to continue, and no transport or legacy-protocol fallback is attempted.
 Public compatibility statement: Within fixture version 1.x, the `text_stats` tool name, required string input `text`, read-only semantics, and existing `bytes`, `lines`, and `words` result fields remain compatible. Additive MCP result fields must be preserved by callers.
 
 ## stdio MCP server variant
@@ -72,7 +72,7 @@ The fixture advertises no elicitation, sampling, roots, or other server-to-clien
 
 ### Cancellation, tasks, and extensions
 
-The sole operation is synchronous and bounded. A caller-side timeout ends the session by closing stdin and applying the documented TERM/KILL escalation, and tests prove abnormal termination is reaped without hanging. Tasks and optional extensions are not advertised.
+The sole operation is synchronous and bounded. A caller-side timeout closes stdin, waits for graceful EOF shutdown, and escalates through TERM/KILL only if the child remains alive. Tests cover both the close-before-escalation path and forced abnormal termination without a hanging process. Tasks and optional extensions are not advertised.
 
 ### Ownership and workspace policy
 
@@ -80,7 +80,7 @@ The MCP host owns the trusted `mcp/server.rb` child process. The tool accepts te
 
 ## Semantic-equivalence and test requirements
 
-Tests exercise exact-revision initialization, tools-only capabilities, raw tool inventory, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdout/stderr separation, graceful EOF shutdown, and bounded abnormal termination through the actual stdio transport.
+Tests exercise exact-revision initialization, server-selected revision negotiation after another requested revision, tools-only capabilities, raw tool inventory, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdout/stderr separation, graceful EOF shutdown, timeout-driven stdin closure before signal escalation, and bounded forced termination through the actual stdio transport.
 
 ## Decision rationale
 

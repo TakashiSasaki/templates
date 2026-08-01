@@ -13,8 +13,6 @@ class TextStatsMcpServerTest < Minitest::Test
   REQUEST_TIMEOUT = 2
 
   class StdioSession
-    attr_reader :pid
-
     def initialize(timeout: REQUEST_TIMEOUT)
       @timeout = timeout
       @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(*COMMAND, chdir: ROOT)
@@ -36,6 +34,13 @@ class TextStatsMcpServerTest < Minitest::Test
       write(payload)
     end
 
+    def wait_for_startup
+      line = Timeout.timeout(@timeout) { @stderr.gets }
+      raise EOFError, "MCP server closed stderr before startup" if line.nil?
+
+      line
+    end
+
     def close_gracefully
       @stdin.close unless @stdin.closed?
       status = wait_bounded
@@ -43,6 +48,22 @@ class TextStatsMcpServerTest < Minitest::Test
       diagnostics = @stderr.read
       @closed = true
       [status, remaining_stdout, diagnostics]
+    ensure
+      close_streams
+    end
+
+    def close_after_read_timeout
+      startup = wait_for_startup
+      begin
+        Timeout.timeout(0.1) { @stdout.gets }
+        raise "expected a read timeout"
+      rescue Timeout::Error
+        @stdin.close unless @stdin.closed?
+        status = wait_bounded
+        diagnostics = startup + @stderr.read
+        @closed = true
+        [status, diagnostics]
+      end
     ensure
       close_streams
     end
@@ -55,23 +76,6 @@ class TextStatsMcpServerTest < Minitest::Test
       [status, diagnostics]
     ensure
       close_streams
-    end
-
-    def abort_after_read_timeout
-      startup = Timeout.timeout(@timeout) { @stderr.gets }
-      raise EOFError, "MCP server closed stderr before startup" if startup.nil?
-
-      begin
-        Timeout.timeout(0.1) { @stdout.gets }
-        raise "expected a read timeout"
-      rescue Timeout::Error
-        status, diagnostics = terminate_bounded
-        [status, startup + diagnostics]
-      end
-    end
-
-    def alive?
-      @wait_thread.alive?
     end
 
     private
@@ -160,6 +164,20 @@ class TextStatsMcpServerTest < Minitest::Test
     session&.close_gracefully
   end
 
+  def test_negotiates_selected_protocol_revision
+    session = StdioSession.new
+    initialization = initialize_protocol(session, revision: "2025-06-18")
+
+    result = initialization.fetch("result")
+    assert_equal TextStatsMcp::PROTOCOL_VERSION, result.fetch("protocolVersion")
+    assert_equal ["tools"], result.fetch("capabilities").keys
+
+    ping = session.request(2, "ping", {})
+    assert_equal({}, ping.fetch("result"))
+  ensure
+    session&.close_gracefully
+  end
+
   def test_successful_tool_call
     session = StdioSession.new
     initialize_protocol(session)
@@ -211,17 +229,6 @@ class TextStatsMcpServerTest < Minitest::Test
     session&.close_gracefully
   end
 
-  def test_rejects_unselected_protocol_revision_without_fallback
-    session = StdioSession.new
-    rejected = initialize_protocol(session, revision: "2025-06-18")
-    assert_json_rpc_error(rejected, -32_602)
-
-    accepted = initialize_protocol(session)
-    assert_equal TextStatsMcp::PROTOCOL_VERSION, accepted.fetch("result").fetch("protocolVersion")
-  ensure
-    session&.close_gracefully
-  end
-
   def test_sequential_tool_calls
     session = StdioSession.new
     initialize_protocol(session)
@@ -260,17 +267,37 @@ class TextStatsMcpServerTest < Minitest::Test
     session&.close_gracefully
   end
 
-  def test_read_timeout_reaps_abnormal_child_without_hanging
-    session = StdioSession.new(timeout: 0.5)
+  def test_read_timeout_closes_stdin_before_escalation
+    session = StdioSession.new
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-    status, diagnostics = session.abort_after_read_timeout
+    status, diagnostics = session.close_after_read_timeout
+    session = nil
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+    assert status.success?, "expected EOF shutdown before signal escalation, got #{status.inspect}"
+    assert_operator elapsed, :<, 3.0
+    assert_equal(
+      "text-stats MCP stdio server starting\ntext-stats MCP stdio server stopped\n",
+      diagnostics
+    )
+  ensure
+    session&.terminate_bounded
+  end
+
+  def test_forced_termination_reaps_abnormal_child_without_hanging
+    session = StdioSession.new
+    startup = session.wait_for_startup
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+    status, diagnostics = session.terminate_bounded
     session = nil
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
     refute status.success?
-    assert_operator elapsed, :<, 2.0
-    assert_includes diagnostics, "text-stats MCP stdio server starting"
+    assert_operator elapsed, :<, 3.0
+    assert_includes startup + diagnostics, "text-stats MCP stdio server starting"
+    assert_includes startup + diagnostics, "text-stats MCP stdio server stopped"
   ensure
     session&.terminate_bounded
   end

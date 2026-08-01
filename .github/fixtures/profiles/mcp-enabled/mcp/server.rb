@@ -45,19 +45,17 @@ module TextStatsMcp
     end
   end
 
-  class FixedRevisionServer < MCP::Server
+  class SelectedRevisionServer < MCP::Server
     private
 
     def init(params, session: nil)
-      if params.is_a?(Hash) && params[:protocolVersion] != PROTOCOL_VERSION
-        raise MCP::Server::RequestHandlerError.new(
-          "Unsupported protocol version: #{params[:protocolVersion].inspect}",
-          params,
-          error_type: :invalid_params
-        )
-      end
+      negotiated_params = if params.is_a?(Hash) && params[:protocolVersion] != PROTOCOL_VERSION
+                            params.merge(protocolVersion: PROTOCOL_VERSION)
+                          else
+                            params
+                          end
 
-      super
+      super(negotiated_params, session: session)
     end
   end
 
@@ -70,7 +68,7 @@ module TextStatsMcp
       validate_tool_call_results: true
     )
 
-    FixedRevisionServer.new(
+    SelectedRevisionServer.new(
       name: "text_stats_fixture",
       version: VERSION,
       instructions: "Call text_stats with one string-valued text argument.",

@@ -8,10 +8,10 @@ The authoritative protocol revision, SDK, command, and lifecycle selections are 
 
 - stdout is reserved for MCP protocol messages;
 - diagnostics use stderr;
-- initialization with revision `2025-11-25` precedes discovery and calls;
+- initialization selects revision `2025-11-25`; a caller that requested another revision decides whether to accept the selected revision before continuing;
 - the server advertises tools only;
 - sequential calls remain independent;
 - closing stdin requests graceful exit;
-- caller timeout handling uses bounded TERM/KILL escalation and always reaps the child.
+- caller timeout handling closes stdin and waits before bounded TERM/KILL escalation, and always reaps the child.
 
 Streamable HTTP, resources, prompts, sampling, elicitation, roots, tasks, optional extensions, and a public bundled MCP client are not supported by this fixture.

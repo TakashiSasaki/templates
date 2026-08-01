@@ -16,11 +16,11 @@ Use this skill when an MCP-capable agent host needs read-only text statistics an
 ## Workflow
 
 1. Register `bundle exec ruby mcp/server.rb` as a stdio MCP server from the skill root.
-2. Initialize the server with protocol revision `2025-11-25`.
-3. Discover the `text_stats` tool through `tools/list`.
+2. Initialize the server and verify that the response selects protocol revision `2025-11-25`; end the session if the host cannot accept that revision.
+3. Send `notifications/initialized`, then discover the `text_stats` tool through `tools/list`.
 4. Call `text_stats` with one string-valued `text` argument.
 5. Treat transport errors, JSON-RPC errors, MCP tool errors, and successful results as distinct outcomes.
-6. Close the server input and wait for bounded child-process shutdown when the host is finished.
+6. Close the server input, wait for graceful exit, and use bounded signal escalation only if the child remains alive.
 
 ## Public execution interfaces
 
