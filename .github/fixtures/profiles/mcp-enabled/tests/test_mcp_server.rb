@@ -58,10 +58,16 @@ class TextStatsMcpServerTest < Minitest::Test
     end
 
     def abort_after_read_timeout
-      Timeout.timeout(0.1) { @stdout.gets }
-      raise "expected a read timeout"
-    rescue Timeout::Error
-      terminate_bounded
+      startup = Timeout.timeout(@timeout) { @stderr.gets }
+      raise EOFError, "MCP server closed stderr before startup" if startup.nil?
+
+      begin
+        Timeout.timeout(0.1) { @stdout.gets }
+        raise "expected a read timeout"
+      rescue Timeout::Error
+        status, diagnostics = terminate_bounded
+        [status, startup + diagnostics]
+      end
     end
 
     def alive?
