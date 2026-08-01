@@ -32,10 +32,14 @@ The bootstrap script may inspect, initialize, or prepare and preview adoption. I
 
 ## Development
 
+The validated CI baseline is CPython 3.12.13 on `ubuntu-24.04`. `requirements-ci.txt` records the direct test and build inputs, while `requirements-ci.lock` records the complete dependency graph. Update both files only through a reviewed dependency-resolution change.
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e '.[dev]'
+pip install -r requirements-ci.lock
+pip install --no-deps --no-build-isolation -e .
+pip check
 ruff check src tests scripts skills/bootstrap-agent-policy/scripts
 pytest
 python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
