@@ -23,9 +23,10 @@ The JSON object contains `contractVersion`, `ok`, and `result`. Additive result 
 
 | Code | Meaning |
 |---:|---|
-| 0 | Normal completion with statistics emitted |
+| 0 | Normal completion with statistics emitted and flushed |
 | 2 | Invalid command, option, argument count, or non-UTF-8 input |
 | 3 | Input could not be read because of a file-system or I/O failure |
+| 5 | Output could not be written or flushed because of an I/O failure |
 
 ## In-place agent launcher
 
@@ -38,14 +39,14 @@ Delegates to: `TextStat::CLI.run` in `src/text_stat.rb`
 | Item | Selected behavior |
 |---|---|
 | Input forms and precedence | One path argument is used; `-` reads standard input; no environment override exists |
-| Standard output | Human-readable counts by default or one JSON object with `--output json` |
-| Standard error | One concise diagnostic for invalid invocation, encoding, or input I/O failure |
+| Standard output | Human-readable counts by default or one JSON object with `--output json`; successful output is flushed before exit code 0 |
+| Standard error | One concise diagnostic for invalid invocation, encoding, input I/O failure, or output write/flush failure |
 | Files or external state modified | NONE |
 | Network access | NONE |
-| Required permissions | Read access to the selected file or standard input |
+| Required permissions | Read access to the selected file or standard input and a writable standard-output destination |
 | Confirmation policy | No confirmation is required because the command is read-only |
 | Timeout and cancellation | The caller may interrupt the process; no background work survives process termination |
-| Idempotency and retry behavior | Identical input bytes produce identical output and failed reads may be retried after fixing access |
+| Idempotency and retry behavior | Identical input bytes produce identical output; failed reads or writes may be retried after fixing the I/O condition |
 
 ## Compatibility and versioning
 
@@ -55,7 +56,7 @@ Structured contract version source: The `TextStat::CONTRACT_VERSION` constant an
 
 ## Semantic-equivalence and test requirements
 
-The installed executable and in-place launcher must return identical counts, JSON fields, diagnostics, and exit codes. Tests cover help, version reporting, human output, structured output, additive result-field compatibility, invalid encoding, missing input, package build, and installed-command execution.
+The installed executable and in-place launcher must return identical counts, JSON fields, diagnostics, and exit codes. Tests cover help, version reporting, human output, structured output, additive result-field compatibility, binary standard input, invalid encoding, missing input, output write and flush failures, package build, and installed-command execution.
 
 ## Decision rationale
 
