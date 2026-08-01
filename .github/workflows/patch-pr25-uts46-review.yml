@@ -1,0 +1,93 @@
+name: Apply PR 25 UTS46 review fixes
+
+on:
+  push:
+    branches:
+      - site-generated-link-validation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Apply UTS46 and parser review fixes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: site-generated-link-validation
+
+      - name: Apply focused fixes and tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script_path = Path('scripts/validate_site_links.py')
+          text = script_path.read_text(encoding='utf-8')
+
+          text = text.replace(
+              'import tomllib\nimport unicodedata\n',
+              'import tomllib\n',
+          )
+          text = text.replace(
+              'from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit\n',
+              'from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit\n\nimport idna\n',
+          )
+
+          old_attrs = '        values = {name.lower(): value for name, value in attrs}\n'
+          new_attrs = '''        values: dict[str, str | None] = {}\n        for name, value in attrs:\n            values.setdefault(name.lower(), value)\n'''
+          if old_attrs not in text:
+              raise SystemExit('attribute collection block not found')
+          text = text.replace(old_attrs, new_attrs)
+
+          old_origin = '''    try:\n        decoded_hostname = unquote(hostname)\n        normalized_hostname = unicodedata.normalize("NFKC", decoded_hostname).lower()\n        normalized_hostname = normalized_hostname.translate(\n            str.maketrans({"\\u3002": ".", "\\uff0e": ".", "\\uff61": "."})\n        )\n        labels = normalized_hostname.split(".")\n        canonical_labels = [\n            label\n            if label.isascii()\n            else "xn--" + label.encode("punycode").decode("ascii")\n            for label in labels\n        ]\n        canonical_hostname = ".".join(canonical_labels)\n    except (UnicodeError, ValueError) as exc:\n        raise SiteLinkError(f"{description} contains an invalid hostname") from exc\n    try:\n        if ":" in canonical_hostname:\n            canonical_hostname = ipaddress.IPv6Address(canonical_hostname).compressed\n        else:\n            canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname\n    except ipaddress.AddressValueError as exc:\n        raise SiteLinkError(f"{description} contains an invalid hostname") from exc\n'''
+          new_origin = '''    try:\n        decoded_hostname = unquote(hostname)\n        if ":" in decoded_hostname:\n            canonical_hostname = ipaddress.IPv6Address(decoded_hostname).compressed\n        else:\n            canonical_hostname = idna.encode(\n                decoded_hostname,\n                uts46=True,\n                transitional=False,\n                std3_rules=True,\n            ).decode("ascii").lower()\n            canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname\n    except (idna.IDNAError, UnicodeError, ValueError, ipaddress.AddressValueError) as exc:\n        raise SiteLinkError(f"{description} contains an invalid hostname") from exc\n'''
+          if old_origin not in text:
+              raise SystemExit('hostname canonicalization block not found')
+          text = text.replace(old_origin, new_origin)
+
+          text = text.replace(
+              '_ASCII_URL_WHITESPACE = " \\t\\r\\n\\f"\n',
+              '_C0_CONTROL_OR_SPACE = "".join(chr(value) for value in range(0x21))\n',
+          )
+          text = text.replace(
+              '    """Apply browser URL whitespace preprocessing without removing Unicode space."""\n    return raw_url.strip(_ASCII_URL_WHITESPACE).translate(\n',
+              '    """Apply browser URL preprocessing while preserving non-ASCII whitespace."""\n    return raw_url.strip(_C0_CONTROL_OR_SPACE).translate(\n',
+          )
+          script_path.write_text(text, encoding='utf-8')
+
+          tests_path = Path('tests/test_site_links.py')
+          tests = tests_path.read_text(encoding='utf-8')
+          marker = '''    def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:\n'''
+          additions = '''    def test_preserves_first_duplicate_href_attribute(self) -> None:\n        self.write("index.html", '<a href="missing/" href="present/">Duplicate</a>')\n        self.write("present/index.html", "<p>Present</p>")\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 1)\n        self.assertIn("'missing/' has no generated target", result.stderr)\n\n    def test_preserves_first_duplicate_id_attribute(self) -> None:\n        self.write(\n            "index.html",\n            '<h2 id="present" id="missing">Heading</h2><a href="#missing">Missing</a>',\n        )\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 1)\n        self.assertIn("references missing fragment 'missing'", result.stderr)\n\n    def test_trims_complete_c0_control_range_at_url_boundaries(self) -> None:\n        self.write("index.html", '<a href="\\x0bhttps://other.example/path">External</a>')\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 0, result.stderr)\n        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)\n\n    def test_applies_uts46_ignored_codepoint_mapping(self) -> None:\n        self.write(\n            "index.html",\n            '<a href="https://ex\\u00adample.test/docs/absent/">Absent</a>',\n        )\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 1)\n        self.assertIn("has no generated target", result.stderr)\n\n'''
+          if marker not in tests:
+              raise SystemExit('test insertion marker not found')
+          tests = tests.replace(marker, additions + marker)
+          tests_path.write_text(tests, encoding='utf-8')
+
+          requirements_path = Path('requirements.txt')
+          requirements = requirements_path.read_text(encoding='utf-8').splitlines()
+          requirements = [line for line in requirements if not line.startswith('idna==')]
+          requirements.append('idna==3.18')
+          requirements_path.write_text('\n'.join(requirements) + '\n', encoding='utf-8')
+
+          workflow_path = Path('.github/workflows/build-pages.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          old_steps = '''      - name: Run site assembly tests\n        run: python -m unittest discover --start-directory site-source/tests --verbose\n\n      - name: Install the pinned site generator\n        run: python -m pip install --requirement site-source/requirements.txt\n'''
+          new_steps = '''      - name: Install pinned site dependencies\n        run: python -m pip install --requirement site-source/requirements.txt\n\n      - name: Run site assembly tests\n        run: python -m unittest discover --start-directory site-source/tests --verbose\n'''
+          if old_steps not in workflow:
+              raise SystemExit('workflow dependency/test block not found')
+          workflow = workflow.replace(old_steps, new_steps)
+          workflow_path.write_text(workflow, encoding='utf-8')
+          PY
+
+          python -m pip install --requirement requirements.txt
+          python -m unittest discover --start-directory tests --verbose
+
+      - name: Commit focused fixes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/validate_site_links.py tests/test_site_links.py requirements.txt .github/workflows/build-pages.yml
+          git commit -m 'Apply UTS46 and parser review fixes'
+          git push origin HEAD:site-generated-link-validation
