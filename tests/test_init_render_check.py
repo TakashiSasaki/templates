@@ -22,16 +22,13 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
     agents = agents_path.read_text(encoding="utf-8")
     assert "configuration: .agent-policy.yml" in agents
     assert "Semantic configuration: `.agent-policy.yml`" in agents
-    assert (
-        "Pinned shared toolchain: `TakashiSasaki/agent-policy@LOCAL-DEVELOPMENT`"
-        in agents
-    )
+    assert "Pinned shared toolchain: `TakashiSasaki/templates@LOCAL-DEVELOPMENT`" in agents
     assert "Repository policy inputs:" in agents
     assert "`policy/project.md`" in agents
     assert "Generated operational skills:" in agents
     assert "`.agents/skills/validate-agent-policy/SKILL.md`" in agents
     assert (
-        "_Source: `TakashiSasaki/agent-policy@LOCAL-DEVELOPMENT:"
+        "_Source: `TakashiSasaki/templates@LOCAL-DEVELOPMENT:"
         "policy/core/change-contract.md`"
         in agents
     )
