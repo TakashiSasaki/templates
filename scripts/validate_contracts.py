@@ -26,8 +26,15 @@ def _load_implementation() -> ModuleType:
 
 
 def __getattr__(name: str) -> Any:
-    if name == "CONTRACT_SCHEMAS" and _symlink_preflight(ROOT):
-        return {}
+    preflight_errors = _symlink_preflight(ROOT)
+    if preflight_errors:
+        if name == "CONTRACT_SCHEMAS":
+            return {}
+        details = "; ".join(preflight_errors)
+        raise RuntimeError(
+            f"cannot load validator attribute {name!r} before trust-boundary "
+            f"preflight succeeds: {details}"
+        )
     try:
         return getattr(_load_implementation(), name)
     except AttributeError as exc:
