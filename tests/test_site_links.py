@@ -97,6 +97,18 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
+    def test_accepts_triple_slash_same_origin_network_reference(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="///example.test/docs/guide/">Guide</a>',
+        )
+        self.write("guide/index.html", "<p>Guide</p>")
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
+
     def test_accepts_anchor_followed_by_text_fragment_directive(self) -> None:
         self.write(
             "index.html",
