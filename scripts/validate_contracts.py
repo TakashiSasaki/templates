@@ -162,7 +162,7 @@ def main() -> int:
     errors = validate_repository(ROOT)
     if errors:
         print("Contract validation failed:", file=sys.stderr)
-        for error in errorrs:
+        for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
     print("All web-application contracts are valid.")
