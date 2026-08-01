@@ -38,18 +38,18 @@ The import included the former `main` history for:
 
 The initial import did not transfer the former orphan `bootstrap-agent-policy` branch, workflow history, tags, releases, issues, pull requests, repository settings, secrets, or other unrelated branches.
 
-## Subsequent consolidation
+## Migration progress
 
-After the initial import:
+Completed work:
 
-1. branch-appropriate `Policy CI` was established;
-2. shared policy was restricted to application-type-independent agent operations;
-3. the former `web-application` profile and application-architecture rules were removed;
-4. generated manifests, adoption state, schemas, and consumer workflow templates were migrated from `TakashiSasaki/agent-policy` to `TakashiSasaki/templates`;
-5. the bootstrap trust seed was reviewed and integrated at `skills/bootstrap-agent-policy/`;
-6. its manifest was pinned to the reviewed full-SHA toolchain revision `270645381849431b922bee87afecedc540e52ed1`, which contains the repository-identity migration and precedes the bootstrap-package commit.
+1. Established branch-appropriate `Policy CI`.
+2. Defined and tested the application-type-independent shared-policy boundary.
+3. Removed the built-in application-specific profile and its application-architecture rules.
+4. Migrated generated manifests, adoption state, schemas, and consumer workflow templates from `TakashiSasaki/agent-policy` to `TakashiSasaki/templates`.
+5. Reviewed and integrated the bootstrap trust seed at `skills/bootstrap-agent-policy/`.
+6. Pinned its manifest to the reviewed full-SHA toolchain revision `270645381849431b922bee87afecedc540e52ed1`, which contains the repository-identity migration and precedes the bootstrap-package commit.
 
-The old orphan branch was not merged into the new history. Its relevant source files were reviewed and adapted to the new repository, path layout, pin, and documentation model.
+The old orphan branch was not merged into the new history. Its relevant source files were reviewed and adapted to the new repository, path layout, pin, route boundary, and documentation model.
 
 ## Remaining migration work
 
