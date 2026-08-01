@@ -324,7 +324,7 @@ module TextStatsService
         raise ConfigurationError, "TEXT_STATS_SERVICE_TOKEN_FILE is required for service startup"
       end
 
-      flags = File::RDONLY | File::NOFOLLOW
+      flags = File::RDONLY | File::NOFOLLOW | File::NONBLOCK
       raw = File.open(path, flags) do |file|
         stat = file.stat
         unless stat.file?
@@ -445,7 +445,8 @@ module TextStatsService
     end
 
     def self.read_pid_record(path)
-      serialized = File.open(path, File::RDONLY | File::NOFOLLOW) do |file|
+      flags = File::RDONLY | File::NOFOLLOW | File::NONBLOCK
+      serialized = File.open(path, flags) do |file|
         stat = file.stat
         unless stat.file?
           raise ConfigurationError, "Headless service PID file must be a regular non-symlink file: #{path}"
