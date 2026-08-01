@@ -74,6 +74,14 @@ jobs:
       - name: Verify the Pages entry point
         run: test -f build/site/index.html
 
+      - name: Record build provenance
+        run: |
+          python site-source/scripts/write_build_provenance.py \
+            --output build/site/build-provenance.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-commit "$(git -C site-source rev-parse HEAD)" \
+            --canonical-source-commit "$(git -C canonical-source rev-parse HEAD)"
+
       - name: Validate generated site links
         run: |
           python site-source/scripts/validate_site_links.py \
