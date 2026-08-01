@@ -35,7 +35,11 @@ def read_front_matter_name(marker: Path) -> str | None:
 
 def is_bootstrap_skill_directory(target: Path) -> bool:
     marker = target / "SKILL.md"
-    return marker.is_file() and read_front_matter_name(marker) == EXPECTED_SKILL_NAME
+    return (
+        not marker.is_symlink()
+        and marker.is_file()
+        and read_front_matter_name(marker) == EXPECTED_SKILL_NAME
+    )
 
 
 def main() -> int:
