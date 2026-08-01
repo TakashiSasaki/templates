@@ -82,6 +82,27 @@ class ContractManifestTests(unittest.TestCase):
             )
         )
 
+    def test_missing_core_contract_role_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            manifest = validate_contracts.load_contract_manifest(root)
+            manifest["contracts"] = [
+                entry for entry in manifest["contracts"] if entry["id"] != "viewports"
+            ]
+            self.write_manifest(root, manifest)
+            (root / "contracts/viewports.json").unlink()
+            (root / "schemas/viewports.schema.json").unlink()
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertTrue(
+            any(
+                error.startswith("contracts/manifest.json:$.contracts:")
+                and "does not contain items matching the given schema" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_unregistered_contract_document_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
@@ -122,7 +143,7 @@ class ContractManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
             manifest = validate_contracts.load_contract_manifest(root)
-            manifest["contracts"][1]["id"] = manifest["contracts"][0]["id"]
+            manifest["contracts"].append(dict(manifest["contracts"][0]))
             self.write_manifest(root, manifest)
             errors = validate_contracts.validate_repository(root)
 
