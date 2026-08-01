@@ -4,30 +4,27 @@
 
 対象はGitリポジトリです。Python 3.11以降とGitが必要です。`uvx` が利用可能な場合は一時環境でCLIを実行し、利用できない場合はブートストラップスクリプトが一時的なPython仮想環境を作成します。
 
-## 推奨: ブートストラップスキルから導入する
+## 推奨: 統合済みブートストラップスキルから導入する
 
-`bootstrap-agent-policy` ブランチ全体が、一つの直接clone可能なエージェントスキルです。`SKILL.md` はブランチのルートにあります。
+ブートストラップスキルは `TakashiSasaki/templates` の `policy` ブランチ内、`skills/bootstrap-agent-policy/` にあります。レビュー済みのfull commit SHAをcheckoutし、installerでエージェントのskill directoryへ配置します。
 
 ```bash
-git clone \
-  --branch bootstrap-agent-policy \
-  --single-branch \
-  https://github.com/TakashiSasaki/agent-policy.git \
-  bootstrap-agent-policy
+python skills/bootstrap-agent-policy/scripts/install.py \
+  /path/to/agent-skills/bootstrap-agent-policy
 ```
 
-エージェントのユーザーレベルのスキルディレクトリへ配置する場合は、最後の引数を実際の配置先に変更してください。
+スキル自身の `bootstrap-manifest.yml` は、実行する `TakashiSasaki/templates` のtoolchain revisionをfull SHAで固定しています。`policy`、tag、短縮SHAなどのmutable referenceへ置き換えないでください。
 
 ## 1. リポジトリを調査し、導入計画を確認する
 
-ブートストラップ処理は、既定ではdry-runです。
+ブートストラップ処理は既定ではdry-runです。導入済みskill directoryから次を実行します。
 
 ```bash
-python bootstrap-agent-policy/scripts/bootstrap.py \
+python scripts/bootstrap.py \
   --repository /path/to/product-repository
 ```
 
-固定された `main` の完全なコミットSHAで `agent-policy adopt inspect` を実行し、対象を次のいずれかへ分類します。
+固定されたtoolchainで `agent-policy adopt inspect` を実行し、対象を次のいずれかへ分類します。
 
 - `unmanaged-empty`: 既存instructionがなく、`init`を使用できる
 - `unmanaged-existing`: 既存instructionやpolicyがあり、`adopt prepare`を使用する
@@ -38,10 +35,8 @@ python bootstrap-agent-policy/scripts/bootstrap.py \
 
 ## 2A. 空のリポジトリを初期化する
 
-`unmanaged-empty` と判定され、計画に問題がなければ `init` を明示して適用します。
-
 ```bash
-python bootstrap-agent-policy/scripts/bootstrap.py \
+python scripts/bootstrap.py \
   --repository /path/to/product-repository \
   --route init \
   --apply
@@ -68,7 +63,7 @@ AGENTS.md
 まずdry-runを確認します。
 
 ```bash
-python bootstrap-agent-policy/scripts/bootstrap.py \
+python scripts/bootstrap.py \
   --repository /path/to/product-repository \
   --route adopt \
   --primary-instructions AGENTS.md
@@ -77,7 +72,7 @@ python bootstrap-agent-policy/scripts/bootstrap.py \
 計画を確認した後、準備状態を適用します。
 
 ```bash
-python bootstrap-agent-policy/scripts/bootstrap.py \
+python scripts/bootstrap.py \
   --repository /path/to/product-repository \
   --route adopt \
   --primary-instructions AGENTS.md \
@@ -97,7 +92,7 @@ policy/project.md
 
 手書きinstructionの意味をproject policyへ反映し、previewとの意味的な差分をレビューしてください。CLIは自由記述を自動的に規約へ変換しません。
 
-cutoverは別段階です。レビュー後に、同じ固定ツールチェーンの `agent-policy adopt finalize` をdry-runし、明示的に `--apply`して初めてprimary instructionを生成物へ切り替えます。genericなbootstrap `--apply`はfinalizeを実行しません。
+cutoverは別段階です。レビュー後に、manifestに固定された同じrepositoryとfull SHAのCLIで `agent-policy adopt finalize` をdry-runし、明示的に `--apply`して初めてprimary instructionを生成物へ切り替えます。genericなbootstrap `--apply`はfinalizeを実行しません。
 
 ## 3. 製品固有規約を記述する
 
@@ -122,4 +117,4 @@ agent-policy --repository . adopt preview
 初期化、adoption preparation、preview、finalization、再生成はGit commitやpushを自動実行しません。生成された差分を確認し、製品コードと同じ通常のレビューフローでコミットしてください。
 
 !!! note
-    ブートストラップスキルは初回導入の信頼の種です。初期化後またはadoption finalization後の通常運用では、製品リポジトリ内の `.agent-policy.yml` と `.agent-policy.lock` がツールチェーンと生成状態を固定します。
+    ブートストラップスキルは初回導入のtrust seedです。初期化後またはadoption finalization後の通常運用では、製品リポジトリ内の `.agent-policy.yml` と `.agent-policy.lock` がツールチェーンと生成状態を固定します。
