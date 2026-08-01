@@ -10,5 +10,8 @@
     "adoption_state_schema": 1,
     "bootstrap_manifest": 2,
     "lock": 1
+  },
+  "verifier": {
+    "requirements": "release/verifier-requirements.lock"
   }
 }
