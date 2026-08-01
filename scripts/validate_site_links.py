@@ -194,7 +194,7 @@ def load_site_url(config_file: Path) -> str:
     if parts.query or parts.fragment:
         raise SiteLinkError("project.site_url must not contain a query or fragment")
 
-    path = _decode_base_path_without_delimiters(parts.path or "/")
+    path = parts.path or "/"
     if not path.startswith("/"):
         raise SiteLinkError("project.site_url must contain an absolute URL path")
     if not path.endswith("/"):
@@ -223,7 +223,6 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 
 
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
-_ENCODED_BASE_PATH_DELIMITER = re.compile(r"%(?:2f|5c|3f|23)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
 _C0_CONTROL_OR_SPACE = "".join(chr(value) for value in range(0x21))
 _EMBEDDED_ASCII_URL_WHITESPACE = str.maketrans("", "", "\t\r\n")
@@ -335,11 +334,6 @@ def _decode_path_preserving(
 def _decode_path_without_separators(encoded_path: str) -> str:
     """Decode path data while keeping encoded separators in-segment."""
     return _decode_path_preserving(encoded_path, _ENCODED_PATH_SEPARATOR)
-
-
-def _decode_base_path_without_delimiters(encoded_path: str) -> str:
-    """Decode safe base-path escapes while preserving URL syntax delimiters."""
-    return _decode_path_preserving(encoded_path, _ENCODED_BASE_PATH_DELIMITER)
 
 
 def _remove_dot_segments_preserving_empty(path: str) -> str:
