@@ -38,10 +38,10 @@ The local installation keeps the gem and executable inside the repository workin
 
 | Shell | Exact command |
 |---|---|
-| POSIX shell | `GEM_HOME="$PWD/.local/gems" GEM_PATH="$PWD/.local/gems" PATH="$PWD/.local/bin:$PATH" text-stat --help` |
+| POSIX shell | `export GEM_HOME="$PWD/.local/gems"; export GEM_PATH="$GEM_HOME"; export PATH="$PWD/.local/bin:$PATH"; text-stat --help` |
 | PowerShell | `$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help` |
 
-The activation commands above apply only to the repository-local installation. A normal RubyGems installation may use the environment's configured gem home and executable directory instead.
+The activation commands above persist for the current shell session and apply only to the repository-local installation. A normal RubyGems installation may use the environment's configured gem home and executable directory instead.
 
 ### Packaged CLI commands
 
