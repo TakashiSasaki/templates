@@ -29,7 +29,7 @@ json_contract_matches = lambda do |parsed, expected_result|
     parsed["contractVersion"] == "1" &&
     parsed["ok"] == true &&
     parsed["result"].is_a?(Hash) &&
-    expected_result.all? { |field, expected| parsed["result"][field] == expected }
+    expected_result.all? { |field, expected| parsed["result"].key?(field) && parsed["result"][field] == expected }
 end
 
 actual_files = Find.find(fixture_root).filter_map do |path|
