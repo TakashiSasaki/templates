@@ -78,7 +78,7 @@ Web health behavior: `GET /healthz` returns only `{"ok":true,"interface":"web"}`
 MCP readiness check: NOT APPLICABLE; no MCP interface is selected
 Failure relationship: shared process with isolated routing; request-validation and operation failures do not change Web readiness
 
-The readiness endpoint does not execute the text-statistics operation and does not establish the health of any absent interface. A malformed or rejected API request remains request-scoped. TERM and INT stop the listener, remove the owned PID file, and allow the process to be reaped without a background child.
+The readiness endpoint does not execute the text-statistics operation and does not establish the health of any absent interface. A malformed or rejected API request remains request-scoped. The mode-0600 PID record includes the Linux process start identity. Startup refuses existing or symbolic-link records, and `--stop` refuses stale identity data rather than signaling an unrelated process. TERM and INT stop the listener, remove the owned record, and allow the process to be reaped without a background child.
 
 ## Shared implementation
 
@@ -96,8 +96,9 @@ The fixture tests establish:
 - deterministic versioned success output without text echo;
 - media-type, encoding, JSON, schema, and size failures;
 - health success after request-scoped API failures;
-- documented readiness and PID-based stop commands;
-- graceful signal shutdown, PID-file cleanup, and empty stdout;
+- documented readiness and identity-verified PID-based stop commands;
+- rejection of stale, pre-existing, or symbolic-link PID records;
+- graceful signal shutdown, PID-record cleanup, and empty stdout;
 - prompt failure when the selected fixed port is unavailable;
 - complete repository validation and negative missing-contract or implementation cases.
 

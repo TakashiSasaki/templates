@@ -193,6 +193,7 @@ module TextStatsWeb
     DEFAULT_PORT = 4567
     DEFAULT_PID_FILE = "tmp/text-stats-web.pid"
     DISABLED_EXIT = 78
+    PID_RECORD_KEYS = %w[pid startTicks].freeze
 
     def self.run(argv, env: ENV, stdout: $stdout, stderr: $stderr)
       action = :start
@@ -250,8 +251,8 @@ module TextStatsWeb
       server.mount_proc("/") { |request, response| application.service(request, response) }
 
       pid_file = configuration.fetch(:pid_file)
-      FileUtils.mkdir_p(File.dirname(pid_file))
-      File.open(pid_file, "w:UTF-8") { |file| file.write("#{Process.pid}\n") }
+      pid_record = current_pid_record
+      write_pid_record(pid_file, pid_record)
 
       shutdown = proc { server.shutdown }
       Signal.trap("TERM", &shutdown)
@@ -264,10 +265,10 @@ module TextStatsWeb
       stderr.puts("unable to start Web UI: #{error.message}")
       1
     ensure
-      if defined?(pid_file) && pid_file && File.file?(pid_file)
+      if defined?(pid_file) && pid_file && defined?(pid_record) && pid_record
         begin
-          File.delete(pid_file) if File.read(pid_file, encoding: "UTF-8").strip == Process.pid.to_s
-        rescue Errno::ENOENT
+          File.delete(pid_file) if read_pid_record(pid_file) == pid_record
+        rescue ConfigurationError, Errno::ENOENT
           nil
         end
       end
@@ -296,17 +297,23 @@ module TextStatsWeb
 
     def self.stop(configuration, stdout:, stderr:)
       pid_file = configuration.fetch(:pid_file)
-      unless File.file?(pid_file)
+      unless File.exist?(pid_file) || File.symlink?(pid_file)
         stderr.puts("Web UI PID file not found: #{pid_file}")
         return 1
       end
 
-      pid = Integer(File.read(pid_file, encoding: "UTF-8").strip, 10)
+      record = read_pid_record(pid_file)
+      pid = record.fetch("pid")
+      unless process_start_ticks(pid) == record.fetch("startTicks")
+        stderr.puts("Web UI PID file is stale; refusing to signal process #{pid}")
+        return 1
+      end
+
       Process.kill("TERM", pid)
       stdout.puts("Sent TERM to Web UI process #{pid}")
       0
-    rescue ArgumentError
-      stderr.puts("Web UI PID file is invalid: #{pid_file}")
+    rescue ConfigurationError => error
+      stderr.puts(error.message)
       1
     rescue Errno::ESRCH
       stderr.puts("Web UI process is not running")
@@ -316,7 +323,59 @@ module TextStatsWeb
       1
     end
 
-    private_class_method :configuration_from, :start, :health, :stop
+    def self.current_pid_record
+      start_ticks = process_start_ticks(Process.pid)
+      raise ConfigurationError, "unable to read current process identity" unless start_ticks
+
+      { "pid" => Process.pid, "startTicks" => start_ticks }
+    end
+
+    def self.write_pid_record(path, record)
+      FileUtils.mkdir_p(File.dirname(path))
+      if File.exist?(path) || File.symlink?(path)
+        raise ConfigurationError, "Web UI PID file already exists: #{path}"
+      end
+
+      File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |file|
+        file.write(JSON.generate(record))
+        file.write("\n")
+      end
+    rescue Errno::EEXIST
+      raise ConfigurationError, "Web UI PID file already exists: #{path}"
+    end
+
+    def self.read_pid_record(path)
+      if File.symlink?(path) || !File.file?(path)
+        raise ConfigurationError, "Web UI PID file must be a regular non-symlink file: #{path}"
+      end
+
+      payload = JSON.parse(File.read(path, encoding: "UTF-8"))
+      unless payload.is_a?(Hash) && payload.keys.sort == PID_RECORD_KEYS.sort &&
+             payload["pid"].is_a?(Integer) && payload["pid"].positive? &&
+             payload["startTicks"].is_a?(String) && /\A\d+\z/.match?(payload["startTicks"])
+        raise ConfigurationError, "Web UI PID file is invalid: #{path}"
+      end
+
+      payload
+    rescue JSON::ParserError, EncodingError, Errno::ENOENT
+      raise ConfigurationError, "Web UI PID file is invalid: #{path}"
+    end
+
+    def self.process_start_ticks(pid)
+      stat = File.read("/proc/#{pid}/stat", encoding: "UTF-8")
+      closing_parenthesis = stat.rindex(")")
+      return nil unless closing_parenthesis
+
+      fields = stat[(closing_parenthesis + 2)..].to_s.split
+      start_ticks = fields[19]
+      /\A\d+\z/.match?(start_ticks.to_s) ? start_ticks : nil
+    rescue Errno::ENOENT, Errno::EACCES, EncodingError
+      nil
+    end
+
+    private_class_method :configuration_from, :start, :health, :stop,
+                         :current_pid_record, :write_pid_record, :read_pid_record,
+                         :process_start_ticks
   end
 end
 

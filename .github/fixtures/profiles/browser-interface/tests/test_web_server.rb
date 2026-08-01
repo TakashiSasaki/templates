@@ -284,6 +284,7 @@ class TextStatsWebServerTest < Minitest::Test
     assert status.success?, stderr
     assert_equal "Web UI ready\n", stdout
     assert_equal "", stderr
+    assert_equal 0o600, File.stat(session.pid_file).mode & 0o777
 
     final = session.close
     session = nil
@@ -331,6 +332,50 @@ class TextStatsWebServerTest < Minitest::Test
     end
   ensure
     listener&.close
+  end
+
+  def test_pid_file_identity_and_symlink_safety
+    Dir.mktmpdir("text-stats-web-pid-safety") do |directory|
+      pid_file = File.join(directory, "server.pid")
+      env = {
+        "TEXT_STATS_WEB_ENABLED" => "1",
+        "TEXT_STATS_WEB_BIND" => "127.0.0.1",
+        "TEXT_STATS_WEB_PORT" => "0",
+        "TEXT_STATS_WEB_PID_FILE" => pid_file,
+        "RUBYOPT" => nil
+      }
+
+      stale_record = { "pid" => Process.pid, "startTicks" => "0" }
+      File.write(pid_file, JSON.generate(stale_record) + "\n", mode: "w", perm: 0o600)
+
+      stop_stdout, stop_stderr, stop_status = Open3.capture3(
+        env, *COMMAND, "--stop", chdir: ROOT
+      )
+      refute stop_status.success?
+      assert_equal "", stop_stdout
+      assert_includes stop_stderr, "PID file is stale; refusing to signal process #{Process.pid}"
+
+      start_stdout, start_stderr, start_status = Open3.capture3(
+        env, *COMMAND, chdir: ROOT
+      )
+      assert_equal 78, start_status.exitstatus
+      assert_equal "", start_stdout
+      assert_includes start_stderr, "PID file already exists"
+      assert_equal stale_record, JSON.parse(File.read(pid_file, encoding: "UTF-8"))
+
+      File.delete(pid_file)
+      target = File.join(directory, "target")
+      File.write(target, "unchanged\n")
+      File.symlink(target, pid_file)
+
+      stop_stdout, stop_stderr, stop_status = Open3.capture3(
+        env, *COMMAND, "--stop", chdir: ROOT
+      )
+      refute stop_status.success?
+      assert_equal "", stop_stdout
+      assert_includes stop_stderr, "regular non-symlink file"
+      assert_equal "unchanged\n", File.read(target, encoding: "UTF-8")
+    end
   end
 
   def test_fixed_port_collision_fails_promptly_without_hanging

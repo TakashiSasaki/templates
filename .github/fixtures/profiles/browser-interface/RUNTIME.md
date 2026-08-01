@@ -56,7 +56,7 @@ Run every command from the skill root.
 | Browser-visible MCP exposure capability | not supported |
 | Enablement configuration | Set `TEXT_STATS_WEB_ENABLED=1`; absence or any other value keeps the interface disabled. |
 
-The port may be overridden for local testing, including port `0` for operating-system allocation. The bind address is fixed to `127.0.0.1`; non-loopback values are rejected before listener creation. The process writes its PID to `tmp/text-stats-web.pid` by default so the documented stop command can send TERM. TERM and INT trigger graceful WEBrick shutdown and PID-file removal.
+The port may be overridden for local testing, including port `0` for operating-system allocation. The bind address is fixed to `127.0.0.1`; non-loopback values are rejected before listener creation. The process writes a mode-0600 JSON PID record to `tmp/text-stats-web.pid` by default. The record includes the Linux process start identity; startup refuses an existing or symbolic-link record, and the documented stop command verifies that identity before sending TERM. TERM and INT trigger graceful WEBrick shutdown and removal of the owned record.
 
 ## Distribution
 
