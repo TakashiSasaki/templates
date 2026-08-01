@@ -66,17 +66,29 @@ module TextStat
       end
 
       result = TextStat.analyze(text)
-      if output == "json"
-        stdout.puts(JSON.generate(
-          "contractVersion" => CONTRACT_VERSION,
-          "ok" => true,
-          "result" => result
-        ))
-      else
-        stdout.puts("bytes: #{result.fetch("bytes")}")
-        stdout.puts("lines: #{result.fetch("lines")}")
-        stdout.puts("words: #{result.fetch("words")}")
+      begin
+        if output == "json"
+          stdout.puts(JSON.generate(
+            "contractVersion" => CONTRACT_VERSION,
+            "ok" => true,
+            "result" => result
+          ))
+        else
+          stdout.puts("bytes: #{result.fetch("bytes")}")
+          stdout.puts("lines: #{result.fetch("lines")}")
+          stdout.puts("words: #{result.fetch("words")}")
+        end
+        stdout.flush
+      rescue SystemCallError, IOError => error
+        begin
+          stderr.puts("unable to write output: #{error.message}")
+          stderr.flush
+        rescue SystemCallError, IOError
+          # The nonzero exit status remains authoritative when diagnostics also fail.
+        end
+        return 5
       end
+
       0
     end
   end
