@@ -2,15 +2,13 @@
 
 ## Status
 
-Accepted and implemented.
+Accepted and implemented. Repository-layout details are updated by ADR-0004.
 
 ## Context
 
-`agent-policy init` is safe for repositories that do not already contain agent instructions. It refuses to overwrite a handwritten `AGENTS.md`, which is the correct behavior for initialization but leaves mature repositories without a supported migration path.
+`agent-policy init` is safe for repositories that do not already contain agent instructions. It refuses to overwrite a handwritten `AGENTS.md`, which is correct for initialization but leaves mature repositories without a supported migration path.
 
-Existing repositories may already contain handwritten instruction files, repository-specific policies, generated or handwritten skills, skill manifests, verification commands, and CI integration. Their meaning cannot be reconstructed safely by copying or mechanically splitting prose. At the same time, file creation, hashing, preview generation, cutover, rollback, and lock generation must be deterministic and repeatable outside any particular agent.
-
-The directly cloneable `bootstrap-agent-policy` orphan branch is already the trust seed for unmanaged repositories. Adding a separate adoption branch would duplicate the manifest, pinned-toolchain invocation, installation scripts, tests, and trust-anchor review process.
+Existing repositories may already contain handwritten instruction files, repository-specific policies, generated or handwritten skills, verification commands, and CI integration. Their meaning cannot be reconstructed safely by copying or mechanically splitting prose. File creation, hashing, preview generation, cutover, rollback, and lock generation must nevertheless remain deterministic and repeatable outside any particular agent.
 
 ## Decision
 
@@ -19,16 +17,16 @@ Repository onboarding has two modes:
 - `init`: initialize an unmanaged repository that has no conflicting handwritten instruction output.
 - `adopt`: migrate an unmanaged repository that already has handwritten instructions or related policy assets.
 
-The deterministic adoption mechanics belong to the CLI on `main`. The `bootstrap-agent-policy` orphan branch remains the single onboarding skill package and orchestrates either `init` or `adopt` by invoking one full, pinned `main` commit SHA.
+The deterministic adoption mechanics belong to the `agent-policy` CLI in `TakashiSasaki/templates:policy`. The integrated `skills/bootstrap-agent-policy/` package orchestrates either `init` or `adopt` by invoking one full, pinned `TakashiSasaki/templates` commit SHA.
 
 The CLI adoption workflow has four explicit phases:
 
 1. `inspect`: classify repository state and inventory relevant files without writing.
-2. `prepare`: create an adoption configuration, state record, project-policy scaffold, and generated preview without replacing the handwritten primary instruction file.
+2. `prepare`: create adoption configuration, state, project-policy scaffold, and generated preview without replacing the handwritten primary instructions.
 3. `preview`: regenerate and verify the preview while reporting whether inventoried source files changed.
-4. `finalize`: after explicit authorization, atomically preserve the original instruction file, switch the configured output to its final path, render generated instructions, update the lock, and mark adoption complete.
+4. `finalize`: after separate explicit authorization, preserve the original instructions, switch configured output to the final path, render generated instructions, update the lock, and mark adoption complete.
 
-Dry-run is the default for `init`, `adopt prepare`, and `adopt finalize`. `adopt preview` is an explicit regeneration operation for prepared generated artifacts. `finalize` is never selected implicitly by automatic repository classification or by a generic bootstrap `--apply` operation.
+Dry-run is the default for `init`, `adopt prepare`, and `adopt finalize`. `adopt preview` is an explicit regeneration operation. `finalize` is never selected implicitly by classification or by generic bootstrap `--apply`.
 
 ## Responsibility boundary
 
@@ -43,75 +41,50 @@ The CLI is responsible for:
 - atomic backup, cutover, rollback, and lock generation;
 - machine-readable diagnostics and idempotent state transitions.
 
-The bootstrap agent skill is responsible for:
+The bootstrap skill is responsible for:
 
-- selecting `init` or `adopt` from CLI inspection results;
+- selecting `init` or `adopt` from inspection results;
 - reading and interpreting existing policy prose;
 - proposing shared profiles and project-policy decomposition;
 - helping author project-local policy modules;
-- reviewing semantic coverage between handwritten instructions and the generated preview;
+- reviewing semantic coverage between handwritten instructions and generated preview;
 - invoking only the permitted CLI phase with the pinned toolchain revision.
 
 The CLI does not use a language model and does not automatically transform free-form instructions into normative policy modules.
 
 ## Repository-state model
 
-The inspection phase classifies a repository as one of:
+Inspection classifies a repository as one of:
 
-- `unmanaged-empty`: no `.agent-policy.yml` and no relevant existing instruction or policy assets;
+- `unmanaged-empty`: no `.agent-policy.yml` and no relevant instruction or policy assets;
 - `unmanaged-existing`: no `.agent-policy.yml`, but existing instruction or policy assets are present;
-- `managed`: `.agent-policy.yml` exists and normal `validate`, `render`, and `check` operations apply;
-- `inconsistent`: partial generated state, conflicting adoption state, unsafe paths, or another condition that prevents safe onboarding.
+- `managed`: `.agent-policy.yml` exists and normal `validate`, `render`, and `check` apply;
+- `inconsistent`: partial generated state, conflicting adoption state, unsafe paths, or another condition preventing safe onboarding.
 
 Automatic mode selection is informational and read-only. A write operation must explicitly choose `init` or `adopt`.
 
-## Adoption state
+## Adoption state and cutover
 
-Preparation records a generated, schema-validated adoption-state file under `.agent-policy/`. It includes:
+Preparation records a schema-validated state file containing the pinned toolchain repository and full revision, primary instruction path, source hashes, selected profiles, project-policy paths, preview path, verification configuration, and generated-skill selection.
 
-- the pinned toolchain repository and full revision;
-- the phase and completion state;
-- the primary handwritten instruction path;
-- inventoried source paths and byte hashes;
-- selected profiles;
-- preview and final output paths;
-- project-policy paths, verification configuration, and generated-skill selection.
-
-File hashes, not Git ancestry, are the cutover precondition. Unrelated working-tree changes do not automatically block adoption, but changes to inventoried source files do.
-
-## Preview and cutover
-
-Preparation renders to a non-conflicting preview path, initially `.agent-policy/preview/AGENTS.md`. The normal renderer and checker treat configured output paths generically rather than special-casing `AGENTS.md`.
-
-Finalization requires all of the following:
-
-- the handwritten source hash still matches the prepared state;
-- configuration and project policy validate;
-- the preview is current for the recorded inputs and toolchain;
-- the backup path is inside the repository and does not already conflict;
-- no non-generated file would be overwritten except the explicitly selected primary instruction after it is preserved;
-- render and check can complete for the final configuration.
+File hashes, not Git ancestry, are the cutover precondition. Preparation renders to a non-conflicting preview path. Finalization requires unchanged source hashes, valid configuration and project policy, a current preview and lock, a safe unused backup path, and a complete successful final render/check plan.
 
 The cutover is transactional. If final rendering, lock creation, state update, or post-render checking fails, the original instruction file and pre-finalization configuration are restored.
 
-## Branch and trust model
+## Trust model
 
-No third long-lived or unrelated branch is added.
+The bootstrap package is integrated under `skills/bootstrap-agent-policy/` rather than maintained as a separate orphan branch. This supersedes the original layout assumption without weakening the trust boundary:
 
-- `main` contains the CLI, schemas, renderer, adoption state machine, tests, and documentation.
-- `bootstrap-agent-policy` remains the directly cloneable onboarding skill and trust seed.
-
-The bootstrap manifest pins a full `main` commit SHA. Updating that SHA is a separate trust-anchor change and must be reviewed independently from ordinary policy or CLI changes.
-
-## Implementation
-
-The four `agent-policy adopt` phases are implemented and tested on `main`. The `bootstrap-agent-policy` branch performs read-only classification, requires an explicit route for mutation, applies either initialization or adoption preparation, and deliberately exposes no automatic finalization route.
+- the manifest pins a full `TakashiSasaki/templates` commit SHA;
+- the route set omits finalization;
+- pin, route, script, installer, and safety-constraint changes receive independent trust-anchor review;
+- mutable branches and tags are not executable references.
 
 ## Consequences
 
-Mature repositories can adopt `agent-policy` without temporarily discarding their existing instructions. The same mechanics can be exercised in tests and CI, while semantic migration remains reviewable and agent-assisted.
+Mature repositories can adopt `agent-policy` without temporarily discarding existing instructions. The deterministic mechanics can be exercised in tests and CI, while semantic migration remains reviewable and agent-assisted.
 
-The implementation is more complex because it needs a state machine, generic output checking, transactional finalization, and rollback tests. This complexity is accepted because replacing handwritten instructions is a destructive operation and cannot depend only on natural-language skill guidance.
+The implementation is more complex because it needs a state machine, generic output checking, transactional finalization, and rollback tests. This complexity is accepted because replacing handwritten instructions is destructive and cannot depend only on natural-language skill guidance.
 
 ## Non-goals
 
@@ -120,6 +93,6 @@ This decision does not:
 - automatically split or rewrite handwritten policy prose;
 - automatically modify arbitrary product-specific skill manifests;
 - create, commit, push, merge, deploy, or modify GitHub settings;
-- introduce another orphan branch;
+- introduce another long-lived bootstrap or adoption branch;
 - allow a mutable branch or tag as the executable toolchain reference;
 - combine preparation and finalization into one unattended operation.
