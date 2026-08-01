@@ -12,6 +12,61 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class WildcardExportTests(unittest.TestCase):
+    def test_wildcard_import_preserves_public_validator_interface(self) -> None:
+        probe = textwrap.dedent(
+            """
+            from __future__ import annotations
+
+            import sys
+            from pathlib import Path
+
+            sys.path.insert(0, str(Path.cwd() / "scripts"))
+            import validate_contracts
+
+            expected = {
+                "SCHEMA_DIALECT",
+                "VISUALLY_BLANK_CHARACTERS",
+                "CONTRACT_SCHEMAS",
+                "DuplicateKeyError",
+                "NonStandardJsonConstantError",
+                "load_json",
+                "load_contract_manifest",
+                "registry_from_manifest",
+                "load_contract_registry",
+                "load_contract_documents",
+                "cross_validate",
+                "validate_repository",
+                "main",
+            }
+            if set(validate_contracts.__all__) != expected:
+                raise SystemExit(
+                    f"unexpected __all__: {sorted(validate_contracts.__all__)}"
+                )
+
+            namespace = {}
+            exec("from validate_contracts import *", namespace)
+            exported = set(namespace) - {"__builtins__"}
+            if exported != expected:
+                raise SystemExit(
+                    f"wildcard export mismatch: expected={sorted(expected)}, "
+                    f"actual={sorted(exported)}"
+                )
+            """
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=3,
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
+
 @unittest.skipUnless(hasattr(os, "mkfifo"), "requires POSIX FIFO support")
 class LazyManifestBootstrapTests(unittest.TestCase):
     def test_manifest_symlink_is_rejected_before_implementation_import(self) -> None:
@@ -95,6 +150,59 @@ class LazyManifestBootstrapTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         for name in ("load_json", "load_contract_documents", "SCHEMA_DIALECT"):
             self.assertIn(f"{name}: cannot load validator attribute", result.stderr)
+        self.assertIn(
+            "contracts/manifest.json: manifest must not be a symbolic link",
+            result.stderr,
+        )
+
+    def test_wildcard_import_runs_preflight_before_implementation_import(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            shutil.copytree(ROOT / "scripts", root / "scripts")
+            shutil.copytree(ROOT / "contracts", root / "contracts")
+            shutil.copytree(ROOT / "schemas", root / "schemas")
+
+            manifest = root / "contracts/manifest.json"
+            fifo = root / "blocking-manifest"
+            os.mkfifo(fifo)
+            manifest.unlink()
+            manifest.symlink_to(fifo)
+
+            probe = root / "probe_wildcard_import.py"
+            probe.write_text(
+                textwrap.dedent(
+                    """
+                    from __future__ import annotations
+
+                    import sys
+                    from pathlib import Path
+
+                    sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
+                    namespace = {}
+                    try:
+                        exec("from validate_contracts import *", namespace)
+                    except RuntimeError as exc:
+                        print(exc, file=sys.stderr)
+                    else:
+                        raise SystemExit("wildcard import unexpectedly bypassed preflight")
+                    if "validate_contracts_impl" in sys.modules:
+                        raise SystemExit("implementation imported during wildcard import")
+                    """
+                ),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(probe)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("cannot load validator attribute", result.stderr)
         self.assertIn(
             "contracts/manifest.json: manifest must not be a symbolic link",
             result.stderr,
