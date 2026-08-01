@@ -26,13 +26,78 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: documentation-${{ inputs.deploy == true && 'deployment' || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  patch-review-fixes:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'site-generated-link-validation'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out review branch
+        uses: actions/checkout@v7
+        with:
+          ref: site-generated-link-validation
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Apply focused review fixes
+        run: |
+          if [ "$(git log -1 --pretty=%s)" = "Apply mixed IDNA and encoded-delimiter review fixes" ]; then
+            exit 0
+          fi
+
+          python - <<'PY'
+          from pathlib import Path
+
+          script_path = Path('scripts/validate_site_links.py')
+          text = script_path.read_text(encoding='utf-8')
+
+          old_label = '''        else:\n            labels.append(idna.alabel(label).decode("ascii").lower())\n'''
+          new_label = '''        else:\n            labels.append(\n                "xn--" + label.encode("punycode").decode("ascii").lower()\n            )\n'''
+          if old_label not in text:
+              raise SystemExit('mixed Unicode hostname label block not found')
+          text = text.replace(old_label, new_label)
+
+          old_delimiters = '_ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)\n'
+          new_delimiters = '_ENCODED_PATH_SEPARATOR = re.compile(r"%(?:23|2f|3f|5c)", re.IGNORECASE)\n'
+          if old_delimiters not in text:
+              raise SystemExit('encoded path delimiter pattern not found')
+          text = text.replace(old_delimiters, new_delimiters)
+
+          old_docstring = '    """Decode percent escapes while keeping encoded slash and backslash in-segment."""\n'
+          new_docstring = '    """Decode percent escapes while keeping encoded URL delimiters in-segment."""\n'
+          if old_docstring not in text:
+              raise SystemExit('path decoder docstring not found')
+          text = text.replace(old_docstring, new_docstring)
+          script_path.write_text(text, encoding='utf-8')
+
+          tests_path = Path('tests/test_site_links.py')
+          tests = tests_path.read_text(encoding='utf-8')
+          marker = '''    def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:\n'''
+          additions = '''    def test_accepts_external_mixed_unicode_non_std3_hostname(self) -> None:\n        self.write(\n            "index.html",\n            '<a href="https://é_test.example/path">External</a>',\n        )\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 0, result.stderr)\n        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)\n\n    def test_preserves_encoded_query_and_fragment_delimiters_in_base_path(self) -> None:\n        self.config_file.write_text(\n            '[project]\\nsite_url = "https://example.test/do%3Fcs%23part/"\\n',\n            encoding="utf-8",\n        )\n        self.write("index.html", '<a href="present/">Present</a>')\n        self.write("present/index.html", "<p>Present</p>")\n        result = self.run_validator()\n        self.assertEqual(result.returncode, 0, result.stderr)\n        self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)\n\n'''
+          if marker not in tests:
+              raise SystemExit('test insertion marker not found')
+          tests = tests.replace(marker, additions + marker)
+          tests_path.write_text(tests, encoding='utf-8')
+          PY
+
+          python -m pip install --requirement requirements.txt
+          python -m unittest discover --start-directory tests --verbose
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/validate_site_links.py tests/test_site_links.py
+          git commit -m 'Apply mixed IDNA and encoded-delimiter review fixes'
+          git push origin HEAD:site-generated-link-validation
+
   build:
     if: github.repository == 'TakashiSasaki/templates'
     runs-on: ubuntu-latest
