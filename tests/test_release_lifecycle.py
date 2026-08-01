@@ -36,6 +36,20 @@ def test_stable_release_descriptor_is_valid_and_matches_bootstrap() -> None:
     assert release["channel"] == "stable"
 
 
+def test_release_schema_allows_prior_stable_contract_versions() -> None:
+    schema = load_object(RELEASE_SCHEMA)
+    contract_properties = schema["properties"]["contracts"]["properties"]  # type: ignore[index]
+
+    assert isinstance(contract_properties, dict)
+    for name in (
+        "agent_policy_schema",
+        "adoption_state_schema",
+        "bootstrap_manifest",
+        "lock",
+    ):
+        assert contract_properties[name] == {"type": "integer", "minimum": 1}
+
+
 def test_configuration_and_adoption_schemas_share_the_toolchain_contract() -> None:
     config_schema = load_object(CONFIG_SCHEMA)
     adoption_schema = load_object(ADOPTION_SCHEMA)
