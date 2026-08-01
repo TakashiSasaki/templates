@@ -25,7 +25,7 @@ The installed command and in-place launcher invoke the same `TextStat::CLI` impl
 
 Unavailable preferred interface behavior: Use the in-place Ruby launcher only from a trusted repository checkout.
 Fallback activation conditions: Activate the fallback when the installed `text-stat` executable is absent and CRuby 3.1 or newer is available.
-Failure classification exposed to callers: Exit code 2 denotes invalid invocation or input and exit code 3 denotes an input read failure.
+Failure classification exposed to callers: Exit code 2 denotes invalid invocation or input, exit code 3 denotes an input read failure, and exit code 5 denotes an output write or flush failure.
 
 ## Decision rationale
 
