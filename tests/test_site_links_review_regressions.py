@@ -66,6 +66,23 @@ class ReviewRegressionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
 
+    def test_decodes_escaped_query_and_fragment_delimiters_for_artifact_lookup(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://example.test/docs/"\n',
+            encoding="utf-8",
+        )
+        self.write(
+            "index.html",
+            '<a href="asset%3F.txt">Question</a><a href="asset%23.txt">Hash</a>',
+        )
+        self.write("asset?.txt", "question\n")
+        self.write("asset#.txt", "hash\n")
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 2 local links across 1 generated HTML pages", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
