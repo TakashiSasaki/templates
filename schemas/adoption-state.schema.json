@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/agent-policy/schemas/adoption-state.schema.json",
+  "$id": "https://github.com/TakashiSasaki/templates/schemas/adoption-state.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -36,7 +36,7 @@
       ],
       "properties": {
         "repository": {
-          "const": "TakashiSasaki/agent-policy"
+          "const": "TakashiSasaki/templates"
         },
         "revision": {
           "type": "string",
