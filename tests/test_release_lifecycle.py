@@ -81,11 +81,12 @@ def test_generated_release_artifacts_share_one_full_sha() -> None:
     assert "{{ revision }}" not in workflow
 
 
-def test_policy_ci_fetches_only_the_policy_source_history() -> None:
+def test_policy_ci_fetches_only_the_current_source_history() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "refs/pull/${PR_NUMBER}/head" in workflow
-    assert "refs/heads/policy" in workflow
+    assert "PUSH_REF: ${{ github.ref }}" in workflow
+    assert 'source_ref="$PUSH_REF"' in workflow
     assert "refs/remotes/origin/policy-source" in workflow
     assert "refs/heads/main" not in workflow
     assert "refs/heads/site" not in workflow
