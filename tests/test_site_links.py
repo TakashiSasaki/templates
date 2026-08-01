@@ -76,71 +76,64 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("Validated 5 local links across 2 generated HTML pages", result.stdout)
 
     def test_accepts_external_special_scheme_without_slashes(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="http:external.test/path">External</a>',
-        )
-
+        self.write("index.html", '<a href="http:external.test/path">External</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
 
     def test_rejects_same_scheme_shorthand_when_local_target_is_missing(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https:absent/">Absent</a>',
-        )
-
+        self.write("index.html", '<a href="https:absent/">Absent</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
-    def test_accepts_triple_slash_same_origin_network_reference(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="///example.test/docs/guide/">Guide</a>',
-        )
-        self.write("guide/index.html", "<p>Guide</p>")
-
+    def test_accepts_same_scheme_shorthand_path_containing_colon(self) -> None:
+        self.write("index.html", '<a href="https:example.test:443/x">Colon path</a>')
+        self.write("example.test:443/x/index.html", "<p>Colon path</p>")
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
+
+    def test_accepts_triple_slash_same_origin_network_reference(self) -> None:
+        self.write("index.html", '<a href="///example.test/docs/guide/">Guide</a>')
+        self.write("guide/index.html", "<p>Guide</p>")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
+
+    def test_rejects_network_reference_without_authority(self) -> None:
+        self.write("index.html", '<a href="///">Malformed</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("must contain a valid HTTP or HTTPS origin", result.stderr)
 
     def test_accepts_anchor_followed_by_text_fragment_directive(self) -> None:
         self.write(
             "index.html",
             '<h2 id="details">Details</h2><a href="#details:~:text=example">Text</a>',
         )
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
 
     def test_accepts_percent_encoded_parent_segment_with_fragment(self) -> None:
         self.write("index.html", '<h1 id="home">Home</h1>')
-        self.write(
-            "guide/index.html",
-            '<a href="%2e%2e/#home">Encoded parent</a>',
-        )
-
+        self.write("guide/index.html", '<a href="%2e%2e/#home">Encoded parent</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
 
+    def test_rejects_mixed_encoded_and_literal_parent_segments_that_escape(self) -> None:
+        self.write("index.html", "<p>Home</p>")
+        self.write("guide/index.html", '<a href="%2e%2e/../">Escapes</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("resolves outside project.site_url", result.stderr)
+
     def test_rejects_encoded_separator_that_only_looks_like_parent_segment(self) -> None:
         self.write("present/index.html", "<p>Present</p>")
-        self.write(
-            "guide/index.html",
-            '<a href="%2e%2e%2fpresent/">Encoded separator</a>',
-        )
-
+        self.write("guide/index.html", '<a href="%2e%2e%2fpresent/">Encoded separator</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("'%2e%2e%2fpresent/'", result.stderr)
@@ -151,12 +144,18 @@ class GeneratedSiteLinkTests(unittest.TestCase):
             "index.html",
             '<a href="https://example.test/docs/guide//present/">Repeated slash</a>',
         )
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("https://example.test/docs/guide//present/", result.stderr)
+
+    def test_rejects_relative_repeated_slash_when_single_slash_page_exists(self) -> None:
+        self.write("present/page/index.html", "<p>Present</p>")
+        self.write("guide/index.html", '<a href="../present//page/">Repeated slash</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+        self.assertIn("../present//page/", result.stderr)
 
     def test_uses_main_content_links_when_generated_chrome_is_present(self) -> None:
         self.write(
@@ -168,17 +167,13 @@ class GeneratedSiteLinkTests(unittest.TestCase):
 </body></html>
 """,
         )
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
 
     def test_rejects_missing_generated_target(self) -> None:
         self.write("index.html", '<a href="missing/">Missing</a>')
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("'missing/'", result.stderr)
@@ -186,44 +181,27 @@ class GeneratedSiteLinkTests(unittest.TestCase):
     def test_rejects_missing_fragment(self) -> None:
         self.write("index.html", '<a href="guide/#missing">Missing</a>')
         self.write("guide/index.html", '<h2 id="present">Present</h2>')
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("references missing fragment 'missing'", result.stderr)
         self.assertIn("guide/index.html", result.stderr)
 
     def test_rejects_explicit_default_port_target_when_missing(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https://example.test:443/docs/absent/">Absent</a>',
-        )
-
+        self.write("index.html", '<a href="https://example.test:443/docs/absent/">Absent</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
     def test_rejects_same_origin_absolute_link_with_backslashes_when_missing(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https://example.test\\docs\\absent/">Absent</a>',
-        )
-
+        self.write("index.html", '<a href="https://example.test\\docs\\absent/">Absent</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("https://example.test\\\\docs\\\\absent/", result.stderr)
 
     def test_rejects_percent_encoded_same_origin_hostname_when_missing(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https://%65xample.test/docs/absent/">Absent</a>',
-        )
-
+        self.write("index.html", '<a href="https://%65xample.test/docs/absent/">Absent</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
@@ -236,50 +214,34 @@ class GeneratedSiteLinkTests(unittest.TestCase):
             "index.html",
             '<a href="https://ｔａｋａｓｈｉｓａｓａｋｉ.github.io/templates/absent/">Absent</a>',
         )
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
     def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https://example.test:0/docs/absent/">Different port</a>',
-        )
-
+        self.write("index.html", '<a href="https://example.test:0/docs/absent/">Different port</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
 
     def test_rejects_relative_link_that_escapes_site_path(self) -> None:
         self.write("index.html", "<p>Home</p>")
-        self.write(
-            "guide/index.html",
-            '<a href="../../outside/">Outside</a>',
-        )
-
+        self.write("guide/index.html", '<a href="../../outside/">Outside</a>')
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("resolves outside project.site_url", result.stderr)
 
     def test_rejects_fragment_on_non_html_asset(self) -> None:
         self.write("index.html", '<a href="asset.txt#part">Asset fragment</a>')
         self.write("asset.txt", "asset\n")
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("uses a fragment on a non-HTML target", result.stderr)
 
     def test_rejects_missing_site_url(self) -> None:
         self.write("index.html", "<p>Home</p>")
         self.config_file.write_text("[project]\n", encoding="utf-8")
-
         result = self.run_validator()
-
         self.assertEqual(result.returncode, 1)
         self.assertIn("must define a non-empty project.site_url", result.stderr)
 
