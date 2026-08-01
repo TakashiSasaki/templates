@@ -58,16 +58,16 @@ Run every command from the skill root. Create the service token outside the repo
 | Request size and rate limits | API request bodies are incrementally limited to 65,536 bytes for Content-Length and chunked transfer; no application rate limiter is claimed because exposure is loopback-only, while concurrency remains explicitly bounded |
 | Concurrent request policy | At most one API request is admitted at a time; excess or draining API requests receive HTTP 503, while readiness and liveness remain independently available; WEBrick allows at most eight client threads |
 | State or session model | Stateless request processing with process-local readiness and admission counters only; no session, persistence, cookie, or request replay state |
-| Readiness check | `GET /readyz` and `bundle exec ruby service/server.rb --health`; HTTP 200 while configuration is valid and the process is not draining, independent of temporary API-slot saturation |
-| Liveness check | `GET /livez` and `bundle exec ruby service/server.rb --live`; HTTP 200 while the process event loop is alive |
-| Timeout and cancellation policy | Two-second HTTP request timeout and one-second keep-alive timeout; the operation is synchronous and bounded, and client disconnect cancels response delivery without retaining work or state |
+| Readiness check | `GET /readyz` and `bundle exec ruby service/server.rb --health`; HTTP 200 while configuration is valid and the process is not draining, independent of temporary API-slot saturation; the command applies a two-second overall deadline and a 4,096-byte incremental response cap before JSON parsing |
+| Liveness check | `GET /livez` and `bundle exec ruby service/server.rb --live`; HTTP 200 while the process event loop is alive; the command uses the same overall deadline and response-size cap as readiness |
+| Timeout and cancellation policy | WEBrick applies a two-second request timeout and one-second keep-alive timeout; a stalled request body returns HTTP 408 with connection closure and releases the API admission slot; the operation is synchronous and bounded, and client disconnect cancels response delivery without retaining work or state |
 | Graceful shutdown and restart policy | TERM or INT marks the application draining and invokes WEBrick shutdown; the mode-0600 PID record contains PID and Linux process start ticks, and `--stop` verifies both before signaling; restart is an external operator action |
 | Deployment topology | Separate foreground process from the same skill artifact, reached by local non-browser clients over loopback HTTP |
-| Security and deployment smoke tests | Tests cover token-file permissions and symlinks, Bearer authentication, Host and Origin rejection, request bounds, concurrency, health isolation, fixed-port collision, PID identity, graceful shutdown, and prompt missing-implementation failure |
+| Security and deployment smoke tests | Tests cover token-file descriptor validation, Bearer authentication, Host and Origin rejection, request bounds and timeout recovery, concurrency, bounded health commands, health isolation, fixed-port collision, PID identity, graceful shutdown, and prompt missing-implementation failure |
 
 The service is intentionally not a browser surface. Any request containing an `Origin` header is rejected, no CORS permission is emitted, and `WEB_INTERFACE.md` is not retained. API responses are JSON with `Cache-Control: no-store`; request bodies and Bearer tokens are never logged or returned.
 
-`POST /v1/text-stats` accepts exactly one JSON string field named `text`. Success returns `contractVersion: 1`, `ok: true`, and integer `bytes`, `lines`, and `words` fields under `result`. Authentication, media-type, encoding, JSON, schema, size, concurrency, route, and method failures remain distinct HTTP outcomes.
+`POST /v1/text-stats` accepts exactly one JSON string field named `text`. Success returns `contractVersion: 1`, `ok: true`, and integer `bytes`, `lines`, and `words` fields under `result`. Authentication, media-type, encoding, JSON, schema, size, timeout, concurrency, route, and method failures remain distinct HTTP outcomes.
 
 ## Distribution
 
