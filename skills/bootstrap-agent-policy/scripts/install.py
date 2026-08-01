@@ -52,8 +52,11 @@ def main() -> int:
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
     source = skill_root().resolve()
-    target = args.target.expanduser().resolve()
-    if paths_overlap(source, target):
+    target = args.target.expanduser().absolute()
+    if target.is_symlink():
+        parser.error("target skill directory must not be a symbolic link")
+    resolved_target = target.resolve(strict=False)
+    if paths_overlap(source, resolved_target):
         parser.error("source and target skill directories must not overlap")
     if target.exists():
         if not args.replace:
