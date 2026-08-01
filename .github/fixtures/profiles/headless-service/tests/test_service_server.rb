@@ -128,7 +128,7 @@ class TextStatsServiceTest < Minitest::Test
         nil
       end
       Process.wait(@process)
-    rescue Errno::ECHILD
+    rescue Errno::ECHLD
       nil
     end
     @process = nil
@@ -290,6 +290,27 @@ class TextStatsServiceTest < Minitest::Test
 
     assert_equal "200", request("get", "/readyz", token: nil, content_type: nil).code
     assert_equal "200", request("get", "/livez", token: nil, content_type: nil).code
+  end
+
+  def test_incomplete_request_times_out_and_releases_capacity
+    start_service
+
+    raw = TCPSocket.new("127.0.0.1", @port)
+    raw.write("POST /v1/text-stats HTTP/1.1\r\n")
+    raw.write("Host: 127.0.0.1:#{@port}\r\n")
+    raw.write("Authorization: Bearer #{TOKEN}\r\n")
+    raw.write("Content-Type: application/json\r\n")
+    raw.write("Content-Length: 20\r\n\r\n{")
+    response_text = Timeout.timeout(6) { raw.read }
+    raw.close
+
+    assert_match(/\AHTTP\/1\.1 408 /, response_text)
+    assert_match(/Connection: close/i, response_text)
+    assert_includes response_text, '"error":"request timed out"'
+
+    success = request("post", "/v1/text-stats", body: JSON.generate("text" => "after timeout"))
+    assert_equal "200", success.code
+    assert_equal "200", request("get", "/readyz", token: nil, content_type: nil).code
   end
 
   def test_concurrency_gate_is_bounded_and_health_remains_available
