@@ -145,6 +145,19 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertIn("has no generated target", result.stderr)
         self.assertIn("'%2e%2e%2fpresent/'", result.stderr)
 
+    def test_rejects_repeated_slash_when_single_slash_page_exists(self) -> None:
+        self.write("guide/present/index.html", "<p>Present</p>")
+        self.write(
+            "index.html",
+            '<a href="https://example.test/docs/guide//present/">Repeated slash</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+        self.assertIn("https://example.test/docs/guide//present/", result.stderr)
+
     def test_uses_main_content_links_when_generated_chrome_is_present(self) -> None:
         self.write(
             "index.html",
