@@ -49,14 +49,19 @@ The import did not transfer:
 
 These items require explicit review rather than implicit repository copying.
 
-## Follow-up sequence
+## Migration progress
 
-1. Restore branch-appropriate CI for `templates:policy`.
-2. Define and test the application-type-independent policy scope.
-3. Remove or relocate application-specific profiles and rules.
-4. Consolidate the bootstrap skill into the `policy` branch or define another explicit retained boundary.
-5. Update consumers to use `TakashiSasaki/templates` and a full commit SHA from `policy`.
-6. Restore documentation publication from the new source.
-7. Add a deprecation notice to `TakashiSasaki/agent-policy`, stop active automation there, and archive it after all consumers have migrated.
+Completed:
+
+1. Restored branch-appropriate CI for `templates:policy`.
+2. Defined and tested the application-type-independent policy scope.
+3. Removed the built-in application-specific profile, rules, documentation, and tests from the shared corpus.
+
+Remaining:
+
+1. Consolidate the bootstrap skill into the `policy` branch or define another explicit retained boundary.
+2. Update consumers to use `TakashiSasaki/templates` and a full commit SHA from `policy`.
+3. Restore documentation publication from the new source.
+4. Add a deprecation notice to `TakashiSasaki/agent-policy`, stop active automation there, and archive it after all consumers have migrated.
 
 The former repository must not be deleted during migration because existing full-SHA pins and historical links depend on its objects remaining addressable.
