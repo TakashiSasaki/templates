@@ -42,6 +42,19 @@ if actual_files != expected_files
   failures << "packaged-cli: expected reduced layout #{expected_files.inspect}, got #{actual_files.inspect}"
 end
 
+runtime_contract = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "UTF-8")
+documented_install_commands = [
+  %q{gem install --no-document --install-dir .local/gems --bindir .local/bin ./text-stat-1.0.0.gem},
+  %q{GEM_HOME="$PWD/.local/gems" GEM_PATH="$PWD/.local/gems" PATH="$PWD/.local/bin:$PATH" text-stat --help},
+  %q{$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help}
+].freeze
+
+documented_install_commands.each do |command|
+  unless runtime_contract.include?(command)
+    failures << "packaged-cli runtime: missing documented installation command #{command.inspect}"
+  end
+end
+
 Dir.mktmpdir("packaged-cli-profile") do |directory|
   FileUtils.cp_r("#{fixture_root}/.", directory)
   Open3.capture3("git", "init", "--quiet", chdir: directory)
@@ -80,7 +93,7 @@ Dir.mktmpdir("packaged-cli-profile") do |directory|
   end
 
   if File.file?(package)
-    install_root = File.join(directory, "installed")
+    install_root = File.join(directory, ".local")
     gem_home = File.join(install_root, "gems")
     bindir = File.join(install_root, "bin")
     FileUtils.mkdir_p(bindir)
@@ -90,20 +103,24 @@ Dir.mktmpdir("packaged-cli-profile") do |directory|
       "install",
       "--no-document",
       "--install-dir",
-      gem_home,
+      ".local/gems",
       "--bindir",
-      bindir,
-      package,
+      ".local/bin",
+      "./text-stat-1.0.0.gem",
       chdir: directory
     )
     unless status.success?
-      failures << "packaged-cli install: expected isolated gem install success; stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+      failures << "packaged-cli install: expected documented local gem install success; stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
     end
 
     input = File.join(directory, "input.txt")
     File.write(input, "one two\n")
-    command = File.join(bindir, "text-stat")
-    environment = { "GEM_HOME" => gem_home, "GEM_PATH" => gem_home }
+    command = "text-stat"
+    environment = {
+      "GEM_HOME" => gem_home,
+      "GEM_PATH" => gem_home,
+      "PATH" => [bindir, ENV["PATH"]].compact.reject(&:empty?).join(File::PATH_SEPARATOR)
+    }
 
     stdout, stderr, status = Open3.capture3(
       environment,
