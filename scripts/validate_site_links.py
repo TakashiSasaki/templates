@@ -437,7 +437,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
 
     base_url = load_site_url(config_file)
     base_parts = urlsplit(base_url)
-    base_path = base_parts.path
+    base_path = normalized_public_path(base_parts.path)
     origin = normalized_origin(base_parts, "project.site_url")
 
     html_paths = sorted(site_root.rglob("*.html"))
