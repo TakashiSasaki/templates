@@ -5,10 +5,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
 DOC_REQUIREMENTS = ROOT / "requirements-docs.txt"
+DOC_LOCK = ROOT / "requirements-docs.lock"
 DISABLED_DEPLOY_GUARD = (
     "if: ${{ false && github.event_name != 'pull_request' "
     "&& github.ref == 'refs/heads/policy' }}"
 )
+
+
+def non_comment_lines(path: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
 
 
 def workflow_text() -> str:
@@ -51,23 +60,46 @@ def test_documentation_build_is_reproducible_and_strict() -> None:
     for step in required_steps:
         assert step in workflow
 
-    assert "cache-dependency-path: requirements-docs.txt" in workflow
+    assert "cache-dependency-path: requirements-docs.lock" in workflow
+    assert "-r requirements-docs.lock" in workflow
+    assert "cache-dependency-path: requirements-docs.txt" not in workflow
+    assert "-r requirements-docs.txt" not in workflow
     assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
     assert '"repository": os.environ["BUILD_REPOSITORY"]' in workflow
 
 
-def test_documentation_dependencies_are_exactly_pinned() -> None:
-    requirements = [
-        line.strip()
-        for line in DOC_REQUIREMENTS.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-
-    assert requirements == [
+def test_documentation_dependency_inputs_are_exactly_pinned() -> None:
+    assert non_comment_lines(DOC_REQUIREMENTS) == [
         "mkdocs==1.6.1",
         "Pillow==12.2.0",
         "Pygments==2.20.0",
     ]
+
+
+def test_documentation_dependency_graph_is_fully_locked() -> None:
+    locked = non_comment_lines(DOC_LOCK)
+
+    assert locked == [
+        "click==8.4.2",
+        "ghp-import==2.1.0",
+        "Jinja2==3.1.6",
+        "Markdown==3.10.3",
+        "MarkupSafe==3.0.3",
+        "mergedeep==1.3.4",
+        "mkdocs==1.6.1",
+        "mkdocs-get-deps==0.2.2",
+        "packaging==26.2",
+        "pathspec==1.1.1",
+        "Pillow==12.2.0",
+        "platformdirs==4.11.0",
+        "Pygments==2.20.0",
+        "python-dateutil==2.9.0.post0",
+        "PyYAML==6.0.3",
+        "pyyaml-env-tag==1.1",
+        "six==1.17.0",
+        "watchdog==6.0.0",
+    ]
+    assert all(line.count("==") == 1 for line in locked)
 
 
 def test_pages_actions_are_immutably_pinned() -> None:
