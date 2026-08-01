@@ -222,7 +222,7 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
     return (base_path + value,)
 
 
-_ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c|3f|23)", re.IGNORECASE)
+_ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
 _ENCODED_BASE_PATH_DELIMITER = re.compile(r"%(?:2f|5c|3f|23)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
 _C0_CONTROL_OR_SPACE = "".join(chr(value) for value in range(0x21))
@@ -333,7 +333,7 @@ def _decode_path_preserving(
 
 
 def _decode_path_without_separators(encoded_path: str) -> str:
-    """Decode percent escapes while keeping encoded URL delimiters in-segment."""
+    """Decode path data while keeping encoded separators in-segment."""
     return _decode_path_preserving(encoded_path, _ENCODED_PATH_SEPARATOR)
 
 
