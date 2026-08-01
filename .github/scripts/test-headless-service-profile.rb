@@ -202,6 +202,68 @@ if failures.empty?
                     "stderr=#{tests.stderr.inspect}, timed_out=#{tests.timed_out}"
       end
 
+      token_fifo = File.join(directory, "token.fifo")
+      token_fifo_creation = run_command.call(
+        "mkfifo",
+        token_fifo,
+        chdir: directory,
+        timeout_seconds: 10
+      )
+      if !token_fifo_creation.status&.success? || token_fifo_creation.timed_out
+        failures << "headless-service FIFO guard: unable to create token FIFO; stderr=#{token_fifo_creation.stderr.inspect}"
+      else
+        fifo_start = run_command.call(
+          "bundle",
+          "exec",
+          RbConfig.ruby,
+          "service/server.rb",
+          chdir: directory,
+          timeout_seconds: 5,
+          env: {
+            "TEXT_STATS_SERVICE_TOKEN_FILE" => token_fifo,
+            "TEXT_STATS_SERVICE_PORT" => "0",
+            "TEXT_STATS_SERVICE_PID_FILE" => File.join(directory, "fifo-token.pid")
+          }
+        )
+        if fifo_start.timed_out || fifo_start.status&.success? ||
+           !fifo_start.stderr.include?("regular non-symlink")
+          failures << "headless-service token FIFO guard: expected prompt regular-file rejection; " \
+                      "status=#{fifo_start.status&.exitstatus.inspect}, stderr=#{fifo_start.stderr.inspect}, " \
+                      "timed_out=#{fifo_start.timed_out}"
+        end
+      end
+
+      pid_fifo = File.join(directory, "service.pid.fifo")
+      pid_fifo_creation = run_command.call(
+        "mkfifo",
+        pid_fifo,
+        chdir: directory,
+        timeout_seconds: 10
+      )
+      if !pid_fifo_creation.status&.success? || pid_fifo_creation.timed_out
+        failures << "headless-service FIFO guard: unable to create PID FIFO; stderr=#{pid_fifo_creation.stderr.inspect}"
+      else
+        fifo_stop = run_command.call(
+          "bundle",
+          "exec",
+          RbConfig.ruby,
+          "service/server.rb",
+          "--stop",
+          chdir: directory,
+          timeout_seconds: 5,
+          env: {
+            "TEXT_STATS_SERVICE_PORT" => "4568",
+            "TEXT_STATS_SERVICE_PID_FILE" => pid_fifo
+          }
+        )
+        if fifo_stop.timed_out || fifo_stop.status&.success? ||
+           !fifo_stop.stderr.include?("regular non-symlink")
+          failures << "headless-service PID FIFO guard: expected prompt regular-file rejection; " \
+                      "status=#{fifo_stop.status&.exitstatus.inspect}, stderr=#{fifo_stop.stderr.inspect}, " \
+                      "timed_out=#{fifo_stop.timed_out}"
+        end
+      end
+
       implementation_path = File.join(directory, "src/text_stats.rb")
       missing_path = "#{implementation_path}.missing"
       File.rename(implementation_path, missing_path)
