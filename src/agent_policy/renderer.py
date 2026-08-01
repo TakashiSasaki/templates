@@ -13,6 +13,7 @@ from .policy_loader import Rule
 
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+NON_GENERATED_SKILLS = frozenset({"bootstrap-agent-policy"})
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
@@ -39,6 +40,8 @@ def render_skill(
 ) -> dict[str, str]:
     if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
         raise ValueError(f"Invalid generated skill name: {skill_name}")
+    if skill_name in NON_GENERATED_SKILLS:
+        raise ValueError(f"Unknown generated skill: {skill_name}")
     skill_root = package_root() / "skills" / skill_name
     if not skill_root.is_dir():
         raise ValueError(f"Unknown generated skill: {skill_name}")
