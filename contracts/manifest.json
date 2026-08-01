@@ -1,0 +1,34 @@
+{
+  "$schema": "../schemas/contract-manifest.schema.json",
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "id": "surfaces",
+      "document": "contracts/surfaces.json",
+      "schema": "schemas/surfaces.schema.json",
+      "documentSchemaVersion": 1,
+      "purpose": "Classify browser-facing application surfaces, audiences, access conditions, data classifications, stability, and startup dependencies."
+    },
+    {
+      "id": "routes",
+      "document": "contracts/routes.json",
+      "schema": "schemas/routes.schema.json",
+      "documentSchemaVersion": 1,
+      "purpose": "Declare canonical routes, aliases, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
+    },
+    {
+      "id": "ui_states",
+      "document": "contracts/ui-states.json",
+      "schema": "schemas/ui-states.schema.json",
+      "documentSchemaVersion": 1,
+      "purpose": "Define reusable user-visible states, recovery actions, announcements, and focus strategies."
+    },
+    {
+      "id": "viewports",
+      "document": "contracts/viewports.json",
+      "schema": "schemas/viewports.schema.json",
+      "documentSchemaVersion": 1,
+      "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
+    }
+  ]
+}

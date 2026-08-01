@@ -15,14 +15,10 @@ from jsonschema.exceptions import SchemaError
 from referencing.exceptions import Unresolvable
 
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
+MANIFEST_PATH = "contracts/manifest.json"
+MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
 VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U00013441", "\U00013442", "\U0001D159"}
-
-CONTRACT_SCHEMAS = {
-    "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
-    "routes": ("contracts/routes.json", "schemas/routes.schema.json"),
-    "ui_states": ("contracts/ui-states.json", "schemas/ui-states.schema.json"),
-    "viewports": ("contracts/viewports.json", "schemas/viewports.schema.json"),
-}
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class DuplicateKeyError(ValueError):
@@ -55,10 +51,33 @@ def load_json(path: Path) -> Any:
         )
 
 
+def load_contract_manifest(root: Path) -> dict[str, Any]:
+    manifest = load_json(root / MANIFEST_PATH)
+    if not isinstance(manifest, dict):
+        raise TypeError("contract manifest must be a JSON object")
+    return manifest
+
+
+def registry_from_manifest(
+    manifest: dict[str, Any],
+) -> dict[str, tuple[str, str]]:
+    return {
+        entry["id"]: (entry["document"], entry["schema"])
+        for entry in manifest["contracts"]
+    }
+
+
+def load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
+    return registry_from_manifest(load_contract_manifest(root))
+
+
+CONTRACT_SCHEMAS = load_contract_registry(ROOT)
+
+
 def load_contract_documents(root: Path) -> dict[str, Any]:
     return {
         name: load_json(root / contract_path)
-        for name, (contract_path, _) in CONTRACT_SCHEMAS.items()
+        for name, (contract_path, _) in load_contract_registry(root).items()
     }
 
 
@@ -82,13 +101,7 @@ def _duplicate_values(values: list[str]) -> set[str]:
 
 
 def _has_visible_character(value: str) -> bool:
-    """Return whether text contains a visible base character.
-
-    Unicode control, format, surrogate, private-use, unassigned, combining-mark,
-    and separator categories do not independently provide visible content.
-    Some symbol- and letter-category characters are also intentionally blank
-    and are explicitly excluded.
-    """
+    """Return whether text contains a visible base character."""
 
     return any(
         character not in VISUALLY_BLANK_CHARACTERS
@@ -140,6 +153,83 @@ def _surface_dependency_cycles(surfaces: list[dict[str, Any]]) -> list[list[str]
     return cycles
 
 
+def _repository_relative_json_files(directory: Path, root: Path, pattern: str) -> set[str]:
+    if not directory.is_dir():
+        return set()
+    return {
+        path.relative_to(root).as_posix()
+        for path in directory.rglob(pattern)
+        if path.is_file() or path.is_symlink()
+    }
+
+
+def validate_contract_manifest(root: Path, manifest: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    entries = manifest["contracts"]
+    ids = [entry["id"] for entry in entries]
+    documents = [entry["document"] for entry in entries]
+    schemas = [entry["schema"] for entry in entries]
+
+    for label, values in (
+        ("contract id", ids),
+        ("contract document", documents),
+        ("contract schema", schemas),
+    ):
+        for duplicate in sorted(_duplicate_values(values)):
+            errors.append(f"duplicate {label}: {duplicate}")
+
+    for entry in entries:
+        contract_id = entry["id"]
+        if not _has_visible_character(entry["purpose"]):
+            errors.append(
+                f"contract manifest {contract_id}: purpose must contain at least one visible character"
+            )
+
+        for label, relative in (
+            ("document", entry["document"]),
+            ("schema", entry["schema"]),
+        ):
+            candidate = root / relative
+            try:
+                candidate.resolve(strict=False).relative_to(root.resolve())
+            except ValueError:
+                errors.append(
+                    f"contract manifest {contract_id}: {label} escapes repository root: {relative}"
+                )
+                continue
+            if candidate.is_symlink():
+                errors.append(
+                    f"contract manifest {contract_id}: {label} must not be a symbolic link: {relative}"
+                )
+            elif not candidate.is_file():
+                errors.append(
+                    f"contract manifest {contract_id}: missing {label}: {relative}"
+                )
+
+        if entry["document"] == MANIFEST_PATH:
+            errors.append(
+                f"contract manifest {contract_id}: manifest must not register itself as a domain contract"
+            )
+        if entry["schema"] == MANIFEST_SCHEMA_PATH:
+            errors.append(
+                f"contract manifest {contract_id}: manifest schema must not be registered as a domain schema"
+            )
+
+    actual_documents = _repository_relative_json_files(
+        root / "contracts", root, "*.json"
+    ) - {MANIFEST_PATH}
+    actual_schemas = _repository_relative_json_files(
+        root / "schemas", root, "*.schema.json"
+    ) - {MANIFEST_SCHEMA_PATH}
+
+    for relative in sorted(actual_documents - set(documents)):
+        errors.append(f"unregistered contract document: {relative}")
+    for relative in sorted(actual_schemas - set(schemas)):
+        errors.append(f"unregistered contract schema: {relative}")
+
+    return errors
+
+
 def cross_validate(documents: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
@@ -176,11 +266,17 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         authorization_mode = authorization["mode"]
         authentication = surface["authentication"]
         if authorization_mode == "role" and not authorization["roles"]:
-            errors.append(f"surface {surface_id}: role authorization requires at least one role")
+            errors.append(
+                f"surface {surface_id}: role authorization requires at least one role"
+            )
         if authorization_mode in {"public", "authenticated"} and authorization["roles"]:
-            errors.append(f"surface {surface_id}: {authorization_mode} authorization must not declare roles")
+            errors.append(
+                f"surface {surface_id}: {authorization_mode} authorization must not declare roles"
+            )
         if authorization_mode == "public" and authentication == "required":
-            errors.append(f"surface {surface_id}: public authorization must not require authentication")
+            errors.append(
+                f"surface {surface_id}: public authorization must not require authentication"
+            )
         if authorization_mode in {"authenticated", "role"} and authentication != "required":
             errors.append(
                 f"surface {surface_id}: {authorization_mode} authorization requires authentication required"
@@ -191,7 +287,9 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             )
         for dependency in surface["startupDependencies"]:
             if dependency not in known_surfaces:
-                errors.append(f"surface {surface_id}: unknown startup dependency {dependency}")
+                errors.append(
+                    f"surface {surface_id}: unknown startup dependency {dependency}"
+                )
             if dependency == surface_id:
                 errors.append(f"surface {surface_id}: must not depend on itself")
 
@@ -214,7 +312,9 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         route_paths.append(route["path"])
         aliases.extend(route["aliases"])
         if not _has_visible_character(route["accessibility"]["focusTarget"]):
-            errors.append(f"route {route_id}: focusTarget must contain at least one visible character")
+            errors.append(
+                f"route {route_id}: focusTarget must contain at least one visible character"
+            )
         if route["surface"] not in known_surfaces:
             errors.append(f"route {route_id}: unknown surface {route['surface']}")
         else:
@@ -228,7 +328,9 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             if state_id not in known_states:
                 errors.append(f"route {route_id}: unknown UI state {state_id}")
         if route["path"] in route["aliases"]:
-            errors.append(f"route {route_id}: canonical path is also listed as an alias")
+            errors.append(
+                f"route {route_id}: canonical path is also listed as an alias"
+            )
 
     for duplicate in sorted(_duplicate_values(route_paths)):
         errors.append(f"duplicate canonical route path: {duplicate}")
@@ -259,48 +361,117 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_repository(root: Path) -> list[str]:
-    errors: list[str] = []
-    documents: dict[str, Any] = {}
-    all_documents_structurally_valid = True
-    load_errors = (
+def _load_json_error_types() -> tuple[type[BaseException], ...]:
+    return (
         OSError,
         UnicodeDecodeError,
         json.JSONDecodeError,
         DuplicateKeyError,
         NonStandardJsonConstantError,
+        TypeError,
+        KeyError,
     )
 
-    for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
+
+def _validate_schema(
+    root: Path,
+    schema_path: str,
+    errors: list[str],
+) -> dict[str, Any] | None:
+    try:
+        schema = load_json(root / schema_path)
+    except _load_json_error_types() as exc:
+        errors.append(f"{schema_path}: unable to load JSON: {exc}")
+        return None
+
+    declared_dialect = schema.get("$schema") if isinstance(schema, dict) else None
+    if declared_dialect != SCHEMA_DIALECT:
+        errors.append(
+            f"{schema_path}: unsupported JSON Schema dialect: "
+            f"expected {SCHEMA_DIALECT!r}, got {declared_dialect!r}"
+        )
+        return None
+
+    try:
+        Draft202012Validator.check_schema(schema)
+    except SchemaError as exc:
+        errors.append(f"{schema_path}: invalid JSON Schema: {exc.message}")
+        return None
+
+    return schema
+
+
+def validate_repository(root: Path) -> list[str]:
+    errors: list[str] = []
+
+    try:
+        manifest = load_contract_manifest(root)
+    except _load_json_error_types() as exc:
+        errors.append(f"{MANIFEST_PATH}: unable to load JSON: {exc}")
+        return errors
+
+    manifest_schema = _validate_schema(root, MANIFEST_SCHEMA_PATH, errors)
+    if manifest_schema is None:
+        return errors
+
+    try:
+        manifest_errors = sorted(
+            Draft202012Validator(manifest_schema).iter_errors(manifest),
+            key=lambda item: _json_path(list(item.absolute_path)),
+        )
+    except Unresolvable as exc:
+        errors.append(
+            f"{MANIFEST_SCHEMA_PATH}: unresolved JSON Schema reference: {exc}"
+        )
+        return errors
+
+    for error in manifest_errors:
+        errors.append(
+            f"{MANIFEST_PATH}:{_json_path(list(error.absolute_path))}: {error.message}"
+        )
+    if manifest_errors:
+        return errors
+
+    inventory_errors = validate_contract_manifest(root, manifest)
+    errors.extend(inventory_errors)
+    if inventory_errors:
+        return errors
+
+    registry = registry_from_manifest(manifest)
+    versions = {
+        entry["id"]: entry["documentSchemaVersion"]
+        for entry in manifest["contracts"]
+    }
+    documents: dict[str, Any] = {}
+    all_documents_structurally_valid = True
+
+    for name, (contract_path, schema_path) in registry.items():
         try:
             document = load_json(root / contract_path)
-        except load_errors as exc:
+        except _load_json_error_types() as exc:
             errors.append(f"{contract_path}: unable to load JSON: {exc}")
             all_documents_structurally_valid = False
             continue
 
-        try:
-            schema = load_json(root / schema_path)
-        except load_errors as exc:
-            errors.append(f"{schema_path}: unable to load JSON: {exc}")
+        schema = _validate_schema(root, schema_path, errors)
+        if schema is None:
             all_documents_structurally_valid = False
             continue
 
-        declared_dialect = schema.get("$schema") if isinstance(schema, dict) else None
-        if declared_dialect != SCHEMA_DIALECT:
+        expected_schema_uri = f"../{schema_path}"
+        if isinstance(document, dict) and document.get("$schema") != expected_schema_uri:
             errors.append(
-                f"{schema_path}: unsupported JSON Schema dialect: "
-                f"expected {SCHEMA_DIALECT!r}, got {declared_dialect!r}"
+                f"{contract_path}: declared schema does not match manifest: "
+                f"expected {expected_schema_uri!r}, got {document.get('$schema')!r}"
             )
             all_documents_structurally_valid = False
-            continue
 
-        try:
-            Draft202012Validator.check_schema(schema)
-        except SchemaError as exc:
-            errors.append(f"{schema_path}: invalid JSON Schema: {exc.message}")
+        if isinstance(document, dict) and document.get("schemaVersion") != versions[name]:
+            errors.append(
+                f"{contract_path}: schemaVersion does not match manifest: "
+                f"expected {versions[name]!r}, got {document.get('schemaVersion')!r}"
+            )
             all_documents_structurally_valid = False
-            continue
 
         documents[name] = document
         validator = Draft202012Validator(schema)
@@ -310,23 +481,26 @@ def validate_repository(root: Path) -> list[str]:
                 key=lambda item: _json_path(list(item.absolute_path)),
             )
         except Unresolvable as exc:
-            errors.append(f"{schema_path}: unresolved JSON Schema reference: {exc}")
+            errors.append(
+                f"{schema_path}: unresolved JSON Schema reference: {exc}"
+            )
             all_documents_structurally_valid = False
             continue
         if document_errors:
             all_documents_structurally_valid = False
         for error in document_errors:
-            errors.append(f"{contract_path}:{_json_path(list(error.absolute_path))}: {error.message}")
+            errors.append(
+                f"{contract_path}:{_json_path(list(error.absolute_path))}: {error.message}"
+            )
 
-    if all_documents_structurally_valid and len(documents) == len(CONTRACT_SCHEMAS):
+    if all_documents_structurally_valid and len(documents) == len(registry):
         errors.extend(cross_validate(copy.deepcopy(documents)))
 
     return errors
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    errors = validate_repository(root)
+    errors = validate_repository(ROOT)
     if errors:
         print("Contract validation failed:", file=sys.stderr)
         for error in errors:

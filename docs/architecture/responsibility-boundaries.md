@@ -10,6 +10,7 @@ The `webapp` template owns reusable, framework-neutral contracts for browser-fac
 - canonical routes, aliases, navigation behavior, authentication return behavior, and deep-link expectations;
 - user-visible states and recovery behavior;
 - viewport declarations and input-capability assumptions;
+- the closed contract manifest and its inventory invariants;
 - JSON Schemas, cross-contract validation, reference tests, and template CI;
 - guidance for replacing example declarations with product-specific declarations.
 
@@ -43,5 +44,7 @@ A product repository may adopt such mechanisms independently. Their adoption, id
 ## Independence invariant
 
 A checkout of this branch must be able to validate its contracts and run its tests using only the files in the checkout and the dependencies declared by this branch. It must not import external rule identifiers, profiles, generated policy artifacts, or repository-specific toolchain pins as design authority.
+
+`contracts/manifest.json` closes the local contract set: every product-domain contract and schema in the repository must be registered, and every registered artifact must be present and synchronized. This prevents an added file from silently falling outside the validator's authority.
 
 Changes that add an external policy dependency must first demonstrate that the concern is genuinely part of the Web-application design contract rather than an agent workflow or repository-governance concern. Otherwise the change belongs outside this template.
