@@ -36,6 +36,8 @@ During the Phase 2 validation transition, run:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
+Reduced repository fixtures under `.github/fixtures/profiles/` exercise the four resource-shape profiles and the `packaged-cli` application profile. The packaged CLI fixture must pass complete repository validation, its unit tests, gem build and isolated installation, and an installed-command structured-output check.
+
 ## Documentation publication compatibility
 
 Pull requests to `main` that change canonical Markdown, `docs/`, or `assets/` are assembled and built against the current `site` branch by **Check documentation site compatibility**. The pull-request run uses GitHub's proposed merge commit, records both exact source commits in the generated artifact, and never deploys it.
