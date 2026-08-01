@@ -27,8 +27,11 @@ jobs:
     uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
     with:
       site_ref: site
-      source_ref: ${{ github.sha }}
+      source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
       deploy: false
+    # Pull-request runs validate GitHub's proposed merge commit. Scheduled and
+    # manual runs always resolve the current main branch, regardless of the ref
+    # selected when dispatching the workflow.
     # The reusable workflow declares a conditional deploy job, so GitHub
     # requires its permission ceiling even though deployment is disabled here.
     permissions:
