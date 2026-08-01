@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import sys
@@ -52,6 +53,33 @@ class ContractManifestTests(unittest.TestCase):
         self.assertEqual(
             validate_contracts.CONTRACT_SCHEMAS,
             validate_contracts.load_contract_registry(ROOT),
+        )
+
+
+    def test_missing_manifest_is_reported_without_import_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            shutil.copytree(ROOT / "scripts", root / "scripts")
+            (root / validate_contracts.MANIFEST_PATH).unlink()
+            module_path = root / "scripts/validate_contracts.py"
+            spec = importlib.util.spec_from_file_location(
+                "validate_contracts_missing_manifest", module_path
+            )
+            self.assertIsNotNone(spec)
+            assert spec is not None
+            self.assertIsNotNone(spec.loader)
+            assert spec.loader is not None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertEqual({}, module.CONTRACT_SCHEMAS)
+            errors = module.validate_repository(root)
+
+        self.assertTrue(
+            any(
+                error.startswith("contracts/manifest.json: unable to load JSON:")
+                for error in errors
+            )
         )
 
     def test_unregistered_contract_document_is_rejected(self) -> None:

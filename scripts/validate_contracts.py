@@ -71,7 +71,22 @@ def load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
     return registry_from_manifest(load_contract_manifest(root))
 
 
-CONTRACT_SCHEMAS = load_contract_registry(ROOT)
+def _bootstrap_contract_registry() -> dict[str, tuple[str, str]]:
+    try:
+        return load_contract_registry(ROOT)
+    except (
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        DuplicateKeyError,
+        NonStandardJsonConstantError,
+        TypeError,
+        KeyError,
+    ):
+        return {}
+
+
+CONTRACT_SCHEMAS = _bootstrap_contract_registry()
 
 
 def load_contract_documents(root: Path) -> dict[str, Any]:
