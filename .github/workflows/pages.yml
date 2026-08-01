@@ -72,10 +72,6 @@ jobs:
           )
           PY
 
-      - name: Configure GitHub Pages
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/policy'
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-
       - name: Build documentation
         run: mkdocs build --strict --clean
 
