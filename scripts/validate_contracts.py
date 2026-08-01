@@ -43,10 +43,14 @@ def _symlink_preflight(root: Path) -> list[str]:
         return []
 
     errors: list[str] = []
+    registered_schemas: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict):
             continue
         contract_id = entry.get("id")
+        schema_path = entry.get("schema")
+        if isinstance(schema_path, str):
+            registered_schemas.add(schema_path)
         for label in ("document", "schema"):
             relative = entry.get(label)
             if (
@@ -58,6 +62,15 @@ def _symlink_preflight(root: Path) -> list[str]:
                     f"contract manifest {contract_id}: {label} must not be "
                     f"a symbolic link: {relative}"
                 )
+
+    actual_schemas = {
+        path.relative_to(root).as_posix()
+        for path in (root / "schemas").glob("*.json")
+        if path.is_file() or path.is_symlink()
+    } - {_impl.MANIFEST_SCHEMA_PATH}
+    for relative in sorted(actual_schemas - registered_schemas):
+        errors.append(f"unregistered contract schema: {relative}")
+
     return errors
 
 

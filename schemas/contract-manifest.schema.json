@@ -69,11 +69,19 @@
           "contains": {
             "type": "object",
             "required": [
-              "id"
+              "id",
+              "document",
+              "schema"
             ],
             "properties": {
               "id": {
                 "const": "surfaces"
+              },
+              "document": {
+                "const": "contracts/surfaces.json"
+              },
+              "schema": {
+                "const": "schemas/surfaces.schema.json"
               }
             }
           }
@@ -82,11 +90,19 @@
           "contains": {
             "type": "object",
             "required": [
-              "id"
+              "id",
+              "document",
+              "schema"
             ],
             "properties": {
               "id": {
                 "const": "routes"
+              },
+              "document": {
+                "const": "contracts/routes.json"
+              },
+              "schema": {
+                "const": "schemas/routes.schema.json"
               }
             }
           }
@@ -95,11 +111,19 @@
           "contains": {
             "type": "object",
             "required": [
-              "id"
+              "id",
+              "document",
+              "schema"
             ],
             "properties": {
               "id": {
                 "const": "ui_states"
+              },
+              "document": {
+                "const": "contracts/ui-states.json"
+              },
+              "schema": {
+                "const": "schemas/ui-states.schema.json"
               }
             }
           }
@@ -108,11 +132,19 @@
           "contains": {
             "type": "object",
             "required": [
-              "id"
+              "id",
+              "document",
+              "schema"
             ],
             "properties": {
               "id": {
                 "const": "viewports"
+              },
+              "document": {
+                "const": "contracts/viewports.json"
+              },
+              "schema": {
+                "const": "schemas/viewports.schema.json"
               }
             }
           }
