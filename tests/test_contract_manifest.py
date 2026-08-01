@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -61,27 +62,19 @@ class ContractManifestTests(unittest.TestCase):
             root = self.copied_repository(temporary_directory)
             shutil.copytree(ROOT / "scripts", root / "scripts")
             (root / validate_contracts.MANIFEST_PATH).unlink()
-            module_path = root / "scripts/validate_contracts.py"
-            spec = importlib.util.spec_from_file_location(
-                "validate_contracts_missing_manifest", module_path
+            result = subprocess.run(
+                [sys.executable, str(root / "scripts/validate_contracts.py")],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
             )
-            self.assertIsNotNone(spec)
-            assert spec is not None
-            self.assertIsNotNone(spec.loader)
-            assert spec.loader is not None
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
 
-            self.assertEqual({}, module.CONTRACT_SCHEMAS)
-            errors = module.validate_repository(root)
-
-        self.assertTrue(
-            any(
-                error.startswith("contracts/manifest.json: unable to load JSON:")
-                for error in errors
-            )
+        self.assertEqual(1, result.returncode)
+        self.assertIn(
+            "contracts/manifest.json: unable to load JSON:",
+            result.stderr,
         )
-
     def test_missing_core_contract_role_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
@@ -100,6 +93,41 @@ class ContractManifestTests(unittest.TestCase):
                 and "does not contain items matching the given schema" in error
                 for error in errors
             ),
+            errors,
+        )
+
+    def test_self_referential_registered_symlink_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            target = root / "contracts/surfaces.json"
+            target.unlink()
+            target.symlink_to(target.name)
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertIn(
+            "contract manifest surfaces: document must not be a symbolic link: "
+            "contracts/surfaces.json",
+            errors,
+        )
+
+    def test_symlinked_manifest_is_rejected_before_reading_external_content(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            manifest_path = root / validate_contracts.MANIFEST_PATH
+            external_manifest = root.parent / f"{root.name}-external-manifest.json"
+            external_manifest.write_text(
+                manifest_path.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            manifest_path.unlink()
+            manifest_path.symlink_to(external_manifest)
+            try:
+                errors = validate_contracts.validate_repository(root)
+            finally:
+                external_manifest.unlink(missing_ok=True)
+
+        self.assertIn(
+            "contracts/manifest.json: manifest must not be a symbolic link",
             errors,
         )
 
