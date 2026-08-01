@@ -4,10 +4,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
 import tempfile
+import venv
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,6 +29,10 @@ RELEASE = ROOT / "release/toolchain.json"
 RELEASE_SCHEMA = ROOT / "schemas/toolchain-release.schema.json"
 BOOTSTRAP_MANIFEST = ROOT / "skills/bootstrap-agent-policy/bootstrap-manifest.yml"
 CURRENT_WORKFLOW_TEMPLATE = ROOT / "templates/workflows/check-agent-policy.yml.j2"
+PINNED_PROBE_REQUIREMENTS = ROOT / "release/verifier-requirements.lock"
+EXACT_REQUIREMENT = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_.-]*==[A-Za-z0-9][A-Za-z0-9_.+!-]*$"
+)
 REQUIRED_RELEASE_PATHS = (
     "action.yml",
     "pyproject.toml",
@@ -134,6 +140,74 @@ def git_text(*arguments: str) -> str:
     ).strip()
 
 
+def locked_requirements(path: Path) -> tuple[str, ...]:
+    requirements = tuple(
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    if not requirements:
+        raise ValueError("Pinned release verifier requirements must not be empty")
+
+    normalized_names: set[str] = set()
+    for requirement in requirements:
+        if EXACT_REQUIREMENT.fullmatch(requirement) is None:
+            raise ValueError(
+                "Pinned release verifier requirements must use exact name==version pins: "
+                f"{requirement}"
+            )
+        name = requirement.split("==", 1)[0].lower().replace("_", "-")
+        if name in normalized_names:
+            raise ValueError(
+                f"Pinned release verifier requirement is duplicated: {requirement}"
+            )
+        normalized_names.add(name)
+    return requirements
+
+
+def probe_python_path(environment_root: Path) -> Path:
+    if os.name == "nt":
+        return environment_root / "Scripts/python.exe"
+    return environment_root / "bin/python"
+
+
+@contextmanager
+def pinned_probe_environment() -> Iterator[Path]:
+    locked_requirements(PINNED_PROBE_REQUIREMENTS)
+    with tempfile.TemporaryDirectory(
+        prefix="agent-policy-release-verifier-"
+    ) as temporary:
+        environment_root = Path(temporary) / "venv"
+        venv.EnvBuilder(with_pip=True, clear=True).create(environment_root)
+        python = probe_python_path(environment_root)
+        common = {
+            "cwd": ROOT,
+            "check": True,
+            "capture_output": True,
+            "text": True,
+        }
+        subprocess.run(
+            [
+                str(python),
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "--no-input",
+                "--no-deps",
+                "--only-binary=:all:",
+                "-r",
+                str(PINNED_PROBE_REQUIREMENTS),
+            ],
+            **common,
+        )
+        subprocess.run(
+            [str(python), "-m", "pip", "check"],
+            **common,
+        )
+        yield python
+
+
 @contextmanager
 def extracted_revision(revision: str) -> Iterator[Path]:
     with tempfile.TemporaryDirectory(prefix="agent-policy-release-tree-") as temporary:
@@ -159,12 +233,17 @@ def extracted_revision(revision: str) -> Iterator[Path]:
         yield tree
 
 
-def run_pinned_probe(tree: Path, revision: str) -> dict[str, Any]:
+def run_pinned_probe(
+    tree: Path,
+    revision: str,
+    probe_python: Path,
+) -> dict[str, Any]:
     environment = os.environ.copy()
+    environment["PYTHONNOUSERSITE"] = "1"
     environment["PYTHONPATH"] = str(tree / "src")
     environment["RELEASE_REVISION"] = revision
     output = subprocess.check_output(
-        [sys.executable, "-c", PINNED_PROBE],
+        [str(probe_python), "-s", "-c", PINNED_PROBE],
         cwd=tree,
         env=environment,
         text=True,
@@ -196,6 +275,7 @@ def verify_pinned_release(
     revision: str,
     toolchain: dict[str, Any],
     contracts: dict[str, Any],
+    probe_python: Path,
 ) -> None:
     for relative in REQUIRED_RELEASE_PATHS:
         if not (tree / relative).is_file():
@@ -219,9 +299,11 @@ def verify_pinned_release(
     config_toolchain = config_schema["properties"]["toolchain"]
     adoption_toolchain = adoption_schema["properties"]["toolchain"]
     if config_toolchain != adoption_toolchain:
-        raise ValueError("Pinned configuration and adoption schemas define different toolchains")
+        raise ValueError(
+            "Pinned configuration and adoption schemas define different toolchains"
+        )
 
-    probe = run_pinned_probe(tree, revision)
+    probe = run_pinned_probe(tree, revision, probe_python)
     manifest = probe["manifest"]
     adoption = probe["adoption"]
     lock = probe["lock"]
@@ -229,9 +311,13 @@ def verify_pinned_release(
     validate_schema(manifest, config_schema, "pinned generated configuration")
     validate_schema(adoption, adoption_schema, "pinned generated adoption state")
     if manifest["toolchain"] != toolchain:
-        raise ValueError("Pinned generated configuration does not use the stable release pin")
+        raise ValueError(
+            "Pinned generated configuration does not use the stable release pin"
+        )
     if adoption["toolchain"] != toolchain:
-        raise ValueError("Pinned generated adoption state does not use the stable release pin")
+        raise ValueError(
+            "Pinned generated adoption state does not use the stable release pin"
+        )
     if lock["lock_version"] != contracts["lock"]:
         raise ValueError("Pinned generated lock version differs from release state")
     if lock["toolchain"] != toolchain:
@@ -244,7 +330,9 @@ def verify_pinned_release(
         raise ValueError("Pinned consumer workflow retained its revision placeholder")
     for mutable in ("@policy", "@main", "@master"):
         if mutable in workflow:
-            raise ValueError(f"Pinned consumer workflow contains mutable reference {mutable}")
+            raise ValueError(
+                f"Pinned consumer workflow contains mutable reference {mutable}"
+            )
 
 
 def verify_release_state(git_ref: str | None) -> str:
@@ -255,8 +343,13 @@ def verify_release_state(git_ref: str | None) -> str:
 
     toolchain = release["toolchain"]
     contracts = release["contracts"]
-    if not isinstance(toolchain, dict) or not isinstance(contracts, dict):
-        raise ValueError("Release toolchain and contracts must be objects")
+    verifier = release["verifier"]
+    if (
+        not isinstance(toolchain, dict)
+        or not isinstance(contracts, dict)
+        or not isinstance(verifier, dict)
+    ):
+        raise ValueError("Release toolchain, contracts, and verifier must be objects")
     revision = toolchain.get("revision")
     if not isinstance(revision, str) or FULL_COMMIT_SHA.fullmatch(revision) is None:
         raise ValueError("Stable release revision must be a full lowercase commit SHA")
@@ -267,13 +360,26 @@ def verify_release_state(git_ref: str | None) -> str:
     if bootstrap.get("schema_version") != contracts["bootstrap_manifest"]:
         raise ValueError("Bootstrap manifest schema version differs from release state")
 
+    requirements_path = verifier.get("requirements")
+    expected_requirements = PINNED_PROBE_REQUIREMENTS.relative_to(ROOT).as_posix()
+    if requirements_path != expected_requirements:
+        raise ValueError("Stable release verifier requirements path is inconsistent")
+    locked_requirements(PINNED_PROBE_REQUIREMENTS)
+
     current_template = CURRENT_WORKFLOW_TEMPLATE.read_text(encoding="utf-8")
     placeholder = f"uses: {TOOLCHAIN_REPOSITORY}@{{{{ revision }}}}"
     if placeholder not in current_template:
         raise ValueError("Consumer workflow template lost its revision placeholder")
 
-    with extracted_revision(revision) as tree:
-        verify_pinned_release(tree, revision, toolchain, contracts)
+    with pinned_probe_environment() as probe_python:
+        with extracted_revision(revision) as tree:
+            verify_pinned_release(
+                tree,
+                revision,
+                toolchain,
+                contracts,
+                probe_python,
+            )
     if git_ref:
         verify_git_ancestry(revision, git_ref)
     return revision
