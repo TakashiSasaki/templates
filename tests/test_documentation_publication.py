@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
+DOC_REQUIREMENTS = ROOT / "requirements-docs.txt"
 DEPLOY_GUARD = (
     "if: github.event_name != 'pull_request' "
     "&& github.ref == 'refs/heads/policy'"
@@ -51,6 +52,20 @@ def test_documentation_build_is_reproducible_and_strict() -> None:
     assert "cache-dependency-path: requirements-docs.txt" in workflow
     assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
     assert '"repository": os.environ["BUILD_REPOSITORY"]' in workflow
+
+
+def test_documentation_dependencies_are_exactly_pinned() -> None:
+    requirements = [
+        line.strip()
+        for line in DOC_REQUIREMENTS.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+
+    assert requirements == [
+        "mkdocs==1.6.1",
+        "Pillow==12.2.0",
+        "Pygments==2.20.0",
+    ]
 
 
 def test_pages_actions_are_immutably_pinned() -> None:
