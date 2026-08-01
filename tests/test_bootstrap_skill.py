@@ -4,18 +4,37 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = ROOT / "skills/bootstrap-agent-policy"
-MODULE_PATH = SKILL_ROOT / "scripts/bootstrap.py"
 PINNED_TOOLCHAIN_REVISION = "270645381849431b922bee87afecedc540e52ed1"
-SPEC = importlib.util.spec_from_file_location("bootstrap_agent_policy", MODULE_PATH)
-assert SPEC and SPEC.loader
-bootstrap = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = bootstrap
-SPEC.loader.exec_module(bootstrap)
+
+
+def load_script(name: str, relative: str) -> ModuleType:
+    module_path = SKILL_ROOT / relative
+    spec = importlib.util.spec_from_file_location(name, module_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+bootstrap = load_script(
+    "bootstrap_agent_policy",
+    "scripts/bootstrap.py",
+)
+installer = load_script(
+    "bootstrap_agent_policy_install",
+    "scripts/install.py",
+)
+uninstaller = load_script(
+    "bootstrap_agent_policy_uninstall",
+    "scripts/uninstall.py",
+)
 
 
 def test_manifest_pins_reviewed_templates_policy_sha() -> None:
@@ -108,11 +127,68 @@ def test_explicit_route_must_match_inspection() -> None:
         bootstrap.select_route("unmanaged-existing", "init", apply=False)
 
 
+def test_primary_instructions_option_is_unset_by_default() -> None:
+    assert bootstrap.parse_args([]).primary_instructions is None
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md"],
+)
+def test_adoption_auto_selects_only_supported_instruction(relative: str) -> None:
+    inspection = bootstrap.Inspection("unmanaged-existing", (relative,))
+    assert (
+        bootstrap.select_primary_instructions(
+            inspection,
+            "adopt",
+            None,
+            apply=False,
+        )
+        == relative
+    )
+
+
+def test_ambiguous_adoption_dry_run_stops_without_guessing() -> None:
+    inspection = bootstrap.Inspection(
+        "unmanaged-existing",
+        ("AGENTS.md", "CLAUDE.md"),
+    )
+    assert (
+        bootstrap.select_primary_instructions(
+            inspection,
+            "adopt",
+            None,
+            apply=False,
+        )
+        is None
+    )
+    with pytest.raises(ValueError, match="requires --primary-instructions"):
+        bootstrap.select_primary_instructions(
+            inspection,
+            "adopt",
+            None,
+            apply=True,
+        )
+
+
 def test_adoption_requires_discovered_primary_instructions() -> None:
     inspection = bootstrap.Inspection("unmanaged-existing", ("CLAUDE.md",))
     with pytest.raises(ValueError, match="available: CLAUDE.md"):
-        bootstrap.validate_primary_instructions(inspection, "adopt", "AGENTS.md")
-    bootstrap.validate_primary_instructions(inspection, "adopt", "CLAUDE.md")
+        bootstrap.select_primary_instructions(
+            inspection,
+            "adopt",
+            "AGENTS.md",
+            apply=False,
+        )
+    assert (
+        bootstrap.select_primary_instructions(
+            inspection,
+            "adopt",
+            "CLAUDE.md",
+            apply=False,
+        )
+        == "CLAUDE.md"
+    )
 
 
 def test_init_apply_arguments_do_not_contain_adoption_commands(tmp_path: Path) -> None:
@@ -123,7 +199,7 @@ def test_init_apply_arguments_do_not_contain_adoption_commands(tmp_path: Path) -
         "init",
         "a" * 40,
         apply=True,
-        primary_instructions="AGENTS.md",
+        primary_instructions=None,
     )
     assert arguments[-1] == "--apply"
     assert "init" in arguments
@@ -156,3 +232,44 @@ def test_init_post_apply_validates_and_checks(tmp_path: Path) -> None:
         ["--repository", str(tmp_path), "validate"],
         ["--repository", str(tmp_path), "check"],
     ]
+
+
+@pytest.mark.parametrize("module", [installer, uninstaller])
+def test_destructive_guards_require_actual_front_matter_name(
+    module: ModuleType,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "different-skill"
+    target.mkdir()
+    (target / "SKILL.md").write_text(
+        """---
+name: different-skill
+---
+
+The body mentions name: bootstrap-agent-policy but is not that skill.
+""",
+        encoding="utf-8",
+    )
+
+    assert module.read_front_matter_name(target / "SKILL.md") == "different-skill"
+    assert not module.is_bootstrap_skill_directory(target)
+
+
+@pytest.mark.parametrize("module", [installer, uninstaller])
+def test_destructive_guards_accept_exact_quoted_front_matter_name(
+    module: ModuleType,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "bootstrap-agent-policy"
+    target.mkdir()
+    (target / "SKILL.md").write_text(
+        """---
+name: "bootstrap-agent-policy"
+---
+
+Body.
+""",
+        encoding="utf-8",
+    )
+
+    assert module.is_bootstrap_skill_directory(target)
