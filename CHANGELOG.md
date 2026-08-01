@@ -16,3 +16,4 @@
 - Restrict built-in shared policy to application-type-independent agent operations and remove the former `web-application` profile.
 - Migrate generated manifests, adoption state, schemas, and consumer workflows to the `TakashiSasaki/templates` toolchain repository.
 - Integrate the immutable, non-finalizing `bootstrap-agent-policy` trust seed under `skills/bootstrap-agent-policy/` and supersede the separate orphan-branch layout.
+- Add a schema-validated stable release descriptor, two-step full-SHA promotion model, and CI synchronization verification across bootstrap, schemas, locks, adoption state, and consumer workflows.
