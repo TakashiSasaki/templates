@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/TakashiSasaki/templates/schemas/toolchain-release.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "channel",
+    "toolchain",
+    "contracts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "channel": {
+      "const": "stable"
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision"
+      ],
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/templates"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_policy_schema",
+        "adoption_state_schema",
+        "bootstrap_manifest",
+        "lock"
+      ],
+      "properties": {
+        "agent_policy_schema": {
+          "const": 1
+        },
+        "adoption_state_schema": {
+          "const": 1
+        },
+        "bootstrap_manifest": {
+          "const": 2
+        },
+        "lock": {
+          "const": 1
+        }
+      }
+    }
+  }
+}
