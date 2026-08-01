@@ -35,6 +35,8 @@ Built-in shared policy must not define artifact architecture such as:
 
 Artifact-category requirements belong in the corresponding template or domain-specific contract system. Product-specific requirements belong in the product repository. A product repository may still reference its own design and verification documents from repository-local policy, but doing so does not make those design requirements part of the shared policy corpus.
 
+References from shared policy documentation to an application template are informational only and must not create compiler, runtime, validation, or release dependencies between the policy and template branches.
+
 Profiles may classify operational situations or risk postures. They must not classify repositories solely by artifact category, such as `web-application`, `cli-application`, `mobile-application`, `library`, or `backend-service`.
 
 ## Consequences
