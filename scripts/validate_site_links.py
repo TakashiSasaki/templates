@@ -8,11 +8,12 @@ import ipaddress
 import re
 import sys
 import tomllib
-import unicodedata
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
+
+import idna
 
 
 class SiteLinkError(RuntimeError):
@@ -70,7 +71,9 @@ class PageParser(HTMLParser):
             self._main_depth -= 1
 
     def _handle_tag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        values = {name.lower(): value for name, value in attrs}
+        values: dict[str, str | None] = {}
+        for name, value in attrs:
+            values.setdefault(name.lower(), value)
         element_id = values.get("id")
         if element_id:
             self.ids.add(element_id)
@@ -148,26 +151,17 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
         raise SiteLinkError(f"{description} contains an invalid port") from exc
     try:
         decoded_hostname = unquote(hostname)
-        normalized_hostname = unicodedata.normalize("NFKC", decoded_hostname).lower()
-        normalized_hostname = normalized_hostname.translate(
-            str.maketrans({"\u3002": ".", "\uff0e": ".", "\uff61": "."})
-        )
-        labels = normalized_hostname.split(".")
-        canonical_labels = [
-            label
-            if label.isascii()
-            else "xn--" + label.encode("punycode").decode("ascii")
-            for label in labels
-        ]
-        canonical_hostname = ".".join(canonical_labels)
-    except (UnicodeError, ValueError) as exc:
-        raise SiteLinkError(f"{description} contains an invalid hostname") from exc
-    try:
-        if ":" in canonical_hostname:
-            canonical_hostname = ipaddress.IPv6Address(canonical_hostname).compressed
+        if ":" in decoded_hostname:
+            canonical_hostname = ipaddress.IPv6Address(decoded_hostname).compressed
         else:
+            canonical_hostname = idna.encode(
+                decoded_hostname,
+                uts46=True,
+                transitional=False,
+                std3_rules=True,
+            ).decode("ascii").lower()
             canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname
-    except ipaddress.AddressValueError as exc:
+    except (idna.IDNAError, UnicodeError, ValueError, ipaddress.AddressValueError) as exc:
         raise SiteLinkError(f"{description} contains an invalid hostname") from exc
     effective_port = (
         explicit_port
@@ -224,13 +218,13 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
-_ASCII_URL_WHITESPACE = " \t\r\n\f"
+_C0_CONTROL_OR_SPACE = "".join(chr(value) for value in range(0x21))
 _EMBEDDED_ASCII_URL_WHITESPACE = str.maketrans("", "", "\t\r\n")
 
 
 def preprocess_url_input(raw_url: str) -> str:
-    """Apply browser URL whitespace preprocessing without removing Unicode space."""
-    return raw_url.strip(_ASCII_URL_WHITESPACE).translate(
+    """Apply browser URL preprocessing while preserving non-ASCII whitespace."""
+    return raw_url.strip(_C0_CONTROL_OR_SPACE).translate(
         _EMBEDDED_ASCII_URL_WHITESPACE
     )
 
