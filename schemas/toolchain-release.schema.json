@@ -44,16 +44,20 @@
       ],
       "properties": {
         "agent_policy_schema": {
-          "const": 1
+          "type": "integer",
+          "minimum": 1
         },
         "adoption_state_schema": {
-          "const": 1
+          "type": "integer",
+          "minimum": 1
         },
         "bootstrap_manifest": {
-          "const": 2
+          "type": "integer",
+          "minimum": 1
         },
         "lock": {
-          "const": 1
+          "type": "integer",
+          "minimum": 1
         }
       }
     }
