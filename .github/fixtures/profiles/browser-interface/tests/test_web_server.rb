@@ -244,6 +244,36 @@ class TextStatsWebServerTest < Minitest::Test
     )
     assert_equal "403", cross_origin.code
 
+    mixed_loopback_alias = session.request(
+      "POST",
+      "/api/text-stats",
+      body: valid_body,
+      content_type: "application/json",
+      host: "127.0.0.1:#{session.port}",
+      origin: "http://localhost:#{session.port}"
+    )
+    assert_equal "403", mixed_loopback_alias.code
+
+    reverse_mixed_loopback_alias = session.request(
+      "POST",
+      "/api/text-stats",
+      body: valid_body,
+      content_type: "application/json",
+      host: "localhost:#{session.port}",
+      origin: session.base_url
+    )
+    assert_equal "403", reverse_mixed_loopback_alias.code
+
+    localhost_same_origin = session.request(
+      "POST",
+      "/api/text-stats",
+      body: valid_body,
+      content_type: "application/json",
+      host: "localhost:#{session.port}",
+      origin: "http://localhost:#{session.port}"
+    )
+    assert_equal "200", localhost_same_origin.code
+
     wrong_type = session.request(
       "POST",
       "/api/text-stats",
