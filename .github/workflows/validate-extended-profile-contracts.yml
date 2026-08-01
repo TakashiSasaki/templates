@@ -88,3 +88,22 @@ jobs:
       - name: Test MCP-enabled profile fixture
         shell: bash
         run: ruby .github/scripts/test-mcp-enabled-profile.rb
+
+  browser-interface-profile-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Install Bundler
+        shell: bash
+        run: gem install bundler --no-document
+
+      - name: Test browser-interface profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-browser-interface-profile.rb
