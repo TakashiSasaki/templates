@@ -94,6 +94,47 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _parse_ipv4_number(component: str) -> int | None:
+    radix = 10
+    digits = component
+    if len(component) >= 2 and component[:2].lower() == "0x":
+        radix = 16
+        digits = component[2:]
+    elif len(component) >= 2 and component.startswith("0"):
+        radix = 8
+        digits = component[1:]
+    if not digits:
+        return 0
+    valid = {
+        8: re.compile(r"^[0-7]+$"),
+        10: re.compile(r"^[0-9]+$"),
+        16: re.compile(r"^[0-9a-fA-F]+$"),
+    }[radix]
+    if not valid.fullmatch(digits):
+        return None
+    return int(digits, radix)
+
+
+def _canonical_ipv4(hostname: str) -> str | None:
+    components = hostname.split(".")
+    if components and components[-1] == "":
+        components.pop()
+    if not components or len(components) > 4 or any(not part for part in components):
+        return None
+    numbers = [_parse_ipv4_number(part) for part in components]
+    if any(number is None for number in numbers):
+        return None
+    values = [int(number) for number in numbers]
+    if any(number > 255 for number in values[:-1]):
+        return None
+    if values[-1] >= 256 ** (5 - len(values)):
+        return None
+    ipv4_value = values[-1]
+    for index, number in enumerate(values[:-1]):
+        ipv4_value += number << (8 * (3 - index))
+    return ".".join(str((ipv4_value >> shift) & 0xFF) for shift in (24, 16, 8, 0))
+
+
 def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, int]:
     scheme = parts.scheme.lower()
     hostname = parts.hostname
@@ -107,6 +148,7 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
         canonical_hostname = unquote(hostname).encode("idna").decode("ascii").lower()
     except UnicodeError as exc:
         raise SiteLinkError(f"{description} contains an invalid hostname") from exc
+    canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname
     effective_port = (
         explicit_port
         if explicit_port is not None
@@ -162,6 +204,7 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
+_ASCII_URL_WHITESPACE = " \t\r\n\f"
 
 
 def normalize_special_url_backslashes(raw_url: str) -> str:
@@ -329,12 +372,17 @@ def local_asset_path(site_root: Path, base_path: str, public_path: str) -> Path 
         if any(segment == "" for segment in material_segments):
             return None
 
+    requires_directory = public_path.endswith("/")
     candidate = site_root.joinpath(*PurePosixPath(relative).parts).resolve()
     try:
         candidate.relative_to(site_root)
     except ValueError:
         return None
-    if candidate.is_dir():
+    if requires_directory:
+        if not candidate.is_dir():
+            return None
+        candidate = candidate / "index.html"
+    elif candidate.is_dir():
         candidate = candidate / "index.html"
     return candidate if candidate.is_file() else None
 
@@ -372,7 +420,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     checked_links = 0
     for source in pages:
         for reference in source.links:
-            raw = reference.href.strip()
+            raw = reference.href.strip(_ASCII_URL_WHITESPACE)
             normalized_raw = normalize_special_url_backslashes(raw)
             raw_parts = urlsplit(normalized_raw)
             if raw_parts.scheme and raw_parts.scheme.lower() not in {"http", "https"}:
