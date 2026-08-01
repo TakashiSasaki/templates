@@ -86,18 +86,12 @@ module TextStatsWeb
     def initialize(port:, diagnostic: $stderr)
       @port = port
       @diagnostic = diagnostic
-      hostnames = %w[127.0.0.1 localhost]
-      @allowed_hosts = hostnames.flat_map do |hostname|
-        port == 80 ? [hostname, "#{hostname}:80"] : ["#{hostname}:#{port}"]
-      end.freeze
-      @allowed_origins = hostnames.flat_map do |hostname|
-        port == 80 ? ["http://#{hostname}", "http://#{hostname}:80"] : ["http://#{hostname}:#{port}"]
-      end.freeze
+      @allowed_hostnames = %w[127.0.0.1 localhost].freeze
     end
 
     def service(request, response)
       apply_security_headers(response)
-      authorize_host!(request)
+      request_origin = authorize_host!(request)
 
       case [request.request_method, request.path]
       when ["GET", "/"]
@@ -109,7 +103,7 @@ module TextStatsWeb
       when ["GET", "/healthz"]
         respond_json(response, 200, "ok" => true, "interface" => "web")
       when ["POST", "/api/text-stats"]
-        authorize_origin!(request)
+        authorize_origin!(request, request_origin)
         handle_stats(request, response)
       else
         route_failure(request, response)
@@ -127,13 +121,39 @@ module TextStatsWeb
     private
 
     def authorize_host!(request)
-      host = request["host"].to_s.downcase
-      raise RequestError.new(403, "forbidden host") unless @allowed_hosts.include?(host)
+      authority = parse_http_authority(request["host"].to_s)
+      unless authority && @allowed_hostnames.include?(authority.fetch(0)) && authority.fetch(1) == @port
+        raise RequestError.new(403, "forbidden host")
+      end
+
+      authority
     end
 
-    def authorize_origin!(request)
-      origin = request["origin"].to_s
-      raise RequestError.new(403, "same-origin browser request required") unless @allowed_origins.include?(origin)
+    def authorize_origin!(request, request_origin)
+      origin = parse_http_origin(request["origin"].to_s)
+      unless origin == request_origin
+        raise RequestError.new(403, "same-origin browser request required")
+      end
+    end
+
+    def parse_http_authority(value)
+      uri = URI.parse("http://#{value}")
+      return nil unless uri.scheme == "http" && uri.userinfo.nil? && uri.host &&
+                        uri.path.empty? && uri.query.nil? && uri.fragment.nil?
+
+      [uri.host.downcase, uri.port]
+    rescue URI::InvalidURIError
+      nil
+    end
+
+    def parse_http_origin(value)
+      uri = URI.parse(value)
+      return nil unless uri.scheme == "http" && uri.userinfo.nil? && uri.host &&
+                        uri.path.empty? && uri.query.nil? && uri.fragment.nil?
+
+      [uri.host.downcase, uri.port]
+    rescue URI::InvalidURIError
+      nil
     end
 
     def handle_stats(request, response)
