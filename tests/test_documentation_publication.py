@@ -19,6 +19,7 @@ def test_pages_workflow_targets_only_policy() -> None:
 
     assert workflow.count("branches: [policy]") == 2
     assert "branches: [main]" not in workflow
+    assert "workflow_dispatch" not in workflow
     assert "bootstrap-agent-policy:refs" not in workflow
     assert "TakashiSasaki/agent-policy" not in workflow
     assert "git fetch" not in workflow
