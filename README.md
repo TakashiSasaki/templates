@@ -36,7 +36,7 @@ The bootstrap script may inspect, initialize, or prepare and preview adoption. I
 python -m venv .venv
 . .venv/bin/activate
 pip install -e '.[dev]'
-ruff check src tests scripts
+ruff check src tests scripts skills/bootstrap-agent-policy/scripts
 pytest
 python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
 agent-policy --help
@@ -50,7 +50,7 @@ Completed migration work includes:
 
 - branch-appropriate policy CI;
 - the application-type-independent policy boundary;
-- removal of the former application-specific policy profile and rules;
+- The former built-in `web-application` profile and its application-architecture rules were removed;
 - executable toolchain identity migration to `TakashiSasaki/templates`;
 - consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`.
 
