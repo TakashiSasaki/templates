@@ -31,7 +31,7 @@ def _write_repository(
     (repository / ".agent-policy.yml").write_text(
         f"""schema_version: 1
 toolchain:
-  repository: TakashiSasaki/agent-policy
+  repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
 profiles:
   - core
