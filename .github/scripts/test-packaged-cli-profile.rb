@@ -43,10 +43,13 @@ if actual_files != expected_files
 end
 
 runtime_contract = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "UTF-8")
+install_command = %q{gem install --no-document --install-dir .local/gems --bindir .local/bin ./text-stat-1.0.0.gem}
+posix_activation_command = %q{export GEM_HOME="$PWD/.local/gems"; export GEM_PATH="$GEM_HOME"; export PATH="$PWD/.local/bin:$PATH"; text-stat --help}
+powershell_activation_command = %q{$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help}
 documented_install_commands = [
-  %q{gem install --no-document --install-dir .local/gems --bindir .local/bin ./text-stat-1.0.0.gem},
-  %q{GEM_HOME="$PWD/.local/gems" GEM_PATH="$PWD/.local/gems" PATH="$PWD/.local/bin:$PATH" text-stat --help},
-  %q{$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help}
+  install_command,
+  posix_activation_command,
+  powershell_activation_command
 ].freeze
 
 documented_install_commands.each do |command|
@@ -111,6 +114,17 @@ Dir.mktmpdir("packaged-cli-profile") do |directory|
     )
     unless status.success?
       failures << "packaged-cli install: expected documented local gem install success; stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    end
+
+    stdout, stderr, status = Open3.capture3(
+      "sh",
+      "-c",
+      "#{posix_activation_command}; text-stat --version",
+      chdir: directory
+    )
+    unless status.success? && stderr.empty? && stdout.include?("Usage: text-stat") && stdout.end_with?("1.0.0\n")
+      failures << "packaged-cli activation: expected POSIX exports to persist for a later invocation; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
     end
 
     input = File.join(directory, "input.txt")
@@ -189,7 +203,7 @@ Dir.mktmpdir("invalid-packaged-cli-profile") do |directory|
   Open3.capture3("git", "add", ".", chdir: directory)
   _stdout, stderr, status = Open3.capture3(
     { "RUBYOPT" => nil },
-    RbConfig.ruby,
+    Rbconfig.ruby,
     validator,
     chdir: directory
   )
