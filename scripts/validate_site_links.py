@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import posixpath
 import re
 import sys
 import tomllib
@@ -211,15 +210,35 @@ def _decode_path_without_separators(encoded_path: str) -> str:
     return decoded
 
 
-def normalized_public_path(encoded_path: str) -> str:
-    """Decode URL path segments and normalize dots without decoding separators."""
-    decoded_path = _decode_path_without_separators(encoded_path)
-    normalized = posixpath.normpath(decoded_path)
-    if not normalized.startswith("/"):
+def _remove_dot_segments_preserving_empty(path: str) -> str:
+    """Remove dot segments while preserving repeated slash separators."""
+    segments = path.split("/")
+    normalized_segments: list[str] = []
+    for index, segment in enumerate(segments):
+        if segment == ".":
+            if index == len(segments) - 1:
+                normalized_segments.append("")
+            continue
+        if segment == "..":
+            if normalized_segments and not (
+                len(normalized_segments) == 1 and normalized_segments[0] == ""
+            ):
+                normalized_segments.pop()
+            if index == len(segments) - 1:
+                normalized_segments.append("")
+            continue
+        normalized_segments.append(segment)
+
+    normalized = "/".join(normalized_segments)
+    if path.startswith("/") and not normalized.startswith("/"):
         normalized = "/" + normalized
-    if decoded_path.endswith("/") and normalized != "/":
-        normalized += "/"
-    return normalized
+    return normalized or ("/" if path.startswith("/") else "")
+
+
+def normalized_public_path(encoded_path: str) -> str:
+    """Decode URL path segments and remove dots without collapsing empty segments."""
+    decoded_path = _decode_path_without_separators(encoded_path)
+    return _remove_dot_segments_preserving_empty(decoded_path)
 
 
 def parse_page(path: Path, site_root: Path, base_url: str) -> HtmlPage:
@@ -254,6 +273,12 @@ def local_asset_path(site_root: Path, base_path: str, public_path: str) -> Path 
         relative = public_path[len(base_path) :]
     else:
         return None
+
+    if relative:
+        segments = relative.split("/")
+        material_segments = segments[:-1] if relative.endswith("/") else segments
+        if any(segment == "" for segment in material_segments):
+            return None
 
     candidate = site_root.joinpath(*PurePosixPath(relative).parts).resolve()
     try:
