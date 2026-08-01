@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "toolchain": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "270645381849431b922bee87afecedc540e52ed1"
+  },
+  "entrypoint": {
+    "executable": "agent-policy"
+  },
+  "routes": {
+    "inspect": ["adopt", "inspect"],
+    "init": ["init"],
+    "adopt_prepare": ["adopt", "prepare"],
+    "adopt_preview": ["adopt", "preview"],
+    "validate": ["validate"],
+    "check": ["check"]
+  }
+}

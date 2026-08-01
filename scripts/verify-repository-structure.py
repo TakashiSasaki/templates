@@ -10,11 +10,7 @@ from pathlib import Path
 
 DOCUMENT_PATH = Path("docs/repository-structure.md")
 MANIFEST_PATH = Path("docs/generated/repository-preview/index.json")
-REMOTE_BOOTSTRAP_REF = "refs/remotes/origin/bootstrap-agent-policy"
-BRANCH_REFS = {
-    "main": "HEAD",
-    "bootstrap-agent-policy": REMOTE_BOOTSTRAP_REF,
-}
+BRANCH_REFS = {"policy": "HEAD"}
 
 
 def tracked_paths(ref: str) -> list[str]:

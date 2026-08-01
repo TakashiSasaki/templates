@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/agent-policy/schemas/agent-policy.schema.json",
+  "$id": "https://github.com/TakashiSasaki/templates/schemas/agent-policy.schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -24,7 +24,7 @@
       ],
       "properties": {
         "repository": {
-          "const": "TakashiSasaki/agent-policy"
+          "const": "TakashiSasaki/templates"
         },
         "revision": {
           "type": "string",

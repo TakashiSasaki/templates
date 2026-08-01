@@ -10,6 +10,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from .config import package_root
+from .identity import TOOLCHAIN_REPOSITORY
 from .paths import UnsafePathError, resolve_inside
 from .renderer import GENERATED_MARKER
 
@@ -230,7 +231,7 @@ def build_adoption_state(
         "schema_version": 1,
         "status": "prepared",
         "toolchain": {
-            "repository": "TakashiSasaki/agent-policy",
+            "repository": TOOLCHAIN_REPOSITORY,
             "revision": toolchain_revision,
         },
         "config_path": config_path,
