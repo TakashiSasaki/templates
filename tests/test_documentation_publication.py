@@ -48,6 +48,13 @@ def test_documentation_build_remains_enabled_but_pages_deployment_is_disabled() 
     assert "actions/configure-pages@" not in workflow
 
 
+def test_documentation_build_uses_the_validated_runner_release() -> None:
+    workflow = workflow_text()
+
+    assert workflow.count("runs-on: ubuntu-24.04") == 2
+    assert "runs-on: ubuntu-latest" not in workflow
+
+
 def test_documentation_build_is_reproducible_and_strict() -> None:
     workflow = workflow_text()
 
