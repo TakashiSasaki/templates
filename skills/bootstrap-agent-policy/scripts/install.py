@@ -8,6 +8,14 @@ from pathlib import Path
 EXPECTED_SKILL_NAME = "bootstrap-agent-policy"
 
 
+def skill_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
+
+
 def read_front_matter_name(marker: Path) -> str | None:
     try:
         lines = marker.read_text(encoding="utf-8").splitlines()
@@ -43,8 +51,10 @@ def main() -> int:
     parser.add_argument("target", type=Path, help="Destination skill directory")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
-    source = Path(__file__).resolve().parents[1]
+    source = skill_root().resolve()
     target = args.target.expanduser().resolve()
+    if paths_overlap(source, target):
+        parser.error("source and target skill directories must not overlap")
     if target.exists():
         if not args.replace:
             parser.error(f"target already exists: {target}")
