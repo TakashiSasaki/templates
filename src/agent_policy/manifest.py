@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .identity import TOOLCHAIN_REPOSITORY
+
 
 def build_manifest(
     *,
@@ -17,7 +19,7 @@ def build_manifest(
     manifest: dict[str, object] = {
         "schema_version": 1,
         "toolchain": {
-            "repository": "TakashiSasaki/agent-policy",
+            "repository": TOOLCHAIN_REPOSITORY,
             "revision": toolchain_revision,
         },
         "profiles": list(profiles),
