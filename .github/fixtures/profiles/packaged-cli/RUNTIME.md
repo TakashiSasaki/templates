@@ -25,19 +25,27 @@ Run all repository-local commands from the repository root.
 
 | Purpose | Exact command |
 |---|---|
-| Install development dependencies | bundle install |
-| Run in place | ruby bin/text-stat --help |
-| Agent launcher | ruby bin/text-stat |
-| Test | ruby tests/test_text_stat.rb |
-| Lint/static analysis | ruby -c src/text_stat.rb && ruby -c bin/text-stat |
-| Format check | ruby -c src/text_stat.rb && ruby -c bin/text-stat |
-| Build/package | gem build text-stat.gemspec |
+| Install development dependencies | `bundle install` |
+| Run in place | `ruby bin/text-stat --help` |
+| Agent launcher | `ruby bin/text-stat` |
+| Test | `ruby tests/test_text_stat.rb` |
+| Lint/static analysis | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` |
+| Format check | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` |
+| Build/package | `gem build text-stat.gemspec` |
+| Install packaged command locally | `gem install --no-document --install-dir .local/gems --bindir .local/bin ./text-stat-1.0.0.gem` |
+
+The local installation keeps the gem and executable inside the repository working tree. Activate those paths before invoking the preferred installed interface.
+
+| Shell | Exact command |
+|---|---|
+| POSIX shell | `GEM_HOME="$PWD/.local/gems" GEM_PATH="$PWD/.local/gems" PATH="$PWD/.local/bin:$PATH" text-stat --help` |
+| PowerShell | `$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help` |
 
 ### Packaged CLI commands
 
 | Purpose | Exact command |
 |---|---|
-| Human CLI | text-stat |
+| Human CLI | `text-stat` |
 
 ## Distribution
 
@@ -54,7 +62,11 @@ Run all repository-local commands from the repository root.
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
-| NONE | NO | The command requires no environment configuration | NO |
+| `GEM_HOME` | Only for the repository-local packaged installation | Locate the locally installed gem | NO |
+| `GEM_PATH` | Only for the repository-local packaged installation | Restrict gem lookup to the local installation | NO |
+| `PATH` | Only for the repository-local packaged installation | Make `.local/bin/text-stat` available as `text-stat` | NO |
+
+No application-specific environment configuration is required.
 
 ## Decision rationale
 
