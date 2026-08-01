@@ -17,7 +17,7 @@ from agent_policy.identity import (
     FULL_COMMIT_SHA,
     TOOLCHAIN_BRANCH,
     TOOLCHAIN_REPOSITORY,
-    toolchain_reference,
+    immutable_toolchain_reference,
 )
 from agent_policy.lockfile import create_lock
 from agent_policy.manifest import build_manifest
@@ -107,7 +107,7 @@ def verify_static_state() -> str:
     revision = toolchain.get("revision")
     if not isinstance(revision, str) or FULL_COMMIT_SHA.fullmatch(revision) is None:
         raise ValueError("Stable release revision must be a full lowercase commit SHA")
-    if toolchain != toolchain_reference(revision, allow_local_development=False):
+    if toolchain != immutable_toolchain_reference(revision):
         raise ValueError("Stable release toolchain identity is inconsistent")
     if bootstrap.get("toolchain") != toolchain:
         raise ValueError("Bootstrap manifest and stable release pin differ")
