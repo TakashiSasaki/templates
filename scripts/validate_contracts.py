@@ -23,6 +23,7 @@ __all__ = (
     "NonStandardJsonConstantError",
     "load_json",
     "load_contract_manifest",
+    "validate_contract_manifest",
     "registry_from_manifest",
     "load_contract_registry",
     "load_contract_documents",
