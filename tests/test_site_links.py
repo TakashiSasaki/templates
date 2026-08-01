@@ -242,6 +242,41 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
+    def test_removes_embedded_ascii_whitespace_before_url_parsing(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https://exa\nmple.test/docs/absent/">Absent</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_rejects_expanded_ipv6_same_origin_hostname_when_missing(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://[::1]/docs/"\n',
+            encoding="utf-8",
+        )
+        self.write(
+            "index.html",
+            '<a href="https://[0:0:0:0:0:0:0:1]/docs/absent/">Absent</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_uses_nontransitional_idna_for_same_origin_hostname(self) -> None:
+        self.config_file.write_text(
+            '[project]\nsite_url = "https://xn--fa-hia.de/docs/"\n',
+            encoding="utf-8",
+        )
+        self.write(
+            "index.html",
+            '<a href="https://faß.de/docs/absent/">Absent</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
     def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:
         self.write("index.html", '<a href="https://example.test:0/docs/absent/">Different port</a>')
         result = self.run_validator()

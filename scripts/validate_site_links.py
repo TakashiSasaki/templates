@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import re
 import sys
 import tomllib
+import unicodedata
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
@@ -145,10 +147,28 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
     except ValueError as exc:
         raise SiteLinkError(f"{description} contains an invalid port") from exc
     try:
-        canonical_hostname = unquote(hostname).encode("idna").decode("ascii").lower()
-    except UnicodeError as exc:
+        decoded_hostname = unquote(hostname)
+        normalized_hostname = unicodedata.normalize("NFKC", decoded_hostname).lower()
+        normalized_hostname = normalized_hostname.translate(
+            str.maketrans({"\u3002": ".", "\uff0e": ".", "\uff61": "."})
+        )
+        labels = normalized_hostname.split(".")
+        canonical_labels = [
+            label
+            if label.isascii()
+            else "xn--" + label.encode("punycode").decode("ascii")
+            for label in labels
+        ]
+        canonical_hostname = ".".join(canonical_labels)
+    except (UnicodeError, ValueError) as exc:
         raise SiteLinkError(f"{description} contains an invalid hostname") from exc
-    canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname
+    try:
+        if ":" in canonical_hostname:
+            canonical_hostname = ipaddress.IPv6Address(canonical_hostname).compressed
+        else:
+            canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname
+    except ipaddress.AddressValueError as exc:
+        raise SiteLinkError(f"{description} contains an invalid hostname") from exc
     effective_port = (
         explicit_port
         if explicit_port is not None
@@ -205,6 +225,14 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
 _ASCII_URL_WHITESPACE = " \t\r\n\f"
+_EMBEDDED_ASCII_URL_WHITESPACE = str.maketrans("", "", "\t\r\n")
+
+
+def preprocess_url_input(raw_url: str) -> str:
+    """Apply browser URL whitespace preprocessing without removing Unicode space."""
+    return raw_url.strip(_ASCII_URL_WHITESPACE).translate(
+        _EMBEDDED_ASCII_URL_WHITESPACE
+    )
 
 
 def normalize_special_url_backslashes(raw_url: str) -> str:
@@ -420,7 +448,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     checked_links = 0
     for source in pages:
         for reference in source.links:
-            raw = reference.href.strip(_ASCII_URL_WHITESPACE)
+            raw = preprocess_url_input(reference.href)
             normalized_raw = normalize_special_url_backslashes(raw)
             raw_parts = urlsplit(normalized_raw)
             if raw_parts.scheme and raw_parts.scheme.lower() not in {"http", "https"}:
