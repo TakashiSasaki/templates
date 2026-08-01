@@ -65,8 +65,10 @@ The bootstrap skill is not a runtime dependency of the managed product repositor
 
 ## Integrated trust boundary
 
-Sharing the `policy` history does not make the bootstrap script execute the branch tip. `skills/bootstrap-agent-policy/bootstrap-manifest.yml` pins `TakashiSasaki/templates` at the full revision `270645381849431b922bee87afecedc540e52ed1`. That revision contains the migrated toolchain identity and precedes the commit that adds the bootstrap package, avoiding a self-referential pin.
+Sharing the `policy` history does not make the bootstrap script execute the branch tip. The `toolchain` object in `skills/bootstrap-agent-policy/bootstrap-manifest.yml` must exactly match the stable descriptor in `release/toolchain.json`. That descriptor identifies a reviewed full commit SHA that is a strict ancestor of the later promotion state, avoiding a self-referential pin.
 
-Changing the pinned SHA, repository, route declarations, skill instructions, orchestration script, installer, or bootstrap tests is a trust-anchor change and is reviewed independently from ordinary policy text changes.
+The specific stable SHA is intentionally not repeated in this document. `release/toolchain.json` is the source of truth, and Policy CI verifies its synchronization with the bootstrap manifest, pinned contracts, dependency environment, and Git ancestry.
+
+Changing the stable descriptor, bootstrap repository, route declarations, skill instructions, orchestration script, installer, or bootstrap tests is a trust-anchor change and is reviewed independently from ordinary policy text changes.
 
 The manifest uses a full commit SHA rather than `policy`, `main`, a tag, a short SHA, or another mutable reference. Initialization and adoption use the same executable toolchain and differ only in repository state and the safe transition explicitly selected by the user.
