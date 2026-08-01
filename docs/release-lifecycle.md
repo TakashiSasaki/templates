@@ -29,7 +29,7 @@ A rollback uses the same mechanism and points both files to an earlier reviewed 
 
 ## Verification
 
-`python scripts/verify-release-state.py` checks the repository-local contracts. Policy CI additionally supplies the fetched PR-head or `policy` source history:
+`python scripts/verify-release-state.py` checks the repository-local contracts. Policy CI additionally supplies the fetched pull-request head or current pushed-ref history:
 
 ```bash
 python scripts/verify-release-state.py \
@@ -47,7 +47,7 @@ The verifier requires:
 - the executable package, action, schemas, and workflow template at the pinned revision;
 - `TakashiSasaki/templates` and branch `policy` identity in the pinned revision.
 
-CI fetches only the current pull-request head history or the `policy` history for this check. It does not fetch `main`, `site`, or `webapp`.
+For a pull request, CI fetches the pull-request head. For a push, it fetches the current `github.ref`, allowing a candidate or promotion branch to validate its own ancestry before review. The workflow contains no fixed fetch of `main`, `site`, or `webapp`.
 
 ## Consumer update boundary
 
