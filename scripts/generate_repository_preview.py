@@ -16,12 +16,8 @@ from pygments.lexers.special import TextLexer
 from pygments.token import STANDARD_TYPES
 from pygments.util import ClassNotFound
 
-REPOSITORY = "TakashiSasaki/agent-policy"
-REMOTE_BOOTSTRAP_REF = "refs/remotes/origin/bootstrap-agent-policy"
-BRANCH_REFS = {
-    "main": "HEAD",
-    "bootstrap-agent-policy": REMOTE_BOOTSTRAP_REF,
-}
+REPOSITORY = "TakashiSasaki/templates"
+BRANCH_REFS = {"policy": "HEAD"}
 DEFAULT_OUTPUT = Path("docs/generated/repository-preview")
 MAX_PREVIEW_BYTES = 512 * 1024
 RASTER_MIME_TYPES = {"image/gif", "image/jpeg", "image/png", "image/webp"}
