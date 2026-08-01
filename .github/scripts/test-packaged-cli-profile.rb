@@ -144,6 +144,24 @@ Dir.mktmpdir("packaged-cli-profile") do |directory|
       failures << "packaged-cli installed command: expected invalid UTF-8 rejection; " \
                   "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
     end
+
+    if File.writable?("/dev/full")
+      diagnostic = File.join(directory, "output-write-error.txt")
+      process = Process.spawn(
+        environment,
+        command,
+        input,
+        out: "/dev/full",
+        err: diagnostic,
+        chdir: directory
+      )
+      _pid, status = Process.wait2(process)
+      stderr = File.read(diagnostic)
+      unless status.exitstatus == 5 && stderr.start_with?("unable to write output: ")
+        failures << "packaged-cli installed command: expected output write failure; " \
+                    "status=#{status.exitstatus.inspect}, stderr=#{stderr.inspect}"
+      end
+    end
   end
 end
 
