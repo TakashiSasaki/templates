@@ -33,7 +33,9 @@ agent-policy --help
 
 The authoritative development location is `TakashiSasaki/templates` branch `policy`. The branch was imported from `TakashiSasaki/agent-policy` while preserving the non-workflow source history; see `docs/migration-from-agent-policy.md` for the exact source revision and import boundary.
 
-The former `bootstrap-agent-policy` branch has not yet been consolidated into this branch. Bootstrap migration, application-specific policy removal, consumer updates, documentation deployment, and archival of the former repository are separate follow-up changes.
+Branch-appropriate CI and the application-type-independent policy boundary are established. The former built-in `web-application` profile and its application-architecture rules have been removed from the shared corpus.
+
+The former `bootstrap-agent-policy` branch has not yet been consolidated into this branch. Bootstrap migration, consumer updates, documentation deployment, and archival of the former repository remain separate follow-up changes.
 
 ## Trust model
 
