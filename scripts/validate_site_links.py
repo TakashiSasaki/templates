@@ -181,6 +181,10 @@ def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bo
     scheme = raw_parts.scheme.lower()
     authored_local = not raw_parts.scheme and not raw_parts.netloc
 
+    if not scheme and normalized_raw.startswith("///"):
+        authority_reference = "//" + normalized_raw.lstrip("/")
+        return urlsplit(urljoin(base_url, authority_reference)), False
+
     if scheme not in {"http", "https"}:
         return urlsplit(urljoin(base_url, normalized_raw)), authored_local
 
