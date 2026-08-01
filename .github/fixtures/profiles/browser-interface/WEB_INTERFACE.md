@@ -66,7 +66,7 @@ Sensitive argument masking: submitted text is never written to diagnostics or re
 Sensitive result masking: only aggregate integer counts are returned and displayed
 Audit logging: stderr records method, path, status, startup, and shutdown without headers or bodies
 
-`POST /api/text-stats` accepts only `application/json`, requires an exact same-origin `Origin`, and accepts exactly one string field named `text`. Request bodies are consumed incrementally with a 65536-byte upper bound for both Content-Length and chunked transfer; an oversized request receives HTTP 413 with connection closure before additional protocol messages are accepted. Cross-origin requests receive HTTP 403. Invalid encoding, JSON, media type, or schema receives a bounded 4xx response. No CORS permission header is emitted.
+`POST /api/text-stats` accepts only `application/json`, requires the normalized `Origin` scheme/host/port tuple to equal the validated request Host authority, and accepts exactly one string field named `text`. The separately allowed `127.0.0.1` and `localhost` aliases are not interchangeable within one request because they are distinct Web origins. Request bodies are consumed incrementally with a 65536-byte upper bound for both Content-Length and chunked transfer; an oversized request receives HTTP 413 with connection closure before additional protocol messages are accepted. Cross-origin requests receive HTTP 403. Invalid encoding, JSON, media type, or schema receives a bounded 4xx response. No CORS permission header is emitted.
 
 Every response sets no-store caching, content-type sniffing protection, frame denial, no-referrer policy, and a Content Security Policy that permits only same-origin script, style, and API connections.
 
@@ -91,7 +91,7 @@ The fixture tests establish:
 - disabled-by-default startup and explicit enablement;
 - rejection of non-loopback bind configuration;
 - UI, asset, API, health, 404, and method routing;
-- Host and same-origin enforcement;
+- Host validation and Host-bound same-origin enforcement, including rejection of mixed loopback aliases;
 - restrictive browser security headers;
 - deterministic versioned success output without text echo;
 - media-type, encoding, JSON, schema, Content-Length size, and chunked-transfer size failures;
