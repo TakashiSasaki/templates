@@ -223,6 +223,7 @@ module TextStatsService
     CONFIGURATION_EXIT = 78
     HEALTH_DEADLINE_SECONDS = 2
     HEALTH_RESPONSE_MAX_BYTES = 4096
+    PID_RECORD_MAX_BYTES = 4096
     PID_RECORD_KEYS = %w[pid startTicks].freeze
 
     def self.run(argv, env: ENV, stdout: $stdout, stderr: $stderr)
@@ -444,17 +445,35 @@ module TextStatsService
     end
 
     def self.read_pid_record(path)
-      if File.symlink?(path) || !File.file?(path)
-        raise ConfigurationError, "Headless service PID file must be a regular non-symlink file: #{path}"
+      serialized = File.open(path, File::RDONLY | File::NOFOLLOW) do |file|
+        stat = file.stat
+        unless stat.file?
+          raise ConfigurationError, "Headless service PID file must be a regular non-symlink file: #{path}"
+        end
+        unless stat.uid == Process.euid
+          raise ConfigurationError, "Headless service PID file must be owned by the service user: #{path}"
+        end
+        mode = stat.mode & 0o777
+        unless mode == 0o600
+          raise ConfigurationError, "Headless service PID file must have mode 0600: #{path}"
+        end
+
+        contents = file.read(PID_RECORD_MAX_BYTES + 1).to_s
+        if contents.bytesize > PID_RECORD_MAX_BYTES
+          raise ConfigurationError, "Headless service PID file exceeds #{PID_RECORD_MAX_BYTES} bytes: #{path}"
+        end
+        contents
       end
 
-      payload = JSON.parse(File.read(path, encoding: "UTF-8"))
+      payload = JSON.parse(serialized)
       unless payload.is_a?(Hash) && payload.keys.sort == PID_RECORD_KEYS.sort &&
              payload["pid"].is_a?(Integer) && payload["pid"].positive? &&
              payload["startTicks"].is_a?(String) && /\A\d+\z/.match?(payload["startTicks"])
         raise ConfigurationError, "Headless service PID file is invalid: #{path}"
       end
       payload
+    rescue Errno::ELOOP
+      raise ConfigurationError, "Headless service PID file must be a regular non-symlink file: #{path}"
     rescue JSON::ParserError, EncodingError, SystemCallError
       raise ConfigurationError, "Headless service PID file is invalid: #{path}"
     end
