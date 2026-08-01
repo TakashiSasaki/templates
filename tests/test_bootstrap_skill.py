@@ -325,3 +325,27 @@ def test_installer_rejects_source_target_overlap(
         assert target.is_dir()
     if relation == "descendant":
         assert not target.exists()
+
+
+@pytest.mark.parametrize("module", [installer, uninstaller])
+def test_destructive_commands_reject_symlink_targets(
+    module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    referent = tmp_path / "shared-skill"
+    write_bootstrap_marker(referent)
+    target = tmp_path / "skill-link"
+    target.symlink_to(referent, target_is_directory=True)
+    arguments = ["install.py", str(target), "--replace"]
+    if module is uninstaller:
+        arguments = ["uninstall.py", str(target)]
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    with pytest.raises(SystemExit) as exc_info:
+        module.main()
+
+    assert exc_info.value.code == 2
+    assert target.is_symlink()
+    assert referent.is_dir()
+    assert (referent / "SKILL.md").is_file()
