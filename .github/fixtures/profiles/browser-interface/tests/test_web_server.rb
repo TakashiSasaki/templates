@@ -65,6 +65,25 @@ class TextStatsWebServerTest < Minitest::Test
       http.request(request)
     end
 
+    def raw_chunked_post(path, chunks:, origin:)
+      socket = TCPSocket.new("127.0.0.1", @port)
+      body = chunks.map { |chunk| "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" }.join + "0\r\n\r\n"
+      request = <<~HTTP.gsub("\n", "\r\n")
+        POST #{path} HTTP/1.1
+        Host: 127.0.0.1:#{@port}
+        Origin: #{origin}
+        Content-Type: application/json
+        Transfer-Encoding: chunked
+        Connection: close
+        
+      HTTP
+      socket.write(request + body)
+      socket.close_write
+      socket.read
+    ensure
+      socket&.close
+    end
+
     def health_command
       Open3.capture3(@command_env, *COMMAND, "--health", chdir: ROOT)
     end
@@ -269,6 +288,14 @@ class TextStatsWebServerTest < Minitest::Test
       origin: session.base_url
     )
     assert_equal "413", oversized.code
+    assert_equal "close", oversized["connection"]
+
+    chunked = session.raw_chunked_post(
+      "/api/text-stats",
+      chunks: ["x" * 32_768, "x" * 32_768, "x"],
+      origin: session.base_url
+    )
+    assert_match(/\AHTTP\/1\.[01] 413 /, chunked)
 
     health = session.request("GET", "/healthz")
     assert_equal "200", health.code

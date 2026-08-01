@@ -86,8 +86,13 @@ module TextStatsWeb
     def initialize(port:, diagnostic: $stderr)
       @port = port
       @diagnostic = diagnostic
-      @allowed_hosts = ["127.0.0.1:#{port}", "localhost:#{port}"].freeze
-      @allowed_origins = @allowed_hosts.map { |host| "http://#{host}" }.freeze
+      hostnames = %w[127.0.0.1 localhost]
+      @allowed_hosts = hostnames.flat_map do |hostname|
+        port == 80 ? [hostname, "#{hostname}:80"] : ["#{hostname}:#{port}"]
+      end.freeze
+      @allowed_origins = hostnames.flat_map do |hostname|
+        port == 80 ? ["http://#{hostname}", "http://#{hostname}:80"] : ["http://#{hostname}:#{port}"]
+      end.freeze
     end
 
     def service(request, response)
@@ -110,6 +115,7 @@ module TextStatsWeb
         route_failure(request, response)
       end
     rescue RequestError => error
+      response["Connection"] = "close" if error.status == 413
       respond_json(response, error.status, "ok" => false, "error" => error.message)
     rescue StandardError => error
       @diagnostic.puts("web request failed: #{error.class}: #{error.message}")
@@ -134,9 +140,7 @@ module TextStatsWeb
       content_type = request["content-type"].to_s.split(";", 2).first.to_s.strip.downcase
       raise RequestError.new(415, "application/json is required") unless content_type == "application/json"
 
-      body = request.body.to_s.b
-      raise RequestError.new(413, "request body exceeds 65536 bytes") if body.bytesize > MAX_BODY_BYTES
-
+      body = read_bounded_body(request)
       body.force_encoding(Encoding::UTF_8)
       raise RequestError.new(400, "request body is not valid UTF-8") unless body.valid_encoding?
 
@@ -157,6 +161,23 @@ module TextStatsWeb
         "ok" => true,
         "result" => TextStatsWeb.analyze(payload.fetch("text"))
       )
+    end
+
+    def read_bounded_body(request)
+      content_length = request["content-length"]
+      if content_length && /\A\d+\z/.match?(content_length) && content_length.to_i > MAX_BODY_BYTES
+        raise RequestError.new(413, "request body exceeds 65536 bytes")
+      end
+
+      body = +"".b
+      request.body do |chunk|
+        if body.bytesize + chunk.bytesize > MAX_BODY_BYTES
+          raise RequestError.new(413, "request body exceeds 65536 bytes")
+        end
+
+        body << chunk
+      end
+      body
     end
 
     def route_failure(request, response)
@@ -261,14 +282,14 @@ module TextStatsWeb
       stderr.puts("text-stats web ready http://#{configuration.fetch(:bind)}:#{actual_port}/")
       server.start
       0
-    rescue Errno::EADDRINUSE => error
+    rescue SystemCallError => error
       stderr.puts("unable to start Web UI: #{error.message}")
       1
     ensure
       if defined?(pid_file) && pid_file && defined?(pid_record) && pid_record
         begin
           File.delete(pid_file) if read_pid_record(pid_file) == pid_record
-        rescue ConfigurationError, Errno::ENOENT
+        rescue ConfigurationError, SystemCallError
           nil
         end
       end
@@ -342,6 +363,8 @@ module TextStatsWeb
       end
     rescue Errno::EEXIST
       raise ConfigurationError, "Web UI PID file already exists: #{path}"
+    rescue SystemCallError => error
+      raise ConfigurationError, "unable to create Web UI PID file #{path}: #{error.message}"
     end
 
     def self.read_pid_record(path)
@@ -357,7 +380,7 @@ module TextStatsWeb
       end
 
       payload
-    rescue JSON::ParserError, EncodingError, Errno::ENOENT
+    rescue JSON::ParserError, EncodingError, SystemCallError
       raise ConfigurationError, "Web UI PID file is invalid: #{path}"
     end
 
@@ -369,7 +392,7 @@ module TextStatsWeb
       fields = stat[(closing_parenthesis + 2)..].to_s.split
       start_ticks = fields[19]
       /\A\d+\z/.match?(start_ticks.to_s) ? start_ticks : nil
-    rescue Errno::ENOENT, Errno::EACCES, EncodingError
+    rescue SystemCallError, EncodingError
       nil
     end
 
