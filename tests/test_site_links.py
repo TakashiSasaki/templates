@@ -171,6 +171,22 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 1 local links across 1 generated HTML pages", result.stdout)
 
+    def test_preserves_first_duplicate_href_attribute(self) -> None:
+        self.write("index.html", '<a href="missing/" href="present/">Duplicate</a>')
+        self.write("present/index.html", "<p>Present</p>")
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("'missing/' has no generated target", result.stderr)
+
+    def test_preserves_first_duplicate_id_attribute(self) -> None:
+        self.write(
+            "index.html",
+            '<h2 id="present" id="missing">Heading</h2><a href="#missing">Missing</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("references missing fragment 'missing'", result.stderr)
+
     def test_rejects_missing_generated_target(self) -> None:
         self.write("index.html", '<a href="missing/">Missing</a>')
         result = self.run_validator()
@@ -251,6 +267,12 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("has no generated target", result.stderr)
 
+    def test_trims_complete_c0_control_range_at_url_boundaries(self) -> None:
+        self.write("index.html", '<a href="\x0bhttps://other.example/path">External</a>')
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
+
     def test_rejects_expanded_ipv6_same_origin_hostname_when_missing(self) -> None:
         self.config_file.write_text(
             '[project]\nsite_url = "https://[::1]/docs/"\n',
@@ -272,6 +294,15 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.write(
             "index.html",
             '<a href="https://faß.de/docs/absent/">Absent</a>',
+        )
+        result = self.run_validator()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
+    def test_applies_uts46_ignored_codepoint_mapping(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https://ex\u00adample.test/docs/absent/">Absent</a>',
         )
         result = self.run_validator()
         self.assertEqual(result.returncode, 1)
