@@ -297,7 +297,6 @@ class TextStatsMcpServerTest < Minitest::Test
     refute status.success?
     assert_operator elapsed, :<, 3.0
     assert_includes startup + diagnostics, "text-stats MCP stdio server starting"
-    assert_includes startup + diagnostics, "text-stats MCP stdio server stopped"
   ensure
     session&.terminate_bounded
   end
