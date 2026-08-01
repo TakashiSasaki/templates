@@ -42,7 +42,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Uninstall the bootstrap-agent-policy skill")
     parser.add_argument("target", type=Path)
     args = parser.parse_args()
-    target = args.target.expanduser().resolve()
+    target = args.target.expanduser().absolute()
+    if target.is_symlink():
+        parser.error("target skill directory must not be a symbolic link")
     if not is_bootstrap_skill_directory(target):
         parser.error("target is not a bootstrap-agent-policy skill directory")
     shutil.rmtree(target)
