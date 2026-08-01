@@ -22,7 +22,7 @@ Body.
     (tmp_path / ".agent-policy.yml").write_text(
         """schema_version: 1
 toolchain:
-  repository: TakashiSasaki/agent-policy
+  repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
 profiles:
   - core
