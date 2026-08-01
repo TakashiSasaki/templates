@@ -28,10 +28,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements-docs.txt
+          cache-dependency-path: requirements-docs.lock
 
       - name: Install documentation dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-docs.txt
+        run: python -m pip install --disable-pip-version-check -r requirements-docs.lock
 
       - name: Generate repository file previews
         run: python scripts/generate_repository_preview.py
