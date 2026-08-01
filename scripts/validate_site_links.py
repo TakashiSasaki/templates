@@ -147,7 +147,7 @@ def _canonical_domain(hostname: str) -> str:
         if label.isascii():
             labels.append(label.lower())
         else:
-            labels.append(idna.alabel(label).decode("ascii").lower())
+            labels.append("xn--" + label.encode("punycode").decode("ascii").lower())
     return ".".join(labels)
 
 
@@ -194,7 +194,7 @@ def load_site_url(config_file: Path) -> str:
     if parts.query or parts.fragment:
         raise SiteLinkError("project.site_url must not contain a query or fragment")
 
-    path = _decode_path_without_separators(parts.path or "/")
+    path = _decode_base_path_without_delimiters(parts.path or "/")
     if not path.startswith("/"):
         raise SiteLinkError("project.site_url must contain an absolute URL path")
     if not path.endswith("/"):
@@ -223,6 +223,7 @@ def aliases_for_page(relative_path: PurePosixPath, base_path: str) -> tuple[str,
 
 
 _ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.IGNORECASE)
+_ENCODED_BASE_PATH_DELIMITER = re.compile(r"%(?:2f|5c|3f|23)", re.IGNORECASE)
 _SCHEME_PREFIX = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*):")
 _C0_CONTROL_OR_SPACE = "".join(chr(value) for value in range(0x21))
 _EMBEDDED_ASCII_URL_WHITESPACE = str.maketrans("", "", "\t\r\n")
@@ -316,18 +317,29 @@ def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bo
     ), True
 
 
-def _decode_path_without_separators(encoded_path: str) -> str:
-    """Decode percent escapes while keeping encoded slash and backslash in-segment."""
+def _decode_path_preserving(
+    encoded_path: str, protected_pattern: re.Pattern[str]
+) -> str:
     protected: list[str] = []
 
-    def preserve_separator(match: re.Match[str]) -> str:
+    def preserve_delimiter(match: re.Match[str]) -> str:
         protected.append(match.group(0).upper())
         return f"\ue000{len(protected) - 1}\ue001"
 
-    decoded = unquote(_ENCODED_PATH_SEPARATOR.sub(preserve_separator, encoded_path))
+    decoded = unquote(protected_pattern.sub(preserve_delimiter, encoded_path))
     for index, value in enumerate(protected):
         decoded = decoded.replace(f"\ue000{index}\ue001", value)
     return decoded
+
+
+def _decode_path_without_separators(encoded_path: str) -> str:
+    """Decode percent escapes while keeping encoded slash and backslash in-segment."""
+    return _decode_path_preserving(encoded_path, _ENCODED_PATH_SEPARATOR)
+
+
+def _decode_base_path_without_delimiters(encoded_path: str) -> str:
+    """Decode safe base-path escapes while preserving URL syntax delimiters."""
+    return _decode_path_preserving(encoded_path, _ENCODED_BASE_PATH_DELIMITER)
 
 
 def _remove_dot_segments_preserving_empty(path: str) -> str:
