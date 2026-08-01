@@ -17,7 +17,7 @@ Mode selector: --output json
 Format: JSON
 Contract version field: contractVersion
 
-The JSON object contains `contractVersion`, `ok`, and `result`. Additive result fields are backward compatible within contract version `1`.
+The JSON object contains `contractVersion`, `ok`, and `result`. Additive result fields are backward compatible within contract version `1` and consumers must ignore fields they do not recognize.
 
 ### Exit codes
 
@@ -55,7 +55,7 @@ Structured contract version source: The `TextStat::CONTRACT_VERSION` constant an
 
 ## Semantic-equivalence and test requirements
 
-The installed executable and in-place launcher must return identical counts, JSON fields, diagnostics, and exit codes. Tests cover help, version reporting, human output, structured output, invalid encoding, missing input, package build, and installed-command execution.
+The installed executable and in-place launcher must return identical counts, JSON fields, diagnostics, and exit codes. Tests cover help, version reporting, human output, structured output, additive result-field compatibility, invalid encoding, missing input, package build, and installed-command execution.
 
 ## Decision rationale
 
