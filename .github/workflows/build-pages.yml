@@ -26,76 +26,13 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: documentation-${{ inputs.deploy == true && 'deployment' || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  patch-review-tests:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'site-generated-link-validation'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out review branch
-        uses: actions/checkout@v7
-        with:
-          ref: site-generated-link-validation
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-
-      - name: Add focused regression tests
-        run: |
-          if grep -q 'test_accepts_external_mixed_unicode_non_std3_hostname' tests/test_site_links.py; then
-            exit 0
-          fi
-
-          python - <<'PY'
-          from pathlib import Path
-
-          tests_path = Path('tests/test_site_links.py')
-          tests = tests_path.read_text(encoding='utf-8')
-          marker = '    def test_treats_explicit_zero_port_as_a_distinct_origin(self) -> None:'
-          additions = r'''    def test_accepts_external_mixed_unicode_non_std3_hostname(self) -> None:
-        self.write(
-            "index.html",
-            '<a href="https://é_test.example/path">External</a>',
-        )
-        result = self.run_validator()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
-
-    def test_preserves_encoded_query_and_fragment_delimiters_in_base_path(self) -> None:
-        self.config_file.write_text(
-            '[project]\nsite_url = "https://example.test/do%3Fcs%23part/"\n',
-            encoding="utf-8",
-        )
-        self.write("index.html", '<a href="present/">Present</a>')
-        self.write("present/index.html", "<p>Present</p>")
-        result = self.run_validator()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Validated 1 local links across 2 generated HTML pages", result.stdout)
-
-'''
-          if marker not in tests:
-              raise SystemExit('test insertion marker not found')
-          tests = tests.replace(marker, additions + marker)
-          tests_path.write_text(tests, encoding='utf-8')
-          PY
-
-          python -m pip install --requirement requirements.txt
-          python -m unittest discover --start-directory tests --verbose
-
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add tests/test_site_links.py
-          git commit -m 'Add mixed IDNA and encoded-delimiter regressions'
-          git push origin HEAD:site-generated-link-validation
-
   build:
     if: github.repository == 'TakashiSasaki/templates'
     runs-on: ubuntu-latest
