@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import tempfile
 from pathlib import Path
 
 EXPECTED_SKILL_NAME = "bootstrap-agent-policy"
@@ -43,7 +44,47 @@ def read_front_matter_name(marker: Path) -> str | None:
 
 def is_bootstrap_skill_directory(target: Path) -> bool:
     marker = target / "SKILL.md"
-    return marker.is_file() and read_front_matter_name(marker) == EXPECTED_SKILL_NAME
+    return (
+        not marker.is_symlink()
+        and marker.is_file()
+        and read_front_matter_name(marker) == EXPECTED_SKILL_NAME
+    )
+
+
+def stage_and_install(source: Path, target: Path, *, replace: bool) -> None:
+    temporary_root = Path(
+        tempfile.mkdtemp(prefix=f".{target.name}.install-", dir=target.parent)
+    )
+    staged = temporary_root / "staged"
+    backup = temporary_root / "backup"
+    preserve_temporary_root = False
+    try:
+        shutil.copytree(
+            source,
+            staged,
+            ignore=shutil.ignore_patterns("tests", "__pycache__", "*.pyc"),
+        )
+        if not replace:
+            staged.rename(target)
+            return
+
+        target.rename(backup)
+        try:
+            staged.rename(target)
+        except OSError:
+            try:
+                backup.rename(target)
+            except OSError as restore_error:
+                preserve_temporary_root = True
+                raise RuntimeError(
+                    "replacement failed and the previous installation could not be "
+                    f"restored; backup preserved at {backup}"
+                ) from restore_error
+            raise
+        shutil.rmtree(backup)
+    finally:
+        if not preserve_temporary_root:
+            shutil.rmtree(temporary_root, ignore_errors=True)
 
 
 def main() -> int:
@@ -58,17 +99,14 @@ def main() -> int:
     resolved_target = target.resolve(strict=False)
     if paths_overlap(source, resolved_target):
         parser.error("source and target skill directories must not overlap")
-    if target.exists():
+
+    replace = target.exists()
+    if replace:
         if not args.replace:
             parser.error(f"target already exists: {target}")
         if not is_bootstrap_skill_directory(target):
             parser.error("refusing to replace a directory that is not this skill")
-        shutil.rmtree(target)
-    shutil.copytree(
-        source,
-        target,
-        ignore=shutil.ignore_patterns("tests", "__pycache__", "*.pyc"),
-    )
+    stage_and_install(source, target, replace=replace)
     print(target)
     return 0
 
