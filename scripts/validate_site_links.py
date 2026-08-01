@@ -140,6 +140,17 @@ def _canonical_ipv4(hostname: str) -> str | None:
     return ".".join(str((ipv4_value >> shift) & 0xFF) for shift in (24, 16, 8, 0))
 
 
+def _canonical_domain(hostname: str) -> str:
+    mapped = idna.uts46_remap(hostname, std3_rules=False, transitional=False)
+    labels: list[str] = []
+    for label in mapped.split("."):
+        if label.isascii():
+            labels.append(label.lower())
+        else:
+            labels.append(idna.alabel(label).decode("ascii").lower())
+    return ".".join(labels)
+
+
 def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, int]:
     scheme = parts.scheme.lower()
     hostname = parts.hostname
@@ -154,12 +165,7 @@ def normalized_origin(parts: SplitResult, description: str) -> tuple[str, str, i
         if ":" in decoded_hostname:
             canonical_hostname = ipaddress.IPv6Address(decoded_hostname).compressed
         else:
-            canonical_hostname = idna.encode(
-                decoded_hostname,
-                uts46=True,
-                transitional=False,
-                std3_rules=True,
-            ).decode("ascii").lower()
+            canonical_hostname = _canonical_domain(decoded_hostname)
             canonical_hostname = _canonical_ipv4(canonical_hostname) or canonical_hostname
     except (idna.IDNAError, UnicodeError, ValueError, ipaddress.AddressValueError) as exc:
         raise SiteLinkError(f"{description} contains an invalid hostname") from exc
@@ -188,7 +194,7 @@ def load_site_url(config_file: Path) -> str:
     if parts.query or parts.fragment:
         raise SiteLinkError("project.site_url must not contain a query or fragment")
 
-    path = unquote(parts.path or "/")
+    path = _decode_path_without_separators(parts.path or "/")
     if not path.startswith("/"):
         raise SiteLinkError("project.site_url must contain an absolute URL path")
     if not path.endswith("/"):
