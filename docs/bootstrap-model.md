@@ -1,6 +1,6 @@
 # Bootstrap model
 
-The unrelated `bootstrap-agent-policy` branch is a directly installable onboarding skill package. It contains no policy compiler, renderer, or adoption transaction logic. It reads a manifest that pins one full `main` commit SHA and invokes only routes declared by that immutable trust seed.
+The onboarding trust seed is stored at `skills/bootstrap-agent-policy/` in `TakashiSasaki/templates:policy`. It contains no policy compiler, renderer, or adoption transaction implementation. It validates a manifest that pins one full commit SHA and invokes only the routes declared by that immutable trust record.
 
 ## Operational onboarding routes
 
@@ -20,9 +20,9 @@ The bootstrap script refuses repositories classified as `managed` or `inconsiste
 
 ## Initialization
 
-Initialization is used for an `unmanaged-empty` repository. The bootstrap script invokes the pinned `agent-policy init` route in dry-run mode, or with `--apply` after explicit route selection. Applied initialization creates the manifest, project-policy scaffold, generated instructions, lock file, and normal-operation skills, then requires `agent-policy validate` and `agent-policy check` to succeed.
+Initialization is used for an `unmanaged-empty` repository. The bootstrap script invokes pinned `agent-policy init` in dry-run mode, or with `--apply` after explicit route selection. Applied initialization creates the manifest, project-policy scaffold, generated instructions, lock file, and normal-operation skills, then requires `agent-policy validate` and `agent-policy check` to succeed.
 
-Existing non-generated instruction conflicts continue to stop initialization. They are not converted into adoption merely because `init` failed; the read-only inspection result determines the permitted route before any mutation.
+Existing non-generated instruction conflicts continue to stop initialization. They are not converted into adoption merely because `init` failed; the read-only inspection result determines the permitted route before mutation.
 
 ## Adoption preparation
 
@@ -35,20 +35,18 @@ The operational phases are:
 3. apply preparation only after explicit `--route adopt --apply` authorization;
 4. run `adopt preview` to regenerate and check the prepared preview;
 5. help migrate semantic requirements into shared profiles and project policy;
-6. review the generated preview against the preserved handwritten sources;
+6. review the generated preview against preserved handwritten sources;
 7. invoke `adopt finalize --apply` only after a separate explicit instruction.
 
-A generic bootstrap apply operation may apply adoption preparation and run preview. It never finalizes adoption. The bootstrap manifest deliberately declares no finalization route, so the orchestration script cannot collapse preparation and cutover into one unattended action.
+A generic bootstrap apply operation may apply adoption preparation and run preview. It never finalizes adoption. The bootstrap manifest deliberately declares no finalization route.
 
 ## Repository-state routing
-
-The pinned CLI inspection produces one of four states:
 
 | State | Bootstrap behavior |
 |---|---|
 | `unmanaged-empty` | Recommend `init`; allow explicit initialization apply |
 | `unmanaged-existing` | Recommend `adopt`; allow explicit preparation apply |
-| `managed` | Stop bootstrap and use normal managed-repository commands |
+| `managed` | Stop bootstrap and use managed-repository commands |
 | `inconsistent` | Stop mutation and require explicit repair |
 
 The route selected for mutation must match the inspection result. A mismatched explicit route is rejected.
@@ -65,12 +63,10 @@ After initialization, or after adoption has been finalized separately, control t
 
 The bootstrap skill is not a runtime dependency of the managed product repository.
 
-During prepared adoption, the bootstrap skill remains an orchestration aid while the product repository already contains an adoption configuration, state record, preview, generated skills, and lock. The handwritten primary instructions remain authoritative until explicit finalization.
+## Integrated trust boundary
 
-## Trust boundary
+Sharing the `policy` history does not make the bootstrap script execute the branch tip. `skills/bootstrap-agent-policy/bootstrap-manifest.yml` pins `TakashiSasaki/templates` at the full revision `270645381849431b922bee87afecedc540e52ed1`. That revision contains the migrated toolchain identity and precedes the commit that adds the bootstrap package, avoiding a self-referential pin.
 
-The bootstrap branch and `main` remain unrelated histories because the onboarding skill is an independently distributed trust seed. The skill contains only the minimum logic needed to validate its manifest, obtain the pinned CLI revision, invoke declared commands, classify outputs, and report results.
+Changing the pinned SHA, repository, route declarations, skill instructions, orchestration script, installer, or bootstrap tests is a trust-anchor change and is reviewed independently from ordinary policy text changes.
 
-Changing the pinned SHA, route declarations, bootstrap safety constraints, skill instructions, invocation script, or bootstrap tests is a trust-anchor change and is reviewed independently from ordinary policy or documentation updates.
-
-The manifest uses a full commit SHA rather than `main`, a tag, a short SHA, or another mutable reference. Initialization and adoption do not justify a third unrelated branch: both routes use the same executable toolchain and differ only in repository state and the safe transition explicitly selected by the user.
+The manifest uses a full commit SHA rather than `policy`, `main`, a tag, a short SHA, or another mutable reference. Initialization and adoption use the same executable toolchain and differ only in repository state and the safe transition explicitly selected by the user.
