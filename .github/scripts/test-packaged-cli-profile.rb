@@ -203,7 +203,7 @@ Dir.mktmpdir("invalid-packaged-cli-profile") do |directory|
   Open3.capture3("git", "add", ".", chdir: directory)
   _stdout, stderr, status = Open3.capture3(
     { "RUBYOPT" => nil },
-    Rbconfig.ruby,
+    RbConfig.ruby,
     validator,
     chdir: directory
   )
