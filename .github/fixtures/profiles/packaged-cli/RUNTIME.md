@@ -19,17 +19,19 @@ Selection status: SELECTED
 
 ## Commands
 
+Run all repository-local commands from the repository root.
+
 ### Shared development commands
 
 | Purpose | Exact command |
 |---|---|
-| Install development dependencies | `bundle install` from the repository root |
-| Run in place | `ruby bin/text-stat --help` from the repository root |
-| Agent launcher | `ruby bin/text-stat` from the repository root |
-| Test | `ruby tests/test_text_stat.rb` from the repository root |
-| Lint/static analysis | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` from the repository root |
-| Format check | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` from the repository root |
-| Build/package | `gem build text-stat.gemspec` from the repository root |
+| Install development dependencies | bundle install |
+| Run in place | ruby bin/text-stat --help |
+| Agent launcher | ruby bin/text-stat |
+| Test | ruby tests/test_text_stat.rb |
+| Lint/static analysis | ruby -c src/text_stat.rb && ruby -c bin/text-stat |
+| Format check | ruby -c src/text_stat.rb && ruby -c bin/text-stat |
+| Build/package | gem build text-stat.gemspec |
 
 ### Packaged CLI commands
 
