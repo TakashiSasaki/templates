@@ -53,14 +53,14 @@ Run every command from the skill root.
 |---|---|
 | Supported protocol revisions | `2025-11-25` |
 | Supported protocol eras | initialization-era |
-| Default revision or negotiation mode | Server-selected revision `2025-11-25`; when a client requests another revision, initialization succeeds with `2025-11-25` in the response and the client decides whether to continue. |
+| Default revision or negotiation mode | Server-selected revision `2025-11-25`; when a client supplies another string revision, initialization succeeds with `2025-11-25` in the response and the client decides whether to continue. Missing or non-string revision values are rejected by SDK parameter validation. |
 | MCP SDK or protocol library | Official Ruby MCP SDK gem `mcp` |
 | SDK version | `1.0.0` |
 | Legacy compatibility policy | No legacy protocol behavior is exposed; a client that cannot accept the server-selected revision must end the session before discovery or calls. |
 | JSON Schema dialects | JSON Schema Draft 2020-12 through the SDK input and output schema validators |
 | Optional MCP extensions | NONE |
 | Deprecated feature policy | Deprecated features and capabilities outside this contract are not advertised. |
-| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another requested revision, tools-only capability advertisement, and continued operation after protocol and tool-validation errors. |
+| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another string revision, malformed-revision rejection, tools-only capability advertisement, and continued operation after protocol and tool-validation errors. |
 
 ## MCP variants
 
@@ -72,11 +72,11 @@ Run every command from the skill root.
 | Server entry point | `mcp/server.rb` |
 | Lifecycle owner | MCP host |
 | Invocation scope | Multiple sequential operations in one initialized child-process session |
-| Protocol negotiation/discovery | Send one `initialize` request; the response selects revision `2025-11-25`; send `notifications/initialized` and continue to `tools/list` only when the caller accepts that revision. |
+| Protocol negotiation/discovery | Send one well-formed `initialize` request; the response selects revision `2025-11-25`; send `notifications/initialized` and continue to `tools/list` only when the caller accepts that revision. |
 | Request metadata behavior | The SDK parses and preserves standard request metadata; the fixture defines no custom request metadata. |
 | Startup cost policy | Start one trusted child process only when the host activates the skill and reuse it for sequential calls. |
-| Cancellation behavior | The only operation is bounded and synchronous; a caller timeout closes stdin, waits for graceful exit, and applies bounded TERM/KILL escalation only if the child does not exit. |
-| Child-process shutdown and escalation | Close stdin, wait up to two seconds, send TERM, wait one additional second, then send KILL and reap the process. |
+| Cancellation behavior | The only operation is bounded and synchronous; a caller timeout closes stdin, waits for graceful exit, sends TERM if the child remains alive, then sends KILL and reaps the process if TERM is ignored. |
+| Child-process shutdown and escalation | Close stdin, wait up to two seconds, send TERM, wait one additional second, then send KILL and reap the process. Tests use controlled child processes to cover both TERM and KILL escalation after EOF. |
 
 ### Streamable HTTP variant
 

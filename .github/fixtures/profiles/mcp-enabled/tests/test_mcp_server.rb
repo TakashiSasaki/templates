@@ -10,12 +10,22 @@ require_relative "../src/text_stats"
 class TextStatsMcpServerTest < Minitest::Test
   ROOT = File.expand_path("..", __dir__)
   COMMAND = [RbConfig.ruby, File.join(ROOT, "mcp/server.rb")].freeze
+  TERM_AFTER_EOF_COMMAND = [
+    RbConfig.ruby,
+    "-e",
+    '$stderr.sync = true; warn "term-after-eof child starting"; trap("TERM") { exit! 143 }; STDIN.read; sleep'
+  ].freeze
+  KILL_AFTER_EOF_COMMAND = [
+    RbConfig.ruby,
+    "-e",
+    '$stderr.sync = true; warn "kill-after-eof child starting"; trap("TERM", "IGNORE"); STDIN.read; sleep'
+  ].freeze
   REQUEST_TIMEOUT = 2
 
   class StdioSession
-    def initialize(timeout: REQUEST_TIMEOUT)
+    def initialize(timeout: REQUEST_TIMEOUT, command: COMMAND)
       @timeout = timeout
-      @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(*COMMAND, chdir: ROOT)
+      @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(*command, chdir: ROOT)
       @stdin.sync = true
       @closed = false
       @stdout_messages = []
@@ -36,7 +46,7 @@ class TextStatsMcpServerTest < Minitest::Test
 
     def wait_for_startup
       line = Timeout.timeout(@timeout) { @stderr.gets }
-      raise EOFError, "MCP server closed stderr before startup" if line.nil?
+      raise EOFError, "child closed stderr before startup" if line.nil?
 
       line
     end
@@ -123,16 +133,16 @@ class TextStatsMcpServerTest < Minitest::Test
     end
   end
 
+  def initialize_request_params(revision: TextStatsMcp::PROTOCOL_VERSION)
+    {
+      protocolVersion: revision,
+      capabilities: {},
+      clientInfo: { name: "fixture-test-client", version: "1.0.0" }
+    }
+  end
+
   def initialize_protocol(session, revision: TextStatsMcp::PROTOCOL_VERSION)
-    response = session.request(
-      1,
-      "initialize",
-      {
-        protocolVersion: revision,
-        capabilities: {},
-        clientInfo: { name: "fixture-test-client", version: "1.0.0" }
-      }
-    )
+    response = session.request(1, "initialize", initialize_request_params(revision: revision))
     session.notify("notifications/initialized", {}) unless response.key?("error")
     response
   end
@@ -174,6 +184,25 @@ class TextStatsMcpServerTest < Minitest::Test
 
     ping = session.request(2, "ping", {})
     assert_equal({}, ping.fetch("result"))
+  ensure
+    session&.close_gracefully
+  end
+
+  def test_rejects_missing_protocol_revision
+    session = StdioSession.new
+    params = initialize_request_params.reject { |key, _value| key == :protocolVersion }
+    response = session.request(1, "initialize", params)
+
+    assert_json_rpc_error(response, -32_602)
+  ensure
+    session&.close_gracefully
+  end
+
+  def test_rejects_non_string_protocol_revision
+    session = StdioSession.new
+    response = session.request(1, "initialize", initialize_request_params(revision: 20_251_125))
+
+    assert_json_rpc_error(response, -32_602)
   ensure
     session&.close_gracefully
   end
@@ -267,36 +296,34 @@ class TextStatsMcpServerTest < Minitest::Test
     session&.close_gracefully
   end
 
-  def test_read_timeout_closes_stdin_before_escalation
-    session = StdioSession.new
+  def test_read_timeout_closes_stdin_then_escalates_to_term
+    session = StdioSession.new(timeout: 0.5, command: TERM_AFTER_EOF_COMMAND)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
     status, diagnostics = session.close_after_read_timeout
     session = nil
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
-    assert status.success?, "expected EOF shutdown before signal escalation, got #{status.inspect}"
-    assert_operator elapsed, :<, 3.0
-    assert_equal(
-      "text-stats MCP stdio server starting\ntext-stats MCP stdio server stopped\n",
-      diagnostics
-    )
+    refute status.success?
+    assert_equal 143, status.exitstatus
+    assert_operator elapsed, :<, 2.0
+    assert_includes diagnostics, "term-after-eof child starting"
   ensure
     session&.terminate_bounded
   end
 
-  def test_forced_termination_reaps_abnormal_child_without_hanging
-    session = StdioSession.new
-    startup = session.wait_for_startup
+  def test_read_timeout_escalates_to_kill_when_term_is_ignored
+    session = StdioSession.new(timeout: 0.5, command: KILL_AFTER_EOF_COMMAND)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-    status, diagnostics = session.terminate_bounded
+    status, diagnostics = session.close_after_read_timeout
     session = nil
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
-    refute status.success?
+    assert status.signaled?
+    assert_equal Signal.list.fetch("KILL"), status.termsig
     assert_operator elapsed, :<, 3.0
-    assert_includes startup + diagnostics, "text-stats MCP stdio server starting"
+    assert_includes diagnostics, "kill-after-eof child starting"
   ensure
     session&.terminate_bounded
   end

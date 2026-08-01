@@ -49,7 +49,8 @@ module TextStatsMcp
     private
 
     def init(params, session: nil)
-      negotiated_params = if params.is_a?(Hash) && params[:protocolVersion] != PROTOCOL_VERSION
+      requested_revision = params[:protocolVersion] if params.is_a?(Hash)
+      negotiated_params = if requested_revision.is_a?(String) && requested_revision != PROTOCOL_VERSION
                             params.merge(protocolVersion: PROTOCOL_VERSION)
                           else
                             params
