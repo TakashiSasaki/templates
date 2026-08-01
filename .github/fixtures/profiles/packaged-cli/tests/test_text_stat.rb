@@ -14,6 +14,18 @@ class TextStatTest < Minitest::Test
     Open3.capture3(*COMMAND, *arguments, stdin_data: stdin_data, chdir: ROOT)
   end
 
+  def assert_json_contract(output, expected_result)
+    parsed = JSON.parse(output)
+    assert_equal "1", parsed.fetch("contractVersion")
+    assert_equal true, parsed.fetch("ok")
+
+    result = parsed.fetch("result")
+    assert_kind_of Hash, result
+    expected_result.each do |field, expected|
+      assert_equal expected, result.fetch(field), "unexpected #{field} result"
+    end
+  end
+
   def test_analyze_counts_utf8_bytes_lines_and_words
     assert_equal(
       { "bytes" => 18, "lines" => 2, "words" => 3 },
@@ -33,18 +45,18 @@ class TextStatTest < Minitest::Test
     assert_empty stderr
   end
 
+  def test_human_output_from_standard_input
+    stdout, stderr, status = run_cli("-", stdin_data: "one two\n")
+    assert status.success?, stderr
+    assert_empty stderr
+    assert_equal "bytes: 8\nlines: 1\nwords: 2\n", stdout
+  end
+
   def test_json_output_from_standard_input
     stdout, stderr, status = run_cli("--output", "json", "-", stdin_data: "one two\n")
     assert status.success?, stderr
     assert_empty stderr
-    assert_equal(
-      {
-        "contractVersion" => "1",
-        "ok" => true,
-        "result" => { "bytes" => 8, "lines" => 1, "words" => 2 }
-      },
-      JSON.parse(stdout)
-    )
+    assert_json_contract(stdout, "bytes" => 8, "lines" => 1, "words" => 2)
   end
 
   def test_invalid_invocation_uses_exit_code_two
@@ -52,6 +64,13 @@ class TextStatTest < Minitest::Test
     assert_equal 2, status.exitstatus
     assert_empty stdout
     refute_empty stderr
+  end
+
+  def test_invalid_utf8_uses_exit_code_two
+    stdout, stderr, status = run_cli("-", stdin_data: "\xFF".b)
+    assert_equal 2, status.exitstatus
+    assert_empty stdout
+    assert_equal "input is not valid UTF-8\n", stderr
   end
 
   def test_missing_input_uses_exit_code_three
