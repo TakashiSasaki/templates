@@ -38,8 +38,4 @@ jobs:
         run: pytest
 
       - name: Compile Python sources
-        run: >-
-          python -m compileall -q
-          src
-          scripts
-          skills/bootstrap-agent-policy/scripts
+        run: python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
