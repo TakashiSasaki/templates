@@ -273,3 +273,55 @@ Body.
     )
 
     assert module.is_bootstrap_skill_directory(target)
+
+
+def write_bootstrap_marker(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "SKILL.md").write_text(
+        """---
+name: bootstrap-agent-policy
+---
+
+Body.
+""",
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize("relation", ["same", "ancestor", "descendant"])
+def test_installer_rejects_source_target_overlap(
+    relation: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if relation == "same":
+        source = tmp_path / "skill"
+        target = source
+        write_bootstrap_marker(source)
+    elif relation == "ancestor":
+        target = tmp_path / "skill-container"
+        source = target / "source-skill"
+        write_bootstrap_marker(target)
+        write_bootstrap_marker(source)
+    else:
+        source = tmp_path / "source-skill"
+        target = source / "nested-target"
+        write_bootstrap_marker(source)
+
+    monkeypatch.setattr(installer, "skill_root", lambda: source)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["install.py", str(target), "--replace"],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        installer.main()
+
+    assert exc_info.value.code == 2
+    assert source.is_dir()
+    assert (source / "SKILL.md").is_file()
+    if relation == "ancestor":
+        assert target.is_dir()
+    if relation == "descendant":
+        assert not target.exists()
