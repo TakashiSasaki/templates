@@ -7,7 +7,6 @@ require "net/http"
 require "open3"
 require "rbconfig"
 require "socket"
-require "stringio"
 require "tempfile"
 require "timeout"
 require "tmpdir"
@@ -128,7 +127,7 @@ class TextStatsServiceTest < Minitest::Test
         nil
       end
       Process.wait(@process)
-    rescue Errno::ECHLD
+    rescue Errno::ECHILD
       nil
     end
     @process = nil
@@ -345,6 +344,82 @@ class TextStatsServiceTest < Minitest::Test
   ensure
     release << true if worker&.alive?
     worker&.join(1)
+  end
+
+  def test_health_checks_bound_streaming_and_oversized_responses
+    streaming_server = TCPServer.new("127.0.0.1", 0)
+    streaming_port = streaming_server.addr[1]
+    streaming_thread = Thread.new do
+      socket = streaming_server.accept
+      request_bytes = +""
+      request_bytes << socket.readpartial(1024) until request_bytes.include?("\r\n\r\n")
+      socket.sync = true
+      socket.write("HTTP/1.1 200 OK\r\n")
+      socket.write("Content-Type: application/json\r\n")
+      socket.write("Transfer-Encoding: chunked\r\n\r\n")
+      loop do
+        socket.write("1\r\nx\r\n")
+        sleep 0.05
+      end
+    rescue EOFError, IOError, SystemCallError
+      nil
+    ensure
+      socket&.close
+    end
+
+    begin
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      stdout, stderr, status = run_command(
+        RbConfig.ruby,
+        "service/server.rb",
+        "--health",
+        env: base_env(port: streaming_port.to_s),
+        timeout: 6
+      )
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      refute status.success?
+      assert_empty stdout
+      assert_includes stderr, "overall deadline exceeded"
+      assert_operator elapsed, :<, 4
+    ensure
+      streaming_server.close
+      streaming_thread.kill
+      streaming_thread.join(1)
+    end
+
+    oversized_server = TCPServer.new("127.0.0.1", 0)
+    oversized_port = oversized_server.addr[1]
+    oversized_thread = Thread.new do
+      socket = oversized_server.accept
+      request_bytes = +""
+      request_bytes << socket.readpartial(1024) until request_bytes.include?("\r\n\r\n")
+      body = "x" * 5000
+      socket.write("HTTP/1.1 200 OK\r\n")
+      socket.write("Content-Type: application/json\r\n")
+      socket.write("Content-Length: #{body.bytesize}\r\n")
+      socket.write("Connection: close\r\n\r\n")
+      socket.write(body)
+    rescue EOFError, IOError, SystemCallError
+      nil
+    ensure
+      socket&.close
+    end
+
+    begin
+      stdout, stderr, status = run_command(
+        RbConfig.ruby,
+        "service/server.rb",
+        "--live",
+        env: base_env(port: oversized_port.to_s),
+        timeout: 6
+      )
+      refute status.success?
+      assert_empty stdout
+      assert_includes stderr, "health response exceeds 4096 bytes"
+    ensure
+      oversized_server.close
+      oversized_thread.join(1)
+    end
   end
 
   def test_health_commands_and_identity_verified_shutdown
