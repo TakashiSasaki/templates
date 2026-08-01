@@ -22,7 +22,7 @@ The two modes share configuration, rendering, path safety, lock generation, and 
 
 Adoption deliberately separates semantic interpretation from mechanical mutation.
 
-The CLI on `main` owns deterministic operations:
+The CLI in `TakashiSasaki/templates:policy` owns deterministic operations:
 
 - repository classification and file inventory;
 - path and symbolic-link boundary checks;
@@ -31,7 +31,7 @@ The CLI on `main` owns deterministic operations:
 - stale-source and stale-preview detection;
 - transactional backup, cutover, rollback, and lock generation.
 
-The `bootstrap-agent-policy` skill owns agent-assisted orchestration:
+The integrated `skills/bootstrap-agent-policy/` package owns agent-assisted orchestration:
 
 - selecting initialization or adoption from inspection results;
 - interpreting existing instruction prose;
@@ -42,8 +42,6 @@ The `bootstrap-agent-policy` skill owns agent-assisted orchestration:
 The CLI does not embed a language model and does not automatically convert free-form repository instructions into policy modules.
 
 ## Adoption state machine
-
-The implemented progression is:
 
 ```text
 unmanaged
@@ -63,11 +61,21 @@ Inspection is always read-only. `init`, `adopt prepare`, and `adopt finalize` de
 
 Repositories that already contain `.agent-policy.yml` use normal `validate`, `render`, and `check` operations. Partial or conflicting onboarding state is classified as inconsistent and is not automatically repaired.
 
-## Branch architecture
+## Repository and package architecture
 
-The repository retains two unrelated long-lived branches:
+The `policy` branch is an orphan history unrelated to the repository's `main`, `site`, and `webapp` branches. Within `policy`:
 
-- `main` contains policies, profiles, schemas, the compiler, deterministic adoption mechanics, tests, and documentation.
-- `bootstrap-agent-policy` contains the directly cloneable onboarding skill and a manifest that pins one full `main` commit SHA.
+- policy modules, profiles, schemas, compiler, adoption mechanics, templates, tests, and documentation are maintained together;
+- the bootstrap trust seed is stored under `skills/bootstrap-agent-policy/`;
+- product manifests, adoption state, and generated workflow templates identify the executable repository as `TakashiSasaki/templates`;
+- the Python distribution and command retain the compatibility name `agent-policy`.
 
-No separate adoption branch is introduced. Initialization and adoption share the same trust seed, executable toolchain, configuration format, and lock semantics. A bootstrap manifest revision update remains an independently reviewed trust-anchor change.
+No separate bootstrap or adoption branch is required. Initialization and adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
+
+## Trust-anchor isolation without a separate history
+
+The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records one full toolchain commit SHA and a closed route set. The pinned commit contains the executable repository-identity migration and precedes the bootstrap-package commit, preventing recursive self-reference.
+
+The orchestration script may apply initialization or adoption preparation and preview. It cannot finalize adoption because no finalize route is present in the manifest or script.
+
+A change to the bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change even though it shares the `policy` Git history.
