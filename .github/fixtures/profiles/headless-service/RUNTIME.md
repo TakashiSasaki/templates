@@ -61,9 +61,9 @@ Run every command from the skill root. Create the service token outside the repo
 | Readiness check | `GET /readyz` and `bundle exec ruby service/server.rb --health`; HTTP 200 while configuration is valid and the process is not draining, independent of temporary API-slot saturation; the command applies a two-second overall deadline and a 4,096-byte incremental response cap before JSON parsing |
 | Liveness check | `GET /livez` and `bundle exec ruby service/server.rb --live`; HTTP 200 while the process event loop is alive; the command uses the same overall deadline and response-size cap as readiness |
 | Timeout and cancellation policy | WEBrick applies a two-second request timeout and one-second keep-alive timeout; a stalled request body returns HTTP 408 with connection closure and releases the API admission slot; the operation is synchronous and bounded, and client disconnect cancels response delivery without retaining work or state |
-| Graceful shutdown and restart policy | TERM or INT marks the application draining and invokes WEBrick shutdown; the mode-0600 PID record contains PID and Linux process start ticks, and `--stop` verifies both before signaling; restart is an external operator action |
+| Graceful shutdown and restart policy | TERM or INT marks the application draining and invokes WEBrick shutdown; the PID record is opened without following symlinks, must be a regular service-user-owned mode-0600 file no larger than 4,096 bytes, contains PID and Linux process start ticks, and is identity-verified by `--stop` before signaling; restart is an external operator action |
 | Deployment topology | Separate foreground process from the same skill artifact, reached by local non-browser clients over loopback HTTP |
-| Security and deployment smoke tests | Tests cover token-file descriptor validation, Bearer authentication, Host and Origin rejection, request bounds and timeout recovery, concurrency, bounded health commands, health isolation, fixed-port collision, PID identity, graceful shutdown, and prompt missing-implementation failure |
+| Security and deployment smoke tests | Tests cover token-file descriptor validation, Bearer authentication, Host and Origin rejection, request bounds and timeout recovery, concurrency, bounded health commands, health isolation, fixed-port collision, PID identity and unsafe-record rejection, graceful shutdown, and prompt missing-implementation failure |
 
 The service is intentionally not a browser surface. Any request containing an `Origin` header is rejected, no CORS permission is emitted, and `WEB_INTERFACE.md` is not retained. API responses are JSON with `Cache-Control: no-store`; request bodies and Bearer tokens are never logged or returned.
 
@@ -87,7 +87,7 @@ The service is intentionally not a browser surface. Any request containing an `O
 | `TEXT_STATS_SERVICE_TOKEN_FILE` | YES for startup | Path to the external 32-to-128-character visible-ASCII Bearer token file; it is opened without following symlinks and must be regular, owned by the service user, and inaccessible to group and other users. | YES: file contents |
 | `TEXT_STATS_SERVICE_BIND` | NO | Defaults to and must remain `127.0.0.1`. | NO |
 | `TEXT_STATS_SERVICE_PORT` | NO | Defaults to `4568`; accepts `0` only for local test allocation. | NO |
-| `TEXT_STATS_SERVICE_PID_FILE` | NO | Overrides the default `tmp/text-stats-service.pid` lifecycle record. | NO |
+| `TEXT_STATS_SERVICE_PID_FILE` | NO | Overrides the default `tmp/text-stats-service.pid` lifecycle record; the opened record must satisfy the ownership, mode, type, size, and process-identity checks above. | NO |
 
 ## Decision rationale
 
