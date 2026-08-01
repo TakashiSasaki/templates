@@ -174,6 +174,25 @@ def normalize_special_url_backslashes(raw_url: str) -> str:
     return raw_url[:boundary].replace("\\", "/") + raw_url[boundary:]
 
 
+def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bool]:
+    """Resolve HTTP(S) references using browser-like special-scheme semantics."""
+    normalized_raw = normalize_special_url_backslashes(raw_url)
+    raw_parts = urlsplit(normalized_raw)
+    scheme = raw_parts.scheme.lower()
+    authored_local = not raw_parts.scheme and not raw_parts.netloc
+
+    if scheme not in {"http", "https"}:
+        return urlsplit(urljoin(base_url, normalized_raw)), authored_local
+
+    remainder = normalized_raw[len(raw_parts.scheme) + 1 :]
+    base_scheme = urlsplit(base_url).scheme.lower()
+    if remainder.startswith("//") or scheme != base_scheme:
+        absolute = f"{scheme}://{remainder.lstrip('/')}"
+        return urlsplit(absolute), False
+
+    return urlsplit(urljoin(base_url, remainder)), True
+
+
 def _decode_path_without_separators(encoded_path: str) -> str:
     """Decode percent escapes while keeping encoded slash and backslash in-segment."""
     protected: list[str] = []
@@ -281,7 +300,7 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
             if raw_parts.scheme and raw_parts.scheme.lower() not in {"http", "https"}:
                 continue
 
-            resolved = urlsplit(urljoin(source.public_url, normalized_raw))
+            resolved, authored_local = resolve_http_reference(source.public_url, raw)
             try:
                 resolved_origin = normalized_origin(
                     resolved,
@@ -295,7 +314,6 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
                 continue
 
             decoded_path = normalized_public_path(resolved.path)
-            authored_local = not raw_parts.scheme and not raw_parts.netloc
             inside_site = decoded_path == base_path.rstrip("/") or decoded_path.startswith(
                 base_path
             )
