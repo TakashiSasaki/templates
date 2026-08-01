@@ -1,0 +1,63 @@
+# frozen_string_literal: true
+
+require "json"
+require "minitest/autorun"
+require "open3"
+require "rbconfig"
+require_relative "../src/text_stat"
+
+class TextStatTest < Minitest::Test
+  ROOT = File.expand_path("..", __dir__)
+  COMMAND = [RbConfig.ruby, File.join(ROOT, "bin/text-stat")].freeze
+
+  def run_cli(*arguments, stdin_data: "")
+    Open3.capture3(*COMMAND, *arguments, stdin_data: stdin_data, chdir: ROOT)
+  end
+
+  def test_analyze_counts_utf8_bytes_lines_and_words
+    assert_equal(
+      { "bytes" => 18, "lines" => 2, "words" => 3 },
+      TextStat.analyze("alpha βeta\ngamma\n")
+    )
+  end
+
+  def test_help_and_version
+    stdout, stderr, status = run_cli("--help")
+    assert status.success?, stderr
+    assert_includes stdout, "Usage: text-stat"
+    assert_empty stderr
+
+    stdout, stderr, status = run_cli("--version")
+    assert status.success?, stderr
+    assert_equal "1.0.0\n", stdout
+    assert_empty stderr
+  end
+
+  def test_json_output_from_standard_input
+    stdout, stderr, status = run_cli("--output", "json", "-", stdin_data: "one two\n")
+    assert status.success?, stderr
+    assert_empty stderr
+    assert_equal(
+      {
+        "contractVersion" => "1",
+        "ok" => true,
+        "result" => { "bytes" => 8, "lines" => 1, "words" => 2 }
+      },
+      JSON.parse(stdout)
+    )
+  end
+
+  def test_invalid_invocation_uses_exit_code_two
+    stdout, stderr, status = run_cli("--output", "yaml", "-")
+    assert_equal 2, status.exitstatus
+    assert_empty stdout
+    refute_empty stderr
+  end
+
+  def test_missing_input_uses_exit_code_three
+    stdout, stderr, status = run_cli("missing.txt")
+    assert_equal 3, status.exitstatus
+    assert_empty stdout
+    assert_includes stderr, "unable to read input"
+  end
+end
