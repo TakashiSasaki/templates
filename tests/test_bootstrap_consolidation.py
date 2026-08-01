@@ -36,7 +36,7 @@ def test_bootstrap_package_is_integrated_and_pinned() -> None:
     actual = {
         path.relative_to(skill_root).as_posix()
         for path in skill_root.rglob("*")
-        if path.is_file()
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
     }
     assert actual == expected
 
@@ -95,5 +95,5 @@ def test_migration_status_marks_bootstrap_consolidation_complete() -> None:
     readme = read("README.md")
     migration = read("docs/migration-from-agent-policy.md")
     assert "consolidation of the bootstrap trust seed" in readme
-    assert "bootstrap trust seed was reviewed and integrated" in migration
+    assert "integrated the bootstrap trust seed" in migration
     assert "Consolidate the bootstrap skill" not in migration
