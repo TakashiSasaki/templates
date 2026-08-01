@@ -79,7 +79,7 @@ The development branch and executable release are different concepts. `policy` m
 
 A candidate commit first receives complete CI and review. A later promotion change updates both `release/toolchain.json` and the integrated bootstrap manifest to that candidate SHA. The candidate must be a strict ancestor of the promotion state. This two-step model avoids recursive self-reference and allows the promoted toolchain to be identified before the pin is committed.
 
-The release verifier checks the stable descriptor, bootstrap manifest, configuration schema, adoption-state schema, generated lock format, and rendered consumer workflow as one synchronized contract. Policy CI fetches only the PR-head or `policy` source history and verifies ancestry and required executable files at the pinned revision.
+The release verifier checks the stable descriptor, bootstrap manifest, configuration schema, adoption-state schema, generated lock format, and rendered consumer workflow as one synchronized contract. Policy CI fetches the pull-request head or current pushed ref and verifies ancestry and required executable files at the pinned revision.
 
 Consumer repositories are not rewritten by promotion. Each consumer updates its manifest pin and regenerates its derived artifacts in a separate reviewed change.
 
