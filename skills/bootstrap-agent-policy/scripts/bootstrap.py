@@ -160,7 +160,7 @@ def action_arguments(
     revision: str,
     *,
     apply: bool,
-    primary_instructions: str,
+    primary_instructions: str | None,
 ) -> list[str]:
     route_key = "init" if route == "init" else "adopt_prepare"
     arguments = [
@@ -170,6 +170,8 @@ def action_arguments(
         revision,
     ]
     if route == "adopt":
+        if primary_instructions is None:
+            raise ValueError("Adoption requires explicit or unambiguous primary instructions")
         arguments.extend(["--primary-instructions", primary_instructions])
     if apply:
         arguments.append("--apply")
@@ -238,16 +240,55 @@ def select_route(state: str, requested: str, *, apply: bool) -> str:
     return requested
 
 
-def validate_primary_instructions(inspection: Inspection, route: str, relative: str) -> None:
+def available_primary_instructions(inspection: Inspection) -> tuple[str, ...]:
+    return tuple(path for path in inspection.sources if path in KNOWN_INSTRUCTION_FILES)
+
+
+def select_primary_instructions(
+    inspection: Inspection,
+    route: str,
+    requested: str | None,
+    *,
+    apply: bool,
+) -> str | None:
     if route != "adopt":
-        return
-    if relative not in KNOWN_INSTRUCTION_FILES or relative not in inspection.sources:
-        available = [path for path in inspection.sources if path in KNOWN_INSTRUCTION_FILES]
+        return None
+
+    available = available_primary_instructions(inspection)
+    if requested is not None:
+        if requested not in available:
+            detail = ", ".join(available) if available else "none"
+            raise ValueError(
+                "Adoption primary instructions must be a discovered instruction file; "
+                f"available: {detail}"
+            )
+        return requested
+
+    if len(available) == 1:
+        return available[0]
+
+    if apply:
         detail = ", ".join(available) if available else "none"
         raise ValueError(
-            "Adoption primary instructions must be a discovered instruction file; "
+            "Adoption requires --primary-instructions when discovery is ambiguous; "
             f"available: {detail}"
         )
+    return None
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Bootstrap the TakashiSasaki/templates policy toolchain"
+    )
+    parser.add_argument("--repository", type=Path, default=Path.cwd())
+    parser.add_argument("--route", choices=["auto", "init", "adopt"], default="auto")
+    parser.add_argument("--primary-instructions")
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the explicitly selected route after dry-run inspection",
+    )
+    return parser.parse_args(argv)
 
 
 def _relay_completed(result: subprocess.CompletedProcess[str]) -> None:
@@ -262,18 +303,7 @@ def _relay_completed(result: subprocess.CompletedProcess[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Bootstrap the TakashiSasaki/templates policy toolchain"
-    )
-    parser.add_argument("--repository", type=Path, default=Path.cwd())
-    parser.add_argument("--route", choices=["auto", "init", "adopt"], default="auto")
-    parser.add_argument("--primary-instructions", default="AGENTS.md")
-    parser.add_argument(
-        "--apply",
-        action="store_true",
-        help="Apply the explicitly selected route after dry-run inspection",
-    )
-    args = parser.parse_args(argv)
+    args = parse_args(argv)
 
     try:
         manifest = load_manifest()
@@ -309,8 +339,24 @@ def main(argv: list[str] | None = None) -> int:
             recommended = recommended_route(inspection.state)
             print(f"Recommended route: {recommended}")
             route = select_route(inspection.state, args.route, apply=args.apply)
-            validate_primary_instructions(inspection, route, args.primary_instructions)
+            primary_instructions = select_primary_instructions(
+                inspection,
+                route,
+                args.primary_instructions,
+                apply=args.apply,
+            )
             print(f"Selected route: {route}")
+            if route == "adopt" and primary_instructions is None:
+                available = available_primary_instructions(inspection)
+                detail = ", ".join(available) if available else "none"
+                print(
+                    "No unique primary instruction was selected. "
+                    "Re-run with --primary-instructions after review."
+                )
+                print(f"Available primary instructions: {detail}")
+                return 0
+            if primary_instructions is not None:
+                print(f"Primary instructions: {primary_instructions}")
 
             result = runner.run(
                 action_arguments(
@@ -319,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
                     route,
                     revision,
                     apply=args.apply,
-                    primary_instructions=args.primary_instructions,
+                    primary_instructions=primary_instructions,
                 )
             )
             if result.returncode:
