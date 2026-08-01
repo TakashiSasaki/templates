@@ -23,11 +23,12 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER: ${{ github.event.number }}
+          PUSH_REF: ${{ github.ref }}
         run: |
           if [ "$EVENT_NAME" = "pull_request" ]; then
             source_ref="refs/pull/${PR_NUMBER}/head"
           else
-            source_ref="refs/heads/policy"
+            source_ref="$PUSH_REF"
           fi
           if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
             shallow_args=(--unshallow)
