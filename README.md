@@ -50,7 +50,7 @@ Completed migration work includes:
 
 - branch-appropriate policy CI;
 - the application-type-independent policy boundary;
-- removal of the former built-in `web-application` profile and its application-architecture rules;
+- The former built-in `web-application` profile and its application-architecture rules were removed;
 - executable toolchain identity migration to `TakashiSasaki/templates`;
 - consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`;
 - restoration of a `policy`-scoped documentation build and GitHub Pages deployment workflow.
