@@ -50,11 +50,12 @@ Completed migration work includes:
 
 - branch-appropriate policy CI;
 - the application-type-independent policy boundary;
-- The former built-in `web-application` profile and its application-architecture rules were removed;
+- removal of the former built-in `web-application` profile and its application-architecture rules;
 - executable toolchain identity migration to `TakashiSasaki/templates`;
-- consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`.
+- consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`;
+- restoration of a `policy`-scoped documentation build and GitHub Pages deployment workflow.
 
-Consumer pin updates, documentation deployment, and deprecation and archival of the former repository remain separate follow-up changes.
+Consumer pin updates, the Pages settings and custom-domain cutover, and deprecation and archival of the former repository remain separate follow-up changes. See `docs/documentation-publication.md` for the publication boundary and cutover checklist.
 
 ## Trust model
 
