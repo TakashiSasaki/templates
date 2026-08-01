@@ -316,21 +316,31 @@ module TextStatsService
       unless path
         raise ConfigurationError, "TEXT_STATS_SERVICE_TOKEN_FILE is required for service startup"
       end
-      if File.symlink?(path) || !File.file?(path)
-        raise ConfigurationError, "service token file must be a regular non-symlink file: #{path}"
-      end
-      mode = File.stat(path).mode & 0o777
-      unless (mode & 0o077).zero?
-        raise ConfigurationError, "service token file must not be accessible by group or other users: #{path}"
-      end
 
-      raw = File.binread(path, 4097)
+      flags = File::RDONLY | File::NOFOLLOW
+      raw = File.open(path, flags) do |file|
+        stat = file.stat
+        unless stat.file?
+          raise ConfigurationError, "service token file must be a regular non-symlink file: #{path}"
+        end
+        unless stat.uid == Process.euid
+          raise ConfigurationError, "service token file must be owned by the service user: #{path}"
+        end
+        mode = stat.mode & 0o777
+        unless (mode & 0o077).zero?
+          raise ConfigurationError, "service token file must not be accessible by group or other users: #{path}"
+        end
+
+        file.read(4097).to_s
+      end
       raise ConfigurationError, "service token file exceeds 4096 bytes: #{path}" if raw.bytesize > 4096
       raw = raw.sub(/\r?\n\z/, "")
       unless /\A[!-~]{32,128}\z/.match?(raw)
         raise ConfigurationError, "service token must contain 32 to 128 visible ASCII characters"
       end
       raw
+    rescue Errno::ELOOP
+      raise ConfigurationError, "service token file must be a regular non-symlink file: #{path}"
     rescue SystemCallError => error
       raise ConfigurationError, "unable to read service token file #{path}: #{error.message}"
     end
