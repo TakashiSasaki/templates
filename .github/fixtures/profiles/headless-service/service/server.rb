@@ -70,6 +70,9 @@ module TextStatsService
       else
         route_failure(request, response)
       end
+    rescue WEBrick::HTTPStatus::RequestTimeout
+      response["Connection"] = "close"
+      respond_json(response, 408, "ok" => false, "error" => "request timed out")
     rescue RequestError => error
       error.headers.each { |name, value| response[name] = value }
       response["Connection"] = "close" if error.close_connection
