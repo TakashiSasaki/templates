@@ -24,7 +24,7 @@ def _write_repository(repository: Path) -> None:
     (repository / ".agent-policy.yml").write_text(
         """schema_version: 1
 toolchain:
-  repository: TakashiSasaki/agent-policy
+  repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
 profiles:
   - core
