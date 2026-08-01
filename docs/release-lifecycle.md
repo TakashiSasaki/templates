@@ -12,7 +12,7 @@ The mutable `policy` branch is the development source. It is not an executable r
 - the bootstrap-manifest schema version;
 - the generated lock format version.
 
-The descriptor is validated by `schemas/toolchain-release.schema.json`. It cannot contain `policy`, `main`, a tag, a short SHA, `LOCAL-DEVELOPMENT`, or another mutable reference.
+The descriptor is validated by `schemas/toolchain-release.schema.json`. It cannot contain `policy`, `main`, a tag, a short SHA, `LOCAL-DEVELOPMENT`, or another mutable reference. Contract-version fields accept earlier positive versions because they describe the pinned stable executable, not necessarily the candidate checkout's current contracts.
 
 The integrated bootstrap manifest must contain exactly the same `toolchain` object as the stable release descriptor. Product configuration, adoption state, generated lock files, and rendered consumer workflows all carry that same repository and revision when they are created for the stable release.
 
@@ -36,13 +36,15 @@ python scripts/verify-release-state.py \
   --git-ref refs/remotes/origin/policy-source
 ```
 
+The verifier extracts the tree named by the stable revision, loads that revision's configuration and adoption schemas, and executes that revision's manifest, adoption-state, lock, and consumer-workflow generators in an isolated subprocess. Candidate-side contract changes therefore do not rewrite or invalidate the descriptor for the previous stable executable.
+
 The verifier requires:
 
 - a schema-valid stable release descriptor;
 - exact equality between the stable release and bootstrap toolchain pins;
-- matching toolchain definitions in the configuration and adoption-state schemas;
-- matching declared schema and lock versions;
-- generated configuration, adoption state, lock data, and consumer workflow output that use one full SHA;
+- matching toolchain definitions in the pinned configuration and adoption-state schemas;
+- pinned schema and generated-lock versions matching the descriptor;
+- pinned generated configuration, adoption state, lock data, and consumer workflow output that use one full SHA;
 - a stable revision that is a strict ancestor of the reviewed source history;
 - the executable package, action, schemas, and workflow template at the pinned revision;
 - `TakashiSasaki/templates` and branch `policy` identity in the pinned revision.
