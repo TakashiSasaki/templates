@@ -18,16 +18,16 @@ Git history was imported rather than copying only the source tree. Before pushin
 
 This filtering was deliberate:
 
-- workflow triggers and permissions were written for the former repository and its `main` and `bootstrap-agent-policy` branches;
-- documentation deployment depended on branch and repository settings that do not yet exist for `templates:policy`;
-- importing those workflows unchanged could run repository-specific automation with incorrect targets or permissions;
-- branch-appropriate CI and documentation workflows must be reviewed and rebuilt in the target repository.
+- workflow triggers and permissions were written for the former repository and branches;
+- documentation deployment depended on former repository settings;
+- importing those workflows unchanged could run automation with incorrect targets or permissions;
+- branch-appropriate CI and publication workflows require explicit review in the target repository.
 
 Because the trees were rewritten, imported commit SHAs are not expected to equal the original SHAs. Non-workflow file contents, authorship, commit messages, dates, and ancestry were retained except where workflow-only commits became empty and were pruned.
 
-## Included
+## Included in the initial import
 
-The import includes the `main` branch history for:
+The import included the former `main` history for:
 
 - policy sources and profiles;
 - compiler, renderer, validation, and adoption code;
@@ -36,32 +36,26 @@ The import includes the `main` branch history for:
 - tests, documentation, and supporting scripts;
 - package and command compatibility under the existing `agent-policy` name.
 
-## Not included
+The initial import did not transfer the former orphan `bootstrap-agent-policy` branch, workflow history, tags, releases, issues, pull requests, repository settings, secrets, or other unrelated branches.
 
-The import did not transfer:
+## Subsequent consolidation
 
-- `.github/workflows` history;
-- the `bootstrap-agent-policy` branch;
-- tags and releases;
-- issues, pull requests, discussions, or review history;
-- repository secrets, variables, environments, Pages settings, branch protection, webhooks, or installed-app settings;
-- unrelated source branches.
+After the initial import:
 
-These items require explicit review rather than implicit repository copying.
+1. branch-appropriate `Policy CI` was established;
+2. shared policy was restricted to application-type-independent agent operations;
+3. the former `web-application` profile and application-architecture rules were removed;
+4. generated manifests, adoption state, schemas, and consumer workflow templates were migrated from `TakashiSasaki/agent-policy` to `TakashiSasaki/templates`;
+5. the bootstrap trust seed was reviewed and integrated at `skills/bootstrap-agent-policy/`;
+6. its manifest was pinned to the reviewed full-SHA toolchain revision `270645381849431b922bee87afecedc540e52ed1`, which contains the repository-identity migration and precedes the bootstrap-package commit.
 
-## Migration progress
+The old orphan branch was not merged into the new history. Its relevant source files were reviewed and adapted to the new repository, path layout, pin, and documentation model.
 
-Completed:
+## Remaining migration work
 
-1. Restored branch-appropriate CI for `templates:policy`.
-2. Defined and tested the application-type-independent policy scope.
-3. Removed the built-in application-specific profile, rules, documentation, and tests from the shared corpus.
-
-Remaining:
-
-1. Consolidate the bootstrap skill into the `policy` branch or define another explicit retained boundary.
-2. Update consumers to use `TakashiSasaki/templates` and a full commit SHA from `policy`.
-3. Restore documentation publication from the new source.
-4. Add a deprecation notice to `TakashiSasaki/agent-policy`, stop active automation there, and archive it after all consumers have migrated.
+1. Identify and update consumer repositories that still pin `TakashiSasaki/agent-policy` or a rewritten pre-migration SHA.
+2. Restore documentation publication from `templates:policy` with repository-appropriate permissions and Pages settings.
+3. Add a deprecation notice to `TakashiSasaki/agent-policy` and stop active automation there.
+4. Archive the former repository only after all active consumers have migrated.
 
 The former repository must not be deleted during migration because existing full-SHA pins and historical links depend on its objects remaining addressable.
