@@ -1,0 +1,17 @@
+PATH
+  remote: .
+  specs:
+    text-stat (1.0.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  text-stat!
+
+BUNDLED WITH
+   2.3.7
