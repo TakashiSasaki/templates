@@ -59,6 +59,16 @@ class TextStatTest < Minitest::Test
     assert_json_contract(stdout, "bytes" => 8, "lines" => 1, "words" => 2)
   end
 
+  def test_json_contract_accepts_additive_result_fields
+    output = JSON.generate(
+      "contractVersion" => "1",
+      "ok" => true,
+      "result" => { "bytes" => 8, "lines" => 1, "words" => 2, "characters" => 7 }
+    )
+
+    assert_json_contract(output, "bytes" => 8, "lines" => 1, "words" => 2)
+  end
+
   def test_invalid_invocation_uses_exit_code_two
     stdout, stderr, status = run_cli("--output", "yaml", "-")
     assert_equal 2, status.exitstatus
