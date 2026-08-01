@@ -3,15 +3,35 @@
 
 from __future__ import annotations
 
+import importlib
+import json
 import os
 import sys
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
-import validate_contracts_impl as _impl
+MANIFEST_PATH = "contracts/manifest.json"
+MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
+ROOT = Path(__file__).resolve().parents[1]
 
-for _name in dir(_impl):
-    if not _name.startswith("__"):
-        globals()[_name] = getattr(_impl, _name)
+_IMPLEMENTATION: ModuleType | None = None
+
+
+def _load_implementation() -> ModuleType:
+    global _IMPLEMENTATION
+    if _IMPLEMENTATION is None:
+        _IMPLEMENTATION = importlib.import_module("validate_contracts_impl")
+    return _IMPLEMENTATION
+
+
+def __getattr__(name: str) -> Any:
+    if name == "CONTRACT_SCHEMAS" and _symlink_preflight(ROOT):
+        return {}
+    try:
+        return getattr(_load_implementation(), name)
+    except AttributeError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
 
 
 def _path_contains_symlink(root: Path, relative: str) -> bool:
@@ -52,23 +72,29 @@ def _directory_symlink_errors(root: Path) -> list[str]:
     return errors
 
 
+def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
+    try:
+        with (root / MANIFEST_PATH).open("r", encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
 def _symlink_preflight(root: Path) -> list[str]:
-    if _path_contains_symlink(root, _impl.MANIFEST_PATH):
+    if _path_contains_symlink(root, MANIFEST_PATH):
+        return [f"{MANIFEST_PATH}: manifest must not be a symbolic link"]
+    if _path_contains_symlink(root, MANIFEST_SCHEMA_PATH):
         return [
-            f"{_impl.MANIFEST_PATH}: manifest must not be a symbolic link"
-        ]
-    if _path_contains_symlink(root, _impl.MANIFEST_SCHEMA_PATH):
-        return [
-            f"{_impl.MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
+            f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
         ]
 
     directory_errors = _directory_symlink_errors(root)
     if directory_errors:
         return directory_errors
 
-    try:
-        manifest = _impl.load_contract_manifest(root)
-    except _impl._load_json_error_types():
+    manifest = _load_manifest_for_preflight(root)
+    if manifest is None:
         return []
 
     entries = manifest.get("contracts")
@@ -92,27 +118,27 @@ def _symlink_preflight(root: Path) -> list[str]:
                 and _path_contains_symlink(root, relative)
             ):
                 errors.append(
-                    f"contract manifest {contract_id}: {label} must not be "
-                    f"a symbolic link: {relative}"
+                    f"contract manifest {contract_id}: {label} must not be a symbolic link: "
+                    f"{relative}"
                 )
 
     actual_schemas = {
         path.relative_to(root).as_posix()
         for path in (root / "schemas").rglob("*.json")
         if path.is_file() or path.is_symlink()
-    } - {_impl.MANIFEST_SCHEMA_PATH}
+    } - {MANIFEST_SCHEMA_PATH}
     for relative in sorted(actual_schemas - registered_schemas):
         errors.append(f"unregistered contract schema: {relative}")
 
     return errors
 
 
-def _document_metadata_errors(root: Path) -> list[str]:
-    manifest = _impl.load_contract_manifest(root)
+def _document_metadata_errors(root: Path, implementation: ModuleType) -> list[str]:
+    manifest = implementation.load_contract_manifest(root)
     errors: list[str] = []
     for entry in manifest["contracts"]:
         document_path = entry["document"]
-        document = _impl.load_json(root / document_path)
+        document = implementation.load_json(root / document_path)
         if not isinstance(document, dict):
             errors.append(
                 f"{document_path}: registered contract document must be a JSON object "
@@ -125,17 +151,18 @@ def validate_repository(root: Path) -> list[str]:
     errors = _symlink_preflight(root)
     if errors:
         return errors
-    errors = _impl.validate_repository(root)
+    implementation = _load_implementation()
+    errors = implementation.validate_repository(root)
     if errors:
         return errors
-    return _document_metadata_errors(root)
+    return _document_metadata_errors(root, implementation)
 
 
 def main() -> int:
-    errors = validate_repository(_impl.ROOT)
+    errors = validate_repository(ROOT)
     if errors:
         print("Contract validation failed:", file=sys.stderr)
-        for error in errors:
+        for error in errorrs:
             print(f"- {error}", file=sys.stderr)
         return 1
     print("All web-application contracts are valid.")
