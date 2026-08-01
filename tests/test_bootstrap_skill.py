@@ -10,7 +10,13 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = ROOT / "skills/bootstrap-agent-policy"
-PINNED_TOOLCHAIN_REVISION = "270645381849431b922bee87afecedc540e52ed1"
+
+
+def stable_toolchain() -> dict[str, str]:
+    release = json.loads((ROOT / "release/toolchain.json").read_text(encoding="utf-8"))
+    toolchain = release["toolchain"]
+    assert isinstance(toolchain, dict)
+    return toolchain
 
 
 def load_script(name: str, relative: str) -> ModuleType:
@@ -39,11 +45,10 @@ uninstaller = load_script(
 
 def test_manifest_pins_reviewed_templates_policy_sha() -> None:
     manifest = bootstrap.load_manifest()
-    assert manifest["toolchain"] == {
-        "repository": "TakashiSasaki/templates",
-        "revision": PINNED_TOOLCHAIN_REVISION,
-    }
-    assert bootstrap.FULL_SHA.fullmatch(PINNED_TOOLCHAIN_REVISION)
+    toolchain = stable_toolchain()
+    assert manifest["toolchain"] == toolchain
+    revision = toolchain["revision"]
+    assert bootstrap.FULL_SHA.fullmatch(revision)
 
 
 def test_requirement_is_immutable() -> None:
