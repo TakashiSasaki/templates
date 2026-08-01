@@ -75,6 +75,28 @@ class GeneratedSiteLinkTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Validated 5 local links across 2 generated HTML pages", result.stdout)
 
+    def test_accepts_external_special_scheme_without_slashes(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="http:external.test/path">External</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Validated 0 local links across 1 generated HTML pages", result.stdout)
+
+    def test_rejects_same_scheme_shorthand_when_local_target_is_missing(self) -> None:
+        self.write(
+            "index.html",
+            '<a href="https:absent/">Absent</a>',
+        )
+
+        result = self.run_validator()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("has no generated target", result.stderr)
+
     def test_accepts_anchor_followed_by_text_fragment_directive(self) -> None:
         self.write(
             "index.html",
