@@ -1,0 +1,33 @@
+name: Check documentation site compatibility
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.md'
+      - docs/**
+      - assets/**
+      - .github/workflows/check-site-compatibility.yml
+      - .github/workflows/pages.yml
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    if: github.repository == 'TakashiSasaki/templates'
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
+    with:
+      site_ref: site
+      source_ref: ${{ github.sha }}
+      deploy: false
+    permissions:
+      contents: read
