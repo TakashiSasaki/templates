@@ -4,11 +4,30 @@ require "json"
 require "minitest/autorun"
 require "open3"
 require "rbconfig"
+require "stringio"
 require_relative "../src/text_stat"
 
 class TextStatTest < Minitest::Test
   ROOT = File.expand_path("..", __dir__)
   COMMAND = [RbConfig.ruby, File.join(ROOT, "bin/text-stat")].freeze
+
+  class BinaryModeInput
+    def initialize(data)
+      @data = data
+      @binary = false
+    end
+
+    def binmode
+      @binary = true
+      self
+    end
+
+    def read
+      raise "input was read before binary mode was enabled" unless @binary
+
+      @data
+    end
+  end
 
   def run_cli(*arguments, stdin_data: "")
     Open3.capture3(*COMMAND, *arguments, stdin_data: stdin_data, chdir: ROOT)
@@ -50,6 +69,23 @@ class TextStatTest < Minitest::Test
     assert status.success?, stderr
     assert_empty stderr
     assert_equal "bytes: 8\nlines: 1\nwords: 2\n", stdout
+  end
+
+  def test_standard_input_is_switched_to_binary_mode_before_reading
+    stdin = BinaryModeInput.new("one two\r\n".b)
+    stdout = StringIO.new
+    stderr = StringIO.new
+
+    status = TextStat::CLI.run(
+      ["--output", "json", "-"],
+      stdin: stdin,
+      stdout: stdout,
+      stderr: stderr
+    )
+
+    assert_equal 0, status
+    assert_empty stderr.string
+    assert_json_contract(stdout.string, "bytes" => 9, "lines" => 1, "words" => 2)
   end
 
   def test_json_output_from_standard_input
