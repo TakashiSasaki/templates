@@ -36,6 +36,12 @@ During the Phase 2 validation transition, run:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
+## Documentation publication compatibility
+
+Pull requests to `main` that change canonical Markdown, `docs/`, or `assets/` are assembled and built against the current `site` branch by **Check documentation site compatibility**. The pull-request run uses GitHub's proposed merge commit, records both exact source commits in the generated artifact, and never deploys it.
+
+The same non-deploying check runs weekly and can be started manually to detect drift between `main` and `site`. Publication after a merge remains the responsibility of **Publish template documentation**.
+
 ## Pull requests
 
 Describe:
