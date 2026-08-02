@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "json"
+require "securerandom"
 require "socket"
 
 module TextStatsService
@@ -100,28 +101,103 @@ module TextStatsService
     end
   end
 
-  # Creation permissions are constrained by the process umask. Re-apply and
-  # verify the lifecycle-record mode through the already-open descriptor so a
-  # restrictive umask cannot publish a record that --stop and cleanup reject.
+  # Build and verify the lifecycle record through a private staging inode, then
+  # publish it with a hard link. File.link is atomic and refuses replacement,
+  # so the configured PID pathname is never observable with empty or partial
+  # JSON. Any write or publication failure removes the staging entry, and a
+  # post-link failure removes only the published inode created by this call.
   module SecurePidRecordWriter
     def write_pid_record(path, record)
-      FileUtils.mkdir_p(File.dirname(path))
-      if File.exist?(path) || File.symlink?(path)
-        raise ConfigurationError, "Headless service PID file already exists: #{path}"
+      directory = File.dirname(path)
+      FileUtils.mkdir_p(directory)
+      serialized = "#{JSON.generate(record)}\n"
+      if serialized.bytesize > self::PID_RECORD_MAX_BYTES
+        raise ConfigurationError, "Headless service PID record exceeds #{self::PID_RECORD_MAX_BYTES} bytes"
       end
 
-      File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |file|
+      temporary_path = nil
+      file = nil
+      linked = false
+      record_identity = nil
+
+      begin
+        temporary_path, file = open_pid_record_staging_file(directory, File.basename(path))
         file.chmod(0o600)
-        unless (file.stat.mode & 0o777) == 0o600
-          raise ConfigurationError, "Headless service PID file must have mode 0600: #{path}"
+        stat = file.stat
+        unless stat.file? && stat.uid == Process.euid && (stat.mode & 0o777) == 0o600
+          raise ConfigurationError, "Headless service PID staging file failed security validation: #{temporary_path}"
         end
-        file.write(JSON.generate(record))
-        file.write("\n")
+
+        file.write(serialized)
+        file.flush
+        file.fsync
+        file.rewind
+        unless file.read == serialized
+          raise ConfigurationError, "unable to verify complete headless service PID record"
+        end
+
+        record_identity = [stat.dev, stat.ino]
+        File.link(temporary_path, path)
+        linked = true
+
+        published = File.lstat(path)
+        unless published.file? && [published.dev, published.ino] == record_identity
+          raise ConfigurationError, "unable to verify published headless service PID record: #{path}"
+        end
+      rescue Errno::EEXIST
+        raise ConfigurationError, "Headless service PID file already exists: #{path}"
+      rescue ConfigurationError
+        raise
+      rescue SystemCallError => error
+        raise ConfigurationError, "unable to create headless service PID file #{path}: #{error.message}"
+      ensure
+        failure = $!
+        file.close if file && !file.closed?
+
+        if failure && linked && record_identity
+          begin
+            current = File.lstat(path)
+            File.unlink(path) if [current.dev, current.ino] == record_identity
+          rescue Errno::ENOENT
+            nil
+          rescue SystemCallError
+            nil
+          end
+        end
+
+        if temporary_path
+          begin
+            File.unlink(temporary_path)
+          rescue Errno::ENOENT
+            nil
+          rescue SystemCallError
+            nil
+          end
+        end
       end
-    rescue Errno::EEXIST
-      raise ConfigurationError, "Headless service PID file already exists: #{path}"
-    rescue SystemCallError => error
-      raise ConfigurationError, "unable to create headless service PID file #{path}: #{error.message}"
+    end
+
+    private
+
+    def open_pid_record_staging_file(directory, basename)
+      16.times do
+        path = File.join(
+          directory,
+          ".#{basename}.#{Process.pid}.#{SecureRandom.hex(12)}.tmp"
+        )
+        begin
+          file = File.open(
+            path,
+            File::RDWR | File::CREAT | File::EXCL | File::NOFOLLOW,
+            0o600
+          )
+          return [path, file]
+        rescue Errno::EEXIST
+          next
+        end
+      end
+
+      raise ConfigurationError, "unable to allocate headless service PID staging file"
     end
   end
 
