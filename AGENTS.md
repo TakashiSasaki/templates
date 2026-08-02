@@ -16,6 +16,8 @@ Treat `SKILL.md` as the operational center of the repository. A concrete skill m
 
 Select the smallest sufficient profile described in `docs/skill-profiles.md`. Every `SKILL.md` must contain exactly one `Selected profiles:` line using the documented machine-readable tags. The `template-scaffold` value is reserved for the uncustomized `agent-skill-template`; replace it before adding operational resources, implementation, runtime manifests, or interface contracts.
 
+The `instruction-only` tag is exclusive and must be selected alone. If the skill retains operational resources, executable helpers, runtime or interface contracts, or service behavior, omit `instruction-only` and select the corresponding profiles instead. Compatible non-`instruction-only` profiles retain the union of their requirements.
+
 Delete unsupported optional contracts and directories rather than leaving large placeholder documents in a concrete skill. Use `docs/profile-contract-map.md` to identify the source of truth for each decision.
 
 ## Progressive maintainer reading
