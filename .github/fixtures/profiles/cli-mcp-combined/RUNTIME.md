@@ -54,7 +54,7 @@ The local installation keeps the gem and executable inside the repository workin
 | Start stdio MCP server | `bundle exec ruby mcp/server.rb` |
 | Inspect MCP server and tool inventory | `bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory` |
 | Invoke one MCP tool over stdio | `bundle exec ruby tests/test_interface_equivalence.rb` |
-| Invoke sequential MCP tool calls over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_tool_error_keeps_session_usable_for_sequential_calls` |
+| Invoke sequential MCP tool calls over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls` |
 | Start Streamable HTTP MCP server | NOT SUPPORTED |
 | Stop Streamable HTTP MCP server | NOT SUPPORTED |
 | Invoke one MCP tool over Streamable HTTP | NOT SUPPORTED |
