@@ -58,6 +58,7 @@ PIP_SANITIZED_INPUTS = (
     "PIP_REPORT",
     "PIP_CONFIG_SETTINGS",
     "PIP_KEYRING_PROVIDER",
+    "PIP_EXISTS_ACTION",
     "PIP_IGNORE_REQUIRES_PYTHON",
     "PIP_LOG",
     "PIP_TRUSTED_HOST",
@@ -119,6 +120,9 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PYTHONPATH: ""',
             '      PYTHONSAFEPATH: ""',
             '      PYTHONPLATLIBDIR: ""',
+            '      PYTHONHASHSEED: ""',
+            '      PYTHONUTF8: ""',
+            '      PYTHONINTMAXSTRDIGITS: ""',
             '      PYTHONNOUSERSITE: "1"',
             '      PIP_PYTHON: ""',
             '      PIP_CACHE_DIR: ""',
@@ -127,6 +131,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PIP_PROGRESS_BAR: ""',
             '      PIP_LOG: ""',
             '      PIP_KEYRING_PROVIDER: ""',
+            '      PIP_EXISTS_ACTION: ""',
             '      PIP_TIMEOUT: ""',
             '      PIP_DEFAULT_TIMEOUT: ""',
             '      PIP_RETRIES: ""',
@@ -142,7 +147,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
+            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
             "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
@@ -163,7 +168,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
-        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
@@ -196,7 +201,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS),
+                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
