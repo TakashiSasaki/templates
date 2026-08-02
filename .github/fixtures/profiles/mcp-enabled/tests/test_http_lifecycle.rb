@@ -86,7 +86,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
         jsonrpc: "2.0",
         method: "tools/call",
         id: 99,
-        params: { name: TextStatsMcp::TOOL_NAME, arguments: { text: "cancel me" } }
+        params: { name: TextStatsMcp::TOOL_NAME, arguments: { text: "disconnect me" } }
       )
       request = [
         "POST /mcp HTTP/1.1",
@@ -190,7 +190,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
     server&.stop
   end
 
-  def test_aborted_tool_request_leaves_server_and_session_usable
+  def test_disconnected_tool_request_completes_boundedly_and_leaves_session_usable
     Dir.mktmpdir("mcp-http-disconnect") do |directory|
       marker = File.join(directory, "tool-state")
       server = HttpServerProcess.new(session_idle_timeout: 10, tool_delay: 0.5, tool_marker: marker)
@@ -202,7 +202,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       socket = server.start_tool_call(session_id)
       wait_for_marker(marker, "started")
       socket.close
-      wait_for_marker(marker, "finished")
+      wait_for_marker(marker, "completed")
 
       ping = server.post_json(
         { jsonrpc: "2.0", method: "ping", id: 2, params: {} },
