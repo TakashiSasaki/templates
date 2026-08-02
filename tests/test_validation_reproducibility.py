@@ -126,10 +126,9 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE "
-            "PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT\n"
+            "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
-            "python -m venv --clear .venv\n"
+            "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
         )
         unsafe_sequence = (
@@ -148,7 +147,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
-        documented_unsets = "unset PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
@@ -181,7 +180,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS),
+                    "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
