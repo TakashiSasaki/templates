@@ -51,6 +51,18 @@ replace_selected_profiles = lambda do |directory, replacement|
   File.write(path, replaced)
 end
 
+combined_skill = File.read(File.join(fixtures_root, "combined-resources", "SKILL.md"))
+[
+  "The facts source, staging path, and output path must be distinct.",
+  "Exact invocation: ruby scripts/normalize.rb STAGING OUTPUT",
+  "Save the completed UTF-8 response to the caller-supplied STAGING path",
+  "the supplied facts source and staging file are unchanged by normalization"
+].each do |required_text|
+  unless combined_skill.include?(required_text)
+    failures << "combined-resources: missing distinct staging-path contract: #{required_text.inspect}"
+  end
+end
+
 expected_files.each do |name, expected|
   fixture = File.join(fixtures_root, name)
   actual = Find.find(fixture).filter_map do |path|
@@ -76,19 +88,36 @@ end
 %w[script-assisted combined-resources].each do |fixture_name|
   Dir.mktmpdir("#{fixture_name}-execution") do |directory|
     copy_fixture.call(fixture_name, directory)
-    File.binwrite(File.join(directory, "input.txt"), "alpha  \r\nbeta\t\r\n")
+
+    input_name = fixture_name == "combined-resources" ? "response-staging.txt" : "input.txt"
+    input_path = File.join(directory, input_name)
+    File.binwrite(input_path, "alpha  \r\nbeta\t\r\n")
+    input_before = File.binread(input_path)
+
+    facts_path = nil
+    facts_before = nil
+    if fixture_name == "combined-resources"
+      facts_path = File.join(directory, "facts.txt")
+      File.binwrite(facts_path, "caller-supplied facts\n")
+      facts_before = File.binread(facts_path)
+    end
+
     stdout, stderr, status = Open3.capture3(
       RbConfig.ruby,
       "scripts/normalize.rb",
-      "input.txt",
+      input_name,
       "output.txt",
       chdir: directory
     )
     output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
-    unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n"
-      failures << "#{fixture_name} helper: expected deterministic normalization; " \
+    input_unchanged = File.binread(input_path) == input_before
+    facts_unchanged = facts_path.nil? || File.binread(facts_path) == facts_before
+    unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n" &&
+           input_unchanged && facts_unchanged
+      failures << "#{fixture_name} helper: expected deterministic normalization without modifying source inputs; " \
                   "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
-                  "stderr=#{stderr.inspect}, output=#{output.inspect}"
+                  "stderr=#{stderr.inspect}, output=#{output.inspect}, " \
+                  "input_unchanged=#{input_unchanged.inspect}, facts_unchanged=#{facts_unchanged.inspect}"
     end
 
     File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
