@@ -27,7 +27,7 @@ jobs:
           cache-dependency-path: requirements-dev.lock
 
       - name: Create isolated validation environment
-        run: python -m venv .venv
+        run: python -m venv --clear .venv
 
       - name: Install locked validation dependencies
         run: .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
