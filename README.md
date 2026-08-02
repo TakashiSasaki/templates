@@ -39,4 +39,4 @@ python -m unittest discover -s tests -v
 
 Changes for this template branch must be based on `webapp`, not on `main` or `site`. The histories are unrelated and must not be merged merely to share files.
 
-See `TEMPLATE.md` for scope and customization boundaries, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, `docs/architecture/contract-completeness.md` for the contract inventory and extension criteria, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.
+See `TEMPLATE.md` for scope and customization boundaries, [`docs/operationalization.md`](docs/operationalization.md) for the generated-repository workflow, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, `docs/architecture/contract-completeness.md` for the contract inventory and extension criteria, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.
