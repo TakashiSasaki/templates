@@ -36,10 +36,10 @@ Return one MCP tool result containing deterministic `bytes`, `lines`, and `words
 
 ## Validation
 
-Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb` and `bundle exec ruby tests/test_http_server.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter and test, and verifies required implementation and contract failures.
+Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb`, `bundle exec ruby tests/test_http_server.rb`, and `bundle exec ruby tests/test_http_boundaries.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter and test, verifies canonical default-port authority handling and pending startup shutdown delivery, and rejects missing shared implementation, adapters, or required contracts.
 
 ## Safety and approval
 
-The operation is read-only and requires no human confirmation. The stdio route opens no listener and writes protocol messages only to stdout. The HTTP route starts only by explicit operator action, binds only to `127.0.0.1`, requires an externally supplied Bearer token on every MCP request, validates Host and Origin on every request, accepts no non-loopback mode, and never places the token in command arguments, stdout, or diagnostics. Starting or stopping the HTTP listener remains an externally visible operator action and must not occur implicitly as fallback behavior.
+The operation is read-only and requires no human confirmation. The stdio route opens no listener and writes protocol messages only to stdout. The HTTP route starts only by explicit operator action, binds only to `127.0.0.1`, requires an externally supplied Bearer token on every MCP request, validates canonical Host authority and effective-port Origin on every request, accepts no non-loopback mode, and never places the token in command arguments, stdout, or diagnostics. Starting or stopping the HTTP listener remains an externally visible operator action and must not occur implicitly as fallback behavior. TERM or INT received during startup remains pending until the server instance can be shut down.
 
 Selected profiles: mcp-enabled
