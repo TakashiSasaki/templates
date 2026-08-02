@@ -32,7 +32,7 @@ Idempotency and retry behavior: repeated execution with the same input produces 
 
 ## Runtime authority
 
-Runtime identity, portability, and exact shared commands are authoritative in `RUNTIME.md`. The helper uses only the Ruby standard library and is not a packaged public CLI.
+Runtime identity, portability, and exact shared commands are authoritative in `RUNTIME.md`. The helper and its executable test use only the Ruby standard library, and the helper is not a packaged public CLI.
 
 ## Workflow
 
@@ -47,7 +47,7 @@ Return the output path and whether normalization changed the text. The output mu
 
 ## Validation
 
-Run `ruby -c scripts/normalize.rb`, execute the helper on representative UTF-8 input, and confirm that the input remains unchanged, aliased output paths are rejected, and the output is deterministic.
+From the skill root, run `ruby -c scripts/normalize.rb` and `ruby tests/test_normalize.rb`. The executable test confirms deterministic LF output, input immutability, same-file rejection, and bounded invalid-UTF-8 failure.
 
 ## Safety and approval
 
