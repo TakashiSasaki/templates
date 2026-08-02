@@ -75,6 +75,7 @@ PIP_SANITIZED_INPUTS = (
     "PIP_REPORT",
     "PIP_CONFIG_SETTINGS",
     "PIP_IGNORE_REQUIRES_PYTHON",
+    "PIP_LOG",
 )
 
 
@@ -110,6 +111,7 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     assert '      PIP_CACHE_DIR: ""' in workflow
     assert '      PIP_NO_CACHE_DIR: ""' in workflow
     assert '      PIP_QUIET: ""' in workflow
+    assert '      PIP_LOG: ""' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
     documented_unset = (
         "unset PYTHONHOME PYTHONPATH PYTHONUSERBASE "
