@@ -4,10 +4,9 @@
 require "digest"
 require "fileutils"
 require "json"
-require "net/http"
 require "optparse"
+require "socket"
 require "timeout"
-require "uri"
 require "webrick"
 require_relative "../src/text_stats"
 
@@ -129,15 +128,11 @@ module TextStatsService
           true
         end
       end
-      unless admitted
-        raise RequestError.new(503, "service is busy or draining", close_connection: true)
-      end
+      raise RequestError.new(503, "service is busy or draining", close_connection: true) unless admitted
 
       yield
     ensure
-      if admitted
-        @admission_mutex.synchronize { @active_api_requests -= 1 }
-      end
+      @admission_mutex.synchronize { @active_api_requests -= 1 } if admitted
     end
 
     def handle_stats(request, response)
@@ -222,6 +217,7 @@ module TextStatsService
     DEFAULT_PID_FILE = "tmp/text-stats-service.pid"
     CONFIGURATION_EXIT = 78
     HEALTH_DEADLINE_SECONDS = 2
+    HEALTH_HEADER_MAX_BYTES = 4096
     HEALTH_RESPONSE_MAX_BYTES = 4096
     PID_RECORD_MAX_BYTES = 4096
     PID_RECORD_KEYS = %w[pid startTicks].freeze
@@ -255,15 +251,11 @@ module TextStatsService
 
     def self.configuration_from(env)
       bind = env.fetch("TEXT_STATS_SERVICE_BIND", DEFAULT_BIND)
-      unless bind == DEFAULT_BIND
-        raise ConfigurationError, "TEXT_STATS_SERVICE_BIND must be 127.0.0.1"
-      end
+      raise ConfigurationError, "TEXT_STATS_SERVICE_BIND must be 127.0.0.1" unless bind == DEFAULT_BIND
 
       raw_port = env.fetch("TEXT_STATS_SERVICE_PORT", DEFAULT_PORT.to_s)
       port = Integer(raw_port, 10)
-      unless (0..65_535).cover?(port)
-        raise ConfigurationError, "TEXT_STATS_SERVICE_PORT must be between 0 and 65535"
-      end
+      raise ConfigurationError, "TEXT_STATS_SERVICE_PORT must be between 0 and 65535" unless (0..65_535).cover?(port)
 
       pid_file = File.expand_path(env.fetch("TEXT_STATS_SERVICE_PID_FILE", DEFAULT_PID_FILE), Dir.pwd)
       token_file_value = env["TEXT_STATS_SERVICE_TOKEN_FILE"]
@@ -320,9 +312,7 @@ module TextStatsService
     end
 
     def self.read_token(path)
-      unless path
-        raise ConfigurationError, "TEXT_STATS_SERVICE_TOKEN_FILE is required for service startup"
-      end
+      raise ConfigurationError, "TEXT_STATS_SERVICE_TOKEN_FILE is required for service startup" unless path
 
       flags = File::RDONLY | File::NOFOLLOW | File::NONBLOCK
       raw = File.open(path, flags) do |file|
@@ -353,28 +343,12 @@ module TextStatsService
     end
 
     def self.health(configuration, path, expected_status, stdout:, stderr:)
-      uri = URI("http://#{configuration.fetch(:bind)}:#{configuration.fetch(:port)}#{path}")
-      request = Net::HTTP::Get.new(uri)
-      request["Host"] = "#{configuration.fetch(:bind)}:#{configuration.fetch(:port)}"
-      http = Net::HTTP.new(uri.host, uri.port, nil, nil, nil, nil)
-      http.open_timeout = 1
-      http.read_timeout = 1
-      response_code = nil
-      response_body = +"".b
-
-      Timeout.timeout(HEALTH_DEADLINE_SECONDS) do
-        http.start do |client|
-          client.request(request) do |response|
-            response_code = response.code
-            response.read_body do |chunk|
-              if response_body.bytesize + chunk.bytesize > HEALTH_RESPONSE_MAX_BYTES
-                raise ConfigurationError,
-                      "health response exceeds #{HEALTH_RESPONSE_MAX_BYTES} bytes"
-              end
-              response_body << chunk
-            end
-          end
-        end
+      response_code, response_body = Timeout.timeout(HEALTH_DEADLINE_SECONDS) do
+        read_bounded_health_response(
+          configuration.fetch(:bind),
+          configuration.fetch(:port),
+          path
+        )
       end
 
       payload = JSON.parse(response_body)
@@ -391,6 +365,75 @@ module TextStatsService
     rescue StandardError => error
       stderr.puts("Headless service #{expected_status} check failed: #{error.message}")
       1
+    end
+
+    def self.read_bounded_health_response(bind, port, path)
+      socket = TCPSocket.new(bind, port)
+      socket.write(
+        "GET #{path} HTTP/1.1\r\n" \
+        "Host: #{bind}:#{port}\r\n" \
+        "Accept: application/json\r\n" \
+        "Connection: close\r\n\r\n"
+      )
+
+      buffered = +"".b
+      header_end = nil
+      until header_end
+        buffered << socket.readpartial(512)
+        header_end = buffered.index("\r\n\r\n")
+        if header_end
+          if header_end + 4 > HEALTH_HEADER_MAX_BYTES
+            raise ConfigurationError, "health response headers exceed #{HEALTH_HEADER_MAX_BYTES} bytes"
+          end
+        elsif buffered.bytesize > HEALTH_HEADER_MAX_BYTES
+          raise ConfigurationError, "health response headers exceed #{HEALTH_HEADER_MAX_BYTES} bytes"
+        end
+      end
+
+      serialized_headers = buffered.byteslice(0, header_end + 4)
+      response_body = buffered.byteslice(header_end + 4..).to_s.b
+      status_line, *header_lines = serialized_headers.split("\r\n")
+      status_match = /\AHTTP\/1\.[01] (\d{3})(?: .*)?\z/.match(status_line.to_s)
+      raise ConfigurationError, "invalid health response status line" unless status_match
+
+      headers = {}
+      header_lines.each do |line|
+        next if line.empty?
+        name, value = line.split(":", 2)
+        unless name && value && /\A[!#$%&'*+.^_`|~0-9A-Za-z-]+\z/.match?(name)
+          raise ConfigurationError, "invalid health response header"
+        end
+        headers[name.downcase] = value.strip
+      end
+
+      if headers.key?("content-length")
+        raw_length = headers.fetch("content-length")
+        unless /\A\d+\z/.match?(raw_length)
+          raise ConfigurationError, "invalid health response Content-Length"
+        end
+        content_length = Integer(raw_length, 10)
+        if content_length > HEALTH_RESPONSE_MAX_BYTES
+          raise ConfigurationError, "health response exceeds #{HEALTH_RESPONSE_MAX_BYTES} bytes"
+        end
+        while response_body.bytesize < content_length
+          response_body << socket.readpartial([512, content_length - response_body.bytesize].min)
+        end
+        response_body = response_body.byteslice(0, content_length)
+      else
+        loop do
+          if response_body.bytesize > HEALTH_RESPONSE_MAX_BYTES
+            raise ConfigurationError, "health response exceeds #{HEALTH_RESPONSE_MAX_BYTES} bytes"
+          end
+          response_body << socket.readpartial(512)
+        end
+      end
+    rescue EOFError
+      if response_body && response_body.bytesize <= HEALTH_RESPONSE_MAX_BYTES && status_match
+        return [status_match[1], response_body]
+      end
+      raise ConfigurationError, "incomplete health response"
+    ensure
+      socket&.close
     end
 
     def self.stop(configuration, stdout:, stderr:)
