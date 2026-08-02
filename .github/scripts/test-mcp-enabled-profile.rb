@@ -21,8 +21,11 @@ expected_files = %w[
   SKILL.md
   docs/mcp-transports.md
   mcp/README.md
+  mcp/http_server.rb
   mcp/server.rb
+  mcp/server_factory.rb
   src/text_stats.rb
+  tests/test_http_server.rb
   tests/test_mcp_server.rb
 ].sort.freeze
 
@@ -112,16 +115,31 @@ runtime_contract = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "U
 documented_commands = [
   "bundle install",
   "bundle exec ruby mcp/server.rb",
+  "bundle exec ruby mcp/http_server.rb",
   "bundle exec ruby tests/test_mcp_server.rb",
+  "bundle exec ruby tests/test_http_server.rb",
   "bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory",
   "bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call",
-  "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls"
+  "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls",
+  "bundle exec ruby tests/test_http_server.rb --name test_http_inventory_calls_and_stdio_equivalence",
+  "bundle exec ruby tests/test_http_server.rb --name test_request_scoped_host_origin_and_authentication_on_reused_connection",
+  "curl --fail --silent --show-error http://127.0.0.1:4570/readyz"
 ].freeze
 
 documented_commands.each do |command|
   unless runtime_contract.include?(command)
     failures << "mcp-enabled runtime: missing documented command #{command.inspect}"
   end
+end
+
+manifest = File.read(File.join(fixture_root, "Gemfile"), encoding: "UTF-8")
+{
+  'gem "mcp", "1.0.0"' => "official MCP SDK",
+  'gem "rack", "3.2.1"' => "Rack interface",
+  'gem "rackup", "2.2.1"' => "Rack server handler",
+  'gem "webrick", "1.9.1"' => "loopback HTTP server"
+}.each do |declaration, purpose|
+  failures << "mcp-enabled dependencies: missing exact #{purpose} declaration #{declaration.inspect}" unless manifest.include?(declaration)
 end
 
 bundle_check = run_command.call("bundle", "--version", chdir: fixture_root, timeout_seconds: 10)
@@ -180,7 +198,14 @@ if failures.empty?
     end
 
     if bundle_install.status&.success?
-      %w[src/text_stats.rb mcp/server.rb tests/test_mcp_server.rb].each do |path|
+      %w[
+        src/text_stats.rb
+        mcp/server_factory.rb
+        mcp/server.rb
+        mcp/http_server.rb
+        tests/test_mcp_server.rb
+        tests/test_http_server.rb
+      ].each do |path|
         syntax = run_command.call(
           RbConfig.ruby,
           "-c",
@@ -193,37 +218,70 @@ if failures.empty?
         end
       end
 
-      tests = run_command.call(
-        "bundle",
-        "exec",
-        RbConfig.ruby,
-        "tests/test_mcp_server.rb",
-        chdir: directory,
-        timeout_seconds: 60
-      )
-      unless tests.status&.success? && !tests.timed_out
-        failures << "mcp-enabled tests: expected success; stdout=#{tests.stdout.inspect}, " \
-                    "stderr=#{tests.stderr.inspect}, timed_out=#{tests.timed_out}"
+      {
+        "stdio" => "tests/test_mcp_server.rb",
+        "Streamable HTTP" => "tests/test_http_server.rb"
+      }.each do |name, test_path|
+        tests = run_command.call(
+          "bundle",
+          "exec",
+          RbConfig.ruby,
+          test_path,
+          chdir: directory,
+          timeout_seconds: 120
+        )
+        unless tests.status&.success? && !tests.timed_out
+          failures << "mcp-enabled #{name} tests: expected success; stdout=#{tests.stdout.inspect}, " \
+                      "stderr=#{tests.stderr.inspect}, timed_out=#{tests.timed_out}"
+        end
       end
 
-      server_path = File.join(directory, "mcp/server.rb")
-      missing_path = "#{server_path}.missing"
-      File.rename(server_path, missing_path)
-      missing_implementation = run_command.call(
-        "bundle",
-        "exec",
-        RbConfig.ruby,
-        "mcp/server.rb",
-        chdir: directory,
-        timeout_seconds: 10
-      )
-      if missing_implementation.timed_out || missing_implementation.status&.success? ||
-         missing_implementation.stderr.strip.empty?
-        failures << "mcp-enabled missing implementation: expected a prompt nonzero failure with diagnostics; " \
-                    "status=#{missing_implementation.status&.exitstatus.inspect}, " \
-                    "stderr=#{missing_implementation.stderr.inspect}, timed_out=#{missing_implementation.timed_out}"
+      factory_path = File.join(directory, "mcp/server_factory.rb")
+      missing_factory_path = "#{factory_path}.missing"
+      File.rename(factory_path, missing_factory_path)
+      %w[mcp/server.rb mcp/http_server.rb].each do |entry_point|
+        missing_factory = run_command.call(
+          "bundle",
+          "exec",
+          RbConfig.ruby,
+          entry_point,
+          chdir: directory,
+          timeout_seconds: 10,
+          env: {
+            "TEXT_STATS_MCP_HTTP_TOKEN" => "fixture-http-token-0123456789abcdef"
+          }
+        )
+        if missing_factory.timed_out || missing_factory.status&.success? || missing_factory.stderr.strip.empty?
+          failures << "mcp-enabled shared implementation: expected #{entry_point} to fail promptly when server_factory.rb is missing; " \
+                      "status=#{missing_factory.status&.exitstatus.inspect}, stderr=#{missing_factory.stderr.inspect}, " \
+                      "timed_out=#{missing_factory.timed_out}"
+        end
       end
-      File.rename(missing_path, server_path)
+      File.rename(missing_factory_path, factory_path)
+
+      %w[mcp/server.rb mcp/http_server.rb].each do |entry_point|
+        implementation_path = File.join(directory, entry_point)
+        missing_path = "#{implementation_path}.missing"
+        File.rename(implementation_path, missing_path)
+        missing_implementation = run_command.call(
+          "bundle",
+          "exec",
+          RbConfig.ruby,
+          entry_point,
+          chdir: directory,
+          timeout_seconds: 10,
+          env: {
+            "TEXT_STATS_MCP_HTTP_TOKEN" => "fixture-http-token-0123456789abcdef"
+          }
+        )
+        if missing_implementation.timed_out || missing_implementation.status&.success? ||
+           missing_implementation.stderr.strip.empty?
+          failures << "mcp-enabled missing implementation: expected #{entry_point} to fail promptly with diagnostics; " \
+                      "status=#{missing_implementation.status&.exitstatus.inspect}, " \
+                      "stderr=#{missing_implementation.stderr.inspect}, timed_out=#{missing_implementation.timed_out}"
+        end
+        File.rename(missing_path, implementation_path)
+      end
     end
   end
 end
@@ -253,4 +311,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "MCP-enabled profile fixture tests passed."
+puts "MCP-enabled stdio and Streamable HTTP profile fixture tests passed."
