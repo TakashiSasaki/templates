@@ -76,7 +76,7 @@ The fixture advertises no elicitation, sampling, roots, or other server-to-clien
 
 ### Cancellation, tasks, and extensions
 
-The sole operation is synchronous and bounded. A stdio timeout closes stdin and applies bounded child-process escalation. An HTTP timeout closes the applicable request; no task or background domain operation remains, and explicit DELETE releases the session. Tasks and optional extensions are not advertised.
+The sole operation is synchronous and bounded. A stdio timeout closes stdin and applies bounded child-process escalation. In the pinned SDK 1.0.0 JSON-response HTTP transport, a caller timeout or socket close abandons the response path but does not itself signal MCP cancellation; the synchronous operation may continue in the serving request thread until bounded completion. It is not detached into a task or independent background operation, and the session remains reusable before explicit DELETE releases it. Protocol-level MCP cancellation is a separate mechanism and is not claimed by the socket-disconnect contract. Tasks and optional extensions are not advertised.
 
 ### Ownership and workspace policy
 
