@@ -126,3 +126,11 @@ jobs:
       - name: Test headless-service profile fixture
         shell: bash
         run: ruby .github/scripts/test-headless-service-profile.rb
+
+      - name: Test restrictive-umask PID lifecycle
+        shell: bash
+        working-directory: .github/fixtures/profiles/headless-service
+        run: |
+          bundle config set --local path .bundle
+          bundle install --jobs 4 --retry 3
+          bundle exec ruby ../../../scripts/test-headless-service-restrictive-umask.rb
