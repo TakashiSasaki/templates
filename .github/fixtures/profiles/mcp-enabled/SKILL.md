@@ -36,7 +36,7 @@ Return one MCP tool result containing deterministic `bytes`, `lines`, and `words
 
 ## Validation
 
-Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb`, `bundle exec ruby tests/test_http_server.rb`, and `bundle exec ruby tests/test_http_boundaries.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter and test, verifies canonical default-port authority handling and pending startup shutdown delivery, and rejects missing shared implementation, adapters, or required contracts.
+Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb`, `bundle exec ruby tests/test_http_server.rb`, `bundle exec ruby tests/test_http_boundaries.rb`, and `bundle exec ruby tests/test_http_lifecycle.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter and test, verifies canonical default-port authority handling, idle-expiry recovery, bounded post-disconnect completion and session reuse, pending startup shutdown delivery, and process-group timeout cleanup, and rejects missing shared implementation, adapters, or required contracts.
 
 ## Safety and approval
 
