@@ -105,31 +105,34 @@ Run every command from the skill root.
 
 | Item | Selected value |
 |---|---|
-| Supported | NO |
-| Scope | NOT SUPPORTED |
-| Stable public command | NOT SUPPORTED |
-| Supported transports | NOT SUPPORTED |
-| Negotiation and compatibility behavior | NOT SUPPORTED |
-| Invocation scope | NOT SUPPORTED |
-| Interaction modes | NOT SUPPORTED |
-| Server-information command | NOT SUPPORTED |
-| Tool-list command | NOT SUPPORTED |
-| Tool-show command | NOT SUPPORTED |
-| Single tool-call command | NOT SUPPORTED |
-| Sequential tool-run command | NOT SUPPORTED |
-| Pagination request policy | NOT SUPPORTED |
-| Lossless tool-list page format | NOT SUPPORTED |
-| Flattened inventory presentation | NOT SUPPORTED |
-| Page-level cache-hint policy | NOT SUPPORTED |
-| Lossless call-result mode | NOT SUPPORTED |
-| Other presentation output modes | NOT SUPPORTED |
+| Supported | YES |
+| Scope | tools only; bounded discovery and invocation helper, not a general MCP host |
+| Stable public command | NOT SUPPORTED; the entry point is a private fixture helper |
+| Bundled helper command | `bundle exec ruby mcp/client.rb` |
+| Supported transports | both |
+| Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, then continue; no cross-transport retry or revision fallback |
+| Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
+| Interaction modes | non-interactive JSON arguments only |
+| Server-information command | `server-info` |
+| Tool-list command | `tools list` |
+| Tool-show command | `tools show TOOL`; local filtering over lossless `tools/list` pages |
+| Single tool-call command | `tools call TOOL --arguments JSON` |
+| Sequential tool-run command | `tools run --call TOOL --arguments JSON ...` |
+| Pagination request policy | follow opaque `nextCursor` values until absent, with a default limit of 32 pages and a maximum configurable limit of 128 |
+| Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page |
+| Flattened inventory presentation | `tools show` derives one local view; it never replaces the lossless page sequence |
+| Page-level cache-hint policy | preserve page-specific cache hints, `_meta`, and unknown fields without inventing aggregate cache metadata |
+| Lossless call-result mode | every successful or `isError` tool result is retained under `mcpResult`, including unknown additive fields |
+| Other presentation output modes | compact JSON only; no humanized loss that could discard protocol fields |
 | Modern MRTR policy | NOT SUPPORTED |
-| Initialization-era elicitation policy | NOT SUPPORTED |
-| Non-interactive policy | NOT SUPPORTED |
-| Timeout and cancellation policy | NOT SUPPORTED |
+| Initialization-era elicitation policy | no client capabilities are advertised; server-to-client requests are not handled |
+| Non-interactive policy | no prompts, response files, or automatic retries; arguments are bounded JSON objects |
+| Timeout and cancellation policy | default 5 seconds, maximum 30 seconds; stdio closes stdin then uses bounded TERM/KILL escalation, while HTTP closes the session and connection; socket close is not claimed as MCP cancellation |
 | Task or extension support | NOT SUPPORTED |
-| Roots/workspace policy | NOT SUPPORTED |
-| Exit-code mapping | NOT SUPPORTED |
+| Roots/workspace policy | NOT SUPPORTED; no filesystem workspace or MCP roots are exposed |
+| Exit-code mapping | 0 success; 2 usage/configuration; 3 transport; 4 authentication; 5 timeout; 6 protocol/JSON-RPC; 7 tool result `isError`; 8 invalid result; 9 pagination; 10 request policy; 11 capacity |
+
+The private helper is invoked from the fixture root with `bundle exec ruby mcp/client.rb`. Its stdio server command is fixed to `bundle exec ruby mcp/server.rb`. Its HTTP endpoint is supplied as `--endpoint` and must be loopback `/mcp`; its Bearer token is read only from `TEXT_STATS_MCP_HTTP_TOKEN`. The helper never exposes an arbitrary command, request ID, token argument, implicit HTTP-server startup, or unbounded retry.
 
 ## Distribution
 

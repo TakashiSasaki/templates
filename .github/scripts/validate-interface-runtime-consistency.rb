@@ -238,9 +238,13 @@ if selected_profiles.include?("mcp-enabled") && runtime
       compare_commands.call(
         "Bundled MCP client command",
         field_value.call(public_client, "Command"),
-        table_value.call(runtime_client, "Stable public command"),
+        table_value.call(runtime_client, "Bundled helper command"),
         RUNTIME_PATH
       )
+      stable_public_command = table_value.call(runtime_client, "Stable public command")
+      unless resolved_value.call(stable_public_command)
+        errors << "Bundled MCP client Stable public command requires an explicit value in #{RUNTIME_PATH}."
+      end
       compare_selections.call(
         "Bundled MCP client transport",
         field_value.call(public_client, "Transport used"),

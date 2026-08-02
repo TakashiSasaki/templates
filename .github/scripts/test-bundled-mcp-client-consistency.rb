@@ -51,7 +51,8 @@ valid_runtime = <<~MARKDOWN
   |---|---|
   | Supported | YES |
   | Scope | tools only |
-  | Stable public command | skill-tool mcp client |
+  | Stable public command | NOT SUPPORTED |
+  | Bundled helper command | skill-tool mcp client |
   | Supported transports | stdio |
   | Negotiation and compatibility behavior | negotiate the selected revision and fail explicitly |
   | Invocation scope | multiple sequential tool calls |

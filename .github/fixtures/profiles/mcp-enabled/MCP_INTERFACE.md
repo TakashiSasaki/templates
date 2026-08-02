@@ -7,7 +7,7 @@ Selection status: SELECTED
 ## MCP protocol reference
 
 Runtime, SDK, revision, era boundary, and schema source of truth: RUNTIME.md
-Public negotiation and fallback behavior: Both transports select revision `2025-11-25`. If a caller supplies another string revision, initialization succeeds with `2025-11-25` in the response; the caller must decide whether to continue. The configured HTTP endpoint is preferred when readiness and authentication succeed; otherwise a capable host may explicitly launch stdio. No active session changes transport.
+Public negotiation and fallback behavior: Both transports select revision `2025-11-25`. If a caller supplies another string revision, initialization succeeds with `2025-11-25` in the response; the caller must decide whether to continue. The configured HTTP endpoint is preferred when readiness and authentication succeed; otherwise a native MCP route is preferred, and the private client may be explicitly invoked over fixed stdio when no native route is available. No active session changes transport.
 Public compatibility statement: Within fixture version 1.x, the `text_stats` tool name, required string input `text`, read-only semantics, and existing `bytes`, `lines`, and `words` result fields remain compatible across both transports. Additive MCP result fields must be preserved by callers.
 
 ## stdio MCP server variant
@@ -39,20 +39,22 @@ The SDK bounds request bodies at 65,536 bytes and rejects a seventeenth live ses
 
 ## Bundled ad hoc MCP tool client
 
-Supported: NO
-Scope: NOT SUPPORTED
-Command: NOT SUPPORTED
-Transport used: NOT SUPPORTED
-Negotiation and compatibility behavior: NOT SUPPORTED
-Invocation scope: NOT SUPPORTED
-Interaction modes: NOT SUPPORTED
+Supported: YES
+Scope: tools only; bounded discovery and invocation helper, not a general MCP host
+Command: `bundle exec ruby mcp/client.rb`
+Transport used: both
+Negotiation and compatibility behavior: Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, then continue; no cross-transport retry or revision fallback
+Invocation scope: one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch
+Interaction modes: non-interactive JSON arguments only
 Task or extension support: NOT SUPPORTED
+
+The helper is not a stable public CLI and does not activate the `packaged-cli` profile. Its stdio command and HTTP endpoint are fixed or explicitly constrained by `RUNTIME.md`; it never accepts an arbitrary server command, caller-selected JSON-RPC ID, Bearer token argument, implicit HTTP-server startup, or unbounded retry.
 
 The repository test clients are private validation code and are not stable public commands.
 
 ### Tool inventory, schemas, and caching
 
-`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. No cursor, cache hint, or custom `_meta` value is emitted. Test code retains and inspects the complete raw page result through each actual transport rather than synthesizing another discovery method.
+`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. The private client follows an opaque `nextCursor` until it is absent, retains each raw page under an ordered `pages` record, and bounds pagination to 32 pages by default or 128 at most. No cursor, cache hint, or custom `_meta` value is emitted by this server, but the client preserves those fields and unknown additive fields if a selected server supplies them.
 
 ### Lossless paginated tool-list output
 
@@ -60,7 +62,7 @@ The selected inventory is a single raw MCP result page. Validation keeps that re
 
 ### Tool-call results and errors
 
-A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. Unknown JSON-RPC methods return a JSON-RPC method-not-found error. HTTP 401, 403, 413, and 503 responses remain HTTP policy or capacity failures and are not reclassified as MCP tool results.
+A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. The private client emits that complete result and exits with the tool-result code. JSON-RPC errors remain distinct from tool results. HTTP 401, 403, 413, and 503 responses remain HTTP authentication, request-policy, or capacity failures and are not reclassified as MCP tool results.
 
 ### Multiple calls and application state
 
@@ -80,11 +82,11 @@ The sole operation is synchronous and bounded. A stdio timeout closes stdin and 
 
 ### Ownership and workspace policy
 
-The stdio MCP host owns its trusted child process. The HTTP launcher owns one explicitly started loopback process and supplies one local Bearer identity; every session request is reauthenticated. The tool accepts text directly, has no filesystem workspace semantic, exposes no arbitrary command or caller-selected request ID, and performs no network access beyond the selected local MCP transport.
+The stdio MCP host owns its trusted child process. The bundled client owns its fixed child only for the duration of one command and applies bounded shutdown. The HTTP launcher owns one explicitly started loopback process and supplies one local Bearer identity; every session request is reauthenticated. The tool accepts text directly, has no filesystem workspace semantic, exposes no arbitrary command or caller-selected request ID, and performs no network access beyond the selected local MCP transport.
 
 ## Semantic-equivalence and test requirements
 
-Tests exercise exact-revision initialization, the required `notifications/initialized` transition before discovery or tool calls, both required Streamable HTTP POST Accept media types, server-selected revision negotiation after another string revision, malformed revision rejection, tools-only capabilities, raw tool inventory, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdio stdout/stderr separation, bounded stdio shutdown, authenticated HTTP initialization and session deletion, request-size and session-count limits, readiness isolation, per-request Host/Origin/authentication checks on a reused keep-alive connection, canonical port-80 Host and Origin forms, pending shutdown delivery before server attachment, graceful HTTP shutdown and restart, prompt configuration failures, and equal structured tool results through actual stdio and Streamable HTTP adapters.
+Tests exercise exact-revision initialization, the required `notifications/initialized` transition before discovery or tool calls, both required Streamable HTTP POST Accept media types, server-selected revision negotiation after another string revision, malformed revision rejection, tools-only capabilities, raw tool inventory, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdio stdout/stderr separation, bounded stdio shutdown, authenticated HTTP initialization and session deletion, request-size and session-count limits, readiness isolation, per-request Host/Origin/authentication checks on a reused keep-alive connection, canonical port-80 Host and Origin forms, pending shutdown delivery before server attachment, graceful HTTP shutdown and restart, prompt configuration failures, and equal structured tool results through actual stdio and Streamable HTTP adapters. Bundled-client tests additionally execute `server-info`, lossless paginated inventory, local `tools show`, one and sequential `tools/call` operations, stdio/HTTP equivalence, token-redacted authentication failures, loopback endpoint rejection, transport failures, bounded timeout, and codec preservation of unknown additive fields without sending `tools/show` or JSON-RPC batch methods.
 
 ## Decision rationale
 

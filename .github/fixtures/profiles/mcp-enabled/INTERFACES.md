@@ -8,9 +8,9 @@ Selection status: SELECTED
 
 Preferred agent interface: existing Streamable HTTP MCP endpoint
 Fallback 1: native MCP tool already registered in the host
-Fallback 2: NONE
+Fallback 2: bundled ad hoc MCP tool client over stdio or Streamable HTTP
 
-The preferred route means the configured endpoint is used only when readiness succeeds and the caller has the required Bearer token. The agent checks that existing endpoint but never starts another listener implicitly. When HTTP is unavailable, unauthorized, or fails readiness, the host may explicitly launch and register the bundled stdio command. This fixture exposes no public ad hoc MCP client and no non-MCP operation fallback.
+The preferred route means the configured endpoint is used only when readiness succeeds and the caller has the required Bearer token. The agent checks that existing endpoint but never starts another listener implicitly. When an agent needs a bounded local discovery or invocation helper and no native MCP route is available, it may explicitly invoke the private bundled client, which launches only the fixed stdio server command. This helper is not a stable public CLI and there is no non-MCP operation fallback.
 
 ## Contract index
 
@@ -25,9 +25,9 @@ Both maintained routes use `mcp/server_factory.rb`, the same `TextStatsTool`, an
 
 ## Availability and failure behavior
 
-Unavailable preferred interface behavior: Report the HTTP readiness, authentication, request-policy, or transport failure, then use the trusted stdio route only when the host can explicitly launch it.
-Fallback activation conditions: The configured HTTP endpoint is absent, fails `GET /readyz`, rejects the caller, or cannot complete MCP initialization; fallback never starts another HTTP server.
-Failure classification exposed to callers: Distinguish HTTP readiness and policy failures, process startup or transport failure, JSON-RPC error, MCP tool result with `isError: true`, and successful MCP tool result.
+Unavailable preferred interface behavior: Report the HTTP readiness, authentication, request-policy, or transport failure, then use the trusted stdio route only when the host explicitly selects the private bundled client.
+Fallback activation conditions: The configured HTTP endpoint is absent, fails `GET /readyz`, rejects the caller, or cannot complete MCP initialization; fallback never starts another HTTP server and never retries a request across transports.
+Failure classification exposed to callers: Distinguish HTTP readiness and policy failures, process startup or transport failure, bounded timeout, JSON-RPC error, MCP tool result with `isError: true`, invalid result, pagination failure, and successful MCP tool result.
 
 ## Decision rationale
 
