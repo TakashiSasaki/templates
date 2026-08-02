@@ -14,7 +14,13 @@ expected_files = {
   "instruction-only" => %w[SKILL.md],
   "knowledge-augmented" => %w[SKILL.md references/review-policy.md],
   "asset-driven" => %w[SKILL.md assets/response-template.txt],
-  "script-assisted" => %w[SKILL.md scripts/normalize.rb]
+  "script-assisted" => %w[SKILL.md scripts/normalize.rb],
+  "combined-resources" => %w[
+    SKILL.md
+    assets/response-template.txt
+    references/review-policy.md
+    scripts/normalize.rb
+  ]
 }.freeze
 
 failures = []
@@ -33,6 +39,16 @@ end
 copy_fixture = lambda do |name, directory|
   fixture = File.join(fixtures_root, name)
   FileUtils.cp_r("#{fixture}/.", directory)
+end
+
+replace_selected_profiles = lambda do |directory, replacement|
+  path = File.join(directory, "SKILL.md")
+  original = "Selected profiles: knowledge-augmented, asset-driven, script-assisted"
+  content = File.read(path)
+  replaced = content.sub(original, "Selected profiles: #{replacement}")
+  raise "combined fixture selected-profile line was not found" if replaced == content
+
+  File.write(path, replaced)
 end
 
 expected_files.each do |name, expected|
@@ -57,35 +73,37 @@ expected_files.each do |name, expected|
   end
 end
 
-Dir.mktmpdir("script-assisted-execution") do |directory|
-  copy_fixture.call("script-assisted", directory)
-  File.binwrite(File.join(directory, "input.txt"), "alpha  \r\nbeta\t\r\n")
-  stdout, stderr, status = Open3.capture3(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    "input.txt",
-    "output.txt",
-    chdir: directory
-  )
-  output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
-  unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n"
-    failures << "script-assisted helper: expected deterministic normalization; " \
-                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
-                "stderr=#{stderr.inspect}, output=#{output.inspect}"
-  end
+%w[script-assisted combined-resources].each do |fixture_name|
+  Dir.mktmpdir("#{fixture_name}-execution") do |directory|
+    copy_fixture.call(fixture_name, directory)
+    File.binwrite(File.join(directory, "input.txt"), "alpha  \r\nbeta\t\r\n")
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      "scripts/normalize.rb",
+      "input.txt",
+      "output.txt",
+      chdir: directory
+    )
+    output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
+    unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n"
+      failures << "#{fixture_name} helper: expected deterministic normalization; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                  "stderr=#{stderr.inspect}, output=#{output.inspect}"
+    end
 
-  File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
-  stdout, stderr, status = Open3.capture3(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    "invalid.txt",
-    "invalid-output.txt",
-    chdir: directory
-  )
-  unless status.exitstatus == 3 && stdout.empty? && stderr == "invalid UTF-8 input\n" &&
-         !File.exist?(File.join(directory, "invalid-output.txt"))
-    failures << "script-assisted helper: expected bounded invalid UTF-8 failure; " \
-                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      "scripts/normalize.rb",
+      "invalid.txt",
+      "invalid-output.txt",
+      chdir: directory
+    )
+    unless status.exitstatus == 3 && stdout.empty? && stderr == "invalid UTF-8 input\n" &&
+           !File.exist?(File.join(directory, "invalid-output.txt"))
+      failures << "#{fixture_name} helper: expected bounded invalid UTF-8 failure; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    end
   end
 end
 
@@ -116,6 +134,27 @@ invalid_cases = [
     fixture: "script-assisted",
     mutate: lambda do |directory|
       File.write(File.join(directory, "scripts/undeclared.rb"), "puts 'undeclared'\n")
+    end
+  },
+  {
+    name: "combined resources require knowledge-augmented",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "asset-driven, script-assisted")
+    end
+  },
+  {
+    name: "combined resources require asset-driven",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "knowledge-augmented, script-assisted")
+    end
+  },
+  {
+    name: "combined resources require script-assisted",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "knowledge-augmented, asset-driven")
     end
   }
 ]
