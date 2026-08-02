@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
+RELEASE_VERIFIER = ROOT / "scripts/verify-release-state.py"
 CI_REQUIREMENTS = ROOT / "requirements-ci.txt"
 CI_LOCK = ROOT / "requirements-ci.lock"
 CI_ENVIRONMENT_VERIFIER = ROOT / "scripts/verify_ci_environment.py"
@@ -47,6 +48,7 @@ ARBITRARY_EXACT_REQUIREMENT = re.compile(
 PIP_REQUIREMENT_INPUTS = (
     "PIP_REQUIREMENT",
     "PIP_CONSTRAINT",
+    "PIP_BUILD_CONSTRAINT",
     "PIP_EDITABLE",
     "PIP_GROUP",
     "PIP_REQUIREMENTS_FROM_SCRIPT",
@@ -79,24 +81,28 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     readme = README.read_text(encoding="utf-8")
 
     assert '      PYTHONPATH: ""' in workflow
+    assert '      PYTHONNOUSERSITE: "1"' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
-    documented_unset = "unset PYTHONPATH " + " ".join(PIP_REQUIREMENT_INPUTS)
+    documented_unset = (
+        "unset PYTHONPATH PYTHONUSERBASE " + " ".join(PIP_REQUIREMENT_INPUTS)
+    )
     documented_sequence = (
         f"{documented_unset}\n"
         "export PIP_CONFIG_FILE=/dev/null\n"
-        "python -m venv --clear .venv\n"
+        "python -I -m venv --clear .venv\n"
         ". .venv/bin/activate"
     )
     assert documented_sequence in readme
+    assert "python -m venv --clear .venv" not in readme
     assert "python -m venv .venv" not in readme
 
 
-def test_policy_ci_uses_a_cleared_isolated_virtual_environment() -> None:
+def test_policy_ci_uses_an_isolated_bootstrap_interpreter_and_cleared_venv() -> None:
     workflow = workflow_text()
 
-    assert "run: python -m venv --clear .venv" in workflow
+    assert "run: python -I -m venv --clear .venv" in workflow
+    assert "run: python -m venv --clear .venv" not in workflow
     assert "--system-site-packages" not in workflow
-    assert "run: python -m venv .venv" not in workflow
 
 
 def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
@@ -114,6 +120,22 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
     ) in workflow
     assert "--requirement requirements-ci.txt" not in workflow
     assert "-e '.[dev]'" not in workflow
+
+
+def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
+    workflow = workflow_text()
+    verifier = RELEASE_VERIFIER.read_text(encoding="utf-8")
+    workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
+
+    assert (
+        f"run: env {workflow_unsets} .venv/bin/python "
+        "scripts/verify-release-state.py --git-ref "
+        "refs/remotes/origin/policy-source"
+    ) in workflow
+    for variable in PIP_REQUIREMENT_INPUTS:
+        assert f'"{variable}",' in verifier
+    assert 'environment["PIP_CONFIG_FILE"] = os.devnull' in verifier
+    assert "environment.pop(variable, None)" in verifier
 
 
 def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
