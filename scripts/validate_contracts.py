@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import stat
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -38,7 +39,12 @@ _IMPLEMENTATION: ModuleType | None = None
 def _load_implementation() -> ModuleType:
     global _IMPLEMENTATION
     if _IMPLEMENTATION is None:
-        _IMPLEMENTATION = importlib.import_module("validate_contracts_impl")
+        module_name = (
+            f"{__package__}.validate_contracts_impl"
+            if __package__
+            else "validate_contracts_impl"
+        )
+        _IMPLEMENTATION = importlib.import_module(module_name)
     return _IMPLEMENTATION
 
 
@@ -130,6 +136,24 @@ def _path_contains_symlink(root: Path, relative: str) -> bool:
     return False
 
 
+def _path_escapes_root(relative: str) -> bool:
+    path = Path(relative)
+    return path.is_absolute() or ".." in path.parts
+
+
+def _manifest_regular_file_error(root: Path) -> str | None:
+    manifest_path = root / MANIFEST_PATH
+    try:
+        mode = manifest_path.lstat().st_mode
+    except (FileNotFoundError, OSError):
+        return None
+    if stat.S_ISLNK(mode):
+        return None
+    if not stat.S_ISREG(mode):
+        return f"{MANIFEST_PATH}: manifest must be a regular file"
+    return None
+
+
 def _directory_symlink_errors(root: Path) -> list[str]:
     errors: list[str] = []
     for directory_name in ("contracts", "schemas"):
@@ -177,6 +201,10 @@ def _symlink_preflight(
             f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
         ]
 
+    manifest_file_error = _manifest_regular_file_error(root)
+    if manifest_file_error:
+        return [manifest_file_error]
+
     directory_errors = _directory_symlink_errors(root)
     if directory_errors:
         return directory_errors
@@ -196,18 +224,23 @@ def _symlink_preflight(
         if not isinstance(entry, dict):
             continue
         contract_id = entry.get("id")
+        rendered_id = contract_id if isinstance(contract_id, str) else "<unknown>"
         schema_path = entry.get("schema")
         if isinstance(schema_path, str):
             registered_schemas.add(schema_path)
         for label in ("document", "schema"):
             relative = entry.get(label)
-            if (
-                isinstance(contract_id, str)
-                and isinstance(relative, str)
-                and _path_contains_symlink(root, relative)
-            ):
+            if not isinstance(relative, str):
+                continue
+            if _path_escapes_root(relative):
                 errors.append(
-                    f"contract manifest {contract_id}: {label} must not be a symbolic link: "
+                    f"contract manifest {rendered_id}: {label} escapes repository root: "
+                    f"{relative}"
+                )
+                continue
+            if _path_contains_symlink(root, relative):
+                errors.append(
+                    f"contract manifest {rendered_id}: {label} must not be a symbolic link: "
                     f"{relative}"
                 )
 
@@ -234,8 +267,11 @@ def _document_metadata_errors(root: Path, implementation: ModuleType) -> list[st
         if not isinstance(entry, dict) or not isinstance(entry.get("document"), str):
             continue
         document_path = entry["document"]
+        candidate = root / document_path
+        if not candidate.is_file():
+            continue
         try:
-            document = implementation.load_json(root / document_path)
+            document = implementation.load_json(candidate)
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
             continue
         if not isinstance(document, dict):
