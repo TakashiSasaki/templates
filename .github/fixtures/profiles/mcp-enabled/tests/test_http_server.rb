@@ -16,6 +16,7 @@ class TextStatsMcpHttpServerTest < Minitest::Test
   HOST = "127.0.0.1"
   TOKEN = "fixture-http-token-0123456789abcdef"
   REQUEST_TIMEOUT = 2
+  POST_ACCEPT = "application/json, text/event-stream"
 
   class HttpServerProcess
     attr_reader :port
@@ -77,7 +78,7 @@ class TextStatsMcpHttpServerTest < Minitest::Test
     def post_json(payload, session_id: nil, token: TOKEN, origin: nil, host: nil,
                   protocol_version: nil, raw_body: nil, http: nil)
       request = Net::HTTP::Post.new("/mcp")
-      request["Accept"] = "application/json"
+      request["Accept"] = POST_ACCEPT
       request["Content-Type"] = "application/json"
       request["Authorization"] = "Bearer #{token}" if token
       request["Mcp-Session-Id"] = session_id if session_id
@@ -306,7 +307,7 @@ class TextStatsMcpHttpServerTest < Minitest::Test
       assert_equal "401", bad_token.code
 
       request = Net::HTTP::Post.new("/mcp")
-      request["Accept"] = "application/json"
+      request["Accept"] = POST_ACCEPT
       request["Content-Type"] = "application/json"
       request["Authorization"] = "Bearer #{TOKEN}"
       request["Mcp-Session-Id"] = session_id
