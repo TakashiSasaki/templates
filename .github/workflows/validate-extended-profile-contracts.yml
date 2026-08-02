@@ -107,3 +107,35 @@ jobs:
       - name: Test browser-interface profile fixture
         shell: bash
         run: ruby .github/scripts/test-browser-interface-profile.rb
+
+  headless-service-profile-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Install Bundler
+        shell: bash
+        run: gem install bundler --no-document
+
+      - name: Test headless-service profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-headless-service-profile.rb
+
+      - name: Test restrictive-umask PID lifecycle
+        shell: bash
+        working-directory: .github/fixtures/profiles/headless-service
+        run: |
+          bundle config set --local path .bundle
+          bundle install --jobs 4 --retry 3
+          bundle exec ruby ../../../scripts/test-headless-service-restrictive-umask.rb
+
+      - name: Test atomic PID-record publication
+        shell: bash
+        working-directory: .github/fixtures/profiles/headless-service
+        run: bundle exec ruby ../../../scripts/test-headless-service-pid-publication.rb
