@@ -141,17 +141,12 @@ def _path_escapes_root(relative: str) -> bool:
     return path.is_absolute() or ".." in path.parts
 
 
-def _manifest_regular_file_error(root: Path) -> str | None:
-    manifest_path = root / MANIFEST_PATH
+def _non_regular_file(root: Path, relative: str) -> bool:
     try:
-        mode = manifest_path.lstat().st_mode
+        mode = (root / relative).lstat().st_mode
     except (FileNotFoundError, OSError):
-        return None
-    if stat.S_ISLNK(mode):
-        return None
-    if not stat.S_ISREG(mode):
-        return f"{MANIFEST_PATH}: manifest must be a regular file"
-    return None
+        return False
+    return not stat.S_ISLNK(mode) and not stat.S_ISREG(mode)
 
 
 def _directory_symlink_errors(root: Path) -> list[str]:
@@ -200,10 +195,10 @@ def _symlink_preflight(
         return [
             f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
         ]
-
-    manifest_file_error = _manifest_regular_file_error(root)
-    if manifest_file_error:
-        return [manifest_file_error]
+    if _non_regular_file(root, MANIFEST_PATH):
+        return [f"{MANIFEST_PATH}: manifest must be a regular file"]
+    if _non_regular_file(root, MANIFEST_SCHEMA_PATH):
+        return [f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must be a regular file"]
 
     directory_errors = _directory_symlink_errors(root)
     if directory_errors:
@@ -242,6 +237,12 @@ def _symlink_preflight(
             if _path_contains_symlink(root, relative):
                 errors.append(
                     f"contract manifest {rendered_id}: {label} must not be a symbolic link: "
+                    f"{relative}"
+                )
+                continue
+            if _non_regular_file(root, relative):
+                errors.append(
+                    f"contract manifest {rendered_id}: {label} must be a regular file: "
                     f"{relative}"
                 )
 
