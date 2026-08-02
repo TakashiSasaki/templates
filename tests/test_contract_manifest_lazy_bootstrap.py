@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -64,6 +65,56 @@ class WildcardExportTests(unittest.TestCase):
             check=False,
             timeout=3,
         )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "requires symlink support")
+    def test_manifest_validator_preflights_the_supplied_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", root / "contracts")
+            shutil.copytree(ROOT / "schemas", root / "schemas")
+
+            manifest = json.loads(
+                (root / "contracts/manifest.json").read_text(encoding="utf-8")
+            )
+            document = root / "contracts/surfaces.json"
+            document.unlink()
+            document.symlink_to(document.name)
+
+            probe = textwrap.dedent(
+                """
+                from __future__ import annotations
+
+                import json
+                import sys
+                from pathlib import Path
+
+                sys.path.insert(0, str(Path.cwd() / "scripts"))
+                from validate_contracts import validate_contract_manifest
+
+                root = Path(sys.argv[1])
+                manifest = json.loads(
+                    (root / "contracts/manifest.json").read_text(encoding="utf-8")
+                )
+                errors = validate_contract_manifest(root, manifest)
+                expected = (
+                    "contract manifest surfaces: document must not be a symbolic link: "
+                    "contracts/surfaces.json"
+                )
+                if expected not in errors:
+                    raise SystemExit(f"missing symlink diagnostic: {errors}")
+                """
+            )
+
+            result = subprocess.run(
+                [sys.executable, "-c", probe, str(root)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
 
         self.assertEqual(0, result.returncode, result.stderr)
 
