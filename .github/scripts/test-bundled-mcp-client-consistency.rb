@@ -234,7 +234,7 @@ interface_runtime_cases = [
 interface_runtime_cases.each do |test_case|
   Dir.mktmpdir("bundled-mcp-interface-runtime-test") do |directory|
     File.write(File.join(directory, "SKILL.md"), fixture_skill)
-    File.write(File.join(directory, "MCP_INTERFACE.md"), fixture_public)
+    File.write(File.join(directory, "MCP_INTERFACE.md"), test_case.fetch(:public, fixture_public))
     File.write(File.join(directory, "RUNTIME.md"), test_case.fetch(:runtime))
 
     _stdout, stderr, status = Open3.capture3(

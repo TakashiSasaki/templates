@@ -538,6 +538,26 @@ class TextStatsMcpClientTest < Minitest::Test
     end
   end
 
+  def test_stdio_shutdown_uses_fixed_two_second_grace_before_escalation
+    transport = TextStatsMcpClient::StdioTransport.allocate
+    waits = []
+    signals = []
+    transport.instance_variable_set(:@timeout, 0.1)
+    transport.instance_variable_set(:@wait_thread, Object.new)
+    transport.define_singleton_method(:wait_with_timeout) do |seconds|
+      waits << seconds
+      false
+    end
+    transport.define_singleton_method(:signal_process) do |signal|
+      signals << signal
+    end
+
+    transport.send(:wait_for_exit)
+
+    assert_equal [2.0, 1.0, 1.0], waits
+    assert_equal ["TERM", "KILL"], signals
+  end
+
   def test_protocol_error_and_tool_error_are_distinct
     json_rpc_error = assert_raises(TextStatsMcpClient::JsonRpcFailure) do
       TextStatsMcpClient::Protocol.result(

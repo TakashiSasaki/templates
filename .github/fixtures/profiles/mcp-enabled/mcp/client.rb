@@ -15,6 +15,7 @@ module TextStatsMcpClient
   DEFAULT_ENDPOINT = "http://127.0.0.1:4570/mcp"
   DEFAULT_TIMEOUT = 5.0
   MAX_TIMEOUT = 30.0
+  STDIO_SHUTDOWN_GRACE = 2.0
   DEFAULT_MAX_PAGES = 32
   MAX_PAGES = 128
   MAX_ARGUMENT_BYTES = 65_536
@@ -297,7 +298,7 @@ module TextStatsMcpClient
 
     def wait_for_exit
       return unless @wait_thread
-      return if wait_with_timeout(@timeout)
+      return if wait_with_timeout(STDIO_SHUTDOWN_GRACE)
 
       signal_process("TERM")
       return if wait_with_timeout(1.0)
