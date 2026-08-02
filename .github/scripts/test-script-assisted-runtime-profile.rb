@@ -13,6 +13,7 @@ expected_files = %w[
   RUNTIME.md
   SKILL.md
   scripts/normalize.rb
+  tests/test_normalize.rb
 ].sort.freeze
 failures = []
 
@@ -48,7 +49,9 @@ runtime = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "UTF-8")
   "| Minimum runtime version | 3.1 |",
   "| Project manifest | NONE |",
   "| Lockfile policy | NONE |",
+  "| Source layout | `scripts/normalize.rb` and `tests/test_normalize.rb` |",
   "| Run in place | `ruby scripts/normalize.rb INPUT OUTPUT` |",
+  "| Test | `ruby tests/test_normalize.rb` |",
   "| Build/package | NOT APPLICABLE |"
 ].each do |required_text|
   unless runtime.include?(required_text)
@@ -82,6 +85,27 @@ Dir.mktmpdir("script-assisted-runtime-profile") do |directory|
   )
   unless syntax_status.success? && syntax_stdout == "Syntax OK\n" && syntax_stderr.empty?
     failures << "script-assisted-runtime syntax: expected success; stdout=#{syntax_stdout.inspect}, stderr=#{syntax_stderr.inspect}"
+  end
+
+  test_syntax_stdout, test_syntax_stderr, test_syntax_status = Open3.capture3(
+    RbConfig.ruby,
+    "-c",
+    "tests/test_normalize.rb",
+    chdir: directory
+  )
+  unless test_syntax_status.success? && test_syntax_stdout == "Syntax OK\n" && test_syntax_stderr.empty?
+    failures << "script-assisted-runtime test syntax: expected success; " \
+                "stdout=#{test_syntax_stdout.inspect}, stderr=#{test_syntax_stderr.inspect}"
+  end
+
+  test_stdout, test_stderr, test_status = Open3.capture3(
+    RbConfig.ruby,
+    "tests/test_normalize.rb",
+    chdir: directory
+  )
+  unless test_status.success? && test_stdout == "Line normalization helper tests passed.\n" && test_stderr.empty?
+    failures << "script-assisted-runtime test command: expected executable validation success; " \
+                "status=#{test_status.exitstatus.inspect}, stdout=#{test_stdout.inspect}, stderr=#{test_stderr.inspect}"
   end
 
   input_path = File.join(directory, "input.txt")
