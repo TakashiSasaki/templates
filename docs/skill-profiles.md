@@ -1,6 +1,6 @@
 # Agent Skill profiles
 
-This document helps maintainers choose the smallest repository structure that reliably supports a concrete skill. Profiles are cumulative patterns, not mandatory maturity levels.
+This document helps maintainers choose the smallest repository structure that reliably supports a concrete skill. Profiles are selectable patterns, not mandatory maturity levels. Except for `instruction-only`, compatible profiles may be combined.
 
 ## Selection rule
 
@@ -24,7 +24,7 @@ Every `SKILL.md` must contain exactly one line in this form:
 Selected profiles: instruction-only
 ```
 
-Combine profiles with comma-separated tags, for example:
+Combine compatible non-`instruction-only` profiles with comma-separated tags, for example:
 
 ```text
 Selected profiles: knowledge-augmented, asset-driven, script-assisted
@@ -41,6 +41,8 @@ Allowed concrete-skill tags are:
 - `browser-interface`;
 - `headless-service`.
 
+The `instruction-only` tag is exclusive and must be selected alone. If the workflow needs retained references, assets, scripts, runtime records, public interfaces, or a service, omit `instruction-only` and select the applicable profiles instead.
+
 The special value `template-scaffold` is valid only while the skill remains the uncustomized `agent-skill-template`. Replace it before adding operational resources, implementation, runtime manifests, or interface contracts.
 
 Structural validation uses the selected tags to activate profile-specific requirements. Required contract ownership is summarized in `docs/profile-contract-map.md`.
@@ -53,7 +55,7 @@ Typical contents:
 SKILL.md
 ```
 
-Use when the agent can perform the workflow with its existing tools and general knowledge.
+Select `instruction-only` by itself when the agent can perform the workflow with its existing tools and general knowledge.
 
 `SKILL.md` should define the trigger, exclusions, prerequisites, workflow, outputs, validation, safety rules, and important edge cases. No runtime, package manager, public CLI, MCP adapter, Web contract, or application architecture is required.
 
@@ -200,10 +202,10 @@ Complete the endpoint, authentication, authorization, exposure, limits, concurre
 
 ## Combining profiles
 
-Profiles may be combined selectively. Examples:
+The `instruction-only` tag does not participate in combinations. Other profiles may be combined selectively. Examples:
 
-- instruction plus references, with no code;
-- assets plus one validation helper;
+- `knowledge-augmented` with no executable code;
+- `asset-driven` plus `script-assisted` for an asset and one validation helper;
 - a packaged CLI with no MCP;
 - stdio MCP with no packaged CLI and no standalone HTTP service;
 - a packaged CLI plus MCP with one preferred route and explicit fallback;
@@ -226,7 +228,7 @@ Do not assume that later profiles supersede earlier resources. A service-enabled
 | `browser-interface` | `RUNTIME.md`, `WEB_INTERFACE.md` |
 | `headless-service` | `RUNTIME.md`, applicable API/deployment material |
 
-Combined profiles retain the union of their requirements.
+Except for the exclusive `instruction-only` tag, combined profiles retain the union of their requirements.
 
 ## File removal rules
 
