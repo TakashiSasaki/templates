@@ -1,8 +1,9 @@
-editables==0.6
-hatchling==1.31.0
-Jinja2==3.1.6
-jsonschema==4.26.0
-Pygments==2.20.0
-pytest==8.4.2
-PyYAML==6.0.3
-ruff==0.15.22
+# Reviewed direct dependency inputs for Policy CI.
+editables===0.6
+hatchling===1.31.0
+Jinja2===3.1.6
+jsonschema===4.26.0
+Pygments===2.20.0
+pytest===8.4.2
+PyYAML===6.0.3
+ruff===0.15.22
