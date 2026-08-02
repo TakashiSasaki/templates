@@ -4,12 +4,15 @@ import re
 import unittest
 from pathlib import Path
 
+from scripts.verify_locked_environment import compare_distribution_sets
+
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 TOOLCHAIN_GUIDE = ROOT / "docs/architecture/validation-toolchain.md"
 DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
 LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
+LOCK_VERIFIER = ROOT / "scripts/verify_locked_environment.py"
 
 EXPECTED_DIRECT_REQUIREMENTS = ("jsonschema===4.26.0",)
 EXPECTED_LOCKED_REQUIREMENTS = (
@@ -66,19 +69,73 @@ class ValidationReproducibilityTests(unittest.TestCase):
                 self.assertIn("python -m venv --clear .venv", source)
                 self.assertNotIn("python -m venv .venv", source)
 
-    def test_pythonpath_is_cleared_across_ci_and_documented_flows(self) -> None:
+    def test_pythonpath_is_cleared_before_any_python_invocation(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         readme = README.read_text(encoding="utf-8")
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
+            "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE\n"
+            "export PIP_CONFIG_FILE=/dev/null\n"
+            "python -m venv --clear .venv\n"
+            ". .venv/bin/activate"
+        )
+        unsafe_sequence = (
             "python -m venv --clear .venv\n"
             ". .venv/bin/activate\n"
             "unset PYTHONPATH"
         )
         self.assertIn(documented_sequence, readme)
         self.assertIn(documented_sequence, toolchain_guide)
+        self.assertNotIn(unsafe_sequence, readme)
+        self.assertNotIn(unsafe_sequence, toolchain_guide)
+
+    def test_pip_injection_is_disabled_and_installed_set_is_verified(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
+
+        self.assertTrue(LOCK_VERIFIER.is_file())
+        self.assertIn("      PIP_CONFIG_FILE: /dev/null", workflow)
+        self.assertIn(
+            "run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            workflow,
+        )
+        self.assertIn(
+            "run: .venv/bin/python scripts/verify_locked_environment.py",
+            workflow,
+        )
+        for source_name, source in (
+            ("README", readme),
+            ("toolchain guide", toolchain_guide),
+        ):
+            with self.subTest(source=source_name):
+                self.assertIn(
+                    "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE",
+                    source,
+                )
+                self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
+                self.assertIn("python scripts/verify_locked_environment.py", source)
+
+    def test_distribution_set_verifier_rejects_injected_packages(self) -> None:
+        expected = {"jsonschema": "4.26.0"}
+        installed = {
+            "jsonschema": "4.26.0",
+            "injected-package": "1.0",
+            "pip": "26.1",
+        }
+
+        errors = compare_distribution_sets(expected, installed)
+
+        self.assertTrue(any("unexpected distributions" in error for error in errors))
+        self.assertTrue(any("injected-package==1.0" in error for error in errors))
+
+    def test_distribution_set_verifier_accepts_only_lock_plus_bootstrap_pip(self) -> None:
+        expected = {"jsonschema": "4.26.0"}
+        installed = {"jsonschema": "4.26.0", "pip": "26.1"}
+
+        self.assertEqual((), compare_distribution_sets(expected, installed))
 
     def test_workflow_creates_a_fresh_isolated_virtual_environment(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -91,7 +148,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
         self.assertIn(
-            "run: .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn(
