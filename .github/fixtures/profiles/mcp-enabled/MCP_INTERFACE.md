@@ -24,12 +24,12 @@ Supported: YES
 Start command: bundle exec ruby mcp/http_server.rb
 Stop command or shutdown method: kill -TERM "$TEXT_STATS_MCP_HTTP_PID"
 Endpoint URL: http://127.0.0.1:4570/mcp by default
-Bind address: 127.0.0.1 only
-Port selection: fixed default 4570 or one startup-selected `TEXT_STATS_MCP_HTTP_PORT` value
-Supported protocol eras: initialization-era revision 2025-11-25 only
-Revision-specific state model: SDK-issued stateful sessions with a 300-second idle timeout, maximum 16 live sessions, explicit DELETE cleanup, and no resumability
-Authentication: exact Bearer token from `TEXT_STATS_MCP_HTTP_TOKEN` on every `/mcp` request
-Health/readiness check: unauthenticated GET http://127.0.0.1:4570/readyz with the same per-request Host and Origin gate
+Bind address: see RUNTIME.md
+Port selection: see RUNTIME.md
+Supported protocol eras: see RUNTIME.md
+Revision-specific state model: see RUNTIME.md
+Authentication: see RUNTIME.md
+Health/readiness check: curl --fail --silent --show-error http://127.0.0.1:4570/readyz
 
 The endpoint is an explicitly started local foreground process and is never created as an implicit fallback. Before every request, including requests reused on one HTTP/1.1 connection, the Rack gate requires the exact `127.0.0.1:PORT` Host authority and either no Origin or the exact same-origin value. Invalid Host or present cross-origin requests receive HTTP 403 before authentication or MCP dispatch. Missing or invalid Bearer credentials receive HTTP 401 without exposing the configured token.
 
