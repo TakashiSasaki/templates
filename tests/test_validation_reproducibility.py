@@ -53,6 +53,10 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
         self.assertIn(
+            "python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            workflow,
+        )
+        self.assertNotIn(
             "python -m pip install --disable-pip-version-check --requirement requirements-dev.lock",
             workflow,
         )
