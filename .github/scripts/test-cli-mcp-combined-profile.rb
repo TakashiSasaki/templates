@@ -70,7 +70,12 @@ if failures.empty?
     run.call("git", "init", "--quiet", chdir: directory)
     run.call("git", "add", ".", chdir: directory)
 
-    stdout, stderr, status = run.call({ "RUBYOPT" => nil }, RbConfig.ruby, validator, chdir: directory)
+    stdout, stderr, status = run.call(
+      RbConfig.ruby,
+      validator,
+      chdir: directory,
+      env: { "RUBYOPT" => nil }
+    )
     failures << "complete repository validation failed: stdout=#{stdout.inspect}, stderr=#{stderr.inspect}" unless status&.success?
 
     _stdout, stderr, status = run.call("bundle", "config", "set", "--local", "path", ".bundle", chdir: directory)
@@ -115,7 +120,12 @@ if failures.empty?
           "PATH" => [File.join(directory, ".local/bin"), ENV["PATH"]].compact.join(File::PATH_SEPARATOR)
         }
         stdout, stderr, installed_status = run.call(
-          environment, "text-stat", "--output", "json", input, chdir: directory
+          "text-stat",
+          "--output",
+          "json",
+          input,
+          chdir: directory,
+          env: environment
         )
         parsed = JSON.parse(stdout) rescue nil
         expected = { "bytes" => 8, "lines" => 1, "words" => 2 }
@@ -135,7 +145,12 @@ end
     File.delete(File.join(directory, missing_path))
     run.call("git", "init", "--quiet", chdir: directory)
     run.call("git", "add", ".", chdir: directory)
-    _stdout, stderr, status = run.call({ "RUBYOPT" => nil }, RbConfig.ruby, validator, chdir: directory)
+    _stdout, stderr, status = run.call(
+      RbConfig.ruby,
+      validator,
+      chdir: directory,
+      env: { "RUBYOPT" => nil }
+    )
     if status&.success? || stderr.strip.empty?
       failures << "missing #{missing_path} did not produce an actionable repository-validation failure"
     end
