@@ -194,6 +194,10 @@ def _document_metadata_errors(root: Path, implementation: ModuleType) -> list[st
 
 
 def validate_repository(root: Path) -> list[str]:
+    facade_errors = _symlink_preflight(ROOT)
+    if facade_errors:
+        return facade_errors
+
     errors = _symlink_preflight(root)
     if errors:
         return errors
