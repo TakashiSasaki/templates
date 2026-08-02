@@ -67,6 +67,8 @@ PIP_SANITIZED_INPUTS = (
     "PIP_DISABLE_PIP_VERSION_CHECK",
     "PIP_NO_COLOR",
     "PIP_REQUIRE_VIRTUALENV",
+    "PIP_USE_DEPRECATED",
+    "PIP_NO_PYTHON_VERSION_WARNING",
     "PIP_KEYRING_PROVIDER",
     "PIP_EXISTS_ACTION",
     "PIP_IGNORE_REQUIRES_PYTHON",
@@ -155,6 +157,8 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PIP_DISABLE_PIP_VERSION_CHECK: ""',
             '      PIP_NO_COLOR: ""',
             '      PIP_REQUIRE_VIRTUALENV: ""',
+            '      PIP_USE_DEPRECATED: ""',
+            '      PIP_NO_PYTHON_VERSION_WARNING: ""',
             '      PIP_RETRIES: ""',
             '      PIP_CONFIG_FILE: /dev/null',
         ):
