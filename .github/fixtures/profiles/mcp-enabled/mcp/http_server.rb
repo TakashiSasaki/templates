@@ -156,6 +156,17 @@ module TextStatsMcp
     raise ConfigurationError, "TEXT_STATS_MCP_HTTP_PORT must be a base-10 integer between 1 and 65535"
   end
 
+  def session_idle_timeout
+    return HTTP_SESSION_IDLE_TIMEOUT unless ENV["TEXT_STATS_MCP_TEST_MODE"] == "1"
+
+    timeout = Integer(ENV.fetch("TEXT_STATS_MCP_TEST_SESSION_IDLE_TIMEOUT", HTTP_SESSION_IDLE_TIMEOUT.to_s), 10)
+    raise ConfigurationError, "test session idle timeout must be positive" unless timeout.positive?
+
+    timeout
+  rescue ArgumentError
+    raise ConfigurationError, "test session idle timeout must be a positive base-10 integer"
+  end
+
   def build_token_matcher(expected_token)
     lambda do |request|
       authorization = request.get_header("HTTP_AUTHORIZATION").to_s
@@ -187,7 +198,7 @@ module TextStatsMcp
       transport = MCP::Server::Transports::StreamableHTTPTransport.new(
         build_server,
         enable_json_response: true,
-        session_idle_timeout: HTTP_SESSION_IDLE_TIMEOUT,
+        session_idle_timeout: session_idle_timeout,
         max_sessions: HTTP_MAX_SESSIONS,
         dns_rebinding_protection: false,
         session_request_validator: ->(request, _session_id) { token_matcher.call(request) },
