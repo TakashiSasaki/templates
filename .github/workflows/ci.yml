@@ -15,6 +15,9 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      PYTHONPATH: ""
+      PIP_CONFIG_FILE: /dev/null
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -45,25 +48,34 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-ci.lock
 
+      - name: Create isolated CI environment
+        run: python -m venv --clear .venv
+
       - name: Install locked CI dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements-ci.lock
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
 
       - name: Install agent-policy without dependency resolution
-        run: python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
+
+      - name: Verify installed distribution set
+        run: .venv/bin/python scripts/verify_ci_environment.py
 
       - name: Verify installed dependency graph
-        run: python -m pip check
+        run: .venv/bin/python -m pip check
 
       - name: Verify stable release synchronization
-        run: python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
+        run: .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
 
       - name: Check formatting and static rules
         run: |
-          ruff --version
-          ruff check src tests scripts skills/bootstrap-agent-policy/scripts
+          .venv/bin/python -m ruff --version
+          .venv/bin/python -m ruff check src tests scripts skills/bootstrap-agent-policy/scripts
 
       - name: Run tests
-        run: pytest
+        run: .venv/bin/python -m pytest
 
       - name: Compile Python sources
-        run: python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
+        run: .venv/bin/python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
+
+      - name: Verify installed command
+        run: .venv/bin/agent-policy --help
