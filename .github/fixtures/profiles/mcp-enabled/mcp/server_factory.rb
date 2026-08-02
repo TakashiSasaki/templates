@@ -36,14 +36,39 @@ module TextStatsMcp
 
     class << self
       def call(text:, server_context:)
-        test_delay = ENV["TEXT_STATS_MCP_TEST_TOOL_DELAY"]
-        sleep(Float(test_delay)) if ENV["TEXT_STATS_MCP_TEST_MODE"] == "1" && test_delay
+        run_test_delay(server_context)
 
         result = TextStatsMcp.analyze(text)
         MCP::Tool::Response.new(
           [{ type: "text", text: JSON.generate(result) }],
           structured_content: result
         )
+      end
+
+      private
+
+      def run_test_delay(server_context)
+        return unless ENV["TEXT_STATS_MCP_TEST_MODE"] == "1"
+
+        delay_text = ENV["TEXT_STATS_MCP_TEST_TOOL_DELAY"]
+        return unless delay_text
+
+        delay = Float(delay_text)
+        raise ArgumentError, "test tool delay must be nonnegative" if delay.negative?
+
+        marker = ENV["TEXT_STATS_MCP_TEST_TOOL_MARKER"]
+        File.binwrite(marker, "started\n") if marker
+
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + delay
+        loop do
+          server_context.raise_if_cancelled!
+          remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          break unless remaining.positive?
+
+          sleep [remaining, 0.01].min
+        end
+      ensure
+        File.binwrite(marker, "finished\n") if marker
       end
     end
   end
