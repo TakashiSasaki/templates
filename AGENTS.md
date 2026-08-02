@@ -162,7 +162,7 @@ Run the supported profile-aware validation entry point:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The validator reads each retained contract directly through the shared profile contract model. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
+The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. Some focused validators retain bounded contract-specific Markdown parsing, while rule validators use `.github/scripts/lib/profile_contracts.rb`. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
 
 ## Completion criteria
 
