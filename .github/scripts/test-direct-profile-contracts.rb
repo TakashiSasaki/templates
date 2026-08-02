@@ -29,7 +29,8 @@ end
 canonical_validation_docs = {
   "README.md" => [
     "Run the supported profile-aware validation entry point:",
-    "no compatibility adapter"
+    "focused direct validators and shared-model rule validators",
+    "Some focused direct validators retain their own bounded Markdown parsing"
   ],
   "CONTRIBUTING.md" => [
     "Run the supported profile-aware validation entry point:",
@@ -37,14 +38,16 @@ canonical_validation_docs = {
   ],
   "docs/skill-profiles.md" => [
     "Run the supported profile-aware validation entry point:",
-    "does not synthesize a monolithic interface document"
+    "focused direct validators and shared-model rule validators",
+    "Focused validators may retain bounded parser logic"
   ]
 }
 stale_validation_markers = [
   "During the Phase 2",
   "compatibility adapter assembles",
   "later validator-consolidation phase",
-  "legacy validators"
+  "legacy validators",
+  "each retained contract directly through the shared profile contract model"
 ]
 
 canonical_validation_docs.each do |relative_path, required_snippets|
@@ -59,7 +62,7 @@ canonical_validation_docs.each do |relative_path, required_snippets|
     failures << "#{relative_path} does not describe the stable validation architecture: #{snippet.inspect}" unless text.include?(snippet)
   end
   stale_validation_markers.each do |marker|
-    failures << "#{relative_path} still describes removed transitional validation behavior: #{marker.inspect}" if text.include?(marker)
+    failures << "#{relative_path} still describes removed or overstated validation behavior: #{marker.inspect}" if text.include?(marker)
   end
 end
 
