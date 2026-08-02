@@ -211,6 +211,23 @@ interface_runtime_cases = [
       "| Stable public command | text-stats-client |"
     ),
     success: false
+  },
+  {
+    name: "rejects disabled bundled client with a stable public command",
+    public: fixture_public.sub(
+      "## Bundled ad hoc MCP tool client\n\nSupported: YES",
+      "## Bundled ad hoc MCP tool client\n\nSupported: NO"
+    ),
+    runtime: fixture_runtime
+      .sub(
+        "### Bundled ad hoc MCP tool client\n\n| Item | Selected value |\n|---|---|\n| Supported | YES |",
+        "### Bundled ad hoc MCP tool client\n\n| Item | Selected value |\n|---|---|\n| Supported | NO |"
+      )
+      .sub(
+        "| Stable public command | NOT SUPPORTED |",
+        "| Stable public command | text-stats-client |"
+      ),
+    success: false
   }
 ]
 
