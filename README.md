@@ -11,7 +11,7 @@ Create an isolated environment and install the complete locked validation graph:
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install --disable-pip-version-check --requirement requirements-dev.lock
+python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
 python -m pip check
 ```
 
