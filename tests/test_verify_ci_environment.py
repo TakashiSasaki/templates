@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from scripts.verify_ci_environment import (
     load_local_project,
     load_locked_requirements,
     normalize_distribution_name,
+    validate_editable_direct_url,
 )
 
 
@@ -95,3 +97,50 @@ def test_distribution_set_rejects_extras_omissions_and_version_mismatches() -> N
     assert any("missing expected distributions: local-project" in error for error in errors)
     assert any("injected-package==9.9" in error for error in errors)
     assert any("dependency: expected 1.0, installed 2.0" in error for error in errors)
+
+
+def test_editable_direct_url_requires_this_repository_root(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    direct_url = json.dumps(
+        {
+            "dir_info": {"editable": True},
+            "url": repository.resolve().as_uri(),
+        }
+    )
+
+    assert validate_editable_direct_url(direct_url, repository) == ()
+
+
+def test_editable_direct_url_rejects_missing_regular_and_wrong_source(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repository"
+    other = tmp_path / "other"
+    repository.mkdir()
+    other.mkdir()
+
+    missing_errors = validate_editable_direct_url(None, repository)
+    assert any("missing direct_url.json" in error for error in missing_errors)
+
+    regular_errors = validate_editable_direct_url(
+        json.dumps(
+            {
+                "dir_info": {"editable": False},
+                "url": repository.resolve().as_uri(),
+            }
+        ),
+        repository,
+    )
+    assert any("not marked editable" in error for error in regular_errors)
+
+    wrong_source_errors = validate_editable_direct_url(
+        json.dumps(
+            {
+                "dir_info": {"editable": True},
+                "url": other.resolve().as_uri(),
+            }
+        ),
+        repository,
+    )
+    assert any("does not resolve to repository root" in error for error in wrong_source_errors)
