@@ -63,6 +63,9 @@ helper_source = File.read(
 unless helper_source.include?("File.binwrite(output_path, normalized)")
   failures << "script-assisted-runtime: helper output must use File.binwrite to preserve LF bytes on Windows"
 end
+unless helper_source.include?("File.identical?(input_path, output_path)")
+  failures << "script-assisted-runtime: helper must reject output aliases before writing"
+end
 
 Dir.mktmpdir("script-assisted-runtime-profile") do |directory|
   copy_fixture.call(directory)
@@ -98,6 +101,38 @@ Dir.mktmpdir("script-assisted-runtime-profile") do |directory|
     failures << "script-assisted-runtime helper: expected deterministic output without input mutation; " \
                 "status=#{helper_status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
                 "stderr=#{helper_stderr.inspect}, output=#{output.inspect}"
+  end
+
+  {
+    "hard-link" => lambda do |source, destination|
+      File.link(source, destination)
+    end,
+    "symbolic-link" => lambda do |source, destination|
+      File.symlink(File.basename(source), destination)
+    end
+  }.each do |description, create_alias|
+    alias_input = File.join(directory, "#{description}-input.txt")
+    alias_output = File.join(directory, "#{description}-output.txt")
+    File.binwrite(alias_input, "immutable  \r\n")
+    alias_input_before = File.binread(alias_input)
+    create_alias.call(alias_input, alias_output)
+
+    stdout, helper_stderr, helper_status = Open3.capture3(
+      RbConfig.ruby,
+      "scripts/normalize.rb",
+      File.basename(alias_input),
+      File.basename(alias_output),
+      chdir: directory
+    )
+
+    unless helper_status.exitstatus == 2 && stdout.empty? &&
+           helper_stderr == "input and output must refer to different files\n" &&
+           File.binread(alias_input) == alias_input_before &&
+           File.binread(alias_output) == alias_input_before
+      failures << "script-assisted-runtime helper: expected #{description} output alias rejection without input mutation; " \
+                  "status=#{helper_status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                  "stderr=#{helper_stderr.inspect}, input=#{File.binread(alias_input).inspect}"
+    end
   end
 
   File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
