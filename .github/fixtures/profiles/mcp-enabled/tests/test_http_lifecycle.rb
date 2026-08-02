@@ -16,6 +16,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
   HOST = "127.0.0.1"
   TOKEN = "fixture-http-token-0123456789abcdef"
   REQUEST_TIMEOUT = 2
+  POST_ACCEPT = "application/json, text/event-stream"
 
   class HttpServerProcess
     attr_reader :port
@@ -62,9 +63,16 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       )
     end
 
+    def notify_initialized(session_id)
+      post_json(
+        { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+        session_id: session_id
+      )
+    end
+
     def post_json(payload, session_id: nil)
       request = Net::HTTP::Post.new("/mcp")
-      request["Accept"] = "application/json"
+      request["Accept"] = POST_ACCEPT
       request["Content-Type"] = "application/json"
       request["Authorization"] = "Bearer #{TOKEN}"
       request["Mcp-Session-Id"] = session_id if session_id
@@ -91,7 +99,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       request = [
         "POST /mcp HTTP/1.1",
         "Host: #{HOST}:#{port}",
-        "Accept: application/json",
+        "Accept: #{POST_ACCEPT}",
         "Content-Type: application/json",
         "Authorization: Bearer #{TOKEN}",
         "Mcp-Session-Id: #{session_id}",
@@ -198,6 +206,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       assert_equal "200", initialization.code
       session_id = initialization["mcp-session-id"]
       refute_empty session_id.to_s
+      assert_equal "202", server.notify_initialized(session_id).code
 
       socket = server.start_tool_call(session_id)
       wait_for_marker(marker, "started")
