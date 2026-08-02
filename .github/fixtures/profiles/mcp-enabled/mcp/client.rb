@@ -421,11 +421,14 @@ module TextStatsMcpClient
       classify_http_failure(response) unless response.code.start_with?("2")
       return response if request_id.nil?
 
+      if payload["method"] == "initialize"
+        @session_id = response["mcp-session-id"]
+      end
+
       parsed = JSON.parse(response.body)
       raise ProtocolFailure unless parsed.is_a?(Hash)
 
       if payload["method"] == "initialize"
-        @session_id = response["mcp-session-id"]
         raise ProtocolFailure unless @session_id && !@session_id.empty?
       end
       RpcResponse.new(id: request_id, message: parsed)
