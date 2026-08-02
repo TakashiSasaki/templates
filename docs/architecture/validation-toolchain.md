@@ -10,7 +10,7 @@ The branch-maintainer CI baseline is:
 - CPython 3.12.13;
 - immutable commit pins for the checkout and Python-setup actions;
 - an empty `PYTHONPATH` before the first Python invocation and throughout validation;
-- pip requirement-injection variables removed and pip configuration files disabled during installation;
+- every requirement-bearing pip environment input removed and pip configuration files disabled during installation;
 - a cleared and recreated virtual environment without system site packages;
 - arbitrary exact direct dependencies in `requirements-dev.txt`;
 - the complete arbitrary exact dependency graph in `requirements-dev.lock`;
@@ -18,9 +18,9 @@ The branch-maintainer CI baseline is:
 
 Dependency entries use the requirement operator `===`, not PEP 440 version matching with `==`. A public-version specifier such as `name==1.2.3` can also match a candidate carrying an unrequested local label such as `1.2.3+corp`; `name===1.2.3` requires the candidate version string to match exactly. A local build may be selected only when its full local version is intentionally recorded in the reviewed input and lock.
 
-CI clears `PYTHONPATH` before environment creation, disables pip configuration files, removes requirement- and constraint-injection variables from the install command, clears and recreates `.venv`, and installs only the entries enumerated in `requirements-dev.lock` with dependency resolution disabled. It then compares the installed distributions with the lock before running `pip check`, both public validator entry points, and the complete unit-test suite.
+CI clears `PYTHONPATH` before environment creation, disables pip configuration files, removes requirement, constraint, editable, dependency-group, and script-metadata inputs from the install command, clears and recreates `.venv`, and installs only the entries enumerated in `requirements-dev.lock` with dependency resolution disabled. It then compares the installed distributions with the lock before running `pip check`, both public validator entry points, and the complete unit-test suite.
 
-The ordering is significant. `PYTHONPATH` must be cleared before `python -m venv` because external directories can replace the standard-library `venv` module or run `sitecustomize` during bootstrap. The virtual environment must be cleared because `venv` otherwise reuses an existing directory and can retain distributions installed by an earlier lock. Pip configuration and requirement-injection inputs must be removed because options such as `PIP_REQUIREMENT` or a configured `requirement` entry can add packages even when the explicit install uses `--no-deps`. The installed-set comparison is the final completeness check: any extra distribution, missing lock entry, or version mismatch fails validation. Isolation from the setup interpreter is also required because `pip check` validates the currently visible installed graph. Disabling dependency resolution prevents an omitted transitive or conditional dependency from being silently retrieved from the package index.
+The ordering is significant. `PYTHONPATH` must be cleared before `python -m venv` because external directories can replace the standard-library `venv` module or run `sitecustomize` during bootstrap. The virtual environment must be cleared because `venv` otherwise reuses an existing directory and can retain distributions installed by an earlier lock. Pip configuration and every requirement-bearing environment input must be removed because `PIP_REQUIREMENT`, `PIP_CONSTRAINT`, `PIP_EDITABLE`, `PIP_GROUP`, `PIP_REQUIREMENTS_FROM_SCRIPT`, or corresponding configured options can add packages even when the explicit install uses `--no-deps`. The installed-set comparison is the final completeness check: any extra distribution, missing lock entry, or version mismatch fails validation. Isolation from the setup interpreter is also required because `pip check` validates the currently visible installed graph. Disabling dependency resolution prevents an omitted transitive or conditional dependency from being silently retrieved from the package index.
 
 The lock provides exact version-string reproducibility for the selected index configuration. It does not claim byte-for-byte artifact reproducibility or index-origin reproducibility because wheel and source-distribution hashes and source URLs are not recorded. Adding hash enforcement or repository-origin enforcement is a separate trust-boundary change.
 
@@ -29,7 +29,7 @@ The lock provides exact version-string reproducibility for the selected index co
 Remove external Python and pip inputs before the first Python invocation, clear and recreate the environment, then install and verify exactly the locked graph:
 
 ```sh
-unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE
+unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT
 export PIP_CONFIG_FILE=/dev/null
 python -m venv --clear .venv
 . .venv/bin/activate
@@ -55,7 +55,7 @@ A dependency update must be an intentional reviewed change that:
 1. changes the arbitrary exact direct pin in `requirements-dev.txt` when required;
 2. resolves and records the complete arbitrary-exact graph for CPython 3.12.13 on Ubuntu 24.04 in `requirements-dev.lock`;
 3. updates the reproducibility regression expectations;
-4. clears `PYTHONPATH` before the first Python invocation, removes pip requirement and constraint injection, disables pip configuration files, and clears and recreates the virtual environment without system site packages;
+4. clears `PYTHONPATH` before the first Python invocation, removes requirement, constraint, editable, dependency-group, and script-metadata pip inputs, disables pip configuration files, and clears and recreates the virtual environment without system site packages;
 5. installs the lock with dependency resolution disabled, runs `scripts/verify_locked_environment.py`, and runs `pip check` there;
 6. runs the standalone validator, module validator, and complete unit-test suite from that environment;
 7. records any baseline, compatibility, or diagnostic changes in the pull request.
