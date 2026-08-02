@@ -7,6 +7,7 @@ require "open3"
 require "rbconfig"
 require "socket"
 require "timeout"
+require "tmpdir"
 require_relative "../src/text_stats"
 
 class TextStatsMcpHttpLifecycleTest < Minitest::Test
@@ -26,7 +27,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       listener&.close
     end
 
-    def initialize(session_idle_timeout: 1, tool_delay: 0.5)
+    def initialize(session_idle_timeout: 1, tool_delay: 0.5, tool_marker: nil)
       @port = self.class.free_port
       environment = {
         "TEXT_STATS_MCP_HTTP_BIND" => HOST,
@@ -34,8 +35,9 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
         "TEXT_STATS_MCP_HTTP_TOKEN" => TOKEN,
         "TEXT_STATS_MCP_TEST_MODE" => "1",
         "TEXT_STATS_MCP_TEST_SESSION_IDLE_TIMEOUT" => session_idle_timeout.to_s,
-        "TEXT_STATS_MCP_TEST_TOOL_DELAY" => tool_delay.to_s
-      }
+        "TEXT_STATS_MCP_TEST_TOOL_DELAY" => tool_delay.to_s,
+        "TEXT_STATS_MCP_TEST_TOOL_MARKER" => tool_marker
+      }.compact
       @stdin, @stdout, @stderr, @wait_thread = Open3.popen3(
         environment,
         RbConfig.ruby,
@@ -79,7 +81,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
       self.request(request)
     end
 
-    def abort_tool_call(session_id)
+    def start_tool_call(session_id)
       body = JSON.generate(
         jsonrpc: "2.0",
         method: "tools/call",
@@ -102,7 +104,7 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
 
       socket = TCPSocket.new(HOST, port)
       socket.write(request)
-      socket.close
+      socket
     end
 
     def stop
@@ -153,6 +155,17 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
     end
   end
 
+  def wait_for_marker(path, expected, timeout: 3)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    loop do
+      return if File.file?(path) && File.binread(path) == "#{expected}\n"
+
+      raise "tool marker did not reach #{expected.inspect}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+      sleep 0.01
+    end
+  end
+
   def test_expired_sessions_restore_capacity_without_delete
     server = HttpServerProcess.new(session_idle_timeout: 1, tool_delay: 0)
     16.times do |index|
@@ -178,28 +191,34 @@ class TextStatsMcpHttpLifecycleTest < Minitest::Test
   end
 
   def test_aborted_tool_request_leaves_server_and_session_usable
-    server = HttpServerProcess.new(session_idle_timeout: 10, tool_delay: 0.5)
-    initialization = server.initialize_session
-    assert_equal "200", initialization.code
-    session_id = initialization["mcp-session-id"]
-    refute_empty session_id.to_s
+    Dir.mktmpdir("mcp-http-disconnect") do |directory|
+      marker = File.join(directory, "tool-state")
+      server = HttpServerProcess.new(session_idle_timeout: 10, tool_delay: 0.5, tool_marker: marker)
+      initialization = server.initialize_session
+      assert_equal "200", initialization.code
+      session_id = initialization["mcp-session-id"]
+      refute_empty session_id.to_s
 
-    server.abort_tool_call(session_id)
-    sleep 0.8
+      socket = server.start_tool_call(session_id)
+      wait_for_marker(marker, "started")
+      socket.close
+      wait_for_marker(marker, "finished")
 
-    ping = server.post_json(
-      { jsonrpc: "2.0", method: "ping", id: 2, params: {} },
-      session_id: session_id
-    )
-    assert_equal "200", ping.code
-    assert_equal({}, JSON.parse(ping.body).fetch("result"))
+      ping = server.post_json(
+        { jsonrpc: "2.0", method: "ping", id: 2, params: {} },
+        session_id: session_id
+      )
+      assert_equal "200", ping.code
+      assert_equal({}, JSON.parse(ping.body).fetch("result"))
 
-    deleted = server.delete_session(session_id)
-    assert_equal "200", deleted.code
+      deleted = server.delete_session(session_id)
+      assert_equal "200", deleted.code
 
-    replacement = server.initialize_session(id: 3)
-    assert_equal "200", replacement.code
-  ensure
-    server&.stop
+      replacement = server.initialize_session(id: 3)
+      assert_equal "200", replacement.code
+    ensure
+      socket&.close unless socket&.closed?
+      server&.stop
+    end
   end
 end
