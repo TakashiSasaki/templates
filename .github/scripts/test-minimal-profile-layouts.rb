@@ -23,6 +23,10 @@ expected_files = {
   ]
 }.freeze
 
+invalid_fixture_files = {
+  "unsupported-combination" => %w[SKILL.md]
+}.freeze
+
 failures = []
 
 run_validator = lambda do |directory|
@@ -39,6 +43,15 @@ end
 copy_fixture = lambda do |name, directory|
   fixture = File.join(fixtures_root, name)
   FileUtils.cp_r("#{fixture}/.", directory)
+end
+
+fixture_inventory = lambda do |name|
+  fixture = File.join(fixtures_root, name)
+  Find.find(fixture).filter_map do |path|
+    next if path == fixture || File.directory?(path)
+
+    path.delete_prefix("#{fixture}/")
+  end.sort
 end
 
 replace_selected_profiles = lambda do |directory, replacement|
@@ -64,12 +77,7 @@ combined_skill = File.read(File.join(fixtures_root, "combined-resources", "SKILL
 end
 
 expected_files.each do |name, expected|
-  fixture = File.join(fixtures_root, name)
-  actual = Find.find(fixture).filter_map do |path|
-    next if path == fixture || File.directory?(path)
-
-    path.delete_prefix("#{fixture}/")
-  end.sort
+  actual = fixture_inventory.call(name)
 
   if actual != expected.sort
     failures << "#{name}: expected reduced layout #{expected.sort.inspect}, got #{actual.inspect}"
@@ -81,6 +89,28 @@ expected_files.each do |name, expected|
     _stdout, stderr, status = run_validator.call(directory)
     unless status.success?
       failures << "#{name}: expected the complete reduced repository to pass; diagnostics=#{stderr.strip.inspect}"
+    end
+  end
+end
+
+invalid_fixture_files.each do |name, expected|
+  actual = fixture_inventory.call(name)
+
+  if actual != expected.sort
+    failures << "#{name}: expected reduced invalid layout #{expected.sort.inspect}, got #{actual.inspect}"
+    next
+  end
+
+  Dir.mktmpdir("invalid-profile-#{name}") do |directory|
+    copy_fixture.call(name, directory)
+    _stdout, stderr, status = run_validator.call(directory)
+    expected_diagnostic = "'instruction-only' cannot be combined with resource, executable, or service profiles.\n"
+
+    if status.success?
+      failures << "#{name}: expected repository validation to reject the unsupported profile combination"
+    elsif stderr != expected_diagnostic
+      failures << "#{name}: expected only the exclusive instruction-only diagnostic; " \
+                  "diagnostics=#{stderr.inspect}"
     end
   end
 end
