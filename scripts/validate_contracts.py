@@ -288,11 +288,11 @@ def _symlink_preflight(
     *,
     check_inventory: bool = True,
 ) -> list[str]:
+    if root.is_symlink():
+        return ["repository root must not be a symbolic link"]
     root_error = _root_resolution_error(root)
     if root_error:
         return [root_error]
-    if root.is_symlink():
-        return ["repository root must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_PATH):
         return [f"{MANIFEST_PATH}: manifest must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_SCHEMA_PATH):
