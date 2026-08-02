@@ -95,7 +95,7 @@ Run validation from a clean, documented environment and keep the commands reprod
 
 1. create the product's isolated environment;
 2. install the product lockfile without undeclared dependency inputs;
-3. run the template contract validator through its supported entry points;
+3. if the shipped validator is retained, run both supported entry points from its isolated environment; otherwise run the product repository's equivalent verified validation command and preserve the semantic and failure-case evidence mapping;
 4. run product unit, integration, accessibility, and end-to-end tests;
 5. run lint, type, build, and security checks selected by the product toolchain;
 6. publish diagnostics and evidence without exposing secrets.
@@ -126,6 +126,6 @@ A generated repository is ready for independent product review when:
 - all canonical surfaces, routes, states, viewports, and input capabilities are declared;
 - trusted authentication and authorization enforcement is tested;
 - implementation evidence covers the declared behavior and failure paths;
-- both contract-validator entry points and product tests pass in CI;
+- if the shipped validator is retained, both supported entry points and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics and failure evidence;
 - build, deployment, migration, rollback, observability, and release ownership are documented;
 - template-only guidance and unused alternatives have been removed.
