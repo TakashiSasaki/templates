@@ -63,6 +63,7 @@ PIP_SANITIZED_INPUTS = (
     "PIP_CLIENT_CERT",
     "PIP_PROXY",
     "PIP_TIMEOUT",
+    "PIP_DEFAULT_TIMEOUT",
     "PIP_RETRIES",
 )
 
@@ -115,6 +116,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PYTHONHOME: ""',
             '      PYTHONPATH: ""',
             '      PYTHONSAFEPATH: ""',
+            '      PYTHONPLATLIBDIR: ""',
             '      PYTHONNOUSERSITE: "1"',
             '      PIP_PYTHON: ""',
             '      PIP_CACHE_DIR: ""',
@@ -135,7 +137,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
+            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
             "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
@@ -156,7 +158,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
-        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
