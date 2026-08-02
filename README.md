@@ -115,13 +115,13 @@ MCP exact revision, SDK, transport-selection, and startup decisions remain in `R
 
 ## Validation
 
-During the Phase 2 document split, run the profile-aware validators through the supported entry point:
+Run the supported profile-aware validation entry point:
 
 ```sh
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The compatibility adapter assembles the decomposed interface documents only in memory for validators that predate the split. The committed files remain separate sources of truth. The later validator-consolidation phase will remove this adapter.
+The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. The compatibility adapter, synthesized monolithic interface document, `File.read` monkey patch, and `RUBYOPT` injection have been removed. Some focused direct validators retain their own bounded Markdown parsing while the rule validators use `.github/scripts/lib/profile_contracts.rb`; the supported entry point executes both groups directly.
 
 ## Installation modes
 

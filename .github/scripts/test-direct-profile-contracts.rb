@@ -8,6 +8,7 @@ require "tmpdir"
 
 validator = File.expand_path("validate-core-profile-contracts.rb", __dir__)
 orchestrator = File.expand_path("validate-profile-contracts.rb", __dir__)
+repository_root = File.expand_path("../..", __dir__)
 obsolete_paths = %w[
   decomposed-interface-compat.rb
   validate-selected-profiles.rb
@@ -23,6 +24,51 @@ end
 orchestrator_text = File.read(orchestrator)
 if orchestrator_text.include?("decomposed-interface-compat") || orchestrator_text.include?("legacy_environment")
   failures << "validate-profile-contracts.rb still injects the decomposed interface compatibility layer"
+end
+
+canonical_validation_docs = {
+  "AGENTS.md" => [
+    "Run the supported profile-aware validation entry point:",
+    "focused direct validators and shared-model rule validators",
+    "Some focused validators retain bounded contract-specific Markdown parsing"
+  ],
+  "README.md" => [
+    "Run the supported profile-aware validation entry point:",
+    "focused direct validators and shared-model rule validators",
+    "Some focused direct validators retain their own bounded Markdown parsing"
+  ],
+  "CONTRIBUTING.md" => [
+    "Run the supported profile-aware validation entry point:",
+    "This fixture matrix is the stable baseline"
+  ],
+  "docs/skill-profiles.md" => [
+    "Run the supported profile-aware validation entry point:",
+    "focused direct validators and shared-model rule validators",
+    "Focused validators may retain bounded parser logic"
+  ]
+}
+stale_validation_markers = [
+  "During the Phase 2",
+  "compatibility adapter assembles",
+  "later validator-consolidation phase",
+  "legacy validators",
+  "each retained contract directly through the shared profile contract model"
+]
+
+canonical_validation_docs.each do |relative_path, required_snippets|
+  path = File.join(repository_root, relative_path)
+  unless File.file?(path)
+    failures << "missing canonical validation document: #{relative_path}"
+    next
+  end
+
+  text = File.read(path)
+  required_snippets.each do |snippet|
+    failures << "#{relative_path} does not describe the stable validation architecture: #{snippet.inspect}" unless text.include?(snippet)
+  end
+  stale_validation_markers.each do |marker|
+    failures << "#{relative_path} still describes removed or overstated validation behavior: #{marker.inspect}" if text.include?(marker)
+  end
 end
 
 skill = <<~MARKDOWN
@@ -139,4 +185,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "Direct profile contract and compatibility-removal tests passed."
+puts "Direct profile contract, compatibility-removal, and documentation tests passed."

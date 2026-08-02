@@ -261,10 +261,10 @@ Validation should be profile-aware:
 | Browser-interface | routing, authentication, authorization, browser exposure, health separation, deployment smoke tests |
 | Headless-service | endpoint, authentication, authorization, exposure, health, lifecycle, shutdown, deployment smoke tests |
 
-During the Phase 2 document transition, run:
+Run the supported profile-aware validation entry point:
 
 ```sh
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The adapter assembles the decomposed interface contracts only in memory for the legacy validators. The committed documents remain separate sources of truth.
+The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Focused validators may retain bounded parser logic for their contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.rb`.
