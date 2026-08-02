@@ -80,12 +80,14 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     workflow = workflow_text()
     readme = README.read_text(encoding="utf-8")
 
+    assert '      PYTHONHOME: ""' in workflow
     assert '      PYTHONPATH: ""' in workflow
     assert '      PYTHONNOUSERSITE: "1"' in workflow
     assert '      PIP_PYTHON: ""' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
     documented_unset = (
-        "unset PYTHONPATH PYTHONUSERBASE " + " ".join(PIP_REQUIREMENT_INPUTS)
+        "unset PYTHONHOME PYTHONPATH PYTHONUSERBASE "
+        + " ".join(PIP_REQUIREMENT_INPUTS)
     )
     documented_sequence = (
         f"{documented_unset}\n"
