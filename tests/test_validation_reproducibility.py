@@ -51,20 +51,27 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertNotIn("# v5.", workflow)
         self.assertIn('python-version: "3.12.13"', workflow)
 
+    def test_workflow_creates_a_fresh_isolated_virtual_environment(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("run: python -m venv .venv", workflow)
+        self.assertNotIn("--system-site-packages", workflow)
+
     def test_workflow_installs_and_checks_only_the_locked_graph(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
         self.assertIn(
-            "python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "run: .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn(
-            "python -m pip install --disable-pip-version-check --requirement requirements-dev.lock",
+            "run: python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn("--requirement requirements-dev.txt", workflow)
-        self.assertIn("python -m pip check", workflow)
+        self.assertIn("run: .venv/bin/python -m pip check", workflow)
+        self.assertNotIn("run: python -m pip check", workflow)
 
     def test_readme_installation_is_dependency_isolated(self) -> None:
         readme = README.read_text(encoding="utf-8")
@@ -78,12 +85,23 @@ class ValidationReproducibilityTests(unittest.TestCase):
             readme,
         )
 
-    def test_workflow_exercises_both_public_validator_entry_points(self) -> None:
+    def test_workflow_exercises_both_public_validator_entry_points_in_the_venv(
+        self,
+    ) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertIn("python scripts/validate_contracts.py", workflow)
-        self.assertIn("python -m scripts.validate_contracts", workflow)
-        self.assertIn("python -m unittest discover -s tests -v", workflow)
+        self.assertIn(
+            "run: .venv/bin/python scripts/validate_contracts.py", workflow
+        )
+        self.assertIn(
+            "run: .venv/bin/python -m scripts.validate_contracts", workflow
+        )
+        self.assertIn(
+            "run: .venv/bin/python -m unittest discover -s tests -v", workflow
+        )
+        self.assertNotIn("run: python scripts/validate_contracts.py", workflow)
+        self.assertNotIn("run: python -m scripts.validate_contracts", workflow)
+        self.assertNotIn("run: python -m unittest discover -s tests -v", workflow)
 
     def test_arbitrary_exact_pattern_rejects_pep440_matching_specifiers(self) -> None:
         invalid_requirements = (
