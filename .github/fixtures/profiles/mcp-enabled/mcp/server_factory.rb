@@ -57,6 +57,7 @@ module TextStatsMcp
         raise ArgumentError, "test tool delay must be nonnegative" if delay.negative?
 
         marker = ENV["TEXT_STATS_MCP_TEST_TOOL_MARKER"]
+        outcome = "failed"
         File.binwrite(marker, "started\n") if marker
 
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + delay
@@ -67,8 +68,12 @@ module TextStatsMcp
 
           sleep [remaining, 0.01].min
         end
+        outcome = "completed"
+      rescue MCP::CancelledError
+        outcome = "cancelled"
+        raise
       ensure
-        File.binwrite(marker, "finished\n") if marker
+        File.binwrite(marker, "#{outcome}\n") if marker
       end
     end
   end
