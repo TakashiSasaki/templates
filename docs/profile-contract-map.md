@@ -48,7 +48,7 @@ The following material formerly lived in `INTERFACES.md`:
 | `browser-interface` | `SKILL.md`, `RUNTIME.md`, `WEB_INTERFACE.md` |
 | `headless-service` | `SKILL.md`, `RUNTIME.md`, applicable deployment/API material |
 
-Combined profiles retain the union of their required files. Remove `CLI_INTERFACE.md` when `packaged-cli` is not selected and remove `MCP_INTERFACE.md` when `mcp-enabled` is not selected.
+The `instruction-only` tag is exclusive and cannot participate in a combined selection. Other combined profiles retain the union of their required files. Remove `CLI_INTERFACE.md` when `packaged-cli` is not selected and remove `MCP_INTERFACE.md` when `mcp-enabled` is not selected.
 
 ## Validation architecture
 
