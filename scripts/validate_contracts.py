@@ -42,6 +42,41 @@ def _load_implementation() -> ModuleType:
     return _IMPLEMENTATION
 
 
+def _loader_preflight(name: str, root: Path) -> None:
+    """Reject unsafe facade or caller roots before loading implementation code."""
+
+    errors = _symlink_preflight(ROOT)
+    if not errors:
+        errors = _symlink_preflight(root)
+    if errors:
+        details = "; ".join(errors)
+        raise RuntimeError(
+            f"cannot call validator loader {name!r} before trust-boundary "
+            f"preflight succeeds: {details}"
+        )
+
+
+def load_contract_manifest(root: Path) -> dict[str, Any]:
+    """Load a contract manifest after preflighting both trust boundaries."""
+
+    _loader_preflight("load_contract_manifest", root)
+    return _load_implementation().load_contract_manifest(root)
+
+
+def load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
+    """Load a contract registry after preflighting both trust boundaries."""
+
+    _loader_preflight("load_contract_registry", root)
+    return _load_implementation().load_contract_registry(root)
+
+
+def load_contract_documents(root: Path) -> dict[str, Any]:
+    """Load contract documents after preflighting both trust boundaries."""
+
+    _loader_preflight("load_contract_documents", root)
+    return _load_implementation().load_contract_documents(root)
+
+
 def validate_contract_manifest(
     root: Path,
     manifest: dict[str, Any],
@@ -59,6 +94,9 @@ def validate_contract_manifest(
 
 
 def __getattr__(name: str) -> Any:
+    if name.startswith("__") and name.endswith("__"):
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
     preflight_errors = _symlink_preflight(ROOT)
     if preflight_errors:
         if name == "CONTRACT_SCHEMAS":
