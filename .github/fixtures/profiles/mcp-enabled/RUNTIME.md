@@ -14,7 +14,7 @@ Selection status: SELECTED
 | Dependency/package manager | RubyGems and Bundler |
 | Project manifest | `Gemfile` |
 | Lockfile policy | The fixture pins `mcp` 1.0.0, `rack` 3.2.1, `rackup` 2.2.1, and `webrick` 1.9.1 directly in `Gemfile`; the isolated fixture harness resolves transitive dependencies during validation and does not commit the generated lockfile. |
-| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters. |
+| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters; `tests/` contains transport and boundary tests. |
 | Supported operating systems | Linux with CRuby 3.1 or newer |
 
 ## Commands
@@ -28,9 +28,9 @@ Run every command from the skill root.
 | Install development dependencies | `bundle install` |
 | Run in place | `bundle exec ruby mcp/server.rb` |
 | Agent launcher | `bundle exec ruby mcp/server.rb` |
-| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb` |
-| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb` |
-| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb` |
+| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb` |
+| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb` |
+| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb` |
 | Build/package | NOT APPLICABLE |
 
 ### MCP commands
@@ -60,7 +60,7 @@ Run every command from the skill root.
 | JSON Schema dialects | JSON Schema Draft 2020-12 through the SDK input and output schema validators |
 | Optional MCP extensions | NONE |
 | Deprecated feature policy | Deprecated features and capabilities outside this contract are not advertised. |
-| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another string revision, malformed-revision rejection, tools-only capability advertisement, continued operation after protocol and tool-validation errors, and equivalent stdio and HTTP tool results. |
+| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another string revision, malformed-revision rejection, tools-only capability advertisement, continued operation after protocol and tool-validation errors, equivalent stdio and HTTP tool results, canonical default-port authority handling, and preserved shutdown requests during startup. |
 
 ## MCP variants
 
@@ -91,13 +91,13 @@ Run every command from the skill root.
 | Revision-specific state model | Stateful SDK-issued UUID sessions with a 300-second idle timeout, explicit DELETE cleanup, and no resumability or hidden application state |
 | Concurrent-client policy | At most 16 live MCP sessions; the seventeenth initialization receives HTTP 503 until a session is deleted or expires; each tool operation is synchronous, read-only, and independent |
 | Authentication | Exact Bearer token loaded from `TEXT_STATS_MCP_HTTP_TOKEN`; 32 to 128 non-whitespace printable ASCII characters; constant-time comparison on every `/mcp` request and no token output |
-| Host-header validation | The Rack gate requires the exact configured `127.0.0.1:PORT` authority on every readiness and MCP request before authentication or protocol dispatch |
+| Host-header validation | Every request must carry the configured loopback authority in canonical form; nondefault ports require `127.0.0.1:PORT`, while port 80 accepts the equivalent `127.0.0.1` and `127.0.0.1:80` forms |
 | Origin validation granularity | EVERY HTTP REQUEST before readiness, authentication, session lookup, or MCP dispatch; no connection-scoped allow decision |
-| Allowed origins and absent-Origin policy | An absent Origin is accepted for non-browser clients; a present Origin must exactly equal `http://127.0.0.1:PORT`; every other present Origin receives HTTP 403 |
-| Connection-reuse security tests | One HTTP/1.1 keep-alive connection carries accepted and rejected Host, Origin, and Bearer values in sequence and proves that a valid earlier request does not authorize later requests |
-| Readiness check | Unauthenticated `GET /readyz` returns JSON status only after the listener is serving; it still applies the same per-request Host and Origin gate and remains independent of MCP request failures and session capacity |
+| Allowed origins and absent-Origin policy | An absent Origin is accepted for non-browser clients; a present HTTP Origin must parse to host `127.0.0.1` and the configured effective port with no userinfo, path, query, or fragment; every other present Origin receives HTTP 403 |
+| Connection-reuse security tests | One HTTP/1.1 keep-alive connection carries accepted and rejected Host, Origin, and Bearer values in sequence and proves that a valid earlier request does not authorize later requests; focused boundary tests cover equivalent default-port authority forms |
+| Readiness check | Unauthenticated `GET /readyz` returns JSON status only after the listener is serving; it still applies the same per-request canonical Host and Origin gate and remains independent of MCP request failures and session capacity |
 | Cancellation behavior | Tool execution is synchronous and bounded; caller timeout closes the applicable HTTP request, no task or background work is created, and explicit DELETE removes the associated session |
-| Shutdown/restart policy | One foreground process handles TERM or INT, shuts down WEBrick, closes the SDK transport and sessions, emits diagnostics only to stderr, releases the port, and can restart on the same port; a live-port collision fails promptly |
+| Shutdown/restart policy | One foreground process records TERM or INT even before the server callback attaches, shuts down WEBrick once available, closes the SDK transport and sessions, emits diagnostics only to stderr, releases the port, and can restart on the same port; a live-port collision fails promptly |
 | Non-loopback support | NO; non-loopback bind configuration is rejected and no reverse-proxy trust or remote-client mode is claimed |
 
 ### Bundled ad hoc MCP tool client
@@ -153,4 +153,4 @@ The operator launching the HTTP process records its PID in the shell variable `T
 
 ## Decision rationale
 
-Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, explicitly started, authenticated, request-scoped for Host and Origin decisions, and bounded to 16 sessions; stdio remains the no-listener fallback. A public bundled client, remote deployment, reverse proxy, TLS termination, service manager, persistence, tasks, sampling, elicitation, roots, and optional extensions remain unsupported and require separate contracts and fixtures.
+Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, explicitly started, authenticated, request-scoped for canonical Host and Origin decisions, and bounded to 16 sessions; stdio remains the no-listener fallback. A public bundled client, remote deployment, reverse proxy, TLS termination, service manager, persistence, tasks, sampling, elicitation, roots, and optional extensions remain unsupported and require separate contracts and fixtures.
