@@ -61,20 +61,21 @@ module TextStatsService
         headers[name.downcase] = value.strip
       end
 
+      expected_body_bytes = nil
       if headers.key?("content-length")
         raw_length = headers.fetch("content-length")
         unless /\A\d+\z/.match?(raw_length)
           raise ConfigurationError, "invalid health response Content-Length"
         end
-        content_length = Integer(raw_length, 10)
-        if content_length > self::HEALTH_RESPONSE_MAX_BYTES
+        expected_body_bytes = Integer(raw_length, 10)
+        if expected_body_bytes > self::HEALTH_RESPONSE_MAX_BYTES
           raise ConfigurationError,
                 "health response exceeds #{self::HEALTH_RESPONSE_MAX_BYTES} bytes"
         end
-        while response_body.bytesize < content_length
-          response_body << socket.readpartial([512, content_length - response_body.bytesize].min)
+        while response_body.bytesize < expected_body_bytes
+          response_body << socket.readpartial([512, expected_body_bytes - response_body.bytesize].min)
         end
-        response_body = response_body.byteslice(0, content_length)
+        response_body = response_body.byteslice(0, expected_body_bytes)
         return [status_match[1], response_body]
       end
 
@@ -86,7 +87,9 @@ module TextStatsService
         response_body << socket.readpartial(512)
       end
     rescue EOFError
-      if response_body && response_body.bytesize <= self::HEALTH_RESPONSE_MAX_BYTES && status_match
+      complete_declared_body = expected_body_bytes.nil? || response_body&.bytesize == expected_body_bytes
+      if complete_declared_body && response_body &&
+         response_body.bytesize <= self::HEALTH_RESPONSE_MAX_BYTES && status_match
         return [status_match[1], response_body]
       end
       raise ConfigurationError, "incomplete health response"
