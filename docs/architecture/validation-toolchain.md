@@ -12,18 +12,18 @@ The branch-maintainer CI baseline is:
 - exact direct dependencies in `requirements-dev.txt`;
 - the complete exact dependency graph in `requirements-dev.lock`.
 
-CI installs only `requirements-dev.lock`, runs `python -m pip check`, exercises both public validator entry points, and then runs the complete unit-test suite.
+CI installs only the entries enumerated in `requirements-dev.lock`, with dependency resolution disabled, then runs `python -m pip check`, exercises both public validator entry points, and runs the complete unit-test suite. Disabling dependency resolution is required: if a transitive or conditional dependency is omitted from the lock, installation must not silently retrieve it from the package index, and `pip check` must expose the incomplete graph.
 
 The lock provides version-level reproducibility. It does not claim byte-for-byte artifact reproducibility because wheel and source-distribution hashes are not recorded. Adding hash enforcement is a separate trust-boundary change.
 
 ## Local verification
 
-Create an isolated environment and install the locked graph:
+Create an isolated environment and install exactly the locked graph:
 
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install --disable-pip-version-check --requirement requirements-dev.lock
+python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
 python -m pip check
 ```
 
@@ -44,7 +44,7 @@ A dependency update must be an intentional reviewed change that:
 1. changes the exact direct pin in `requirements-dev.txt` when required;
 2. resolves and records the complete graph for CPython 3.12.13 on Ubuntu 24.04 in `requirements-dev.lock`;
 3. updates the reproducibility regression expectations;
-4. verifies installation and `pip check` in a fresh environment;
+4. installs the lock in a fresh environment with dependency resolution disabled and runs `pip check`;
 5. runs the standalone validator, module validator, and complete unit-test suite;
 6. records any baseline, compatibility, or diagnostic changes in the pull request.
 
