@@ -25,6 +25,7 @@ expected_files = %w[
   mcp/server.rb
   mcp/server_factory.rb
   src/text_stats.rb
+  tests/test_http_boundaries.rb
   tests/test_http_server.rb
   tests/test_mcp_server.rb
 ].sort.freeze
@@ -118,6 +119,7 @@ documented_commands = [
   "bundle exec ruby mcp/http_server.rb",
   "bundle exec ruby tests/test_mcp_server.rb",
   "bundle exec ruby tests/test_http_server.rb",
+  "bundle exec ruby tests/test_http_boundaries.rb",
   "bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory",
   "bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call",
   "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls",
@@ -205,6 +207,7 @@ if failures.empty?
         mcp/http_server.rb
         tests/test_mcp_server.rb
         tests/test_http_server.rb
+        tests/test_http_boundaries.rb
       ].each do |path|
         syntax = run_command.call(
           RbConfig.ruby,
@@ -220,7 +223,8 @@ if failures.empty?
 
       {
         "stdio" => "tests/test_mcp_server.rb",
-        "Streamable HTTP" => "tests/test_http_server.rb"
+        "Streamable HTTP" => "tests/test_http_server.rb",
+        "Streamable HTTP boundaries" => "tests/test_http_boundaries.rb"
       }.each do |name, test_path|
         tests = run_command.call(
           "bundle",
