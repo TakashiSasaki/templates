@@ -26,6 +26,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-minimal-profile-layouts.rb
 
+      - name: Test script-assisted optional-runtime profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-script-assisted-runtime-profile.rb
+
       - name: Test packaged CLI profile fixture
         shell: bash
         run: ruby .github/scripts/test-packaged-cli-profile.rb
