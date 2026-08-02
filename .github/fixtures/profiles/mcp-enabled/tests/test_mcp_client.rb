@@ -6,6 +6,7 @@ require "net/http"
 require "open3"
 require "rbconfig"
 require "socket"
+require "uri"
 require "stringio"
 require "timeout"
 require_relative "../mcp/client"
@@ -418,6 +419,45 @@ class TextStatsMcpClientTest < Minitest::Test
 
     assert_equal 8, error.exit_code
     refute_includes transport.requests.map(&:first), "notifications/initialized"
+  end
+
+  def test_http_initialize_parse_failure_preserves_session_for_cleanup
+    response_class = Struct.new(:code, :body, :headers) do
+      def [](name)
+        headers[name.downcase]
+      end
+    end
+    response = response_class.new(
+      "200",
+      "{malformed",
+      { "mcp-session-id" => "session-123" }
+    )
+
+    transport = TextStatsMcpClient::HttpTransport.allocate
+    transport.instance_variable_set(:@endpoint, URI.parse("http://127.0.0.1:4570/mcp"))
+    transport.instance_variable_set(:@timeout, 0.1)
+    transport.instance_variable_set(:@token, TOKEN)
+    transport.instance_variable_set(:@session_id, nil)
+    http = Object.new
+    http.define_singleton_method(:started?) { false }
+    transport.instance_variable_set(:@http, http)
+
+    deleted_session = nil
+    transport.define_singleton_method(:perform) { |_request| response }
+    transport.define_singleton_method(:delete_session) { deleted_session = @session_id }
+
+    error = assert_raises(TextStatsMcpClient::ProtocolFailure) do
+      transport.send(
+        :post,
+        TextStatsMcpClient::Protocol.request(1, "initialize", {}),
+        request_id: 1
+      )
+    end
+
+    assert_equal 6, error.exit_code
+    assert_equal "session-123", transport.instance_variable_get(:@session_id)
+    transport.close
+    assert_equal "session-123", deleted_session
   end
 
   def test_tools_call_rejects_content_blocks_without_type_specific_fields
