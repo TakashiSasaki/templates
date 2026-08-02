@@ -22,7 +22,8 @@ It exposes `POST /mcp`, `DELETE /mcp`, and `GET /readyz` at `127.0.0.1:4570` by 
 
 ```sh
 bundle exec ruby mcp/client.rb --transport stdio tools call text_stats --arguments '{"text":"alpha beta"}'
-TEXT_STATS_MCP_HTTP_TOKEN='replace-with-a-32-character-or-longer-token' bundle exec ruby mcp/client.rb --transport http --endpoint http://127.0.0.1:4570/mcp tools list
+export TEXT_STATS_MCP_HTTP_TOKEN
+bundle exec ruby mcp/client.rb --transport http --endpoint http://127.0.0.1:4570/mcp tools list
 ```
 
 It performs real MCP initialization, sends `notifications/initialized`, follows bounded opaque `tools/list` pagination, preserves each raw page and complete `tools/call` result, and distinguishes authentication, request-policy, transport, timeout, JSON-RPC, tool-result, invalid-result, capacity, and pagination failures. It never accepts an arbitrary server command or request ID, passes the token as an argument, starts the HTTP server implicitly, or retries across transports. Stdio closes and reaps its fixed child with bounded TERM/KILL escalation; HTTP deletes its session and closes the connection.

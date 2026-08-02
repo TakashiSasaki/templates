@@ -28,9 +28,9 @@ Run every command from the skill root.
 | Install development dependencies | `bundle install` |
 | Run in place | `bundle exec ruby mcp/server.rb` |
 | Agent launcher | `bundle exec ruby mcp/server.rb` |
-| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb && bundle exec ruby tests/test_http_lifecycle.rb` |
-| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb` |
-| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb` |
+| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb && bundle exec ruby tests/test_http_lifecycle.rb && bundle exec ruby tests/test_mcp_client.rb` |
+| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb` |
+| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb` |
 | Build/package | NOT APPLICABLE |
 
 ### MCP commands
