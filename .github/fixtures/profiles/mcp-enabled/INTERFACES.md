@@ -6,11 +6,11 @@ Selection status: SELECTED
 
 ## Execution policy
 
-Preferred agent interface: configured Streamable HTTP MCP endpoint when readiness succeeds and the caller has the required Bearer token
-Fallback 1: native MCP tool registered with the trusted stdio command from `RUNTIME.md`
+Preferred agent interface: existing Streamable HTTP MCP endpoint
+Fallback 1: native MCP tool already registered in the host
 Fallback 2: NONE
 
-The agent checks an existing HTTP endpoint but never starts another listener implicitly. When HTTP is unavailable, unauthorized, or fails readiness, the host may explicitly launch the bundled stdio command. This fixture exposes no public ad hoc MCP client and no non-MCP operation fallback.
+The preferred route means the configured endpoint is used only when readiness succeeds and the caller has the required Bearer token. The agent checks that existing endpoint but never starts another listener implicitly. When HTTP is unavailable, unauthorized, or fails readiness, the host may explicitly launch and register the bundled stdio command. This fixture exposes no public ad hoc MCP client and no non-MCP operation fallback.
 
 ## Contract index
 
