@@ -112,6 +112,23 @@ def test_editable_direct_url_requires_this_repository_root(tmp_path: Path) -> No
     assert validate_editable_direct_url(direct_url, repository) == ()
 
 
+@pytest.mark.parametrize("directory_name", ("repo%20root", "repo%23root"))
+def test_editable_direct_url_decodes_file_url_once(
+    tmp_path: Path,
+    directory_name: str,
+) -> None:
+    repository = tmp_path / directory_name
+    repository.mkdir()
+    direct_url = json.dumps(
+        {
+            "dir_info": {"editable": True},
+            "url": repository.resolve().as_uri(),
+        }
+    )
+
+    assert validate_editable_direct_url(direct_url, repository) == ()
+
+
 def test_editable_direct_url_rejects_missing_regular_and_wrong_source(
     tmp_path: Path,
 ) -> None:
