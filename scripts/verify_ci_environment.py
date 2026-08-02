@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 import sys
 import tomllib
+from collections.abc import Mapping
 from importlib import metadata
 from pathlib import Path
-from typing import Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCK = ROOT / "requirements-ci.lock"
@@ -68,7 +68,8 @@ def expected_distribution_set(
     project_name, project_version = load_local_project(pyproject_path)
     if project_name in expected:
         raise ValueError(
-            f"{lock_path}: local project distribution {project_name} must not be duplicated in the lock"
+            f"{lock_path}: local project distribution {project_name} "
+            "must not be duplicated in the lock"
         )
     expected[project_name] = project_version
     return expected
@@ -148,7 +149,8 @@ def main() -> int:
         return 1
 
     print(
-        "Installed distribution set matches requirements-ci.lock plus the local agent-policy project."
+        "Installed distribution set matches requirements-ci.lock plus the local "
+        "agent-policy project."
     )
     return 0
 
