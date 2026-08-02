@@ -30,7 +30,7 @@ Agent Skill
 
 ## Skill profiles
 
-Profiles are cumulative design patterns, not mandatory product tiers.
+Profiles are selectable design patterns, not mandatory product tiers. The `instruction-only` profile is exclusive; compatible non-`instruction-only` profiles may be combined.
 
 | Profile | Typical contents | Use when |
 |---|---|---|
@@ -43,7 +43,7 @@ Profiles are cumulative design patterns, not mandatory product tiers.
 | Browser-interface | application profile, `RUNTIME.md`, `WEB_INTERFACE.md` | A browser-facing interface is intentional |
 | Headless-service | application profile, `RUNTIME.md`, deployment/API material | An independently reachable non-browser service is intentional |
 
-Every concrete skill records its selected tags on exactly one `Selected profiles:` line in `SKILL.md`. The special `template-scaffold` value is valid only for the uncustomized template and cannot be retained after operational resources are added. Structural validation uses the tags to activate profile requirements.
+Every concrete skill records its selected tags on exactly one `Selected profiles:` line in `SKILL.md`. Select `instruction-only` alone. When the skill retains references, assets, scripts, runtime or interface contracts, or service behavior, omit `instruction-only` and select the applicable profiles; those compatible profiles retain the union of their requirements. The special `template-scaffold` value is valid only for the uncustomized template and cannot be retained after operational resources are added. Structural validation uses the tags to activate profile requirements.
 
 See `docs/skill-profiles.md` for the allowed tags, selection rules, retention matrix, and removal rules. See `docs/profile-contract-map.md` for the source-of-truth boundary between contract files.
 
@@ -71,7 +71,7 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 1. Create a repository from this template.
 2. Choose the final lowercase hyphenated skill name.
 3. Rewrite `SKILL.md` around the actual trigger, workflow, resources, outputs, and safety constraints.
-4. Replace `Selected profiles: template-scaffold` with the smallest sufficient concrete profile tags before adding operational resources.
+4. Replace `Selected profiles: template-scaffold` with `instruction-only` alone or the smallest sufficient compatible non-`instruction-only` profile tags before adding operational resources.
 5. Add `references/`, `assets/`, or `scripts/` only when they have a defined operational use.
 6. Add and complete `RUNTIME.md` when runtime selection, dependencies, executable commands, packaging, or service lifecycle need a maintained record, and whenever `packaged-cli`, `mcp-enabled`, `browser-interface`, or `headless-service` is selected.
 7. For `packaged-cli`, complete `INTERFACES.md` and `CLI_INTERFACE.md`.
