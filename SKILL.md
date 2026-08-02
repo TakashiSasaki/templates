@@ -147,11 +147,11 @@ Document bounded recovery behavior, when to stop, and what must be reported rath
 
 ## Maintainer profile selection
 
-Record the selected profiles on exactly one machine-readable line. Use comma-separated tags when profiles are combined.
+Record the selected profiles on exactly one machine-readable line. Use comma-separated tags only when combining compatible non-`instruction-only` profiles.
 
 Selected profiles: template-scaffold
 
-Replace `template-scaffold` in every concrete skill with one or more of:
+Replace `template-scaffold` in every concrete skill with either `instruction-only` by itself or one or more compatible tags from:
 
 - `instruction-only`;
 - `knowledge-augmented`;
@@ -162,4 +162,6 @@ Replace `template-scaffold` in every concrete skill with one or more of:
 - `browser-interface`;
 - `headless-service`.
 
-`template-scaffold` is reserved for this uncustomized template. Profiles are cumulative patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories must be removed when they do not apply. See `docs/profile-contract-map.md` for profile-specific contract ownership.
+`instruction-only` is exclusive and must not be combined with resource, executable, or service profiles. Other compatible profile combinations retain the union of their requirements.
+
+`template-scaffold` is reserved for this uncustomized template. Profiles are selectable patterns, not mandatory layers. `SKILL.md` is the only universally required skill file. Optional contracts and directories must be removed when they do not apply. See `docs/profile-contract-map.md` for profile-specific contract ownership.
