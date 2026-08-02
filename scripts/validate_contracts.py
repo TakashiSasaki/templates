@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 MANIFEST_PATH = "contracts/manifest.json"
 MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
@@ -276,17 +276,69 @@ def _reference_error(reference: str, schema_path: str) -> str | None:
     return None
 
 
+def _json_pointer_target(document: Any, pointer: str) -> Any | None:
+    if pointer == "":
+        return document
+    if not pointer.startswith("/"):
+        return None
+
+    current = document
+    for raw_token in pointer[1:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        if isinstance(current, dict):
+            if token not in current:
+                return None
+            current = current[token]
+            continue
+        if isinstance(current, list):
+            if token == "-" or not token.isdigit():
+                return None
+            index = int(token)
+            if index >= len(current):
+                return None
+            current = current[index]
+            continue
+        return None
+    return current
+
+
+def _local_pointer_target(resource_root: Any, reference: str) -> Any | None:
+    try:
+        fragment = unquote(urlsplit(reference).fragment)
+    except ValueError:
+        return None
+    if fragment == "":
+        return resource_root
+    return _json_pointer_target(resource_root, fragment)
+
+
 def _external_reference_errors(
     value: Any,
     schema_path: str,
 ) -> list[str]:
-    """Inspect only locations whose values are JSON Schemas."""
+    """Inspect schema-valued locations and locally referenced schema targets."""
 
     errors: list[str] = []
+    visited: set[int] = set()
 
-    def visit_schema(schema: Any) -> None:
+    def visit_schema(schema: Any, resource_root: Any) -> None:
         if isinstance(schema, bool) or not isinstance(schema, dict):
             return
+
+        schema_identity = id(schema)
+        if schema_identity in visited:
+            return
+        visited.add(schema_identity)
+
+        current_resource_root = resource_root
+        schema_id = schema.get("$id")
+        if isinstance(schema_id, str):
+            try:
+                parsed_id = urlsplit(schema_id)
+            except ValueError:
+                parsed_id = None
+            if parsed_id is not None and not parsed_id.fragment:
+                current_resource_root = schema
 
         for keyword in ("$ref", "$dynamicRef"):
             reference = schema.get(keyword)
@@ -294,34 +346,38 @@ def _external_reference_errors(
                 error = _reference_error(reference, schema_path)
                 if error is not None:
                     errors.append(error)
+                    continue
+                target = _local_pointer_target(current_resource_root, reference)
+                if target is not None:
+                    visit_schema(target, current_resource_root)
 
         for keyword in _SCHEMA_SINGLE_KEYWORDS:
             child = schema.get(keyword)
             if isinstance(child, (dict, bool)):
-                visit_schema(child)
+                visit_schema(child, current_resource_root)
             elif keyword in {"additionalItems", "items"} and isinstance(child, list):
                 for item in child:
-                    visit_schema(item)
+                    visit_schema(item, current_resource_root)
 
         for keyword in _SCHEMA_ARRAY_KEYWORDS:
             children = schema.get(keyword)
             if isinstance(children, list):
                 for child in children:
-                    visit_schema(child)
+                    visit_schema(child, current_resource_root)
 
         for keyword in _SCHEMA_MAP_KEYWORDS:
             children = schema.get(keyword)
             if isinstance(children, dict):
                 for child in children.values():
-                    visit_schema(child)
+                    visit_schema(child, current_resource_root)
 
         dependencies = schema.get("dependencies")
         if isinstance(dependencies, dict):
             for child in dependencies.values():
                 if isinstance(child, (dict, bool)):
-                    visit_schema(child)
+                    visit_schema(child, current_resource_root)
 
-    visit_schema(value)
+    visit_schema(value, value)
     return errors
 
 
