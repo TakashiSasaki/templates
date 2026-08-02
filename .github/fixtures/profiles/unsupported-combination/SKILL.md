@@ -1,6 +1,6 @@
 ---
 name: exclusive-profile-regression
- description: Intentionally invalid repository fixture proving that the instruction-only tag cannot be combined with another concrete profile.
+description: Intentionally invalid repository fixture proving that the instruction-only tag cannot be combined with another concrete profile.
 ---
 
 # Exclusive profile regression
