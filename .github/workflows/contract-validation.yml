@@ -26,6 +26,7 @@ jobs:
       PYTHONMALLOC: ""
       PYTHONIOENCODING: ""
       PYTHONTRACEMALLOC: ""
+      PYTHONINSPECT: ""
       PYTHONNOUSERSITE: "1"
       PIP_PYTHON: ""
       PIP_CACHE_DIR: ""
