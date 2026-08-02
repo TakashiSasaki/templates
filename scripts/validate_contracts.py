@@ -218,11 +218,20 @@ def _symlink_preflight(
 
 
 def _document_metadata_errors(root: Path, implementation: ModuleType) -> list[str]:
-    manifest = implementation.load_contract_manifest(root)
+    try:
+        manifest = implementation.load_contract_manifest(root)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError, KeyError):
+        return []
+
     errors: list[str] = []
-    for entry in manifest["contracts"]:
+    for entry in manifest.get("contracts", []):
+        if not isinstance(entry, dict) or not isinstance(entry.get("document"), str):
+            continue
         document_path = entry["document"]
-        document = implementation.load_json(root / document_path)
+        try:
+            document = implementation.load_json(root / document_path)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
+            continue
         if not isinstance(document, dict):
             errors.append(
                 f"{document_path}: registered contract document must be a JSON object "
@@ -239,11 +248,12 @@ def validate_repository(root: Path) -> list[str]:
     errors = _symlink_preflight(root)
     if errors:
         return errors
+
     implementation = _load_implementation()
-    errors = implementation.validate_repository(root)
-    if errors:
-        return errors
-    return _document_metadata_errors(root, implementation)
+    metadata_errors = _document_metadata_errors(root, implementation)
+    if metadata_errors:
+        return metadata_errors
+    return implementation.validate_repository(root)
 
 
 def main() -> int:
