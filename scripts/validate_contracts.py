@@ -17,6 +17,29 @@ MANIFEST_PATH = "contracts/manifest.json"
 MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
 ROOT = Path(__file__).resolve().parents[1]
 
+_SCHEMA_SINGLE_KEYWORDS = {
+    "additionalItems",
+    "additionalProperties",
+    "contains",
+    "contentSchema",
+    "else",
+    "if",
+    "items",
+    "not",
+    "propertyNames",
+    "then",
+    "unevaluatedItems",
+    "unevaluatedProperties",
+}
+_SCHEMA_ARRAY_KEYWORDS = {"allOf", "anyOf", "oneOf", "prefixItems"}
+_SCHEMA_MAP_KEYWORDS = {
+    "$defs",
+    "definitions",
+    "dependentSchemas",
+    "patternProperties",
+    "properties",
+}
+
 __all__ = (
     "SCHEMA_DIALECT",
     "VISUALLY_BLANK_CHARACTERS",
@@ -237,35 +260,68 @@ def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _reference_is_external(reference: str) -> bool:
-    parsed = urlsplit(reference)
-    return bool(parsed.scheme or parsed.netloc or parsed.path or parsed.query)
+def _reference_error(reference: str, schema_path: str) -> str | None:
+    try:
+        parsed = urlsplit(reference)
+    except ValueError as exc:
+        return (
+            f"{schema_path}: invalid JSON Schema reference URI: "
+            f"{reference!r}: {exc}"
+        )
+    if parsed.scheme or parsed.netloc or parsed.path or parsed.query:
+        return (
+            f"{schema_path}: external JSON Schema reference is not allowed: "
+            f"{reference!r}"
+        )
+    return None
 
 
 def _external_reference_errors(
     value: Any,
     schema_path: str,
 ) -> list[str]:
+    """Inspect only locations whose values are JSON Schemas."""
+
     errors: list[str] = []
 
-    def visit(node: Any) -> None:
-        if isinstance(node, dict):
-            for key, child in node.items():
-                if (
-                    key in {"$ref", "$dynamicRef"}
-                    and isinstance(child, str)
-                    and _reference_is_external(child)
-                ):
-                    errors.append(
-                        f"{schema_path}: external JSON Schema reference is not allowed: "
-                        f"{child!r}"
-                    )
-                visit(child)
-        elif isinstance(node, list):
-            for child in node:
-                visit(child)
+    def visit_schema(schema: Any) -> None:
+        if isinstance(schema, bool) or not isinstance(schema, dict):
+            return
 
-    visit(value)
+        for keyword in ("$ref", "$dynamicRef"):
+            reference = schema.get(keyword)
+            if isinstance(reference, str):
+                error = _reference_error(reference, schema_path)
+                if error is not None:
+                    errors.append(error)
+
+        for keyword in _SCHEMA_SINGLE_KEYWORDS:
+            child = schema.get(keyword)
+            if isinstance(child, (dict, bool)):
+                visit_schema(child)
+            elif keyword in {"additionalItems", "items"} and isinstance(child, list):
+                for item in child:
+                    visit_schema(item)
+
+        for keyword in _SCHEMA_ARRAY_KEYWORDS:
+            children = schema.get(keyword)
+            if isinstance(children, list):
+                for child in children:
+                    visit_schema(child)
+
+        for keyword in _SCHEMA_MAP_KEYWORDS:
+            children = schema.get(keyword)
+            if isinstance(children, dict):
+                for child in children.values():
+                    visit_schema(child)
+
+        dependencies = schema.get("dependencies")
+        if isinstance(dependencies, dict):
+            for child in dependencies.values():
+                if isinstance(child, (dict, bool)):
+                    visit_schema(child)
+
+    visit_schema(value)
     return errors
 
 
