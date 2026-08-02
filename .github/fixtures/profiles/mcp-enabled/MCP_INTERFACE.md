@@ -23,7 +23,7 @@ The host launches the trusted bundled command from the skill root, completes ini
 Supported: YES
 Start command: bundle exec ruby mcp/http_server.rb
 Stop command or shutdown method: kill -TERM "$TEXT_STATS_MCP_HTTP_PID"
-Endpoint URL: http://127.0.0.1:4570/mcp by default
+Endpoint URL: see RUNTIME.md
 Bind address: see RUNTIME.md
 Port selection: see RUNTIME.md
 Supported protocol eras: see RUNTIME.md
@@ -31,7 +31,7 @@ Revision-specific state model: see RUNTIME.md
 Authentication: see RUNTIME.md
 Health/readiness check: curl --fail --silent --show-error http://127.0.0.1:4570/readyz
 
-The endpoint is an explicitly started local foreground process and is never created as an implicit fallback. Before every request, including requests reused on one HTTP/1.1 connection, the Rack gate requires the exact `127.0.0.1:PORT` Host authority and either no Origin or the exact same-origin value. Invalid Host or present cross-origin requests receive HTTP 403 before authentication or MCP dispatch. Missing or invalid Bearer credentials receive HTTP 401 without exposing the configured token.
+The default endpoint is `http://127.0.0.1:4570/mcp`; `RUNTIME.md` owns the startup-selected port and resulting authority. The endpoint is an explicitly started local foreground process and is never created as an implicit fallback. Before every request, including requests reused on one HTTP/1.1 connection, the Rack gate requires the exact `127.0.0.1:PORT` Host authority and either no Origin or the exact same-origin value. Invalid Host or present cross-origin requests receive HTTP 403 before authentication or MCP dispatch. Missing or invalid Bearer credentials receive HTTP 401 without exposing the configured token.
 
 Initialization uses one JSON `POST /mcp` request and returns `Mcp-Session-Id`. Subsequent notifications, discovery, and tool calls use independent JSON POST requests carrying that session ID and `MCP-Protocol-Version: 2025-11-25`; JSON response mode is selected, so callers request `application/json`. `DELETE /mcp` with the same session, version, and authorization headers releases the session. Independent `GET /mcp` event streams and resumability are not part of this public contract.
 
