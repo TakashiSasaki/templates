@@ -6,29 +6,29 @@ Selection status: SELECTED
 
 ## Execution policy
 
-Preferred agent interface: native MCP tool already registered in the host
-Fallback 1: NONE
+Preferred agent interface: existing Streamable HTTP MCP endpoint
+Fallback 1: native MCP tool already registered in the host
 Fallback 2: NONE
 
-The host registration uses the authoritative stdio launch command in `RUNTIME.md`. This fixture does not expose a public ad hoc client and does not start a network server as an implicit fallback.
+The preferred route means the configured endpoint is used only when readiness succeeds and the caller has the required Bearer token. The agent checks that existing endpoint but never starts another listener implicitly. When HTTP is unavailable, unauthorized, or fails readiness, the host may explicitly launch and register the bundled stdio command. This fixture exposes no public ad hoc MCP client and no non-MCP operation fallback.
 
 ## Contract index
 
 | Selected profile or interface | Authoritative contract |
 |---|---|
 | MCP caller behavior | `MCP_INTERFACE.md` |
-| Runtime, SDK, revision, command, and transport selection | `RUNTIME.md` |
+| Runtime, SDK, revision, command, transport, security, and lifecycle selection | `RUNTIME.md` |
 
 ## Cross-interface invariants
 
-There is one maintained public interface. Test clients traverse the actual stdio MCP transport and do not call the operation implementation directly when asserting protocol behavior. Registration, discovery, tool calls, errors, and shutdown therefore exercise the same server adapter that an MCP host uses.
+Both maintained routes use `mcp/server_factory.rb`, the same `TextStatsTool`, and the same `src/text_stats.rb` operation. Test clients traverse the actual stdio and Streamable HTTP transports, initialize the same selected revision, discover the same tool definition, and prove equal structured results for the same input. Neither adapter calls a transport-specific domain implementation.
 
 ## Availability and failure behavior
 
-Unavailable preferred interface behavior: Report that the MCP server is not registered or could not be started; do not substitute a non-MCP call.
-Fallback activation conditions: No fallback is activated.
-Failure classification exposed to callers: Distinguish process startup or transport failure, JSON-RPC error, MCP tool result with `isError: true`, and successful MCP tool result.
+Unavailable preferred interface behavior: Report the HTTP readiness, authentication, request-policy, or transport failure, then use the trusted stdio route only when the host can explicitly launch it.
+Fallback activation conditions: The configured HTTP endpoint is absent, fails `GET /readyz`, rejects the caller, or cannot complete MCP initialization; fallback never starts another HTTP server.
+Failure classification exposed to callers: Distinguish HTTP readiness and policy failures, process startup or transport failure, JSON-RPC error, MCP tool result with `isError: true`, and successful MCP tool result.
 
 ## Decision rationale
 
-Rationale: A host-registered stdio tool is the smallest caller-visible route, opens no listening socket, and gives the host direct ownership of initialization, timeouts, and child-process shutdown. A public bundled client or HTTP endpoint would expand this fixture beyond the selected contract.
+Rationale: An existing authenticated loopback endpoint permits several local clients to reuse one bounded service, while stdio remains the no-listener fallback owned by the MCP host. The order is deterministic, never creates an implicit listener, and keeps both transports on one server factory and operation implementation.
