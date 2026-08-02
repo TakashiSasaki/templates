@@ -46,7 +46,11 @@ def validate_contract_manifest(
     root: Path,
     manifest: dict[str, Any],
 ) -> list[str]:
-    """Validate manifest inventory after preflighting the caller-supplied root."""
+    """Validate manifest inventory after preflighting both trust boundaries."""
+
+    facade_errors = _symlink_preflight(ROOT)
+    if facade_errors:
+        return facade_errors
 
     errors = _symlink_preflight(root, manifest)
     if errors:
@@ -121,6 +125,8 @@ def _symlink_preflight(
     root: Path,
     manifest: dict[str, Any] | None = None,
 ) -> list[str]:
+    if root.is_symlink():
+        return ["repository root must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_PATH):
         return [f"{MANIFEST_PATH}: manifest must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_SCHEMA_PATH):
