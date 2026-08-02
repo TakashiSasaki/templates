@@ -44,11 +44,12 @@ EXPECTED_LOCKED_REQUIREMENTS = (
 ARBITRARY_EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
-PIP_REQUIREMENT_INPUTS = (
+PIP_SANITIZED_INPUTS = (
     "PIP_REQUIREMENT",
     "PIP_CONSTRAINT",
     "PIP_BUILD_CONSTRAINT",
     "PIP_PYTHON",
+    "PIP_NO_CACHE_DIR",
     "PIP_EDITABLE",
     "PIP_GROUP",
     "PIP_REQUIREMENTS_FROM_SCRIPT",
@@ -84,10 +85,11 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     assert '      PYTHONPATH: ""' in workflow
     assert '      PYTHONNOUSERSITE: "1"' in workflow
     assert '      PIP_PYTHON: ""' in workflow
+    assert '      PIP_NO_CACHE_DIR: ""' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
     documented_unset = (
         "unset PYTHONHOME PYTHONPATH PYTHONUSERBASE "
-        + " ".join(PIP_REQUIREMENT_INPUTS)
+        + " ".join(PIP_SANITIZED_INPUTS)
     )
     documented_sequence = (
         f"{documented_unset}\n"
@@ -110,7 +112,7 @@ def test_policy_ci_uses_an_isolated_bootstrap_interpreter_and_cleared_venv() -> 
 
 def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
     workflow = workflow_text()
-    workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
+    workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
 
     assert "cache-dependency-path: requirements-ci.lock" in workflow
     assert (
@@ -127,7 +129,7 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
 
 def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
     workflow = workflow_text()
-    workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
+    workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
 
     assert (
         f"run: env {workflow_unsets} .venv/bin/python "
