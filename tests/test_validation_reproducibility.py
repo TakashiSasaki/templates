@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
+TOOLCHAIN_GUIDE = ROOT / "docs/architecture/validation-toolchain.md"
 DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
 LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
 
@@ -51,10 +52,24 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertNotIn("# v5.", workflow)
         self.assertIn('python-version: "3.12.13"', workflow)
 
+    def test_validation_environments_are_cleared_before_recreation(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
+
+        for source_name, source in (
+            ("workflow", workflow),
+            ("README", readme),
+            ("toolchain guide", toolchain_guide),
+        ):
+            with self.subTest(source=source_name):
+                self.assertIn("python -m venv --clear .venv", source)
+                self.assertNotIn("python -m venv .venv", source)
+
     def test_workflow_creates_a_fresh_isolated_virtual_environment(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertIn("run: python -m venv .venv", workflow)
+        self.assertIn("run: python -m venv --clear .venv", workflow)
         self.assertNotIn("--system-site-packages", workflow)
 
     def test_workflow_installs_and_checks_only_the_locked_graph(self) -> None:
