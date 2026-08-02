@@ -10,6 +10,7 @@ This branch defines the repository-level foundation for browser-facing web appli
 - canonical route and navigation contracts;
 - user-visible loading, empty, partial, error, offline, and recovery states;
 - supported viewport declarations;
+- a closed manifest that inventories every domain contract and schema;
 - JSON Schemas for those contracts;
 - local validation, tests, and CI;
 - an explicit boundary between reusable template contracts and product-owned implementation decisions.
@@ -43,10 +44,25 @@ Before a generated repository is treated as operational:
 
 1. Replace example names and descriptions in `contracts/` with product-specific values.
 2. Declare every externally observable surface and canonical route.
-3. Define trusted authorization enforcement independently of route or directory names.
-4. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
-5. Add implementation-level tests that prove the declared contracts.
-6. Remove template-only guidance that no longer applies.
+3. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
+4. Define trusted authorization enforcement independently of route or directory names.
+5. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
+6. Add implementation-level tests that prove the declared contracts.
+7. Remove template-only guidance that no longer applies.
+
+## Contract-set completeness
+
+`contracts/manifest.json` is the repository-local inventory of domain contracts. It records each contract identifier, document path, schema path, document schema version, and purpose.
+
+Validation rejects:
+
+- contract or schema files that are present but not registered;
+- registered files that are missing or symbolic links;
+- duplicate identifiers, document paths, or schema paths;
+- paths outside the repository-owned contract and schema directories;
+- document `$schema` declarations or `schemaVersion` values that differ from the manifest.
+
+The manifest and its schema are validator bootstrap metadata, not a fifth product-domain contract. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
 
 ## Route-path representation
 
@@ -64,4 +80,4 @@ Input capabilities are declared once in the top-level `inputCapabilities` collec
 
 ## Compatibility rule
 
-The contract files are public repository interfaces. Renaming identifiers or changing semantics requires coordinated updates to implementation, navigation, authorization, documentation, deployment configuration, tests, and migration notes.
+The contract files and `contracts/manifest.json` are public repository interfaces. Renaming identifiers, moving contract files, changing schema versions, or changing semantics requires coordinated updates to implementation, navigation, authorization, documentation, deployment configuration, tests, and migration notes.

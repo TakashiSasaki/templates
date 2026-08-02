@@ -3,330 +3,550 @@
 
 from __future__ import annotations
 
-import copy
+import importlib.util
 import json
+import os
+import stat
 import sys
-import unicodedata
 from pathlib import Path
+from types import ModuleType
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import SchemaError
-from referencing.exceptions import Unresolvable
+MANIFEST_PATH = "contracts/manifest.json"
+MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
+ROOT = Path(__file__).resolve().parents[1]
 
-SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
-VISUALLY_BLANK_CHARACTERS = {"\u2800", "\U00013441", "\U00013442", "\U0001D159"}
-
-CONTRACT_SCHEMAS = {
-    "surfaces": ("contracts/surfaces.json", "schemas/surfaces.schema.json"),
-    "routes": ("contracts/routes.json", "schemas/routes.schema.json"),
-    "ui_states": ("contracts/ui-states.json", "schemas/ui-states.schema.json"),
-    "viewports": ("contracts/viewports.json", "schemas/viewports.schema.json"),
+_SCHEMA_SINGLE_KEYWORDS = {
+    "additionalProperties",
+    "contains",
+    "contentSchema",
+    "else",
+    "if",
+    "items",
+    "not",
+    "propertyNames",
+    "then",
+    "unevaluatedItems",
+    "unevaluatedProperties",
+}
+_SCHEMA_ARRAY_KEYWORDS = {"allOf", "anyOf", "oneOf", "prefixItems"}
+_SCHEMA_MAP_KEYWORDS = {
+    "$defs",
+    "dependentSchemas",
+    "patternProperties",
+    "properties",
 }
 
+__all__ = (
+    "SCHEMA_DIALECT",
+    "VISUALLY_BLANK_CHARACTERS",
+    "CONTRACT_SCHEMAS",
+    "DuplicateKeyError",
+    "NonStandardJsonConstantError",
+    "load_json",
+    "load_contract_manifest",
+    "validate_contract_manifest",
+    "registry_from_manifest",
+    "load_contract_registry",
+    "load_contract_documents",
+    "cross_validate",
+    "validate_repository",
+    "main",
+)
 
-class DuplicateKeyError(ValueError):
-    """Raised when a JSON object contains the same member name more than once."""
-
-
-class NonStandardJsonConstantError(ValueError):
-    """Raised when JSON text contains NaN or an infinity constant."""
-
-
-def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise DuplicateKeyError(f"duplicate object key {key!r}")
-        result[key] = value
-    return result
-
-
-def _reject_nonstandard_constant(value: str) -> Any:
-    raise NonStandardJsonConstantError(f"non-standard JSON numeric constant {value!r}")
+_IMPLEMENTATION: ModuleType | None = None
 
 
-def load_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(
-            handle,
-            object_pairs_hook=_reject_duplicate_keys,
-            parse_constant=_reject_nonstandard_constant,
+def _load_implementation() -> ModuleType:
+    """Load only the implementation file adjacent to this verified facade."""
+
+    global _IMPLEMENTATION
+    if _IMPLEMENTATION is not None:
+        return _IMPLEMENTATION
+
+    implementation_path = Path(__file__).resolve().with_name(
+        "validate_contracts_impl.py"
+    )
+    try:
+        mode = implementation_path.lstat().st_mode
+    except OSError as exc:
+        raise RuntimeError(
+            f"cannot inspect validator implementation: {implementation_path}: {exc}"
+        ) from exc
+    if not stat.S_ISREG(mode):
+        raise RuntimeError(
+            "validator implementation must be a regular sibling file: "
+            f"{implementation_path}"
+        )
+
+    module_name = (
+        f"{__package__}.validate_contracts_impl"
+        if __package__
+        else "validate_contracts_impl"
+    )
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        existing_file = getattr(existing, "__file__", None)
+        if existing_file is not None:
+            try:
+                if Path(existing_file).resolve() == implementation_path:
+                    _IMPLEMENTATION = existing
+                    return existing
+            except (OSError, RuntimeError):
+                pass
+
+    spec = importlib.util.spec_from_file_location(module_name, implementation_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            f"cannot create import specification for {implementation_path}"
+        )
+    implementation = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(module_name)
+    sys.modules[module_name] = implementation
+    try:
+        spec.loader.exec_module(implementation)
+    except BaseException:
+        if previous is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+        raise
+
+    _IMPLEMENTATION = implementation
+    return implementation
+
+
+def _loader_preflight(name: str, root: Path) -> None:
+    """Reject unsafe facade or caller roots before loading implementation code."""
+
+    errors = _symlink_preflight(ROOT, check_inventory=False)
+    if not errors:
+        errors = _symlink_preflight(root, check_inventory=False)
+    if errors:
+        details = "; ".join(errors)
+        raise RuntimeError(
+            f"cannot call validator loader {name!r} before trust-boundary "
+            f"preflight succeeds: {details}"
         )
 
 
-def load_contract_documents(root: Path) -> dict[str, Any]:
-    return {
-        name: load_json(root / contract_path)
-        for name, (contract_path, _) in CONTRACT_SCHEMAS.items()
+def _load_contract_manifest(root: Path) -> dict[str, Any]:
+    _loader_preflight("load_contract_manifest", root)
+    return _load_implementation().load_contract_manifest(root)
+
+
+def _load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
+    _loader_preflight("load_contract_registry", root)
+    return _load_implementation().load_contract_registry(root)
+
+
+def _load_contract_documents(root: Path) -> dict[str, Any]:
+    _loader_preflight("load_contract_documents", root)
+    return _load_implementation().load_contract_documents(root)
+
+
+def validate_contract_manifest(
+    root: Path,
+    manifest: dict[str, Any],
+) -> list[str]:
+    """Validate manifest inventory after preflighting both trust boundaries."""
+
+    facade_errors = _symlink_preflight(ROOT)
+    if facade_errors:
+        return facade_errors
+
+    errors = _symlink_preflight(root, manifest)
+    if errors:
+        return errors
+    return _load_implementation().validate_contract_manifest(root, manifest)
+
+
+def __getattr__(name: str) -> Any:
+    if name.startswith("__") and name.endswith("__"):
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    preflight_errors = _symlink_preflight(ROOT)
+    if preflight_errors:
+        if name == "CONTRACT_SCHEMAS":
+            return {}
+        details = "; ".join(preflight_errors)
+        raise RuntimeError(
+            f"cannot load validator attribute {name!r} before trust-boundary "
+            f"preflight succeeds: {details}"
+        )
+
+    root_loaders = {
+        "load_contract_manifest": _load_contract_manifest,
+        "load_contract_registry": _load_contract_registry,
+        "load_contract_documents": _load_contract_documents,
     }
+    if name in root_loaders:
+        return root_loaders[name]
+
+    try:
+        return getattr(_load_implementation(), name)
+    except AttributeError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
 
 
-def _json_path(parts: list[Any]) -> str:
-    if not parts:
-        return "$"
-    rendered = "$"
-    for part in parts:
-        rendered += f"[{part}]" if isinstance(part, int) else f".{part}"
-    return rendered
+def _path_contains_symlink(root: Path, relative: str) -> bool:
+    path = Path(relative)
+    if path.is_absolute():
+        return False
 
-
-def _duplicate_values(values: list[str]) -> set[str]:
-    seen: set[str] = set()
-    duplicates: set[str] = set()
-    for value in values:
-        if value in seen:
-            duplicates.add(value)
-        seen.add(value)
-    return duplicates
-
-
-def _has_visible_character(value: str) -> bool:
-    """Return whether text contains a visible base character.
-
-    Unicode control, format, surrogate, private-use, unassigned, combining-mark,
-    and separator categories do not independently provide visible content.
-    Some symbol- and letter-category characters are also intentionally blank
-    and are explicitly excluded.
-    """
-
-    return any(
-        character not in VISUALLY_BLANK_CHARACTERS
-        and unicodedata.category(character)[0] not in {"C", "M", "Z"}
-        for character in value
-    )
-
-
-def _surface_dependency_cycles(surfaces: list[dict[str, Any]]) -> list[list[str]]:
-    graph = {surface["id"]: surface["startupDependencies"] for surface in surfaces}
-    visited: set[str] = set()
-    cycles: list[list[str]] = []
-
-    for root in graph:
-        if root in visited:
+    candidate = root
+    for part in path.parts:
+        if part in {"", "."}:
             continue
-
-        path: list[str] = []
-        active_index: dict[str, int] = {}
-        stack: list[tuple[str, int]] = [(root, 0)]
-
-        while stack:
-            node, dependency_index = stack[-1]
-
-            if node not in active_index:
-                active_index[node] = len(path)
-                path.append(node)
-
-            dependencies = graph[node]
-            if dependency_index >= len(dependencies):
-                stack.pop()
-                active_index.pop(node)
-                path.pop()
-                visited.add(node)
-                continue
-
-            dependency = dependencies[dependency_index]
-            stack[-1] = (node, dependency_index + 1)
-
-            if dependency not in graph or dependency in visited:
-                continue
-            if dependency in active_index:
-                start = active_index[dependency]
-                cycles.append(path[start:] + [dependency])
-                continue
-
-            stack.append((dependency, 0))
-
-    return cycles
+        candidate /= part
+        if candidate.is_symlink():
+            return True
+    return False
 
 
-def cross_validate(documents: dict[str, Any]) -> list[str]:
+def _path_escapes_root(relative: str) -> bool:
+    path = Path(relative)
+    return path.is_absolute() or ".." in path.parts
+
+
+def _non_regular_file(root: Path, relative: str) -> bool:
+    try:
+        mode = (root / relative).lstat().st_mode
+    except (FileNotFoundError, OSError):
+        return False
+    return not stat.S_ISLNK(mode) and not stat.S_ISREG(mode)
+
+
+def _root_resolution_error(root: Path) -> str | None:
+    try:
+        root.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        return f"repository root path cannot be resolved safely: {exc}"
+    return None
+
+
+def _directory_symlink_errors(root: Path) -> list[str]:
     errors: list[str] = []
-
-    surfaces = documents["surfaces"]["surfaces"]
-    routes = documents["routes"]["routes"]
-    states = documents["ui_states"]["states"]
-    viewports = documents["viewports"]["viewports"]
-
-    surface_ids = [surface["id"] for surface in surfaces]
-    route_ids = [route["id"] for route in routes]
-    state_ids = [state["id"] for state in states]
-    viewport_ids = [viewport["id"] for viewport in viewports]
-
-    for label, values in (
-        ("surface", surface_ids),
-        ("route", route_ids),
-        ("UI state", state_ids),
-        ("viewport", viewport_ids),
-    ):
-        for duplicate in sorted(_duplicate_values(values)):
-            errors.append(f"duplicate {label} id: {duplicate}")
-
-    known_surfaces = set(surface_ids)
-    known_states = set(state_ids)
-
-    for surface in surfaces:
-        surface_id = surface["id"]
-        for field_name in ("title", "purpose"):
-            if not _has_visible_character(surface[field_name]):
-                errors.append(
-                    f"surface {surface_id}: {field_name} must contain at least one visible character"
-                )
-        authorization = surface["authorization"]
-        authorization_mode = authorization["mode"]
-        authentication = surface["authentication"]
-        if authorization_mode == "role" and not authorization["roles"]:
-            errors.append(f"surface {surface_id}: role authorization requires at least one role")
-        if authorization_mode in {"public", "authenticated"} and authorization["roles"]:
-            errors.append(f"surface {surface_id}: {authorization_mode} authorization must not declare roles")
-        if authorization_mode == "public" and authentication == "required":
-            errors.append(f"surface {surface_id}: public authorization must not require authentication")
-        if authorization_mode in {"authenticated", "role"} and authentication != "required":
+    for directory_name in ("contracts", "schemas"):
+        directory = root / directory_name
+        if directory.is_symlink():
             errors.append(
-                f"surface {surface_id}: {authorization_mode} authorization requires authentication required"
+                f"{directory_name}: repository-owned directory must not be a symbolic link"
             )
-        if authentication == "required" and "anonymous" in surface["audiences"]:
-            errors.append(
-                f"surface {surface_id}: required authentication must not include anonymous audience"
-            )
-        for dependency in surface["startupDependencies"]:
-            if dependency not in known_surfaces:
-                errors.append(f"surface {surface_id}: unknown startup dependency {dependency}")
-            if dependency == surface_id:
-                errors.append(f"surface {surface_id}: must not depend on itself")
+            continue
+        if not directory.is_dir():
+            continue
+        for current, directory_names, _ in os.walk(directory, followlinks=False):
+            current_path = Path(current)
+            for name in directory_names:
+                candidate = current_path / name
+                if candidate.is_symlink():
+                    relative = candidate.relative_to(root).as_posix()
+                    errors.append(
+                        f"{relative}: repository-owned directory must not be a symbolic link"
+                    )
+    return errors
 
-    for cycle in _surface_dependency_cycles(surfaces):
-        errors.append(f"surface startup dependency cycle: {' -> '.join(cycle)}")
 
-    for state in states:
-        state_id = state["id"]
-        for field_name in ("description", "focusStrategy"):
-            if not _has_visible_character(state[field_name]):
-                errors.append(
-                    f"UI state {state_id}: {field_name} must contain at least one visible character"
-                )
+def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
+    try:
+        with (root / MANIFEST_PATH).open("r", encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, dict) else None
 
-    route_paths: list[str] = []
-    aliases: list[str] = []
-    surfaces_by_id = {surface["id"]: surface for surface in surfaces}
-    for route in routes:
-        route_id = route["id"]
-        route_paths.append(route["path"])
-        aliases.extend(route["aliases"])
-        if not _has_visible_character(route["accessibility"]["focusTarget"]):
-            errors.append(f"route {route_id}: focusTarget must contain at least one visible character")
-        if route["surface"] not in known_surfaces:
-            errors.append(f"route {route_id}: unknown surface {route['surface']}")
+
+def _reference_error(reference: str, schema_path: str) -> str | None:
+    try:
+        parsed = urlsplit(reference)
+    except ValueError as exc:
+        return (
+            f"{schema_path}: invalid JSON Schema reference URI: "
+            f"{reference!r}: {exc}"
+        )
+    if parsed.scheme or parsed.netloc or parsed.path or parsed.query:
+        return (
+            f"{schema_path}: external JSON Schema reference is not allowed: "
+            f"{reference!r}"
+        )
+    return None
+
+
+def _resource_root_for_schema(schema: Any, resource_root: Any) -> Any:
+    if not isinstance(schema, dict):
+        return resource_root
+    schema_id = schema.get("$id")
+    if not isinstance(schema_id, str):
+        return resource_root
+    try:
+        parsed_id = urlsplit(schema_id)
+    except ValueError:
+        return resource_root
+    return schema if not parsed_id.fragment else resource_root
+
+
+def _pointer_child_location(current_location: str, token: str) -> str:
+    if current_location == "schema":
+        if token in _SCHEMA_SINGLE_KEYWORDS:
+            return "schema"
+        if token in _SCHEMA_ARRAY_KEYWORDS:
+            return "schema-array"
+        if token in _SCHEMA_MAP_KEYWORDS:
+            return "schema-map"
+        return "instance"
+    if current_location in {"schema-array", "schema-map"}:
+        return "schema"
+    return "instance"
+
+
+def _json_pointer_target(
+    document: Any,
+    pointer: str,
+) -> tuple[Any, Any] | None:
+    if pointer == "":
+        return document, document
+    if not pointer.startswith("/"):
+        return None
+
+    current = document
+    current_location = "schema"
+    current_resource_root = document
+    for raw_token in pointer[1:].split("/"):
+        token = raw_token.replace("~1", "/").replace("~0", "~")
+        next_location = _pointer_child_location(current_location, token)
+        if isinstance(current, dict):
+            if token not in current:
+                return None
+            current = current[token]
+        elif isinstance(current, list):
+            if token == "-" or not token.isdigit():
+                return None
+            index = int(token)
+            if index >= len(current):
+                return None
+            current = current[index]
         else:
-            surface = surfaces_by_id[route["surface"]]
-            if route["authentication"] != surface["authentication"]:
-                errors.append(
-                    f"route {route_id}: authentication {route['authentication']} does not match "
-                    f"surface {surface['id']} ({surface['authentication']})"
-                )
-        for state_id in route["states"]:
-            if state_id not in known_states:
-                errors.append(f"route {route_id}: unknown UI state {state_id}")
-        if route["path"] in route["aliases"]:
-            errors.append(f"route {route_id}: canonical path is also listed as an alias")
-
-    for duplicate in sorted(_duplicate_values(route_paths)):
-        errors.append(f"duplicate canonical route path: {duplicate}")
-    for duplicate in sorted(_duplicate_values(aliases)):
-        errors.append(f"duplicate route alias: {duplicate}")
-    for collision in sorted(set(route_paths) & set(aliases)):
-        errors.append(f"route path is both canonical and alias: {collision}")
-
-    for viewport in viewports:
-        if not _has_visible_character(viewport["description"]):
-            errors.append(
-                f"viewport {viewport['id']}: description must contain at least one visible character"
+            return None
+        current_location = next_location
+        if current_location == "schema":
+            current_resource_root = _resource_root_for_schema(
+                current,
+                current_resource_root,
             )
+    return current, current_resource_root
 
-    if viewports:
-        first_minimum = viewports[0]["minWidthPx"]
-        if first_minimum != 0:
-            errors.append("viewport coverage must start at 0px")
-        for previous, current in zip(viewports, viewports[1:]):
-            previous_minimum = previous["minWidthPx"]
-            current_minimum = current["minWidthPx"]
-            if current_minimum <= previous_minimum:
+
+def _local_pointer_target(
+    resource_root: Any,
+    reference: str,
+) -> tuple[Any, Any] | None:
+    try:
+        fragment = unquote(urlsplit(reference).fragment)
+    except ValueError:
+        return None
+    if fragment == "":
+        return resource_root, resource_root
+    return _json_pointer_target(resource_root, fragment)
+
+
+def _external_reference_errors(
+    value: Any,
+    schema_path: str,
+) -> list[str]:
+    """Inspect schema-valued locations and locally referenced schema targets."""
+
+    errors: list[str] = []
+    visited: set[tuple[int, int]] = set()
+
+    def visit_schema(schema: Any, resource_root: Any) -> None:
+        if isinstance(schema, bool) or not isinstance(schema, dict):
+            return
+
+        current_resource_root = _resource_root_for_schema(schema, resource_root)
+        visit_key = (id(schema), id(current_resource_root))
+        if visit_key in visited:
+            return
+        visited.add(visit_key)
+
+        for keyword in ("$ref", "$dynamicRef"):
+            reference = schema.get(keyword)
+            if isinstance(reference, str):
+                error = _reference_error(reference, schema_path)
+                if error is not None:
+                    errors.append(error)
+                    continue
+                resolved = _local_pointer_target(current_resource_root, reference)
+                if resolved is not None:
+                    target, target_resource_root = resolved
+                    visit_schema(target, target_resource_root)
+
+        for keyword in _SCHEMA_SINGLE_KEYWORDS:
+            child = schema.get(keyword)
+            if isinstance(child, (dict, bool)):
+                visit_schema(child, current_resource_root)
+            elif keyword == "items" and isinstance(child, list):
+                for item in child:
+                    visit_schema(item, current_resource_root)
+
+        for keyword in _SCHEMA_ARRAY_KEYWORDS:
+            children = schema.get(keyword)
+            if isinstance(children, list):
+                for child in children:
+                    visit_schema(child, current_resource_root)
+
+        for keyword in _SCHEMA_MAP_KEYWORDS:
+            children = schema.get(keyword)
+            if isinstance(children, dict):
+                for child in children.values():
+                    visit_schema(child, current_resource_root)
+
+    visit_schema(value, value)
+    return errors
+
+
+def _schema_reference_errors(root: Path, relative: str) -> list[str]:
+    if _path_escapes_root(relative):
+        return []
+    if _path_contains_symlink(root, relative) or _non_regular_file(root, relative):
+        return []
+    try:
+        with (root / relative).open("r", encoding="utf-8") as handle:
+            schema = json.load(handle)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    return _external_reference_errors(schema, relative)
+
+
+def _symlink_preflight(
+    root: Path,
+    manifest: dict[str, Any] | None = None,
+    *,
+    check_inventory: bool = True,
+) -> list[str]:
+    if root.is_symlink():
+        return ["repository root must not be a symbolic link"]
+    root_error = _root_resolution_error(root)
+    if root_error:
+        return [root_error]
+    if _path_contains_symlink(root, MANIFEST_PATH):
+        return [f"{MANIFEST_PATH}: manifest must not be a symbolic link"]
+    if _path_contains_symlink(root, MANIFEST_SCHEMA_PATH):
+        return [
+            f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must not be a symbolic link"
+        ]
+    if _non_regular_file(root, MANIFEST_PATH):
+        return [f"{MANIFEST_PATH}: manifest must be a regular file"]
+    if _non_regular_file(root, MANIFEST_SCHEMA_PATH):
+        return [f"{MANIFEST_SCHEMA_PATH}: bootstrap schema must be a regular file"]
+
+    directory_errors = _directory_symlink_errors(root)
+    if directory_errors:
+        return directory_errors
+
+    errors = _schema_reference_errors(root, MANIFEST_SCHEMA_PATH)
+
+    if manifest is None:
+        manifest = _load_manifest_for_preflight(root)
+    if manifest is None:
+        return errors
+
+    entries = manifest.get("contracts")
+    if not isinstance(entries, list):
+        return errors
+
+    registered_schemas: set[str] = set()
+    for entry_index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        contract_id = entry.get("id")
+        rendered_id = contract_id if isinstance(contract_id, str) else "<unknown>"
+        schema_path = entry.get("schema")
+        if isinstance(schema_path, str):
+            registered_schemas.add(schema_path)
+        for label in ("document", "schema"):
+            relative = entry.get(label)
+            if not isinstance(relative, str):
+                continue
+            if _path_escapes_root(relative):
                 errors.append(
-                    "viewport breakpoints must be strictly increasing: "
-                    f"{previous['id']}={previous_minimum}px, {current['id']}={current_minimum}px"
+                    f"{MANIFEST_PATH}:$.contracts[{entry_index}].{label}: "
+                    f"contract manifest {rendered_id}: {label} escapes repository root: "
+                    f"{relative}"
+                )
+                continue
+            if _path_contains_symlink(root, relative):
+                errors.append(
+                    f"contract manifest {rendered_id}: {label} must not be a symbolic link: "
+                    f"{relative}"
+                )
+                continue
+            if _non_regular_file(root, relative):
+                errors.append(
+                    f"contract manifest {rendered_id}: {label} must be a regular file: "
+                    f"{relative}"
                 )
 
+    for relative in sorted(registered_schemas):
+        errors.extend(_schema_reference_errors(root, relative))
+
+    if check_inventory:
+        actual_schemas = {
+            path.relative_to(root).as_posix()
+            for path in (root / "schemas").rglob("*.json")
+            if path.is_file() or path.is_symlink()
+        } - {MANIFEST_SCHEMA_PATH}
+        for relative in sorted(actual_schemas - registered_schemas):
+            errors.append(f"unregistered contract schema: {relative}")
+
+    return errors
+
+
+def _document_metadata_errors(root: Path, implementation: ModuleType) -> list[str]:
+    try:
+        manifest = implementation.load_contract_manifest(root)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError, KeyError):
+        return []
+
+    errors: list[str] = []
+    for entry in manifest.get("contracts", []):
+        if not isinstance(entry, dict) or not isinstance(entry.get("document"), str):
+            continue
+        document_path = entry["document"]
+        candidate = root / document_path
+        if not candidate.is_file():
+            continue
+        try:
+            document = implementation.load_json(candidate)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
+            continue
+        if not isinstance(document, dict):
+            errors.append(
+                f"{document_path}: registered contract document must be a JSON object "
+                "with $schema and schemaVersion metadata"
+            )
     return errors
 
 
 def validate_repository(root: Path) -> list[str]:
-    errors: list[str] = []
-    documents: dict[str, Any] = {}
-    all_documents_structurally_valid = True
-    load_errors = (
-        OSError,
-        UnicodeDecodeError,
-        json.JSONDecodeError,
-        DuplicateKeyError,
-        NonStandardJsonConstantError,
-    )
+    facade_errors = _symlink_preflight(ROOT)
+    if facade_errors:
+        return facade_errors
 
-    for name, (contract_path, schema_path) in CONTRACT_SCHEMAS.items():
-        try:
-            document = load_json(root / contract_path)
-        except load_errors as exc:
-            errors.append(f"{contract_path}: unable to load JSON: {exc}")
-            all_documents_structurally_valid = False
-            continue
+    errors = _symlink_preflight(root)
+    if errors:
+        return errors
 
-        try:
-            schema = load_json(root / schema_path)
-        except load_errors as exc:
-            errors.append(f"{schema_path}: unable to load JSON: {exc}")
-            all_documents_structurally_valid = False
-            continue
-
-        declared_dialect = schema.get("$schema") if isinstance(schema, dict) else None
-        if declared_dialect != SCHEMA_DIALECT:
-            errors.append(
-                f"{schema_path}: unsupported JSON Schema dialect: "
-                f"expected {SCHEMA_DIALECT!r}, got {declared_dialect!r}"
-            )
-            all_documents_structurally_valid = False
-            continue
-
-        try:
-            Draft202012Validator.check_schema(schema)
-        except SchemaError as exc:
-            errors.append(f"{schema_path}: invalid JSON Schema: {exc.message}")
-            all_documents_structurally_valid = False
-            continue
-
-        documents[name] = document
-        validator = Draft202012Validator(schema)
-        try:
-            document_errors = sorted(
-                validator.iter_errors(document),
-                key=lambda item: _json_path(list(item.absolute_path)),
-            )
-        except Unresolvable as exc:
-            errors.append(f"{schema_path}: unresolved JSON Schema reference: {exc}")
-            all_documents_structurally_valid = False
-            continue
-        if document_errors:
-            all_documents_structurally_valid = False
-        for error in document_errors:
-            errors.append(f"{contract_path}:{_json_path(list(error.absolute_path))}: {error.message}")
-
-    if all_documents_structurally_valid and len(documents) == len(CONTRACT_SCHEMAS):
-        errors.extend(cross_validate(copy.deepcopy(documents)))
-
-    return errors
+    implementation = _load_implementation()
+    metadata_errors = _document_metadata_errors(root, implementation)
+    if metadata_errors:
+        return metadata_errors
+    return implementation.validate_repository(root)
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    errors = validate_repository(root)
+    errors = validate_repository(ROOT)
     if errors:
         print("Contract validation failed:", file=sys.stderr)
         for error in errors:
