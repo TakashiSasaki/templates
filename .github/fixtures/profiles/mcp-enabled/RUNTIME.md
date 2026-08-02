@@ -14,7 +14,7 @@ Selection status: SELECTED
 | Dependency/package manager | RubyGems and Bundler |
 | Project manifest | `Gemfile` |
 | Lockfile policy | The fixture pins `mcp` 1.0.0, `rack` 3.2.1, `rackup` 2.2.1, and `webrick` 1.9.1 directly in `Gemfile`; the isolated fixture harness resolves transitive dependencies during validation and does not commit the generated lockfile. |
-| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters; `tests/` contains transport and boundary tests. |
+| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters; `tests/` contains transport, boundary, and lifecycle tests. |
 | Supported operating systems | Linux with CRuby 3.1 or newer |
 
 ## Commands
@@ -28,9 +28,9 @@ Run every command from the skill root.
 | Install development dependencies | `bundle install` |
 | Run in place | `bundle exec ruby mcp/server.rb` |
 | Agent launcher | `bundle exec ruby mcp/server.rb` |
-| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb` |
-| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb` |
-| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb` |
+| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb && bundle exec ruby tests/test_http_lifecycle.rb` |
+| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb` |
+| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb` |
 | Build/package | NOT APPLICABLE |
 
 ### MCP commands
@@ -45,6 +45,7 @@ Run every command from the skill root.
 | Stop Streamable HTTP MCP server | `kill -TERM "$TEXT_STATS_MCP_HTTP_PID"` |
 | Invoke one MCP tool over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_http_inventory_calls_and_stdio_equivalence` |
 | Invoke sequential MCP tool calls over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_request_scoped_host_origin_and_authentication_on_reused_connection` |
+| Test HTTP expiry and disconnect recovery | `bundle exec ruby tests/test_http_lifecycle.rb` |
 | Check MCP readiness | `curl --fail --silent --show-error http://127.0.0.1:4570/readyz` |
 
 ## MCP protocol support
@@ -60,7 +61,7 @@ Run every command from the skill root.
 | JSON Schema dialects | JSON Schema Draft 2020-12 through the SDK input and output schema validators |
 | Optional MCP extensions | NONE |
 | Deprecated feature policy | Deprecated features and capabilities outside this contract are not advertised. |
-| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another string revision, malformed-revision rejection, tools-only capability advertisement, continued operation after protocol and tool-validation errors, equivalent stdio and HTTP tool results, canonical default-port authority handling, and preserved shutdown requests during startup. |
+| Negotiation and compatibility tests | Tests verify exact-revision initialization, successful server selection after another string revision, malformed-revision rejection, tools-only capability advertisement, continued operation after protocol and tool-validation errors, equivalent stdio and HTTP tool results, canonical default-port authority handling, idle-expiry capacity recovery, post-disconnect session usability and cleanup, and preserved shutdown requests during startup. |
 
 ## MCP variants
 
@@ -88,7 +89,7 @@ Run every command from the skill root.
 | Default bind address | `127.0.0.1`; any other configured bind is rejected before listener creation |
 | Port | Fixed default `4570`, configurable at startup through `TEXT_STATS_MCP_HTTP_PORT` to an integer from 1 through 65535 |
 | Supported protocol eras | initialization-era revision `2025-11-25` only |
-| Revision-specific state model | Stateful SDK-issued UUID sessions with a 300-second idle timeout, explicit DELETE cleanup, and no resumability or hidden application state |
+| Revision-specific state model | Stateful SDK-issued UUID sessions with an operational 300-second idle timeout, explicit DELETE cleanup, and no resumability or hidden application state. The lifecycle suite uses a test-only shorter timeout to prove that expired sessions restore capacity without DELETE. |
 | Concurrent-client policy | At most 16 live MCP sessions; the seventeenth initialization receives HTTP 503 until a session is deleted or expires; each tool operation is synchronous, read-only, and independent |
 | Authentication | Exact Bearer token loaded from `TEXT_STATS_MCP_HTTP_TOKEN`; 32 to 128 non-whitespace printable ASCII characters; constant-time comparison on every `/mcp` request and no token output |
 | Host-header validation | Every request must carry the configured loopback authority in canonical form; nondefault ports require `127.0.0.1:PORT`, while port 80 accepts the equivalent `127.0.0.1` and `127.0.0.1:80` forms |
@@ -96,7 +97,7 @@ Run every command from the skill root.
 | Allowed origins and absent-Origin policy | An absent Origin is accepted for non-browser clients; a present HTTP Origin must parse to host `127.0.0.1` and the configured effective port with no userinfo, path, query, or fragment; every other present Origin receives HTTP 403 |
 | Connection-reuse security tests | One HTTP/1.1 keep-alive connection carries accepted and rejected Host, Origin, and Bearer values in sequence and proves that a valid earlier request does not authorize later requests; focused boundary tests cover equivalent default-port authority forms |
 | Readiness check | Unauthenticated `GET /readyz` returns JSON status only after the listener is serving; it still applies the same per-request canonical Host and Origin gate and remains independent of MCP request failures and session capacity |
-| Cancellation behavior | Tool execution is synchronous and bounded; caller timeout closes the applicable HTTP request, no task or background work is created, and explicit DELETE removes the associated session |
+| Cancellation behavior | Tool execution is synchronous and bounded. Closing a request socket does not detach work into a task; the controlled delayed-request regression closes the client after dispatch begins, waits for bounded processing to finish, then proves that the same session can answer `ping`, be deleted, and be replaced by a new session. |
 | Shutdown/restart policy | One foreground process records TERM or INT even before the server callback attaches, shuts down WEBrick once available, closes the SDK transport and sessions, emits diagnostics only to stderr, releases the port, and can restart on the same port; a live-port collision fails promptly |
 | Non-loopback support | NO; non-loopback bind configuration is rejected and no reverse-proxy trust or remote-client mode is claimed |
 
@@ -149,8 +150,8 @@ Run every command from the skill root.
 | `TEXT_STATS_MCP_HTTP_BIND` | NO | Optional bind assertion; only `127.0.0.1` is accepted | NO |
 | `TEXT_STATS_MCP_HTTP_PORT` | NO | Select a startup port from 1 through 65535; default 4570 | NO |
 
-The operator launching the HTTP process records its PID in the shell variable `TEXT_STATS_MCP_HTTP_PID` when using the documented stop command. The server does not write a PID file or read that shell variable.
+The operator launching the HTTP process records its PID in the shell variable `TEXT_STATS_MCP_HTTP_PID` when using the documented stop command. The server does not write a PID file or read that shell variable. Test-only lifecycle hooks are gated by `TEXT_STATS_MCP_TEST_MODE=1` and are not supported runtime configuration.
 
 ## Decision rationale
 
-Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, explicitly started, authenticated, request-scoped for canonical Host and Origin decisions, and bounded to 16 sessions; stdio remains the no-listener fallback. A public bundled client, remote deployment, reverse proxy, TLS termination, service manager, persistence, tasks, sampling, elicitation, roots, and optional extensions remain unsupported and require separate contracts and fixtures.
+Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, explicitly started, authenticated, request-scoped for canonical Host and Origin decisions, bounded to 16 sessions, recoverable after session expiry, and usable after a client disconnect; stdio remains the no-listener fallback. A public bundled client, remote deployment, reverse proxy, TLS termination, service manager, persistence, tasks, sampling, elicitation, roots, and optional extensions remain unsupported and require separate contracts and fixtures.
