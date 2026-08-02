@@ -134,3 +134,8 @@ jobs:
           bundle config set --local path .bundle
           bundle install --jobs 4 --retry 3
           bundle exec ruby ../../../scripts/test-headless-service-restrictive-umask.rb
+
+      - name: Test atomic PID-record publication
+        shell: bash
+        working-directory: .github/fixtures/profiles/headless-service
+        run: bundle exec ruby ../../../scripts/test-headless-service-pid-publication.rb
