@@ -169,7 +169,8 @@ module TextStatsMcpClient
       valid_content = content.is_a?(Array) && content.all? { |block| valid_content_block?(block) }
       valid_is_error = !value.key?("isError") || [true, false].include?(value["isError"])
       valid_structured_content = !value.key?("structuredContent") || value["structuredContent"].is_a?(Hash)
-      unless valid_content && valid_is_error && valid_structured_content
+      valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
+      unless valid_content && valid_is_error && valid_structured_content && valid_meta
         raise InvalidResultFailure, "invalid MCP tools/call result"
       end
 
@@ -646,17 +647,11 @@ module TextStatsMcpClient
   end
 
   def read_arguments(options)
-    sources = options.values_at(:arguments, :arguments_file, :arguments_stdin).compact
+    sources = options.values_at(:arguments, :arguments_stdin).compact
     raise UsageFailure, "exactly one arguments source is required" unless sources.length == 1
 
     source = if options[:arguments]
                options[:arguments]
-             elsif options[:arguments_file]
-               path = options[:arguments_file]
-               size = File.size(path)
-               raise UsageFailure, "arguments file exceeds #{MAX_ARGUMENT_BYTES} bytes" if size > MAX_ARGUMENT_BYTES
-
-               File.binread(path)
              else
                input = STDIN.read(MAX_ARGUMENT_BYTES + 1)
                raise UsageFailure, "stdin arguments exceed #{MAX_ARGUMENT_BYTES} bytes" if input.bytesize > MAX_ARGUMENT_BYTES
@@ -664,8 +659,6 @@ module TextStatsMcpClient
                input
              end
     parse_json_arguments(source)
-  rescue Errno::ENOENT, Errno::EACCES
-    raise UsageFailure, "arguments file could not be read"
   end
 
   def parse_global_options(argv)
@@ -724,10 +717,9 @@ module TextStatsMcpClient
   end
 
   def parse_argument_options(argv)
-    options = { arguments: nil, arguments_file: nil, arguments_stdin: nil }
+    options = { arguments: nil, arguments_stdin: nil }
     parser = OptionParser.new do |opts|
       opts.on("--arguments JSON", "JSON object arguments") { |value| options[:arguments] = value }
-      opts.on("--arguments-file PATH", "read JSON object arguments from a bounded file") { |value| options[:arguments_file] = value }
       opts.on("--arguments-stdin", "read JSON object arguments from stdin") { options[:arguments_stdin] = true }
     end
     parser.parse!(argv)
