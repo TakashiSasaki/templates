@@ -57,6 +57,8 @@ PIP_SANITIZED_INPUTS = (
     "PIP_REQUIREMENTS_FROM_SCRIPT",
     "PIP_REPORT",
     "PIP_CONFIG_SETTINGS",
+    "PIP_USE_PEP517",
+    "PIP_COMPILE",
     "PIP_KEYRING_PROVIDER",
     "PIP_EXISTS_ACTION",
     "PIP_IGNORE_REQUIRES_PYTHON",
@@ -123,6 +125,9 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PYTHONHASHSEED: ""',
             '      PYTHONUTF8: ""',
             '      PYTHONINTMAXSTRDIGITS: ""',
+            '      PYTHONMALLOC: ""',
+            '      PYTHONIOENCODING: ""',
+            '      PYTHONTRACEMALLOC: ""',
             '      PYTHONNOUSERSITE: "1"',
             '      PIP_PYTHON: ""',
             '      PIP_CACHE_DIR: ""',
@@ -147,7 +152,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
+            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
             "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
@@ -168,7 +173,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
-        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
@@ -188,7 +193,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
             f"run: env {workflow_unsets} .venv/bin/python -m pip install "
-            "--disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertIn(
@@ -201,7 +206,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS " + " ".join(PIP_SANITIZED_INPUTS),
+                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
@@ -239,7 +244,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
             f"env {workflow_unsets} .venv/bin/python -m pip install "
-            "--disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn(
@@ -254,7 +259,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         readme = README.read_text(encoding="utf-8")
 
         self.assertIn(
-            "python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             readme,
         )
         self.assertNotIn(
