@@ -20,6 +20,7 @@ jobs:
       PYTHONPATH: ""
       PYTHONNOUSERSITE: "1"
       PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
       PIP_NO_CACHE_DIR: ""
       PIP_CONFIG_FILE: /dev/null
     steps:
@@ -56,10 +57,10 @@ jobs:
         run: python -I -m venv --clear .venv
 
       - name: Install locked CI dependencies
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_PYTHON -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
 
       - name: Install agent-policy without dependency resolution
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_PYTHON -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
 
       - name: Verify installed distribution set
         run: .venv/bin/python scripts/verify_ci_environment.py
@@ -68,7 +69,7 @@ jobs:
         run: .venv/bin/python -m pip check
 
       - name: Verify stable release synchronization
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_PYTHON -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python scripts/verify-release-state.py --git-ref refs/remotes/origin/policy-source
 
       - name: Check formatting and static rules
         run: |
