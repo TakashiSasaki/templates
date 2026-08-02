@@ -36,13 +36,11 @@ module TextStat
       begin
         parser.parse!(argv)
       rescue OptionParser::ParseError => error
-        stderr.puts(error.message)
-        return 2
+        return write_diagnostic(stderr, error.message, 2)
       end
 
       unless argv.length == 1
-        stderr.puts("exactly one INPUT path or - is required")
-        return 2
+        return write_diagnostic(stderr, "exactly one INPUT path or - is required", 2)
       end
 
       begin
@@ -53,14 +51,12 @@ module TextStat
           text = File.binread(argv.first)
         end
       rescue SystemCallError, IOError => error
-        stderr.puts("unable to read input: #{error.message}")
-        return 3
+        return write_diagnostic(stderr, "unable to read input: #{error.message}", 3)
       end
 
       text = text.force_encoding(Encoding::UTF_8)
       unless text.valid_encoding?
-        stderr.puts("input is not valid UTF-8")
-        return 2
+        return write_diagnostic(stderr, "input is not valid UTF-8", 2)
       end
 
       result = TextStat.analyze(text)
@@ -79,19 +75,21 @@ module TextStat
       end
     end
 
+    def self.write_diagnostic(stderr, message, status)
+      stderr.puts(message)
+      stderr.flush
+      status
+    rescue SystemCallError, IOError
+      5
+    end
+
     def self.write_output(stdout, stderr)
       yield
       stdout.flush
       0
     rescue SystemCallError, IOError => error
-      begin
-        stderr.puts("unable to write output: #{error.message}")
-        stderr.flush
-      rescue SystemCallError, IOError
-        # The nonzero exit status remains authoritative when diagnostics also fail.
-      end
-      5
+      write_diagnostic(stderr, "unable to write output: #{error.message}", 5)
     end
-    private_class_method :write_output
+    private_class_method :write_diagnostic, :write_output
   end
 end
