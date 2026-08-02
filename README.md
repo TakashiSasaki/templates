@@ -9,7 +9,7 @@ The template provides repository-level design contracts for browser-facing web a
 Remove externally supplied Python and pip inputs before the first Python invocation, clear and recreate an isolated environment, then install and verify the complete locked validation graph:
 
 ```sh
-unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE
+unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT
 export PIP_CONFIG_FILE=/dev/null
 python -m venv --clear .venv
 . .venv/bin/activate
@@ -31,7 +31,7 @@ Run the standard-library test suite:
 python -m unittest discover -s tests -v
 ```
 
-`requirements-dev.txt` records the reviewed direct dependency input with arbitrary exact equality (`===`). `requirements-dev.lock` records the complete arbitrary-exact graph used by CI. Using `===` prevents an unrequested local build such as `4.26.0+corp` from satisfying a public-version pin such as `4.26.0`. Clearing `PYTHONPATH` before environment creation prevents external modules and `sitecustomize` code from affecting the bootstrap interpreter. Disabling pip requirement injection and config files prevents extra requirements from being added to the install, and `scripts/verify_locked_environment.py` rejects any installed distribution outside the lock except the virtual environment's bootstrap `pip`. The branch-maintainer baseline is CPython 3.12.13 on Ubuntu 24.04; this validation environment is not a product runtime or deployment choice.
+`requirements-dev.txt` records the reviewed direct dependency input with arbitrary exact equality (`===`). `requirements-dev.lock` records the complete arbitrary-exact graph used by CI. Using `===` prevents an unrequested local build such as `4.26.0+corp` from satisfying a public-version pin such as `4.26.0`. Clearing `PYTHONPATH` before environment creation prevents external modules and `sitecustomize` code from affecting the bootstrap interpreter. Disabling pip requirement, constraint, editable, dependency-group, and script-metadata injection together with pip configuration files prevents extra requirements from being added to the install. `scripts/verify_locked_environment.py` then rejects any installed distribution outside the lock except the virtual environment's bootstrap `pip`. The branch-maintainer baseline is CPython 3.12.13 on Ubuntu 24.04; this validation environment is not a product runtime or deployment choice.
 
 `contracts/manifest.json` is the inventory source of truth. Every domain contract and schema must be registered there; unregistered, missing, duplicated, unsafe, or version-mismatched entries fail validation.
 
