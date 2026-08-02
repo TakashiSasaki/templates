@@ -26,12 +26,60 @@ EXPECTED_LOCKED_REQUIREMENTS = (
 ARBITRARY_EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
-PIP_REQUIREMENT_INPUTS = (
+PIP_SANITIZED_INPUTS = (
     "PIP_REQUIREMENT",
     "PIP_CONSTRAINT",
+    "PIP_BUILD_CONSTRAINT",
+    "PIP_REQUIRE_HASHES",
+    "PIP_DRY_RUN",
+    "PIP_NO_BINARY",
+    "PIP_ONLY_BINARY",
+    "PIP_PLATFORM",
+    "PIP_PYTHON_VERSION",
+    "PIP_IMPLEMENTATION",
+    "PIP_ABI",
+    "PIP_UPLOADED_PRIOR_TO",
+    "PIP_INDEX_URL",
+    "PIP_EXTRA_INDEX_URL",
+    "PIP_NO_INDEX",
+    "PIP_FIND_LINKS",
+    "PIP_TARGET",
+    "PIP_PREFIX",
+    "PIP_ROOT",
+    "PIP_USER",
+    "PIP_PYTHON",
+    "PIP_CACHE_DIR",
+    "PIP_NO_CACHE_DIR",
+    "PIP_QUIET",
+    "PIP_PROGRESS_BAR",
     "PIP_EDITABLE",
     "PIP_GROUP",
     "PIP_REQUIREMENTS_FROM_SCRIPT",
+    "PIP_REPORT",
+    "PIP_CONFIG_SETTINGS",
+    "PIP_USE_PEP517",
+    "PIP_COMPILE",
+    "PIP_ISOLATED",
+    "PIP_USE_FEATURE",
+    "PIP_VERBOSE",
+    "PIP_DEBUG",
+    "PIP_NO_INPUT",
+    "PIP_DISABLE_PIP_VERSION_CHECK",
+    "PIP_NO_COLOR",
+    "PIP_REQUIRE_VIRTUALENV",
+    "PIP_USE_DEPRECATED",
+    "PIP_NO_PYTHON_VERSION_WARNING",
+    "PIP_KEYRING_PROVIDER",
+    "PIP_EXISTS_ACTION",
+    "PIP_IGNORE_REQUIRES_PYTHON",
+    "PIP_LOG",
+    "PIP_TRUSTED_HOST",
+    "PIP_CERT",
+    "PIP_CLIENT_CERT",
+    "PIP_PROXY",
+    "PIP_TIMEOUT",
+    "PIP_DEFAULT_TIMEOUT",
+    "PIP_RETRIES",
 )
 
 
@@ -73,8 +121,50 @@ class ValidationReproducibilityTests(unittest.TestCase):
             ("toolchain guide", toolchain_guide),
         ):
             with self.subTest(source=source_name):
-                self.assertIn("python -m venv --clear .venv", source)
+                self.assertIn("python -I -m venv --clear .venv", source)
                 self.assertNotIn("python -m venv .venv", source)
+
+    def test_workflow_clears_inherited_interpreter_inputs_before_setup(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        for setting in (
+            '      PYTHONHOME: ""',
+            '      PYTHONPATH: ""',
+            '      PYTHONSAFEPATH: ""',
+            '      PYTHONPLATLIBDIR: ""',
+            '      PYTHONHASHSEED: ""',
+            '      PYTHONUTF8: ""',
+            '      PYTHONINTMAXSTRDIGITS: ""',
+            '      PYTHONMALLOC: ""',
+            '      PYTHONIOENCODING: ""',
+            '      PYTHONTRACEMALLOC: ""',
+            '      PYTHONINSPECT: ""',
+            '      PYTHONNOUSERSITE: "1"',
+            '      PIP_PYTHON: ""',
+            '      PIP_CACHE_DIR: ""',
+            '      PIP_NO_CACHE_DIR: ""',
+            '      PIP_QUIET: ""',
+            '      PIP_PROGRESS_BAR: ""',
+            '      PIP_LOG: ""',
+            '      PIP_KEYRING_PROVIDER: ""',
+            '      PIP_EXISTS_ACTION: ""',
+            '      PIP_TIMEOUT: ""',
+            '      PIP_DEFAULT_TIMEOUT: ""',
+            '      PIP_ISOLATED: ""',
+            '      PIP_USE_FEATURE: ""',
+            '      PIP_VERBOSE: ""',
+            '      PIP_DEBUG: ""',
+            '      PIP_NO_INPUT: ""',
+            '      PIP_DISABLE_PIP_VERSION_CHECK: ""',
+            '      PIP_NO_COLOR: ""',
+            '      PIP_REQUIRE_VIRTUALENV: ""',
+            '      PIP_USE_DEPRECATED: ""',
+            '      PIP_NO_PYTHON_VERSION_WARNING: ""',
+            '      PIP_RETRIES: ""',
+            '      PIP_CONFIG_FILE: /dev/null',
+        ):
+            with self.subTest(setting=setting):
+                self.assertIn(setting, workflow)
 
     def test_pythonpath_is_cleared_before_any_python_invocation(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -83,10 +173,9 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE "
-            "PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT\n"
+            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC PYTHONINSPECT " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
-            "python -m venv --clear .venv\n"
+            "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
         )
         unsafe_sequence = (
@@ -104,8 +193,8 @@ class ValidationReproducibilityTests(unittest.TestCase):
         readme = README.read_text(encoding="utf-8")
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
-        workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
-        documented_unsets = "unset PYTHONPATH " + " ".join(PIP_REQUIREMENT_INPUTS)
+        workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC PYTHONINSPECT " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
@@ -122,8 +211,10 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertTrue(LOCK_VERIFIER.is_file())
         self.assertIn("      PIP_CONFIG_FILE: /dev/null", workflow)
+        workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
-            "run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            f"run: env {workflow_unsets} .venv/bin/python -m pip install "
+            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertIn(
@@ -136,7 +227,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT",
+                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC PYTHONINSPECT " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
@@ -164,15 +255,17 @@ class ValidationReproducibilityTests(unittest.TestCase):
     def test_workflow_creates_a_fresh_isolated_virtual_environment(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertIn("run: python -m venv --clear .venv", workflow)
+        self.assertIn("run: python -I -m venv --clear .venv", workflow)
         self.assertNotIn("--system-site-packages", workflow)
 
     def test_workflow_installs_and_checks_only_the_locked_graph(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
+        workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
-            "env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            f"env {workflow_unsets} .venv/bin/python -m pip install "
+            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn(
@@ -187,7 +280,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         readme = README.read_text(encoding="utf-8")
 
         self.assertIn(
-            "python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             readme,
         )
         self.assertNotIn(
