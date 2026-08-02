@@ -158,7 +158,8 @@ module TextStatsMcpClient
         tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty? &&
           tool["inputSchema"].is_a?(Hash)
       end
-      raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools
+      valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
+      raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools && valid_meta
 
       value
     end
@@ -361,10 +362,19 @@ module TextStatsMcpClient
     end
 
     def close
-      delete_session if @session_id
-      @http.finish if @http.started?
-    rescue Failure, IOError, SystemCallError, Timeout::Error
-      @http.finish if @http.started?
+      cleanup_error = nil
+      begin
+        delete_session if @session_id
+      rescue Failure, IOError, SystemCallError, Timeout::Error => error
+        cleanup_error = error
+      ensure
+        begin
+          @http.finish if @http.started?
+        rescue IOError, SystemCallError, Timeout::Error => error
+          cleanup_error ||= TransportFailure.new("HTTP cleanup failure: connection could not be closed")
+        end
+      end
+      raise cleanup_error if cleanup_error
     end
 
     private
@@ -760,33 +770,48 @@ module TextStatsMcpClient
   end
 
   def run(argv)
-    command_name_index = argv.index { |argument| %w[server-info tools].include?(argument) }
-    raise UsageFailure, "a command is required" unless command_name_index
+    transport = nil
+    exit_code = nil
 
-    global_arguments = argv.slice!(0, command_name_index)
-    options = parse_global_options(global_arguments)
-    raise UsageFailure, "unknown global option #{global_arguments.first.inspect}" unless global_arguments.empty?
-    command = parse_command(argv)
-    transport = if options[:transport] == "stdio"
-                  StdioTransport.new(options[:timeout])
-                else
-                  HttpTransport.new(options[:endpoint], options[:timeout])
-                end
-    result = Client.new(transport, max_pages: options[:max_pages]).execute(command)
-    emit(result)
-    0
-  rescue ToolResultFailure => error
-    emit(error.payload)
-    warn error.message
-    error.exit_code
-  rescue Failure => error
-    warn error.message
-    error.exit_code
-  rescue StandardError
-    warn "client failure: operation did not complete"
-    3
-  ensure
-    transport&.close
+    begin
+      command_name_index = argv.index { |argument| %w[server-info tools].include?(argument) }
+      raise UsageFailure, "a command is required" unless command_name_index
+
+      global_arguments = argv.slice!(0, command_name_index)
+      options = parse_global_options(global_arguments)
+      raise UsageFailure, "unknown global option #{global_arguments.first.inspect}" unless global_arguments.empty?
+      command = parse_command(argv)
+      transport = if options[:transport] == "stdio"
+                    StdioTransport.new(options[:timeout])
+                  else
+                    HttpTransport.new(options[:endpoint], options[:timeout])
+                  end
+      result = Client.new(transport, max_pages: options[:max_pages]).execute(command)
+      emit(result)
+      exit_code = 0
+    rescue ToolResultFailure => error
+      emit(error.payload)
+      warn error.message
+      exit_code = error.exit_code
+    rescue Failure => error
+      warn error.message
+      exit_code = error.exit_code
+    rescue StandardError
+      warn "client failure: operation did not complete"
+      exit_code = 3
+    ensure
+      begin
+        transport&.close
+      rescue Failure => error
+        warn "HTTP cleanup failure: #{error.message}"
+        exit_code = error.exit_code if exit_code == 0
+      rescue StandardError
+        warn "HTTP cleanup failure: session could not be released"
+        exit_code = 3 if exit_code == 0
+      end
+    end
+
+    exit_code
   end
 end
 
