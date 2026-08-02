@@ -26,6 +26,13 @@ EXPECTED_LOCKED_REQUIREMENTS = (
 ARBITRARY_EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
+PIP_REQUIREMENT_INPUTS = (
+    "PIP_REQUIREMENT",
+    "PIP_CONSTRAINT",
+    "PIP_EDITABLE",
+    "PIP_GROUP",
+    "PIP_REQUIREMENTS_FROM_SCRIPT",
+)
 
 
 def requirement_lines(path: Path) -> tuple[str, ...]:
@@ -76,7 +83,8 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE\n"
+            "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE "
+            "PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
             "python -m venv --clear .venv\n"
             ". .venv/bin/activate"
@@ -91,6 +99,22 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertNotIn(unsafe_sequence, readme)
         self.assertNotIn(unsafe_sequence, toolchain_guide)
 
+    def test_every_requirement_bearing_pip_input_is_disabled(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
+
+        workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
+        documented_unsets = "unset PYTHONPATH " + " ".join(PIP_REQUIREMENT_INPUTS)
+
+        self.assertIn(workflow_unsets, workflow)
+        self.assertIn(documented_unsets, readme)
+        self.assertIn(documented_unsets, toolchain_guide)
+        self.assertNotIn(
+            "-u PIP_EDITABLE .venv/bin/python -m pip install",
+            workflow,
+        )
+
     def test_pip_injection_is_disabled_and_installed_set_is_verified(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         readme = README.read_text(encoding="utf-8")
@@ -99,7 +123,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertTrue(LOCK_VERIFIER.is_file())
         self.assertIn("      PIP_CONFIG_FILE: /dev/null", workflow)
         self.assertIn(
-            "run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertIn(
@@ -112,7 +136,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE",
+                    "unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT",
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
@@ -148,7 +172,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
         self.assertIn(
-            "env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
         )
         self.assertNotIn(
