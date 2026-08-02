@@ -136,6 +136,32 @@ module TextStatsMcpClient
 
       value
     end
+
+    def tools_list_result(response, expected_id)
+      value = object_result(response, expected_id)
+      tools = value["tools"]
+      valid_tools = tools.is_a?(Array) && tools.all? do |tool|
+        tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty?
+      end
+      raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools
+
+      value
+    end
+
+    def tools_call_result(response, expected_id)
+      value = object_result(response, expected_id)
+      content = value["content"]
+      valid_content = content.is_a?(Array) && content.all? do |block|
+        block.is_a?(Hash) && block["type"].is_a?(String) && !block["type"].empty?
+      end
+      valid_is_error = !value.key?("isError") || [true, false].include?(value["isError"])
+      valid_structured_content = !value.key?("structuredContent") || value["structuredContent"].is_a?(Hash)
+      unless valid_content && valid_is_error && valid_structured_content
+        raise InvalidResultFailure, "invalid MCP tools/call result"
+      end
+
+      value
+    end
   end
 
   RpcResponse = Struct.new(:id, :message, keyword_init: true)
@@ -443,9 +469,12 @@ module TextStatsMcpClient
       cursor = nil
 
       @max_pages.times do
+        raise PaginationFailure, "cursor repeated before request" if !cursor.nil? && requested_cursors[cursor]
+
+        requested_cursors[cursor] = true unless cursor.nil?
         params = cursor.nil? ? {} : { "cursor" => cursor }
         response = @transport.request("tools/list", params)
-        result = Protocol.object_result(response.message, response.id)
+        result = Protocol.tools_list_result(response.message, response.id)
         pages << { "requestCursor" => cursor, "mcpResult" => result }
 
         break unless result.key?("nextCursor")
@@ -454,7 +483,6 @@ module TextStatsMcpClient
         raise PaginationFailure, "nextCursor must be a string" unless next_cursor.is_a?(String)
         raise PaginationFailure, "cursor repeated before pagination completed" if requested_cursors[next_cursor]
 
-        requested_cursors[cursor] = true unless cursor.nil?
         cursor = next_cursor
       end
 
@@ -497,7 +525,7 @@ module TextStatsMcpClient
         "tools/call",
         { "name" => tool_name, "arguments" => arguments }
       )
-      result = Protocol.object_result(response.message, response.id)
+      result = Protocol.tools_call_result(response.message, response.id)
       payload = envelope("tools/call", result)
       raise ToolResultFailure, payload if result["isError"] == true
 
@@ -515,7 +543,7 @@ module TextStatsMcpClient
           "tools/call",
           { "name" => call.fetch(:tool), "arguments" => call.fetch(:arguments) }
         )
-        result = Protocol.object_result(response.message, response.id)
+        result = Protocol.tools_call_result(response.message, response.id)
         results << { "index" => index, "tool" => call.fetch(:tool), "mcpResult" => result }
         if result["isError"] == true
           raise ToolResultFailure, {

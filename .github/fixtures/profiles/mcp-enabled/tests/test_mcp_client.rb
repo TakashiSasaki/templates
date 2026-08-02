@@ -135,6 +135,81 @@ class TextStatsMcpClientTest < Minitest::Test
     end
   end
 
+  class RepeatedCursorTransport
+    attr_reader :requests
+
+    def initialize
+      @next_id = 0
+      @requests = []
+      @cursor_a_requests = 0
+    end
+
+    def request(method, params = {})
+      @next_id += 1
+      @requests << [method, params]
+      result = case method
+               when "initialize"
+                 {
+                   "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
+                   "capabilities" => { "tools" => {} },
+                   "serverInfo" => { "name" => "fake", "version" => "1" }
+                 }
+               when "tools/list"
+                 if params.fetch("cursor", nil) == "a"
+                   @cursor_a_requests += 1
+                   @cursor_a_requests == 1 ? { "tools" => [], "nextCursor" => "a" } : { "tools" => [] }
+                 else
+                   { "tools" => [], "nextCursor" => "a" }
+                 end
+               else
+                 raise "unexpected fake request #{method.inspect}"
+               end
+      TextStatsMcpClient::RpcResponse.new(
+        id: @next_id,
+        message: { "jsonrpc" => "2.0", "id" => @next_id, "result" => result }
+      )
+    end
+
+    def notify(method, params = {})
+      @requests << [method, params]
+    end
+  end
+
+  class MalformedResultTransport
+    attr_reader :requests
+
+    def initialize(operation)
+      @operation = operation
+      @next_id = 0
+      @requests = []
+    end
+
+    def request(method, params = {})
+      @next_id += 1
+      @requests << [method, params]
+      result = case method
+               when "initialize"
+                 {
+                   "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
+                   "capabilities" => { "tools" => {} },
+                   "serverInfo" => { "name" => "fake", "version" => "1" }
+                 }
+               when @operation
+                 {}
+               else
+                 raise "unexpected fake request #{method.inspect}"
+               end
+      TextStatsMcpClient::RpcResponse.new(
+        id: @next_id,
+        message: { "jsonrpc" => "2.0", "id" => @next_id, "result" => result }
+      )
+    end
+
+    def notify(method, params = {})
+      @requests << [method, params]
+    end
+  end
+
   def run_client(*arguments, env: {})
     Open3.capture3(
       env,
@@ -223,6 +298,32 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "second", result.fetch("pages").fetch(1).fetch("mcpResult").fetch("futurePageField")
     assert_includes transport.requests.map(&:first), "notifications/initialized"
     refute_includes transport.requests.map(&:first), "tools/show"
+  end
+
+  def test_repeated_pagination_cursor_is_rejected_before_reuse
+    transport = RepeatedCursorTransport.new
+
+    error = assert_raises(TextStatsMcpClient::PaginationFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 9, error.exit_code
+    assert_equal 2, transport.requests.count { |method, _params| method == "tools/list" }
+  end
+
+  def test_malformed_operation_results_are_invalid_result_failures
+    {
+      tools_list: "tools/list",
+      tools_call: "tools/call"
+    }.each do |command, operation|
+      transport = MalformedResultTransport.new(operation)
+      error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+        command_args = command == :tools_call ? { name: command, tool: "text_stats", arguments: {} } : { name: command }
+        TextStatsMcpClient::Client.new(transport).execute(**command_args)
+      end
+
+      assert_equal 8, error.exit_code
+    end
   end
 
   def test_protocol_error_and_tool_error_are_distinct
