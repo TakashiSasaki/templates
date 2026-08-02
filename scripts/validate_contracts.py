@@ -45,9 +45,9 @@ def _load_implementation() -> ModuleType:
 def _loader_preflight(name: str, root: Path) -> None:
     """Reject unsafe facade or caller roots before loading implementation code."""
 
-    errors = _symlink_preflight(ROOT)
+    errors = _symlink_preflight(ROOT, check_inventory=False)
     if not errors:
-        errors = _symlink_preflight(root)
+        errors = _symlink_preflight(root, check_inventory=False)
     if errors:
         details = "; ".join(errors)
         raise RuntimeError(
@@ -56,23 +56,17 @@ def _loader_preflight(name: str, root: Path) -> None:
         )
 
 
-def load_contract_manifest(root: Path) -> dict[str, Any]:
-    """Load a contract manifest after preflighting both trust boundaries."""
-
+def _load_contract_manifest(root: Path) -> dict[str, Any]:
     _loader_preflight("load_contract_manifest", root)
     return _load_implementation().load_contract_manifest(root)
 
 
-def load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
-    """Load a contract registry after preflighting both trust boundaries."""
-
+def _load_contract_registry(root: Path) -> dict[str, tuple[str, str]]:
     _loader_preflight("load_contract_registry", root)
     return _load_implementation().load_contract_registry(root)
 
 
-def load_contract_documents(root: Path) -> dict[str, Any]:
-    """Load contract documents after preflighting both trust boundaries."""
-
+def _load_contract_documents(root: Path) -> dict[str, Any]:
     _loader_preflight("load_contract_documents", root)
     return _load_implementation().load_contract_documents(root)
 
@@ -106,6 +100,15 @@ def __getattr__(name: str) -> Any:
             f"cannot load validator attribute {name!r} before trust-boundary "
             f"preflight succeeds: {details}"
         )
+
+    root_loaders = {
+        "load_contract_manifest": _load_contract_manifest,
+        "load_contract_registry": _load_contract_registry,
+        "load_contract_documents": _load_contract_documents,
+    }
+    if name in root_loaders:
+        return root_loaders[name]
+
     try:
         return getattr(_load_implementation(), name)
     except AttributeError as exc:
@@ -162,6 +165,8 @@ def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
 def _symlink_preflight(
     root: Path,
     manifest: dict[str, Any] | None = None,
+    *,
+    check_inventory: bool = True,
 ) -> list[str]:
     if root.is_symlink():
         return ["repository root must not be a symbolic link"]
@@ -206,13 +211,14 @@ def _symlink_preflight(
                     f"{relative}"
                 )
 
-    actual_schemas = {
-        path.relative_to(root).as_posix()
-        for path in (root / "schemas").rglob("*.json")
-        if path.is_file() or path.is_symlink()
-    } - {MANIFEST_SCHEMA_PATH}
-    for relative in sorted(actual_schemas - registered_schemas):
-        errors.append(f"unregistered contract schema: {relative}")
+    if check_inventory:
+        actual_schemas = {
+            path.relative_to(root).as_posix()
+            for path in (root / "schemas").rglob("*.json")
+            if path.is_file() or path.is_symlink()
+        } - {MANIFEST_SCHEMA_PATH}
+        for relative in sorted(actual_schemas - registered_schemas):
+            errors.append(f"unregistered contract schema: {relative}")
 
     return errors
 
