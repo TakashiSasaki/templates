@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
 LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
@@ -18,7 +19,9 @@ EXPECTED_LOCKED_REQUIREMENTS = (
     "rpds-py==2026.6.3",
     "typing_extensions==4.16.0",
 )
-EXACT_REQUIREMENT = re.compile(r"^[A-Za-z0-9_.-]+==[^=\s]+$")
+EXACT_REQUIREMENT = re.compile(
+    r"^[A-Za-z0-9_.-]+==[A-Za-z0-9][A-Za-z0-9._+!-]*$"
+)
 
 
 def requirement_lines(path: Path) -> tuple[str, ...]:
@@ -63,12 +66,39 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertNotIn("--requirement requirements-dev.txt", workflow)
         self.assertIn("python -m pip check", workflow)
 
+    def test_readme_installation_is_dependency_isolated(self) -> None:
+        readme = README.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            readme,
+        )
+        self.assertNotIn(
+            "python -m pip install --disable-pip-version-check --requirement requirements-dev.lock",
+            readme,
+        )
+
     def test_workflow_exercises_both_public_validator_entry_points(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("python scripts/validate_contracts.py", workflow)
         self.assertIn("python -m scripts.validate_contracts", workflow)
         self.assertIn("python -m unittest discover -s tests -v", workflow)
+
+    def test_exact_requirement_pattern_rejects_mutable_or_nonliteral_versions(self) -> None:
+        invalid_requirements = (
+            "jsonschema==4.26.*",
+            "jsonschema==4.26.*,!=4.26.1",
+            'jsonschema==4.26.0; python_version < "3.13"',
+            "jsonschema==https://example.invalid/jsonschema.whl",
+            "jsonschema===4.26.0",
+        )
+
+        for requirement in invalid_requirements:
+            with self.subTest(requirement=requirement):
+                self.assertIsNone(EXACT_REQUIREMENT.fullmatch(requirement))
+
+        self.assertIsNotNone(EXACT_REQUIREMENT.fullmatch("example==1!2.3rc1.post2.dev3+linux_x86_64"))
 
     def test_direct_requirement_is_an_exact_reviewed_input(self) -> None:
         direct = requirement_lines(DIRECT_REQUIREMENTS)
