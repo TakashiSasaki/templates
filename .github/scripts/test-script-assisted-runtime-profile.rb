@@ -56,6 +56,14 @@ runtime = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "UTF-8")
   end
 end
 
+helper_source = File.read(
+  File.join(fixture_root, "scripts/normalize.rb"),
+  encoding: "UTF-8"
+)
+unless helper_source.include?("File.binwrite(output_path, normalized)")
+  failures << "script-assisted-runtime: helper output must use File.binwrite to preserve LF bytes on Windows"
+end
+
 Dir.mktmpdir("script-assisted-runtime-profile") do |directory|
   copy_fixture.call(directory)
   _stdout, stderr, status = run_validator.call(directory)
