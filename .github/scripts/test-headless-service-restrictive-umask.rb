@@ -9,6 +9,7 @@ require "timeout"
 require "tmpdir"
 
 fixture_root = File.expand_path("../fixtures/profiles/headless-service", __dir__)
+service_entry = File.join(fixture_root, "service/server.rb")
 token = "restrictive-umask-test-token-0123456789-abcdef"
 service_pid = nil
 stdout_file = nil
@@ -23,8 +24,11 @@ end
 
 begin
   Dir.mktmpdir("headless-service-restrictive-umask") do |directory|
+    runtime_directory = File.join(directory, "fresh-runtime")
+    Dir.mkdir(runtime_directory, 0o700)
     token_file = File.join(directory, "token")
-    pid_file = File.join(directory, "service.pid")
+    pid_directory = File.join(runtime_directory, "tmp")
+    pid_file = File.join(pid_directory, "text-stats-service.pid")
     File.write(token_file, "#{token}\n", mode: "w", perm: 0o600)
     File.chmod(0o600, token_file)
 
@@ -32,15 +36,14 @@ begin
     stderr_file = Tempfile.new("headless-umask-stderr")
     environment = {
       "TEXT_STATS_SERVICE_TOKEN_FILE" => token_file,
-      "TEXT_STATS_SERVICE_PORT" => "0",
-      "TEXT_STATS_SERVICE_PID_FILE" => pid_file
+      "TEXT_STATS_SERVICE_PORT" => "0"
     }
 
     service_pid = Process.spawn(
       environment,
       RbConfig.ruby,
-      "service/server.rb",
-      chdir: fixture_root,
+      service_entry,
+      chdir: runtime_directory,
       umask: 0o777,
       in: File::NULL,
       out: stdout_file.path,
@@ -63,6 +66,11 @@ begin
       sleep 0.05
     end
 
+    directory_mode = File.stat(pid_directory).mode & 0o777
+    unless directory_mode == 0o700
+      raise format("expected default PID directory mode 0700, got %04o", directory_mode)
+    end
+
     mode = File.stat(pid_file).mode & 0o777
     raise format("expected PID record mode 0600, got %04o", mode) unless mode == 0o600
 
@@ -72,9 +80,9 @@ begin
     stop_stdout, stop_stderr, stop_status = Open3.capture3(
       environment,
       RbConfig.ruby,
-      "service/server.rb",
+      service_entry,
       "--stop",
-      chdir: fixture_root
+      chdir: runtime_directory
     )
     unless stop_status.success?
       raise "--stop failed under restrictive umask: stdout=#{stop_stdout.inspect}, stderr=#{stop_stderr.inspect}"
@@ -90,7 +98,7 @@ begin
     end
   end
 
-  puts "Restrictive-umask headless-service lifecycle test passed."
+  puts "Restrictive-umask default-path lifecycle test passed."
 rescue StandardError => error
   warn error.message
   exit 1
