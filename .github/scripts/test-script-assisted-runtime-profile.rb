@@ -122,7 +122,7 @@ end
       path = File.join(directory, "RUNTIME.md")
       File.write(path, File.read(path).sub("| Runtime | CRuby |", "| Runtime | TBD |"))
     end,
-    diagnostic: "Runtime"
+    diagnostic: "unresolved scalar placeholder \"TBD\""
   }
 ].each do |test_case|
   Dir.mktmpdir("invalid-script-assisted-runtime-profile") do |directory|
