@@ -344,6 +344,24 @@ class TextStatsMcpClientTest < Minitest::Test
     end
   end
 
+  def test_tools_call_rejects_non_object_result_metadata
+    transport = MalformedResultTransport.new(
+      "tools/call",
+      "content" => [],
+      "_meta" => "invalid"
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(
+        name: :tools_call,
+        tool: "text_stats",
+        arguments: {}
+      )
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
   def test_tools_list_rejects_tool_definitions_without_required_input_schema
     transport = MalformedResultTransport.new(
       "tools/list",
@@ -393,6 +411,20 @@ class TextStatsMcpClientTest < Minitest::Test
 
       assert_equal 8, error.exit_code
     end
+  end
+
+  def test_response_file_argument_mode_is_rejected
+    stdout, stderr, status = run_client(
+      "tools",
+      "call",
+      "text_stats",
+      "--arguments-file",
+      "/tmp/mcp-client-arguments.json"
+    )
+
+    assert_equal "", stdout
+    assert_equal 2, status.exitstatus
+    assert_includes stderr, "invalid option: --arguments-file"
   end
 
   def test_stdio_notifications_are_ignored_but_missing_or_mismatched_ids_fail
