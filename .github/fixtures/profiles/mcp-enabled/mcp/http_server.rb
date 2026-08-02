@@ -34,6 +34,7 @@ module TextStatsMcp
 
         json_response(200, status: "ready")
       when "/mcp"
+        return method_not_allowed("POST, DELETE") unless request.post? || request.delete?
         return unauthorized_response unless @token_matcher.call(request)
 
         @transport.call(env)
