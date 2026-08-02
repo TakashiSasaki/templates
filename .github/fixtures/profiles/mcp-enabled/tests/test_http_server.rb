@@ -340,6 +340,10 @@ class TextStatsMcpHttpServerTest < Minitest::Test
     )
     assert_equal "401", unauthorized.code
 
+    unsupported_get = server.get("/mcp")
+    assert_equal "405", unsupported_get.code
+    assert_equal "POST, DELETE", unsupported_get["allow"]
+
     oversized = server.post_json({}, raw_body: "x" * 65_537)
     assert_equal "413", oversized.code
 
@@ -398,6 +402,16 @@ class TextStatsMcpHttpServerTest < Minitest::Test
   def test_graceful_shutdown_and_restart
     port = HttpServerProcess.free_port
     first = HttpServerProcess.new(port: port)
+
+    collision_stdout, collision_stderr, collision_status = run_configuration_failure(
+      "TEXT_STATS_MCP_HTTP_TOKEN" => TOKEN,
+      "TEXT_STATS_MCP_HTTP_PORT" => port.to_s,
+      "TEXT_STATS_MCP_HTTP_BIND" => HOST
+    )
+    refute collision_status.success?
+    assert_equal "", collision_stdout
+    assert_includes collision_stderr, "text-stats MCP HTTP server failed"
+
     status, stdout, diagnostics = first.stop
     first = nil
 
