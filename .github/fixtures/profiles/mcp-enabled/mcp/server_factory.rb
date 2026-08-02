@@ -36,6 +36,9 @@ module TextStatsMcp
 
     class << self
       def call(text:, server_context:)
+        test_delay = ENV["TEXT_STATS_MCP_TEST_TOOL_DELAY"]
+        sleep(Float(test_delay)) if ENV["TEXT_STATS_MCP_TEST_MODE"] == "1" && test_delay
+
         result = TextStatsMcp.analyze(text)
         MCP::Tool::Response.new(
           [{ type: "text", text: JSON.generate(result) }],
