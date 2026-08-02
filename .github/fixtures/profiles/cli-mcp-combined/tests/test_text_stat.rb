@@ -30,16 +30,17 @@ class TextStatTest < Minitest::Test
   end
 
   class FailingOutput
-    def initialize(failure)
+    def initialize(failure, error_class = IOError)
       @failure = failure
+      @error_class = error_class
     end
 
     def puts(*)
-      raise IOError, "simulated write failure" if @failure == :write
+      raise @error_class, "simulated write failure" if @failure == :write
     end
 
     def flush
-      raise IOError, "simulated flush failure" if @failure == :flush
+      raise @error_class, "simulated flush failure" if @failure == :flush
     end
   end
 
@@ -149,6 +150,45 @@ class TextStatTest < Minitest::Test
 
   def test_output_flush_failure_uses_exit_code_five
     assert_output_failure(:flush)
+  end
+
+  def test_diagnostic_write_and_flush_failures_use_exit_code_five
+    cases = {
+      "invalid option" => lambda {
+        [["--output", "yaml", "-"], StringIO.new]
+      },
+      "invalid argument count" => lambda {
+        [[], StringIO.new]
+      },
+      "input read failure" => lambda {
+        [["missing.txt"], StringIO.new]
+      },
+      "invalid UTF-8" => lambda {
+        [["-"], BinaryModeInput.new("\xFF".b)]
+      }
+    }
+    failures = {
+      write: Errno::EPIPE,
+      flush: IOError
+    }
+
+    cases.each do |description, build|
+      failures.each do |failure, error_class|
+        argv, stdin = build.call
+        stdout = StringIO.new
+        stderr = FailingOutput.new(failure, error_class)
+
+        status = TextStat::CLI.run(
+          argv,
+          stdin: stdin,
+          stdout: stdout,
+          stderr: stderr
+        )
+
+        assert_equal 5, status, "#{description} with stderr #{failure} failure"
+        assert_empty stdout.string
+      end
+    end
   end
 
   def test_invalid_invocation_uses_exit_code_two
