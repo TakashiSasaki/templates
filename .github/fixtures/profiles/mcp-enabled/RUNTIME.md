@@ -107,7 +107,7 @@ Run every command from the skill root.
 |---|---|
 | Supported | YES |
 | Scope | tools only; bounded discovery and invocation helper, not a general MCP host |
-| Stable public command | NOT SUPPORTED; the entry point is a private fixture helper |
+| Stable public command | NOT SUPPORTED |
 | Bundled helper command | `bundle exec ruby mcp/client.rb` |
 | Supported transports | both |
 | Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, then continue; no cross-transport retry or revision fallback |

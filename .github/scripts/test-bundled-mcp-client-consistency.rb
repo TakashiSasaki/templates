@@ -6,6 +6,8 @@ require "rbconfig"
 require "tmpdir"
 
 validator = File.expand_path("validate-bundled-mcp-client-consistency.rb", __dir__)
+interface_runtime_validator = File.expand_path("validate-interface-runtime-consistency.rb", __dir__)
+fixture_root = File.expand_path("../fixtures/profiles/mcp-enabled", __dir__)
 
 valid_public = <<~MARKDOWN
   # MCP public interface contract
@@ -81,15 +83,6 @@ cases = [
       .sub("Task or extension support: NOT SUPPORTED", "Task or extension support: see RUNTIME.md"),
     runtime: valid_runtime,
     success: true
-  },
-  {
-    name: "rejects a stable public command without packaged-cli",
-    public: valid_public,
-    runtime: valid_runtime.sub(
-      "| Stable public command | NOT SUPPORTED |",
-      "| Stable public command | text-stats-client |"
-    ),
-    success: false
   },
   {
     name: "accepts both transports when both variants are supported",
@@ -192,6 +185,45 @@ cases.each do |test_case|
       { "RUBYOPT" => nil },
       RbConfig.ruby,
       validator,
+      chdir: directory
+    )
+
+    next if status.success? == test_case.fetch(:success)
+
+    failures << "#{test_case.fetch(:name)}: expected success=#{test_case.fetch(:success)}, " \
+                "got success=#{status.success?}; diagnostics=#{stderr.strip.inspect}"
+  end
+end
+
+fixture_skill = File.read(File.join(fixture_root, "SKILL.md"), encoding: "UTF-8")
+fixture_public = File.read(File.join(fixture_root, "MCP_INTERFACE.md"), encoding: "UTF-8")
+fixture_runtime = File.read(File.join(fixture_root, "RUNTIME.md"), encoding: "UTF-8")
+interface_runtime_cases = [
+  {
+    name: "accepts MCP-only fixture without a stable public command",
+    runtime: fixture_runtime,
+    success: true
+  },
+  {
+    name: "rejects MCP-only fixture with a stable public command",
+    runtime: fixture_runtime.sub(
+      "| Stable public command | NOT SUPPORTED |",
+      "| Stable public command | text-stats-client |"
+    ),
+    success: false
+  }
+]
+
+interface_runtime_cases.each do |test_case|
+  Dir.mktmpdir("bundled-mcp-interface-runtime-test") do |directory|
+    File.write(File.join(directory, "SKILL.md"), fixture_skill)
+    File.write(File.join(directory, "MCP_INTERFACE.md"), fixture_public)
+    File.write(File.join(directory, "RUNTIME.md"), test_case.fetch(:runtime))
+
+    _stdout, stderr, status = Open3.capture3(
+      { "RUBYOPT" => nil },
+      RbConfig.ruby,
+      interface_runtime_validator,
       chdir: directory
     )
 
