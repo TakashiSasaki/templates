@@ -141,7 +141,8 @@ module TextStatsMcpClient
       value = object_result(response, expected_id)
       tools = value["tools"]
       valid_tools = tools.is_a?(Array) && tools.all? do |tool|
-        tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty?
+        tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty? &&
+          tool["inputSchema"].is_a?(Hash)
       end
       raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools
 
@@ -228,12 +229,25 @@ module TextStatsMcpClient
     end
 
     def read_response(expected_id)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @timeout
+
       loop do
-        line = Timeout.timeout(@timeout) { @stdout.gets }
+        remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        raise TimeoutFailure, "timeout: stdio MCP response was not received" unless remaining.positive?
+
+        line = Timeout.timeout(remaining) { @stdout.gets }
         raise TransportFailure, "stdio transport failure: server output closed" if line.nil?
 
         response = JSON.parse(line)
-        next unless response.is_a?(Hash) && response["id"] == expected_id
+        unless response.is_a?(Hash) && response["jsonrpc"] == "2.0"
+          raise ProtocolFailure
+        end
+
+        if !response.key?("id") && response.key?("method")
+          next
+        end
+
+        raise ProtocolFailure unless response["id"] == expected_id
 
         return response
       end

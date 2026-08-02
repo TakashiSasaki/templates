@@ -6,6 +6,7 @@ require "net/http"
 require "open3"
 require "rbconfig"
 require "socket"
+require "stringio"
 require "timeout"
 require_relative "../mcp/client"
 
@@ -113,7 +114,16 @@ class TextStatsMcpClientTest < Minitest::Test
                    }
                  else
                    {
-                     "tools" => [{ "name" => "text_stats", "futureToolField" => [1, 2, 3] }],
+                     "tools" => [{
+                       "name" => "text_stats",
+                       "inputSchema" => {
+                         "type" => "object",
+                         "properties" => { "text" => { "type" => "string" } },
+                         "required" => ["text"],
+                         "additionalProperties" => false
+                       },
+                       "futureToolField" => [1, 2, 3]
+                     }],
                      "nextCursor" => "opaque-cursor",
                      "ttlMs" => 30_000,
                      "cacheScope" => "per-test",
@@ -178,8 +188,9 @@ class TextStatsMcpClientTest < Minitest::Test
   class MalformedResultTransport
     attr_reader :requests
 
-    def initialize(operation)
+    def initialize(operation, result = {})
       @operation = operation
+      @result = result
       @next_id = 0
       @requests = []
     end
@@ -195,7 +206,7 @@ class TextStatsMcpClientTest < Minitest::Test
                    "serverInfo" => { "name" => "fake", "version" => "1" }
                  }
                when @operation
-                 {}
+                 @result
                else
                  raise "unexpected fake request #{method.inspect}"
                end
@@ -208,6 +219,13 @@ class TextStatsMcpClientTest < Minitest::Test
     def notify(method, params = {})
       @requests << [method, params]
     end
+  end
+
+  def stdio_transport_for(*messages)
+    transport = TextStatsMcpClient::StdioTransport.allocate
+    transport.instance_variable_set(:@timeout, 0.1)
+    transport.instance_variable_set(:@stdout, StringIO.new(messages.map { |message| JSON.generate(message) }.join("\n") + "\n"))
+    transport
   end
 
   def run_client(*arguments, env: {})
@@ -323,6 +341,39 @@ class TextStatsMcpClientTest < Minitest::Test
       end
 
       assert_equal 8, error.exit_code
+    end
+  end
+
+  def test_tools_list_rejects_tool_definitions_without_required_input_schema
+    transport = MalformedResultTransport.new(
+      "tools/list",
+      "tools" => [{ "name" => "text_stats" }]
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
+  def test_stdio_notifications_are_ignored_but_missing_or_mismatched_ids_fail
+    notification_transport = stdio_transport_for(
+      { "jsonrpc" => "2.0", "method" => "notifications/progress", "params" => {} },
+      { "jsonrpc" => "2.0", "id" => 1, "result" => {} }
+    )
+    response = notification_transport.send(:read_response, 1)
+    assert_equal 1, response.fetch("id")
+
+    [
+      { "jsonrpc" => "2.0", "result" => {} },
+      { "jsonrpc" => "2.0", "id" => 99, "result" => {} }
+    ].each do |message|
+      transport = stdio_transport_for(message)
+      error = assert_raises(TextStatsMcpClient::ProtocolFailure) do
+        transport.send(:read_response, 1)
+      end
+      assert_equal 6, error.exit_code
     end
   end
 
