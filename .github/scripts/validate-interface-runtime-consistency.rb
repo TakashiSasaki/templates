@@ -234,6 +234,13 @@ if selected_profiles.include?("mcp-enabled") && runtime
       errors << "Bundled MCP client support must agree between MCP_INTERFACE.md and #{RUNTIME_PATH}."
     end
 
+    stable_public_command = table_value.call(runtime_client, "Stable public command")
+    if !resolved_value.call(stable_public_command)
+      errors << "Bundled MCP client Stable public command requires an explicit value in #{RUNTIME_PATH}."
+    elsif concrete_value.call(stable_public_command) && !selected_profiles.include?("packaged-cli")
+      errors << "Bundled MCP client Stable public command requires the 'packaged-cli' profile."
+    end
+
     if public_client_support == "YES"
       compare_commands.call(
         "Bundled MCP client command",
@@ -241,12 +248,6 @@ if selected_profiles.include?("mcp-enabled") && runtime
         table_value.call(runtime_client, "Bundled helper command"),
         RUNTIME_PATH
       )
-      stable_public_command = table_value.call(runtime_client, "Stable public command")
-      if !resolved_value.call(stable_public_command)
-        errors << "Bundled MCP client Stable public command requires an explicit value in #{RUNTIME_PATH}."
-      elsif concrete_value.call(stable_public_command) && !selected_profiles.include?("packaged-cli")
-        errors << "Bundled MCP client Stable public command requires the 'packaged-cli' profile."
-      end
       compare_selections.call(
         "Bundled MCP client transport",
         field_value.call(public_client, "Transport used"),
