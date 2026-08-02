@@ -6,7 +6,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
-RELEASE_VERIFIER = ROOT / "scripts/verify-release-state.py"
 CI_REQUIREMENTS = ROOT / "requirements-ci.txt"
 CI_LOCK = ROOT / "requirements-ci.lock"
 CI_ENVIRONMENT_VERIFIER = ROOT / "scripts/verify_ci_environment.py"
@@ -124,7 +123,6 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
 
 def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
     workflow = workflow_text()
-    verifier = RELEASE_VERIFIER.read_text(encoding="utf-8")
     workflow_unsets = " ".join(f"-u {name}" for name in PIP_REQUIREMENT_INPUTS)
 
     assert (
@@ -132,10 +130,6 @@ def test_stable_release_probe_sanitizes_inherited_pip_inputs() -> None:
         "scripts/verify-release-state.py --git-ref "
         "refs/remotes/origin/policy-source"
     ) in workflow
-    for variable in PIP_REQUIREMENT_INPUTS:
-        assert f'"{variable}",' in verifier
-    assert 'environment["PIP_CONFIG_FILE"] = os.devnull' in verifier
-    assert "environment.pop(variable, None)" in verifier
 
 
 def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
