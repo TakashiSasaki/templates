@@ -121,7 +121,7 @@ Run the supported profile-aware validation entry point:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The validator parses `SKILL.md` and each retained runtime or interface contract directly through the shared profile contract model. The committed documents remain separate sources of truth; no compatibility adapter, synthesized monolithic interface document, `File.read` monkey patch, or `RUBYOPT` injection is used.
+The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. The compatibility adapter, synthesized monolithic interface document, `File.read` monkey patch, and `RUBYOPT` injection have been removed. Some focused direct validators retain their own bounded Markdown parsing while the rule validators use `.github/scripts/lib/profile_contracts.rb`; the supported entry point executes both groups directly.
 
 ## Installation modes
 
