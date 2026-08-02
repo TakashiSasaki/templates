@@ -192,6 +192,7 @@ class PublicLoaderPreflightTests(unittest.TestCase):
                     import validate_contracts
 
                     expected = (
+                        "contracts/manifest.json:$.contracts[0].document: "
                         "contract manifest surfaces: document escapes repository root: "
                         "../blocking-document"
                     )
