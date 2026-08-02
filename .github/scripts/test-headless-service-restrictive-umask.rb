@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "fileutils"
 require "json"
 require "open3"
 require "rbconfig"
@@ -22,75 +21,76 @@ rescue Errno::ESRCH
   false
 end
 
-Dir.mktmpdir("headless-service-restrictive-umask") do |directory|
-  token_file = File.join(directory, "token")
-  pid_file = File.join(directory, "service.pid")
-  File.write(token_file, "#{token}\n", mode: "w", perm: 0o600)
-  File.chmod(0o600, token_file)
+begin
+  Dir.mktmpdir("headless-service-restrictive-umask") do |directory|
+    token_file = File.join(directory, "token")
+    pid_file = File.join(directory, "service.pid")
+    File.write(token_file, "#{token}\n", mode: "w", perm: 0o600)
+    File.chmod(0o600, token_file)
 
-  stdout_file = Tempfile.new("headless-umask-stdout")
-  stderr_file = Tempfile.new("headless-umask-stderr")
-  environment = {
-    "TEXT_STATS_SERVICE_TOKEN_FILE" => token_file,
-    "TEXT_STATS_SERVICE_PORT" => "0",
-    "TEXT_STATS_SERVICE_PID_FILE" => pid_file
-  }
+    stdout_file = Tempfile.new("headless-umask-stdout")
+    stderr_file = Tempfile.new("headless-umask-stderr")
+    environment = {
+      "TEXT_STATS_SERVICE_TOKEN_FILE" => token_file,
+      "TEXT_STATS_SERVICE_PORT" => "0",
+      "TEXT_STATS_SERVICE_PID_FILE" => pid_file
+    }
 
-  service_pid = Process.spawn(
-    environment,
-    RbConfig.ruby,
-    "service/server.rb",
-    chdir: fixture_root,
-    umask: 0o777,
-    in: File::NULL,
-    out: stdout_file.path,
-    err: stderr_file.path
-  )
+    service_pid = Process.spawn(
+      environment,
+      RbConfig.ruby,
+      "service/server.rb",
+      chdir: fixture_root,
+      umask: 0o777,
+      in: File::NULL,
+      out: stdout_file.path,
+      err: stderr_file.path
+    )
 
-  deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 8
-  loop do
-    diagnostics = File.binread(stderr_file.path)
-    break if File.file?(pid_file) && diagnostics.include?("text-stats service ready")
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 8
+    loop do
+      diagnostics = File.binread(stderr_file.path)
+      break if File.file?(pid_file) && diagnostics.include?("text-stats service ready")
 
-    unless process_alive.call(service_pid)
-      _pid, status = Process.wait2(service_pid)
-      service_pid = nil
-      raise "service exited before readiness: status=#{status.exitstatus}, diagnostics=#{diagnostics.inspect}"
+      unless process_alive.call(service_pid)
+        _pid, status = Process.wait2(service_pid)
+        service_pid = nil
+        raise "service exited before readiness: status=#{status.exitstatus}, diagnostics=#{diagnostics.inspect}"
+      end
+      if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        raise "service did not become ready under restrictive umask: #{diagnostics.inspect}"
+      end
+      sleep 0.05
     end
-    if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-      raise "service did not become ready under restrictive umask: #{diagnostics.inspect}"
+
+    mode = File.stat(pid_file).mode & 0o777
+    raise format("expected PID record mode 0600, got %04o", mode) unless mode == 0o600
+
+    record = JSON.parse(File.read(pid_file, encoding: "UTF-8"))
+    raise "PID record does not identify the service process" unless record.fetch("pid") == service_pid
+
+    stop_stdout, stop_stderr, stop_status = Open3.capture3(
+      environment,
+      RbConfig.ruby,
+      "service/server.rb",
+      "--stop",
+      chdir: fixture_root
+    )
+    unless stop_status.success?
+      raise "--stop failed under restrictive umask: stdout=#{stop_stdout.inspect}, stderr=#{stop_stderr.inspect}"
     end
-    sleep 0.05
+    raise "--stop did not report TERM delivery" unless stop_stdout.include?("Sent TERM")
+
+    Timeout.timeout(5) { Process.wait(service_pid) }
+    service_pid = nil
+    raise "PID record remained after graceful shutdown" if File.exist?(pid_file) || File.symlink?(pid_file)
+    raise "service wrote unexpected stdout" unless File.binread(stdout_file.path).empty?
+    unless File.binread(stderr_file.path).include?("text-stats service stopped")
+      raise "service did not report graceful shutdown"
+    end
   end
 
-  mode = File.stat(pid_file).mode & 0o777
-  raise format("expected PID record mode 0600, got %04o", mode) unless mode == 0o600
-
-  record = JSON.parse(File.read(pid_file, encoding: "UTF-8"))
-  raise "PID record does not identify the service process" unless record.fetch("pid") == service_pid
-
-  stop_stdout, stop_stderr, stop_status = Open3.capture3(
-    environment,
-    RbConfig.ruby,
-    "service/server.rb",
-    "--stop",
-    chdir: fixture_root
-  )
-  unless stop_status.success?
-    raise "--stop failed under restrictive umask: stdout=#{stop_stdout.inspect}, stderr=#{stop_stderr.inspect}"
-  end
-  raise "--stop did not report TERM delivery" unless stop_stdout.include?("Sent TERM")
-
-  Timeout.timeout(5) { Process.wait(service_pid) }
-  service_pid = nil
-  raise "PID record remained after graceful shutdown" if File.exist?(pid_file) || File.symlink?(pid_file)
-  raise "service wrote unexpected stdout" unless File.binread(stdout_file.path).empty?
-  unless File.binread(stderr_file.path).include?("text-stats service stopped")
-    raise "service did not report graceful shutdown"
-  end
-end
-
-puts "Restrictive-umask headless-service lifecycle test passed."
+  puts "Restrictive-umask headless-service lifecycle test passed."
 rescue StandardError => error
   warn error.message
   exit 1
