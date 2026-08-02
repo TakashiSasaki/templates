@@ -34,12 +34,12 @@ The bootstrap script may inspect, initialize, or prepare and preview adoption. I
 
 ## Development
 
-The validated CI baseline is CPython 3.12.13 on `ubuntu-24.04`. Remove externally supplied Python and requirement-bearing pip inputs before the first Python invocation, disable pip configuration files, clear and recreate the virtual environment, and install only the reviewed lock graph:
+The validated CI baseline is CPython 3.12.13 on `ubuntu-24.04`. Remove externally supplied Python and requirement-bearing pip inputs before the first Python invocation, disable pip configuration files, create the virtual environment with an isolated bootstrap interpreter, and install only the reviewed lock graph:
 
 ```bash
-unset PYTHONPATH PIP_REQUIREMENT PIP_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT
+unset PYTHONPATH PYTHONUSERBASE PIP_REQUIREMENT PIP_CONSTRAINT PIP_BUILD_CONSTRAINT PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT
 export PIP_CONFIG_FILE=/dev/null
-python -m venv --clear .venv
+python -I -m venv --clear .venv
 . .venv/bin/activate
 python -m pip install --disable-pip-version-check --no-deps --requirement requirements-ci.lock
 python -m pip install --disable-pip-version-check --no-deps --no-build-isolation -e .
@@ -52,9 +52,9 @@ python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
 agent-policy --help
 ```
 
-`requirements-ci.txt` records the reviewed direct test and build inputs. `requirements-ci.lock` records the complete dependency graph for the selected CI baseline. Both use arbitrary exact equality (`===`), so an unrequested local version such as `4.26.0+corp` does not satisfy a reviewed public version such as `4.26.0`. The local project is installed separately with dependency resolution and build isolation disabled. `scripts/verify_ci_environment.py` requires the installed distribution set to equal the lock plus the editable `takashisasaki-agent-policy` project, excluding only the virtual environment's bootstrap `pip`.
+`requirements-ci.txt` records the reviewed direct test and build inputs. `requirements-ci.lock` records the complete dependency graph for the selected CI baseline. Both use arbitrary exact equality (`===`), so an unrequested local version such as `4.26.0+corp` does not satisfy a reviewed public version such as `4.26.0`. The local project is installed separately with dependency resolution and build isolation disabled. `scripts/verify_ci_environment.py` requires the installed distribution set to equal the lock plus the editable `takashisasaki-agent-policy` project, excluding only the virtual environment's bootstrap `pip`. It also requires the installed project's `direct_url.json` to identify this repository root with `dir_info.editable` set to true, so a same-name, same-version wheel cannot stand in for the checked-out source.
 
-The ordering is part of the trust boundary. `PYTHONPATH` is cleared before environment creation so an external `venv.py` or `sitecustomize` cannot affect bootstrap. The existing `.venv` is cleared so packages from an earlier lock cannot remain. Pip configuration and requirement, constraint, editable, dependency-group, and script-metadata inputs are removed so additional packages cannot be injected. The installed-set comparison runs before `pip check`, release verification, linting, tests, compilation, and command smoke testing.
+The ordering is part of the trust boundary. Isolated mode is used before environment creation so user-site packages, `PYTHONUSERBASE`, `sitecustomize`, `usercustomize`, and other Python environment inputs cannot affect `venv` bootstrap. The existing `.venv` is cleared so packages from an earlier lock cannot remain. Pip configuration and requirement, runtime-constraint, build-constraint, editable, dependency-group, and script-metadata inputs are removed so additional packages or build rules cannot be injected. The same pip inputs remain absent while the stable-release verifier creates and populates its independent probe environment. The installed-set and editable-source comparisons run before `pip check`, release verification, linting, tests, compilation, and command smoke testing.
 
 The lock fixes exact distribution version strings. It does not provide byte-for-byte artifact reproducibility or index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and repository-origin enforcement are separate trust-boundary changes. Update dependency inputs and the lock only through a reviewed dependency-resolution change.
 
