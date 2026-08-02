@@ -69,6 +69,73 @@ class FinalReviewRegressionTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
 
+    def test_literal_reference_members_in_examples_are_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", repository / "contracts")
+            shutil.copytree(ROOT / "schemas", repository / "schemas")
+
+            schema_path = repository / "schemas/contract-manifest.schema.json"
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            schema["examples"] = [
+                {
+                    "$ref": "example.json",
+                    "$dynamicRef": "https://example.invalid/schema.json",
+                }
+            ]
+            schema["const"] = {"$ref": "literal-instance-value.json"}
+            schema_path.write_text(
+                json.dumps(schema, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            sys.path.insert(0, str(ROOT / "scripts"))
+            try:
+                import validate_contracts
+
+                errors = validate_contracts.validate_repository(repository)
+            finally:
+                sys.path.pop(0)
+
+        self.assertFalse(
+            any("JSON Schema reference" in error for error in errors),
+            errors,
+        )
+
+    def test_malformed_active_reference_uri_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory)
+            shutil.copytree(ROOT / "contracts", repository / "contracts")
+            shutil.copytree(ROOT / "schemas", repository / "schemas")
+
+            schema_path = repository / "schemas/contract-manifest.schema.json"
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            schema.setdefault("allOf", []).append({"$ref": "http://["})
+            schema_path.write_text(
+                json.dumps(schema, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            sys.path.insert(0, str(ROOT / "scripts"))
+            try:
+                import validate_contracts
+
+                errors = validate_contracts.validate_repository(repository)
+            finally:
+                sys.path.pop(0)
+
+        self.assertTrue(
+            any(
+                error.startswith(
+                    "schemas/contract-manifest.schema.json: invalid JSON Schema "
+                    "reference URI:"
+                )
+                and "http://[" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_top_level_import_uses_verified_sibling_implementation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
