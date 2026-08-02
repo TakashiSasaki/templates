@@ -83,6 +83,15 @@ cases = [
     success: true
   },
   {
+    name: "rejects a stable public command without packaged-cli",
+    public: valid_public,
+    runtime: valid_runtime.sub(
+      "| Stable public command | NOT SUPPORTED |",
+      "| Stable public command | text-stats-client |"
+    ),
+    success: false
+  },
+  {
     name: "accepts both transports when both variants are supported",
     public: valid_public
       .sub("Transport used: stdio", "Transport used: both")

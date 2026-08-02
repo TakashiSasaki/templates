@@ -199,14 +199,14 @@ class TextStatsMcpClientTest < Minitest::Test
       @next_id += 1
       @requests << [method, params]
       result = case method
+               when @operation
+                 @result
                when "initialize"
                  {
                    "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
                    "capabilities" => { "tools" => {} },
                    "serverInfo" => { "name" => "fake", "version" => "1" }
                  }
-               when @operation
-                 @result
                else
                  raise "unexpected fake request #{method.inspect}"
                end
@@ -355,6 +355,44 @@ class TextStatsMcpClientTest < Minitest::Test
     end
 
     assert_equal 8, error.exit_code
+  end
+
+  def test_initialize_requires_protocol_capabilities_and_server_info_fields
+    transport = MalformedResultTransport.new(
+      "initialize",
+      "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :server_info)
+    end
+
+    assert_equal 8, error.exit_code
+    refute_includes transport.requests.map(&:first), "notifications/initialized"
+  end
+
+  def test_tools_call_rejects_content_blocks_without_type_specific_fields
+    invalid_blocks = [
+      { "type" => "text" },
+      { "type" => "image", "mimeType" => "image/png" },
+      { "type" => "audio", "data" => "encoded" },
+      { "type" => "resource", "resource" => { "uri" => "file:///tmp/item" } },
+      { "type" => "resource_link", "uri" => "file:///tmp/item" },
+      { "type" => "unknown" }
+    ]
+
+    invalid_blocks.each do |block|
+      transport = MalformedResultTransport.new("tools/call", "content" => [block])
+      error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+        TextStatsMcpClient::Client.new(transport).execute(
+          name: :tools_call,
+          tool: "text_stats",
+          arguments: {}
+        )
+      end
+
+      assert_equal 8, error.exit_code
+    end
   end
 
   def test_stdio_notifications_are_ignored_but_missing_or_mismatched_ids_fail

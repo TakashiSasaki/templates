@@ -137,6 +137,20 @@ module TextStatsMcpClient
       value
     end
 
+    def initialize_result(response, expected_id)
+      value = object_result(response, expected_id)
+      server_info = value["serverInfo"]
+      valid_server_info = server_info.is_a?(Hash) &&
+                          server_info["name"].is_a?(String) &&
+                          server_info["version"].is_a?(String)
+      valid = value["protocolVersion"].is_a?(String) &&
+              value["capabilities"].is_a?(Hash) &&
+              valid_server_info
+      raise InvalidResultFailure, "invalid MCP initialize result" unless valid
+
+      value
+    end
+
     def tools_list_result(response, expected_id)
       value = object_result(response, expected_id)
       tools = value["tools"]
@@ -152,9 +166,7 @@ module TextStatsMcpClient
     def tools_call_result(response, expected_id)
       value = object_result(response, expected_id)
       content = value["content"]
-      valid_content = content.is_a?(Array) && content.all? do |block|
-        block.is_a?(Hash) && block["type"].is_a?(String) && !block["type"].empty?
-      end
+      valid_content = content.is_a?(Array) && content.all? { |block| valid_content_block?(block) }
       valid_is_error = !value.key?("isError") || [true, false].include?(value["isError"])
       valid_structured_content = !value.key?("structuredContent") || value["structuredContent"].is_a?(Hash)
       unless valid_content && valid_is_error && valid_structured_content
@@ -162,6 +174,26 @@ module TextStatsMcpClient
       end
 
       value
+    end
+
+    def valid_content_block?(block)
+      return false unless block.is_a?(Hash)
+
+      case block["type"]
+      when "text"
+        block["text"].is_a?(String)
+      when "image", "audio"
+        block["data"].is_a?(String) && block["mimeType"].is_a?(String)
+      when "resource_link"
+        block["name"].is_a?(String) && block["uri"].is_a?(String)
+      when "resource"
+        resource = block["resource"]
+        return false unless resource.is_a?(Hash) && resource["uri"].is_a?(String)
+
+        resource["text"].is_a?(String) ^ resource["blob"].is_a?(String)
+      else
+        false
+      end
     end
   end
 
@@ -466,7 +498,7 @@ module TextStatsMcpClient
           "clientInfo" => { "name" => "text_stats_bundled_client", "version" => "1.0.0" }
         }
       )
-      result = Protocol.object_result(response.message, response.id)
+      result = Protocol.initialize_result(response.message, response.id)
       unless result["protocolVersion"] == PROTOCOL_VERSION
         raise ProtocolFailure, "protocol failure: server selected an unsupported revision"
       end
