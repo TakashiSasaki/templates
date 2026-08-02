@@ -33,7 +33,6 @@ _SCHEMA_SINGLE_KEYWORDS = {
 _SCHEMA_ARRAY_KEYWORDS = {"allOf", "anyOf", "oneOf", "prefixItems"}
 _SCHEMA_MAP_KEYWORDS = {
     "$defs",
-    "definitions",
     "dependentSchemas",
     "patternProperties",
     "properties",
@@ -288,6 +287,20 @@ def _resource_root_for_schema(schema: Any, resource_root: Any) -> Any:
     return schema if not parsed_id.fragment else resource_root
 
 
+def _pointer_child_location(current_location: str, token: str) -> str:
+    if current_location == "schema":
+        if token in _SCHEMA_SINGLE_KEYWORDS:
+            return "schema"
+        if token in _SCHEMA_ARRAY_KEYWORDS:
+            return "schema-array"
+        if token in _SCHEMA_MAP_KEYWORDS:
+            return "schema-map"
+        return "instance"
+    if current_location in {"schema-array", "schema-map"}:
+        return "schema"
+    return "instance"
+
+
 def _json_pointer_target(
     document: Any,
     pointer: str,
@@ -298,9 +311,11 @@ def _json_pointer_target(
         return None
 
     current = document
+    current_location = "schema"
     current_resource_root = document
     for raw_token in pointer[1:].split("/"):
         token = raw_token.replace("~1", "/").replace("~0", "~")
+        next_location = _pointer_child_location(current_location, token)
         if isinstance(current, dict):
             if token not in current:
                 return None
@@ -314,10 +329,12 @@ def _json_pointer_target(
             current = current[index]
         else:
             return None
-        current_resource_root = _resource_root_for_schema(
-            current,
-            current_resource_root,
-        )
+        current_location = next_location
+        if current_location == "schema":
+            current_resource_root = _resource_root_for_schema(
+                current,
+                current_resource_root,
+            )
     return current, current_resource_root
 
 
@@ -383,12 +400,6 @@ def _external_reference_errors(
             children = schema.get(keyword)
             if isinstance(children, dict):
                 for child in children.values():
-                    visit_schema(child, current_resource_root)
-
-        dependencies = schema.get("dependencies")
-        if isinstance(dependencies, dict):
-            for child in dependencies.values():
-                if isinstance(child, (dict, bool)):
                     visit_schema(child, current_resource_root)
 
     visit_schema(value, value)
