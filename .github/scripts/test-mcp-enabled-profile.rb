@@ -131,6 +131,7 @@ documented_commands = [
   "bundle exec ruby tests/test_mcp_server.rb",
   "bundle exec ruby tests/test_http_server.rb",
   "bundle exec ruby tests/test_http_boundaries.rb",
+  "bundle exec ruby tests/test_http_lifecycle.rb",
   "bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory",
   "bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call",
   "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls",
