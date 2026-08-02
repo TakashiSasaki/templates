@@ -18,6 +18,7 @@ jobs:
     env:
       PYTHONPATH: ""
       PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
       PIP_CONFIG_FILE: /dev/null
     steps:
       - name: Check out repository
