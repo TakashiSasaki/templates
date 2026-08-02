@@ -267,4 +267,4 @@ Run the supported profile-aware validation entry point:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
-The validator parses each retained contract directly through the shared profile contract model. It does not synthesize a monolithic interface document or load legacy compatibility adapters; the decomposed files remain the canonical sources of truth.
+The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Focused validators may retain bounded parser logic for their contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.rb`.
