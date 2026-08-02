@@ -4,6 +4,7 @@ require "json"
 require "openssl"
 require "rack"
 require "rackup/handler/webrick"
+require "uri"
 require_relative "server_factory"
 
 module TextStatsMcp
@@ -15,11 +16,37 @@ module TextStatsMcp
 
   class ConfigurationError < StandardError; end
 
+  class ShutdownCoordinator
+    def initialize
+      @server = nil
+      @requested = false
+    end
+
+    def request
+      @requested = true
+      schedule_shutdown(@server)
+    end
+
+    def attach(server)
+      @server = server
+      schedule_shutdown(server) if @requested
+      @requested
+    end
+
+    private
+
+    def schedule_shutdown(server)
+      return unless server
+
+      Thread.new { server.shutdown }
+    end
+  end
+
   class HttpApplication
-    def initialize(transport:, authority:, origin:, token_matcher:)
+    def initialize(transport:, host:, port:, token_matcher:)
       @transport = transport
-      @authority = authority
-      @origin = origin
+      @host = host.downcase
+      @port = port
       @token_matcher = token_matcher
     end
 
@@ -46,12 +73,35 @@ module TextStatsMcp
     private
 
     def validate_request_authority(request)
-      return forbidden_response("invalid Host header") unless request.get_header("HTTP_HOST") == @authority
+      host = request.get_header("HTTP_HOST")
+      return forbidden_response("invalid Host header") unless canonical_host?(host)
 
       origin = request.get_header("HTTP_ORIGIN")
-      return if origin.nil? || origin == @origin
+      return if origin.nil? || canonical_origin?(origin)
 
       forbidden_response("invalid Origin header")
+    end
+
+    def canonical_host?(value)
+      return false unless value
+
+      normalized = value.downcase
+      return [@host, "#{@host}:80"].include?(normalized) if @port == 80
+
+      normalized == "#{@host}:#{@port}"
+    end
+
+    def canonical_origin?(value)
+      parsed = URI.parse(value)
+      parsed.scheme&.casecmp?("http") &&
+        parsed.host&.casecmp?(@host) &&
+        parsed.port == @port &&
+        parsed.userinfo.nil? &&
+        parsed.path.to_s.empty? &&
+        parsed.query.nil? &&
+        parsed.fragment.nil?
+    rescue URI::InvalidURIError
+      false
     end
 
     def unauthorized_response
@@ -118,58 +168,68 @@ module TextStatsMcp
       false
     end
   end
-end
 
-$stderr.sync = true
-transport = nil
-server = nil
-exit_status = 0
+  def endpoint_origin(host, port)
+    port == 80 ? "http://#{host}" : "http://#{host}:#{port}"
+  end
 
-begin
-  bind, port, token = TextStatsMcp.load_http_configuration
-  authority = "#{bind}:#{port}"
-  origin = "http://#{authority}"
-  token_matcher = TextStatsMcp.build_token_matcher(token)
+  def run_http_server
+    $stderr.sync = true
+    transport = nil
+    server = nil
+    exit_status = 0
 
-  transport = MCP::Server::Transports::StreamableHTTPTransport.new(
-    TextStatsMcp.build_server,
-    enable_json_response: true,
-    session_idle_timeout: TextStatsMcp::HTTP_SESSION_IDLE_TIMEOUT,
-    max_sessions: TextStatsMcp::HTTP_MAX_SESSIONS,
-    dns_rebinding_protection: false,
-    session_request_validator: ->(request, _session_id) { token_matcher.call(request) },
-    max_request_bytes: TextStatsMcp::HTTP_MAX_REQUEST_BYTES
-  )
-  application = TextStatsMcp::HttpApplication.new(
-    transport: transport,
-    authority: authority,
-    origin: origin,
-    token_matcher: token_matcher
-  )
+    begin
+      bind, port, token = load_http_configuration
+      origin = endpoint_origin(bind, port)
+      token_matcher = build_token_matcher(token)
 
-  %w[TERM INT].each do |signal|
-    Signal.trap(signal) do
-      Thread.new { server&.shutdown }
+      transport = MCP::Server::Transports::StreamableHTTPTransport.new(
+        build_server,
+        enable_json_response: true,
+        session_idle_timeout: HTTP_SESSION_IDLE_TIMEOUT,
+        max_sessions: HTTP_MAX_SESSIONS,
+        dns_rebinding_protection: false,
+        session_request_validator: ->(request, _session_id) { token_matcher.call(request) },
+        max_request_bytes: HTTP_MAX_REQUEST_BYTES
+      )
+      application = HttpApplication.new(
+        transport: transport,
+        host: bind,
+        port: port,
+        token_matcher: token_matcher
+      )
+      shutdown = ShutdownCoordinator.new
+
+      %w[TERM INT].each do |signal|
+        Signal.trap(signal) { shutdown.request }
+      end
+
+      warn "text-stats MCP HTTP server starting on #{origin}"
+      Rackup::Handler::WEBrick.run(
+        application,
+        Host: bind,
+        Port: port,
+        AccessLog: [],
+        Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN)
+      ) do |instance|
+        server = instance
+        if shutdown.attach(instance)
+          warn "text-stats MCP HTTP shutdown requested during startup"
+        else
+          warn "text-stats MCP HTTP server ready"
+        end
+      end
+    rescue ConfigurationError, SystemCallError => error
+      warn "text-stats MCP HTTP server failed: #{error.message}"
+      exit_status = 1
+    ensure
+      transport&.close
+      warn "text-stats MCP HTTP server stopped" if server
     end
-  end
 
-  warn "text-stats MCP HTTP server starting on #{origin}"
-  Rackup::Handler::WEBrick.run(
-    application,
-    Host: bind,
-    Port: port,
-    AccessLog: [],
-    Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN)
-  ) do |instance|
-    server = instance
-    warn "text-stats MCP HTTP server ready"
+    exit_status
   end
-rescue TextStatsMcp::ConfigurationError, SystemCallError => error
-  warn "text-stats MCP HTTP server failed: #{error.message}"
-  exit_status = 1
-ensure
-  transport&.close
-  warn "text-stats MCP HTTP server stopped" if server
 end
 
-exit exit_status
+exit TextStatsMcp.run_http_server if $PROGRAM_NAME == __FILE__
