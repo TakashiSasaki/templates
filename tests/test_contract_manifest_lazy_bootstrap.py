@@ -118,6 +118,44 @@ class WildcardExportTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr)
 
+    @unittest.skipUnless(hasattr(os, "symlink"), "requires symlink support")
+    def test_manifest_validator_rejects_a_symlinked_supplied_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            linked_root = Path(temporary_directory) / "root-link"
+            linked_root.symlink_to(linked_root.name)
+
+            probe = textwrap.dedent(
+                """
+                from __future__ import annotations
+
+                import json
+                import sys
+                from pathlib import Path
+
+                sys.path.insert(0, str(Path.cwd() / "scripts"))
+                from validate_contracts import validate_contract_manifest
+
+                manifest = json.loads(
+                    (Path.cwd() / "contracts/manifest.json").read_text(encoding="utf-8")
+                )
+                errors = validate_contract_manifest(Path(sys.argv[1]), manifest)
+                expected = "repository root must not be a symbolic link"
+                if expected not in errors:
+                    raise SystemExit(f"missing root symlink diagnostic: {errors}")
+                """
+            )
+
+            result = subprocess.run(
+                [sys.executable, "-c", probe, str(linked_root)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+
 
 @unittest.skipUnless(hasattr(os, "mkfifo"), "requires POSIX FIFO support")
 class LazyManifestBootstrapTests(unittest.TestCase):
@@ -148,6 +186,69 @@ class LazyManifestBootstrapTests(unittest.TestCase):
             "contracts/manifest.json: manifest must not be a symbolic link",
             result.stderr,
         )
+
+    def test_manifest_validator_preflights_facade_root_before_import(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            facade = root / "facade"
+            alternate = root / "alternate"
+            shutil.copytree(ROOT / "scripts", facade / "scripts")
+            shutil.copytree(ROOT / "contracts", facade / "contracts")
+            shutil.copytree(ROOT / "schemas", facade / "schemas")
+            shutil.copytree(ROOT / "contracts", alternate / "contracts")
+            shutil.copytree(ROOT / "schemas", alternate / "schemas")
+
+            manifest = facade / "contracts/manifest.json"
+            fifo = facade / "blocking-manifest"
+            os.mkfifo(fifo)
+            manifest.unlink()
+            manifest.symlink_to(fifo)
+
+            probe = root / "probe_manifest_validator.py"
+            probe.write_text(
+                textwrap.dedent(
+                    """
+                    from __future__ import annotations
+
+                    import json
+                    import sys
+                    from pathlib import Path
+
+                    facade = Path(sys.argv[1])
+                    alternate = Path(sys.argv[2])
+                    sys.path.insert(0, str(facade / "scripts"))
+                    import validate_contracts
+
+                    manifest = json.loads(
+                        (alternate / "contracts/manifest.json").read_text(
+                            encoding="utf-8"
+                        )
+                    )
+                    errors = validate_contracts.validate_contract_manifest(
+                        alternate, manifest
+                    )
+                    expected = (
+                        "contracts/manifest.json: manifest must not be a symbolic link"
+                    )
+                    if expected not in errors:
+                        raise SystemExit(f"missing facade diagnostic: {errors}")
+                    if "validate_contracts_impl" in sys.modules:
+                        raise SystemExit("implementation imported before facade preflight")
+                    """
+                ),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [sys.executable, str(probe), str(facade), str(alternate)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=3,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
 
     def test_forwarded_attributes_run_preflight_before_implementation_import(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
