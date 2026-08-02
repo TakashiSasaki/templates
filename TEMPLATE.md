@@ -52,6 +52,8 @@ Before a generated repository is treated as operational:
 6. Add implementation-level tests that prove the declared contracts.
 7. Remove template-only guidance that no longer applies.
 
+The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
+
 ## Contract-set completeness
 
 `contracts/manifest.json` is the repository-local inventory of domain contracts. It records each contract identifier, document path, schema path, document schema version, and purpose.
