@@ -420,7 +420,11 @@ module TextStatsMcpClient
 
       response = perform(request)
       classify_http_failure(response) unless response.code.start_with?("2")
-      return response if request_id.nil?
+      if request_id.nil?
+        raise ProtocolFailure unless response.code == "202"
+
+        return response
+      end
 
       if payload["method"] == "initialize"
         @session_id = response["mcp-session-id"]

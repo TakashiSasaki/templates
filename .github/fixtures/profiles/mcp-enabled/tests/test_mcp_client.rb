@@ -460,6 +460,34 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "session-123", deleted_session
   end
 
+  def test_http_notifications_require_202_response
+    response_class = Struct.new(:code, :body, :headers) do
+      def [](name)
+        headers[name.downcase]
+      end
+    end
+    response = response_class.new(
+      "200",
+      JSON.generate("jsonrpc" => "2.0", "error" => { "code" => -32_600 }),
+      {}
+    )
+
+    transport = TextStatsMcpClient::HttpTransport.allocate
+    transport.instance_variable_set(:@endpoint, URI.parse("http://127.0.0.1:4570/mcp"))
+    transport.instance_variable_set(:@timeout, 0.1)
+    transport.instance_variable_set(:@token, TOKEN)
+    transport.instance_variable_set(:@session_id, "session-123")
+    transport.define_singleton_method(:perform) { |_request| response }
+
+    error = assert_raises(TextStatsMcpClient::ProtocolFailure) do
+      transport.notify("notifications/initialized", {})
+    end
+
+    assert_equal 6, error.exit_code
+    response = response_class.new("202", "", {})
+    assert_nil transport.notify("notifications/initialized", {})
+  end
+
   def test_tools_call_rejects_content_blocks_without_type_specific_fields
     invalid_blocks = [
       { "type" => "text" },

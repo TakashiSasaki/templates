@@ -110,7 +110,7 @@ Run every command from the skill root.
 | Stable public command | NOT SUPPORTED |
 | Bundled helper command | `bundle exec ruby mcp/client.rb` |
 | Supported transports | both |
-| Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, then continue; no cross-transport retry or revision fallback |
+| Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
 | Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
 | Interaction modes | non-interactive JSON arguments only |
 | Server-information command | `server-info` |
