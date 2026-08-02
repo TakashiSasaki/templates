@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
 import json
 import os
 import stat
@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+from urllib.parse import urlsplit
 
 MANIFEST_PATH = "contracts/manifest.json"
 MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
@@ -37,15 +38,62 @@ _IMPLEMENTATION: ModuleType | None = None
 
 
 def _load_implementation() -> ModuleType:
+    """Load only the implementation file adjacent to this verified facade."""
+
     global _IMPLEMENTATION
-    if _IMPLEMENTATION is None:
-        module_name = (
-            f"{__package__}.validate_contracts_impl"
-            if __package__
-            else "validate_contracts_impl"
+    if _IMPLEMENTATION is not None:
+        return _IMPLEMENTATION
+
+    implementation_path = Path(__file__).resolve().with_name(
+        "validate_contracts_impl.py"
+    )
+    try:
+        mode = implementation_path.lstat().st_mode
+    except OSError as exc:
+        raise RuntimeError(
+            f"cannot inspect validator implementation: {implementation_path}: {exc}"
+        ) from exc
+    if not stat.S_ISREG(mode):
+        raise RuntimeError(
+            "validator implementation must be a regular sibling file: "
+            f"{implementation_path}"
         )
-        _IMPLEMENTATION = importlib.import_module(module_name)
-    return _IMPLEMENTATION
+
+    module_name = (
+        f"{__package__}.validate_contracts_impl"
+        if __package__
+        else "validate_contracts_impl"
+    )
+    existing = sys.modules.get(module_name)
+    if existing is not None:
+        existing_file = getattr(existing, "__file__", None)
+        if existing_file is not None:
+            try:
+                if Path(existing_file).resolve() == implementation_path:
+                    _IMPLEMENTATION = existing
+                    return existing
+            except (OSError, RuntimeError):
+                pass
+
+    spec = importlib.util.spec_from_file_location(module_name, implementation_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            f"cannot create import specification for {implementation_path}"
+        )
+    implementation = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(module_name)
+    sys.modules[module_name] = implementation
+    try:
+        spec.loader.exec_module(implementation)
+    except BaseException:
+        if previous is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+        raise
+
+    _IMPLEMENTATION = implementation
+    return implementation
 
 
 def _loader_preflight(name: str, root: Path) -> None:
@@ -149,6 +197,14 @@ def _non_regular_file(root: Path, relative: str) -> bool:
     return not stat.S_ISLNK(mode) and not stat.S_ISREG(mode)
 
 
+def _root_resolution_error(root: Path) -> str | None:
+    try:
+        root.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        return f"repository root path cannot be resolved safely: {exc}"
+    return None
+
+
 def _directory_symlink_errors(root: Path) -> list[str]:
     errors: list[str] = []
     for directory_name in ("contracts", "schemas"):
@@ -181,12 +237,60 @@ def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _reference_is_external(reference: str) -> bool:
+    parsed = urlsplit(reference)
+    return bool(parsed.scheme or parsed.netloc or parsed.path or parsed.query)
+
+
+def _external_reference_errors(
+    value: Any,
+    schema_path: str,
+) -> list[str]:
+    errors: list[str] = []
+
+    def visit(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, child in node.items():
+                if (
+                    key in {"$ref", "$dynamicRef"}
+                    and isinstance(child, str)
+                    and _reference_is_external(child)
+                ):
+                    errors.append(
+                        f"{schema_path}: external JSON Schema reference is not allowed: "
+                        f"{child!r}"
+                    )
+                visit(child)
+        elif isinstance(node, list):
+            for child in node:
+                visit(child)
+
+    visit(value)
+    return errors
+
+
+def _schema_reference_errors(root: Path, relative: str) -> list[str]:
+    if _path_escapes_root(relative):
+        return []
+    if _path_contains_symlink(root, relative) or _non_regular_file(root, relative):
+        return []
+    try:
+        with (root / relative).open("r", encoding="utf-8") as handle:
+            schema = json.load(handle)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    return _external_reference_errors(schema, relative)
+
+
 def _symlink_preflight(
     root: Path,
     manifest: dict[str, Any] | None = None,
     *,
     check_inventory: bool = True,
 ) -> list[str]:
+    root_error = _root_resolution_error(root)
+    if root_error:
+        return [root_error]
     if root.is_symlink():
         return ["repository root must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_PATH):
@@ -204,16 +308,17 @@ def _symlink_preflight(
     if directory_errors:
         return directory_errors
 
+    errors = _schema_reference_errors(root, MANIFEST_SCHEMA_PATH)
+
     if manifest is None:
         manifest = _load_manifest_for_preflight(root)
     if manifest is None:
-        return []
+        return errors
 
     entries = manifest.get("contracts")
     if not isinstance(entries, list):
-        return []
+        return errors
 
-    errors: list[str] = []
     registered_schemas: set[str] = set()
     for entry_index, entry in enumerate(entries):
         if not isinstance(entry, dict):
@@ -245,6 +350,9 @@ def _symlink_preflight(
                     f"contract manifest {rendered_id}: {label} must be a regular file: "
                     f"{relative}"
                 )
+
+    for relative in sorted(registered_schemas):
+        errors.extend(_schema_reference_errors(root, relative))
 
     if check_inventory:
         actual_schemas = {
