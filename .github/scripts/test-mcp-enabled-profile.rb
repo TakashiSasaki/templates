@@ -26,33 +26,43 @@ expected_files = %w[
   mcp/server_factory.rb
   src/text_stats.rb
   tests/test_http_boundaries.rb
+  tests/test_http_lifecycle.rb
   tests/test_http_server.rb
   tests/test_mcp_server.rb
 ].sort.freeze
 
 terminate_and_wait = lambda do |pid|
+  process_group = -pid
   begin
-    Process.kill("TERM", pid)
+    Process.kill("TERM", process_group)
   rescue Errno::ESRCH
-    return $CHILD_STATUS
+    nil
   end
 
-  begin
+  status = begin
     Timeout.timeout(1) do
-      _waited_pid, status = Process.wait2(pid)
-      return status
+      _waited_pid, waited_status = Process.wait2(pid)
+      waited_status
     end
   rescue Timeout::Error
     begin
-      Process.kill("KILL", pid)
+      Process.kill("KILL", process_group)
     rescue Errno::ESRCH
       nil
     end
-    _waited_pid, status = Process.wait2(pid)
-    status
+    _waited_pid, waited_status = Process.wait2(pid)
+    waited_status
   rescue Errno::ECHILD
     nil
   end
+
+  begin
+    Process.kill("KILL", process_group)
+  rescue Errno::ESRCH
+    nil
+  end
+
+  status
 end
 
 run_command = lambda do |*command, chdir:, timeout_seconds:, env: {}|
@@ -67,7 +77,8 @@ run_command = lambda do |*command, chdir:, timeout_seconds:, env: {}|
       chdir: chdir,
       in: File::NULL,
       out: stdout_file.path,
-      err: stderr_file.path
+      err: stderr_file.path,
+      pgroup: true
     )
   rescue Errno::ENOENT => error
     return CommandResult.new(
@@ -208,6 +219,7 @@ if failures.empty?
         tests/test_mcp_server.rb
         tests/test_http_server.rb
         tests/test_http_boundaries.rb
+        tests/test_http_lifecycle.rb
       ].each do |path|
         syntax = run_command.call(
           RbConfig.ruby,
@@ -224,7 +236,8 @@ if failures.empty?
       {
         "stdio" => "tests/test_mcp_server.rb",
         "Streamable HTTP" => "tests/test_http_server.rb",
-        "Streamable HTTP boundaries" => "tests/test_http_boundaries.rb"
+        "Streamable HTTP boundaries" => "tests/test_http_boundaries.rb",
+        "Streamable HTTP lifecycle" => "tests/test_http_lifecycle.rb"
       }.each do |name, test_path|
         tests = run_command.call(
           "bundle",
