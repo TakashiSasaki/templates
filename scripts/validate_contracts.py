@@ -220,7 +220,7 @@ def _symlink_preflight(
 
     errors: list[str] = []
     registered_schemas: set[str] = set()
-    for entry in entries:
+    for entry_index, entry in enumerate(entries):
         if not isinstance(entry, dict):
             continue
         contract_id = entry.get("id")
@@ -234,6 +234,7 @@ def _symlink_preflight(
                 continue
             if _path_escapes_root(relative):
                 errors.append(
+                    f"{MANIFEST_PATH}:$.contracts[{entry_index}].{label}: "
                     f"contract manifest {rendered_id}: {label} escapes repository root: "
                     f"{relative}"
                 )
