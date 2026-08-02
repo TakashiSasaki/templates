@@ -66,6 +66,20 @@ class ValidationReproducibilityTests(unittest.TestCase):
                 self.assertIn("python -m venv --clear .venv", source)
                 self.assertNotIn("python -m venv .venv", source)
 
+    def test_pythonpath_is_cleared_across_ci_and_documented_flows(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
+
+        self.assertIn('      PYTHONPATH: ""', workflow)
+        documented_sequence = (
+            "python -m venv --clear .venv\n"
+            ". .venv/bin/activate\n"
+            "unset PYTHONPATH"
+        )
+        self.assertIn(documented_sequence, readme)
+        self.assertIn(documented_sequence, toolchain_guide)
+
     def test_workflow_creates_a_fresh_isolated_virtual_environment(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
