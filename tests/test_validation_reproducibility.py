@@ -191,7 +191,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS),
+                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
