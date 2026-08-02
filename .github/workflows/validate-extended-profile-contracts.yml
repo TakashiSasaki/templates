@@ -14,6 +14,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
       - name: Test shared profile contract model
         shell: bash
         run: ruby .github/scripts/test-profile-contract-model.rb
@@ -25,6 +30,10 @@ jobs:
       - name: Test minimal profile repository layouts
         shell: bash
         run: ruby .github/scripts/test-minimal-profile-layouts.rb
+
+      - name: Test script-assisted optional-runtime profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-script-assisted-runtime-profile.rb
 
       - name: Test packaged CLI profile fixture
         shell: bash
