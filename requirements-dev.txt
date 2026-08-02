@@ -1,1 +1,2 @@
-jsonschema>=4.18,<5
+# Reviewed direct dependency input for the Webapp contract validator.
+jsonschema==4.26.0
