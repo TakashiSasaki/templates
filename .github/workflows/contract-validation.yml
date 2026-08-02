@@ -33,7 +33,7 @@ jobs:
         run: python -m venv --clear .venv
 
       - name: Install locked validation dependencies
-        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
+        run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT .venv/bin/python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
 
       - name: Verify installed distribution set
         run: .venv/bin/python scripts/verify_locked_environment.py
