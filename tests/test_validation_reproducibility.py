@@ -30,20 +30,22 @@ def requirement_lines(path: Path) -> tuple[str, ...]:
 
 
 class ValidationReproducibilityTests(unittest.TestCase):
-    def test_workflow_pins_runner_actions_and_python_patch(self) -> None:
+    def test_workflow_pins_runner_node24_actions_and_python_patch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("runs-on: ubuntu-24.04", workflow)
         self.assertNotIn("ubuntu-latest", workflow)
         self.assertIn(
-            "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2",
+            "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2",
             workflow,
         )
         self.assertIn(
-            "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0",
+            "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0",
             workflow,
         )
         self.assertNotRegex(workflow, r"actions/(?:checkout|setup-python)@v\d")
+        self.assertNotIn("# v4.", workflow)
+        self.assertNotIn("# v5.", workflow)
         self.assertIn('python-version: "3.12.13"', workflow)
 
     def test_workflow_installs_and_checks_only_the_locked_graph(self) -> None:
