@@ -7,7 +7,7 @@ import tomllib
 from collections.abc import Mapping
 from importlib import metadata
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -162,7 +162,7 @@ def validate_editable_direct_url(
     if parsed.scheme != "file" or parsed.netloc not in ("", "localhost"):
         return ("local project editable source URL must be a local file URL",)
 
-    source_path = Path(url2pathname(unquote(parsed.path))).resolve()
+    source_path = Path(url2pathname(parsed.path)).resolve()
     expected_path = project_root.resolve()
     if source_path != expected_path:
         return (
