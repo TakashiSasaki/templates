@@ -375,6 +375,20 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_tools_list_rejects_non_object_result_metadata
+    transport = MalformedResultTransport.new(
+      "tools/list",
+      "tools" => [],
+      "_meta" => "invalid"
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
   def test_initialize_requires_protocol_capabilities_and_server_info_fields
     transport = MalformedResultTransport.new(
       "initialize",
@@ -425,6 +439,26 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "", stdout
     assert_equal 2, status.exitstatus
     assert_includes stderr, "invalid option: --arguments-file"
+  end
+
+  def test_http_cleanup_failure_is_not_reported_as_success
+    transport = Class.new(FakeTransport) do
+      define_method(:close) do
+        raise TextStatsMcpClient::CapacityFailure, "HTTP 503 during MCP session cleanup"
+      end
+    end.new
+    status = nil
+
+    stdout, stderr = capture_io do
+      status = TextStatsMcpClient::HttpTransport.stub(:new, transport) do
+        TextStatsMcpClient.run(["--transport", "http", "server-info"])
+      end
+    end
+
+    assert_equal 11, status
+    assert_equal TextStatsMcpClient::PROTOCOL_VERSION, JSON.parse(stdout).fetch("mcpResult").fetch("protocolVersion")
+    assert_includes stderr, "HTTP cleanup failure"
+    assert_includes stderr, "HTTP 503 during MCP session cleanup"
   end
 
   def test_stdio_notifications_are_ignored_but_missing_or_mismatched_ids_fail
