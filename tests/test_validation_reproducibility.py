@@ -62,6 +62,8 @@ PIP_SANITIZED_INPUTS = (
     "PIP_CERT",
     "PIP_CLIENT_CERT",
     "PIP_PROXY",
+    "PIP_TIMEOUT",
+    "PIP_RETRIES",
 )
 
 
@@ -112,12 +114,15 @@ class ValidationReproducibilityTests(unittest.TestCase):
         for setting in (
             '      PYTHONHOME: ""',
             '      PYTHONPATH: ""',
+            '      PYTHONSAFEPATH: ""',
             '      PYTHONNOUSERSITE: "1"',
             '      PIP_PYTHON: ""',
             '      PIP_CACHE_DIR: ""',
             '      PIP_NO_CACHE_DIR: ""',
             '      PIP_QUIET: ""',
             '      PIP_LOG: ""',
+            '      PIP_TIMEOUT: ""',
+            '      PIP_RETRIES: ""',
             '      PIP_CONFIG_FILE: /dev/null',
         ):
             with self.subTest(setting=setting):
@@ -130,7 +135,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
 
         self.assertIn('      PYTHONPATH: ""', workflow)
         documented_sequence = (
-            "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
+            "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS) + "\n"
             "export PIP_CONFIG_FILE=/dev/null\n"
             "python -I -m venv --clear .venv\n"
             ". .venv/bin/activate"
@@ -151,7 +156,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         toolchain_guide = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
 
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
-        documented_unsets = "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS)
+        documented_unsets = "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS)
 
         self.assertIn(workflow_unsets, workflow)
         self.assertIn(documented_unsets, readme)
@@ -184,7 +189,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
         ):
             with self.subTest(source=source_name):
                 self.assertIn(
-                    "unset PYTHONHOME PYTHONPATH " + " ".join(PIP_SANITIZED_INPUTS),
+                    "unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH " + " ".join(PIP_SANITIZED_INPUTS),
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
