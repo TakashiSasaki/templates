@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+require "json"
 require "socket"
 
 module TextStatsService
@@ -98,6 +100,32 @@ module TextStatsService
     end
   end
 
+  # Creation permissions are constrained by the process umask. Re-apply and
+  # verify the lifecycle-record mode through the already-open descriptor so a
+  # restrictive umask cannot publish a record that --stop and cleanup reject.
+  module SecurePidRecordWriter
+    def write_pid_record(path, record)
+      FileUtils.mkdir_p(File.dirname(path))
+      if File.exist?(path) || File.symlink?(path)
+        raise ConfigurationError, "Headless service PID file already exists: #{path}"
+      end
+
+      File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |file|
+        file.chmod(0o600)
+        unless (file.stat.mode & 0o777) == 0o600
+          raise ConfigurationError, "Headless service PID file must have mode 0600: #{path}"
+        end
+        file.write(JSON.generate(record))
+        file.write("\n")
+      end
+    rescue Errno::EEXIST
+      raise ConfigurationError, "Headless service PID file already exists: #{path}"
+    rescue SystemCallError => error
+      raise ConfigurationError, "unable to create headless service PID file #{path}: #{error.message}"
+    end
+  end
+
   class ServerCommand; end
   ServerCommand.singleton_class.prepend(BoundedHealthClient)
+  ServerCommand.singleton_class.prepend(SecurePidRecordWriter)
 end
