@@ -82,6 +82,7 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
 
     assert '      PYTHONPATH: ""' in workflow
     assert '      PYTHONNOUSERSITE: "1"' in workflow
+    assert '      PIP_PYTHON: ""' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
     documented_unset = (
         "unset PYTHONPATH PYTHONUSERBASE " + " ".join(PIP_REQUIREMENT_INPUTS)
