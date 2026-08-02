@@ -108,8 +108,8 @@ module TextStatsService
   # post-link failure removes only the published inode created by this call.
   module SecurePidRecordWriter
     def write_pid_record(path, record)
-      directory = File.dirname(path)
-      FileUtils.mkdir_p(directory)
+      directory = ensure_pid_record_directory(File.dirname(path))
+      path = File.join(directory, File.basename(path))
       serialized = "#{JSON.generate(record)}\n"
       if serialized.bytesize > self::PID_RECORD_MAX_BYTES
         raise ConfigurationError, "Headless service PID record exceeds #{self::PID_RECORD_MAX_BYTES} bytes"
@@ -178,6 +178,51 @@ module TextStatsService
     end
 
     private
+
+    # Create each missing path component separately and immediately force it to
+    # owner-only mode. This avoids mkdir_p producing an unusable mode-0000 tree
+    # when the service process starts with a restrictive umask such as 0777.
+    # Existing directories retain their operator-managed permissions.
+    def ensure_pid_record_directory(directory)
+      expanded = File.expand_path(directory)
+      current = File::SEPARATOR
+
+      expanded.split(File::SEPARATOR).reject(&:empty?).each do |component|
+        current = File.join(current, component)
+        created = false
+
+        begin
+          stat = File.stat(current)
+        rescue Errno::ENOENT
+          begin
+            Dir.mkdir(current, 0o700)
+            created = true
+          rescue Errno::EEXIST
+            nil
+          end
+
+          if created
+            File.chmod(0o700, current)
+          end
+          stat = File.stat(current)
+        end
+
+        unless stat.directory?
+          raise ConfigurationError, "Headless service PID parent is not a directory: #{current}"
+        end
+        next unless created
+
+        unless stat.uid == Process.euid && (stat.mode & 0o777) == 0o700
+          raise ConfigurationError, "Headless service PID parent failed security validation: #{current}"
+        end
+      end
+
+      expanded
+    rescue ConfigurationError
+      raise
+    rescue SystemCallError => error
+      raise ConfigurationError, "unable to prepare headless service PID directory #{directory}: #{error.message}"
+    end
 
     def open_pid_record_staging_file(directory, basename)
       16.times do
