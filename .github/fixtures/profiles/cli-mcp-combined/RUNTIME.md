@@ -27,7 +27,7 @@ Run every repository-local command from the skill root unless the installed CLI 
 |---|---|
 | Install development dependencies | `bundle install` |
 | Run in place | `ruby bin/text-stat` |
-| Agent launcher | `bundle exec ruby mcp/server.rb` |
+| Agent launcher | `ruby bin/text-stat` |
 | Test | `bundle exec ruby tests/test_text_stat.rb && bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_interface_equivalence.rb` |
 | Lint/static analysis | `ruby -c src/text_stat.rb && ruby -c src/text_stats.rb && ruby -c bin/text-stat && ruby -c mcp/server.rb && ruby -c tests/test_text_stat.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_interface_equivalence.rb` |
 | Format check | `ruby -c src/text_stat.rb && ruby -c src/text_stats.rb && ruby -c bin/text-stat && ruby -c mcp/server.rb && ruby -c tests/test_text_stat.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_interface_equivalence.rb` |
