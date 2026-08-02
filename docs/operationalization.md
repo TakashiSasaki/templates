@@ -95,7 +95,7 @@ Run validation from a clean, documented environment and keep the commands reprod
 
 1. create the product's isolated environment;
 2. install the product lockfile without undeclared dependency inputs;
-3. if the shipped validator is retained, run both supported entry points from its isolated environment; otherwise run the product repository's equivalent verified validation command and preserve the semantic and failure-case evidence mapping;
+3. if the shipped validator is retained, create its separate isolated validator environment on this clean runner, install `requirements-dev.lock` (or the reviewed equivalent lock) without undeclared dependency inputs, verify its installed distribution set before invocation, and then run both supported entry points and the template test suite with that environment's interpreter; otherwise run the product repository's equivalent verified validation command and preserve the semantic and failure-case evidence mapping;
 4. run product unit, integration, accessibility, and end-to-end tests;
 5. run lint, type, build, and security checks selected by the product toolchain;
 6. publish diagnostics and evidence without exposing secrets.
