@@ -59,6 +59,7 @@ PIP_SANITIZED_INPUTS = (
     "PIP_CONFIG_SETTINGS",
     "PIP_USE_PEP517",
     "PIP_COMPILE",
+    "PIP_ISOLATED",
     "PIP_KEYRING_PROVIDER",
     "PIP_EXISTS_ACTION",
     "PIP_IGNORE_REQUIRES_PYTHON",
@@ -139,6 +140,7 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PIP_EXISTS_ACTION: ""',
             '      PIP_TIMEOUT: ""',
             '      PIP_DEFAULT_TIMEOUT: ""',
+            '      PIP_ISOLATED: ""',
             '      PIP_RETRIES: ""',
             '      PIP_CONFIG_FILE: /dev/null',
         ):
