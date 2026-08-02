@@ -143,9 +143,11 @@ module TextStatsMcpClient
       valid_server_info = server_info.is_a?(Hash) &&
                           server_info["name"].is_a?(String) &&
                           server_info["version"].is_a?(String)
+      valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
       valid = value["protocolVersion"].is_a?(String) &&
               value["capabilities"].is_a?(Hash) &&
-              valid_server_info
+              valid_server_info &&
+              valid_meta
       raise InvalidResultFailure, "invalid MCP initialize result" unless valid
 
       value
