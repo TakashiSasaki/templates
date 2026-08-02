@@ -8,7 +8,7 @@ README = ROOT / "README.md"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 CI_REQUIREMENTS = ROOT / "requirements-ci.txt"
 CI_LOCK = ROOT / "requirements-ci.lock"
-CI_ENVIRONMENT_VERIFIER = ROOT / "scripts/verify-ci-environment.py"
+CI_ENVIRONMENT_VERIFIER = ROOT / "scripts/verify_ci_environment.py"
 
 EXPECTED_DIRECT_REQUIREMENTS = (
     "editables===0.6",
@@ -121,8 +121,8 @@ def test_policy_ci_verifies_the_complete_installed_distribution_set() -> None:
     readme = README.read_text(encoding="utf-8")
 
     assert CI_ENVIRONMENT_VERIFIER.is_file()
-    assert "run: .venv/bin/python scripts/verify-ci-environment.py" in workflow
-    assert "python scripts/verify-ci-environment.py" in readme
+    assert "run: .venv/bin/python scripts/verify_ci_environment.py" in workflow
+    assert "python scripts/verify_ci_environment.py" in readme
     assert "run: .venv/bin/python -m pip check" in workflow
     assert "run: python -m pip check" not in workflow
 
