@@ -27,6 +27,11 @@ if orchestrator_text.include?("decomposed-interface-compat") || orchestrator_tex
 end
 
 canonical_validation_docs = {
+  "AGENTS.md" => [
+    "Run the supported profile-aware validation entry point:",
+    "focused direct validators and shared-model rule validators",
+    "Some focused validators retain bounded contract-specific Markdown parsing"
+  ],
   "README.md" => [
     "Run the supported profile-aware validation entry point:",
     "focused direct validators and shared-model rule validators",
