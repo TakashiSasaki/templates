@@ -14,7 +14,13 @@ expected_files = {
   "instruction-only" => %w[SKILL.md],
   "knowledge-augmented" => %w[SKILL.md references/review-policy.md],
   "asset-driven" => %w[SKILL.md assets/response-template.txt],
-  "script-assisted" => %w[SKILL.md scripts/normalize.rb]
+  "script-assisted" => %w[SKILL.md scripts/normalize.rb],
+  "combined-resources" => %w[
+    SKILL.md
+    assets/response-template.txt
+    references/review-policy.md
+    scripts/normalize.rb
+  ]
 }.freeze
 
 failures = []
@@ -33,6 +39,28 @@ end
 copy_fixture = lambda do |name, directory|
   fixture = File.join(fixtures_root, name)
   FileUtils.cp_r("#{fixture}/.", directory)
+end
+
+replace_selected_profiles = lambda do |directory, replacement|
+  path = File.join(directory, "SKILL.md")
+  original = "Selected profiles: knowledge-augmented, asset-driven, script-assisted"
+  content = File.read(path)
+  replaced = content.sub(original, "Selected profiles: #{replacement}")
+  raise "combined fixture selected-profile line was not found" if replaced == content
+
+  File.write(path, replaced)
+end
+
+combined_skill = File.read(File.join(fixtures_root, "combined-resources", "SKILL.md"))
+[
+  "The facts source, staging path, and output path must be distinct.",
+  "Exact invocation: ruby scripts/normalize.rb STAGING OUTPUT",
+  "Save the completed UTF-8 response to the caller-supplied STAGING path",
+  "the supplied facts source and staging file are unchanged by normalization"
+].each do |required_text|
+  unless combined_skill.include?(required_text)
+    failures << "combined-resources: missing distinct staging-path contract: #{required_text.inspect}"
+  end
 end
 
 expected_files.each do |name, expected|
@@ -57,35 +85,54 @@ expected_files.each do |name, expected|
   end
 end
 
-Dir.mktmpdir("script-assisted-execution") do |directory|
-  copy_fixture.call("script-assisted", directory)
-  File.binwrite(File.join(directory, "input.txt"), "alpha  \r\nbeta\t\r\n")
-  stdout, stderr, status = Open3.capture3(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    "input.txt",
-    "output.txt",
-    chdir: directory
-  )
-  output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
-  unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n"
-    failures << "script-assisted helper: expected deterministic normalization; " \
-                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
-                "stderr=#{stderr.inspect}, output=#{output.inspect}"
-  end
+%w[script-assisted combined-resources].each do |fixture_name|
+  Dir.mktmpdir("#{fixture_name}-execution") do |directory|
+    copy_fixture.call(fixture_name, directory)
 
-  File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
-  stdout, stderr, status = Open3.capture3(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    "invalid.txt",
-    "invalid-output.txt",
-    chdir: directory
-  )
-  unless status.exitstatus == 3 && stdout.empty? && stderr == "invalid UTF-8 input\n" &&
-         !File.exist?(File.join(directory, "invalid-output.txt"))
-    failures << "script-assisted helper: expected bounded invalid UTF-8 failure; " \
-                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    input_name = fixture_name == "combined-resources" ? "response-staging.txt" : "input.txt"
+    input_path = File.join(directory, input_name)
+    File.binwrite(input_path, "alpha  \r\nbeta\t\r\n")
+    input_before = File.binread(input_path)
+
+    facts_path = nil
+    facts_before = nil
+    if fixture_name == "combined-resources"
+      facts_path = File.join(directory, "facts.txt")
+      File.binwrite(facts_path, "caller-supplied facts\n")
+      facts_before = File.binread(facts_path)
+    end
+
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      "scripts/normalize.rb",
+      input_name,
+      "output.txt",
+      chdir: directory
+    )
+    output = File.binread(File.join(directory, "output.txt")) if File.file?(File.join(directory, "output.txt"))
+    input_unchanged = File.binread(input_path) == input_before
+    facts_unchanged = facts_path.nil? || File.binread(facts_path) == facts_before
+    unless status.success? && stderr.empty? && stdout == "output.txt\n" && output == "alpha\nbeta\n" &&
+           input_unchanged && facts_unchanged
+      failures << "#{fixture_name} helper: expected deterministic normalization without modifying source inputs; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                  "stderr=#{stderr.inspect}, output=#{output.inspect}, " \
+                  "input_unchanged=#{input_unchanged.inspect}, facts_unchanged=#{facts_unchanged.inspect}"
+    end
+
+    File.binwrite(File.join(directory, "invalid.txt"), [0xFF].pack("C"))
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      "scripts/normalize.rb",
+      "invalid.txt",
+      "invalid-output.txt",
+      chdir: directory
+    )
+    unless status.exitstatus == 3 && stdout.empty? && stderr == "invalid UTF-8 input\n" &&
+           !File.exist?(File.join(directory, "invalid-output.txt"))
+      failures << "#{fixture_name} helper: expected bounded invalid UTF-8 failure; " \
+                  "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+    end
   end
 end
 
@@ -116,6 +163,27 @@ invalid_cases = [
     fixture: "script-assisted",
     mutate: lambda do |directory|
       File.write(File.join(directory, "scripts/undeclared.rb"), "puts 'undeclared'\n")
+    end
+  },
+  {
+    name: "combined resources require knowledge-augmented",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "asset-driven, script-assisted")
+    end
+  },
+  {
+    name: "combined resources require asset-driven",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "knowledge-augmented, script-assisted")
+    end
+  },
+  {
+    name: "combined resources require script-assisted",
+    fixture: "combined-resources",
+    mutate: lambda do |directory|
+      replace_selected_profiles.call(directory, "knowledge-augmented, asset-driven")
     end
   }
 ]
