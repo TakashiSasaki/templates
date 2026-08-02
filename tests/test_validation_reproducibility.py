@@ -10,17 +10,17 @@ WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
 LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
 
-EXPECTED_DIRECT_REQUIREMENTS = ("jsonschema==4.26.0",)
+EXPECTED_DIRECT_REQUIREMENTS = ("jsonschema===4.26.0",)
 EXPECTED_LOCKED_REQUIREMENTS = (
-    "attrs==26.1.0",
-    "jsonschema==4.26.0",
-    "jsonschema-specifications==2025.9.1",
-    "referencing==0.37.0",
-    "rpds-py==2026.6.3",
-    "typing_extensions==4.16.0",
+    "attrs===26.1.0",
+    "jsonschema===4.26.0",
+    "jsonschema-specifications===2025.9.1",
+    "referencing===0.37.0",
+    "rpds-py===2026.6.3",
+    "typing_extensions===4.16.0",
 )
-EXACT_REQUIREMENT = re.compile(
-    r"^[A-Za-z0-9_.-]+==[A-Za-z0-9][A-Za-z0-9._+!-]*$"
+ARBITRARY_EXACT_REQUIREMENT = re.compile(
+    r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
 
 
@@ -85,32 +85,49 @@ class ValidationReproducibilityTests(unittest.TestCase):
         self.assertIn("python -m scripts.validate_contracts", workflow)
         self.assertIn("python -m unittest discover -s tests -v", workflow)
 
-    def test_exact_requirement_pattern_rejects_mutable_or_nonliteral_versions(self) -> None:
+    def test_arbitrary_exact_pattern_rejects_pep440_matching_specifiers(self) -> None:
         invalid_requirements = (
+            "jsonschema==4.26.0",
             "jsonschema==4.26.*",
             "jsonschema==4.26.*,!=4.26.1",
-            'jsonschema==4.26.0; python_version < "3.13"',
-            "jsonschema==https://example.invalid/jsonschema.whl",
-            "jsonschema===4.26.0",
+            'jsonschema===4.26.0; python_version < "3.13"',
+            "jsonschema===https://example.invalid/jsonschema.whl",
         )
 
         for requirement in invalid_requirements:
             with self.subTest(requirement=requirement):
-                self.assertIsNone(EXACT_REQUIREMENT.fullmatch(requirement))
+                self.assertIsNone(ARBITRARY_EXACT_REQUIREMENT.fullmatch(requirement))
 
-        self.assertIsNotNone(EXACT_REQUIREMENT.fullmatch("example==1!2.3rc1.post2.dev3+linux_x86_64"))
+        self.assertIsNotNone(
+            ARBITRARY_EXACT_REQUIREMENT.fullmatch(
+                "example===1!2.3rc1.post2.dev3+linux_x86_64"
+            )
+        )
 
-    def test_direct_requirement_is_an_exact_reviewed_input(self) -> None:
+    def test_public_version_pin_excludes_unrequested_local_variants(self) -> None:
+        self.assertIsNotNone(
+            ARBITRARY_EXACT_REQUIREMENT.fullmatch("jsonschema===4.26.0")
+        )
+        self.assertIsNotNone(
+            ARBITRARY_EXACT_REQUIREMENT.fullmatch("jsonschema===4.26.0+corp")
+        )
+        self.assertNotEqual("jsonschema===4.26.0", "jsonschema===4.26.0+corp")
+
+    def test_direct_requirement_is_an_arbitrary_exact_reviewed_input(self) -> None:
         direct = requirement_lines(DIRECT_REQUIREMENTS)
 
         self.assertEqual(EXPECTED_DIRECT_REQUIREMENTS, direct)
-        self.assertTrue(all(EXACT_REQUIREMENT.fullmatch(line) for line in direct))
+        self.assertTrue(
+            all(ARBITRARY_EXACT_REQUIREMENT.fullmatch(line) for line in direct)
+        )
 
-    def test_lock_is_a_complete_exact_graph_for_the_selected_baseline(self) -> None:
+    def test_lock_is_a_complete_arbitrary_exact_graph_for_the_selected_baseline(self) -> None:
         locked = requirement_lines(LOCKED_REQUIREMENTS)
 
         self.assertEqual(EXPECTED_LOCKED_REQUIREMENTS, locked)
-        self.assertTrue(all(EXACT_REQUIREMENT.fullmatch(line) for line in locked))
+        self.assertTrue(
+            all(ARBITRARY_EXACT_REQUIREMENT.fullmatch(line) for line in locked)
+        )
         self.assertTrue(set(EXPECTED_DIRECT_REQUIREMENTS).issubset(locked))
 
 
