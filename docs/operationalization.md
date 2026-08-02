@@ -10,13 +10,18 @@ Start from one known `webapp` revision and record that revision in the generated
 
 Do not combine the unrelated `webapp` and `policy` histories merely to share files. Do not copy framework starters, deployment workflows, or coding-agent policy from an unrelated branch as if they were part of this template.
 
-Before customization, run both validator entry points and the complete template test suite:
+Before customization, choose and provision the contract-validation path before invoking it.
 
-```sh
-python scripts/validate_contracts.py
-python -m scripts.validate_contracts
-python -m unittest discover -s tests -v
-```
+If the generated repository retains the shipped Python validator:
+
+- retain `requirements-dev.lock` (or an intentionally updated equivalent lock) for the validator dependencies;
+- create a separate isolated validator environment from that lock;
+- run both validator entry points and the template test suite with that environment's interpreter;
+- keep this environment separate from the product environment and follow the repository's documented clean-environment procedure.
+
+The product lockfile does not provision the shipped validator, and globally installed Python packages are not an acceptable substitute for the reviewed validator environment.
+
+If the generated repository replaces the shipped validator with an equivalent verified integration, record that integration's isolated dependencies, command, and evidence instead. Do not invoke the shipped Python entry points in that validation path.
 
 ## 2. Select one product toolchain
 
