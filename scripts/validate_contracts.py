@@ -18,7 +18,6 @@ MANIFEST_SCHEMA_PATH = "schemas/contract-manifest.schema.json"
 ROOT = Path(__file__).resolve().parents[1]
 
 _SCHEMA_SINGLE_KEYWORDS = {
-    "additionalItems",
     "additionalProperties",
     "contains",
     "contentSchema",
@@ -276,39 +275,62 @@ def _reference_error(reference: str, schema_path: str) -> str | None:
     return None
 
 
-def _json_pointer_target(document: Any, pointer: str) -> Any | None:
+def _resource_root_for_schema(schema: Any, resource_root: Any) -> Any:
+    if not isinstance(schema, dict):
+        return resource_root
+    schema_id = schema.get("$id")
+    if not isinstance(schema_id, str):
+        return resource_root
+    try:
+        parsed_id = urlsplit(schema_id)
+    except ValueError:
+        return resource_root
+    return schema if not parsed_id.fragment else resource_root
+
+
+def _json_pointer_target(
+    document: Any,
+    pointer: str,
+) -> tuple[Any, Any] | None:
     if pointer == "":
-        return document
+        return document, document
     if not pointer.startswith("/"):
         return None
 
     current = document
+    current_resource_root = document
     for raw_token in pointer[1:].split("/"):
         token = raw_token.replace("~1", "/").replace("~0", "~")
         if isinstance(current, dict):
             if token not in current:
                 return None
             current = current[token]
-            continue
-        if isinstance(current, list):
+        elif isinstance(current, list):
             if token == "-" or not token.isdigit():
                 return None
             index = int(token)
             if index >= len(current):
                 return None
             current = current[index]
-            continue
-        return None
-    return current
+        else:
+            return None
+        current_resource_root = _resource_root_for_schema(
+            current,
+            current_resource_root,
+        )
+    return current, current_resource_root
 
 
-def _local_pointer_target(resource_root: Any, reference: str) -> Any | None:
+def _local_pointer_target(
+    resource_root: Any,
+    reference: str,
+) -> tuple[Any, Any] | None:
     try:
         fragment = unquote(urlsplit(reference).fragment)
     except ValueError:
         return None
     if fragment == "":
-        return resource_root
+        return resource_root, resource_root
     return _json_pointer_target(resource_root, fragment)
 
 
@@ -319,26 +341,17 @@ def _external_reference_errors(
     """Inspect schema-valued locations and locally referenced schema targets."""
 
     errors: list[str] = []
-    visited: set[int] = set()
+    visited: set[tuple[int, int]] = set()
 
     def visit_schema(schema: Any, resource_root: Any) -> None:
         if isinstance(schema, bool) or not isinstance(schema, dict):
             return
 
-        schema_identity = id(schema)
-        if schema_identity in visited:
+        current_resource_root = _resource_root_for_schema(schema, resource_root)
+        visit_key = (id(schema), id(current_resource_root))
+        if visit_key in visited:
             return
-        visited.add(schema_identity)
-
-        current_resource_root = resource_root
-        schema_id = schema.get("$id")
-        if isinstance(schema_id, str):
-            try:
-                parsed_id = urlsplit(schema_id)
-            except ValueError:
-                parsed_id = None
-            if parsed_id is not None and not parsed_id.fragment:
-                current_resource_root = schema
+        visited.add(visit_key)
 
         for keyword in ("$ref", "$dynamicRef"):
             reference = schema.get(keyword)
@@ -347,15 +360,16 @@ def _external_reference_errors(
                 if error is not None:
                     errors.append(error)
                     continue
-                target = _local_pointer_target(current_resource_root, reference)
-                if target is not None:
-                    visit_schema(target, current_resource_root)
+                resolved = _local_pointer_target(current_resource_root, reference)
+                if resolved is not None:
+                    target, target_resource_root = resolved
+                    visit_schema(target, target_resource_root)
 
         for keyword in _SCHEMA_SINGLE_KEYWORDS:
             child = schema.get(keyword)
             if isinstance(child, (dict, bool)):
                 visit_schema(child, current_resource_root)
-            elif keyword in {"additionalItems", "items"} and isinstance(child, list):
+            elif keyword == "items" and isinstance(child, list):
                 for item in child:
                     visit_schema(item, current_resource_root)
 
