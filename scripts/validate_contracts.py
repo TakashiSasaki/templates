@@ -42,6 +42,18 @@ def _load_implementation() -> ModuleType:
     return _IMPLEMENTATION
 
 
+def validate_contract_manifest(
+    root: Path,
+    manifest: dict[str, Any],
+) -> list[str]:
+    """Validate manifest inventory after preflighting the caller-supplied root."""
+
+    errors = _symlink_preflight(root, manifest)
+    if errors:
+        return errors
+    return _load_implementation().validate_contract_manifest(root, manifest)
+
+
 def __getattr__(name: str) -> Any:
     preflight_errors = _symlink_preflight(ROOT)
     if preflight_errors:
@@ -105,7 +117,10 @@ def _load_manifest_for_preflight(root: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _symlink_preflight(root: Path) -> list[str]:
+def _symlink_preflight(
+    root: Path,
+    manifest: dict[str, Any] | None = None,
+) -> list[str]:
     if _path_contains_symlink(root, MANIFEST_PATH):
         return [f"{MANIFEST_PATH}: manifest must not be a symbolic link"]
     if _path_contains_symlink(root, MANIFEST_SCHEMA_PATH):
@@ -117,7 +132,8 @@ def _symlink_preflight(root: Path) -> list[str]:
     if directory_errors:
         return directory_errors
 
-    manifest = _load_manifest_for_preflight(root)
+    if manifest is None:
+        manifest = _load_manifest_for_preflight(root)
     if manifest is None:
         return []
 
