@@ -51,6 +51,7 @@ PIP_SANITIZED_INPUTS = (
     "PIP_CACHE_DIR",
     "PIP_NO_CACHE_DIR",
     "PIP_QUIET",
+    "PIP_PROGRESS_BAR",
     "PIP_EDITABLE",
     "PIP_GROUP",
     "PIP_REQUIREMENTS_FROM_SCRIPT",
@@ -122,8 +123,10 @@ class ValidationReproducibilityTests(unittest.TestCase):
             '      PIP_CACHE_DIR: ""',
             '      PIP_NO_CACHE_DIR: ""',
             '      PIP_QUIET: ""',
+            '      PIP_PROGRESS_BAR: ""',
             '      PIP_LOG: ""',
             '      PIP_TIMEOUT: ""',
+            '      PIP_DEFAULT_TIMEOUT: ""',
             '      PIP_RETRIES: ""',
             '      PIP_CONFIG_FILE: /dev/null',
         ):
