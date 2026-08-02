@@ -58,8 +58,9 @@ class TextStatInterfaceEquivalenceTest < Minitest::Test
     assert_equal cli_result, JSON.parse(mcp_result.fetch("content").first.fetch("text"))
   ensure
     stdin&.close unless stdin&.closed?
-    status = Timeout.timeout(TIMEOUT) { wait_thread.value } if wait_thread
-    assert status.success?, stderr.read if status
+    status = wait_for_bounded_exit(wait_thread) if wait_thread
+    diagnostics = stderr&.read.to_s
+    assert status.success?, diagnostics if status
     [stdout, stderr].compact.each do |stream|
       stream.close unless stream.closed?
     rescue IOError
@@ -82,5 +83,23 @@ class TextStatInterfaceEquivalenceTest < Minitest::Test
       response = JSON.parse(line)
       return response if response["id"] == expected_id
     end
+  end
+
+  def wait_for_bounded_exit(wait_thread)
+    Timeout.timeout(TIMEOUT) { return wait_thread.value }
+  rescue Timeout::Error
+    signal(wait_thread, "TERM")
+    begin
+      Timeout.timeout(1) { return wait_thread.value }
+    rescue Timeout::Error
+      signal(wait_thread, "KILL")
+      wait_thread.value
+    end
+  end
+
+  def signal(wait_thread, name)
+    Process.kill(name, wait_thread.pid) if wait_thread.alive?
+  rescue Errno::ESRCH
+    nil
   end
 end
