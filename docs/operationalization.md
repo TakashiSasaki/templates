@@ -126,6 +126,6 @@ A generated repository is ready for independent product review when:
 - all canonical surfaces, routes, states, viewports, and input capabilities are declared;
 - trusted authentication and authorization enforcement is tested;
 - implementation evidence covers the declared behavior and failure paths;
-- if the shipped validator is retained, both supported entry points and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics and failure evidence;
+- if the shipped validator is retained, its locked distribution set and dependency graph verify successfully, both supported entry points pass, the template test suite passes, and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics and failure evidence;
 - build, deployment, migration, rollback, observability, and release ownership are documented;
 - template-only guidance and unused alternatives have been removed.
