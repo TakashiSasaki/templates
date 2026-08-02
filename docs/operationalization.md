@@ -21,7 +21,7 @@ If the generated repository retains the shipped Python validator:
 
 The product lockfile does not provision the shipped validator, and globally installed Python packages are not an acceptable substitute for the reviewed validator environment.
 
-If the generated repository replaces the shipped validator with an equivalent verified integration, record that integration's isolated dependencies, command, and evidence instead. Do not invoke the shipped Python entry points in that validation path.
+If the generated repository replaces the shipped validator with an equivalent verified integration, record that integration's isolated dependencies, command, and evidence instead. On every clean CI runner, that path must create and provision its isolated validation environment from the recorded lock or toolchain-specific dependency definition, perform the toolchain-appropriate dependency verification, and only then invoke the equivalent command. Do not invoke the shipped Python entry points in that validation path.
 
 ## 2. Select one product toolchain
 
