@@ -127,7 +127,7 @@ Run every command from the skill root.
 | Modern MRTR policy | NOT SUPPORTED |
 | Initialization-era elicitation policy | no client capabilities are advertised; server-to-client requests are not handled |
 | Non-interactive policy | no prompts, response files, or automatic retries; arguments are bounded JSON objects |
-| Timeout and cancellation policy | default 5 seconds, maximum 30 seconds; stdio closes stdin then uses bounded TERM/KILL escalation, while HTTP closes the session and connection; socket close is not claimed as MCP cancellation |
+| Timeout and cancellation policy | default 5 seconds, maximum 30 seconds; stdio closes stdin then uses bounded TERM/KILL escalation, while HTTP attempts session deletion, closes the connection, and surfaces cleanup failures as non-success outcomes; socket close is not claimed as MCP cancellation |
 | Task or extension support | NOT SUPPORTED |
 | Roots/workspace policy | NOT SUPPORTED; no filesystem workspace or MCP roots are exposed |
 | Exit-code mapping | 0 success; 2 usage/configuration; 3 transport; 4 authentication; 5 timeout; 6 protocol/JSON-RPC; 7 tool result `isError`; 8 invalid result; 9 pagination; 10 request policy; 11 capacity |
