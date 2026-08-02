@@ -403,6 +403,23 @@ class TextStatsMcpClientTest < Minitest::Test
     refute_includes transport.requests.map(&:first), "notifications/initialized"
   end
 
+  def test_initialize_rejects_non_object_result_metadata
+    transport = MalformedResultTransport.new(
+      "initialize",
+      "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
+      "capabilities" => { "tools" => {} },
+      "serverInfo" => { "name" => "fake", "version" => "1" },
+      "_meta" => "invalid"
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :server_info)
+    end
+
+    assert_equal 8, error.exit_code
+    refute_includes transport.requests.map(&:first), "notifications/initialized"
+  end
+
   def test_tools_call_rejects_content_blocks_without_type_specific_fields
     invalid_blocks = [
       { "type" => "text" },
