@@ -48,7 +48,7 @@ Replace the example declarations in `contracts/` with product-specific values wh
 
 For each change:
 
-1. Keep every retained document and schema registered in `contracts/manifest.json`.
+1. Keep every retained product-domain contract document and schema registered in `contracts/manifest.json`; preserve the validator's exclusion of the bootstrap artifacts `contracts/manifest.json` and `schemas/contract-manifest.schema.json` themselves.
 2. Keep the document `$schema` and `schemaVersion` consistent with the manifest.
 3. Declare every externally observable application surface and canonical route.
 4. Keep route-to-surface and route-to-UI-state references valid.
