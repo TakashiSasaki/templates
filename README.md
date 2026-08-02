@@ -6,10 +6,10 @@ The template provides repository-level design contracts for browser-facing web a
 
 ## Validation baseline
 
-Create an isolated environment and install the complete locked validation graph:
+Clear and recreate an isolated environment, then install the complete locked validation graph:
 
 ```sh
-python -m venv .venv
+python -m venv --clear .venv
 . .venv/bin/activate
 python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock
 python -m pip check
