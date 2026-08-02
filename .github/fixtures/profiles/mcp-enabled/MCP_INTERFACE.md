@@ -62,7 +62,7 @@ The selected inventory is a single raw MCP result page. Validation keeps that re
 
 ### Tool-call results and errors
 
-A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. The private client validates each content block against the selected revision's discriminator and required fields before reporting success; malformed results use the invalid-result exit code. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. The private client emits that complete result and exits with the tool-result code. JSON-RPC errors remain distinct from tool results. HTTP 401, 403, 413, and 503 responses remain HTTP authentication, request-policy, or capacity failures and are not reclassified as MCP tool results.
+A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. When present, `_meta` must be an object. The private client validates each content block against the selected revision's discriminator and required fields before reporting success; malformed results use the invalid-result exit code. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. The private client emits that complete result and exits with the tool-result code. JSON-RPC errors remain distinct from tool results. HTTP 401, 403, 413, and 503 responses remain HTTP authentication, request-policy, or capacity failures and are not reclassified as MCP tool results.
 
 ### Multiple calls and application state
 
