@@ -6,11 +6,11 @@ Selection status: SELECTED
 
 ## Execution policy
 
-Preferred agent interface: existing systemd-managed Streamable HTTP MCP endpoint
+Preferred agent interface: existing Streamable HTTP MCP endpoint
 Fallback 1: native MCP tool already registered in the host
-Fallback 2: NOT SUPPORTED
+Fallback 2: NONE
 
-The agent uses the endpoint only after systemd reports the unit active and the loopback readiness probe succeeds. The agent never installs, starts, restarts, or stops the unit, never renders deployment files, and never reads the credential source. A separately registered native MCP route may be selected by the host; no stdio server, bundled client, CLI, or non-MCP operation fallback is included.
+The preferred endpoint is the existing systemd-managed listener described by `RUNTIME.md`. The agent uses it only after systemd reports the unit active and the loopback readiness probe succeeds. The agent never installs, starts, restarts, or stops the unit, never renders deployment files, and never reads the credential source. A separately registered native MCP route may be selected by the host; no stdio server, bundled client, CLI, or non-MCP operation fallback is included.
 
 ## Contract index
 
