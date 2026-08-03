@@ -31,7 +31,6 @@ module TextStatsMcpClient
     def initialize(message, exit_code)
       super(message)
       @exit_code = exit_code
-      @payload = nil
     end
   end
 
