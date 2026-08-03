@@ -72,7 +72,7 @@ Run repository-local commands from the skill root. System unit changes require e
 | Legacy compatibility policy | No legacy revision or cross-transport fallback is exposed. |
 | JSON Schema dialects | JSON Schema Draft 2020-12 through the SDK validators |
 | Optional MCP extensions | NONE |
-| Deprecated feature policy | Deprecated or unselected capabilities are not advertised. |
+| Deprecated feature policy | Deprecated capabilities outside this contract are not advertised. |
 | Negotiation and compatibility tests | Tests initialize the real HTTP endpoint, verify the selected revision and inventory, send `notifications/initialized`, invoke sequential real tool calls, and compare deterministic structured results. |
 
 ## MCP variants
