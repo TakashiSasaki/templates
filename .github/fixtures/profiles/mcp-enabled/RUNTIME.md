@@ -122,7 +122,7 @@ Run every command from the skill root.
 | Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page |
 | Flattened inventory presentation | `tools show` derives one local view; it never replaces the lossless page sequence |
 | Page-level cache-hint policy | preserve page-specific cache hints, `_meta`, and unknown fields without inventing aggregate cache metadata |
-| Lossless call-result mode | every successful or `isError` tool result is retained under `mcpResult`, including unknown additive fields |
+| Lossless call-result mode | every successful or `isError` tool result is retained under `mcpResult`, including unknown additive fields; result-level and content-block `_meta` values, when present, must be objects |
 | Other presentation output modes | compact JSON only; no humanized loss that could discard protocol fields |
 | Modern MRTR policy | NOT SUPPORTED |
 | Initialization-era elicitation policy | no client capabilities are advertised; server-to-client requests are not handled |
