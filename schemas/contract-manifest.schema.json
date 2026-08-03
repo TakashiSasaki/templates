@@ -145,10 +145,28 @@
           "$ref": "#/$defs/identifier"
         },
         "document": {
-          "$ref": "#/$defs/documentPath"
+          "allOf": [
+            {
+              "$ref": "#/$defs/documentPath"
+            },
+            {
+              "not": {
+                "const": "contracts/manifest.json"
+              }
+            }
+          ]
         },
         "schema": {
-          "$ref": "#/$defs/schemaPath"
+          "allOf": [
+            {
+              "$ref": "#/$defs/schemaPath"
+            },
+            {
+              "not": {
+                "const": "schemas/contract-manifest.schema.json"
+              }
+            }
+          ]
         },
         "migrationSlug": {
           "$ref": "#/$defs/migrationSlug"
