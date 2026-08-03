@@ -237,6 +237,10 @@ if selected_profiles.include?("mcp-enabled") && runtime
     stable_public_command = table_value.call(runtime_client, "Stable public command")
     if !resolved_value.call(stable_public_command)
       errors << "Bundled MCP client Stable public command requires an explicit value in #{RUNTIME_PATH}."
+    elsif public_client_support == "NO" || runtime_client_support == "NO"
+      unless stable_public_command.strip.match?(/\ANOT\s+SUPPORTED\z/i)
+        errors << "Bundled MCP client Stable public command must be 'NOT SUPPORTED' when the bundled client is disabled."
+      end
     elsif concrete_value.call(stable_public_command) && !selected_profiles.include?("packaged-cli")
       errors << "Bundled MCP client Stable public command requires the 'packaged-cli' profile."
     end
