@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -8,6 +10,9 @@ from scripts.verify_docs_environment import (
     compare_docs_distribution_sets,
     expected_docs_distribution_set,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+VERIFIER = ROOT / "scripts/verify_docs_environment.py"
 
 
 def test_expected_docs_distribution_set_reads_arbitrary_exact_lock(
@@ -56,3 +61,16 @@ def test_docs_distribution_set_rejects_extras_omissions_and_mismatches() -> None
     assert any(
         "mkdocs: expected 1.6.1, installed 1.7.0" in error for error in errors
     )
+
+
+def test_docs_environment_verifier_supports_standalone_execution() -> None:
+    completed = subprocess.run(
+        [sys.executable, str(VERIFIER)],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "ModuleNotFoundError" not in completed.stderr
+    assert completed.returncode in (0, 1)
