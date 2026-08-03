@@ -51,12 +51,17 @@ For each change:
 1. Keep every retained product-domain contract document and schema registered in `contracts/manifest.json`; preserve the validator's exclusion of the bootstrap artifacts `contracts/manifest.json` and `schemas/contract-manifest.schema.json` themselves.
 2. Keep the document `$schema` and `schemaVersion` consistent with the manifest.
 3. Declare every externally observable application surface and canonical route.
-4. Keep route-to-surface and route-to-UI-state references valid, and ensure every declared surface is owned by at least one canonical route.
-5. Define aliases and canonical paths without collisions.
-6. Describe authentication return behavior and deep-link expectations for protected routes.
-7. Declare loading, empty, partial, error, offline, and access states that users can observe.
-8. Declare viewport lower bounds and input capabilities independently.
-9. Update schema versions and migration notes when the meaning of an existing contract changes.
+4. Keep route-to-surface and route-to-UI-state references valid, ensure every declared surface is owned by at least one canonical route, and classify each UI state as `route` or `global`.
+5. Ensure every route-scoped state is listed by at least one route and remove global state identifiers from every route declaration.
+6. Define aliases and canonical paths without collisions.
+7. Describe authentication return behavior and deep-link expectations for protected routes.
+8. Declare loading, empty, partial, error, offline, and access states that users can observe.
+9. Declare viewport lower bounds and input capabilities independently.
+10. Update schema versions and migration notes when the meaning of an existing contract changes.
+
+A route-scoped state belongs to the observable presentation owned by one or more canonical routes. A global state belongs to an application shell, router, top-level error boundary, or another presentation boundary outside canonical route ownership. Scope does not choose a framework, routing library, state store, or component architecture.
+
+Repositories migrating a version 1 UI-state document must follow [`migrations/ui-states-v1-to-v2.md`](migrations/ui-states-v1-to-v2.md).
 
 A new contract family belongs in this set only when its semantics are framework-neutral, externally observable, product-repository declarations can be authoritative, and local cross-file validation can reject its failure cases. Otherwise, keep the concern product-owned and document it in the generated repository.
 
@@ -70,7 +75,7 @@ At minimum, the implementation must make evidence available for:
 | --- | --- |
 | Surfaces | rendered entry points, audience checks, trusted authentication and authorization enforcement, data-classification handling, and dependency behavior |
 | Routes | canonical navigation, aliases or redirects, browser history, deep links, authentication return, document titles, and focus targets |
-| UI states | deterministic rendering and recovery actions for each declared state |
+| UI states | deterministic rendering, route or global ownership, and recovery actions for each declared state |
 | Viewports | responsive behavior at declared lower bounds and supported input capabilities, including zoom and orientation requirements |
 
 Route names and directory names are not authorization. Enforce access decisions in trusted server or application boundaries, and test that an authenticated principal cannot cross an authorization boundary by changing a path, identifier, or client-side state.
@@ -85,7 +90,7 @@ Add product-owned tests that exercise the real implementation path. A useful evi
 - the failure or recovery behavior;
 - the command that runs the evidence.
 
-Include positive and negative cases. Examples include unauthenticated access to a public surface, denied access to a protected surface, direct navigation to a deep link, an authentication return to the original route, every declared UI state, alias collision prevention, keyboard navigation, zoom, narrow and wide layouts, offline or partial failure, and recovery actions.
+Include positive and negative cases. Examples include unauthenticated access to a public surface, denied access to a protected surface, direct navigation to a deep link, an authentication return to the original route, every declared route-scoped state through at least one owning route, every declared global state through its top-level owner, rejection of global states from route declarations, alias collision prevention, keyboard navigation, zoom, narrow and wide layouts, offline or partial failure, and recovery actions.
 
 The template validator proves that the declarations are structurally and cross-contract valid. It does not prove that product code actually implements them; that proof remains in the generated repository's tests.
 
@@ -124,6 +129,7 @@ A generated repository is ready for independent product review when:
 - example contracts have been replaced or explicitly retained as product declarations;
 - the closed manifest, schemas, and document metadata agree;
 - all externally observable surfaces and canonical routes are declared, and every surface is owned by at least one canonical route;
+- every UI state has an intentional route or global scope, every route-scoped state has a route owner, and no global state is listed by a route;
 - all observable states, viewports, and input capabilities are declared;
 - trusted authentication and authorization enforcement is tested;
 - implementation evidence covers the declared behavior and failure paths;

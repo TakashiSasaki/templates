@@ -269,6 +269,9 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
 
     known_surfaces = set(surface_ids)
     known_states = set(state_ids)
+    state_scopes_by_id: dict[str, set[str]] = {}
+    for state in states:
+        state_scopes_by_id.setdefault(state["id"], set()).add(state["scope"])
 
     for surface in surfaces:
         surface_id = surface["id"]
@@ -323,6 +326,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     aliases: list[str] = []
     surfaces_by_id = {surface["id"]: surface for surface in surfaces}
     routed_surface_ids: set[str] = set()
+    routed_state_ids: set[str] = set()
     for route in routes:
         route_id = route["id"]
         route_paths.append(route["path"])
@@ -345,6 +349,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         for state_id in route["states"]:
             if state_id not in known_states:
                 errors.append(f"route {route_id}: unknown UI state {state_id}")
+                continue
+            routed_state_ids.add(state_id)
+            if "global" in state_scopes_by_id[state_id]:
+                errors.append(
+                    f"route {route_id}: global UI state {state_id} must not be declared by a route"
+                )
         if route["path"] in route["aliases"]:
             errors.append(
                 f"route {route_id}: canonical path is also listed as an alias"
@@ -354,6 +364,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         if surface_id not in routed_surface_ids:
             errors.append(
                 f"surface {surface_id}: no canonical route declares this surface"
+            )
+
+    for state in states:
+        if state["scope"] == "route" and state["id"] not in routed_state_ids:
+            errors.append(
+                f"UI state {state['id']}: route-scoped state is not declared by any route"
             )
 
     for duplicate in sorted(_duplicate_values(route_paths)):
