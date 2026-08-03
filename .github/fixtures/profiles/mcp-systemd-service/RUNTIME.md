@@ -14,12 +14,12 @@ Selection status: SELECTED
 | Dependency/package manager | RubyGems and Bundler |
 | Project manifest | `Gemfile` |
 | Lockfile policy | The fixture pins `mcp` 1.0.0, `rack` 3.2.1, `rackup` 2.2.1, and `webrick` 1.9.1 directly; the isolated fixture harness resolves transitive dependencies and does not commit a generated lockfile. |
-| Source layout | `src/text_stats.rb` contains the deterministic operation; `mcp/server_factory.rb` owns the tool and MCP server definition; `mcp/http_server.rb` owns the authenticated Streamable HTTP adapter and systemd notification; `deployment/systemd/` owns the fixed unit template and safe renderer; `tests/` owns protocol, renderer, and real systemd lifecycle evidence. |
-| Supported operating systems | Linux with CRuby 3.1 or newer and systemd 249 or newer with `Type=notify`, `LoadCredential=`, control-group kill, and service hardening directives used by the unit. |
+| Source layout | `src/text_stats.rb` contains the deterministic operation; `mcp/server_factory.rb` owns the MCP definition; `mcp/http_server.rb` owns authentication, bounded HTTP reads, transport, and systemd notification; `deployment/systemd/` owns the unit template and renderer; `tests/` owns renderer, protocol, hardening, and lifecycle evidence. |
+| Supported operating systems | Linux with CRuby 3.1 or newer and systemd 249 or newer with the selected notify, credential, control-group, and hardening features. |
 
 ## Commands
 
-Run repository-local commands from the skill root. System unit changes require explicit operator privileges.
+Run repository-local commands from the skill root. Unit installation and lifecycle changes require explicit operator privileges.
 
 ### Shared development commands
 
@@ -38,7 +38,7 @@ Run repository-local commands from the skill root. System unit changes require e
 | Purpose | Exact command |
 |---|---|
 | Start stdio MCP server | NOT SUPPORTED |
-| Inspect MCP server and tool inventory | `bundle exec ruby tests/test_http_server.rb --name test_file_backed_http_contract` |
+| Inspect MCP server and tool inventory | `bundle exec ruby tests/test_http_server.rb --name test_file_backed_http_contract_and_reused_connection_policy` |
 | Invoke one MCP tool over stdio | NOT SUPPORTED |
 | Invoke sequential MCP tool calls over stdio | NOT SUPPORTED |
 | Start Streamable HTTP MCP server | `sudo systemctl start text-stats-mcp.service` |
@@ -51,7 +51,7 @@ Run repository-local commands from the skill root. System unit changes require e
 
 | Purpose | Exact command |
 |---|---|
-| Render systemd unit | `bundle exec ruby deployment/systemd/render_unit.rb --service-user text-stats-mcp --service-group text-stats-mcp --skill-root /opt/text-stats-mcp --token-file /etc/text-stats-mcp/token --runtime-bin-dir /usr/bin --bundle-path /usr/bin/bundle --port 4572 --output /tmp/text-stats-mcp.service` |
+| Render systemd unit | `bundle exec ruby deployment/systemd/render_unit.rb --service-user text-stats-mcp --service-group text-stats-mcp --skill-root /usr/local/lib/text-stats-mcp --token-file /etc/text-stats-mcp/token --runtime-bin-dir /usr/bin --bundle-path /usr/bin/bundle --port 4572 --output /tmp/text-stats-mcp.service` |
 | Verify rendered systemd unit | `systemd-analyze verify /tmp/text-stats-mcp.service` |
 | Start headless service | `sudo systemctl start text-stats-mcp.service` |
 | Stop headless service | `sudo systemctl stop text-stats-mcp.service` |
@@ -66,14 +66,14 @@ Run repository-local commands from the skill root. System unit changes require e
 |---|---|
 | Supported protocol revisions | `2025-11-25` |
 | Supported protocol eras | initialization-era |
-| Default revision or negotiation mode | Server-selected revision `2025-11-25`; another string revision receives `2025-11-25` in the initialization result and the caller decides whether to continue. Missing or non-string revisions are rejected by SDK validation. |
+| Default revision or negotiation mode | Server-selected revision `2025-11-25`; another string revision receives `2025-11-25`, while missing or non-string revisions are rejected. |
 | MCP SDK or protocol library | Official Ruby MCP SDK gem `mcp` |
 | SDK version | `1.0.0` |
 | Legacy compatibility policy | No legacy revision or cross-transport fallback is exposed. |
 | JSON Schema dialects | JSON Schema Draft 2020-12 through the SDK validators |
 | Optional MCP extensions | NONE |
 | Deprecated feature policy | Deprecated capabilities outside this contract are not advertised. |
-| Negotiation and compatibility tests | Tests initialize the real HTTP endpoint, verify the selected revision and inventory, send `notifications/initialized`, invoke sequential real tool calls, and compare deterministic structured results. |
+| Negotiation and compatibility tests | Real HTTP tests cover selected, alternate-string, missing, and non-string revision outcomes plus inventory and sequential calls. |
 
 ## MCP variants
 
@@ -99,20 +99,22 @@ Run repository-local commands from the skill root. System unit changes require e
 | Server entry point | `mcp/http_server.rb` |
 | Endpoint path | `/mcp` |
 | Default bind address | `127.0.0.1`; every other configured bind is rejected before listener creation |
-| Port | Fixed deployment default `4572`; the renderer accepts one integer from 1 through 65535 for an explicit unit |
+| Port | Fixed deployment default `4572`; one explicit render-time integer from 1 through 65535 |
 | Supported protocol eras | initialization-era revision `2025-11-25` only |
-| Revision-specific state model | Stateful SDK-issued sessions with a 300-second idle timeout and explicit DELETE cleanup; no persistence or resumability |
-| Concurrent-client policy | At most 16 live sessions; excess initialization receives HTTP 503 |
-| Authentication | Every `/mcp` request requires an exact Bearer token. Direct test launch accepts only an explicit service-user-owned regular non-symlink file with no group or other access. Under systemd, the application opens only `CREDENTIALS_DIRECTORY/text-stats-mcp-token` and relies on the manager-provided read-only credential directory as the access-control authority instead of reinterpreting copied-file owner or mode metadata. Both sources together are rejected. |
-| Host-header validation | Every request requires the exact configured loopback authority; nondefault ports require `127.0.0.1:PORT` |
+| Revision-specific state model | SDK-issued process-local sessions with 300-second idle expiry and explicit DELETE cleanup; no persistence or resumability |
+| Concurrent-client policy | At most 16 live sessions; excess initialization receives HTTP 503, and DELETE releases capacity |
+| Authentication | Every `/mcp` request requires the exact Bearer token. Direct launch requires a service-user-owned regular non-symlink file with no group or other access; systemd launch uses only its fixed manager-protected credential path. |
+| Host-header validation | Every request requires the exact configured loopback authority |
 | Origin validation granularity | EVERY HTTP REQUEST before health, authentication, session lookup, or dispatch |
-| Allowed origins and absent-Origin policy | Absent Origin is accepted for non-browser clients; a present Origin must be same-scheme loopback HTTP with the configured effective port and no userinfo, path, query, or fragment |
-| Connection-reuse security tests | Focused tests verify that invalid Origin and missing Bearer values are rejected independently of prior successful requests on one reused HTTP/1.1 connection |
-| Readiness check | `GET /readyz` returns only `{"status":"ready"}` after listener creation. The server sends `READY=1` to `NOTIFY_SOCKET` from the listener callback, so `Type=notify` does not become active before readiness. |
-| Liveness check | `GET /livez` returns only `{"status":"live"}` while the event loop responds |
-| Cancellation behavior | The operation is synchronous and bounded; client disconnect does not create a detached task or persistence |
-| Shutdown/restart policy | systemd owns the main process and control group. TERM is the graceful signal, `TimeoutStopSec=10s` bounds shutdown, `FinalKillSignal=SIGKILL` handles resistance, explicit restart performs stop then start, and `Restart=on-failure` restarts only unexpected failures subject to start limits; configuration failures exit 78 and `RestartPreventExitStatus=78` prevents futile restart loops. |
-| Non-loopback support | NO; reverse-proxy trust and remote clients are not supported |
+| Allowed origins and absent-Origin policy | Absent Origin is accepted; a present Origin must be exact same-origin loopback HTTP with no userinfo, path, query, or fragment |
+| Connection-reuse security tests | One reused HTTP/1.1 connection proves valid, invalid-Origin, missing-authentication, invalid-Host, and subsequent-valid decisions remain request scoped |
+| Readiness check | `GET /readyz` returns only `{"status":"ready"}`; `READY=1` is sent only after listener creation |
+| Liveness check | `GET /livez` returns only `{"status":"live"}` while the server responds |
+| Cancellation behavior | The operation is synchronous and bounded; disconnect does not create detached or persistent work |
+| Shutdown/restart policy | systemd owns the process and control group, sends TERM, waits 10 seconds, applies final SIGKILL, performs explicit restart, bounds failure restart, and does not restart configuration exit 78 |
+| Non-loopback support | NO; reverse-proxy trust and remote clients are unsupported |
+
+Declared `Content-Length` above 65,536 bytes is rejected before body reading. Chunked or streaming input is stopped as soon as cumulative reads exceed 65,536 bytes. The SDK retains the same limit as defense in depth. Direct tests require HTTP 413 for both forms and prove readiness remains available afterward.
 
 ### Bundled ad hoc MCP tool client
 
@@ -149,47 +151,47 @@ Run repository-local commands from the skill root. System unit changes require e
 | Item | Selected value |
 |---|---|
 | Supported | YES |
-| Service runtime or entry point | systemd system unit rendered from `deployment/systemd/text-stats-mcp.service.in`, starting the fixed `mcp/http_server.rb` adapter |
+| Service runtime or entry point | Rendered systemd system unit starting the fixed `mcp/http_server.rb` adapter |
 | Protocol or API surface | HTTP/1.1 Streamable HTTP MCP at `POST` and `DELETE /mcp`; minimal `GET /readyz` and `GET /livez` |
 | Endpoint or listener model | One systemd-owned main process and one loopback listener |
 | Default bind address | `127.0.0.1` |
-| Port policy | Fixed deployment default `4572`; one render-time integer from 1 through 65535 |
-| Authentication | The renderer accepts a regular non-symlink source token owned by root or the unprivileged service user, with no group or other access. systemd `LoadCredential=` copies the value into its per-unit read-only credential directory, which is accessible only to the service identity and root. The application opens the fixed credential name nonblocking without following symlinks, bounds and validates the token value, and checks it on every MCP request. |
-| Authorization | The authenticated caller may invoke only the read-only `text_stats` tool; no lifecycle, file, shell, administrative, or mutating operation exists |
-| Exposure and non-loopback policy | Loopback-only; the renderer fixes `TEXT_STATS_MCP_HTTP_BIND=127.0.0.1`, and the application independently rejects every other bind before listener creation |
-| Request size and rate limits | Request bodies are bounded at 65,536 bytes by the SDK transport; no remote rate limiter is claimed because remote exposure is unsupported |
-| Concurrent request policy | At most 16 live MCP sessions; health remains separately reachable |
+| Port policy | Fixed default `4572`; one render-time integer from 1 through 65535 |
+| Authentication | A root- or service-user-owned mode-0600 source is copied by `LoadCredential=` into systemd's protected credential directory; the application opens only the fixed credential name, bounds and validates the value, and checks it on every MCP request |
+| Authorization | The caller may invoke only the read-only `text_stats` tool; no lifecycle, file, shell, administrative, or mutating operation exists |
+| Exposure and non-loopback policy | Loopback-only in both rendered environment and application validation |
+| Request size and rate limits | WEBrick rejects declared and chunked bodies above 65,536 bytes at the server read boundary; the SDK repeats the bound; no remote rate limiter is claimed |
+| Concurrent request policy | At most 16 live sessions; excess initialization is 503 and DELETE restores capacity |
 | State or session model | Process-local MCP sessions only; no persistent application state |
-| Readiness check | systemd `Type=notify` plus `READY=1` after listener creation and `GET /readyz` over loopback |
-| Liveness check | `systemctl is-active` plus `GET /livez`; no watchdog extension is claimed |
-| Timeout and cancellation policy | systemd bounds startup at 15 seconds and stop at 10 seconds; the MCP operation is synchronous and bounded |
-| Graceful shutdown and restart policy | systemd sends TERM to the main process, owns the control group, escalates with KILL after the stop timeout, performs explicit restart without overlap, restarts unexpected failures with one-second delay under a three-start-per-30-second limit, waits for notify readiness after restart, and does not restart application configuration exit 78 |
-| Deployment topology | One rendered systemd system unit, one unprivileged service identity, one read-only skill artifact, one external credential source, and one loopback HTTP listener |
-| Security and deployment smoke tests | Unit renderer tests reject unsafe identities, privileged service users, paths, symlinked or permissive tokens, invalid token ownership, invalid ports, and incomplete runtime selections. The real smoke verifies unit syntax, manager-owned copied credentials, notify readiness, authenticated MCP execution, explicit restart, KILL-triggered on-failure restart through active readiness, configuration-exit restart prevention, control-group stop, and token absence from the journal. |
+| Readiness check | `Type=notify` plus `READY=1` after listener creation and loopback `GET /readyz` |
+| Liveness check | `systemctl is-active` plus loopback `GET /livez`; no watchdog extension |
+| Timeout and cancellation policy | Startup is bounded at 15 seconds and stop at 10 seconds; MCP work is synchronous and bounded |
+| Graceful shutdown and restart policy | TERM is graceful, final KILL removes resistant processes and children from the control group, explicit restart has no overlap, unexpected failure restarts within start limits, and exit 78 is not restarted |
+| Deployment topology | One rendered system unit, one non-root user, one non-root group, one immutable skill tree, one verified immutable Ruby/Bundler selection, one external credential source, and one loopback listener |
+| Security and deployment smoke tests | Renderer tests cover account diagnostics, UID/GID privilege, actual Bundler identity, path replacement, ownership, write permissions, symlinks, tokens, ports, and runtime selection. Real smoke checks effective systemd properties and `/proc` state, authenticated MCP calls, restart paths, resistant control-group escalation, configuration failure, and journal redaction. |
 
-The fixed unit applies `NoNewPrivileges`, empty capability sets, private temporary and device namespaces, read-only system and home views, kernel and cgroup protection, SUID/SGID restriction, locked personality, address-family restriction, mode-`0077` creation, journal output, and no shell-based `ExecStart`. The renderer creates one exact-mode-0644 output file under a canonical non-symlink parent only and refuses unresolved placeholders, unsafe substitution characters, existing output paths, and symlinked output parents.
+The renderer requires an existing non-root user and non-root group, verifies membership, verifies the selected Ruby can execute the supplied Bundler launcher, and rejects any selected skill or runtime path that the service identity owns, can replace through an ancestor, or can modify through group or other write permissions. The fixed unit applies `NoNewPrivileges`, empty capability sets, private temporary and device namespaces, read-only system and home views, kernel and cgroup protection, SUID/SGID restriction, locked personality, restricted address families, mode `0077`, journal output, and no shell-based `ExecStart`.
 
 ## Distribution
 
 | Item | Selected value |
 |---|---|
-| Skill distribution | Git clone or release archive installed at a fixed service-readable path |
+| Skill distribution | Git clone or release archive installed at a fixed immutable service-readable path |
 | CLI distribution | NOT SUPPORTED |
 | MCP distribution | Streamable HTTP endpoint bundled with the skill source and activated only through the rendered systemd unit |
 | Human Web interface distribution | NOT SUPPORTED |
-| Service integration | systemd system unit rendered from the committed fixed template; no unit is installed automatically |
+| Service integration | systemd unit rendered from the committed template; no unit is installed automatically |
 | Version source of truth | `TextStatsMcpSystemd::VERSION` in `src/text_stats.rb` |
 
 ## Environment and configuration
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
-| `CREDENTIALS_DIRECTORY` | YES under systemd, supplied by the service manager | Locate the fixed manager-protected `text-stats-mcp-token` credential copied by `LoadCredential=` | NO; directory path only |
-| `NOTIFY_SOCKET` | YES under `Type=notify`, supplied by systemd | Send `READY=1` after listener creation and `STOPPING=1` before managed shutdown | NO |
-| `TEXT_STATS_MCP_HTTP_TOKEN_FILE` | Direct test launch only | Use one explicit service-user-owned mode-0600 token file when systemd credentials are not active | YES: file contents |
+| `CREDENTIALS_DIRECTORY` | YES under systemd, supplied by the service manager | Locate the fixed manager-protected credential | NO; directory path only |
+| `NOTIFY_SOCKET` | YES under `Type=notify`, supplied by systemd | Publish ready and stopping state | NO |
+| `TEXT_STATS_MCP_HTTP_TOKEN_FILE` | Direct test launch only | Select one service-user-owned mode-0600 token file outside systemd | YES: file contents |
 | `TEXT_STATS_MCP_HTTP_BIND` | Set by the unit | Must remain `127.0.0.1` | NO |
-| `TEXT_STATS_MCP_HTTP_PORT` | Set by the unit | Selected render-time loopback port | NO |
+| `TEXT_STATS_MCP_HTTP_PORT` | Set by the unit | Select the loopback port | NO |
 
 ## Decision rationale
 
-The systemd variant is the smallest topology after a bundled local controller because the OS service manager becomes the sole lifecycle owner while the application protocol, domain operation, authentication, and loopback network boundary remain unchanged. `Type=notify` prevents active-state publication before the listener is ready, `LoadCredential=` keeps the secret out of the unit and process arguments while systemd owns copied-credential access control, and the fixed unit bounds failure restart and control-group shutdown. Non-loopback exposure, trusted proxies, TLS, socket activation, containers, multiple workers, persistence, migration, backup, metrics, zero-downtime rollout, and orchestration remain separate unsupported boundaries.
+This is the smallest topology in which the OS service manager is the sole lifecycle owner while the application protocol and loopback trust boundary remain fixed. The renderer certifies the service identity and immutable code/runtime inputs before emitting a unit. `Type=notify`, `LoadCredential=`, bounded server reads, session-cap recovery, effective hardening checks, and resistant control-group shutdown provide executable evidence for the selected local systemd boundary. Non-loopback exposure, proxy trust, TLS, socket activation, containers, multiple workers, persistence, migration, backup, metrics, zero-downtime rollout, and orchestration remain unsupported.
