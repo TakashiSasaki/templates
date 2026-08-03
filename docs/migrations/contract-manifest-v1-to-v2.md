@@ -37,6 +37,20 @@ Top-level `retiredContracts` preserves the identity, final live document and sch
 
 The retirement version is exactly one greater than the last live document schema version. Its final history entry is classified as `breaking` and explains removal, consumer migration, deployment sequencing, and rollback.
 
+## Deployment sequencing
+
+Treat publication of the version 2 manifest as a compatibility-gated release, not merely a repository edit.
+
+1. Inventory every CI job, release automation, generator, validation service, and downstream integration that reads the manifest or its bootstrap schema.
+2. Upgrade those consumers to understand version 2 while the repository still publishes version 1. A dual-read transition is acceptable when consumers must support both formats temporarily.
+3. Establish a compatibility gate proving that all authoritative consumers accept version 2, ignore no required evolution metadata, and can execute the new validator commands.
+4. Preserve the version 1 manifest, schema, workflow, deployed revision, and consumer compatibility evidence needed for rollback.
+5. Stage and validate the version 2 repository changes without exposing them to incompatible version 1 consumers.
+6. Before publishing the version 2 manifest, disable, upgrade, or isolate every remaining version 1 consumer that would otherwise read the new format.
+7. Publish the manifest, bootstrap schema, validator, workflow, and compatible consumer releases as one coordinated rollout, then run post-publication validation before normal release automation resumes.
+
+Do not publish manifest version 2 while any authoritative consumer is known to require version 1 only. Failure of the compatibility gate blocks publication and requires either completing the consumer upgrade or postponing the bootstrap migration.
+
 ## Migration procedure
 
 1. Set `contracts/manifest.json` `schemaVersion` to `2`.
