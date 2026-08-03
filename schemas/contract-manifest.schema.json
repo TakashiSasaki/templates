@@ -6,12 +6,17 @@
     "$schema",
     "schemaVersion",
     "versionHistory",
-    "contracts"
+    "contracts",
+    "retiredContracts"
   ],
   "$defs": {
     "identifier": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*(?![\\s\\S])"
+    },
+    "migrationSlug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"
     },
     "documentPath": {
       "type": "string",
@@ -81,6 +86,85 @@
       "items": {
         "$ref": "#/$defs/transitionVersion"
       }
+    },
+    "activeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document",
+        "schema",
+        "migrationSlug",
+        "documentSchemaVersion",
+        "versionHistory",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "document": {
+          "$ref": "#/$defs/documentPath"
+        },
+        "schema": {
+          "$ref": "#/$defs/schemaPath"
+        },
+        "migrationSlug": {
+          "$ref": "#/$defs/migrationSlug"
+        },
+        "documentSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "versionHistory": {
+          "$ref": "#/$defs/versionHistory"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
+    },
+    "retiredContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document",
+        "schema",
+        "migrationSlug",
+        "lastDocumentSchemaVersion",
+        "retiredVersion",
+        "versionHistory",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "document": {
+          "$ref": "#/$defs/documentPath"
+        },
+        "schema": {
+          "$ref": "#/$defs/schemaPath"
+        },
+        "migrationSlug": {
+          "$ref": "#/$defs/migrationSlug"
+        },
+        "lastDocumentSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retiredVersion": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "versionHistory": {
+          "$ref": "#/$defs/versionHistory"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
     }
   },
   "properties": {
@@ -97,37 +181,7 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "document",
-          "schema",
-          "documentSchemaVersion",
-          "versionHistory",
-          "purpose"
-        ],
-        "properties": {
-          "id": {
-            "$ref": "#/$defs/identifier"
-          },
-          "document": {
-            "$ref": "#/$defs/documentPath"
-          },
-          "schema": {
-            "$ref": "#/$defs/schemaPath"
-          },
-          "documentSchemaVersion": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "versionHistory": {
-            "$ref": "#/$defs/versionHistory"
-          },
-          "purpose": {
-            "$ref": "#/$defs/nonBlankText"
-          }
-        }
+        "$ref": "#/$defs/activeContract"
       },
       "allOf": [
         {
@@ -215,6 +269,13 @@
           }
         }
       ]
+    },
+    "retiredContracts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/retiredContract"
+      }
     }
   }
 }
