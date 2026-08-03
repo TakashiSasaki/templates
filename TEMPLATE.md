@@ -7,7 +7,7 @@ This branch defines the repository-level foundation for browser-facing web appli
 ## Included in the foundation
 
 - explicit application-surface classification;
-- canonical route and navigation contracts;
+- canonical route and navigation contracts with explicit access-failure presentation behavior;
 - user-visible loading, empty, partial, error, offline, and recovery states with explicit route or global ownership scope;
 - supported viewport declarations;
 - a closed manifest that inventories every domain contract and schema;
@@ -46,12 +46,13 @@ Before a generated repository is treated as operational:
 
 1. Replace example names and descriptions in `contracts/` with product-specific values.
 2. Declare every externally observable surface and canonical route, and ensure each declared surface is owned by at least one canonical route.
-3. Classify each UI state as `route` or `global`; ensure every route-scoped state is referenced by at least one route and no global state is listed by a route.
-4. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
-5. Define trusted authorization enforcement independently of route or directory names.
-6. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
-7. Add implementation-level tests that prove the declared contracts.
-8. Remove template-only guidance that no longer applies.
+3. Declare unauthenticated and forbidden access-failure behavior for every route, and keep rendered access states consistent with those behaviors.
+4. Classify each UI state as `route` or `global`; ensure every route-scoped state is referenced by at least one route and no global state is listed by a route.
+5. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
+6. Define trusted authorization enforcement independently of route or directory names.
+7. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
+8. Add implementation-level tests that prove the declared contracts.
+9. Remove template-only guidance that no longer applies.
 
 The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
 
@@ -67,6 +68,9 @@ Validation rejects:
 - paths outside the repository-owned contract and schema directories;
 - document `$schema` declarations or `schemaVersion` values that differ from the manifest;
 - declared surfaces that are not owned by any canonical route;
+- access-failure behavior that is inconsistent with route authentication or surface authorization;
+- rendered access failures without their corresponding route-scoped UI states;
+- redirected or inapplicable access failures that still declare those UI states;
 - route-scoped UI states that are not declared by any route;
 - global UI states that are declared by a route.
 
@@ -77,6 +81,22 @@ The manifest and its schema are validator bootstrap metadata, not a fifth produc
 `contracts/routes.json` records canonical URL pathnames, not arbitrary URLs or framework route-pattern syntax. The foundation accepts `/` or slash-separated, non-empty segments composed only of ASCII URL-unreserved characters: letters, digits, `.`, `_`, `~`, and `-`. A segment may not be exactly `.` or `..`.
 
 Raw whitespace, control characters, non-ASCII characters, percent encoding, query strings, fragments, backslashes, empty segments, and trailing slashes are rejected. Products that require internationalized paths, encoded octets, parameters, query contracts, or fragment contracts must add a normalization model and collision tests before relaxing this conservative representation.
+
+## Route access-failure representation
+
+Every route declares `accessFailures.unauthenticated` and `accessFailures.forbidden`. Each condition uses one of three values:
+
+- `render-state`: retain the route presentation boundary and render the corresponding route-scoped UI state;
+- `redirect`: leave the current route presentation through a redirect;
+- `not-applicable`: the condition cannot occur under the route and owning-surface access declarations.
+
+Required authentication makes the unauthenticated condition applicable. Optional or absent authentication makes it inapplicable. Role authorization makes the forbidden condition applicable; public or authenticated authorization makes it inapplicable.
+
+`render-state` requires `unauthorized` for the unauthenticated condition or `forbidden` for the forbidden condition in the route's `states` collection. `redirect` and `not-applicable` prohibit the corresponding state reference.
+
+`authenticationReturn` remains independent: it describes whether successful authentication returns to the original route. It does not choose the initial failure behavior, redirect destination, identity provider, or authorization recovery flow. Those implementation details remain product-owned.
+
+Routes schema version 2 introduced this required declaration. Repositories migrating from version 1 must follow [`docs/migrations/routes-v1-to-v2.md`](docs/migrations/routes-v1-to-v2.md).
 
 ## UI-state scope representation
 
