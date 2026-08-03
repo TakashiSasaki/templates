@@ -747,18 +747,23 @@ module TextStatsMcpClient
     raise UsageFailure, "arguments must be valid JSON"
   end
 
-  def read_arguments(options)
+  def read_arguments(options, timeout: DEFAULT_TIMEOUT)
     sources = options.values_at(:arguments, :arguments_stdin).compact
     raise UsageFailure, "exactly one arguments source is required" unless sources.length == 1
 
     source = if options[:arguments]
                options[:arguments]
              else
-               input = STDIN.read(MAX_ARGUMENT_BYTES + 1)
-               raise UsageFailure, "stdin arguments exceed #{MAX_ARGUMENT_BYTES} bytes" if input.bytesize > MAX_ARGUMENT_BYTES
+               raise UsageFailure, "stdin arguments require non-interactive input" if STDIN.tty?
 
-               input
+               begin
+                 Timeout.timeout(timeout) { STDIN.read(MAX_ARGUMENT_BYTES + 1) }
+               rescue Timeout::Error
+                 raise TimeoutFailure, "timeout: reading stdin arguments exceeded the bounded timeout"
+               end
              end
+    raise UsageFailure, "stdin arguments exceed #{MAX_ARGUMENT_BYTES} bytes" if source.bytesize > MAX_ARGUMENT_BYTES
+
     parse_json_arguments(source)
   end
 
@@ -778,7 +783,7 @@ module TextStatsMcpClient
     raise UsageFailure, error.message
   end
 
-  def parse_command(argv)
+  def parse_command(argv, timeout: DEFAULT_TIMEOUT)
     command = argv.shift
     case command
     when "server-info"
@@ -786,13 +791,13 @@ module TextStatsMcpClient
 
       { name: :server_info }
     when "tools"
-      parse_tools_command(argv)
+      parse_tools_command(argv, timeout: timeout)
     else
       raise UsageFailure, "command must be server-info or tools"
     end
   end
 
-  def parse_tools_command(argv)
+  def parse_tools_command(argv, timeout: DEFAULT_TIMEOUT)
     operation = argv.shift
     case operation
     when "list"
@@ -809,7 +814,7 @@ module TextStatsMcpClient
       raise UsageFailure, "tools call requires a tool name" if tool.nil?
 
       options = parse_argument_options(argv)
-      { name: :tools_call, tool: tool, arguments: read_arguments(options) }
+      { name: :tools_call, tool: tool, arguments: read_arguments(options, timeout: timeout) }
     when "run"
       { name: :tools_run, calls: parse_run_calls(argv) }
     else
@@ -872,7 +877,7 @@ module TextStatsMcpClient
       global_arguments = argv.slice!(0, command_name_index)
       options = parse_global_options(global_arguments)
       raise UsageFailure, "unknown global option #{global_arguments.first.inspect}" unless global_arguments.empty?
-      command = parse_command(argv)
+      command = parse_command(argv, timeout: options[:timeout])
       transport = if options[:transport] == "stdio"
                     StdioTransport.new(options[:timeout])
                   else
