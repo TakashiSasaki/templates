@@ -523,7 +523,7 @@ class TextStatsMcpClientTest < Minitest::Test
     transport.instance_variable_set(:@http, http)
 
     deleted_session = nil
-    transport.define_singleton_method(:perform) { |_request| response }
+    transport.define_singleton_method(:perform) { |_request, **_options| response }
     transport.define_singleton_method(:delete_session) { deleted_session = @session_id }
 
     error = assert_raises(TextStatsMcpClient::ProtocolFailure) do
