@@ -13,6 +13,7 @@ module TextStatsMcp
   HTTP_MAX_REQUEST_BYTES = 65_536
   HTTP_MAX_SESSIONS = 16
   HTTP_SESSION_IDLE_TIMEOUT = 300
+  HTTP_TOKEN_FILE_MAX_BYTES = 4096
 
   class ConfigurationError < StandardError; end
 
@@ -60,6 +61,10 @@ module TextStatsMcp
         return method_not_allowed("GET") unless request.get?
 
         json_response(200, status: "ready")
+      when "/livez"
+        return method_not_allowed("GET") unless request.get?
+
+        json_response(200, status: "live")
       when "/mcp"
         return method_not_allowed("POST, DELETE") unless request.post? || request.delete?
         return unauthorized_response unless @token_matcher.call(request)
@@ -145,15 +150,59 @@ module TextStatsMcp
     port = Integer(port_text, 10)
     raise ConfigurationError, "TEXT_STATS_MCP_HTTP_PORT must be between 1 and 65535" unless (1..65_535).cover?(port)
 
-    token = ENV["TEXT_STATS_MCP_HTTP_TOKEN"]
-    unless token&.match?(/\A[!-~]{32,128}\z/)
-      raise ConfigurationError,
-            "TEXT_STATS_MCP_HTTP_TOKEN must contain 32 to 128 non-whitespace printable ASCII characters"
-    end
-
-    [bind, port, token]
+    [bind, port, load_http_token]
   rescue ArgumentError
     raise ConfigurationError, "TEXT_STATS_MCP_HTTP_PORT must be a base-10 integer between 1 and 65535"
+  end
+
+  def load_http_token
+    inline_token = ENV["TEXT_STATS_MCP_HTTP_TOKEN"]
+    token_file = ENV["TEXT_STATS_MCP_HTTP_TOKEN_FILE"]
+    if inline_token && token_file
+      raise ConfigurationError,
+            "configure exactly one of TEXT_STATS_MCP_HTTP_TOKEN or TEXT_STATS_MCP_HTTP_TOKEN_FILE"
+    end
+
+    token = if token_file
+              read_http_token_file(File.expand_path(token_file, Dir.pwd))
+            else
+              inline_token
+            end
+    unless token&.match?(/\A[!-~]{32,128}\z/)
+      raise ConfigurationError,
+            "MCP HTTP token must contain 32 to 128 non-whitespace printable ASCII characters"
+    end
+    token
+  end
+
+  def read_http_token_file(path)
+    flags = File::RDONLY | File::NOFOLLOW | File::NONBLOCK
+    raw = File.open(path, flags) do |file|
+      stat = file.stat
+      unless stat.file?
+        raise ConfigurationError, "MCP HTTP token file must be a regular non-symlink file: #{path}"
+      end
+      unless stat.uid == Process.euid
+        raise ConfigurationError, "MCP HTTP token file must be owned by the service user: #{path}"
+      end
+      unless (stat.mode & 0o077).zero?
+        raise ConfigurationError,
+              "MCP HTTP token file must not be accessible by group or other users: #{path}"
+      end
+
+      file.read(HTTP_TOKEN_FILE_MAX_BYTES + 1).to_s
+    end
+    if raw.bytesize > HTTP_TOKEN_FILE_MAX_BYTES
+      raise ConfigurationError, "MCP HTTP token file exceeds #{HTTP_TOKEN_FILE_MAX_BYTES} bytes: #{path}"
+    end
+
+    raw.sub(/\r?\n\z/, "")
+  rescue Errno::ELOOP
+    raise ConfigurationError, "MCP HTTP token file must be a regular non-symlink file: #{path}"
+  rescue ConfigurationError
+    raise
+  rescue SystemCallError => error
+    raise ConfigurationError, "unable to read MCP HTTP token file #{path}: #{error.message}"
   end
 
   def session_idle_timeout
