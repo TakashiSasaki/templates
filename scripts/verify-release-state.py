@@ -30,8 +30,8 @@ RELEASE_SCHEMA = ROOT / "schemas/toolchain-release.schema.json"
 BOOTSTRAP_MANIFEST = ROOT / "skills/bootstrap-agent-policy/bootstrap-manifest.yml"
 CURRENT_WORKFLOW_TEMPLATE = ROOT / "templates/workflows/check-agent-policy.yml.j2"
 PINNED_PROBE_REQUIREMENTS = ROOT / "release/verifier-requirements.lock"
-EXACT_REQUIREMENT = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9_.-]*==[A-Za-z0-9][A-Za-z0-9_.+!-]*$"
+ARBITRARY_EXACT_REQUIREMENT = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_.-]*===[A-Za-z0-9][A-Za-z0-9_.+!-]*$"
 )
 REQUIRED_RELEASE_PATHS = (
     "action.yml",
@@ -151,12 +151,12 @@ def locked_requirements(path: Path) -> tuple[str, ...]:
 
     normalized_names: set[str] = set()
     for requirement in requirements:
-        if EXACT_REQUIREMENT.fullmatch(requirement) is None:
+        if ARBITRARY_EXACT_REQUIREMENT.fullmatch(requirement) is None:
             raise ValueError(
-                "Pinned release verifier requirements must use exact name==version pins: "
-                f"{requirement}"
+                "Pinned release verifier requirements must use arbitrary-exact "
+                f"name===version pins: {requirement}"
             )
-        name = requirement.split("==", 1)[0].lower().replace("_", "-")
+        name = requirement.split("===", 1)[0].lower().replace("_", "-")
         if name in normalized_names:
             raise ValueError(
                 f"Pinned release verifier requirement is duplicated: {requirement}"
@@ -192,11 +192,12 @@ def pinned_probe_environment() -> Iterator[Path]:
                 "-m",
                 "pip",
                 "install",
+                "--isolated",
                 "--disable-pip-version-check",
                 "--no-input",
                 "--no-deps",
                 "--only-binary=:all:",
-                "-r",
+                "--requirement",
                 str(PINNED_PROBE_REQUIREMENTS),
             ],
             **common,
