@@ -43,7 +43,9 @@ module TextStatsMcpSystemd
 
       token_file = validate_file!(fetch(options, :token_file), "token file")
       token_stat = File.stat(token_file)
-      raise ConfigurationError, "token file must be owned by the service user" unless token_stat.uid == account.uid
+      unless token_owner_allowed?(token_stat.uid, account.uid)
+        raise ConfigurationError, "token file must be owned by root or the service user"
+      end
       raise ConfigurationError, "token file must have mode 0600 or stricter" unless (token_stat.mode & 0o077).zero?
 
       runtime_bin_dir = validate_directory!(fetch(options, :runtime_bin_dir), "runtime bin directory")
@@ -77,6 +79,10 @@ module TextStatsMcpSystemd
       template
     rescue ArgumentError
       raise ConfigurationError, "port must be a base-10 integer between 1 and 65535"
+    end
+
+    def token_owner_allowed?(owner_uid, service_uid)
+      owner_uid.zero? || owner_uid == service_uid
     end
 
     def validate_name!(value, label)
