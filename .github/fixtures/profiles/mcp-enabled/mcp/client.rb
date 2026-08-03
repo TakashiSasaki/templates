@@ -20,15 +20,18 @@ module TextStatsMcpClient
   MAX_PAGES = 128
   MAX_ARGUMENT_BYTES = 65_536
   MAX_RESPONSE_BYTES = 65_536
+  MAX_CALLS = 32
   ROOT = File.expand_path("..", __dir__)
   SERVER = File.join(ROOT, "mcp", "server.rb")
 
   class Failure < StandardError
     attr_reader :exit_code
+    attr_accessor :payload
 
     def initialize(message, exit_code)
       super(message)
       @exit_code = exit_code
+      @payload = nil
     end
   end
 
@@ -41,6 +44,12 @@ module TextStatsMcpClient
   class TransportFailure < Failure
     def initialize(message = "transport failure")
       super(message, 3)
+    end
+  end
+
+  class ReadinessFailure < TransportFailure
+    def initialize(status)
+      super("HTTP readiness failure: status #{status}")
     end
   end
 
@@ -182,6 +191,15 @@ module TextStatsMcpClient
         value.all? { |key, entry| !boolean_fields.include?(key) || [true, false].include?(entry) }
     end
 
+    def valid_tool_annotations?(annotations)
+      return false unless annotations.is_a?(Hash)
+      return false if annotations.key?("title") && !annotations["title"].is_a?(String)
+
+      %w[readOnlyHint destructiveHint idempotentHint openWorldHint].all? do |field|
+        !annotations.key?(field) || [true, false].include?(annotations[field])
+      end
+    end
+
     def tools_list_result(response, expected_id)
       value = object_result(response, expected_id)
       tools = value["tools"]
@@ -190,6 +208,7 @@ module TextStatsMcpClient
           tool["inputSchema"].is_a?(Hash) &&
           tool["inputSchema"]["type"] == "object" &&
           (!tool.key?("outputSchema") || tool["outputSchema"].is_a?(Hash)) &&
+          (!tool.key?("annotations") || valid_tool_annotations?(tool["annotations"])) &&
           (!tool.key?("_meta") || tool["_meta"].is_a?(Hash))
       end
       valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
@@ -334,24 +353,45 @@ module TextStatsMcpClient
 
     def wait_for_exit
       return unless @wait_thread
-      return if wait_with_timeout(STDIO_SHUTDOWN_GRACE)
+
+      status = wait_with_timeout(STDIO_SHUTDOWN_GRACE)
+      return validate_exit_status(status) unless status == false
 
       signal_process("TERM")
-      return if wait_with_timeout(1.0)
+      status = wait_with_timeout(1.0)
+      return validate_exit_status(status, allowed_signal: "TERM") unless status == false
 
       signal_process("KILL")
-      wait_with_timeout(1.0)
+      status = wait_with_timeout(1.0)
+      validate_exit_status(status, allowed_signal: "KILL") unless status == false
     end
 
     def wait_with_timeout(seconds)
       Timeout.timeout(seconds) do
         @wait_thread.value
-        true
       end
     rescue Timeout::Error
       false
     rescue Errno::ECHILD
       true
+    end
+
+    def validate_exit_status(status, allowed_signal: nil)
+      return status if status == true || status.nil? || status == false
+      return status if status.exited? && status.exitstatus == 0
+
+      if allowed_signal && status.signaled? && status.termsig == Signal.list.fetch(allowed_signal)
+        return status
+      end
+
+      detail = if status.exited?
+                 "with exit status #{status.exitstatus}"
+               elsif status.signaled?
+                 "after signal #{status.termsig}"
+               else
+                 "with an unknown process status"
+               end
+      raise TransportFailure, "stdio transport failure: bundled server exited #{detail}"
     end
 
     def signal_process(signal)
@@ -440,7 +480,11 @@ module TextStatsMcpClient
       response = perform(request)
       return if response.code == "200"
 
-      classify_http_failure(response)
+      classify_readiness_failure(response)
+    end
+
+    def classify_readiness_failure(response)
+      raise ReadinessFailure, response.code
     end
 
     def post(payload, request_id:)
@@ -684,9 +728,9 @@ module TextStatsMcpClient
     end
 
     def tools_run(calls)
-      raise UsageFailure, "tools run requires at least one call" if calls.empty?
-
       results = []
+      raise UsageFailure, "tools run requires at least one call" if calls.empty?
+      raise UsageFailure, "tools run supports at most #{MAX_CALLS} calls" if calls.length > MAX_CALLS
       calls.each_with_index do |call, index|
         response = @transport.request(
           "tools/call",
@@ -703,13 +747,22 @@ module TextStatsMcpClient
         end
       end
 
+      tools_run_payload(results)
+    rescue Failure => error
+      error.payload ||= tools_run_payload(results) unless results.empty?
+      raise
+    rescue KeyError
+      error = ProtocolFailure.new
+      error.payload = tools_run_payload(results) unless results.empty?
+      raise error
+    end
+
+    def tools_run_payload(results)
       {
         "contractVersion" => CONTRACT_VERSION,
         "operation" => "tools/run",
         "results" => results
       }
-    rescue KeyError
-      raise ProtocolFailure
     end
 
     def envelope(operation, result)
@@ -807,12 +860,12 @@ module TextStatsMcpClient
       { name: :tools_list }
     when "show"
       tool = argv.shift
-      raise UsageFailure, "tools show requires exactly one tool name" if tool.nil? || argv.any?
+      raise UsageFailure, "tools show requires exactly one non-empty tool name" if tool.nil? || tool.empty? || argv.any?
 
       { name: :tools_show, tool: tool }
     when "call"
       tool = argv.shift
-      raise UsageFailure, "tools call requires a tool name" if tool.nil?
+      raise UsageFailure, "tools call requires a non-empty tool name" if tool.nil? || tool.empty?
 
       options = parse_argument_options(argv)
       { name: :tools_call, tool: tool, arguments: read_arguments(options, timeout: timeout) }
@@ -830,6 +883,8 @@ module TextStatsMcpClient
       opts.on("--arguments-stdin", "read JSON object arguments from stdin") { options[:arguments_stdin] = true }
     end
     parser.parse!(argv)
+    raise UsageFailure, "unexpected trailing arguments" unless argv.empty?
+
     options
   rescue OptionParser::ParseError => error
     raise UsageFailure, error.message
@@ -840,6 +895,8 @@ module TextStatsMcpClient
     current = nil
     parser = OptionParser.new do |opts|
       opts.on("--call TOOL", "append one sequential tools/call operation") do |tool|
+        raise UsageFailure, "tool name must be non-empty" if tool.empty?
+        raise UsageFailure, "tools run supports at most #{MAX_CALLS} calls" if calls.length >= MAX_CALLS
         raise UsageFailure, "each --call needs --arguments" if current && !current.key?(:arguments)
 
         current = { tool: tool }
@@ -853,6 +910,7 @@ module TextStatsMcpClient
       end
     end
     parser.parse!(argv)
+    raise UsageFailure, "unexpected trailing arguments" unless argv.empty?
     raise UsageFailure, "each --call needs --arguments" if current && !current.key?(:arguments)
     raise UsageFailure, "tools run requires at least one call" if calls.empty?
     calls
@@ -873,7 +931,10 @@ module TextStatsMcpClient
 
     begin
       command_name_index = argv.index { |argument| %w[server-info tools].include?(argument) }
-      raise UsageFailure, "a command is required" unless command_name_index
+      unless command_name_index
+        parse_global_options(argv)
+        raise UsageFailure, "a command is required"
+      end
 
       global_arguments = argv.slice!(0, command_name_index)
       options = parse_global_options(global_arguments)
@@ -892,6 +953,7 @@ module TextStatsMcpClient
       warn error.message
       exit_code = error.exit_code
     rescue Failure => error
+      emit(error.payload) if error.payload
       warn error.message
       exit_code = error.exit_code
     rescue StandardError
