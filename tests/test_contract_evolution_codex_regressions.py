@@ -31,6 +31,34 @@ class ContractEvolutionCodexRegressionTests(unittest.TestCase):
             entry for entry in manifest["contracts"] if entry["id"] == contract_id
         )
 
+    @staticmethod
+    def retired_contract() -> dict[str, object]:
+        return {
+            "id": "legacy",
+            "document": "contracts/legacy.json",
+            "schema": "schemas/legacy.schema.json",
+            "migrationSlug": "legacy",
+            "lastDocumentSchemaVersion": 1,
+            "retiredVersion": 2,
+            "versionHistory": [
+                {"version": 1, "changeType": "initial"},
+                {
+                    "version": 2,
+                    "changeType": "breaking",
+                    "migration": "docs/migrations/legacy-v1-to-v2.md",
+                },
+            ],
+            "purpose": "Preserve the retired legacy contract history.",
+        }
+
+    @staticmethod
+    def create_retirement_migration(root: Path) -> None:
+        migration = root / "docs" / "migrations" / "legacy-v1-to-v2.md"
+        migration.write_text(
+            "# Retire legacy contract\n\n## Rollback\nRestore the version 1 files.\n",
+            encoding="utf-8",
+        )
+
     def test_alternate_extension_migration_artifacts_are_not_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
@@ -94,31 +122,9 @@ class ContractEvolutionCodexRegressionTests(unittest.TestCase):
     def test_retired_contract_tombstone_preserves_history_without_live_files(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
-            migration = root / "docs" / "migrations" / "legacy-v1-to-v2.md"
-            migration.write_text(
-                "# Retire legacy contract\n\n## Rollback\nRestore the version 1 files.\n",
-                encoding="utf-8",
-            )
+            self.create_retirement_migration(root)
             manifest = copy.deepcopy(validate_contracts.load_contract_manifest(root))
-            manifest["retiredContracts"].append(
-                {
-                    "id": "legacy",
-                    "document": "contracts/legacy.json",
-                    "schema": "schemas/legacy.schema.json",
-                    "migrationSlug": "legacy",
-                    "lastDocumentSchemaVersion": 1,
-                    "retiredVersion": 2,
-                    "versionHistory": [
-                        {"version": 1, "changeType": "initial"},
-                        {
-                            "version": 2,
-                            "changeType": "breaking",
-                            "migration": "docs/migrations/legacy-v1-to-v2.md",
-                        },
-                    ],
-                    "purpose": "Preserve the retired legacy contract history.",
-                }
-            )
+            manifest["retiredContracts"].append(self.retired_contract())
             schema = validate_contracts.load_json(
                 root / validate_contracts.MANIFEST_SCHEMA_PATH
             )
@@ -129,6 +135,63 @@ class ContractEvolutionCodexRegressionTests(unittest.TestCase):
             )
 
         self.assertEqual([], errors)
+
+    def test_retired_version_follows_last_live_document_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            self.create_retirement_migration(root)
+            manifest = copy.deepcopy(validate_contracts.load_contract_manifest(root))
+            retired = self.retired_contract()
+            retired["retiredVersion"] = 3
+            manifest["retiredContracts"].append(retired)
+
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
+
+        self.assertIn(
+            "retired contract manifest legacy: retiredVersion must equal lastDocumentSchemaVersion plus 1",
+            errors,
+        )
+
+    def test_retirement_transition_must_be_breaking(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            self.create_retirement_migration(root)
+            manifest = copy.deepcopy(validate_contracts.load_contract_manifest(root))
+            retired = self.retired_contract()
+            retired["versionHistory"][-1]["changeType"] = "additive"
+            manifest["retiredContracts"].append(retired)
+
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
+
+        self.assertIn(
+            "retired contract manifest legacy: retirement transition must be breaking",
+            errors,
+        )
+
+    def test_active_and_retired_contracts_must_not_share_migration_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            self.create_retirement_migration(root)
+            manifest = copy.deepcopy(validate_contracts.load_contract_manifest(root))
+            retired = self.retired_contract()
+            retired["migrationSlug"] = "routes"
+            retired["versionHistory"][-1]["migration"] = (
+                "docs/migrations/routes-v1-to-v2.md"
+            )
+            manifest["retiredContracts"].append(retired)
+
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
+
+        self.assertIn(
+            "duplicate active or retired migration slug: routes",
+            errors,
+        )
 
     def test_manifest_preflight_runtime_error_becomes_diagnostic(self) -> None:
         with patch.object(
