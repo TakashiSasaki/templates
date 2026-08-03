@@ -4,24 +4,47 @@ require "etc"
 require "fileutils"
 require "minitest/autorun"
 require "rbconfig"
-require "English"
 require "tmpdir"
 require_relative "../deployment/systemd/render_unit"
 
 class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
+  Account = Struct.new(:uid, :gid)
+  Group = Struct.new(:gid, :mem)
+
   ROOT = File.expand_path("..", __dir__)
 
   def setup
     @directory = Dir.mktmpdir("mcp-systemd-renderer")
+    File.chmod(0o755, @directory)
+    @skill_root = File.join(@directory, "skill")
+    %w[mcp src].each { |relative| FileUtils.mkdir_p(File.join(@skill_root, relative), mode: 0o755) }
+    {
+      "Gemfile" => "source \"https://rubygems.org\"\n",
+      "mcp/http_server.rb" => "# fixture\n",
+      "mcp/server_factory.rb" => "# fixture\n",
+      "src/text_stats.rb" => "# fixture\n"
+    }.each do |relative, content|
+      path = File.join(@skill_root, relative)
+      File.binwrite(path, content)
+      File.chmod(0o644, path)
+    end
+    File.chmod(0o755, @skill_root)
+
     @token = File.join(@directory, "token")
     File.binwrite(@token, "fixture-systemd-token-0123456789abcdef\n")
     File.chmod(0o600, @token)
-    @user = Etc.getpwuid(Process.euid)
-    @group = Etc.getgrgid(@user.gid)
-    @runtime_bin = File.dirname(RbConfig.ruby)
+
+    @runtime_bin = File.join(@directory, "runtime-bin")
+    Dir.mkdir(@runtime_bin, 0o755)
+    @ruby = File.join(@runtime_bin, "ruby")
     @bundle = File.join(@runtime_bin, "bundle")
-    @bundle = File.join(@runtime_bin, "ruby") unless File.executable?(@bundle)
-    @resolved_bundle = File.realpath(@bundle)
+    [@ruby, @bundle].each do |path|
+      File.binwrite(path, "#!/bin/sh\nexit 0\n")
+      File.chmod(0o755, path)
+    end
+
+    @account = Account.new(Process.uid + 100_000, Process.gid + 100_000)
+    @group = Group.new(@account.gid, ["fixture-user"])
   end
 
   def teardown
@@ -30,9 +53,9 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
 
   def options
     {
-      service_user: @user.name,
-      service_group: @group.name,
-      skill_root: ROOT,
+      service_user: "fixture-user",
+      service_group: "fixture-group",
+      skill_root: @skill_root,
       token_file: @token,
       runtime_bin_dir: @runtime_bin,
       bundle_path: @bundle,
@@ -40,17 +63,29 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
     }
   end
 
+  def with_valid_identity
+    renderer = TextStatsMcpSystemd::UnitRenderer
+    renderer.stub(:lookup_user, @account) do
+      renderer.stub(:lookup_group, @group) do
+        renderer.stub(:token_owner_allowed?, true) do
+          renderer.stub(:verify_bundler!, nil) { yield }
+        end
+      end
+    end
+  end
+
   def test_renders_fixed_service_contract
-    rendered = TextStatsMcpSystemd::UnitRenderer.render(options)
+    rendered = nil
+    with_valid_identity { rendered = TextStatsMcpSystemd::UnitRenderer.render(options) }
 
     refute_includes rendered, "@@"
     assert_includes rendered, "Type=notify"
     assert_includes rendered, "NotifyAccess=main"
-    assert_includes rendered, "User=#{@user.name}"
-    assert_includes rendered, "Group=#{@group.name}"
-    assert_includes rendered, "WorkingDirectory=#{ROOT}"
+    assert_includes rendered, "User=fixture-user"
+    assert_includes rendered, "Group=fixture-group"
+    assert_includes rendered, "WorkingDirectory=#{@skill_root}"
     assert_includes rendered, "LoadCredential=text-stats-mcp-token:#{@token}"
-    assert_includes rendered, "ExecStart=#{@resolved_bundle} exec ruby mcp/http_server.rb"
+    assert_includes rendered, "ExecStart=#{@bundle} exec ruby mcp/http_server.rb"
     assert_includes rendered, "Restart=on-failure"
     assert_includes rendered, "RestartPreventExitStatus=78"
     assert_includes rendered, "KillMode=control-group"
@@ -59,103 +94,144 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
     refute_includes rendered, "0.0.0.0"
   end
 
+  def test_preserves_account_and_group_lookup_diagnostics
+    missing_user = "missing-user-#{Process.pid}"
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.lookup_user(missing_user)
+    end
+    assert_equal "service user does not exist: #{missing_user}", error.message
+
+    missing_group = "missing-group-#{Process.pid}"
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.lookup_group(missing_group)
+    end
+    assert_equal "service group does not exist: #{missing_group}", error.message
+  end
+
+  def test_rejects_privileged_user_and_group
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.validate_service_identity!(
+        Account.new(0, 1000),
+        Group.new(1000, []),
+        "fixture-user"
+      )
+    end
+    assert_includes error.message, "service user"
+
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.validate_service_identity!(
+        Account.new(1000, 1000),
+        Group.new(0, ["fixture-user"]),
+        "fixture-user"
+      )
+    end
+    assert_includes error.message, "service group"
+  end
+
   def test_accepts_only_root_or_service_user_token_ownership
-    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(0, @user.uid)
-    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@user.uid, @user.uid)
-    refute TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@user.uid + 1, @user.uid)
+    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(0, @account.uid)
+    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@account.uid, @account.uid)
+    refute TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@account.uid + 1, @account.uid)
   end
 
   def test_rejects_insecure_or_symlinked_token
     File.chmod(0o644, @token)
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options)
+    error = nil
+    with_valid_identity do
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options)
+      end
     end
     assert_includes error.message, "0600"
 
     File.chmod(0o600, @token)
     link = File.join(@directory, "token-link")
     File.symlink(@token, link)
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options.merge(token_file: link))
+    with_valid_identity do
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options.merge(token_file: link))
+      end
+      assert_includes error.message, "non-symlink"
     end
-    assert_includes error.message, "non-symlink"
   end
 
-  def test_rejects_path_identity_and_privilege_escalation
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options.merge(service_user: "bad\nUser=root"))
+  def test_rejects_mutable_skill_and_runtime_inputs
+    File.chmod(0o666, File.join(@skill_root, "mcp/http_server.rb"))
+    with_valid_identity do
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options)
+      end
+      assert_includes error.message, "service identity can modify skill root"
     end
-    assert_includes error.message, "unsafe name"
 
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options.merge(skill_root: "."))
+    File.chmod(0o644, File.join(@skill_root, "mcp/http_server.rb"))
+    File.chmod(0o777, @runtime_bin)
+    with_valid_identity do
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options)
+      end
+      assert_includes error.message, "runtime bin directory"
     end
-    assert_includes error.message, "absolute"
-
-    root = Etc.getpwnam("root")
-    root_group = Etc.getgrgid(root.gid)
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(
-        options.merge(service_user: root.name, service_group: root_group.name)
-      )
-    end
-    assert_includes error.message, "unprivileged"
   end
 
-  def test_rejects_invalid_or_incomplete_runtime_selection
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options.merge(port: "0"))
-    end
-    assert_includes error.message, "between 1 and 65535"
-
-    outside = File.join(@directory, "bundle")
-    File.binwrite(outside, "#!/bin/sh\nexit 0\n")
-    File.chmod(0o755, outside)
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(options.merge(bundle_path: outside))
-    end
-    assert_includes error.message, "runtime bin directory"
-
-    incomplete_runtime = File.join(@directory, "runtime-bin")
-    Dir.mkdir(incomplete_runtime)
-    incomplete_bundle = File.join(incomplete_runtime, "bundle")
-    File.binwrite(incomplete_bundle, "#!/bin/sh\nexit 0\n")
-    File.chmod(0o755, incomplete_bundle)
-    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
-      TextStatsMcpSystemd::UnitRenderer.render(
-        options.merge(runtime_bin_dir: incomplete_runtime, bundle_path: incomplete_bundle)
-      )
-    end
-    assert_includes error.message, "ruby executable does not exist"
+  def test_treats_service_owned_paths_as_mutable_even_without_write_bit
+    File.chmod(0o555, @skill_root)
+    stat = File.stat(@skill_root)
+    assert TextStatsMcpSystemd::UnitRenderer.identity_can_modify?(stat, stat.uid, [stat.gid])
   end
 
-  def test_cli_writes_exact_mode_and_rejects_symlinked_output_parent
+  def test_verifies_selected_executable_is_bundler
+    ruby_path = File.realpath(RbConfig.ruby)
+    bundle_path = File.realpath(Gem.bin_path("bundler", "bundle"))
+    TextStatsMcpSystemd::UnitRenderer.verify_bundler!(ruby_path, bundle_path)
+
+    fake = File.join(@directory, "fake-bundle")
+    File.binwrite(fake, "#!/bin/sh\nexit 0\n")
+    File.chmod(0o755, fake)
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.verify_bundler!(ruby_path, fake)
+    end
+    assert_includes error.message, "is not Bundler"
+  end
+
+  def test_rejects_path_injection_invalid_port_and_missing_ruby
+    with_valid_identity do
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options.merge(skill_root: "."))
+      end
+      assert_includes error.message, "absolute"
+
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options.merge(port: "not-a-port"))
+      end
+      assert_includes error.message, "base-10 integer"
+
+      File.unlink(@ruby)
+      error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+        TextStatsMcpSystemd::UnitRenderer.render(options)
+      end
+      assert_includes error.message, "ruby executable does not exist"
+    end
+  end
+
+  def test_output_writer_uses_exact_mode_and_refuses_replacement_paths
     output = File.join(@directory, "rendered.service")
-    command = [
-      RbConfig.ruby,
-      File.join(ROOT, "deployment/systemd/render_unit.rb"),
-      "--service-user", @user.name,
-      "--service-group", @group.name,
-      "--skill-root", ROOT,
-      "--token-file", @token,
-      "--runtime-bin-dir", @runtime_bin,
-      "--bundle-path", @bundle,
-      "--port", "4572",
-      "--output", output
-    ]
     previous = File.umask(0o0777)
-    system(*command, out: File::NULL, err: File::NULL)
+    TextStatsMcpSystemd::UnitRenderer.write_output!(output, "unit\n")
     File.umask(previous)
-    assert $CHILD_STATUS.success?
     assert_equal 0o644, File.stat(output).mode & 0o777
+    assert_raises(Errno::EEXIST) do
+      TextStatsMcpSystemd::UnitRenderer.write_output!(output, "replacement\n")
+    end
 
     real_parent = File.join(@directory, "real-parent")
     Dir.mkdir(real_parent)
     linked_parent = File.join(@directory, "linked-parent")
     File.symlink(real_parent, linked_parent)
-    linked_output = File.join(linked_parent, "unit.service")
-    refute system(*command[0...-1], linked_output, out: File::NULL, err: File::NULL)
-    refute File.exist?(File.join(real_parent, "unit.service"))
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.validate_output_path!(File.join(linked_parent, "unit.service"))
+    end
+    assert_includes error.message, "output parent"
   ensure
     File.umask(previous) if previous
   end
