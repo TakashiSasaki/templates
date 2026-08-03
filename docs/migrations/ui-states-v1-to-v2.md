@@ -18,6 +18,6 @@ Multiple canonical routes may reference the same route-scoped state.
 5. Use `global` for application-shell, router-level, or top-level error-boundary states and remove those identifiers from every route declaration.
 6. Run both validator entry points and the complete test suite.
 
-The template example classifies `loading`, `empty`, `populated`, `partial`, `recoverable-error`, `offline`, `unauthorized`, and `forbidden` as route-scoped. It classifies `fatal-error`, `retrying`, and `not-found` as global. Generated repositories must choose scopes according to their own observable ownership boundaries rather than copying those classifications without review.
+The template example classifies `loading`, `empty`, `populated`, `partial`, `recoverable-error`, `offline`, `retrying`, `unauthorized`, and `forbidden` as route-scoped. It classifies `fatal-error` and `not-found` as global. The example routes list `retrying` because it is the visible transition after a recoverable operation is retried. Generated repositories must choose scopes according to their own observable ownership boundaries rather than copying those classifications without review.
 
 Version 1 documents are not valid against the version 2 schema because `scope` is required. This is an intentional breaking contract change.
