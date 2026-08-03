@@ -27,7 +27,7 @@ Both maintained routes use `mcp/server_factory.rb`, the same `TextStatsTool`, an
 
 Unavailable preferred interface behavior: Report the HTTP readiness, authentication, request-policy, or transport failure, then use the trusted stdio route only when the host explicitly selects the private bundled client.
 Fallback activation conditions: The configured HTTP endpoint is absent, fails `GET /readyz`, rejects the caller, or cannot complete MCP initialization; fallback never starts another HTTP server and never retries a request across transports.
-Failure classification exposed to callers: Distinguish HTTP readiness and policy failures, process startup or transport failure, bounded timeout, JSON-RPC error, MCP tool result with `isError: true`, invalid result, pagination failure, and successful MCP tool result.
+Failure classification exposed to callers: Distinguish HTTP readiness failures from MCP authentication or capacity failures, HTTP policy failures, process startup or transport failure, bounded timeout, JSON-RPC error, MCP tool result with `isError: true`, invalid result, pagination failure, and successful MCP tool result. The private helper bounds `tools run` to 32 sequential calls and preserves completed results when a later call fails.
 
 ## Decision rationale
 
