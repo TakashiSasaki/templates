@@ -38,6 +38,7 @@ cleanup() {
 
 diagnose_failure() {
   status=$?
+  trap - ERR
   set +e
   echo "systemd MCP lifecycle smoke failed with status $status" >&2
   sudo systemctl status "$UNIT_NAME" --no-pager --full 2>&1 | sed "s/${TOKEN_VALUE}/[REDACTED]/g" >&2
@@ -51,6 +52,15 @@ assert_property() {
   actual=$(sudo systemctl show -p "$property" --value "$UNIT_NAME")
   if [[ "$actual" != "$expected" ]]; then
     echo "expected $property=$expected, got $actual" >&2
+    return 1
+  fi
+}
+
+assert_empty_property() {
+  property=$1
+  actual=$(sudo systemctl show -p "$property" --value "$UNIT_NAME")
+  if [[ -n "$actual" ]]; then
+    echo "expected empty $property, got $actual" >&2
     return 1
   fi
 }
@@ -70,7 +80,10 @@ assert_zero_status_field() {
   field=$1
   pid=$2
   value=$(awk -v field="$field" '$1 == field ":" { print $2 }' "/proc/$pid/status")
-  [[ -n "$value" && "$value" =~ ^0+$ ]]
+  if [[ -z "$value" || ! "$value" =~ ^0+$ ]]; then
+    echo "expected zero $field for PID $pid, got $value" >&2
+    return 1
+  fi
 }
 
 trap diagnose_failure ERR
@@ -125,16 +138,26 @@ assert_property RestrictSUIDSGID yes
 assert_property LockPersonality yes
 assert_property KillMode control-group
 assert_property UMask 0077
-[[ -z "$(sudo systemctl show -p CapabilityBoundingSet --value "$UNIT_NAME")" ]]
-[[ -z "$(sudo systemctl show -p AmbientCapabilities --value "$UNIT_NAME")" ]]
+assert_empty_property CapabilityBoundingSet
+assert_empty_property AmbientCapabilities
 ADDRESS_FAMILIES=$(sudo systemctl show -p RestrictAddressFamilies --value "$UNIT_NAME")
-[[ " $ADDRESS_FAMILIES " == *" AF_UNIX "* ]]
-[[ " $ADDRESS_FAMILIES " == *" AF_INET "* ]]
-[[ $(wc -w <<<"$ADDRESS_FAMILIES") -eq 2 ]]
-[[ "$(awk '$1 == "NoNewPrivs:" { print $2 }' "/proc/$FIRST_PID/status")" == "1" ]]
+if [[ " $ADDRESS_FAMILIES " != *" AF_UNIX "* || " $ADDRESS_FAMILIES " != *" AF_INET "* || $(wc -w <<<"$ADDRESS_FAMILIES") -ne 2 ]]; then
+  echo "expected RestrictAddressFamilies to contain only AF_UNIX and AF_INET, got $ADDRESS_FAMILIES" >&2
+  exit 1
+fi
+NO_NEW_PRIVS=$(awk '$1 == "NoNewPrivs:" { print $2 }' "/proc/$FIRST_PID/status")
+if [[ "$NO_NEW_PRIVS" != "1" ]]; then
+  echo "expected NoNewPrivs=1 for PID $FIRST_PID, got $NO_NEW_PRIVS" >&2
+  exit 1
+fi
 assert_zero_status_field CapEff "$FIRST_PID"
 assert_zero_status_field CapAmb "$FIRST_PID"
-[[ "$(readlink "/proc/$FIRST_PID/ns/mnt")" != "$(readlink /proc/1/ns/mnt)" ]]
+SERVICE_MOUNT_NS=$(sudo readlink "/proc/$FIRST_PID/ns/mnt")
+HOST_MOUNT_NS=$(sudo readlink /proc/1/ns/mnt)
+if [[ -z "$SERVICE_MOUNT_NS" || -z "$HOST_MOUNT_NS" || "$SERVICE_MOUNT_NS" == "$HOST_MOUNT_NS" ]]; then
+  echo "expected a private mount namespace, service=$SERVICE_MOUNT_NS host=$HOST_MOUNT_NS" >&2
+  exit 1
+fi
 
 sudo systemctl restart "$UNIT_NAME"
 sudo systemctl is-active --quiet "$UNIT_NAME"
