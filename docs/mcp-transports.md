@@ -166,7 +166,7 @@ Recommended mapping:
 | `tools list` | Send `tools/list`; retain the ordered raw-page sequence and optionally derive a flattened inventory |
 | `tools show TOOL` | Filter the derived inventory locally; do not send nonexistent `tools/show`, `tools/get`, or `tools/describe` methods |
 | `tools call TOOL` | Send one `tools/call` request |
-| `tools run` | Orchestrate several independent `tools/call` requests; do not call this MCP or JSON-RPC batching |
+| `tools run` | Orchestrate several independent `tools/call` requests; reject an empty `--call` sequence before creating a transport; do not call this MCP or JSON-RPC batching |
 
 Generate JSON-RPC request IDs internally. Do not expose arbitrary server shell commands or caller-selected request IDs as normal public options.
 
@@ -179,6 +179,8 @@ A tools-only client must:
 - retain each raw page result as a separate ordered record;
 - scope cached pages and derived inventories to revision, endpoint, identity, authorization, page, and cache scope;
 - preserve input/output schemas, annotations, execution metadata, icons, and future fields where practical;
+- validate the selected revision's known initialization capability objects and boolean change/subscription flags;
+- reject a listed tool whose optional `_meta` is not an object;
 - support the schema dialects selected in `RUNTIME.md`;
 - treat annotations from untrusted servers as hints;
 - use local validation only as an early diagnostic;

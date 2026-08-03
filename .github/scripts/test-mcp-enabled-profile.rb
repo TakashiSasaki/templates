@@ -21,6 +21,7 @@ expected_files = %w[
   SKILL.md
   docs/mcp-transports.md
   mcp/README.md
+  mcp/client.rb
   mcp/http_server.rb
   mcp/server.rb
   mcp/server_factory.rb
@@ -28,6 +29,7 @@ expected_files = %w[
   tests/test_http_boundaries.rb
   tests/test_http_lifecycle.rb
   tests/test_http_server.rb
+  tests/test_mcp_client.rb
   tests/test_mcp_server.rb
 ].sort.freeze
 
@@ -128,10 +130,12 @@ documented_commands = [
   "bundle install",
   "bundle exec ruby mcp/server.rb",
   "bundle exec ruby mcp/http_server.rb",
+  "bundle exec ruby mcp/client.rb",
   "bundle exec ruby tests/test_mcp_server.rb",
   "bundle exec ruby tests/test_http_server.rb",
   "bundle exec ruby tests/test_http_boundaries.rb",
   "bundle exec ruby tests/test_http_lifecycle.rb",
+  "bundle exec ruby tests/test_mcp_client.rb",
   "bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory",
   "bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call",
   "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls",
@@ -217,10 +221,12 @@ if failures.empty?
         mcp/server_factory.rb
         mcp/server.rb
         mcp/http_server.rb
+        mcp/client.rb
         tests/test_mcp_server.rb
         tests/test_http_server.rb
         tests/test_http_boundaries.rb
         tests/test_http_lifecycle.rb
+        tests/test_mcp_client.rb
       ].each do |path|
         syntax = run_command.call(
           RbConfig.ruby,
@@ -238,7 +244,8 @@ if failures.empty?
         "stdio" => "tests/test_mcp_server.rb",
         "Streamable HTTP" => "tests/test_http_server.rb",
         "Streamable HTTP boundaries" => "tests/test_http_boundaries.rb",
-        "Streamable HTTP lifecycle" => "tests/test_http_lifecycle.rb"
+        "Streamable HTTP lifecycle" => "tests/test_http_lifecycle.rb",
+        "bundled MCP client" => "tests/test_mcp_client.rb"
       }.each do |name, test_path|
         tests = run_command.call(
           "bundle",
@@ -257,12 +264,13 @@ if failures.empty?
       factory_path = File.join(directory, "mcp/server_factory.rb")
       missing_factory_path = "#{factory_path}.missing"
       File.rename(factory_path, missing_factory_path)
-      %w[mcp/server.rb mcp/http_server.rb].each do |entry_point|
+      %w[mcp/server.rb mcp/http_server.rb mcp/client.rb].each do |entry_point|
         missing_factory = run_command.call(
           "bundle",
           "exec",
           RbConfig.ruby,
           entry_point,
+          *(entry_point == "mcp/client.rb" ? ["server-info"] : []),
           chdir: directory,
           timeout_seconds: 10,
           env: {
@@ -277,7 +285,7 @@ if failures.empty?
       end
       File.rename(missing_factory_path, factory_path)
 
-      %w[mcp/server.rb mcp/http_server.rb].each do |entry_point|
+      %w[mcp/server.rb mcp/http_server.rb mcp/client.rb].each do |entry_point|
         implementation_path = File.join(directory, entry_point)
         missing_path = "#{implementation_path}.missing"
         File.rename(implementation_path, missing_path)
@@ -286,6 +294,7 @@ if failures.empty?
           "exec",
           RbConfig.ruby,
           entry_point,
+          *(entry_point == "mcp/client.rb" ? ["server-info"] : []),
           chdir: directory,
           timeout_seconds: 10,
           env: {
@@ -329,4 +338,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "MCP-enabled stdio and Streamable HTTP profile fixture tests passed."
+puts "MCP-enabled stdio, Streamable HTTP, and bundled client profile fixture tests passed."

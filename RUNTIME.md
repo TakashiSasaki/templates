@@ -186,6 +186,7 @@ Complete this section only when the skill bundles a command that discovers or in
 | Supported | TODO: YES or NO |
 | Scope | tools only / broader MCP client: TODO |
 | Stable public command | TODO or NOT SUPPORTED |
+| Bundled helper command | TODO or NOT SUPPORTED |
 | Supported transports | stdio / Streamable HTTP / both: TODO |
 | Negotiation and compatibility behavior | TODO |
 | Invocation scope | one tool call / multiple sequential tool calls: TODO |

@@ -7,7 +7,7 @@ Selection status: SELECTED
 ## MCP protocol reference
 
 Runtime, SDK, revision, era boundary, and schema source of truth: RUNTIME.md
-Public negotiation and fallback behavior: Both transports select revision `2025-11-25`. If a caller supplies another string revision, initialization succeeds with `2025-11-25` in the response; the caller must decide whether to continue. The configured HTTP endpoint is preferred when readiness and authentication succeed; otherwise a capable host may explicitly launch stdio. No active session changes transport.
+Public negotiation and fallback behavior: Both transports select revision `2025-11-25`. If a caller supplies another string revision, initialization succeeds with `2025-11-25` in the response; the caller must decide whether to continue. The configured HTTP endpoint is preferred when readiness and authentication succeed; otherwise a native MCP route is preferred, and the private client may be explicitly invoked over fixed stdio when no native route is available. No active session changes transport.
 Public compatibility statement: Within fixture version 1.x, the `text_stats` tool name, required string input `text`, read-only semantics, and existing `bytes`, `lines`, and `words` result fields remain compatible across both transports. Additive MCP result fields must be preserved by callers.
 
 ## stdio MCP server variant
@@ -33,26 +33,28 @@ Health/readiness check: curl --fail --silent --show-error http://127.0.0.1:4570/
 
 The default endpoint is `http://127.0.0.1:4570/mcp`; `RUNTIME.md` owns the startup-selected port and resulting authority. The endpoint is an explicitly started local foreground process and is never created as an implicit fallback. Before every request, including requests reused on one HTTP/1.1 connection, the Rack gate requires the configured loopback Host authority in canonical form and either no Origin or an HTTP Origin whose host and effective port match that authority. Port 80 therefore accepts the equivalent `127.0.0.1` and `127.0.0.1:80` Host forms and Origins with an omitted or explicit `:80`. Invalid Host or present cross-origin requests receive HTTP 403 before authentication or MCP dispatch. Missing or invalid Bearer credentials receive HTTP 401 without exposing the configured token.
 
-Initialization uses one JSON `POST /mcp` request and returns `Mcp-Session-Id`. The client then sends `notifications/initialized` before discovery or tool calls. All Streamable HTTP POST requests advertise both required response media types with `Accept: application/json, text/event-stream`; this fixture selects JSON response mode and therefore returns JSON for request messages. Subsequent notifications, discovery, and tool calls use independent JSON POST requests carrying that session ID and `MCP-Protocol-Version: 2025-11-25`. `DELETE /mcp` with the same session, version, and authorization headers releases the session. Independent `GET /mcp` event streams and resumability are not part of this public contract.
+Initialization uses one JSON `POST /mcp` request and returns `Mcp-Session-Id`. The client validates the selected revision's required `protocolVersion`, object-valued `capabilities`, known capability objects and boolean `tools`/`resources`/`prompts` flags, and `serverInfo.name`/`serverInfo.version` fields before sending `notifications/initialized` or continuing. All Streamable HTTP POST requests advertise both required response media types with `Accept: application/json, text/event-stream`; this fixture selects JSON response mode and therefore returns JSON for request messages. The bundled client requires each JSON response to declare the `application/json` media type (optional parameters allowed) before parsing; a missing or other media type is a protocol failure. The `notifications/initialized` transition is accepted only when the HTTP response status is `202`; another `2xx` status, including one carrying a JSON-RPC error body, is a protocol failure. Subsequent notifications, discovery, and tool calls use independent JSON POST requests carrying that session ID and `MCP-Protocol-Version: 2025-11-25`. `DELETE /mcp` with the same session, version, and authorization headers releases the session. A deletion, connection-close, or classified HTTP cleanup failure is surfaced as an actionable diagnostic and a non-success exit status; it is never silently converted into a successful command. Independent `GET /mcp` event streams and resumability are not part of this public contract.
 
 The SDK bounds request bodies at 65,536 bytes and rejects a seventeenth live session with HTTP 503. Readiness remains available when MCP authentication, protocol validation, tool validation, or session-capacity checks fail. TERM or INT is recorded even if it arrives before the server callback attaches, then stops the foreground listener as soon as the server instance is available; shutdown closes SDK sessions, emits lifecycle diagnostics only to stderr, and releases the port for a later restart. Non-loopback, TLS, reverse-proxy, service-manager, container, and automatic-restart modes are not supported.
 
 ## Bundled ad hoc MCP tool client
 
-Supported: NO
-Scope: NOT SUPPORTED
-Command: NOT SUPPORTED
-Transport used: NOT SUPPORTED
-Negotiation and compatibility behavior: NOT SUPPORTED
-Invocation scope: NOT SUPPORTED
-Interaction modes: NOT SUPPORTED
+Supported: YES
+Scope: tools only; bounded discovery and invocation helper, not a general MCP host
+Command: `bundle exec ruby mcp/client.rb`
+Transport used: both
+Negotiation and compatibility behavior: Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback
+Invocation scope: one tool call or multiple sequential `tools/call` requests, bounded to at most 32 sequential calls; `tools run` requires at least one `--call` before transport startup and rejects trailing operands; never JSON-RPC batch
+Interaction modes: non-interactive JSON arguments only; terminal `--arguments-stdin` is rejected and non-EOF stdin reads are bounded by the configured `--timeout` before transport startup
 Task or extension support: NOT SUPPORTED
+
+The helper is not a stable public CLI and does not activate the `packaged-cli` profile. Its stdio command and HTTP endpoint are fixed or explicitly constrained by `RUNTIME.md`; it never accepts an arbitrary server command, caller-selected JSON-RPC ID, Bearer token argument, implicit HTTP-server startup, or unbounded retry.
 
 The repository test clients are private validation code and are not stable public commands.
 
 ### Tool inventory, schemas, and caching
 
-`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. No cursor, cache hint, or custom `_meta` value is emitted. Test code retains and inspects the complete raw page result through each actual transport rather than synthesizing another discovery method.
+`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. The private client validates each listed tool's required name, object-valued `inputSchema` whose `type` is `object`, object-valued `outputSchema` when present, object-valued `annotations` when present with string `title` and boolean `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` fields when present, and object-valued per-tool `_meta` when present, and requires any result `_meta` to be an object before reporting success. It follows an opaque `nextCursor` until it is absent, retains each raw page under an ordered `pages` record, and bounds pagination to 32 pages by default or 128 at most. No cursor, cache hint, or custom `_meta` value is emitted by this server, but the client preserves those fields and unknown additive fields if a selected server supplies them.
 
 ### Lossless paginated tool-list output
 
@@ -60,7 +62,7 @@ The selected inventory is a single raw MCP result page. Validation keeps that re
 
 ### Tool-call results and errors
 
-A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. Unknown JSON-RPC methods return a JSON-RPC method-not-found error. HTTP 401, 403, 413, and 503 responses remain HTTP policy or capacity failures and are not reclassified as MCP tool results.
+A successful `tools/call` result preserves `content`, `structuredContent`, `isError`, `_meta`, and unknown additive fields. When present, `_meta` must be an object. The private client validates each content block against the selected revision's discriminator and required fields and, when present, requires its optional `_meta`, and any nested `ResourceContents._meta`, to be an object before reporting success; malformed results use the invalid-result exit code. It bounds each individual successful JSON response body and stdio message at 65,536 bytes, rejecting oversized responses before JSON parsing. Missing or invalid `text` arguments return a complete MCP tool result with `isError: true`; they are not transport failures. The private client emits that complete result and exits with the tool-result code. JSON-RPC errors remain distinct from tool results. HTTP 401, 403, 413, and 503 responses remain HTTP authentication, request-policy, or capacity failures and are not reclassified as MCP tool results.
 
 ### Multiple calls and application state
 
@@ -80,11 +82,11 @@ The sole operation is synchronous and bounded. A stdio timeout closes stdin and 
 
 ### Ownership and workspace policy
 
-The stdio MCP host owns its trusted child process. The HTTP launcher owns one explicitly started loopback process and supplies one local Bearer identity; every session request is reauthenticated. The tool accepts text directly, has no filesystem workspace semantic, exposes no arbitrary command or caller-selected request ID, and performs no network access beyond the selected local MCP transport.
+The stdio MCP host owns its trusted child process. The bundled client owns its fixed child only for the duration of one command and applies bounded shutdown. The HTTP launcher owns one explicitly started loopback process and supplies one local Bearer identity; every session request is reauthenticated. The tool accepts text directly, has no filesystem workspace semantic, exposes no arbitrary command or caller-selected request ID, and performs no network access beyond the selected local MCP transport.
 
 ## Semantic-equivalence and test requirements
 
-Tests exercise exact-revision initialization, the required `notifications/initialized` transition before discovery or tool calls, both required Streamable HTTP POST Accept media types, server-selected revision negotiation after another string revision, malformed revision rejection, tools-only capabilities, raw tool inventory, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdio stdout/stderr separation, bounded stdio shutdown, authenticated HTTP initialization and session deletion, request-size and session-count limits, readiness isolation, per-request Host/Origin/authentication checks on a reused keep-alive connection, canonical port-80 Host and Origin forms, pending shutdown delivery before server attachment, graceful HTTP shutdown and restart, prompt configuration failures, and equal structured tool results through actual stdio and Streamable HTTP adapters.
+Tests exercise exact-revision initialization, required initialization fields before `notifications/initialized`, the required `notifications/initialized` transition before discovery or tool calls, both required Streamable HTTP POST Accept media types, server-selected revision negotiation after another string revision, malformed revision rejection, tools-only capabilities, raw tool inventory with input-schema discriminator validation, deterministic success, missing-input tool error, unknown-method JSON-RPC error, sequential calls after errors, stdio stdout/stderr separation, bounded stdio shutdown, authenticated HTTP initialization and session deletion, JSON response media-type checks, request-size and session-count limits, readiness isolation, per-request Host/Origin/authentication checks on a reused keep-alive connection, canonical port-80 Host and Origin forms, pending shutdown delivery before server attachment, graceful HTTP shutdown and restart, prompt configuration failures, and equal structured tool results through actual stdio and Streamable HTTP adapters. Bundled-client tests additionally execute `server-info`, help without a command, lossless paginated inventory, local `tools show`, one and sequential `tools/call` operations, empty-name and trailing-operand rejection, bounded call counts, required annotation and content-block field validation, stdio/HTTP equivalence, token-redacted authentication failures, loopback endpoint rejection, transport failures, bounded timeout, and codec preservation of unknown additive fields without sending `tools/show` or JSON-RPC batch methods.
 
 ## Decision rationale
 

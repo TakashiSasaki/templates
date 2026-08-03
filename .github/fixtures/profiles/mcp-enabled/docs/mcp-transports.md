@@ -24,11 +24,17 @@ The authoritative protocol revision, SDK, commands, security, and lifecycle sele
 - port 80 accepts the equivalent omitted and explicit `:80` Host and Origin forms; nondefault ports remain explicit;
 - stateful SDK sessions expire after 300 idle seconds, are limited to 16, and can be deleted explicitly;
 - request bodies are limited to 65,536 bytes;
-- JSON response mode is used; no public GET event stream, resumability, or hidden task behavior is claimed;
+- JSON response mode is used; bundled-client request responses must declare `application/json`; no public GET event stream, resumability, or hidden task behavior is claimed;
 - TERM or INT remains pending if received before the server callback attaches, then closes the listener and SDK transport, writes lifecycle diagnostics only to stderr, and releases the port for restart.
+
+## Bundled ad hoc MCP tool client
+
+`mcp/client.rb` is a private bounded tools-only client, not a stable packaged CLI or general MCP host. It accepts only the fixed stdio server route or an explicitly supplied loopback `/mcp` endpoint. The HTTP route checks `GET /readyz` first and reads the Bearer token only from `TEXT_STATS_MCP_HTTP_TOKEN`; it never starts a listener implicitly. The stdio route launches only `bundle exec ruby mcp/server.rb` and reaps it with bounded TERM/KILL escalation.
+
+The helper performs one conforming initialization, checks the server-selected `2025-11-25` revision, sends `notifications/initialized`, and then sends real `tools/list` or `tools/call` requests. It generates request IDs internally, requires JSON request responses, validates each listed tool's `inputSchema.type` discriminator, requires an object-valued optional `outputSchema`, validates optional object-valued `annotations` with typed known fields, follows opaque cursors with a bounded page limit, preserves ordered raw page records and complete result objects, bounds `tools run` to at most 32 sequential calls, preserves completed ordered results when a later call fails, and does not issue local `tools/show` or JSON-RPC batch methods. Inline JSON arguments and `--arguments-stdin` input are each capped at 65,536 bytes; terminal stdin is rejected and a non-EOF stdin read is bounded by the configured `--timeout` before transport startup. Readiness, tool-result, JSON-RPC, authentication, request-policy, transport, timeout, capacity, invalid-result, and pagination outcomes remain distinct.
 
 ## Equivalence boundary
 
-The fixture tests actual initialization, discovery, and tool calls over both transports and requires equal `structuredContent` for equal input. Focused boundary tests verify canonical default-port authority forms and shutdown delivery on both sides of server attachment. Transport-specific status codes, headers, authentication, sessions, framing, and lifecycle remain adapter concerns and do not alter domain semantics.
+The fixture tests actual initialization, discovery, and tool calls over both transports and through the bundled client, and requires equal `structuredContent` for equal input. Focused boundary tests verify canonical default-port authority forms and shutdown delivery on both sides of server attachment. Transport-specific status codes, headers, authentication, sessions, framing, and lifecycle remain adapter concerns and do not alter domain semantics.
 
-Resources, prompts, sampling, elicitation, roots, tasks, optional extensions, a public bundled MCP client, remote exposure, TLS termination, reverse-proxy trust, service-manager integration, containers, and automatic restart are not supported by this fixture.
+Resources, prompts, sampling, elicitation, roots, tasks, optional extensions, a stable public packaged CLI, a general-purpose MCP host, remote exposure, TLS termination, reverse-proxy trust, service-manager integration, containers, and automatic restart are not supported by this fixture.

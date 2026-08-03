@@ -10,6 +10,7 @@ require "tmpdir"
 
 fixture = File.expand_path("../fixtures/profiles/cli-mcp-combined", __dir__)
 validator = File.expand_path("validate-skill-repository.rb", __dir__)
+interface_runtime_validator = File.expand_path("validate-interface-runtime-consistency.rb", __dir__)
 expected_files = %w[
   CLI_INTERFACE.md Gemfile Gemfile.lock INTERFACES.md MCP_INTERFACE.md RUNTIME.md SKILL.md
   bin/text-stat docs/mcp-transports.md mcp/README.md mcp/server.rb src/text_stat.rb src/text_stats.rb
@@ -154,6 +155,28 @@ end
     if status&.success? || stderr.strip.empty?
       failures << "missing #{missing_path} did not produce an actionable repository-validation failure"
     end
+  end
+end
+
+Dir.mktmpdir("invalid-disabled-bundled-client-command") do |directory|
+  FileUtils.cp_r("#{fixture}/.", directory)
+  runtime_path = File.join(directory, "RUNTIME.md")
+  runtime = File.read(runtime_path, encoding: "UTF-8")
+  mutated_runtime = runtime.sub(
+    "| Stable public command | NOT SUPPORTED |",
+    "| Stable public command | ghost-mcp-client |"
+  )
+  failures << "combined fixture regression setup did not mutate Stable public command" if mutated_runtime == runtime
+  File.write(runtime_path, mutated_runtime)
+
+  _stdout, stderr, status = run.call(
+    RbConfig.ruby,
+    interface_runtime_validator,
+    chdir: directory,
+    env: { "RUBYOPT" => nil }
+  )
+  unless !status&.success? && stderr.include?("Stable public command must be 'NOT SUPPORTED'")
+    failures << "disabled bundled client with a concrete stable command was not rejected: stderr=#{stderr.inspect}"
   end
 end
 
