@@ -13,6 +13,16 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import validate_contracts  # noqa: E402
 
 
+ROUTE_STATE_IDS = {
+    "loading",
+    "empty",
+    "populated",
+    "partial",
+    "recoverable-error",
+    "offline",
+    "unauthorized",
+    "forbidden",
+}
 GLOBAL_STATE_IDS = {"fatal-error", "retrying", "not-found"}
 
 
@@ -20,16 +30,27 @@ class UIStateScopeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.documents = validate_contracts.load_contract_documents(ROOT)
 
-    @staticmethod
-    def assign_scopes(documents: dict[str, object]) -> None:
-        states = documents["ui_states"]["states"]
-        for state in states:
-            state["scope"] = "global" if state["id"] in GLOBAL_STATE_IDS else "route"
+    def test_example_states_have_reviewed_scope_classification(self) -> None:
+        states = self.documents["ui_states"]["states"]
+        route_state_ids = {state["id"] for state in states if state["scope"] == "route"}
+        global_state_ids = {
+            state["id"] for state in states if state["scope"] == "global"
+        }
+
+        self.assertEqual(ROUTE_STATE_IDS, route_state_ids)
+        self.assertEqual(GLOBAL_STATE_IDS, global_state_ids)
+
+    def test_manifest_registers_ui_state_schema_version_two(self) -> None:
+        manifest = validate_contracts.load_contract_manifest(ROOT)
+        ui_state_entry = next(
+            entry for entry in manifest["contracts"] if entry["id"] == "ui_states"
+        )
+
+        self.assertEqual(2, ui_state_entry["documentSchemaVersion"])
+        self.assertEqual(2, self.documents["ui_states"]["schemaVersion"])
 
     def test_ui_state_schema_requires_scope_at_version_two(self) -> None:
         document = copy.deepcopy(self.documents["ui_states"])
-        self.assign_scopes({"ui_states": document})
-        document["schemaVersion"] = 2
         schema = validate_contracts.load_json(ROOT / "schemas/ui-states.schema.json")
         validator = Draft202012Validator(schema)
 
@@ -40,8 +61,6 @@ class UIStateScopeTests(unittest.TestCase):
 
     def test_ui_state_schema_rejects_unknown_scope(self) -> None:
         document = copy.deepcopy(self.documents["ui_states"])
-        self.assign_scopes({"ui_states": document})
-        document["schemaVersion"] = 2
         document["states"][0]["scope"] = "component"
         schema = validate_contracts.load_json(ROOT / "schemas/ui-states.schema.json")
 
@@ -49,9 +68,10 @@ class UIStateScopeTests(unittest.TestCase):
 
     def test_route_scoped_state_requires_a_route_reference(self) -> None:
         documents = copy.deepcopy(self.documents)
-        self.assign_scopes(documents)
         for route in documents["routes"]["routes"]:
-            route["states"] = [state_id for state_id in route["states"] if state_id != "empty"]
+            route["states"] = [
+                state_id for state_id in route["states"] if state_id != "empty"
+            ]
 
         errors = validate_contracts.cross_validate(documents)
 
@@ -62,7 +82,6 @@ class UIStateScopeTests(unittest.TestCase):
 
     def test_global_state_must_not_be_declared_by_a_route(self) -> None:
         documents = copy.deepcopy(self.documents)
-        self.assign_scopes(documents)
         documents["routes"]["routes"][0]["states"].append("not-found")
 
         errors = validate_contracts.cross_validate(documents)
@@ -74,7 +93,6 @@ class UIStateScopeTests(unittest.TestCase):
 
     def test_unreferenced_global_states_are_valid(self) -> None:
         documents = copy.deepcopy(self.documents)
-        self.assign_scopes(documents)
 
         errors = validate_contracts.cross_validate(documents)
 
