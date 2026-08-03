@@ -170,7 +170,7 @@ module TextStatsMcp
             end
     unless token&.match?(/\A[!-~]{32,128}\z/)
       raise ConfigurationError,
-            "MCP HTTP token must contain 32 to 128 non-whitespace printable ASCII characters"
+            "TEXT_STATS_MCP_HTTP_TOKEN or TEXT_STATS_MCP_HTTP_TOKEN_FILE must provide 32 to 128 non-whitespace printable ASCII characters"
     end
     token
   end
