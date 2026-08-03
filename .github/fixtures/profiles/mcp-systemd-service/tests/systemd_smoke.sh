@@ -197,7 +197,7 @@ for _ in $(seq 1 50); do
   [[ -s "$RESIST_PID_FILE" ]] && break
   sleep 0.1
 done
-RESIST_PID=$(cat "$RESIST_PID_FILE")
+RESIST_PID=$(sudo cat "$RESIST_PID_FILE")
 [[ "$RESIST_PID" =~ ^[0-9]+$ ]]
 sudo sh -c "echo '$RESIST_PID' > '/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs'"
 sudo kill -CONT "$RESIST_PID"
