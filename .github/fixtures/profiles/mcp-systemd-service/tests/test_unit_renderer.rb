@@ -75,7 +75,7 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
     assert_includes error.message, "non-symlink"
   end
 
-  def test_rejects_path_and_identity_injection
+  def test_rejects_path_identity_and_privilege_escalation
     error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
       TextStatsMcpSystemd::UnitRenderer.render(options.merge(service_user: "bad\nUser=root"))
     end
@@ -85,9 +85,18 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
       TextStatsMcpSystemd::UnitRenderer.render(options.merge(skill_root: "."))
     end
     assert_includes error.message, "absolute"
+
+    root = Etc.getpwnam("root")
+    root_group = Etc.getgrgid(root.gid)
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.render(
+        options.merge(service_user: root.name, service_group: root_group.name)
+      )
+    end
+    assert_includes error.message, "unprivileged"
   end
 
-  def test_rejects_invalid_port_and_bundle_outside_runtime_bin
+  def test_rejects_invalid_or_incomplete_runtime_selection
     error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
       TextStatsMcpSystemd::UnitRenderer.render(options.merge(port: "0"))
     end
@@ -100,6 +109,18 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
       TextStatsMcpSystemd::UnitRenderer.render(options.merge(bundle_path: outside))
     end
     assert_includes error.message, "runtime bin directory"
+
+    incomplete_runtime = File.join(@directory, "runtime-bin")
+    Dir.mkdir(incomplete_runtime)
+    incomplete_bundle = File.join(incomplete_runtime, "bundle")
+    File.binwrite(incomplete_bundle, "#!/bin/sh\nexit 0\n")
+    File.chmod(0o755, incomplete_bundle)
+    error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
+      TextStatsMcpSystemd::UnitRenderer.render(
+        options.merge(runtime_bin_dir: incomplete_runtime, bundle_path: incomplete_bundle)
+      )
+    end
+    assert_includes error.message, "ruby executable does not exist"
   end
 
   def test_cli_writes_exact_mode_and_rejects_symlinked_output_parent
