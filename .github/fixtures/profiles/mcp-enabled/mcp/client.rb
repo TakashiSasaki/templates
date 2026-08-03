@@ -424,7 +424,7 @@ module TextStatsMcpClient
       request["MCP-Protocol-Version"] = PROTOCOL_VERSION if @session_id
       request.body = JSON.generate(payload)
 
-      response = perform(request)
+      response = perform(request, capture_session_header: payload["method"] == "initialize")
       classify_http_failure(response) unless response.code.start_with?("2")
       if request_id.nil?
         raise ProtocolFailure unless response.code == "202"
@@ -465,7 +465,7 @@ module TextStatsMcpClient
       @endpoint.port == 80 ? @endpoint.host : "#{@endpoint.host}:#{@endpoint.port}"
     end
 
-    def perform(request)
+    def perform(request, capture_session_header: false)
       Timeout.timeout(@timeout) do
         @http.start unless @http.started?
         response = nil
@@ -473,6 +473,11 @@ module TextStatsMcpClient
 
         @http.request(request) do |streamed_response|
           response = streamed_response
+          if capture_session_header
+            session_id = streamed_response["mcp-session-id"]
+            @session_id = session_id unless session_id.nil? || session_id.empty?
+          end
+
           if streamed_response.code.to_s.start_with?("2")
             content_length = streamed_response["content-length"]
             if content_length && content_length.to_i > MAX_RESPONSE_BYTES
