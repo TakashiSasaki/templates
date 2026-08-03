@@ -20,7 +20,36 @@ except ModuleNotFoundError as exc:
 
 MIGRATIONS_DIRECTORY = "docs/migrations"
 RESERVED_BOOTSTRAP_MIGRATION_SLUG = "contract-manifest"
-ROOT = Path(__file__).resolve().parents[1]
+
+
+def _unresolved_absolute(path: str | Path) -> Path:
+    """Return an absolute path without resolving symbolic links."""
+
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _invocation_root() -> Path:
+    """Preserve a symlinked CLI invocation path for root preflight."""
+
+    file_root = _unresolved_absolute(__file__).parents[1]
+    pwd_value = os.environ.get("PWD")
+    if not pwd_value:
+        return file_root
+
+    pwd = Path(pwd_value)
+    if not pwd.is_absolute():
+        return file_root
+
+    candidate = pwd / "scripts" / Path(__file__).name
+    try:
+        if candidate.exists() and os.path.samefile(candidate, __file__):
+            return pwd
+    except OSError:
+        pass
+    return file_root
+
+
+ROOT = _invocation_root()
 
 
 def _duplicate_values(values: list[str]) -> set[str]:
@@ -41,19 +70,25 @@ def _has_visible_character(value: str) -> bool:
     )
 
 
-def _path_contains_symlink(root: Path, relative: str) -> bool:
+def _first_symlink_component(root: Path, relative: str) -> str | None:
     path = Path(relative)
     if path.is_absolute():
-        return False
+        return None
 
     candidate = root
+    traversed: list[str] = []
     for part in path.parts:
         if part in {"", "."}:
             continue
         candidate /= part
+        traversed.append(part)
         if candidate.is_symlink():
-            return True
-    return False
+            return Path(*traversed).as_posix()
+    return None
+
+
+def _path_contains_symlink(root: Path, relative: str) -> bool:
+    return _first_symlink_component(root, relative) is not None
 
 
 def _path_escapes_root(relative: str) -> bool:
@@ -78,11 +113,17 @@ def _root_resolution_error(root: Path) -> str | None:
 
 
 def _migration_directory_symlink_errors(root: Path) -> list[str]:
-    migrations_root = root / MIGRATIONS_DIRECTORY
-    if migrations_root.is_symlink():
+    symlink_component = _first_symlink_component(root, MIGRATIONS_DIRECTORY)
+    if symlink_component == MIGRATIONS_DIRECTORY:
         return [
             f"{MIGRATIONS_DIRECTORY}: migration directory must not be a symbolic link"
         ]
+    if symlink_component is not None:
+        return [
+            f"{MIGRATIONS_DIRECTORY}: migration path must not contain symbolic links"
+        ]
+
+    migrations_root = root / MIGRATIONS_DIRECTORY
     if not migrations_root.is_dir():
         return []
 
@@ -221,11 +262,22 @@ def _validate_entry_identity_inventory(
         ("retired contract manifest", retired_contracts),
     ):
         for entry in entries:
+            owner = f"{prefix} {entry['id']}"
             if entry["migrationSlug"] == RESERVED_BOOTSTRAP_MIGRATION_SLUG:
                 errors.append(
-                    f"{prefix} {entry['id']}: migrationSlug "
+                    f"{owner}: migrationSlug "
                     f"{RESERVED_BOOTSTRAP_MIGRATION_SLUG} is reserved for "
                     "the manifest bootstrap"
+                )
+            if entry["document"] == validate_contracts.MANIFEST_PATH:
+                errors.append(
+                    f"{owner}: document must not claim bootstrap path "
+                    f"{validate_contracts.MANIFEST_PATH}"
+                )
+            if entry["schema"] == validate_contracts.MANIFEST_SCHEMA_PATH:
+                errors.append(
+                    f"{owner}: schema must not claim bootstrap path "
+                    f"{validate_contracts.MANIFEST_SCHEMA_PATH}"
                 )
 
     entries = contracts + retired_contracts
