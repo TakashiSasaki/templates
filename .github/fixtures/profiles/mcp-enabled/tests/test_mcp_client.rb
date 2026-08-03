@@ -311,6 +311,28 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "text_stats", show_response.fetch("tool").fetch("name")
   end
 
+  def test_tools_run_without_calls_fails_before_transport_creation
+    transport_created = false
+    status = nil
+
+    stdout, stderr = capture_io do
+      TextStatsMcpClient::StdioTransport.stub(
+        :new,
+        lambda do |_timeout|
+          transport_created = true
+          raise "unexpected transport creation"
+        end
+      ) do
+        status = TextStatsMcpClient.run(["tools", "run"])
+      end
+    end
+
+    assert_equal 2, status
+    refute transport_created
+    assert_equal "", stdout
+    assert_includes stderr, "usage error: tools run requires at least one call"
+  end
+
   def test_stdio_call_and_sequential_run_use_real_protocol_calls
     call_stdout, call_stderr, call_status = run_client(
       "tools",
@@ -414,6 +436,23 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_tools_list_rejects_non_object_tool_metadata
+    transport = MalformedResultTransport.new(
+      "tools/list",
+      "tools" => [{
+        "name" => "text_stats",
+        "inputSchema" => { "type" => "object" },
+        "_meta" => "invalid"
+      }]
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
   def test_tools_list_rejects_input_schema_without_object_discriminator
     transport = MalformedResultTransport.new(
       "tools/list",
@@ -495,6 +534,27 @@ class TextStatsMcpClientTest < Minitest::Test
 
     assert_equal 8, error.exit_code
     refute_includes transport.requests.map(&:first), "notifications/initialized"
+  end
+
+  def test_initialize_rejects_malformed_known_capability_shapes
+    [
+      { "tools" => "invalid" },
+      { "tools" => { "listChanged" => "invalid" } }
+    ].each do |capabilities|
+      transport = MalformedResultTransport.new(
+        "initialize",
+        "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
+        "capabilities" => capabilities,
+        "serverInfo" => { "name" => "fake", "version" => "1" }
+      )
+
+      error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+        TextStatsMcpClient::Client.new(transport).execute(name: :server_info)
+      end
+
+      assert_equal 8, error.exit_code
+      refute_includes transport.requests.map(&:first), "notifications/initialized"
+    end
   end
 
   def test_initialize_rejects_non_object_result_metadata
