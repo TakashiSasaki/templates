@@ -45,7 +45,7 @@ Command: `bundle exec ruby mcp/client.rb`
 Transport used: both
 Negotiation and compatibility behavior: Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback
 Invocation scope: one tool call or multiple sequential `tools/call` requests; `tools run` requires at least one `--call` before transport startup; never JSON-RPC batch
-Interaction modes: non-interactive JSON arguments only
+Interaction modes: non-interactive JSON arguments only; terminal `--arguments-stdin` is rejected and non-EOF stdin reads are bounded by the configured `--timeout` before transport startup
 Task or extension support: NOT SUPPORTED
 
 The helper is not a stable public CLI and does not activate the `packaged-cli` profile. Its stdio command and HTTP endpoint are fixed or explicitly constrained by `RUNTIME.md`; it never accepts an arbitrary server command, caller-selected JSON-RPC ID, Bearer token argument, implicit HTTP-server startup, or unbounded retry.
