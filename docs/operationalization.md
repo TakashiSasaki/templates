@@ -51,7 +51,7 @@ For each change:
 1. Keep every retained product-domain contract document and schema registered in `contracts/manifest.json`; preserve the validator's exclusion of the bootstrap artifacts `contracts/manifest.json` and `schemas/contract-manifest.schema.json` themselves.
 2. Keep the document `$schema` and `schemaVersion` consistent with the manifest.
 3. Declare every externally observable application surface and canonical route.
-4. Keep route-to-surface and route-to-UI-state references valid.
+4. Keep route-to-surface and route-to-UI-state references valid, and ensure every declared surface is owned by at least one canonical route.
 5. Define aliases and canonical paths without collisions.
 6. Describe authentication return behavior and deep-link expectations for protected routes.
 7. Declare loading, empty, partial, error, offline, and access states that users can observe.
@@ -123,7 +123,8 @@ A generated repository is ready for independent product review when:
 - one product toolchain and one authoritative lockfile are selected;
 - example contracts have been replaced or explicitly retained as product declarations;
 - the closed manifest, schemas, and document metadata agree;
-- all canonical surfaces, routes, states, viewports, and input capabilities are declared;
+- all externally observable surfaces and canonical routes are declared, and every surface is owned by at least one canonical route;
+- all observable states, viewports, and input capabilities are declared;
 - trusted authentication and authorization enforcement is tested;
 - implementation evidence covers the declared behavior and failure paths;
 - if the shipped validator is retained, its locked distribution set and dependency graph verify successfully, both supported entry points pass, the template test suite passes, and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics and failure evidence;
