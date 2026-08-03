@@ -189,6 +189,7 @@ module TextStatsMcpClient
         tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty? &&
           tool["inputSchema"].is_a?(Hash) &&
           tool["inputSchema"]["type"] == "object" &&
+          (!tool.key?("outputSchema") || tool["outputSchema"].is_a?(Hash)) &&
           (!tool.key?("_meta") || tool["_meta"].is_a?(Hash))
       end
       valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
