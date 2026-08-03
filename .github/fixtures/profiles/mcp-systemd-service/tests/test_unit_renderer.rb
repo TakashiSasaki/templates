@@ -48,6 +48,7 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
   end
 
   def teardown
+    FileUtils.chmod_R(0o700, @directory) if @directory && File.exist?(@directory)
     FileUtils.remove_entry(@directory) if @directory && File.exist?(@directory)
   end
 
