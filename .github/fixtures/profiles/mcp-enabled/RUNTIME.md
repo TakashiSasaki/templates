@@ -41,8 +41,8 @@ Run every command from the skill root.
 | Inspect MCP server and tool inventory | `bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory` |
 | Invoke one MCP tool over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call` |
 | Invoke sequential MCP tool calls over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls` |
-| Start Streamable HTTP MCP server manually | `bundle exec ruby mcp/http_server.rb` |
-| Stop manually started Streamable HTTP MCP server | `kill -TERM "$TEXT_STATS_MCP_HTTP_PID"` |
+| Start Streamable HTTP MCP server | `bundle exec ruby mcp/http_server.rb` |
+| Stop Streamable HTTP MCP server | `kill -TERM "$TEXT_STATS_MCP_HTTP_PID"` |
 | Start managed Streamable HTTP MCP service | `TEXT_STATS_MCP_HTTP_TOKEN_FILE=/path/to/mode-0600-token bundle exec ruby mcp/service_manager.rb start` |
 | Stop managed Streamable HTTP MCP service | `bundle exec ruby mcp/service_manager.rb stop` |
 | Restart managed Streamable HTTP MCP service | `bundle exec ruby mcp/service_manager.rb restart` |
@@ -51,7 +51,7 @@ Run every command from the skill root.
 | Invoke one MCP tool over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_http_inventory_calls_and_stdio_equivalence` |
 | Invoke sequential MCP tool calls over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_request_scoped_host_origin_and_authentication_on_reused_connection` |
 | Test HTTP expiry and disconnect recovery | `bundle exec ruby tests/test_http_lifecycle.rb` |
-| Check MCP readiness directly | `curl --fail --silent --show-error http://127.0.0.1:4570/readyz` |
+| Check MCP readiness | `curl --fail --silent --show-error http://127.0.0.1:4570/readyz` |
 
 ## MCP protocol support
 
