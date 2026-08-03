@@ -414,6 +414,19 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_tools_list_rejects_input_schema_without_object_discriminator
+    transport = MalformedResultTransport.new(
+      "tools/list",
+      "tools" => [{ "name" => "text_stats", "inputSchema" => {} }]
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
   def test_tools_call_rejects_non_object_content_block_metadata
     transport = MalformedResultTransport.new(
       "tools/call",
@@ -510,7 +523,10 @@ class TextStatsMcpClientTest < Minitest::Test
     response = response_class.new(
       "200",
       "{malformed",
-      { "mcp-session-id" => "session-123" }
+      {
+        "mcp-session-id" => "session-123",
+        "content-type" => "application/json"
+      }
     )
 
     transport = TextStatsMcpClient::HttpTransport.allocate
@@ -538,6 +554,41 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "session-123", transport.instance_variable_get(:@session_id)
     transport.close
     assert_equal "session-123", deleted_session
+  end
+
+  def test_http_json_requests_reject_non_json_media_type
+    response_class = Struct.new(:code, :body, :headers) do
+      def [](name)
+        headers[name.downcase]
+      end
+    end
+
+    [
+      ["initialize", { "mcp-session-id" => "session-json" }],
+      ["tools/list", { "mcp-session-id" => "session-json" }]
+    ].each do |method, headers|
+      response = response_class.new(
+        "200",
+        JSON.generate("jsonrpc" => "2.0", "id" => 1, "result" => {}),
+        headers.merge("content-type" => "text/plain; charset=utf-8")
+      )
+      transport = TextStatsMcpClient::HttpTransport.allocate
+      transport.instance_variable_set(:@endpoint, URI.parse("http://127.0.0.1:4570/mcp"))
+      transport.instance_variable_set(:@timeout, 0.1)
+      transport.instance_variable_set(:@token, TOKEN)
+      transport.instance_variable_set(:@session_id, "session-json")
+      transport.define_singleton_method(:perform) { |_request, **_options| response }
+
+      error = assert_raises(TextStatsMcpClient::ProtocolFailure) do
+        transport.send(
+          :post,
+          TextStatsMcpClient::Protocol.request(1, method, {}),
+          request_id: 1
+        )
+      end
+
+      assert_equal 6, error.exit_code
+    end
   end
 
   def test_http_notifications_require_202_response
