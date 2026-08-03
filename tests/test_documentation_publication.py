@@ -202,13 +202,15 @@ def test_documentation_build_runs_all_tools_from_the_isolated_environment() -> N
         ".venv/bin/python scripts/generate_repository_preview.py",
         ".venv/bin/python scripts/verify-repository-structure.py --check",
         ".venv/bin/python scripts/generate-doc-assets.py",
+        ".venv/bin/python scripts/generate_docs_build_info.py",
         ".venv/bin/python -m mkdocs build --strict --clean",
     )
     for step in required_steps:
         assert step in workflow
 
     assert "BUILD_COMMIT: ${{ github.sha }}" in workflow
-    assert '"repository": os.environ["BUILD_REPOSITORY"]' in workflow
+    assert '--repository "$BUILD_REPOSITORY"' in workflow
+    assert "from datetime import datetime, timezone" not in workflow
 
 
 def test_documentation_environment_contract_is_documented() -> None:
