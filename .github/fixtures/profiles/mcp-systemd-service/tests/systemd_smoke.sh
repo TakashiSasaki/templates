@@ -64,15 +64,19 @@ TEXT_STATS_MCP_HTTP_PORT="$PORT" TEXT_STATS_MCP_SMOKE_TOKEN_FILE="$TOKEN_FILE" \
 
 RESTARTS_BEFORE=$(sudo systemctl show -p NRestarts --value "$UNIT_NAME")
 sudo kill -KILL "$SECOND_PID"
+CURRENT_PID=0
+RESTARTS_AFTER=$RESTARTS_BEFORE
+ACTIVE_STATE=failed
 for _ in $(seq 1 100); do
   CURRENT_PID=$(sudo systemctl show -p MainPID --value "$UNIT_NAME")
   RESTARTS_AFTER=$(sudo systemctl show -p NRestarts --value "$UNIT_NAME")
-  if [[ "$CURRENT_PID" != "0" && "$CURRENT_PID" != "$SECOND_PID" && "$RESTARTS_AFTER" -gt "$RESTARTS_BEFORE" ]]; then
+  ACTIVE_STATE=$(sudo systemctl show -p ActiveState --value "$UNIT_NAME")
+  if [[ "$CURRENT_PID" != "0" && "$CURRENT_PID" != "$SECOND_PID" && "$RESTARTS_AFTER" -gt "$RESTARTS_BEFORE" && "$ACTIVE_STATE" == "active" ]]; then
     break
   fi
   sleep 0.1
 done
-sudo systemctl is-active --quiet "$UNIT_NAME"
+[[ "$ACTIVE_STATE" == "active" ]]
 [[ "$CURRENT_PID" != "0" && "$CURRENT_PID" != "$SECOND_PID" ]]
 [[ "$RESTARTS_AFTER" -gt "$RESTARTS_BEFORE" ]]
 TEXT_STATS_MCP_HTTP_PORT="$PORT" TEXT_STATS_MCP_SMOKE_TOKEN_FILE="$TOKEN_FILE" \
