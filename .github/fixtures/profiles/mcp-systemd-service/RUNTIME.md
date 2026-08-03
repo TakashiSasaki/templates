@@ -103,11 +103,11 @@ Run repository-local commands from the skill root. System unit changes require e
 | Supported protocol eras | initialization-era revision `2025-11-25` only |
 | Revision-specific state model | Stateful SDK-issued sessions with a 300-second idle timeout and explicit DELETE cleanup; no persistence or resumability |
 | Concurrent-client policy | At most 16 live sessions; excess initialization receives HTTP 503 |
-| Authentication | Every `/mcp` request requires an exact Bearer token loaded from either an explicit owner-only file for direct test launch or the systemd `text-stats-mcp-token` credential under `CREDENTIALS_DIRECTORY`; both sources together are rejected. |
+| Authentication | Every `/mcp` request requires an exact Bearer token. Direct test launch accepts only an explicit service-user-owned regular non-symlink file with no group or other access. Under systemd, the application opens only `CREDENTIALS_DIRECTORY/text-stats-mcp-token` and relies on the manager-provided read-only credential directory as the access-control authority instead of reinterpreting copied-file owner or mode metadata. Both sources together are rejected. |
 | Host-header validation | Every request requires the exact configured loopback authority; nondefault ports require `127.0.0.1:PORT` |
 | Origin validation granularity | EVERY HTTP REQUEST before health, authentication, session lookup, or dispatch |
 | Allowed origins and absent-Origin policy | Absent Origin is accepted for non-browser clients; a present Origin must be same-scheme loopback HTTP with the configured effective port and no userinfo, path, query, or fragment |
-| Connection-reuse security tests | Focused tests verify that invalid Origin and missing Bearer values are rejected independently of prior successful requests |
+| Connection-reuse security tests | Focused tests verify that invalid Origin and missing Bearer values are rejected independently of prior successful requests on one reused HTTP/1.1 connection |
 | Readiness check | `GET /readyz` returns only `{"status":"ready"}` after listener creation. The server sends `READY=1` to `NOTIFY_SOCKET` from the listener callback, so `Type=notify` does not become active before readiness. |
 | Liveness check | `GET /livez` returns only `{"status":"live"}` while the event loop responds |
 | Cancellation behavior | The operation is synchronous and bounded; client disconnect does not create a detached task or persistence |
@@ -154,7 +154,7 @@ Run repository-local commands from the skill root. System unit changes require e
 | Endpoint or listener model | One systemd-owned main process and one loopback listener |
 | Default bind address | `127.0.0.1` |
 | Port policy | Fixed deployment default `4572`; one render-time integer from 1 through 65535 |
-| Authentication | systemd `LoadCredential=` copies the external token into the service credential directory; the application opens the fixed credential name nonblocking without following symlinks, requires a regular service-user-owned file with no group or other access, and checks the Bearer token on every MCP request |
+| Authentication | The renderer accepts a regular non-symlink source token owned by root or the unprivileged service user, with no group or other access. systemd `LoadCredential=` copies the value into its per-unit read-only credential directory, which is accessible only to the service identity and root. The application opens the fixed credential name nonblocking without following symlinks, bounds and validates the token value, and checks it on every MCP request. |
 | Authorization | The authenticated caller may invoke only the read-only `text_stats` tool; no lifecycle, file, shell, administrative, or mutating operation exists |
 | Exposure and non-loopback policy | Loopback-only; the renderer fixes `TEXT_STATS_MCP_HTTP_BIND=127.0.0.1`, and the application independently rejects every other bind before listener creation |
 | Request size and rate limits | Request bodies are bounded at 65,536 bytes by the SDK transport; no remote rate limiter is claimed because remote exposure is unsupported |
@@ -163,9 +163,9 @@ Run repository-local commands from the skill root. System unit changes require e
 | Readiness check | systemd `Type=notify` plus `READY=1` after listener creation and `GET /readyz` over loopback |
 | Liveness check | `systemctl is-active` plus `GET /livez`; no watchdog extension is claimed |
 | Timeout and cancellation policy | systemd bounds startup at 15 seconds and stop at 10 seconds; the MCP operation is synchronous and bounded |
-| Graceful shutdown and restart policy | systemd sends TERM to the main process, owns the control group, escalates with KILL after the stop timeout, performs explicit restart without overlap, and restarts unexpected failures with one-second delay under a three-start-per-30-second limit, and does not restart application configuration exit 78 |
+| Graceful shutdown and restart policy | systemd sends TERM to the main process, owns the control group, escalates with KILL after the stop timeout, performs explicit restart without overlap, restarts unexpected failures with one-second delay under a three-start-per-30-second limit, waits for notify readiness after restart, and does not restart application configuration exit 78 |
 | Deployment topology | One rendered systemd system unit, one unprivileged service identity, one read-only skill artifact, one external credential source, and one loopback HTTP listener |
-| Security and deployment smoke tests | Unit renderer tests reject unsafe identities, paths, symlinked or permissive tokens, invalid ports, and mismatched runtime executables. The real smoke verifies unit syntax, notify readiness, authenticated MCP execution, explicit restart, KILL-triggered on-failure restart, configuration-exit restart prevention, control-group stop, and token absence from the journal. |
+| Security and deployment smoke tests | Unit renderer tests reject unsafe identities, privileged service users, paths, symlinked or permissive tokens, invalid token ownership, invalid ports, and incomplete runtime selections. The real smoke verifies unit syntax, manager-owned copied credentials, notify readiness, authenticated MCP execution, explicit restart, KILL-triggered on-failure restart through active readiness, configuration-exit restart prevention, control-group stop, and token absence from the journal. |
 
 The fixed unit applies `NoNewPrivileges`, empty capability sets, private temporary and device namespaces, read-only system and home views, kernel and cgroup protection, SUID/SGID restriction, locked personality, address-family restriction, mode-`0077` creation, journal output, and no shell-based `ExecStart`. The renderer creates one exact-mode-0644 output file under a canonical non-symlink parent only and refuses unresolved placeholders, unsafe substitution characters, existing output paths, and symlinked output parents.
 
@@ -184,12 +184,12 @@ The fixed unit applies `NoNewPrivileges`, empty capability sets, private tempora
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
-| `CREDENTIALS_DIRECTORY` | YES under systemd, supplied by the service manager | Locate the fixed `text-stats-mcp-token` credential copied by `LoadCredential=` | NO; directory path only |
+| `CREDENTIALS_DIRECTORY` | YES under systemd, supplied by the service manager | Locate the fixed manager-protected `text-stats-mcp-token` credential copied by `LoadCredential=` | NO; directory path only |
 | `NOTIFY_SOCKET` | YES under `Type=notify`, supplied by systemd | Send `READY=1` after listener creation and `STOPPING=1` before managed shutdown | NO |
-| `TEXT_STATS_MCP_HTTP_TOKEN_FILE` | Direct test launch only | Use one explicit owner-only token file when systemd credentials are not active | YES: file contents |
+| `TEXT_STATS_MCP_HTTP_TOKEN_FILE` | Direct test launch only | Use one explicit service-user-owned mode-0600 token file when systemd credentials are not active | YES: file contents |
 | `TEXT_STATS_MCP_HTTP_BIND` | Set by the unit | Must remain `127.0.0.1` | NO |
 | `TEXT_STATS_MCP_HTTP_PORT` | Set by the unit | Selected render-time loopback port | NO |
 
 ## Decision rationale
 
-The systemd variant is the smallest topology after a bundled local controller because the OS service manager becomes the sole lifecycle owner while the application protocol, domain operation, authentication, and loopback network boundary remain unchanged. `Type=notify` prevents active-state publication before the listener is ready, `LoadCredential=` keeps the secret out of the unit and process arguments, and the fixed unit bounds failure restart and control-group shutdown. Non-loopback exposure, trusted proxies, TLS, socket activation, containers, multiple workers, persistence, migration, backup, metrics, zero-downtime rollout, and orchestration remain separate unsupported boundaries.
+The systemd variant is the smallest topology after a bundled local controller because the OS service manager becomes the sole lifecycle owner while the application protocol, domain operation, authentication, and loopback network boundary remain unchanged. `Type=notify` prevents active-state publication before the listener is ready, `LoadCredential=` keeps the secret out of the unit and process arguments while systemd owns copied-credential access control, and the fixed unit bounds failure restart and control-group shutdown. Non-loopback exposure, trusted proxies, TLS, socket activation, containers, multiple workers, persistence, migration, backup, metrics, zero-downtime rollout, and orchestration remain separate unsupported boundaries.
