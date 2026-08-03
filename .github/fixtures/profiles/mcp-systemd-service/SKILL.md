@@ -16,7 +16,7 @@ Use this skill when a Linux operator needs the MCP endpoint to start as a system
 ## Workflow
 
 1. From the skill root, install the pinned dependencies with `bundle install`.
-2. Create an external Bearer token containing 32 to 128 visible ASCII characters in a regular mode-`0600` file owned by the selected service user.
+2. Create an external Bearer token containing 32 to 128 visible ASCII characters in a regular mode-`0600` file owned by root or the selected service user.
 3. Render `deployment/systemd/text-stats-mcp.service.in` with `bundle exec ruby deployment/systemd/render_unit.rb`, supplying the fixed skill root, service identity, token source, Ruby runtime directory, Bundler executable, port, and a new output path.
 4. Inspect the rendered unit with `systemd-analyze verify`, install it under `/etc/systemd/system/text-stats-mcp.service`, and run `sudo systemctl daemon-reload`.
 5. Start the unit with `sudo systemctl start text-stats-mcp.service` and require both `systemctl is-active` and the configured readiness endpoint from `RUNTIME.md` to succeed before MCP initialization.
