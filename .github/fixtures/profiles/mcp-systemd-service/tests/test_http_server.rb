@@ -36,11 +36,16 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
     [stdout, stderr, wait]
   end
 
-  def request(port, request)
+  def build_http(port)
     http = Net::HTTP.new(HOST, port, nil)
     http.open_timeout = 2
     http.read_timeout = 2
-    http.start { |connection| connection.request(request) }
+    http.write_timeout = 2 if http.respond_to?(:write_timeout=)
+    http
+  end
+
+  def request(port, request)
+    build_http(port).start { |connection| connection.request(request) }
   end
 
   def wait_ready(port)
@@ -66,27 +71,43 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
     stderr.close unless stderr.closed?
   end
 
-  def initialize_session(port)
+  def initialize_params(revision: "2025-11-25")
+    {
+      protocolVersion: revision,
+      capabilities: {},
+      clientInfo: { name: "systemd-fixture-test", version: "1.0.0" }
+    }
+  end
+
+  def initialize_request(params, id: 1)
     request_object = Net::HTTP::Post.new("/mcp")
     request_object["Accept"] = ACCEPT
     request_object["Content-Type"] = "application/json"
     request_object["Authorization"] = "Bearer #{TOKEN}"
-    request_object.body = JSON.generate(
-      jsonrpc: "2.0",
-      method: "initialize",
-      id: 1,
-      params: {
-        protocolVersion: "2025-11-25",
-        capabilities: {},
-        clientInfo: { name: "systemd-fixture-test", version: "1.0.0" }
-      }
-    )
-    response = request(port, request_object)
-    assert_equal "200", response.code
-    [response["mcp-session-id"], JSON.parse(response.body)]
+    request_object.body = JSON.generate(jsonrpc: "2.0", method: "initialize", id: id, params: params)
+    request_object
   end
 
-  def test_file_backed_http_contract
+  def initialize_session(connection, id: 1)
+    response = connection.request(initialize_request(initialize_params, id: id))
+    assert_equal "200", response.code
+    result = JSON.parse(response.body).fetch("result")
+    assert_equal "2025-11-25", result.fetch("protocolVersion")
+    session_id = response["mcp-session-id"]
+    refute_nil session_id
+    refute_empty session_id
+    [session_id, result]
+  end
+
+  def assert_invalid_initialize(response)
+    assert_equal "200", response.code
+    payload = JSON.parse(response.body)
+    assert_equal "2.0", payload.fetch("jsonrpc")
+    assert_equal(-32_602, payload.fetch("error").fetch("code"))
+    assert_nil response["mcp-session-id"]
+  end
+
+  def test_file_backed_http_contract_and_reused_connection_policy
     Dir.mktmpdir("mcp-systemd-http") do |directory|
       port = free_port
       token = token_file(directory)
@@ -96,59 +117,101 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
       )
       wait_ready(port)
 
-      readiness = request(port, Net::HTTP::Get.new("/readyz"))
-      assert_equal({ "status" => "ready" }, JSON.parse(readiness.body))
+      build_http(port).start do |connection|
+        readiness = connection.request(Net::HTTP::Get.new("/readyz"))
+        assert_equal({ "status" => "ready" }, JSON.parse(readiness.body))
 
-      unauthorized_request = Net::HTTP::Post.new("/mcp")
-      unauthorized_request["Accept"] = ACCEPT
-      unauthorized_request["Content-Type"] = "application/json"
-      unauthorized_request.body = "{}"
-      assert_equal "401", request(port, unauthorized_request).code
+        session_id, = initialize_session(connection)
 
-      session_id, initialization = initialize_session(port)
-      assert_equal "2025-11-25", initialization.fetch("result").fetch("protocolVersion")
-      refute_nil session_id
+        notify = Net::HTTP::Post.new("/mcp")
+        notify["Accept"] = ACCEPT
+        notify["Content-Type"] = "application/json"
+        notify["Authorization"] = "Bearer #{TOKEN}"
+        notify["Mcp-Session-Id"] = session_id
+        notify["MCP-Protocol-Version"] = "2025-11-25"
+        notify.body = JSON.generate(jsonrpc: "2.0", method: "notifications/initialized", params: {})
+        assert_equal "202", connection.request(notify).code
 
-      notify = Net::HTTP::Post.new("/mcp")
-      notify["Accept"] = ACCEPT
-      notify["Content-Type"] = "application/json"
-      notify["Authorization"] = "Bearer #{TOKEN}"
-      notify["Mcp-Session-Id"] = session_id
-      notify["MCP-Protocol-Version"] = "2025-11-25"
-      notify.body = JSON.generate(jsonrpc: "2.0", method: "notifications/initialized", params: {})
-      assert_equal "202", request(port, notify).code
+        inventory = Net::HTTP::Post.new("/mcp")
+        inventory["Accept"] = ACCEPT
+        inventory["Content-Type"] = "application/json"
+        inventory["Authorization"] = "Bearer #{TOKEN}"
+        inventory["Mcp-Session-Id"] = session_id
+        inventory["MCP-Protocol-Version"] = "2025-11-25"
+        inventory.body = JSON.generate(jsonrpc: "2.0", method: "tools/list", id: 2, params: {})
+        tools = JSON.parse(connection.request(inventory).body).fetch("result").fetch("tools")
+        assert_equal ["text_stats"], tools.map { |tool| tool.fetch("name") }
 
-      inventory = Net::HTTP::Post.new("/mcp")
-      inventory["Accept"] = ACCEPT
-      inventory["Content-Type"] = "application/json"
-      inventory["Authorization"] = "Bearer #{TOKEN}"
-      inventory["Mcp-Session-Id"] = session_id
-      inventory["MCP-Protocol-Version"] = "2025-11-25"
-      inventory.body = JSON.generate(jsonrpc: "2.0", method: "tools/list", id: 2, params: {})
-      tools = JSON.parse(request(port, inventory).body).fetch("result").fetch("tools")
-      assert_equal ["text_stats"], tools.map { |tool| tool.fetch("name") }
+        [[3, "alpha beta\n", { "bytes" => 11, "lines" => 1, "words" => 2 }],
+         [4, "gamma\ndelta\n", { "bytes" => 12, "lines" => 2, "words" => 2 }]].each do |id, text, expected|
+          call = Net::HTTP::Post.new("/mcp")
+          call["Accept"] = ACCEPT
+          call["Content-Type"] = "application/json"
+          call["Authorization"] = "Bearer #{TOKEN}"
+          call["Mcp-Session-Id"] = session_id
+          call["MCP-Protocol-Version"] = "2025-11-25"
+          call.body = JSON.generate(
+            jsonrpc: "2.0",
+            method: "tools/call",
+            id: id,
+            params: { name: "text_stats", arguments: { text: text } }
+          )
+          result = JSON.parse(connection.request(call).body).fetch("result").fetch("structuredContent")
+          assert_equal expected, result
+        end
 
-      [[3, "alpha beta\n", { "bytes" => 11, "lines" => 1, "words" => 2 }],
-       [4, "gamma\ndelta\n", { "bytes" => 12, "lines" => 2, "words" => 2 }]].each do |id, text, expected|
-        call = Net::HTTP::Post.new("/mcp")
-        call["Accept"] = ACCEPT
-        call["Content-Type"] = "application/json"
-        call["Authorization"] = "Bearer #{TOKEN}"
-        call["Mcp-Session-Id"] = session_id
-        call["MCP-Protocol-Version"] = "2025-11-25"
-        call.body = JSON.generate(
-          jsonrpc: "2.0",
-          method: "tools/call",
-          id: id,
-          params: { name: "text_stats", arguments: { text: text } }
-        )
-        result = JSON.parse(request(port, call).body).fetch("result").fetch("structuredContent")
-        assert_equal expected, result
+        bad_origin = Net::HTTP::Get.new("/readyz")
+        bad_origin["Origin"] = "https://evil.example"
+        assert_equal "403", connection.request(bad_origin).code
+
+        missing_auth = Net::HTTP::Post.new("/mcp")
+        missing_auth["Accept"] = ACCEPT
+        missing_auth["Content-Type"] = "application/json"
+        missing_auth["Mcp-Session-Id"] = session_id
+        missing_auth["MCP-Protocol-Version"] = "2025-11-25"
+        missing_auth.body = JSON.generate(jsonrpc: "2.0", method: "ping", id: 5, params: {})
+        assert_equal "401", connection.request(missing_auth).code
+
+        bad_host = Net::HTTP::Get.new("/readyz")
+        bad_host["Host"] = "evil.example"
+        assert_equal "403", connection.request(bad_host).code
+
+        valid_again = connection.request(Net::HTTP::Get.new("/readyz"))
+        assert_equal "200", valid_again.code
+        assert_equal({ "status" => "ready" }, JSON.parse(valid_again.body))
       end
 
-      bad_origin = Net::HTTP::Get.new("/readyz")
-      bad_origin["Origin"] = "https://evil.example"
-      assert_equal "403", request(port, bad_origin).code
+      status, output, diagnostics = stop(wait, stdout, stderr)
+      assert status.success?
+      assert_equal "", output
+      refute_includes diagnostics, TOKEN
+    end
+  end
+
+  def test_initialization_negotiation_and_validation_outcomes
+    Dir.mktmpdir("mcp-systemd-initialize") do |directory|
+      port = free_port
+      token = token_file(directory)
+      stdout, stderr, wait = start_server(
+        "TEXT_STATS_MCP_HTTP_TOKEN_FILE" => token,
+        "TEXT_STATS_MCP_HTTP_PORT" => port.to_s
+      )
+      wait_ready(port)
+
+      build_http(port).start do |connection|
+        negotiated = connection.request(
+          initialize_request(initialize_params(revision: "2025-06-18"), id: 10)
+        )
+        assert_equal "200", negotiated.code
+        assert_equal "2025-11-25", JSON.parse(negotiated.body).fetch("result").fetch("protocolVersion")
+        refute_empty negotiated["mcp-session-id"].to_s
+
+        missing_revision = initialize_params.reject { |key, _value| key == :protocolVersion }
+        assert_invalid_initialize(connection.request(initialize_request(missing_revision, id: 11)))
+
+        non_string_revision = initialize_params(revision: 20_251_125)
+        assert_invalid_initialize(connection.request(initialize_request(non_string_revision, id: 12)))
+      end
 
       status, output, diagnostics = stop(wait, stdout, stderr)
       assert status.success?
