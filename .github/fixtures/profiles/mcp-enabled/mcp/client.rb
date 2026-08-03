@@ -160,7 +160,8 @@ module TextStatsMcpClient
       tools = value["tools"]
       valid_tools = tools.is_a?(Array) && tools.all? do |tool|
         tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty? &&
-          tool["inputSchema"].is_a?(Hash)
+          tool["inputSchema"].is_a?(Hash) &&
+          tool["inputSchema"]["type"] == "object"
       end
       valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
       raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools && valid_meta
@@ -440,6 +441,10 @@ module TextStatsMcpClient
         @session_id = response["mcp-session-id"]
       end
 
+      unless json_response?(response)
+        raise ProtocolFailure, "HTTP protocol failure: expected application/json response"
+      end
+
       parsed = JSON.parse(response.body)
       raise ProtocolFailure unless parsed.is_a?(Hash)
 
@@ -449,6 +454,11 @@ module TextStatsMcpClient
       RpcResponse.new(id: request_id, message: parsed)
     rescue JSON::ParserError
       raise ProtocolFailure
+    end
+
+    def json_response?(response)
+      media_type = response["content-type"].to_s.split(";", 2).first.to_s.strip
+      media_type.casecmp("application/json").zero?
     end
 
     def delete_session
