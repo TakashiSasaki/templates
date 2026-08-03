@@ -222,6 +222,44 @@ class TextStatsMcpClientTest < Minitest::Test
     end
   end
 
+  class StreamingResponse
+    attr_accessor :body
+    attr_reader :code, :chunks_read
+
+    def initialize(chunks, code: "200", headers: {})
+      @chunks = chunks
+      @code = code
+      @headers = headers.transform_keys(&:downcase)
+      @chunks_read = 0
+    end
+
+    def [](name)
+      @headers[name.downcase]
+    end
+
+    def read_body
+      @chunks.each do |chunk|
+        @chunks_read += 1
+        yield chunk
+      end
+    end
+  end
+
+  class StreamingHttp
+    def initialize(response)
+      @response = response
+    end
+
+    def started?
+      true
+    end
+
+    def request(_request)
+      yield @response
+      @response
+    end
+  end
+
   def stdio_transport_for(*messages)
     transport = TextStatsMcpClient::StdioTransport.allocate
     transport.instance_variable_set(:@timeout, 0.1)
@@ -393,6 +431,31 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_tools_call_rejects_non_object_embedded_resource_metadata
+    transport = MalformedResultTransport.new(
+      "tools/call",
+      "content" => [{
+        "type" => "resource",
+        "resource" => {
+          "uri" => "file:///x",
+          "text" => "ok",
+          "_meta" => "invalid"
+        }
+      }]
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(
+        name: :tools_call,
+        tool: "text_stats",
+        arguments: {}
+      )
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
+
   def test_tools_list_rejects_non_object_result_metadata
     transport = MalformedResultTransport.new(
       "tools/list",
@@ -541,6 +604,38 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal "", stdout
     assert_equal 2, status.exitstatus
     assert_includes stderr, "invalid option: --arguments-file"
+  end
+
+  def test_stdio_response_body_limit_is_enforced_before_json_parse
+    oversized_text = "x" * TextStatsMcpClient::MAX_RESPONSE_BYTES
+    transport = stdio_transport_for(
+      "jsonrpc" => "2.0",
+      "id" => 1,
+      "result" => { "content" => [{ "type" => "text", "text" => oversized_text }] }
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      transport.send(:read_response, 1)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
+  def test_http_response_body_limit_is_enforced_while_streaming
+    response = StreamingResponse.new([
+      "x" * TextStatsMcpClient::MAX_RESPONSE_BYTES,
+      "y"
+    ])
+    transport = TextStatsMcpClient::HttpTransport.allocate
+    transport.instance_variable_set(:@timeout, 1.0)
+    transport.instance_variable_set(:@http, StreamingHttp.new(response))
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      transport.send(:perform, Net::HTTP::Get.new("/mcp"))
+    end
+
+    assert_equal 8, error.exit_code
+    assert_equal 2, response.chunks_read
   end
 
   def test_http_cleanup_failure_is_not_reported_as_success
