@@ -4,7 +4,7 @@ The `policy` branch builds this documentation through `.github/workflows/pages.y
 
 ## Current workflow boundary
 
-Both pull requests targeting `policy` and pushes to `policy` regenerate repository previews and documentation assets, verify the documented tree, and run a strict MkDocs build. The enabled build baseline is Ubuntu 24.04 with CPython 3.12.13. Checkout and Python setup actions are pinned to reviewed full commit SHAs, and every documentation command runs from a cleared branch-maintainer virtual environment rather than the runner's system environment.
+Both pull requests targeting `policy` and pushes to `policy` regenerate repository previews and documentation assets, verify the documented tree, generate build metadata, and run a strict MkDocs build. The enabled build baseline is Ubuntu 24.04 with CPython 3.12.13. Checkout and Python setup actions are pinned to reviewed full commit SHAs, and every documentation command runs from a cleared branch-maintainer virtual environment rather than the runner's system environment.
 
 Before `actions/setup-python` performs its cache lookup, the build job neutralizes Python startup inputs and pip cache, output, parser, behavior, and transport inputs that could redirect or terminate the pre-venv toolchain. It creates `.venv` with an isolated bootstrap interpreter, installs the arbitrary-exact documentation lock with dependency resolution disabled and pip isolated from unlisted environment inputs, verifies the complete installed distribution set, and runs `pip check` before generating or building documentation.
 
@@ -31,8 +31,13 @@ python -m pip check
 python scripts/generate_repository_preview.py
 python scripts/verify-repository-structure.py --check
 python scripts/generate-doc-assets.py
+python scripts/generate_docs_build_info.py \
+  --commit "$(git rev-parse HEAD)" \
+  --repository TakashiSasaki/templates
 python -m mkdocs build --strict --clean
 ```
+
+The local metadata command uses the checked-out commit and records `run_id` and `run_number` as `0`, distinguishing a local build from a GitHub Actions run while preserving the same `docs/build-info.json` shape and footer behavior. The workflow calls the same generator with the actual repository and run identifiers.
 
 ## Deployment enablement boundary
 
@@ -55,7 +60,7 @@ The currently enabled documentation build is successful only when all of the fol
 - repository preview generation;
 - documented-tree verification;
 - documentation asset generation;
-- build metadata generation;
+- shared build metadata generation;
 - `mkdocs build --strict --clean`;
 - regression tests confirming both deployment guards remain disabled.
 
