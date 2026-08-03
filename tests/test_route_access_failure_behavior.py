@@ -93,6 +93,23 @@ class RouteAccessFailureBehaviorTests(unittest.TestCase):
             errors,
         )
 
+    def test_no_authentication_requires_unauthenticated_not_applicable(self) -> None:
+        documents = copy.deepcopy(self.documents)
+        self.assign_access_failures(documents)
+        route = next(route for route in documents["routes"]["routes"] if route["id"] == "home")
+        surface = next(surface for surface in documents["surfaces"]["surfaces"] if surface["id"] == "public")
+        route["authentication"] = "none"
+        route["authenticationReturn"] = "not-applicable"
+        surface["authentication"] = "none"
+        route["accessFailures"]["unauthenticated"] = "redirect"
+
+        errors = validate_contracts.cross_validate(documents)
+
+        self.assertIn(
+            "route home: none authentication requires unauthenticated access failure not-applicable",
+            errors,
+        )
+
     def test_role_authorization_rejects_not_applicable_forbidden_failure(self) -> None:
         documents = copy.deepcopy(self.documents)
         self.assign_access_failures(documents)
@@ -118,6 +135,22 @@ class RouteAccessFailureBehaviorTests(unittest.TestCase):
 
         self.assertIn(
             "route home: public authorization requires forbidden access failure not-applicable",
+            errors,
+        )
+
+    def test_authenticated_authorization_requires_forbidden_not_applicable(self) -> None:
+        documents = copy.deepcopy(self.documents)
+        self.assign_access_failures(documents)
+        route = next(route for route in documents["routes"]["routes"] if route["id"] == "application-home")
+        surface = next(surface for surface in documents["surfaces"]["surfaces"] if surface["id"] == "application")
+        surface["authorization"] = {"mode": "authenticated", "roles": []}
+        route["accessFailures"]["forbidden"] = "redirect"
+        route["states"].remove("forbidden")
+
+        errors = validate_contracts.cross_validate(documents)
+
+        self.assertIn(
+            "route application-home: authenticated authorization requires forbidden access failure not-applicable",
             errors,
         )
 
