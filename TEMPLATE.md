@@ -8,7 +8,7 @@ This branch defines the repository-level foundation for browser-facing web appli
 
 - explicit application-surface classification;
 - canonical route and navigation contracts;
-- user-visible loading, empty, partial, error, offline, and recovery states;
+- user-visible loading, empty, partial, error, offline, and recovery states with explicit route or global ownership scope;
 - supported viewport declarations;
 - a closed manifest that inventories every domain contract and schema;
 - JSON Schemas for those contracts;
@@ -46,11 +46,12 @@ Before a generated repository is treated as operational:
 
 1. Replace example names and descriptions in `contracts/` with product-specific values.
 2. Declare every externally observable surface and canonical route, and ensure each declared surface is owned by at least one canonical route.
-3. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
-4. Define trusted authorization enforcement independently of route or directory names.
-5. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
-6. Add implementation-level tests that prove the declared contracts.
-7. Remove template-only guidance that no longer applies.
+3. Classify each UI state as `route` or `global`; ensure every route-scoped state is referenced by at least one route and no global state is listed by a route.
+4. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
+5. Define trusted authorization enforcement independently of route or directory names.
+6. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
+7. Add implementation-level tests that prove the declared contracts.
+8. Remove template-only guidance that no longer applies.
 
 The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
 
@@ -65,7 +66,9 @@ Validation rejects:
 - duplicate identifiers, document paths, or schema paths;
 - paths outside the repository-owned contract and schema directories;
 - document `$schema` declarations or `schemaVersion` values that differ from the manifest;
-- declared surfaces that are not owned by any canonical route.
+- declared surfaces that are not owned by any canonical route;
+- route-scoped UI states that are not declared by any route;
+- global UI states that are declared by a route.
 
 The manifest and its schema are validator bootstrap metadata, not a fifth product-domain contract. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
 
@@ -74,6 +77,14 @@ The manifest and its schema are validator bootstrap metadata, not a fifth produc
 `contracts/routes.json` records canonical URL pathnames, not arbitrary URLs or framework route-pattern syntax. The foundation accepts `/` or slash-separated, non-empty segments composed only of ASCII URL-unreserved characters: letters, digits, `.`, `_`, `~`, and `-`. A segment may not be exactly `.` or `..`.
 
 Raw whitespace, control characters, non-ASCII characters, percent encoding, query strings, fragments, backslashes, empty segments, and trailing slashes are rejected. Products that require internationalized paths, encoded octets, parameters, query contracts, or fragment contracts must add a normalization model and collision tests before relaxing this conservative representation.
+
+## UI-state scope representation
+
+A `route`-scoped state is rendered within the ownership boundary of one or more canonical routes. At least one route must list its identifier. Multiple routes may share the same route-scoped state.
+
+A `global` state is owned outside canonical route presentation, such as by an application shell, router, or top-level error boundary. A route must not list a global state identifier. The scope declaration describes observable presentation ownership; it does not select a state store, routing library, rendering framework, or component architecture.
+
+UI states schema version 2 introduced this required distinction. Repositories migrating from version 1 must follow [`docs/migrations/ui-states-v1-to-v2.md`](docs/migrations/ui-states-v1-to-v2.md).
 
 ## Viewport breakpoint representation
 
