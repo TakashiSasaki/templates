@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import validate_contract_evolution  # noqa: E402
 import validate_contracts  # noqa: E402
 
 
@@ -123,7 +124,9 @@ class ContractEvolutionTests(unittest.TestCase):
             ]
             self.write_manifest(root, manifest)
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "contract manifest routes: versionHistory must contain contiguous versions 1 through 2",
@@ -140,7 +143,9 @@ class ContractEvolutionTests(unittest.TestCase):
                 "docs/migrations/ui-states-v1-to-v2.md"
             )
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "contract manifest routes: version 2 migration must be docs/migrations/routes-v1-to-v2.md",
@@ -154,7 +159,9 @@ class ContractEvolutionTests(unittest.TestCase):
             manifest = self.evolved_manifest()
             (root / "docs" / "migrations" / "routes-v1-to-v2.md").unlink()
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "contract manifest routes: missing migration: docs/migrations/routes-v1-to-v2.md",
@@ -170,7 +177,9 @@ class ContractEvolutionTests(unittest.TestCase):
             migration.unlink()
             migration.symlink_to("ui-states-v1-to-v2.md")
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "contract manifest routes: migration must not be a symbolic link: docs/migrations/routes-v1-to-v2.md",
@@ -185,7 +194,9 @@ class ContractEvolutionTests(unittest.TestCase):
             extra = root / "docs" / "migrations" / "unused-v1-to-v2.md"
             extra.write_text("# Unused migration\n", encoding="utf-8")
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "unregistered migration document: docs/migrations/unused-v1-to-v2.md",
@@ -202,7 +213,9 @@ class ContractEvolutionTests(unittest.TestCase):
                 "docs/migrations/routes-v1-to-v2.md"
             )
 
-            errors = validate_contracts.validate_contract_manifest(root, manifest)
+            errors = validate_contract_evolution.validate_contract_evolution(
+                root, manifest
+            )
 
         self.assertIn(
             "duplicate migration document: docs/migrations/routes-v1-to-v2.md",
