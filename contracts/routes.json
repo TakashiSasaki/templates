@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/routes.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "routes": [
     {
       "id": "home",
@@ -12,6 +12,10 @@
       "deepLink": true,
       "historyBehavior": "push",
       "authenticationReturn": "same-route",
+      "accessFailures": {
+        "unauthenticated": "not-applicable",
+        "forbidden": "not-applicable"
+      },
       "states": ["loading", "populated", "recoverable-error", "retrying", "offline"],
       "accessibility": {
         "documentTitleRequired": true,
@@ -28,6 +32,10 @@
       "deepLink": true,
       "historyBehavior": "push",
       "authenticationReturn": "same-route",
+      "accessFailures": {
+        "unauthenticated": "render-state",
+        "forbidden": "render-state"
+      },
       "states": ["loading", "empty", "populated", "partial", "recoverable-error", "retrying", "offline", "unauthorized", "forbidden"],
       "accessibility": {
         "documentTitleRequired": true,
@@ -44,6 +52,10 @@
       "deepLink": true,
       "historyBehavior": "replace",
       "authenticationReturn": "not-applicable",
+      "accessFailures": {
+        "unauthenticated": "not-applicable",
+        "forbidden": "not-applicable"
+      },
       "states": ["loading", "populated", "partial", "recoverable-error", "retrying"],
       "accessibility": {
         "documentTitleRequired": true,

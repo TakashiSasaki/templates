@@ -335,6 +335,8 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(
                 f"route {route_id}: focusTarget must contain at least one visible character"
             )
+
+        surface: dict[str, Any] | None = None
         if route["surface"] not in known_surfaces:
             errors.append(f"route {route_id}: unknown surface {route['surface']}")
         else:
@@ -346,6 +348,53 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
                     f"route {route_id}: authentication {route['authentication']} does not match "
                     f"surface {surface['id']} ({surface['authentication']})"
                 )
+
+        access_failures = route["accessFailures"]
+        unauthenticated_behavior = access_failures["unauthenticated"]
+        forbidden_behavior = access_failures["forbidden"]
+
+        if route["authentication"] == "required":
+            if unauthenticated_behavior not in {"render-state", "redirect"}:
+                errors.append(
+                    f"route {route_id}: required authentication must declare "
+                    "unauthenticated access failure as render-state or redirect"
+                )
+        elif unauthenticated_behavior != "not-applicable":
+            errors.append(
+                f"route {route_id}: {route['authentication']} authentication requires "
+                "unauthenticated access failure not-applicable"
+            )
+
+        if surface is not None:
+            authorization_mode = surface["authorization"]["mode"]
+            if authorization_mode == "role":
+                if forbidden_behavior not in {"render-state", "redirect"}:
+                    errors.append(
+                        f"route {route_id}: role authorization must declare "
+                        "forbidden access failure as render-state or redirect"
+                    )
+            elif forbidden_behavior != "not-applicable":
+                errors.append(
+                    f"route {route_id}: {authorization_mode} authorization requires "
+                    "forbidden access failure not-applicable"
+                )
+
+        route_state_ids = set(route["states"])
+        for condition, behavior, state_id in (
+            ("unauthenticated", unauthenticated_behavior, "unauthorized"),
+            ("forbidden", forbidden_behavior, "forbidden"),
+        ):
+            if behavior == "render-state" and state_id not in route_state_ids:
+                errors.append(
+                    f"route {route_id}: {condition} access failure render-state "
+                    f"requires UI state {state_id}"
+                )
+            elif behavior != "render-state" and state_id in route_state_ids:
+                errors.append(
+                    f"route {route_id}: {condition} access failure {behavior} "
+                    f"must not declare UI state {state_id}"
+                )
+
         for state_id in route["states"]:
             if state_id not in known_states:
                 errors.append(f"route {route_id}: unknown UI state {state_id}")

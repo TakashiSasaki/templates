@@ -198,13 +198,13 @@ class ContractManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
             manifest = validate_contracts.load_contract_manifest(root)
-            manifest["contracts"][1]["documentSchemaVersion"] = 2
+            manifest["contracts"][1]["documentSchemaVersion"] = 3
             self.write_manifest(root, manifest)
             errors = validate_contracts.validate_repository(root)
 
         self.assertIn(
             "contracts/routes.json: schemaVersion does not match manifest: "
-            "expected 2, got 1",
+            "expected 3, got 2",
             errors,
         )
 

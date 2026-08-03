@@ -27,15 +27,17 @@ The manifest document and `schemas/contract-manifest.schema.json` are bootstrap 
 | Contract | Covered concern |
 |---|---|
 | `surfaces` | Browser-facing surface boundaries, audiences, authentication and authorization shape, data classifications, stability, diagnostics, and startup dependencies |
-| `routes` | Canonical pathnames, aliases, surface ownership, authentication return behavior, deep linking, browser history intent, supported states, document-title requirements, and focus targets |
+| `routes` | Canonical pathnames, aliases, surface ownership, unauthenticated and forbidden access-failure behavior, authentication return behavior, deep linking, browser history intent, supported states, document-title requirements, and focus targets |
 | `ui_states` | Reusable visible-state categories, route or global presentation ownership, recovery-action identifiers, announcements, and focus strategies |
 | `viewports` | Responsive lower bounds, input capabilities, zoom support, horizontal-scrolling policy, and orientation independence |
 
 Every declared browser-facing surface must be owned by at least one canonical route. Multiple canonical routes may share one surface when they expose the same audience, authentication, authorization, data, stability, and diagnostic boundary.
 
+Every route declares whether unauthenticated and forbidden access failures render a route-scoped state, redirect, or are inapplicable. Applicability follows route authentication and the owning surface's authorization mode. Rendered failures require the corresponding route state, while redirected or inapplicable failures prohibit that state reference. This describes observable presentation behavior without selecting an identity provider, redirect destination, router, or authorization implementation.
+
 Every route-scoped UI state must be listed by at least one canonical route. Multiple routes may share one route-scoped state. Global states are owned by an application shell, router, or another top-level presentation boundary and must not be listed by a route. This ownership distinction is framework-neutral and does not prescribe a routing library, state store, rendering model, or component structure.
 
-Cross-contract validation currently checks identifiers, references, surface-to-route coverage, UI-state scope and route coverage, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity.
+Cross-contract validation currently checks identifiers, references, surface-to-route coverage, access-failure applicability and state consistency, UI-state scope and route coverage, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity.
 
 ## Deliberately product-owned
 
@@ -44,7 +46,7 @@ The template does not create machine-readable placeholders for choices whose val
 - framework and rendering model;
 - package manager and authoritative commands;
 - backend, API, persistence, and deployment topology;
-- authentication provider and trusted authorization implementation;
+- authentication provider, redirect destinations, and trusted authorization implementation;
 - browser support matrix;
 - observability platform;
 - concrete offline and installability behavior;
