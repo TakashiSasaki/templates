@@ -4,7 +4,7 @@ import argparse
 import json
 import re
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -35,7 +35,7 @@ def build_metadata(
     if built_at.tzinfo is None or built_at.utcoffset() is None:
         raise ValueError("built_at must be timezone-aware")
 
-    built_at_utc = built_at.astimezone(timezone.utc)
+    built_at_utc = built_at.astimezone(UTC)
     return {
         "built_at_utc": built_at_utc.isoformat().replace("+00:00", "Z"),
         "built_at_jst": built_at_utc.astimezone(JST).isoformat(),
@@ -74,7 +74,7 @@ def main() -> int:
             repository=args.repository,
             run_id=args.run_id,
             run_number=args.run_number,
-            built_at=datetime.now(timezone.utc),
+            built_at=datetime.now(UTC),
         )
         write_build_info(args.output, metadata)
     except (OSError, ValueError) as exc:
