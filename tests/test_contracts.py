@@ -28,7 +28,7 @@ class ContractValidationTests(unittest.TestCase):
     def route_document_is_valid(self, route: dict[str, object]) -> bool:
         document = {
             "$schema": "../schemas/routes.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "routes": [route],
         }
         return self.route_validator.is_valid(document)
@@ -50,7 +50,7 @@ class ContractValidationTests(unittest.TestCase):
             shutil.copytree(ROOT / "schemas", temporary_root / "schemas")
             duplicate_contract = (
                 '{"$schema":"../schemas/routes.schema.json",'
-                '"schemaVersion":1,"schemaVersion":1,"routes":[]}'
+                '"schemaVersion":2,"schemaVersion":2,"routes":[]}'
             )
             (temporary_root / "contracts/routes.json").write_text(
                 duplicate_contract,
@@ -121,6 +121,8 @@ class ContractValidationTests(unittest.TestCase):
         surface["authentication"] = "required"
         route["authentication"] = "required"
         route["authenticationReturn"] = "same-route"
+        route["accessFailures"]["unauthenticated"] = "render-state"
+        route["states"].append("unauthorized")
         errors = validate_contracts.cross_validate(documents)
         self.assertTrue(any("public authorization must not require authentication" in error for error in errors))
 
@@ -138,6 +140,8 @@ class ContractValidationTests(unittest.TestCase):
                 surface["authentication"] = "none"
                 surface["authorization"] = {"mode": mode, "roles": roles}
                 route["authentication"] = "none"
+                route["authenticationReturn"] = "not-applicable"
+                route["accessFailures"]["unauthenticated"] = "not-applicable"
                 errors = validate_contracts.cross_validate(documents)
                 self.assertTrue(
                     any(f"{mode} authorization requires authentication required" in error for error in errors)
