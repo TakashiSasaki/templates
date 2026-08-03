@@ -95,27 +95,11 @@ jobs:
           BUILD_RUN_ID: ${{ github.run_id }}
           BUILD_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          .venv/bin/python - <<'PY'
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from zoneinfo import ZoneInfo
-          import json
-          import os
-
-          built_at = datetime.now(timezone.utc)
-          metadata = {
-              "built_at_utc": built_at.isoformat().replace("+00:00", "Z"),
-              "built_at_jst": built_at.astimezone(ZoneInfo("Asia/Tokyo")).isoformat(),
-              "commit": os.environ["BUILD_COMMIT"],
-              "repository": os.environ["BUILD_REPOSITORY"],
-              "run_id": int(os.environ["BUILD_RUN_ID"]),
-              "run_number": int(os.environ["BUILD_RUN_NUMBER"]),
-          }
-          Path("docs/build-info.json").write_text(
-              json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
-              encoding="utf-8",
-          )
-          PY
+          .venv/bin/python scripts/generate_docs_build_info.py \
+            --commit "$BUILD_COMMIT" \
+            --repository "$BUILD_REPOSITORY" \
+            --run-id "$BUILD_RUN_ID" \
+            --run-number "$BUILD_RUN_NUMBER"
 
       - name: Build documentation
         run: .venv/bin/python -m mkdocs build --strict --clean
