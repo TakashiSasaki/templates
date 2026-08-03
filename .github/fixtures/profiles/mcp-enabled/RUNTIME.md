@@ -111,7 +111,7 @@ Run every command from the skill root.
 | Bundled helper command | `bundle exec ruby mcp/client.rb` |
 | Supported transports | both |
 | Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
-| Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
+| Invocation scope | one tool call or multiple sequential `tools/call` requests; `tools run` requires at least one `--call` before transport startup; never JSON-RPC batch |
 | Interaction modes | non-interactive JSON arguments only |
 | Response-size policy | each successful JSON response body and stdio message is limited to 65,536 bytes; larger responses are rejected before JSON parsing |
 | JSON response media-type policy | JSON HTTP responses for request messages must declare the `application/json` media type; optional parameters are allowed, while a missing or other media type is a protocol failure before JSON parsing |
