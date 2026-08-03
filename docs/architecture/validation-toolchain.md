@@ -1,6 +1,6 @@
 # Validation toolchain boundary
 
-The Webapp branch carries a small Python toolchain only to validate the repository-local contracts, schemas, and regression tests. This toolchain is part of template maintenance; it is not a framework, product runtime, package-manager choice, deployment target, or coding-agent policy for repositories generated from the template.
+The Webapp branch carries a small Python toolchain only to validate the repository-local contracts, schemas, version histories, migration inventory, and regression tests. This toolchain is part of template maintenance; it is not a framework, product runtime, package-manager choice, deployment target, or coding-agent policy for repositories generated from the template.
 
 ## Reproducible validation baseline
 
@@ -18,7 +18,7 @@ The branch-maintainer CI baseline is:
 
 Dependency entries use the requirement operator `===`, not PEP 440 version matching with `==`. A public-version specifier such as `name==1.2.3` can also match a candidate carrying an unrequested local label such as `1.2.3+corp`; `name===1.2.3` requires the candidate version string to match exactly. A local build may be selected only when its full local version is intentionally recorded in the reviewed input and lock.
 
-CI clears `PYTHONPATH`, `PYTHONSAFEPATH`, `PYTHONPLATLIBDIR`, `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, and `PYTHONTRACEMALLOC`, `PYTHONINSPECT` before environment creation, disables pip configuration files, removes requirement, constraint, editable, dependency-group, script-metadata, keyring-provider, exists-action, use-pep517, compile, isolated, use-feature, verbose, debug, no-input, disable-pip-version-check, no-color, require-virtualenv, use-deprecated, no-python-version-warning, and transport/certificate override inputs from the install command, and uses pip's `--isolated` mode so unlisted pip environment inputs cannot alter the locked install; it clears and recreates `.venv`, and installs only the entries enumerated in `requirements-dev.lock` with dependency resolution disabled. It then compares the installed distributions with the lock before running `pip check`, both public validator entry points, and the complete unit-test suite.
+CI clears `PYTHONPATH`, `PYTHONSAFEPATH`, `PYTHONPLATLIBDIR`, `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, and `PYTHONTRACEMALLOC`, `PYTHONINSPECT` before environment creation, disables pip configuration files, removes requirement, constraint, editable, dependency-group, script-metadata, keyring-provider, exists-action, use-pep517, compile, isolated, use-feature, verbose, debug, no-input, disable-pip-version-check, no-color, require-virtualenv, use-deprecated, no-python-version-warning, and transport/certificate override inputs from the install command, and uses pip's `--isolated` mode so unlisted pip environment inputs cannot alter the locked install; it clears and recreates `.venv`, and installs only the entries enumerated in `requirements-dev.lock` with dependency resolution disabled. It then compares the installed distributions with the lock before running `pip check`, both `validate_contracts` entry points, both `validate_contract_evolution` entry points, and the complete unit-test suite.
 
 The ordering is significant. `PYTHONPATH` must be cleared before `python -m venv` because external directories can replace the standard-library `venv` module or run `sitecustomize` during bootstrap. `PYTHONSAFEPATH` must also remain empty throughout validation because later non-isolated `.venv/bin/python` invocations honor it. `PYTHONPLATLIBDIR` must likewise remain empty because later non-isolated invocations use it to override Python's standard-library directory selection. `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, `PYTHONTRACEMALLOC`, and `PYTHONINSPECT` must also be empty because malformed values or interactive inspection can terminate the `venv` step's non-isolated `ensurepip` subprocess before installation. The virtual environment must be cleared because `venv` otherwise reuses an existing directory and can retain distributions installed by an earlier lock. Pip configuration and every requirement-bearing or installation-shaping environment input must be removed because requirement, runtime-constraint, build-constraint, hash-enforcement, dry-run, source-format, binary-only, wheel-compatibility, upload-time, package-source, installation-destination, interpreter, cache, quiet, progress-bar (`PIP_PROGRESS_BAR`), keyring-provider (`PIP_KEYRING_PROVIDER`), use-pep517 (`PIP_USE_PEP517`), compile (`PIP_COMPILE`), isolated (`PIP_ISOLATED`), use-feature (`PIP_USE_FEATURE`), verbose (`PIP_VERBOSE`), debug (`PIP_DEBUG`), no-input (`PIP_NO_INPUT`), disable-pip-version-check (`PIP_DISABLE_PIP_VERSION_CHECK`), no-color (`PIP_NO_COLOR`), require-virtualenv (`PIP_REQUIRE_VIRTUALENV`), use-deprecated (`PIP_USE_DEPRECATED`), no-python-version-warning (`PIP_NO_PYTHON_VERSION_WARNING`), exists-action (`PIP_EXISTS_ACTION`), editable, dependency-group, report, build-backend, Requires-Python, log-path, trusted-host, certificate, client-certificate, proxy, timeout, default-timeout, retry, and script-metadata settings can add packages, change installation behavior, or redirect transport and certificate policy even when the explicit install uses `--no-deps`. The installed-set comparison is the final completeness check: any extra distribution, missing lock entry, or version mismatch fails validation. Isolation from the setup interpreter is also required because `pip check` validates the currently visible installed graph. Disabling dependency resolution prevents an omitted transitive or conditional dependency from being silently retrieved from the package index.
 
@@ -38,11 +38,13 @@ python scripts/verify_locked_environment.py
 python -m pip check
 ```
 
-Run both supported validator forms and the tests:
+Run all supported validator forms and the tests:
 
 ```sh
 python scripts/validate_contracts.py
 python -m scripts.validate_contracts
+python scripts/validate_contract_evolution.py
+python -m scripts.validate_contract_evolution
 python -m unittest discover -s tests -v
 ```
 
@@ -57,11 +59,11 @@ A dependency update must be an intentional reviewed change that:
 3. updates the reproducibility regression expectations;
 4. clears `PYTHONPATH`, `PYTHONSAFEPATH`, `PYTHONPLATLIBDIR`, `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, and `PYTHONTRACEMALLOC`, `PYTHONINSPECT` before the first Python invocation, removes requirement, constraint, editable, dependency-group, script-metadata, progress-bar, keyring-provider, use-pep517, compile, isolated, use-feature, verbose, debug, no-input, disable-pip-version-check, no-color, require-virtualenv, use-deprecated, no-python-version-warning, exists-action, and transport, certificate, timeout, default-timeout, and retry pip inputs, disables pip configuration files, uses pip's `--isolated` install mode, and clears and recreates the virtual environment without system site packages;
 5. installs the lock with dependency resolution disabled, runs `scripts/verify_locked_environment.py`, and runs `pip check` there;
-6. runs the standalone validator, module validator, and complete unit-test suite from that environment;
+6. runs both `validate_contracts` forms, both `validate_contract_evolution` forms, and the complete unit-test suite from that environment;
 7. records any baseline, compatibility, or diagnostic changes in the pull request.
 
 Do not update the lock incidentally with contract, schema, documentation, or fixture work.
 
 ## Product-repository boundary
 
-A repository generated from this template still selects its own implementation runtime, framework, package manager, build commands, browser matrix, and deployment mechanism. It may retain this validator toolchain, replace it with an equivalent verified integration, or isolate it from the product runtime. Such a change must preserve the contract-validation semantics and public diagnostics relied on by that repository.
+A repository generated from this template still selects its own implementation runtime, framework, package manager, build commands, browser matrix, and deployment mechanism. It may retain this validator toolchain, replace it with an equivalent verified integration, or isolate it from the product runtime. Such a change must preserve the current-contract validation semantics, evolution and migration-inventory semantics, and public diagnostics relied on by that repository.
