@@ -113,6 +113,7 @@ Run every command from the skill root.
 | Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
 | Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
 | Interaction modes | non-interactive JSON arguments only |
+| Response-size policy | each successful JSON response body and stdio message is limited to 65,536 bytes; larger responses are rejected before JSON parsing |
 | Server-information command | `server-info` |
 | Tool-list command | `tools list` |
 | Tool-show command | `tools show TOOL`; local filtering over lossless `tools/list` pages |
