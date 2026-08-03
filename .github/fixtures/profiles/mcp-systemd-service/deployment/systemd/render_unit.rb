@@ -30,6 +30,7 @@ module TextStatsMcpSystemd
       validate_name!(group, "service group")
       account = Etc.getpwnam(user)
       group_record = Etc.getgrnam(group)
+      raise ConfigurationError, "service user must be unprivileged" if account.uid.zero?
       unless account.gid == group_record.gid || group_record.mem.include?(user)
         raise ConfigurationError, "service group must contain the service user"
       end
@@ -46,6 +47,12 @@ module TextStatsMcpSystemd
       raise ConfigurationError, "token file must have mode 0600 or stricter" unless (token_stat.mode & 0o077).zero?
 
       runtime_bin_dir = validate_directory!(fetch(options, :runtime_bin_dir), "runtime bin directory")
+      ruby_path = validate_file!(File.join(runtime_bin_dir, "ruby"), "ruby executable", allow_final_symlink: true)
+      raise ConfigurationError, "ruby executable must be executable" unless File.executable?(ruby_path)
+      unless File.dirname(ruby_path) == runtime_bin_dir
+        raise ConfigurationError, "ruby executable must resolve inside the runtime bin directory"
+      end
+
       bundle_path = validate_file!(fetch(options, :bundle_path), "bundle executable", allow_final_symlink: true)
       raise ConfigurationError, "bundle executable must be executable" unless File.executable?(bundle_path)
       unless File.dirname(bundle_path) == runtime_bin_dir
