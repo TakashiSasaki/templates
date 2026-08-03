@@ -10,11 +10,10 @@ bundle exec ruby mcp/server.rb
 
 It reads one JSON-RPC object per stdin line, writes protocol responses only to stdout, sends lifecycle diagnostics to stderr, and exits when its owning host closes stdin or completes bounded escalation.
 
-`http_server.rb` is the explicitly selected loopback Streamable HTTP entry point. Direct foreground launch may supply `TEXT_STATS_MCP_HTTP_TOKEN`, while file-backed foreground or managed launch uses `TEXT_STATS_MCP_HTTP_TOKEN_FILE`. Exactly one secret source is accepted.
+`http_server.rb` is the explicitly selected loopback Streamable HTTP entry point. Direct foreground launch may supply `TEXT_STATS_MCP_HTTP_TOKEN`, while file-backed foreground or managed launch uses `TEXT_STATS_MCP_HTTP_TOKEN_FILE`. Exactly one secret source is accepted. After provisioning the selected secret source in the operator environment, run:
 
 ```sh
-TEXT_STATS_MCP_HTTP_TOKEN='replace-with-32-or-more-visible-characters' \
-  bundle exec ruby mcp/http_server.rb
+bundle exec ruby mcp/http_server.rb
 ```
 
 The file source is opened nonblocking without following symlinks and must be a regular service-user-owned file inaccessible to group and other users. The server exposes `POST /mcp`, `DELETE /mcp`, `GET /readyz`, and `GET /livez` at `127.0.0.1:4570` by default. Every MCP request requires Bearer authentication. Every request, including health checks, independently validates canonical loopback Host authority and any present Origin. The process rejects non-loopback binds, limits request bodies and live sessions, writes no stdout output, and preserves TERM or INT received before server attachment.
