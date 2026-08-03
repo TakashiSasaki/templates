@@ -621,6 +621,41 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_http_initialize_response_body_limit_preserves_session_for_cleanup
+    response = StreamingResponse.new(
+      [
+        "x" * TextStatsMcpClient::MAX_RESPONSE_BYTES,
+        "y"
+      ],
+      headers: { "mcp-session-id" => "session-oversized" }
+    )
+    http = StreamingHttp.new(response)
+    http.define_singleton_method(:finish) {}
+
+    transport = TextStatsMcpClient::HttpTransport.allocate
+    transport.instance_variable_set(:@endpoint, URI.parse("http://127.0.0.1:4570/mcp"))
+    transport.instance_variable_set(:@timeout, 1.0)
+    transport.instance_variable_set(:@token, TOKEN)
+    transport.instance_variable_set(:@session_id, nil)
+    transport.instance_variable_set(:@http, http)
+
+    deleted_session = nil
+    transport.define_singleton_method(:delete_session) { deleted_session = @session_id }
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      transport.send(
+        :post,
+        TextStatsMcpClient::Protocol.request(1, "initialize", {}),
+        request_id: 1
+      )
+    end
+
+    assert_equal 8, error.exit_code
+    assert_equal "session-oversized", transport.instance_variable_get(:@session_id)
+    transport.close
+    assert_equal "session-oversized", deleted_session
+  end
+
   def test_http_response_body_limit_is_enforced_while_streaming
     response = StreamingResponse.new([
       "x" * TextStatsMcpClient::MAX_RESPONSE_BYTES,
