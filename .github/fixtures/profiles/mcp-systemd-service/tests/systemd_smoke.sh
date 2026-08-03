@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SERVICE_USER=$(id -un)
@@ -22,6 +22,17 @@ cleanup() {
   sudo systemctl daemon-reload >/dev/null 2>&1 || true
   rm -rf "$TOKEN_DIR"
 }
+
+diagnose_failure() {
+  status=$?
+  set +e
+  echo "systemd MCP lifecycle smoke failed with status $status" >&2
+  sudo systemctl status "$UNIT_NAME" --no-pager --full 2>&1 | sed "s/${TOKEN_VALUE}/[REDACTED]/g" >&2
+  sudo journalctl -u "$UNIT_NAME" --no-pager --all 2>&1 | sed "s/${TOKEN_VALUE}/[REDACTED]/g" >&2
+  exit "$status"
+}
+
+trap diagnose_failure ERR
 trap cleanup EXIT
 
 bundle exec ruby deployment/systemd/render_unit.rb \
