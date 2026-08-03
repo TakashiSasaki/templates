@@ -6,11 +6,11 @@ SERVICE_ID="textstats${GITHUB_RUN_ID:-local}${GITHUB_RUN_ATTEMPT:-1}$$"
 SERVICE_USER=${SERVICE_ID:0:31}
 SERVICE_GROUP=$SERVICE_USER
 INSTALL_ROOT="/usr/local/lib/text-stats-mcp-$SERVICE_USER"
-OPT_MODE=$(stat -c %a /opt)
 RUNTIME_BIN_DIR=$(dirname "$(ruby -e 'print File.realpath(RbConfig.ruby)')")
 BUNDLE_PATH=$(command -v bundle)
 PORT=$(ruby -rsocket -e 's=TCPServer.new("127.0.0.1",0); print s.addr[1]; s.close')
 TOKEN_DIR=$(mktemp -d)
+MODE_STATE="$TOKEN_DIR/path-modes"
 CLIENT_TOKEN_FILE="$TOKEN_DIR/client-token"
 TOKEN_SOURCE_FILE="$TOKEN_DIR/source-token"
 RESIST_PID_FILE="/run/$SERVICE_USER-resistant.pid"
@@ -27,7 +27,11 @@ cleanup() {
   sudo rm -f "$UNIT_PATH" "$RESIST_PID_FILE"
   sudo systemctl daemon-reload >/dev/null 2>&1 || true
   sudo rm -rf "$INSTALL_ROOT"
-  sudo chmod "$OPT_MODE" /opt >/dev/null 2>&1 || true
+  if [[ -f "$MODE_STATE" ]]; then
+    while IFS=$'\t' read -r mode path; do
+      sudo chmod "$mode" "$path" >/dev/null 2>&1 || true
+    done < <(tac "$MODE_STATE")
+  fi
   sudo userdel "$SERVICE_USER" >/dev/null 2>&1 || true
   rm -rf "$TOKEN_DIR"
 }
@@ -51,6 +55,17 @@ assert_property() {
   fi
 }
 
+harden_path_chain() {
+  path=$(realpath "$1")
+  while [[ "$path" != "/" ]]; do
+    if ! grep -Fq $'\t'"$path" "$MODE_STATE" 2>/dev/null; then
+      printf '%s\t%s\n' "$(stat -c %a "$path")" "$path" >> "$MODE_STATE"
+    fi
+    sudo chmod go-w "$path"
+    path=$(dirname "$path")
+  done
+}
+
 assert_zero_status_field() {
   field=$1
   pid=$2
@@ -61,7 +76,8 @@ assert_zero_status_field() {
 trap diagnose_failure ERR
 trap cleanup EXIT
 
-sudo chmod go-w /opt
+harden_path_chain "$RUNTIME_BIN_DIR"
+harden_path_chain "$BUNDLE_PATH"
 sudo useradd --system --user-group --no-create-home --home-dir /nonexistent \
   --shell /usr/sbin/nologin "$SERVICE_USER"
 sudo install -d -o root -g root -m 0755 "$INSTALL_ROOT"
