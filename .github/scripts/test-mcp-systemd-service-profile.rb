@@ -105,7 +105,8 @@ if actual_files == expected_files
     'gem "mcp", "1.0.0"' => "MCP SDK",
     'gem "rack", "3.2.1"' => "Rack",
     'gem "rackup", "2.2.1"' => "Rackup",
-    'gem "webrick", "1.9.1"' => "WEBrick"
+    'gem "webrick", "1.9.1"' => "WEBrick",
+    'gem "minitest", "~> 5.20"' => "Minitest"
   }.each do |declaration, purpose|
     failures << "mcp-systemd-service dependencies: missing #{purpose} declaration" unless manifest.include?(declaration)
   end
@@ -163,8 +164,9 @@ if failures.empty?
       File.rename(template, "#{template}.missing")
       missing = run_command.call("bundle", "exec", RbConfig.ruby, "tests/test_unit_renderer.rb",
                                  chdir: directory, timeout_seconds: 30)
-      if missing.status&.success? || missing.timed_out || missing.stderr.strip.empty?
-        failures << "mcp-systemd-service missing deployment artifact: expected prompt tested failure; status=#{missing.status&.exitstatus.inspect}, stderr=#{missing.stderr.inspect}, timed_out=#{missing.timed_out}"
+      no_diagnostic = missing.stdout.strip.empty? && missing.stderr.strip.empty?
+      if missing.status&.success? || missing.timed_out || no_diagnostic
+        failures << "mcp-systemd-service missing deployment artifact: expected prompt tested failure; status=#{missing.status&.exitstatus.inspect}, stdout=#{missing.stdout.inspect}, stderr=#{missing.stderr.inspect}, timed_out=#{missing.timed_out}"
       end
     end
   end
