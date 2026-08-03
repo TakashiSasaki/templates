@@ -15,14 +15,15 @@ Use this skill when an MCP-capable agent host needs read-only text statistics an
 
 ## Workflow
 
-1. Prefer the configured Streamable HTTP endpoint when `GET /readyz` succeeds and the caller possesses the externally supplied Bearer token.
+1. Prefer the configured Streamable HTTP endpoint when readiness succeeds and the caller possesses the externally supplied Bearer token.
 2. Otherwise register `bundle exec ruby mcp/server.rb` as a trusted stdio MCP server from the skill root; do not start an HTTP listener as an implicit fallback.
 3. If a bounded local tool client is required and no native MCP route is available, invoke only the fixed helper `bundle exec ruby mcp/client.rb`; select `--transport http` only with an existing loopback endpoint and externally supplied token, or use its fixed stdio server fallback.
-4. Initialize the selected transport and verify that the response selects protocol revision `2025-11-25`; end the session if the caller cannot accept that revision.
-5. Send `notifications/initialized`, then discover the `text_stats` tool through `tools/list`.
-6. Call `text_stats` with one string-valued `text` argument and preserve the complete MCP result.
-7. Treat transport failures, HTTP authentication or request-policy failures, JSON-RPC errors, MCP tool errors, and successful results as distinct outcomes.
-8. Close stdio through the owning host, or delete the HTTP session and leave process shutdown to the operator that explicitly started the endpoint.
+4. An operator may explicitly select the managed local HTTP variant with `TEXT_STATS_MCP_HTTP_TOKEN_FILE=/path/to/mode-0600-token bundle exec ruby mcp/service_manager.rb start`. This is not an agent fallback and must never be started implicitly.
+5. Initialize the selected transport and verify that the response selects protocol revision `2025-11-25`; end the session if the caller cannot accept that revision.
+6. Send `notifications/initialized`, then discover the `text_stats` tool through `tools/list`.
+7. Call `text_stats` with one string-valued `text` argument and preserve the complete MCP result.
+8. Treat readiness, liveness, lifecycle, transport, HTTP authentication or request-policy, JSON-RPC, MCP tool, and successful outcomes as distinct.
+9. Close stdio through the owning host, delete the HTTP session, and leave manual or managed process shutdown to the operator that explicitly selected that lifecycle.
 
 ## Public execution interfaces
 
@@ -37,10 +38,10 @@ Return one MCP tool result containing deterministic `bytes`, `lines`, and `words
 
 ## Validation
 
-Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb`, `bundle exec ruby tests/test_http_server.rb`, `bundle exec ruby tests/test_http_boundaries.rb`, `bundle exec ruby tests/test_http_lifecycle.rb`, and `bundle exec ruby tests/test_mcp_client.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter, client, and test, verifies lossless page and call results, bounded client timeout and cleanup, canonical default-port authority handling, idle-expiry recovery, bounded post-disconnect completion and session reuse, pending startup shutdown delivery, and process-group timeout cleanup, and rejects missing shared implementation, adapters, client, or required contracts.
+Run `bundle install`, then `bundle exec ruby tests/test_mcp_server.rb`, `bundle exec ruby tests/test_http_server.rb`, `bundle exec ruby tests/test_http_boundaries.rb`, `bundle exec ruby tests/test_http_lifecycle.rb`, `bundle exec ruby tests/test_mcp_client.rb`, and `bundle exec ruby tests/test_service_manager.rb`. The repository fixture harness also runs `ruby .github/scripts/validate-skill-repository.rb`, syntax checks every adapter, client, controller, and test, verifies lossless page and call results, bounded client timeout and cleanup, canonical default-port authority handling, idle-expiry recovery, bounded post-disconnect completion and session reuse, pending startup shutdown delivery, managed start/ready/live/restart/stop, external-secret validation, stale-record handling, and process-group timeout cleanup, and rejects missing implementation or required contracts.
 
 ## Safety and approval
 
-The operation is read-only and requires no human confirmation. The stdio route opens no listener and writes protocol messages only to stdout. The HTTP route starts only by explicit operator action, binds only to `127.0.0.1`, requires an externally supplied Bearer token on every MCP request, validates canonical Host authority and effective-port Origin on every request, accepts no non-loopback mode, and never places the token in command arguments, stdout, or diagnostics. The bundled client exposes neither an arbitrary server command nor caller-selected JSON-RPC IDs or unbounded retries; it forwards only bounded JSON results and generic failure classifications. Starting or stopping the HTTP listener remains an externally visible operator action and must not occur implicitly as fallback behavior. TERM or INT received during startup remains pending until the server instance can be shut down.
+The operation is read-only and requires no human confirmation. The stdio route opens no listener and writes protocol messages only to stdout. The HTTP route starts only by explicit operator action, binds only to `127.0.0.1`, requires an externally supplied Bearer token on every MCP request, validates canonical Host authority and effective-port Origin on every request, accepts no non-loopback mode, and never places the token in command arguments, PID metadata, stdout, stderr, or managed logs. Managed mode requires a service-user-owned token file with no group or other permissions, identity-verifies its PID record, safely removes stale records, and applies bounded TERM/KILL escalation. It is not an OS service installation, automatic restart system, reverse-proxy mode, container deployment, or remote production claim. The bundled client exposes neither an arbitrary server command nor caller-selected JSON-RPC IDs or unbounded retries. Starting, restarting, or stopping the HTTP listener remains an externally visible operator action and must not occur implicitly as fallback behavior.
 
 Selected profiles: mcp-enabled
