@@ -33,7 +33,7 @@ Detailed interface contract: MCP_INTERFACE.md
 
 ## Output requirements
 
-Return one MCP tool result containing deterministic `bytes`, `lines`, and `words` integer fields. Preserve the complete MCP result, including `content`, `structuredContent`, `isError`, `_meta`, and future additive fields supplied by the server. The private client rejects any individual JSON response body or stdio message larger than 65,536 bytes before JSON parsing.
+Return one MCP tool result containing deterministic `bytes`, `lines`, and `words` integer fields. Preserve the complete MCP result, including `content`, `structuredContent`, `isError`, `_meta`, and future additive fields supplied by the server. The private client requires `application/json` for JSON HTTP responses, requires each listed tool's `inputSchema.type` discriminator to be `object`, and rejects any individual JSON response body or stdio message larger than 65,536 bytes before JSON parsing.
 
 ## Validation
 
