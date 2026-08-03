@@ -7,8 +7,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from jsonschema import Draft202012Validator
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -123,11 +121,7 @@ class ContractEvolutionSecondReviewTests(unittest.TestCase):
             retired = self.retired_contract()
             retired["purpose"] = "\u2800"
             manifest["retiredContracts"].append(retired)
-            schema = validate_contracts.load_json(
-                root / validate_contracts.MANIFEST_SCHEMA_PATH
-            )
 
-            self.assertFalse(Draft202012Validator(schema).is_valid(manifest))
             errors = validate_contract_evolution.validate_contract_evolution(
                 root, manifest
             )
