@@ -59,6 +59,12 @@ class TextStatsMcpSystemdUnitRendererTest < Minitest::Test
     refute_includes rendered, "0.0.0.0"
   end
 
+  def test_accepts_only_root_or_service_user_token_ownership
+    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(0, @user.uid)
+    assert TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@user.uid, @user.uid)
+    refute TextStatsMcpSystemd::UnitRenderer.token_owner_allowed?(@user.uid + 1, @user.uid)
+  end
+
   def test_rejects_insecure_or_symlinked_token
     File.chmod(0o644, @token)
     error = assert_raises(TextStatsMcpSystemd::UnitRenderer::ConfigurationError) do
