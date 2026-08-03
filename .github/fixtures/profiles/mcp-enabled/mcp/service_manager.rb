@@ -126,7 +126,11 @@ module TextStatsMcp
       stdout.puts("Managed MCP HTTP service started with PID #{pid}")
       0
     rescue ConfigurationError, StateError, SystemCallError => error
-      terminate_recorded_process(record || { "pid" => pid, "startTicks" => safe_start_ticks(pid) }) if pid
+      if record
+        terminate_recorded_process(record)
+      elsif pid
+        terminate_spawned_process(pid)
+      end
       remove_pid_record_if_same(configuration.fetch(:pid_file), record) if record
       stderr.puts("unable to start managed MCP HTTP service: #{error.message}")
       error.is_a?(ConfigurationError) ? CONFIGURATION_EXIT : 1
@@ -463,10 +467,31 @@ module TextStatsMcp
       wait_until_identity_gone(record, KILL_GRACE_SECONDS)
     end
 
+    def terminate_spawned_process(pid)
+      signal_group("TERM", pid)
+      deadline = monotonic_now + TERM_GRACE_SECONDS
+      while process_exists?(pid) && monotonic_now < deadline
+        sleep 0.05
+      end
+      signal_group("KILL", pid) if process_exists?(pid)
+    end
+
+    def process_exists?(pid)
+      Process.kill(0, pid)
+      state, = proc_identity(pid)
+      state != "Z"
+    rescue Errno::ESRCH, Errno::ENOENT, StateError
+      false
+    end
+
     def signal_group(signal, pid)
       Process.kill(signal, -pid)
     rescue Errno::ESRCH
-      Process.kill(signal, pid)
+      begin
+        Process.kill(signal, pid)
+      rescue Errno::ESRCH
+        nil
+      end
     end
 
     def wait_until_identity_gone(record, seconds)
