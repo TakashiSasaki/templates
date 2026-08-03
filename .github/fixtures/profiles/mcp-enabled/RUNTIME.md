@@ -121,7 +121,7 @@ Run every command from the skill root.
 | Single tool-call command | `tools call TOOL --arguments JSON` |
 | Sequential tool-run command | `tools run --call TOOL --arguments JSON ...`; empty `--call` sequences fail with usage exit 2 before transport startup |
 | Pagination request policy | follow opaque `nextCursor` values until absent, with a default limit of 32 pages and a maximum configurable limit of 128 |
-| Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page; each tool's optional `_meta` must be an object |
+| Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page; each tool's optional `outputSchema` must be an object when present, and optional `_meta` must be an object |
 | Flattened inventory presentation | `tools show` derives one local view; it never replaces the lossless page sequence |
 | Page-level cache-hint policy | preserve page-specific cache hints, `_meta`, and unknown fields without inventing aggregate cache metadata |
 | Lossless call-result mode | every successful or `isError` tool result is retained under `mcpResult`, including unknown additive fields; result-level and content-block `_meta` values, when present, must be objects |
