@@ -771,6 +771,7 @@ class TextStatsMcpClientTest < Minitest::Test
 
     [401, 503].each do |status_code|
       transport = TextStatsMcpClient::HttpTransport.allocate
+      transport.instance_variable_set(:@endpoint, URI.parse("http://127.0.0.1:4570/mcp"))
       response = response_class.new(status_code.to_s, "", {})
       transport.define_singleton_method(:perform) { |_request| response }
 
