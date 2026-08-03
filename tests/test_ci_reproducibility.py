@@ -44,6 +44,44 @@ EXPECTED_LOCKED_REQUIREMENTS = (
 ARBITRARY_EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
+PYTHON_JOB_INPUTS = (
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONSAFEPATH",
+    "PYTHONPLATLIBDIR",
+    "PYTHONHASHSEED",
+    "PYTHONUTF8",
+    "PYTHONINTMAXSTRDIGITS",
+    "PYTHONMALLOC",
+    "PYTHONIOENCODING",
+    "PYTHONTRACEMALLOC",
+    "PYTHONINSPECT",
+)
+PIP_JOB_INPUTS = (
+    "PIP_PYTHON",
+    "PIP_CACHE_DIR",
+    "PIP_NO_CACHE_DIR",
+    "PIP_QUIET",
+    "PIP_PROGRESS_BAR",
+    "PIP_LOG",
+    "PIP_KEYRING_PROVIDER",
+    "PIP_EXISTS_ACTION",
+    "PIP_USE_PEP517",
+    "PIP_COMPILE",
+    "PIP_ISOLATED",
+    "PIP_USE_FEATURE",
+    "PIP_VERBOSE",
+    "PIP_DEBUG",
+    "PIP_NO_INPUT",
+    "PIP_DISABLE_PIP_VERSION_CHECK",
+    "PIP_NO_COLOR",
+    "PIP_REQUIRE_VIRTUALENV",
+    "PIP_USE_DEPRECATED",
+    "PIP_NO_PYTHON_VERSION_WARNING",
+    "PIP_TIMEOUT",
+    "PIP_DEFAULT_TIMEOUT",
+    "PIP_RETRIES",
+)
 PIP_SANITIZED_INPUTS = (
     "PIP_REQUIREMENT",
     "PIP_CONSTRAINT",
@@ -69,13 +107,35 @@ PIP_SANITIZED_INPUTS = (
     "PIP_CACHE_DIR",
     "PIP_NO_CACHE_DIR",
     "PIP_QUIET",
+    "PIP_PROGRESS_BAR",
     "PIP_EDITABLE",
     "PIP_GROUP",
     "PIP_REQUIREMENTS_FROM_SCRIPT",
     "PIP_REPORT",
     "PIP_CONFIG_SETTINGS",
+    "PIP_USE_PEP517",
+    "PIP_COMPILE",
+    "PIP_ISOLATED",
+    "PIP_USE_FEATURE",
+    "PIP_VERBOSE",
+    "PIP_DEBUG",
+    "PIP_NO_INPUT",
+    "PIP_DISABLE_PIP_VERSION_CHECK",
+    "PIP_NO_COLOR",
+    "PIP_REQUIRE_VIRTUALENV",
+    "PIP_USE_DEPRECATED",
+    "PIP_NO_PYTHON_VERSION_WARNING",
+    "PIP_KEYRING_PROVIDER",
+    "PIP_EXISTS_ACTION",
     "PIP_IGNORE_REQUIRES_PYTHON",
     "PIP_LOG",
+    "PIP_TRUSTED_HOST",
+    "PIP_CERT",
+    "PIP_CLIENT_CERT",
+    "PIP_PROXY",
+    "PIP_TIMEOUT",
+    "PIP_DEFAULT_TIMEOUT",
+    "PIP_RETRIES",
 )
 
 
@@ -104,17 +164,17 @@ def test_policy_ci_clears_external_python_and_pip_inputs_before_bootstrap() -> N
     workflow = workflow_text()
     readme = README.read_text(encoding="utf-8")
 
-    assert '      PYTHONHOME: ""' in workflow
-    assert '      PYTHONPATH: ""' in workflow
+    for name in PYTHON_JOB_INPUTS:
+        assert f'      {name}: ""' in workflow
     assert '      PYTHONNOUSERSITE: "1"' in workflow
-    assert '      PIP_PYTHON: ""' in workflow
-    assert '      PIP_CACHE_DIR: ""' in workflow
-    assert '      PIP_NO_CACHE_DIR: ""' in workflow
-    assert '      PIP_QUIET: ""' in workflow
-    assert '      PIP_LOG: ""' in workflow
+    for name in PIP_JOB_INPUTS:
+        assert f'      {name}: ""' in workflow
     assert "      PIP_CONFIG_FILE: /dev/null" in workflow
+
     documented_unset = (
-        "unset PYTHONHOME PYTHONPATH PYTHONUSERBASE "
+        "unset "
+        + " ".join(PYTHON_JOB_INPUTS)
+        + " PYTHONUSERBASE "
         + " ".join(PIP_SANITIZED_INPUTS)
     )
     documented_sequence = (
@@ -143,11 +203,13 @@ def test_policy_ci_installs_only_the_locked_dependency_graph() -> None:
     assert "cache-dependency-path: requirements-ci.lock" in workflow
     assert (
         f"env {workflow_unsets} .venv/bin/python -m pip install "
-        "--disable-pip-version-check --no-deps --requirement requirements-ci.lock"
+        "--isolated --disable-pip-version-check --no-deps "
+        "--requirement requirements-ci.lock"
     ) in workflow
     assert (
         f"env {workflow_unsets} .venv/bin/python -m pip install "
-        "--disable-pip-version-check --no-deps --no-build-isolation -e ."
+        "--isolated --disable-pip-version-check --no-deps "
+        "--no-build-isolation -e ."
     ) in workflow
     assert "--requirement requirements-ci.txt" not in workflow
     assert "-e '.[dev]'" not in workflow
