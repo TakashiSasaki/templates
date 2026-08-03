@@ -147,12 +147,39 @@ module TextStatsMcpClient
                           server_info["version"].is_a?(String)
       valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
       valid = value["protocolVersion"].is_a?(String) &&
-              value["capabilities"].is_a?(Hash) &&
+              valid_capabilities?(value["capabilities"]) &&
               valid_server_info &&
               valid_meta
       raise InvalidResultFailure, "invalid MCP initialize result" unless valid
 
       value
+    end
+
+    def valid_capabilities?(capabilities)
+      return false unless capabilities.is_a?(Hash)
+
+      capabilities.all? do |name, capability|
+        case name
+        when "tools"
+          valid_capability_object?(capability, "listChanged")
+        when "resources"
+          valid_capability_object?(capability, "subscribe", "listChanged")
+        when "prompts"
+          valid_capability_object?(capability, "listChanged")
+        when "logging", "completions"
+          capability.is_a?(Hash)
+        when "experimental"
+          capability.is_a?(Hash) &&
+            capability.all? { |extension_name, extension| extension_name.is_a?(String) && extension.is_a?(Hash) }
+        else
+          capability.is_a?(Hash)
+        end
+      end
+    end
+
+    def valid_capability_object?(value, *boolean_fields)
+      value.is_a?(Hash) &&
+        value.all? { |key, entry| !boolean_fields.include?(key) || [true, false].include?(entry) }
     end
 
     def tools_list_result(response, expected_id)
@@ -161,7 +188,8 @@ module TextStatsMcpClient
       valid_tools = tools.is_a?(Array) && tools.all? do |tool|
         tool.is_a?(Hash) && tool["name"].is_a?(String) && !tool["name"].empty? &&
           tool["inputSchema"].is_a?(Hash) &&
-          tool["inputSchema"]["type"] == "object"
+          tool["inputSchema"]["type"] == "object" &&
+          (!tool.key?("_meta") || tool["_meta"].is_a?(Hash))
       end
       valid_meta = !value.key?("_meta") || value["_meta"].is_a?(Hash)
       raise InvalidResultFailure, "invalid MCP tools/list result" unless valid_tools && valid_meta
@@ -820,6 +848,7 @@ module TextStatsMcpClient
     end
     parser.parse!(argv)
     raise UsageFailure, "each --call needs --arguments" if current && !current.key?(:arguments)
+    raise UsageFailure, "tools run requires at least one call" if calls.empty?
     calls
   rescue OptionParser::ParseError => error
     raise UsageFailure, error.message
