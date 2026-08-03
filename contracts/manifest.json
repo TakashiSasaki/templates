@@ -13,8 +13,8 @@
       "id": "routes",
       "document": "contracts/routes.json",
       "schema": "schemas/routes.schema.json",
-      "documentSchemaVersion": 1,
-      "purpose": "Declare canonical routes, aliases, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
+      "documentSchemaVersion": 2,
+      "purpose": "Declare canonical routes, aliases, access-failure behavior, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
     },
     {
       "id": "ui_states",
