@@ -12,7 +12,7 @@
       "deepLink": true,
       "historyBehavior": "push",
       "authenticationReturn": "same-route",
-      "states": ["loading", "populated", "recoverable-error", "offline"],
+      "states": ["loading", "populated", "recoverable-error", "retrying", "offline"],
       "accessibility": {
         "documentTitleRequired": true,
         "focusTarget": "main-heading"
@@ -28,7 +28,7 @@
       "deepLink": true,
       "historyBehavior": "push",
       "authenticationReturn": "same-route",
-      "states": ["loading", "empty", "populated", "partial", "recoverable-error", "offline", "unauthorized", "forbidden"],
+      "states": ["loading", "empty", "populated", "partial", "recoverable-error", "retrying", "offline", "unauthorized", "forbidden"],
       "accessibility": {
         "documentTitleRequired": true,
         "focusTarget": "main-heading"
@@ -44,7 +44,7 @@
       "deepLink": true,
       "historyBehavior": "replace",
       "authenticationReturn": "not-applicable",
-      "states": ["loading", "populated", "partial", "recoverable-error"],
+      "states": ["loading", "populated", "partial", "recoverable-error", "retrying"],
       "accessibility": {
         "documentTitleRequired": true,
         "focusTarget": "main-heading"
