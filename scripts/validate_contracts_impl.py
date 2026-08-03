@@ -322,6 +322,7 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
     route_paths: list[str] = []
     aliases: list[str] = []
     surfaces_by_id = {surface["id"]: surface for surface in surfaces}
+    routed_surface_ids: set[str] = set()
     for route in routes:
         route_id = route["id"]
         route_paths.append(route["path"])
@@ -334,6 +335,8 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(f"route {route_id}: unknown surface {route['surface']}")
         else:
             surface = surfaces_by_id[route["surface"]]
+            if route["canonical"]:
+                routed_surface_ids.add(surface["id"])
             if route["authentication"] != surface["authentication"]:
                 errors.append(
                     f"route {route_id}: authentication {route['authentication']} does not match "
@@ -345,6 +348,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
         if route["path"] in route["aliases"]:
             errors.append(
                 f"route {route_id}: canonical path is also listed as an alias"
+            )
+
+    for surface_id in surface_ids:
+        if surface_id not in routed_surface_ids:
+            errors.append(
+                f"surface {surface_id}: no canonical route declares this surface"
             )
 
     for duplicate in sorted(_duplicate_values(route_paths)):

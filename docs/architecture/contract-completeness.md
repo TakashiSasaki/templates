@@ -31,7 +31,9 @@ The manifest document and `schemas/contract-manifest.schema.json` are bootstrap 
 | `ui_states` | Reusable visible-state categories, recovery-action identifiers, announcements, and focus strategies |
 | `viewports` | Responsive lower bounds, input capabilities, zoom support, horizontal-scrolling policy, and orientation independence |
 
-Cross-contract validation currently checks identifiers, references, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity.
+Every declared browser-facing surface must be owned by at least one canonical route. Multiple canonical routes may share one surface when they expose the same audience, authentication, authorization, data, stability, and diagnostic boundary.
+
+Cross-contract validation currently checks identifiers, references, surface-to-route coverage, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity.
 
 ## Deliberately product-owned
 
