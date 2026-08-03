@@ -81,5 +81,11 @@ jobs:
       - name: Validate contracts as a module
         run: .venv/bin/python -m scripts.validate_contracts
 
+      - name: Validate contract evolution as a standalone script
+        run: .venv/bin/python scripts/validate_contract_evolution.py
+
+      - name: Validate contract evolution as a module
+        run: .venv/bin/python -m scripts.validate_contract_evolution
+
       - name: Run tests
         run: .venv/bin/python -m unittest discover -s tests -v
