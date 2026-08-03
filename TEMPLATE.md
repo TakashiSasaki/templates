@@ -45,7 +45,7 @@ Do not retain multiple competing manifests, lockfiles, framework starters, or de
 Before a generated repository is treated as operational:
 
 1. Replace example names and descriptions in `contracts/` with product-specific values.
-2. Declare every externally observable surface and canonical route.
+2. Declare every externally observable surface and canonical route, and ensure each declared surface is owned by at least one canonical route.
 3. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families.
 4. Define trusted authorization enforcement independently of route or directory names.
 5. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
@@ -64,7 +64,8 @@ Validation rejects:
 - registered files that are missing or symbolic links;
 - duplicate identifiers, document paths, or schema paths;
 - paths outside the repository-owned contract and schema directories;
-- document `$schema` declarations or `schemaVersion` values that differ from the manifest.
+- document `$schema` declarations or `schemaVersion` values that differ from the manifest;
+- declared surfaces that are not owned by any canonical route.
 
 The manifest and its schema are validator bootstrap metadata, not a fifth product-domain contract. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
 
