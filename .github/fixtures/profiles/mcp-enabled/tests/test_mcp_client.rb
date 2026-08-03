@@ -123,6 +123,14 @@ class TextStatsMcpClientTest < Minitest::Test
                          "required" => ["text"],
                          "additionalProperties" => false
                        },
+                       "annotations" => {
+                         "title" => "Text statistics",
+                         "readOnlyHint" => true,
+                         "destructiveHint" => false,
+                         "idempotentHint" => true,
+                         "openWorldHint" => false,
+                         "futureAnnotationField" => { "kept" => true }
+                       },
                        "futureToolField" => [1, 2, 3]
                      }],
                      "nextCursor" => "opaque-cursor",
@@ -207,6 +215,48 @@ class TextStatsMcpClientTest < Minitest::Test
                    "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
                    "capabilities" => { "tools" => {} },
                    "serverInfo" => { "name" => "fake", "version" => "1" }
+                 }
+               else
+                 raise "unexpected fake request #{method.inspect}"
+               end
+      TextStatsMcpClient::RpcResponse.new(
+        id: @next_id,
+        message: { "jsonrpc" => "2.0", "id" => @next_id, "result" => result }
+      )
+    end
+
+    def notify(method, params = {})
+      @requests << [method, params]
+    end
+  end
+
+  class SequentialFailureTransport
+    attr_reader :requests
+
+    def initialize
+      @next_id = 0
+      @calls = 0
+      @requests = []
+    end
+
+    def request(method, params = {})
+      @next_id += 1
+      @requests << [method, params]
+      result = case method
+               when "initialize"
+                 {
+                   "protocolVersion" => TextStatsMcpClient::PROTOCOL_VERSION,
+                   "capabilities" => { "tools" => {} },
+                   "serverInfo" => { "name" => "fake", "version" => "1" }
+                 }
+               when "tools/call"
+                 @calls += 1
+                 raise TextStatsMcpClient::TransportFailure, "synthetic later-call transport failure" if @calls == 2
+
+                 {
+                   "content" => [{ "type" => "text", "text" => "first" }],
+                   "structuredContent" => { "bytes" => 5 },
+                   "isError" => false
                  }
                else
                  raise "unexpected fake request #{method.inspect}"
@@ -390,6 +440,27 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 2, transport.requests.count { |method, _params| method == "tools/list" }
   end
 
+  def test_tools_run_preserves_completed_results_when_a_later_call_fails
+    transport = SequentialFailureTransport.new
+
+    error = assert_raises(TextStatsMcpClient::TransportFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(
+        name: :tools_run,
+        calls: [
+          { tool: "text_stats", arguments: { "text" => "first" } },
+          { tool: "text_stats", arguments: { "text" => "second" } }
+        ]
+      )
+    end
+
+    assert_equal 3, error.exit_code
+    assert_equal(
+      { "bytes" => 5 },
+      error.payload.fetch("results").fetch(0).fetch("mcpResult").fetch("structuredContent")
+    )
+    assert_equal 1, error.payload.fetch("results").length
+  end
+
   def test_malformed_operation_results_are_invalid_result_failures
     {
       tools_list: "tools/list",
@@ -451,6 +522,29 @@ class TextStatsMcpClientTest < Minitest::Test
     end
 
     assert_equal 8, error.exit_code
+  end
+
+  def test_tools_list_rejects_malformed_tool_annotations
+    [
+      "invalid",
+      { "title" => 1 },
+      { "readOnlyHint" => "invalid" }
+    ].each do |annotations|
+      transport = MalformedResultTransport.new(
+        "tools/list",
+        "tools" => [{
+          "name" => "text_stats",
+          "inputSchema" => { "type" => "object" },
+          "annotations" => annotations
+        }]
+      )
+
+      error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+        TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+      end
+
+      assert_equal 8, error.exit_code
+    end
   end
 
   def test_tools_list_rejects_input_schema_without_object_discriminator
@@ -668,6 +762,27 @@ class TextStatsMcpClientTest < Minitest::Test
     end
   end
 
+  def test_http_readiness_failures_have_a_readiness_specific_classification
+    response_class = Struct.new(:code, :body, :headers) do
+      def [](name)
+        headers[name.downcase]
+      end
+    end
+
+    [401, 503].each do |status_code|
+      transport = TextStatsMcpClient::HttpTransport.allocate
+      response = response_class.new(status_code.to_s, "", {})
+      transport.define_singleton_method(:perform) { |_request| response }
+
+      error = assert_raises(TextStatsMcpClient::ReadinessFailure) do
+        transport.send(:check_readiness)
+      end
+
+      assert_equal 3, error.exit_code
+      assert_includes error.message, "readiness failure"
+    end
+  end
+
   def test_http_notifications_require_202_response
     response_class = Struct.new(:code, :body, :headers) do
       def [](name)
@@ -718,6 +833,71 @@ class TextStatsMcpClientTest < Minitest::Test
 
       assert_equal 8, error.exit_code
     end
+  end
+
+  def test_empty_tool_names_and_trailing_operands_fail_before_transport_creation
+    [
+      ["tools", "show", ""],
+      ["tools", "call", "", "--arguments", "{}"],
+      ["tools", "run", "--call", "", "--arguments", "{}"],
+      ["tools", "call", "text_stats", "--arguments", "{}", "stray"],
+      ["tools", "run", "--call", "text_stats", "--arguments", "{}", "stray"]
+    ].each do |arguments|
+      transport_created = false
+      status = nil
+
+      stdout, stderr = capture_io do
+        TextStatsMcpClient::StdioTransport.stub(
+          :new,
+          lambda do |_timeout|
+            transport_created = true
+            raise "unexpected transport creation"
+          end
+        ) do
+          status = TextStatsMcpClient.run(arguments)
+        end
+      end
+
+      assert_equal 2, status
+      refute transport_created
+      assert_equal "", stdout
+      assert_includes stderr, "usage error"
+    end
+  end
+
+  def test_tools_run_call_count_is_bounded_before_transport_creation
+    arguments = ["tools", "run"]
+    TextStatsMcpClient::MAX_CALLS.times do
+      arguments.concat(["--call", "text_stats", "--arguments", "{}"])
+    end
+    arguments.concat(["--call", "text_stats", "--arguments", "{}"])
+
+    transport_created = false
+    status = nil
+    stdout, stderr = capture_io do
+      TextStatsMcpClient::StdioTransport.stub(
+        :new,
+        lambda do |_timeout|
+          transport_created = true
+          raise "unexpected transport creation"
+        end
+      ) do
+        status = TextStatsMcpClient.run(arguments)
+      end
+    end
+
+    assert_equal 2, status
+    refute transport_created
+    assert_equal "", stdout
+    assert_includes stderr, "at most #{TextStatsMcpClient::MAX_CALLS}"
+  end
+
+  def test_help_is_available_without_a_command
+    stdout, stderr, status = run_client("--help")
+
+    assert status.success?, stderr
+    assert_equal "", stderr
+    assert_includes stdout, "--transport"
   end
 
   def test_response_file_argument_mode_is_rejected
@@ -899,6 +1079,21 @@ class TextStatsMcpClientTest < Minitest::Test
 
     assert_equal [2.0, 1.0, 1.0], waits
     assert_equal ["TERM", "KILL"], signals
+  end
+
+  def test_stdio_shutdown_surfaces_natural_nonzero_child_exit
+    status_class = Struct.new(:exited?, :exitstatus, :signaled?, :termsig)
+    child_status = status_class.new(true, 17, false, nil)
+    transport = TextStatsMcpClient::StdioTransport.allocate
+    transport.instance_variable_set(:@wait_thread, Object.new)
+    transport.define_singleton_method(:wait_with_timeout) { |_seconds| child_status }
+
+    error = assert_raises(TextStatsMcpClient::TransportFailure) do
+      transport.send(:wait_for_exit)
+    end
+
+    assert_equal 3, error.exit_code
+    assert_includes error.message, "exit status 17"
   end
 
   def test_protocol_error_and_tool_error_are_distinct
