@@ -112,7 +112,7 @@ Run every command from the skill root.
 | Supported transports | both |
 | Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
 | Invocation scope | one tool call or multiple sequential `tools/call` requests; `tools run` requires at least one `--call` before transport startup; never JSON-RPC batch |
-| Interaction modes | non-interactive JSON arguments only |
+| Interaction modes | non-interactive JSON arguments only; terminal stdin is rejected and non-EOF stdin reads are bounded by the configured `--timeout` |
 | Response-size policy | each successful JSON response body and stdio message is limited to 65,536 bytes; larger responses are rejected before JSON parsing |
 | JSON response media-type policy | JSON HTTP responses for request messages must declare the `application/json` media type; optional parameters are allowed, while a missing or other media type is a protocol failure before JSON parsing |
 | Server-information command | `server-info` |
@@ -129,7 +129,7 @@ Run every command from the skill root.
 | Modern MRTR policy | NOT SUPPORTED |
 | Initialization-era elicitation policy | no client capabilities are advertised; server-to-client requests are not handled |
 | Non-interactive policy | no prompts, response files, or automatic retries; arguments are bounded JSON objects |
-| Timeout and cancellation policy | default 5 seconds, maximum 30 seconds; stdio closes stdin then uses bounded TERM/KILL escalation, while HTTP attempts session deletion, closes the connection, and surfaces cleanup failures as non-success outcomes; socket close is not claimed as MCP cancellation |
+| Timeout and cancellation policy | default 5 seconds, maximum 30 seconds; stdin argument reads use the same bounded timeout before transport startup; stdio closes stdin then uses bounded TERM/KILL escalation, while HTTP attempts session deletion, closes the connection, and surfaces cleanup failures as non-success outcomes; socket close is not claimed as MCP cancellation |
 | Task or extension support | NOT SUPPORTED |
 | Roots/workspace policy | NOT SUPPORTED; no filesystem workspace or MCP roots are exposed |
 | Exit-code mapping | 0 success; 2 usage/configuration; 3 transport; 4 authentication; 5 timeout; 6 protocol/JSON-RPC; 7 tool result `isError`; 8 invalid result; 9 pagination; 10 request policy; 11 capacity |
