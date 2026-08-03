@@ -80,15 +80,15 @@ def test_release_schema_allows_prior_stable_contract_versions() -> None:
 
 def test_stable_release_verifier_dependencies_are_fully_locked() -> None:
     expected = [
-        "attrs==26.1.0",
-        "Jinja2==3.1.6",
-        "jsonschema==4.26.0",
-        "jsonschema-specifications==2025.9.1",
-        "MarkupSafe==3.0.3",
-        "PyYAML==6.0.3",
-        "referencing==0.37.0",
-        "rpds-py==2026.6.3",
-        "typing_extensions==4.16.0",
+        "attrs===26.1.0",
+        "Jinja2===3.1.6",
+        "jsonschema===4.26.0",
+        "jsonschema-specifications===2025.9.1",
+        "MarkupSafe===3.0.3",
+        "PyYAML===6.0.3",
+        "referencing===0.37.0",
+        "rpds-py===2026.6.3",
+        "typing_extensions===4.16.0",
     ]
 
     assert non_comment_lines(VERIFIER_REQUIREMENTS) == expected
@@ -100,11 +100,11 @@ def test_release_verifier_rejects_non_exact_or_duplicate_requirements(
 ) -> None:
     non_exact = tmp_path / "non-exact.lock"
     non_exact.write_text("PyYAML>=6\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="exact name==version"):
+    with pytest.raises(ValueError, match="arbitrary-exact name===version"):
         verifier.locked_requirements(non_exact)
 
     duplicate = tmp_path / "duplicate.lock"
-    duplicate.write_text("PyYAML==6.0.3\npyyaml==6.0.3\n", encoding="utf-8")
+    duplicate.write_text("PyYAML===6.0.3\npyyaml===6.0.3\n", encoding="utf-8")
     with pytest.raises(ValueError, match="duplicated"):
         verifier.locked_requirements(duplicate)
 
@@ -193,9 +193,10 @@ def test_pinned_probe_environment_installs_only_the_release_lock(
     install = calls[0]
     assert install[0] == str(python)
     assert install[1:4] == ["-m", "pip", "install"]
+    assert "--isolated" in install
     assert "--no-deps" in install
     assert "--only-binary=:all:" in install
-    assert install[-2:] == ["-r", str(VERIFIER_REQUIREMENTS)]
+    assert install[-2:] == ["--requirement", str(VERIFIER_REQUIREMENTS)]
     assert calls[1] == [str(python), "-m", "pip", "check"]
 
 
