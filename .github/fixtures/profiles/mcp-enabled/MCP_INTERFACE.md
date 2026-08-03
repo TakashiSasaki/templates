@@ -43,7 +43,7 @@ Supported: YES
 Scope: tools only; bounded discovery and invocation helper, not a general MCP host
 Command: `bundle exec ruby mcp/client.rb`
 Transport used: both
-Negotiation and compatibility behavior: Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback
+Negotiation and compatibility behavior: Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback
 Invocation scope: one tool call or multiple sequential `tools/call` requests; `tools run` requires at least one `--call` before transport startup; never JSON-RPC batch
 Interaction modes: non-interactive JSON arguments only
 Task or extension support: NOT SUPPORTED
