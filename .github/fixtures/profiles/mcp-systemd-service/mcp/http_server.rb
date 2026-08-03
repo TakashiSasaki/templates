@@ -190,29 +190,37 @@ module TextStatsMcpSystemd
             "configure TEXT_STATS_MCP_HTTP_TOKEN_FILE or the systemd credential directory, not both"
     end
 
-    path = if explicit
-             File.expand_path(explicit, Dir.pwd)
-           elsif credentials_directory
-             unless credentials_directory.start_with?(File::SEPARATOR)
-               raise ConfigurationError, "CREDENTIALS_DIRECTORY must be an absolute path"
-             end
-             File.join(credentials_directory, SYSTEMD_CREDENTIAL_NAME)
-           end
-    raise ConfigurationError, "a token file or systemd credential is required" unless path
+    if explicit
+      path = File.expand_path(explicit, Dir.pwd)
+      accepted_owner_uids = [Process.euid]
+      owner_description = "the service user"
+    elsif credentials_directory
+      unless credentials_directory.start_with?(File::SEPARATOR)
+        raise ConfigurationError, "CREDENTIALS_DIRECTORY must be an absolute path"
+      end
+      path = File.join(credentials_directory, SYSTEMD_CREDENTIAL_NAME)
+      accepted_owner_uids = [0, Process.euid].uniq
+      owner_description = "systemd or the service user"
+    else
+      raise ConfigurationError, "a token file or systemd credential is required"
+    end
 
-    token = read_token_file(path)
+    token = read_token_file(path, accepted_owner_uids: accepted_owner_uids,
+                                  owner_description: owner_description)
     unless token.match?(/\A[!-~]{32,128}\z/)
       raise ConfigurationError, "token material must contain 32 to 128 non-whitespace printable ASCII characters"
     end
     token
   end
 
-  def read_token_file(path)
+  def read_token_file(path, accepted_owner_uids:, owner_description:)
     flags = File::RDONLY | File::NOFOLLOW | File::NONBLOCK
     raw = File.open(path, flags) do |file|
       stat = file.stat
       raise ConfigurationError, "token file must be a regular non-symlink file: #{path}" unless stat.file?
-      raise ConfigurationError, "token file must be owned by the service user: #{path}" unless stat.uid == Process.euid
+      unless accepted_owner_uids.include?(stat.uid)
+        raise ConfigurationError, "token file must be owned by #{owner_description}: #{path}"
+      end
       unless (stat.mode & 0o077).zero?
         raise ConfigurationError, "token file must not be accessible by group or other users: #{path}"
       end
