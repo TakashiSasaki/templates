@@ -20,8 +20,8 @@
       "id": "ui_states",
       "document": "contracts/ui-states.json",
       "schema": "schemas/ui-states.schema.json",
-      "documentSchemaVersion": 1,
-      "purpose": "Define reusable user-visible states, recovery actions, announcements, and focus strategies."
+      "documentSchemaVersion": 2,
+      "purpose": "Define reusable user-visible states, ownership scope, recovery actions, announcements, and focus strategies."
     },
     {
       "id": "viewports",
