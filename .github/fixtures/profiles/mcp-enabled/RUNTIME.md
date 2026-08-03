@@ -110,7 +110,7 @@ Run every command from the skill root.
 | Stable public command | NOT SUPPORTED |
 | Bundled helper command | `bundle exec ruby mcp/client.rb` |
 | Supported transports | both |
-| Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
+| Negotiation and compatibility behavior | Fixed selected revision `2025-11-25`; initialize, verify the server-selected revision, validate known capability object shapes and boolean flags, send `notifications/initialized`, require its HTTP response status to be `202`, then continue; no cross-transport retry or revision fallback |
 | Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
 | Interaction modes | non-interactive JSON arguments only |
 | Response-size policy | each successful JSON response body and stdio message is limited to 65,536 bytes; larger responses are rejected before JSON parsing |
@@ -119,9 +119,9 @@ Run every command from the skill root.
 | Tool-list command | `tools list` |
 | Tool-show command | `tools show TOOL`; local filtering over lossless `tools/list` pages |
 | Single tool-call command | `tools call TOOL --arguments JSON` |
-| Sequential tool-run command | `tools run --call TOOL --arguments JSON ...` |
+| Sequential tool-run command | `tools run --call TOOL --arguments JSON ...`; empty `--call` sequences fail with usage exit 2 before transport startup |
 | Pagination request policy | follow opaque `nextCursor` values until absent, with a default limit of 32 pages and a maximum configurable limit of 128 |
-| Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page |
+| Lossless tool-list page format | ordered `pages` records containing client-side `requestCursor` metadata and an untouched `mcpResult` object for every page; each tool's optional `_meta` must be an object |
 | Flattened inventory presentation | `tools show` derives one local view; it never replaces the lossless page sequence |
 | Page-level cache-hint policy | preserve page-specific cache hints, `_meta`, and unknown fields without inventing aggregate cache metadata |
 | Lossless call-result mode | every successful or `isError` tool result is retained under `mcpResult`, including unknown additive fields; result-level and content-block `_meta` values, when present, must be objects |
