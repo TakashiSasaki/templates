@@ -117,6 +117,37 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-mcp-enabled-profile.rb
 
+  mcp-systemd-service-profile-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Install Bundler
+        shell: bash
+        run: gem install bundler --no-document
+
+      - name: Test MCP systemd service profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-mcp-systemd-service-profile.rb
+
+      - name: Install fixture dependencies for systemd smoke
+        shell: bash
+        working-directory: .github/fixtures/profiles/mcp-systemd-service
+        run: |
+          bundle config set --local path .bundle
+          bundle install --jobs 4 --retry 3
+
+      - name: Test real systemd lifecycle
+        shell: bash
+        working-directory: .github/fixtures/profiles/mcp-systemd-service
+        run: bundle exec bash tests/systemd_smoke.sh
+
   browser-interface-profile-fixture:
     runs-on: ubuntu-latest
     steps:
