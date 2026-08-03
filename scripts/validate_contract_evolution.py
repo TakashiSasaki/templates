@@ -70,6 +70,27 @@ def _has_visible_character(value: str) -> bool:
     )
 
 
+def _root_symlink_error(root: Path) -> str | None:
+    """Reject a symbolic link at any component of the unresolved root path."""
+
+    absolute = _unresolved_absolute(root)
+    candidate = Path(absolute.anchor) if absolute.anchor else Path()
+    parts = absolute.parts[1:] if absolute.anchor else absolute.parts
+
+    for part in parts:
+        candidate /= part
+        try:
+            is_symlink = candidate.is_symlink()
+        except (OSError, ValueError) as exc:
+            return f"repository root path cannot be inspected safely: {exc}"
+        if not is_symlink:
+            continue
+        if candidate == absolute:
+            return "repository root must not be a symbolic link"
+        return "repository root path must not contain symbolic links"
+    return None
+
+
 def _first_symlink_component(root: Path, relative: str) -> str | None:
     path = Path(relative)
     if path.is_absolute():
@@ -200,30 +221,35 @@ def _validate_version_history(
                 f"{owner}: version {version} migration must be {expected}"
             )
 
-        if _path_escapes_root(migration):
-            errors.append(f"{owner}: migration escapes repository root: {migration}")
-            continue
-        if _path_contains_symlink(root, migration):
-            errors.append(
-                f"{owner}: migration must not be a symbolic link: {migration}"
+        try:
+            if _path_escapes_root(migration):
+                errors.append(
+                    f"{owner}: migration escapes repository root: {migration}"
+                )
+                continue
+            if _path_contains_symlink(root, migration):
+                errors.append(
+                    f"{owner}: migration must not be a symbolic link: {migration}"
+                )
+                continue
+            if _non_regular_file(root, migration):
+                errors.append(
+                    f"{owner}: migration must be a regular file: {migration}"
+                )
+                continue
+            candidate = root / migration
+            if not candidate.is_file():
+                errors.append(f"{owner}: missing migration: {migration}")
+                continue
+            errors.extend(
+                _validate_migration_content(
+                    root,
+                    owner=owner,
+                    migration=migration,
+                )
             )
-            continue
-        if _non_regular_file(root, migration):
-            errors.append(
-                f"{owner}: migration must be a regular file: {migration}"
-            )
-            continue
-        candidate = root / migration
-        if not candidate.is_file():
-            errors.append(f"{owner}: missing migration: {migration}")
-            continue
-        errors.extend(
-            _validate_migration_content(
-                root,
-                owner=owner,
-                migration=migration,
-            )
-        )
+        except ValueError as exc:
+            errors.append(f"{owner}: invalid migration path {migration!r}: {exc}")
 
     return errors, migrations
 
@@ -338,8 +364,9 @@ def validate_contract_evolution(
 ) -> list[str]:
     """Validate contiguous version histories and the closed migration inventory."""
 
-    if root.is_symlink():
-        return ["repository root must not be a symbolic link"]
+    root_symlink_error = _root_symlink_error(root)
+    if root_symlink_error:
+        return [root_symlink_error]
     root_error = _root_resolution_error(root)
     if root_error:
         return [root_error]
