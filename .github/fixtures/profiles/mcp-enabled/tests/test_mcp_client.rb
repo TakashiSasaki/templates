@@ -466,6 +466,23 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_equal 8, error.exit_code
   end
 
+  def test_tools_list_rejects_non_object_tool_output_schema
+    transport = MalformedResultTransport.new(
+      "tools/list",
+      "tools" => [{
+        "name" => "text_stats",
+        "inputSchema" => { "type" => "object" },
+        "outputSchema" => "invalid"
+      }]
+    )
+
+    error = assert_raises(TextStatsMcpClient::InvalidResultFailure) do
+      TextStatsMcpClient::Client.new(transport).execute(name: :tools_list)
+    end
+
+    assert_equal 8, error.exit_code
+  end
+
   def test_tools_call_rejects_non_object_content_block_metadata
     transport = MalformedResultTransport.new(
       "tools/call",
