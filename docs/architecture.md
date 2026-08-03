@@ -1,146 +1,176 @@
-# Architecture
+# Architecture guidance
 
-## Package boundary
+This repository is a language-neutral template for Agent Skills. The architecture must remain proportional to the selected profile and must not impose runtime, interface, service, or deployment layers on skills that do not need them.
 
-The repository root is both the development repository and the deployable skill directory. A clone, submodule checkout, or release archive should not require another wrapping directory.
+## Repository boundary
 
-## Layers
+The repository root is the installable skill directory:
 
-```mermaid
-flowchart TB
-    policy["SKILL.md, references,<br/>and public execution policy"]
-    browser["Human browser"]
-    cli["CLI adapter"]
-    web["Optional Web UI / BFF"]
-    bundled["Bundled MCP tool client"]
-    webmcp["Web MCP client adapter"]
-    webapi["Non-MCP Web API adapter"]
-    host["Native MCP host"]
-    service["Service control"]
-    stdio["stdio MCP adapter"]
-    http["Streamable HTTP MCP adapter"]
-    shared["Shared MCP registry<br/>and application layer"]
-    domain["Domain core"]
-    infra["Infrastructure / filesystem / network"]
-
-    policy --> cli
-    policy --> web
-    policy --> bundled
-    browser --> web
-    browser -. "direct MCP only when selected" .-> http
-    web --> webmcp
-    web --> webapi
-    bundled --> stdio
-    bundled --> http
-    webmcp --> stdio
-    webmcp --> http
-    host --> stdio
-    host --> http
-    service --> http
-    cli --> shared
-    webapi --> shared
-    stdio --> shared
-    http --> shared
-    shared --> domain
-    domain --> infra
+```text
+<project>/.agents/skills/<skill-name>/
 ```
 
-The diagram shows permitted dependency directions, not a required deployment topology. `RUNTIME.md` selects whether components share a process, listener, container, Pod or task, service, gateway, or reverse proxy.
+`SKILL.md` is the only universally required skill file. References, assets, scripts, application code, interfaces, runtime records, and deployment material are optional and become required only when selected behavior needs them.
 
-The bundled MCP tool client and the Web MCP client adapter are protocol clients. They reach the application layer only through an MCP server adapter. They must not bypass negotiation, request metadata, framing, transport behavior, or protocol tests while presenting a result as an MCP invocation.
+## Progressive architecture
 
-The CLI and a deliberately non-MCP Web API adapter may call the application layer directly. Such a Web API must not describe its result as MCP verification. Direct browser-to-MCP access is optional and permitted only when selected in `RUNTIME.md` and governed by the browser security contract in `WEB_INTERFACE.md`.
+A concrete skill should stop at the first sufficient shape:
 
-Service control starts and stops an independently managed Streamable HTTP process or a selected combined service. It is not an MCP application operation.
+```text
+instruction-only
+    |
+    +--> knowledge-augmented / asset-driven / script-assisted
+              |
+              +--> packaged CLI / MCP-enabled
+                           |
+                           +--> browser-interface / headless-service
+                                         |
+                                         +--> explicit deployment variants
+```
 
-## Skill instructions
+This is not a maturity ladder. An instruction-only skill may be complete. A headless service is not inherently better than a bounded helper. Each added layer creates a contract, trust boundary, validation obligation, and removal cost.
 
-`SKILL.md` defines when the skill applies, required workflow, safety constraints, and the stable execution entry point. It should not become a complete developer manual.
+## Contract ownership
 
-When both MCP transports exist, the skill must state whether it connects to an existing Streamable HTTP endpoint, launches stdio through the bundled tool client, or uses the CLI as a fallback. It must not leave this choice implicit.
+| Concern | Source of truth |
+|---|---|
+| Agent trigger, workflow, resource use, outputs, and safety | `SKILL.md` |
+| Runtime, dependency, command, protocol selection, process lifecycle, and deployment topology | `RUNTIME.md` |
+| Agent-facing interface order and fallback | `INTERFACES.md` |
+| Stable packaged command behavior | `CLI_INTERFACE.md` |
+| MCP caller behavior | `MCP_INTERFACE.md` |
+| Browser-visible behavior | `WEB_INTERFACE.md` |
+| Maintainer architecture and transport guidance | `docs/` |
 
-The optional human Web interface is not an implicit agent fallback unless `INTERFACES.md` explicitly selects it as one.
+Avoid duplicating exact command, revision, port, secret, or topology selections across several authorities. Cross-reference the owning contract.
 
-## Public adapters
+## Shared implementation and thin adapters
 
-The CLI serves humans and may also provide the stable process interface used by an agent.
+When several interfaces expose the same operation, prefer one domain implementation behind thin adapters:
 
-The optional MCP server interface may have two transport and lifecycle variants:
+```text
+caller
+  |
+  +--> CLI adapter --------+
+  +--> MCP adapter --------+--> shared operation/domain layer
+  +--> Web/API adapter ----+
+```
 
-- **stdio:** an MCP host or bundled tool client launches and owns a trusted child process;
-- **Streamable HTTP:** an independently managed or combined process exposes a network endpoint.
+Thin does not mean trivial. An adapter still owns its caller-visible parsing, framing, authentication handoff, cancellation, error mapping, and compatibility. Shared domain logic must not depend on transport-specific request objects or lifecycle managers.
 
-A bundled tools-only client is separate from the server adapters. It performs the selected revision's discovery, initialization, or negotiation behavior and invokes the adapters through standard MCP requests.
+Do not force this split onto a small self-contained helper when it adds no real reliability or reuse.
 
-The optional Web interface may use one or more explicitly selected models:
+## Process and lifecycle ownership
 
-- a backend-for-frontend using an MCP client adapter;
-- direct browser access to the Streamable HTTP MCP adapter;
-- a non-MCP Web API adapter calling the application layer;
-- a documented mixed model.
+Every process must have one explicit owner:
 
-`WEB_INTERFACE.md` defines the observable browser contract. `RUNTIME.md` alone selects the supported deployment topology and exposure capabilities.
+- an MCP host owns its stdio child;
+- a human or operator owns a foreground listener;
+- a bundled local lifecycle controller may own one fixed background process group;
+- an OS service manager owns a service unit;
+- a container runtime owns a container process;
+- an orchestrator owns replicas and rollout state.
 
-Both MCP server variants must expose equivalent domain operations through a shared server factory, operation registry, or equivalent composition root under the same protocol revision, identity, authorization, configuration, and workspace policy. Transport selection must not duplicate tool definitions.
+These are distinct deployment topologies. Do not combine them into one ambiguous “production” claim.
 
-A raw TCP socket protocol is not the standard network MCP transport. The network variant should normally use Streamable HTTP over TCP.
+A bundled local lifecycle controller must remain outside the domain and protocol layers:
 
-## Protocol revisions and state
+```text
+operator
+  |
+  +--> lifecycle controller
+           |
+           +--> fixed server adapter --> shared domain layer
+```
 
-Protocol revision and transport are independent decisions. Exact supported revisions, the current era boundary used by the concrete skill, SDK support, and compatibility policy are recorded only in `RUNTIME.md`.
+The controller may own start, stop, restart, readiness, liveness, external-secret loading, process identity, stale-record handling, and bounded shutdown escalation. It must not expose those controls as MCP tools, mutate application semantics, accept arbitrary server commands, or become an implicit agent fallback.
 
-Maintainer documents may describe revision-dependent behavior using terms such as modern mode or initialization-era mode, but they must not define their own revision-date boundary.
+## Trust-boundary decomposition
 
-Do not use the word “session” as a portable guarantee of application state. Reusing a process, connection, HTTP client, or legacy protocol session does not imply that one tool call can depend on hidden state from another. Portable state must be represented by documented arguments, resource identifiers, handles, durable storage, or server configuration.
+Treat each of the following as a separate boundary unless a concrete deployment proves otherwise:
 
-When a concrete skill supports more than one era, isolate compatibility behavior in the protocol and transport layers. Domain semantics must not vary because negotiation selected a different revision.
-
-## Application and domain
-
-Application code coordinates use cases. Domain code implements the rules being protected by the skill. Neither layer should know whether a request originated from CLI, Web API, stdio MCP, or Streamable HTTP MCP.
-
-Transport, protocol, and Web adapters may handle:
-
-- process, connection, request, or socket lifecycle;
-- protocol framing and revision negotiation;
-- per-request metadata and custom transport headers;
-- HTTP bind address, port, path, and headers;
-- browser routing, presentation, CORS, CSRF, and redaction;
-- authentication and Origin/Host validation;
-- conversion between protocol or Web objects and application requests/results;
-- cancellation and additional-input control flow;
-- lossless preservation of protocol results and extension metadata.
-
-They must not change domain semantics or create a second tool registry.
-
-## Network-server boundary
-
-The Streamable HTTP entry point is a managed service boundary even when its source, process, listener, or container is shared with an optional Web interface.
-
-It must define:
-
-- default binding and non-loopback policy;
-- endpoint and readiness behavior;
-- supported protocol revisions and revision-specific state behavior from `RUNTIME.md`;
-- concurrency and per-request cancellation;
+- child-process execution;
+- loopback listener;
+- non-loopback listener;
+- reverse proxy and forwarded headers;
+- TLS termination;
 - authentication and authorization;
-- startup, shutdown, restart, and stale-process handling;
-- DNS-rebinding, Host-header, and Origin defenses;
-- request metadata, JSON/SSE response behavior, and tool-defined HTTP-header processing when required by the selected revision;
-- compatibility behavior when an initialization-era revision is supported on the same endpoint;
-- logical isolation from Web UI, Web API, and health routes when a listener or process is shared.
+- external secret provision;
+- service-manager or lifecycle ownership;
+- container isolation;
+- persistence and migration authority;
+- backup and restore;
+- operational diagnostics, metrics, audit, and overload controls.
 
-A language-specific implementation may use one executable with transport flags or separate entry points. In either case, shared tool registration and application logic are mandatory.
+One PR should normally add one clear boundary or topology. A loopback lifecycle controller does not establish trusted-proxy, TLS, container, persistence, or remote-service safety.
 
-## Runtime-loaded references versus maintainer docs
+## Secure lifecycle records
 
-- `references/`: potentially loaded during skill execution;
-- `docs/`: used to develop and maintain the skill.
+When a controller records process identity, PID alone is usually insufficient because operating systems reuse process IDs. Use PID plus a process-start identity, an OS process handle, pidfd, service-unit identity, container identity, or equivalent authority. Verify identity before signaling and treat mismatch as stale.
 
-This distinction limits unnecessary context while keeping the repository understandable.
+Lifecycle metadata and external secret files should be bounded, regular, non-symlink files with explicit ownership and permissions. Publish records atomically and remove only the exact record the controller created or revalidated. Configuration failure must occur before opening a listener or starting an unrelated process.
 
-## Distribution
+Graceful shutdown requires a documented drain or stop signal, a bounded grace period, deterministic escalation, and tests for resistant or stale processes. Restart should mean complete stop followed by start unless a separate handoff topology is explicitly selected and tested.
 
-A release may include the whole repository or a reduced skill bundle. If a reduced bundle is produced, it must retain everything needed for in-place execution and must preserve relative paths referenced by `SKILL.md`.
+## State authority
 
-When a network variant or optional Web interface is supported, distribution documentation must state whether service definitions such as systemd, launchd, Windows service, container, Pod, task, gateway, or reverse-proxy configuration are bundled, generated, or intentionally left to the installer.
+Stateless transport or process reuse does not imply stateless application behavior. When persistence exists, identify:
+
+- authoritative state and schema owner;
+- version and migration owner;
+- transaction and concurrency model;
+- rollback limits;
+- backup and restore procedure;
+- corruption detection and restart recovery;
+- compatibility across replicas or versions.
+
+Do not add persistence merely to make a fixture appear production-like.
+
+## Security placement
+
+Apply security at the earliest layer that has the required context:
+
+- process launchers validate fixed commands and secret sources;
+- network gates validate Host, Origin, authentication, size, and protocol headers per request;
+- adapters enforce caller-visible schemas and authorization mapping;
+- domain operations enforce business authorization and invariants;
+- deployment layers enforce listener exposure, TLS, resource limits, and restart semantics.
+
+A valid connection or earlier request must not authorize a later request. A valid PID record must not authorize signaling after process identity changes.
+
+## Failure boundaries
+
+Keep these outcomes distinct:
+
+- configuration failure before startup;
+- process startup failure;
+- readiness failure;
+- liveness failure;
+- stale or unsafe lifecycle record;
+- bounded shutdown escalation;
+- transport failure;
+- protocol failure;
+- authentication or authorization failure;
+- capacity or overload rejection;
+- domain error;
+- persistence or migration failure.
+
+Do not silently convert one into another or report partial startup as success.
+
+## Validation strategy
+
+Test at the lowest layer that establishes the claim, then add one executable smoke path across the selected topology. Negative tests should remove or corrupt the exact boundary artifact and prove the expected diagnostic.
+
+For a managed local lifecycle variant, proportionate evidence includes:
+
+- real start, readiness, liveness, restart, and stop;
+- secret permission and symlink rejection before process creation;
+- safe stale-record replacement and unsafe-record refusal;
+- identity verification against PID reuse;
+- graceful shutdown and TERM-to-KILL escalation;
+- token redaction from argv, lifecycle records, and logs;
+- unchanged protocol and domain behavior through the managed process.
+
+## Removal discipline
+
+When a profile or deployment mode is removed, delete its implementation, tests, commands, contract rows, documentation, and publication references together. Do not leave placeholder service, container, reverse-proxy, persistence, or interface material in a smaller skill.

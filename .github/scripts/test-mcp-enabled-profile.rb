@@ -25,12 +25,14 @@ expected_files = %w[
   mcp/http_server.rb
   mcp/server.rb
   mcp/server_factory.rb
+  mcp/service_manager.rb
   src/text_stats.rb
   tests/test_http_boundaries.rb
   tests/test_http_lifecycle.rb
   tests/test_http_server.rb
   tests/test_mcp_client.rb
   tests/test_mcp_server.rb
+  tests/test_service_manager.rb
 ].sort.freeze
 
 terminate_and_wait = lambda do |pid|
@@ -131,11 +133,17 @@ documented_commands = [
   "bundle exec ruby mcp/server.rb",
   "bundle exec ruby mcp/http_server.rb",
   "bundle exec ruby mcp/client.rb",
+  "TEXT_STATS_MCP_HTTP_TOKEN_FILE=/path/to/mode-0600-token bundle exec ruby mcp/service_manager.rb start",
+  "bundle exec ruby mcp/service_manager.rb stop",
+  "bundle exec ruby mcp/service_manager.rb restart",
+  "bundle exec ruby mcp/service_manager.rb ready",
+  "bundle exec ruby mcp/service_manager.rb live",
   "bundle exec ruby tests/test_mcp_server.rb",
   "bundle exec ruby tests/test_http_server.rb",
   "bundle exec ruby tests/test_http_boundaries.rb",
   "bundle exec ruby tests/test_http_lifecycle.rb",
   "bundle exec ruby tests/test_mcp_client.rb",
+  "bundle exec ruby tests/test_service_manager.rb",
   "bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory",
   "bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call",
   "bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls",
@@ -222,11 +230,13 @@ if failures.empty?
         mcp/server.rb
         mcp/http_server.rb
         mcp/client.rb
+        mcp/service_manager.rb
         tests/test_mcp_server.rb
         tests/test_http_server.rb
         tests/test_http_boundaries.rb
         tests/test_http_lifecycle.rb
         tests/test_mcp_client.rb
+        tests/test_service_manager.rb
       ].each do |path|
         syntax = run_command.call(
           RbConfig.ruby,
@@ -245,7 +255,8 @@ if failures.empty?
         "Streamable HTTP" => "tests/test_http_server.rb",
         "Streamable HTTP boundaries" => "tests/test_http_boundaries.rb",
         "Streamable HTTP lifecycle" => "tests/test_http_lifecycle.rb",
-        "bundled MCP client" => "tests/test_mcp_client.rb"
+        "bundled MCP client" => "tests/test_mcp_client.rb",
+        "managed MCP lifecycle" => "tests/test_service_manager.rb"
       }.each do |name, test_path|
         tests = run_command.call(
           "bundle",
@@ -285,7 +296,7 @@ if failures.empty?
       end
       File.rename(missing_factory_path, factory_path)
 
-      %w[mcp/server.rb mcp/http_server.rb mcp/client.rb].each do |entry_point|
+      %w[mcp/server.rb mcp/http_server.rb mcp/client.rb mcp/service_manager.rb].each do |entry_point|
         implementation_path = File.join(directory, entry_point)
         missing_path = "#{implementation_path}.missing"
         File.rename(implementation_path, missing_path)
@@ -338,4 +349,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "MCP-enabled stdio, Streamable HTTP, and bundled client profile fixture tests passed."
+puts "MCP-enabled stdio, Streamable HTTP, bundled client, and managed lifecycle profile fixture tests passed."

@@ -1,6 +1,6 @@
 # MCP transport variants and bundled tool clients
 
-This template supports two standard MCP server transports that share one implementation. It may also include a bounded ad hoc MCP tool client that drives those transports through standard MCP requests.
+This template supports two standard MCP server transports that share one implementation. It may also include a bounded ad hoc MCP tool client and an explicitly selected local lifecycle controller. Neither helper changes the MCP protocol surface or becomes a domain operation.
 
 ## Terminology
 
@@ -8,7 +8,8 @@ Use these names consistently:
 
 - **stdio MCP server:** a client launches the server as a child process and communicates through stdin/stdout;
 - **Streamable HTTP MCP server:** a managed process exposes an HTTP MCP endpoint;
-- **ad hoc MCP tool client:** a bundled command that discovers and invokes MCP tools without pretending to be a complete native MCP host or general-purpose client.
+- **ad hoc MCP tool client:** a bundled command that discovers and invokes MCP tools without pretending to be a complete native MCP host or general-purpose client;
+- **managed local lifecycle controller:** an operator command that starts, probes, restarts, and stops a fixed local Streamable HTTP process without exposing service control through MCP.
 
 Do not call Streamable HTTP a raw TCP MCP transport. TCP is the underlying network protocol; Streamable HTTP is the MCP transport exposed to clients.
 
@@ -16,7 +17,7 @@ Do not claim resources, prompts, completion, subscriptions, tasks, sampling, eli
 
 ## Protocol revisions and eras
 
-Transport choice and protocol revision are separate decisions. `RUNTIME.md` is the only source of truth for:
+Transport choice, lifecycle choice, and protocol revision are separate decisions. `RUNTIME.md` is the only source of truth for:
 
 - exact supported revisions and the boundary between any named protocol eras;
 - SDK and version;
@@ -40,9 +41,10 @@ This maintainer document uses revision-neutral terms such as selected modern mod
 | Server maintains shared resources outside a request | Streamable HTTP with an explicit application-state design |
 | Native host is configured for a child process | stdio |
 | Native host connects by URL | Streamable HTTP |
+| One local endpoint needs explicit operator start/stop/restart | Streamable HTTP plus a bounded local lifecycle controller |
 | Broader network deployment | Streamable HTTP with a separate security design |
 
-A concrete skill may support both. Supporting both does not justify duplicate tool implementations.
+A concrete skill may support both transports. Supporting both does not justify duplicate tool implementations. Selecting direct foreground or managed local lifecycle for Streamable HTTP does not create a third transport.
 
 ## Shared server composition
 
@@ -64,7 +66,7 @@ The shared server layer owns:
 
 Transport entry points own protocol binding, revision-specific lifecycle, framing, request metadata, cancellation, and transport security.
 
-The bundled tool client is separate:
+The bundled tool client and lifecycle controller are separate:
 
 ```text
 agent, Web backend, or human
@@ -73,9 +75,15 @@ agent, Web backend, or human
                             |
                             +--> stdio MCP server
                             +--> existing Streamable HTTP endpoint
+
+operator
+            |
+            +--> fixed lifecycle controller
+                            |
+                            +--> Streamable HTTP server process
 ```
 
-The client must exercise the actual MCP path. It must not call the application layer directly while presenting the result as an MCP invocation.
+The client must exercise the actual MCP path. It must not call the application layer directly while presenting the result as an MCP invocation. The lifecycle controller must not expose start, stop, restart, readiness, liveness, or PID management as MCP tools.
 
 ## stdio lifecycle
 
@@ -99,7 +107,7 @@ The server:
 
 1. starts independently of a particular request;
 2. binds according to the deployment selected in `RUNTIME.md`;
-3. exposes readiness;
+3. exposes readiness and, when claimed, a distinct liveness signal;
 4. validates or negotiates the selected revision;
 5. accepts requests through the revision-specific HTTP model;
 6. handles per-request cancellation and explicit service shutdown;
@@ -107,7 +115,28 @@ The server:
 
 Do not infer that Streamable HTTP is always stateful or always stateless. Document each supported era in `RUNTIME.md`.
 
-Service integration may be manual, systemd, launchd, a Windows service, a container, an orchestrator, or another mechanism selected in `RUNTIME.md`.
+Service integration may be manual, a bundled local lifecycle controller, systemd, launchd, a Windows service, a container, an orchestrator, or another mechanism selected in `RUNTIME.md`. Each integration mode is a separate deployment claim and needs proportionate tests.
+
+## Managed local lifecycle boundary
+
+A bundled local lifecycle controller is appropriate only when a concrete skill needs explicit operator-owned `start`, `stop`, `restart`, readiness, and liveness without claiming a complete OS service installation or remote deployment. It must remain outside the MCP application surface and start only a fixed, documented server entry point.
+
+A robust controller should define and test:
+
+- one canonical process topology and process-group ownership;
+- an external secret source that does not place the secret value in argv, public logs, or PID metadata;
+- an atomic, owner-only lifecycle record containing enough identity to reject PID reuse;
+- bounded startup readiness and separate liveness behavior;
+- identity verification before every signal;
+- graceful TERM shutdown followed by bounded KILL escalation;
+- stale-record handling that never signals an unrelated process;
+- safe handling of symlinks, non-regular files, wrong ownership, excessive permissions, oversized records, and incomplete writes;
+- restart as a complete bounded stop followed by start, unless a separately tested handoff topology is selected;
+- negative tests proving that configuration and secret failures occur before listener creation.
+
+PID alone is not a sufficient identity on systems that reuse process IDs. Use an operating-system-supported process start identity, process handle, pidfd, service-manager unit identity, container identity, or equivalent authority. State the supported operating systems and reject unsupported identity mechanisms rather than silently weakening the check.
+
+A local controller does not by itself provide automatic restart, privilege separation, socket activation, log rotation, zero-downtime upgrade, multi-worker coordination, TLS, reverse-proxy trust, container isolation, orchestration, persistence, backup, or remote incident response. Do not call the resulting fixture production-ready beyond the exact topology and boundaries it executes.
 
 ## Request-scoped HTTP security
 
@@ -254,7 +283,7 @@ Timeouts must invoke the selected revision and transport's cancellation mechanis
 - Applicable stdio modes may use the supported cancellation notification.
 - Modern Streamable HTTP cancels an SSE response by closing that request's stream when required by the selected revision.
 - Progress must not extend execution beyond a documented maximum timeout indefinitely.
-- Child-process escalation must be bounded and tested.
+- Child-process and managed-process escalation must be bounded and tested.
 
 ## Roots and workspace restrictions
 
@@ -271,7 +300,7 @@ For a local-only network variant:
 - validate Origin on every request before dispatch;
 - return HTTP 403 for each request with a present disallowed Origin;
 - define absent-Origin behavior;
-- avoid exposing secrets in URLs or process arguments;
+- avoid exposing secrets in URLs, process arguments, PID records, or public logs;
 - use an explicit endpoint, normally `/mcp`;
 - reject requests exceeding documented size or timeout limits;
 - preserve the same authorization and workspace restrictions as stdio.
@@ -301,7 +330,7 @@ When both transports exist, `INTERFACES.md` must define a deterministic order, f
 3. Otherwise use the structured CLI.
 ```
 
-Starting a second network server as an implicit fallback is discouraged because it creates port-conflict, stale-process, and state-consistency risks.
+Starting or controlling a network server as an implicit agent fallback is discouraged because it creates port-conflict, stale-process, secret, state-consistency, and ownership risks. Lifecycle selection belongs to the operator and `RUNTIME.md`.
 
 ## Required tests
 
@@ -320,5 +349,7 @@ Test every claimed feature, including:
 - loopback binding and per-request Host/Origin validation;
 - a reused HTTP/1.1 keep-alive or multiplexed connection carrying requests with different Origin values;
 - HTTP 403 for each present disallowed Origin and documented handling of absent Origin;
-- readiness, concurrent clients, graceful shutdown, restart, and stale-process behavior;
-- confirmation that local `tools show` and `tools run` do not send nonexistent methods or JSON-RPC batches.
+- readiness, liveness, concurrent clients, graceful shutdown, restart, and stale-process behavior;
+- managed secret validation before process creation, process-identity verification, atomic lifecycle records, and bounded TERM/KILL escalation when that variant is selected;
+- confirmation that local `tools show` and `tools run` do not send nonexistent methods or JSON-RPC batches;
+- confirmation that service-control actions are not MCP tools or implicit fallbacks.
