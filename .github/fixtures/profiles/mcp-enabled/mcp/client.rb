@@ -183,6 +183,7 @@ module TextStatsMcpClient
 
     def valid_content_block?(block)
       return false unless block.is_a?(Hash)
+      return false if block.key?("_meta") && !block["_meta"].is_a?(Hash)
 
       case block["type"]
       when "text"
