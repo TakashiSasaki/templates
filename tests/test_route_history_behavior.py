@@ -26,7 +26,7 @@ class RouteHistoryBehaviorTests(unittest.TestCase):
         route["historyBehavior"] = behavior
         document = {
             "$schema": "../schemas/routes.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "routes": [route],
         }
         return self.validator.is_valid(document)
