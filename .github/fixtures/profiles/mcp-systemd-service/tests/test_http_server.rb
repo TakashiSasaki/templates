@@ -15,6 +15,8 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
   HOST = "127.0.0.1"
   TOKEN = "fixture-systemd-token-0123456789abcdef"
   ACCEPT = "application/json, text/event-stream"
+  MAX_REQUEST_BYTES = 65_536
+  MAX_SESSIONS = 16
 
   def free_port
     socket = TCPServer.new(HOST, 0)
@@ -46,6 +48,14 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
 
   def request(port, request)
     build_http(port).start { |connection| connection.request(request) }
+  end
+
+  def raw_http_status(port, request_bytes)
+    socket = TCPSocket.new(HOST, port)
+    socket.write(request_bytes)
+    Timeout.timeout(3) { socket.gets.to_s }
+  ensure
+    socket&.close
   end
 
   def wait_ready(port)
@@ -85,6 +95,14 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
     request_object["Content-Type"] = "application/json"
     request_object["Authorization"] = "Bearer #{TOKEN}"
     request_object.body = JSON.generate(jsonrpc: "2.0", method: "initialize", id: id, params: params)
+    request_object
+  end
+
+  def delete_session_request(session_id)
+    request_object = Net::HTTP::Delete.new("/mcp")
+    request_object["Authorization"] = "Bearer #{TOKEN}"
+    request_object["Mcp-Session-Id"] = session_id
+    request_object["MCP-Protocol-Version"] = "2025-11-25"
     request_object
   end
 
@@ -212,6 +230,87 @@ class TextStatsMcpSystemdHttpServerTest < Minitest::Test
         non_string_revision = initialize_params(revision: 20_251_125)
         assert_invalid_initialize(connection.request(initialize_request(non_string_revision, id: 12)))
       end
+
+      status, output, diagnostics = stop(wait, stdout, stderr)
+      assert status.success?
+      assert_equal "", output
+      refute_includes diagnostics, TOKEN
+    end
+  end
+
+  def test_session_capacity_delete_and_recovery
+    Dir.mktmpdir("mcp-systemd-capacity") do |directory|
+      port = free_port
+      token = token_file(directory)
+      stdout, stderr, wait = start_server(
+        "TEXT_STATS_MCP_HTTP_TOKEN_FILE" => token,
+        "TEXT_STATS_MCP_HTTP_PORT" => port.to_s
+      )
+      wait_ready(port)
+
+      build_http(port).start do |connection|
+        session_ids = Array.new(MAX_SESSIONS) do |index|
+          initialize_session(connection, id: 100 + index).first
+        end
+
+        rejected = connection.request(initialize_request(initialize_params, id: 200))
+        assert_equal "503", rejected.code
+        assert_nil rejected["mcp-session-id"]
+
+        deleted = connection.request(delete_session_request(session_ids.shift))
+        assert_equal "200", deleted.code
+
+        replacement = connection.request(initialize_request(initialize_params, id: 201))
+        assert_equal "200", replacement.code
+        refute_empty replacement["mcp-session-id"].to_s
+      end
+
+      status, output, diagnostics = stop(wait, stdout, stderr)
+      assert status.success?
+      assert_equal "", output
+      refute_includes diagnostics, TOKEN
+    end
+  end
+
+  def test_server_read_boundary_rejects_declared_and_chunked_oversize_bodies
+    Dir.mktmpdir("mcp-systemd-body-limit") do |directory|
+      port = free_port
+      token = token_file(directory)
+      stdout, stderr, wait = start_server(
+        "TEXT_STATS_MCP_HTTP_TOKEN_FILE" => token,
+        "TEXT_STATS_MCP_HTTP_PORT" => port.to_s
+      )
+      wait_ready(port)
+
+      declared = [
+        "POST /mcp HTTP/1.1",
+        "Host: #{HOST}:#{port}",
+        "Accept: #{ACCEPT}",
+        "Content-Type: application/json",
+        "Authorization: Bearer #{TOKEN}",
+        "Content-Length: #{MAX_REQUEST_BYTES + 1}",
+        "Connection: close",
+        "",
+        ""
+      ].join("\r\n")
+      assert_match(/\AHTTP\/1\.1 413\b/, raw_http_status(port, declared))
+
+      chunk_size = MAX_REQUEST_BYTES + 1
+      chunked = [
+        "POST /mcp HTTP/1.1",
+        "Host: #{HOST}:#{port}",
+        "Accept: #{ACCEPT}",
+        "Content-Type: application/json",
+        "Authorization: Bearer #{TOKEN}",
+        "Transfer-Encoding: chunked",
+        "Connection: close",
+        "",
+        "#{chunk_size.to_s(16)}\r\n#{"x" * chunk_size}\r\n0\r\n\r\n"
+      ].join("\r\n")
+      assert_match(/\AHTTP\/1\.1 413\b/, raw_http_status(port, chunked))
+
+      readiness = request(port, Net::HTTP::Get.new("/readyz"))
+      assert_equal "200", readiness.code
 
       status, output, diagnostics = stop(wait, stdout, stderr)
       assert status.success?
