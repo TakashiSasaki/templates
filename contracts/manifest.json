@@ -17,6 +17,7 @@
       "id": "surfaces",
       "document": "contracts/surfaces.json",
       "schema": "schemas/surfaces.schema.json",
+      "migrationSlug": "surfaces",
       "documentSchemaVersion": 1,
       "versionHistory": [
         {
@@ -30,6 +31,7 @@
       "id": "routes",
       "document": "contracts/routes.json",
       "schema": "schemas/routes.schema.json",
+      "migrationSlug": "routes",
       "documentSchemaVersion": 2,
       "versionHistory": [
         {
@@ -48,6 +50,7 @@
       "id": "ui_states",
       "document": "contracts/ui-states.json",
       "schema": "schemas/ui-states.schema.json",
+      "migrationSlug": "ui-states",
       "documentSchemaVersion": 2,
       "versionHistory": [
         {
@@ -66,6 +69,7 @@
       "id": "viewports",
       "document": "contracts/viewports.json",
       "schema": "schemas/viewports.schema.json",
+      "migrationSlug": "viewports",
       "documentSchemaVersion": 1,
       "versionHistory": [
         {
@@ -75,5 +79,6 @@
       ],
       "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
     }
-  ]
+  ],
+  "retiredContracts": []
 }
