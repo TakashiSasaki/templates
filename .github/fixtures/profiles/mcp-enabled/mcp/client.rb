@@ -424,7 +424,11 @@ module TextStatsMcpClient
       request["MCP-Protocol-Version"] = PROTOCOL_VERSION if @session_id
       request.body = JSON.generate(payload)
 
-      response = perform(request, capture_session_header: payload["method"] == "initialize")
+      response = if payload["method"] == "initialize"
+                   perform(request, capture_session_header: true)
+                 else
+                   perform(request)
+                 end
       classify_http_failure(response) unless response.code.start_with?("2")
       if request_id.nil?
         raise ProtocolFailure unless response.code == "202"
