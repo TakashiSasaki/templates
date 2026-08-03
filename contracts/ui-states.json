@@ -67,7 +67,7 @@
     },
     {
       "id": "retrying",
-      "scope": "global",
+      "scope": "route",
       "category": "progress",
       "description": "A previously failed operation is being attempted again.",
       "recoveryActions": ["cancel-retry"],
