@@ -5,6 +5,7 @@
   "required": [
     "$schema",
     "schemaVersion",
+    "versionHistory",
     "contracts"
   ],
   "$defs": {
@@ -20,9 +21,66 @@
       "type": "string",
       "pattern": "^schemas/[a-z][a-z0-9-]*\\.schema\\.json(?![\\s\\S])"
     },
+    "migrationPath": {
+      "type": "string",
+      "pattern": "^docs/migrations/[a-z][a-z0-9-]*-v[1-9][0-9]*-to-v[1-9][0-9]*\\.md(?![\\s\\S])"
+    },
     "nonBlankText": {
       "type": "string",
       "minLength": 1
+    },
+    "initialVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "changeType"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "changeType": {
+          "const": "initial"
+        }
+      }
+    },
+    "transitionVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "changeType",
+        "migration"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "changeType": {
+          "enum": [
+            "additive",
+            "breaking"
+          ]
+        },
+        "migration": {
+          "$ref": "#/$defs/migrationPath"
+        }
+      }
+    },
+    "versionHistory": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/initialVersion"
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/transitionVersion"
+      }
     }
   },
   "properties": {
@@ -30,7 +88,10 @@
       "const": "../schemas/contract-manifest.schema.json"
     },
     "schemaVersion": {
-      "const": 1
+      "const": 2
+    },
+    "versionHistory": {
+      "$ref": "#/$defs/versionHistory"
     },
     "contracts": {
       "type": "array",
@@ -43,6 +104,7 @@
           "document",
           "schema",
           "documentSchemaVersion",
+          "versionHistory",
           "purpose"
         ],
         "properties": {
@@ -58,6 +120,9 @@
           "documentSchemaVersion": {
             "type": "integer",
             "minimum": 1
+          },
+          "versionHistory": {
+            "$ref": "#/$defs/versionHistory"
           },
           "purpose": {
             "$ref": "#/$defs/nonBlankText"
