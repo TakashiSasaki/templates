@@ -54,7 +54,7 @@ The repository test clients are private validation code and are not stable publi
 
 ### Tool inventory, schemas, and caching
 
-`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. The private client validates each listed tool's required name, object-valued `inputSchema` whose `type` is `object`, and object-valued per-tool `_meta` when present, and requires any result `_meta` to be an object before reporting success. It follows an opaque `nextCursor` until it is absent, retains each raw page under an ordered `pages` record, and bounds pagination to 32 pages by default or 128 at most. No cursor, cache hint, or custom `_meta` value is emitted by this server, but the client preserves those fields and unknown additive fields if a selected server supplies them.
+`tools/list` returns one page containing the case-sensitive `text_stats` definition with Draft 2020-12 input and output schemas and read-only annotations. The private client validates each listed tool's required name, object-valued `inputSchema` whose `type` is `object`, object-valued `outputSchema` when present, and object-valued per-tool `_meta` when present, and requires any result `_meta` to be an object before reporting success. It follows an opaque `nextCursor` until it is absent, retains each raw page under an ordered `pages` record, and bounds pagination to 32 pages by default or 128 at most. No cursor, cache hint, or custom `_meta` value is emitted by this server, but the client preserves those fields and unknown additive fields if a selected server supplies them.
 
 ### Lossless paginated tool-list output
 
