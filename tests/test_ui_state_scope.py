@@ -20,10 +20,11 @@ ROUTE_STATE_IDS = {
     "partial",
     "recoverable-error",
     "offline",
+    "retrying",
     "unauthorized",
     "forbidden",
 }
-GLOBAL_STATE_IDS = {"fatal-error", "retrying", "not-found"}
+GLOBAL_STATE_IDS = {"fatal-error", "not-found"}
 
 
 class UIStateScopeTests(unittest.TestCase):
