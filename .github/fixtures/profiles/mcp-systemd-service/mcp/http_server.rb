@@ -20,6 +20,22 @@ module TextStatsMcpSystemd
   class ConfigurationError < StandardError; end
 
   class BoundedHTTPRequest < WEBrick::HTTPRequest
+    def preload_bounded_body!
+      return if @bounded_body_preloaded
+
+      body
+      @bounded_body_preloaded = true
+    end
+
+    def body(&block)
+      unless @bounded_body_preloaded
+        return super
+      end
+
+      block&.call(@body) unless @body.empty?
+      @body.empty? ? nil : @body
+    end
+
     def enforce_declared_body_limit!
       content_length = self["content-length"]
       return unless content_length && content_length.to_i > request_body_limit
@@ -315,7 +331,7 @@ module TextStatsMcpSystemd
         AccessLog: [],
         Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN),
         RequestBodyLimit: HTTP_MAX_REQUEST_BYTES,
-        RequestCallback: ->(request, _response) { request.enforce_declared_body_limit! }
+        RequestCallback: ->(request, _response) { request.preload_bounded_body! }
       )
       server.mount "/", Rackup::Handler::WEBrick, application
       if shutdown.attach(server)
