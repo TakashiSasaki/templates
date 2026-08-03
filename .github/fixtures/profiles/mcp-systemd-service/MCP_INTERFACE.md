@@ -23,7 +23,7 @@ No stdio adapter is retained by this deployment fixture.
 Supported: YES
 Start command: sudo systemctl start text-stats-mcp.service
 Stop command or shutdown method: sudo systemctl stop text-stats-mcp.service
-Endpoint URL: http://127.0.0.1:4572/mcp
+Endpoint URL: see RUNTIME.md
 Bind address: see RUNTIME.md
 Port selection: see RUNTIME.md
 Supported protocol eras: see RUNTIME.md
