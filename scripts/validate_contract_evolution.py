@@ -7,12 +7,15 @@ import json
 import os
 import stat
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
 try:
     from scripts import validate_contracts
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    if exc.name != "scripts":
+        raise
     import validate_contracts  # type: ignore[no-redef]
 
 MIGRATIONS_DIRECTORY = "docs/migrations"
@@ -27,6 +30,14 @@ def _duplicate_values(values: list[str]) -> set[str]:
             duplicates.add(value)
         seen.add(value)
     return duplicates
+
+
+def _has_visible_character(value: str) -> bool:
+    return any(
+        character not in validate_contracts.VISUALLY_BLANK_CHARACTERS
+        and unicodedata.category(character)[0] not in {"C", "M", "Z"}
+        for character in value
+    )
 
 
 def _path_contains_symlink(root: Path, relative: str) -> bool:
@@ -57,6 +68,14 @@ def _non_regular_file(root: Path, relative: str) -> bool:
     return not stat.S_ISLNK(mode) and not stat.S_ISREG(mode)
 
 
+def _root_resolution_error(root: Path) -> str | None:
+    try:
+        root.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        return f"repository root path cannot be resolved safely: {exc}"
+    return None
+
+
 def _migration_directory_symlink_errors(root: Path) -> list[str]:
     migrations_root = root / MIGRATIONS_DIRECTORY
     if migrations_root.is_symlink():
@@ -79,6 +98,23 @@ def _migration_directory_symlink_errors(root: Path) -> list[str]:
                     f"{relative}: migration directory must not be a symbolic link"
                 )
     return errors
+
+
+def _validate_migration_content(
+    root: Path,
+    *,
+    owner: str,
+    migration: str,
+) -> list[str]:
+    try:
+        content = (root / migration).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return [f"{owner}: unable to read migration {migration}: {exc}"]
+    if not _has_visible_character(content):
+        return [
+            f"{owner}: migration must contain at least one visible character: {migration}"
+        ]
+    return []
 
 
 def _validate_version_history(
@@ -128,6 +164,14 @@ def _validate_version_history(
         candidate = root / migration
         if not candidate.is_file():
             errors.append(f"{owner}: missing migration: {migration}")
+            continue
+        errors.extend(
+            _validate_migration_content(
+                root,
+                owner=owner,
+                migration=migration,
+            )
+        )
 
     return errors, migrations
 
@@ -152,6 +196,12 @@ def validate_contract_evolution(
     manifest: dict[str, Any] | None = None,
 ) -> list[str]:
     """Validate contiguous version histories and the closed migration inventory."""
+
+    if root.is_symlink():
+        return ["repository root must not be a symbolic link"]
+    root_error = _root_resolution_error(root)
+    if root_error:
+        return [root_error]
 
     if manifest is None:
         try:
@@ -214,15 +264,17 @@ def validate_contract_evolution(
         errors.append(f"duplicate migration document: {duplicate}")
 
     migrations_root = root / MIGRATIONS_DIRECTORY
-    actual_migrations = (
-        {
-            path.relative_to(root).as_posix()
-            for path in migrations_root.rglob("*.md")
-            if path.is_file() or path.is_symlink() or _non_regular_file(root, path.relative_to(root).as_posix())
-        }
-        if migrations_root.is_dir()
-        else set()
-    )
+    actual_migrations = set()
+    if migrations_root.is_dir():
+        for path in migrations_root.rglob("*.md"):
+            relative = path.relative_to(root).as_posix()
+            if (
+                path.is_file()
+                or path.is_symlink()
+                or _non_regular_file(root, relative)
+            ):
+                actual_migrations.add(relative)
+
     for relative in sorted(actual_migrations - set(registered_migrations)):
         errors.append(f"unregistered migration document: {relative}")
 
