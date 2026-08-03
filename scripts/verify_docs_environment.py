@@ -4,11 +4,18 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-from scripts.verify_ci_environment import (
-    compare_distribution_sets,
-    installed_distribution_set,
-    load_locked_requirements,
-)
+if __package__:
+    from .verify_ci_environment import (
+        compare_distribution_sets,
+        installed_distribution_set,
+        load_locked_requirements,
+    )
+else:
+    from verify_ci_environment import (
+        compare_distribution_sets,
+        installed_distribution_set,
+        load_locked_requirements,
+    )
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCK = ROOT / "requirements-docs.lock"
