@@ -14,8 +14,8 @@ Selection status: SELECTED
 | Dependency/package manager | RubyGems and Bundler |
 | Project manifest | `Gemfile` |
 | Lockfile policy | The fixture pins `mcp` 1.0.0, `rack` 3.2.1, `rackup` 2.2.1, and `webrick` 1.9.1 directly in `Gemfile`; the isolated fixture harness resolves transitive dependencies during validation and does not commit the generated lockfile. |
-| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters; `tests/` contains transport, boundary, and lifecycle tests. |
-| Supported operating systems | Linux with CRuby 3.1 or newer |
+| Source layout | `src/text_stats.rb` contains deterministic operation logic; `mcp/server_factory.rb` owns the shared tool and server definition; `mcp/server.rb` and `mcp/http_server.rb` are thin stdio and Streamable HTTP adapters; `mcp/service_manager.rb` is an optional local lifecycle controller; `tests/` contains transport, boundary, lifecycle, client, and managed-deployment tests. |
+| Supported operating systems | Linux with CRuby 3.1 or newer and `/proc` process identity support for the managed lifecycle variant |
 
 ## Commands
 
@@ -28,9 +28,9 @@ Run every command from the skill root.
 | Install development dependencies | `bundle install` |
 | Run in place | `bundle exec ruby mcp/server.rb` |
 | Agent launcher | `bundle exec ruby mcp/server.rb` |
-| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb && bundle exec ruby tests/test_http_lifecycle.rb && bundle exec ruby tests/test_mcp_client.rb` |
-| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb` |
-| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb` |
+| Test | `bundle exec ruby tests/test_mcp_server.rb && bundle exec ruby tests/test_http_server.rb && bundle exec ruby tests/test_http_boundaries.rb && bundle exec ruby tests/test_http_lifecycle.rb && bundle exec ruby tests/test_mcp_client.rb && bundle exec ruby tests/test_service_manager.rb` |
+| Lint/static analysis | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c mcp/service_manager.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb && ruby -c tests/test_service_manager.rb` |
+| Format check | `ruby -c src/text_stats.rb && ruby -c mcp/server_factory.rb && ruby -c mcp/server.rb && ruby -c mcp/http_server.rb && ruby -c mcp/client.rb && ruby -c mcp/service_manager.rb && ruby -c tests/test_mcp_server.rb && ruby -c tests/test_http_server.rb && ruby -c tests/test_http_boundaries.rb && ruby -c tests/test_http_lifecycle.rb && ruby -c tests/test_mcp_client.rb && ruby -c tests/test_service_manager.rb` |
 | Build/package | NOT APPLICABLE |
 
 ### MCP commands
@@ -41,12 +41,17 @@ Run every command from the skill root.
 | Inspect MCP server and tool inventory | `bundle exec ruby tests/test_mcp_server.rb --name test_initialization_and_tool_inventory` |
 | Invoke one MCP tool over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_successful_tool_call` |
 | Invoke sequential MCP tool calls over stdio | `bundle exec ruby tests/test_mcp_server.rb --name test_sequential_tool_calls` |
-| Start Streamable HTTP MCP server | `bundle exec ruby mcp/http_server.rb` |
-| Stop Streamable HTTP MCP server | `kill -TERM "$TEXT_STATS_MCP_HTTP_PID"` |
+| Start Streamable HTTP MCP server manually | `bundle exec ruby mcp/http_server.rb` |
+| Stop manually started Streamable HTTP MCP server | `kill -TERM "$TEXT_STATS_MCP_HTTP_PID"` |
+| Start managed Streamable HTTP MCP service | `TEXT_STATS_MCP_HTTP_TOKEN_FILE=/path/to/mode-0600-token bundle exec ruby mcp/service_manager.rb start` |
+| Stop managed Streamable HTTP MCP service | `bundle exec ruby mcp/service_manager.rb stop` |
+| Restart managed Streamable HTTP MCP service | `bundle exec ruby mcp/service_manager.rb restart` |
+| Check managed MCP readiness | `bundle exec ruby mcp/service_manager.rb ready` |
+| Check managed MCP liveness | `bundle exec ruby mcp/service_manager.rb live` |
 | Invoke one MCP tool over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_http_inventory_calls_and_stdio_equivalence` |
 | Invoke sequential MCP tool calls over Streamable HTTP | `bundle exec ruby tests/test_http_server.rb --name test_request_scoped_host_origin_and_authentication_on_reused_connection` |
 | Test HTTP expiry and disconnect recovery | `bundle exec ruby tests/test_http_lifecycle.rb` |
-| Check MCP readiness | `curl --fail --silent --show-error http://127.0.0.1:4570/readyz` |
+| Check MCP readiness directly | `curl --fail --silent --show-error http://127.0.0.1:4570/readyz` |
 
 ## MCP protocol support
 
@@ -91,15 +96,32 @@ Run every command from the skill root.
 | Supported protocol eras | initialization-era revision `2025-11-25` only |
 | Revision-specific state model | Stateful SDK-issued UUID sessions with an operational 300-second idle timeout, explicit DELETE cleanup, and no resumability or hidden application state. The lifecycle suite uses a test-only shorter timeout to prove that expired sessions restore capacity without DELETE. |
 | Concurrent-client policy | At most 16 live MCP sessions; the seventeenth initialization receives HTTP 503 until a session is deleted or expires; each tool operation is synchronous, read-only, and independent |
-| Authentication | Exact Bearer token loaded from `TEXT_STATS_MCP_HTTP_TOKEN`; 32 to 128 non-whitespace printable ASCII characters; constant-time comparison on every `/mcp` request and no token output |
+| Authentication | Exact Bearer token supplied by either `TEXT_STATS_MCP_HTTP_TOKEN` for an explicitly foreground-launched process or `TEXT_STATS_MCP_HTTP_TOKEN_FILE` for file-backed startup. Exactly one source is accepted. The file source is opened nonblocking without following symlinks and must be a regular service-user-owned file with no group or other permission bits. The token is checked with constant-time comparison on every `/mcp` request and is never emitted. |
 | Host-header validation | Every request must carry the configured loopback authority in canonical form; nondefault ports require `127.0.0.1:PORT`, while port 80 accepts the equivalent `127.0.0.1` and `127.0.0.1:80` forms |
 | Origin validation granularity | EVERY HTTP REQUEST before readiness, authentication, session lookup, or MCP dispatch; no connection-scoped allow decision |
 | Allowed origins and absent-Origin policy | An absent Origin is accepted for non-browser clients; a present HTTP Origin must parse to host `127.0.0.1` and the configured effective port with no userinfo, path, query, or fragment; every other present Origin receives HTTP 403 |
 | Connection-reuse security tests | One HTTP/1.1 keep-alive connection carries accepted and rejected Host, Origin, and Bearer values in sequence and proves that a valid earlier request does not authorize later requests; focused boundary tests cover equivalent default-port authority forms |
-| Readiness check | Unauthenticated `GET /readyz` returns JSON status only after the listener is serving; it still applies the same per-request canonical Host and Origin gate and remains independent of MCP request failures and session capacity |
+| Readiness check | Unauthenticated `GET /readyz` returns `{"status":"ready"}` only after the listener is serving; it still applies the same per-request canonical Host and Origin gate and remains independent of MCP request failures and session capacity |
+| Liveness check | Unauthenticated `GET /livez` returns `{"status":"live"}` while the HTTP event loop is serving. The managed `live` command additionally verifies the PID and Linux process-start identity before probing the endpoint. |
 | Cancellation behavior | In the pinned SDK 1.0.0 JSON-response mode, closing the HTTP socket is not itself an MCP cancellation signal. The bounded synchronous operation may complete after the caller disconnects and is not detached into a task. The controlled regression records the outcome separately, asserts normal bounded completion for this SDK, then proves that the same session can answer `ping`, be deleted, and be replaced. Protocol-level MCP cancellation remains distinct and is not claimed by this disconnect test. |
-| Shutdown/restart policy | One foreground process records TERM or INT even before the server callback attaches, shuts down WEBrick once available, closes the SDK transport and sessions, emits diagnostics only to stderr, releases the port, and can restart on the same port; a live-port collision fails promptly |
+| Shutdown/restart policy | Manual foreground mode records TERM or INT even before the server callback attaches, shuts down WEBrick once available, closes SDK sessions, releases the port, and can restart on the same port. Optional managed mode uses an identity-verified mode-0600 PID record, bounded readiness, explicit start/stop/restart, TERM followed by KILL after fixed grace periods, and safe stale-record removal. No automatic restart is claimed. |
 | Non-loopback support | NO; non-loopback bind configuration is rejected and no reverse-proxy trust or remote-client mode is claimed |
+
+### Managed local lifecycle variant
+
+| Item | Selected value |
+|---|---|
+| Supported | YES, optional for the Streamable HTTP adapter |
+| Controller | `mcp/service_manager.rb`; private operator command, not a packaged public CLI or MCP tool |
+| Process topology | One detached local process group running the same `mcp/http_server.rb` adapter |
+| Start policy | Validate the external token file before process creation, reject an already-live identity, safely remove only a stale verified PID record, create a mode-0600 log, spawn the fixed Ruby entry point, publish a mode-0600 PID/start-tick record, and require readiness within eight seconds |
+| Stop policy | Verify PID plus Linux `/proc` start ticks before signaling the process group; send TERM, wait two seconds, send KILL when still live, wait one additional second, and remove only the unchanged verified record |
+| Restart policy | Complete bounded stop before a new start; no overlap, zero-downtime handoff, or automatic restart is claimed |
+| Stale-process policy | A missing process, zombie, or start-tick mismatch is stale. The controller removes the unchanged safe record without signaling an unrelated process. A malformed, symlinked, wrong-owner, non-regular, oversized, or overly permissive record is rejected rather than repaired or followed. |
+| Secret boundary | Managed startup requires `TEXT_STATS_MCP_HTTP_TOKEN_FILE`; the secret value is never placed in argv, PID metadata, stdout, stderr, or the managed log. Direct environment-token mode remains supported only for explicit foreground launch. |
+| Runtime files | Default PID `tmp/text-stats-mcp-http.pid` and log `tmp/text-stats-mcp-http.log`; missing directories are created owner-only, PID publication is no-replace and atomic, and files are mode `0600` |
+| Unsupported | OS service installation, privilege changes, multiple workers, socket activation, automatic restart, non-loopback exposure, TLS, reverse proxy, container, orchestrator, persistence, log rotation, and upgrade handoff |
+| Smoke and negative tests | Real start/ready/live/restart/stop, stale-record replacement, token permission and symlink rejection before process creation, PID symlink refusal, secret redaction, and TERM-ignoring process-group escalation |
 
 ### Bundled ad hoc MCP tool client
 
@@ -142,21 +164,24 @@ The private helper is invoked from the fixture root with `bundle exec ruby mcp/c
 |---|---|
 | Skill distribution | Git clone or release archive |
 | CLI distribution | NOT APPLICABLE |
-| MCP distribution | Bundled with the skill source; stdio is activated by host registration and Streamable HTTP is an explicitly started local foreground process |
+| MCP distribution | Bundled with the skill source; stdio is activated by host registration and Streamable HTTP is either an explicitly started foreground process or an explicitly managed local process |
 | Human Web interface distribution | NOT SUPPORTED |
-| Service integration | Manual foreground local process only; no service manager, container, reverse proxy, automatic restart, or remote exposure |
+| Service integration | Optional bundled local lifecycle controller only; no systemd, launchd, Windows service, container, orchestrator, reverse proxy, automatic restart, or remote exposure |
 | Version source of truth | `TextStatsMcp::VERSION` in `src/text_stats.rb` |
 
 ## Environment and configuration
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
-| `TEXT_STATS_MCP_HTTP_TOKEN` | YES for Streamable HTTP; unused by stdio | Bearer token checked on every `/mcp` request | YES |
+| `TEXT_STATS_MCP_HTTP_TOKEN` | YES for direct foreground Streamable HTTP unless the file source is selected; unused by stdio and managed mode | Bearer token checked on every `/mcp` request | YES |
+| `TEXT_STATS_MCP_HTTP_TOKEN_FILE` | YES for managed startup; alternative to the direct token for foreground startup | Path to a non-symlink regular token file owned by the service user with no group or other permission bits | YES: file contents |
 | `TEXT_STATS_MCP_HTTP_BIND` | NO | Optional bind assertion; only `127.0.0.1` is accepted | NO |
 | `TEXT_STATS_MCP_HTTP_PORT` | NO | Select a startup port from 1 through 65535; default 4570 | NO |
+| `TEXT_STATS_MCP_HTTP_PID_FILE` | NO | Managed mode PID/start-tick record; default `tmp/text-stats-mcp-http.pid` | NO |
+| `TEXT_STATS_MCP_HTTP_LOG_FILE` | NO | Managed mode stdout/stderr log; default `tmp/text-stats-mcp-http.log` | NO |
 
-The operator launching the HTTP process records its PID in the shell variable `TEXT_STATS_MCP_HTTP_PID` when using the documented stop command. The server does not write a PID file or read that shell variable. Test-only lifecycle hooks are gated by `TEXT_STATS_MCP_TEST_MODE=1` and are not supported runtime configuration.
+The manual foreground launcher records its PID in the shell variable `TEXT_STATS_MCP_HTTP_PID` when using the documented manual stop command; the server does not read that variable. Managed mode instead owns the secure PID record above. Test-only lifecycle hooks are gated by `TEXT_STATS_MCP_TEST_MODE=1` and are not supported runtime configuration.
 
 ## Decision rationale
 
-Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, explicitly started, authenticated, request-scoped for canonical Host and Origin decisions, bounded to 16 sessions, recoverable after session expiry, and usable after bounded work completes following a client disconnect; stdio remains the no-listener fallback. A public bundled client, remote deployment, reverse proxy, TLS termination, service manager, persistence, tasks, sampling, elicitation, roots, and optional extensions remain unsupported and require separate contracts and fixtures.
+Ruby matches the executable fixture ecosystem and the official `mcp` 1.0.0 SDK provides initialization, schemas, stdio, stateful Streamable HTTP, bounded request bodies, and session lifecycle without a custom MCP implementation. The two thin adapters share one server factory and one read-only operation. HTTP remains loopback-only, authenticated, request-scoped for canonical Host and Origin decisions, bounded to 16 sessions, and recoverable after session expiry. The optional lifecycle controller adds only local start, stop, restart, readiness, liveness, external-secret, stale-record, and bounded-escalation behavior around the existing adapter. It does not enlarge the network trust boundary or claim an OS service manager, remote production deployment, reverse proxy, TLS, container, persistence, automatic restart, public client, tasks, sampling, elicitation, roots, or optional extensions.
