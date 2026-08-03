@@ -58,6 +58,8 @@ The ordering is part of the trust boundary. Policy CI neutralizes `PYTHONHOME`, 
 
 The lock fixes exact distribution version strings. It does not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Update dependency inputs and the lock only through a reviewed dependency-resolution change.
 
+The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. See `docs/documentation-publication.md` for the reproducible local sequence and the still-disabled Pages deployment boundary.
+
 ## Branch and migration status
 
 The authoritative development location is `TakashiSasaki/templates` branch `policy`. The branch was imported from `TakashiSasaki/agent-policy` while preserving the non-workflow source history; see `docs/migration-from-agent-policy.md` for the exact source revision and import boundary.
