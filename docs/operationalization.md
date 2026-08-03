@@ -6,22 +6,22 @@ The template contracts describe externally observable behavior. The generated re
 
 ## 1. Freeze the template baseline
 
-Start from one known `webapp` revision and record that revision in the generated repository's setup notes or change log. Copy the template-owned contracts, schemas, validator, tests, and validation instructions as one coherent baseline.
+Start from one known `webapp` revision and record that revision in the generated repository's setup notes or change log. Copy the template-owned contracts, schemas, validators, migrations, tests, and validation instructions as one coherent baseline.
 
 Do not combine the unrelated `webapp` and `policy` histories merely to share files. Do not copy framework starters, deployment workflows, or coding-agent policy from an unrelated branch as if they were part of this template.
 
 Before customization, choose and provision the contract-validation path before invoking it.
 
-If the generated repository retains the shipped Python validator:
+If the generated repository retains the shipped Python validators:
 
 - retain `requirements-dev.lock` (or an intentionally updated equivalent lock) for the validator dependencies;
 - create a separate isolated validator environment from that lock;
-- run both validator entry points and the template test suite with that environment's interpreter;
+- run both entry points for `validate_contracts`, both entry points for `validate_contract_evolution`, and the template test suite with that environment's interpreter;
 - keep this environment separate from the product environment and follow the repository's documented clean-environment procedure.
 
-The product lockfile does not provision the shipped validator, and globally installed Python packages are not an acceptable substitute for the reviewed validator environment.
+The product lockfile does not provision the shipped validators, and globally installed Python packages are not an acceptable substitute for the reviewed validator environment.
 
-If the generated repository replaces the shipped validator with an equivalent verified integration, record that integration's isolated dependencies, command, and evidence instead. On every clean CI runner, that path must create and provision its isolated validation environment from the recorded lock or toolchain-specific dependency definition, perform the toolchain-appropriate dependency verification, and only then invoke the equivalent command. Do not invoke the shipped Python entry points in that validation path.
+If the generated repository replaces the shipped validators with an equivalent verified integration, record that integration's isolated dependencies, command, and evidence instead. On every clean CI runner, that path must create and provision its isolated validation environment from the recorded lock or toolchain-specific dependency definition, perform the toolchain-appropriate dependency verification, and only then invoke the equivalent command. Do not invoke the shipped Python entry points in that validation path.
 
 ## 2. Select one product toolchain
 
@@ -40,34 +40,39 @@ Make the product choices that the template intentionally leaves open:
 
 Record the authoritative build, test, lint, and deployment commands. Remove competing manifests, lockfiles, framework starters, and deployment configurations rather than retaining them as unresolved alternatives.
 
-The template-maintainer Python environment validates the template contracts. It is not automatically the product runtime. A product may retain, replace, or separately invoke the validator, but the contract semantics and failure evidence must remain explicit.
+The template-maintainer Python environment validates the template contracts. It is not automatically the product runtime. A product may retain, replace, or separately invoke the validators, but the contract semantics and failure evidence must remain explicit.
 
 ## 3. Customize the contract set
 
-Replace the example declarations in `contracts/` with product-specific values while preserving the manifest as the inventory source of truth.
+Replace the example declarations in `contracts/` with product-specific values while preserving the manifest as the inventory and evolution source of truth.
 
 For each change:
 
-1. Keep every retained product-domain contract document and schema registered in `contracts/manifest.json`; preserve the validator's exclusion of the bootstrap artifacts `contracts/manifest.json` and `schemas/contract-manifest.schema.json` themselves.
+1. Keep every retained product-domain contract document and schema registered in `contracts/manifest.json`; preserve the validator's exclusion of the bootstrap artifacts `contracts/manifest.json` and `schemas/contract-manifest.schema.json` themselves from the domain-contract registry.
 2. Keep the document `$schema` and `schemaVersion` consistent with the manifest.
-3. Declare every externally observable application surface and canonical route.
-4. Declare each route's unauthenticated and forbidden access-failure behavior from its authentication requirement and owning surface authorization mode.
-5. For `render-state`, list the corresponding `unauthorized` or `forbidden` UI state; for `redirect` or `not-applicable`, remove that state reference.
-6. Keep route-to-surface and route-to-UI-state references valid, ensure every declared surface is owned by at least one canonical route, and classify each UI state as `route` or `global`.
-7. Ensure every route-scoped state is listed by at least one route and remove global state identifiers from every route declaration.
-8. Define aliases and canonical paths without collisions.
-9. Describe authentication return behavior and deep-link expectations for protected routes.
-10. Declare loading, empty, partial, error, offline, and access states that users can observe.
-11. Declare viewport lower bounds and input capabilities independently.
-12. Update schema versions and migration notes when the meaning of an existing contract changes.
+3. Preserve a contiguous `versionHistory` from version 1 through the current manifest or contract version.
+4. Classify each transition after version 1 as `additive` or `breaking` and register its deterministic `docs/migrations/<contract-slug>-vN-to-vN+1.md` document.
+5. Preserve stable contract and entity identifiers unless a breaking migration accounts for every reference, implementation boundary, test, evidence record, deployment consequence, and rollback implication.
+6. Declare every externally observable application surface and canonical route.
+7. Declare each route's unauthenticated and forbidden access-failure behavior from its authentication requirement and owning surface authorization mode.
+8. For `render-state`, list the corresponding `unauthorized` or `forbidden` UI state; for `redirect` or `not-applicable`, remove that state reference.
+9. Keep route-to-surface and route-to-UI-state references valid, ensure every declared surface is owned by at least one canonical route, and classify each UI state as `route` or `global`.
+10. Ensure every route-scoped state is listed by at least one route and remove global state identifiers from every route declaration.
+11. Define aliases and canonical paths without collisions.
+12. Describe authentication return behavior and deep-link expectations for protected routes.
+13. Declare loading, empty, partial, error, offline, and access states that users can observe.
+14. Declare viewport lower bounds and input capabilities independently.
+15. Synchronize the schema, example document, manifest history, migration, validators, positive and negative tests, architecture guidance, implementation evidence, and release documentation for every versioned change.
 
 A route's access-failure declaration distinguishes rendering an access state from redirecting away from the route. `authenticationReturn` separately declares whether successful authentication returns to the original route. The generated repository owns redirect destinations, identity-provider integration, authorization recovery, and trusted enforcement.
 
 A route-scoped state belongs to the observable presentation owned by one or more canonical routes. A global state belongs to an application shell, router, top-level error boundary, or another presentation boundary outside canonical route ownership. Scope does not choose a framework, routing library, state store, or component architecture.
 
-Repositories migrating a version 1 route document must follow [`migrations/routes-v1-to-v2.md`](migrations/routes-v1-to-v2.md). Repositories migrating a version 1 UI-state document must follow [`migrations/ui-states-v1-to-v2.md`](migrations/ui-states-v1-to-v2.md).
+A contract version changes when accepted instances or declaration semantics change. A transition is additive only when every document valid under the preceding version remains valid with unchanged meaning and obligations. Treat required fields, tighter constraints, new mandatory cross-contract relationships, closed-enum changes, semantic changes, and stable-identifier renames or removals as breaking. Prose clarification and validator or test refactoring do not increment a domain version when accepted instances and meaning remain unchanged. See [`architecture/contract-evolution.md`](architecture/contract-evolution.md).
 
-A new contract family belongs in this set only when its semantics are framework-neutral, externally observable, product-repository declarations can be authoritative, and local cross-file validation can reject its failure cases. Otherwise, keep the concern product-owned and document it in the generated repository.
+Repositories migrating a version 1 contract manifest must follow [`migrations/contract-manifest-v1-to-v2.md`](migrations/contract-manifest-v1-to-v2.md). Repositories migrating a version 1 route document must follow [`migrations/routes-v1-to-v2.md`](migrations/routes-v1-to-v2.md). Repositories migrating a version 1 UI-state document must follow [`migrations/ui-states-v1-to-v2.md`](migrations/ui-states-v1-to-v2.md).
+
+A new contract family belongs in this set only when its semantics are framework-neutral, externally observable, product-repository declarations can be authoritative, and local cross-file validation can reject its failure cases. Otherwise, keep the concern product-owned and document it in the generated repository. A new family starts at version 1 with `changeType: initial`; do not create a migration from a nonexistent earlier version.
 
 ## 4. Connect implementation to contracts
 
@@ -81,6 +86,7 @@ At minimum, the implementation must make evidence available for:
 | Routes | canonical navigation, aliases or redirects, browser history, deep links, access-failure rendering or redirects, authentication return, document titles, and focus targets |
 | UI states | deterministic rendering, route or global ownership, and recovery actions for each declared state |
 | Viewports | responsive behavior at declared lower bounds and supported input capabilities, including zoom and orientation requirements |
+| Evolution | previous and current versions, change classification review, identifier mapping, migration execution, backward-compatibility evidence, deployment sequencing, and rollback evidence |
 
 Route names and directory names are not authorization. Enforce access decisions in trusted server or application boundaries, and test that an authenticated principal cannot cross an authorization boundary by changing a path, identifier, or client-side state.
 
@@ -96,7 +102,9 @@ Add product-owned tests that exercise the real implementation path. A useful evi
 
 Include positive and negative cases. Examples include unauthenticated access to public and protected routes, forbidden access to role-protected routes, rendered access states, access redirects and their destinations, direct navigation to a deep link, an authentication return to the original route, every declared route-scoped state through at least one owning route, every declared global state through its top-level owner, rejection of global states from route declarations, alias collision prevention, keyboard navigation, zoom, narrow and wide layouts, offline or partial failure, and recovery actions.
 
-The template validator proves that the declarations are structurally and cross-contract valid. It does not prove that product code actually implements them; that proof remains in the generated repository's tests.
+For a contract transition, also test the previous valid representation, the migrated representation, invalid incomplete migrations, stable-identifier mappings, implementation behavior before and after rollout, and rollback to a compatible deployed revision. An additive classification requires evidence that preceding-version instances retain their meaning. A breaking classification requires explicit consumer and deployment migration evidence.
+
+The current-contract validator proves that declarations are structurally and cross-contract valid. The evolution validator proves that version chains and migration-document inventory are complete. Neither proves that the selected semantic classification is correct or that product code implements the declarations; those proofs remain in review and product tests.
 
 ## 6. Integrate validation into CI
 
@@ -104,8 +112,8 @@ Run validation from a clean, documented environment and keep the commands reprod
 
 1. create the product's isolated environment;
 2. install the product lockfile without undeclared dependency inputs;
-3. if the shipped validator is retained, create its separate isolated validator environment on this clean runner, install `requirements-dev.lock` (or the reviewed equivalent lock) without undeclared dependency inputs, verify its installed distribution set, run `pip check`, and then invoke both supported entry points and the template test suite with that environment's interpreter; otherwise run the product repository's equivalent verified validation command and preserve the semantic and failure-case evidence mapping;
-4. run product unit, integration, accessibility, and end-to-end tests;
+3. if the shipped validators are retained, create their separate isolated validator environment on this clean runner, install `requirements-dev.lock` (or the reviewed equivalent lock) without undeclared dependency inputs, verify its installed distribution set, run `pip check`, invoke both `validate_contracts` entry points, invoke both `validate_contract_evolution` entry points, and run the template test suite with that environment's interpreter; otherwise run the product repository's equivalent verified validation command and preserve the structural, evolution, semantic, and failure-case evidence mapping;
+4. run product unit, integration, accessibility, migration, and end-to-end tests;
 5. run lint, type, build, and security checks selected by the product toolchain;
 6. publish diagnostics and evidence without exposing secrets.
 
@@ -116,8 +124,10 @@ Keep template contract validation separate from product runtime startup and depl
 The generated repository owns deployment configuration, environment management, migrations, rollback, observability, and release approval. Before treating it as operational, document:
 
 - how the deployed revision is identified;
-- which contract and schema versions it serves;
-- how backward-incompatible changes are migrated;
+- which manifest and contract schema versions it serves;
+- how additive and breaking transitions are reviewed and released;
+- how every backward-incompatible change is migrated;
+- how stable identifiers are preserved or translated across a breaking transition;
 - how health and readiness differ from user-facing error states;
 - how secrets, logs, and diagnostics are redacted;
 - how rollback preserves or restores contract compatibility;
@@ -131,13 +141,14 @@ A generated repository is ready for independent product review when:
 
 - one product toolchain and one authoritative lockfile are selected;
 - example contracts have been replaced or explicitly retained as product declarations;
-- the closed manifest, schemas, and document metadata agree;
+- the closed manifest, schemas, document metadata, version histories, and migration inventory agree;
 - all externally observable surfaces and canonical routes are declared, and every surface is owned by at least one canonical route;
 - every route has access-failure behavior consistent with its authentication and authorization declarations, and its access state references match that behavior;
 - every UI state has an intentional route or global scope, every route-scoped state has a route owner, and no global state is listed by a route;
 - all observable states, viewports, and input capabilities are declared;
+- stable identifiers are preserved or covered by explicit breaking migrations;
 - trusted authentication and authorization enforcement is tested;
-- implementation evidence covers the declared behavior and failure paths;
-- if the shipped validator is retained, its locked distribution set and dependency graph verify successfully, both supported entry points pass, the template test suite passes, and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics and failure evidence;
+- implementation evidence covers the declared behavior, failure paths, version transitions, deployment sequence, and rollback;
+- if the shipped validators are retained, their locked distribution set and dependency graph verify successfully, all four validator entry points pass, the template test suite passes, and product tests pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics, evolution rules, and failure evidence;
 - build, deployment, migration, rollback, observability, and release ownership are documented;
 - template-only guidance and unused alternatives have been removed.
