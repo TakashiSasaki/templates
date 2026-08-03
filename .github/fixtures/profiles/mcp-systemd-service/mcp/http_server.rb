@@ -19,6 +19,42 @@ module TextStatsMcpSystemd
 
   class ConfigurationError < StandardError; end
 
+  class BoundedHTTPRequest < WEBrick::HTTPRequest
+    def enforce_declared_body_limit!
+      content_length = self["content-length"]
+      return unless content_length && content_length.to_i > request_body_limit
+
+      raise WEBrick::HTTPStatus::RequestEntityTooLarge,
+            "request body exceeds #{request_body_limit} bytes"
+    end
+
+    private
+
+    def read_body(socket, block)
+      enforce_declared_body_limit!
+      @bounded_body_bytes ||= 0
+      bounded_block = lambda do |chunk|
+        @bounded_body_bytes += chunk.bytesize
+        if @bounded_body_bytes > request_body_limit
+          raise WEBrick::HTTPStatus::RequestEntityTooLarge,
+                "request body exceeds #{request_body_limit} bytes"
+        end
+        block.call(chunk)
+      end
+      super(socket, bounded_block)
+    end
+
+    def request_body_limit
+      @config.fetch(:RequestBodyLimit)
+    end
+  end
+
+  class BoundedHTTPServer < WEBrick::HTTPServer
+    def create_request(config)
+      BoundedHTTPRequest.new(config)
+    end
+  end
+
   class SystemdNotifier
     def initialize(socket_name = ENV["NOTIFY_SOCKET"])
       @socket_name = socket_name
@@ -273,21 +309,22 @@ module TextStatsMcpSystemd
       %w[TERM INT].each { |signal| Signal.trap(signal) { shutdown.request } }
 
       warn "text-stats MCP systemd service starting on http://#{bind}:#{port}"
-      Rackup::Handler::WEBrick.run(
-        application,
-        Host: bind,
+      server = BoundedHTTPServer.new(
+        BindAddress: bind,
         Port: port,
         AccessLog: [],
-        Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN)
-      ) do |instance|
-        server = instance
-        if shutdown.attach(instance)
-          warn "text-stats MCP systemd shutdown requested during startup"
-        else
-          notifier.ready!
-          warn "text-stats MCP systemd service ready"
-        end
+        Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN),
+        RequestBodyLimit: HTTP_MAX_REQUEST_BYTES,
+        RequestCallback: ->(request, _response) { request.enforce_declared_body_limit! }
+      )
+      server.mount "/", Rackup::Handler::WEBrick, application
+      if shutdown.attach(server)
+        warn "text-stats MCP systemd shutdown requested during startup"
+      else
+        notifier.ready!
+        warn "text-stats MCP systemd service ready"
       end
+      server.start
     rescue ConfigurationError => error
       warn "text-stats MCP systemd service configuration failed: #{error.message}"
       status = 78
