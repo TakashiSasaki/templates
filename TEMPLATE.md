@@ -10,7 +10,7 @@ This branch defines the repository-level foundation for browser-facing web appli
 - canonical route and navigation contracts with explicit access-failure presentation behavior;
 - user-visible loading, empty, partial, error, offline, and recovery states with explicit route or global ownership scope;
 - supported viewport declarations;
-- a closed manifest that inventories every domain contract, schema, version history, and migration document;
+- a closed manifest that inventories active contracts, retired-family tombstones, schemas, stable migration slugs, version histories, and migration artifacts;
 - JSON Schemas for those contracts;
 - local validation, tests, and CI;
 - an explicit boundary between reusable template contracts and product-owned implementation decisions.
@@ -48,30 +48,34 @@ Before a generated repository is treated as operational:
 2. Declare every externally observable surface and canonical route, and ensure each declared surface is owned by at least one canonical route.
 3. Declare unauthenticated and forbidden access-failure behavior for every route, and keep rendered access states consistent with those behaviors.
 4. Classify each UI state as `route` or `global`; ensure every route-scoped state is referenced by at least one route and no global state is listed by a route.
-5. Keep `contracts/manifest.json` synchronized when adding, removing, or versioning contract families, and preserve complete contiguous version histories.
-6. Classify every transition after version 1 as `additive` or `breaking` and register its deterministic migration document.
-7. Preserve stable contract and entity identifiers unless an explicit breaking migration accounts for every reference.
-8. Define trusted authorization enforcement independently of route or directory names.
-9. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
-10. Add implementation-level tests that prove the declared contracts.
-11. Remove template-only guidance that no longer applies.
+5. Keep `contracts/manifest.json` synchronized when adding, moving, retiring, or versioning contract families, and preserve complete contiguous version histories.
+6. Assign one stable `migrationSlug` to each family and preserve it across document or schema moves.
+7. Classify every transition after version 1 as `additive` or `breaking` and register its deterministic migration artifact.
+8. Move a retired non-core family to `retiredContracts`, remove its live files, and preserve its tombstone, stable slug, complete history, breaking retirement migration, deployment implications, and rollback procedure.
+9. Preserve stable contract and entity identifiers unless an explicit breaking migration accounts for every reference.
+10. Define trusted authorization enforcement independently of route or directory names.
+11. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
+12. Add implementation-level tests that prove the declared contracts.
+13. Remove template-only guidance that no longer applies.
 
 The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
 
 ## Contract-set completeness
 
-`contracts/manifest.json` is the repository-local inventory of domain contracts. It records each contract identifier, document path, schema path, current document schema version, complete version history, purpose, and migration document for every transition after version 1. The manifest also records its own bootstrap-format history.
+`contracts/manifest.json` is the repository-local inventory of domain contracts. Active entries record each contract identifier, document path, schema path, stable migration slug, current document schema version, complete version history, purpose, and migration for every transition after version 1. `retiredContracts` preserves the same historical identity plus the last live document version and the next breaking retirement version without requiring live document or schema files. The manifest also records its own bootstrap-format history.
 
 Validation rejects:
 
-- contract or schema files that are present but not registered;
-- registered files that are missing or symbolic links;
-- duplicate identifiers, document paths, or schema paths;
+- active contract or schema files that are present but not registered;
+- registered active files that are missing or symbolic links;
+- duplicate identities, document paths, schema paths, or migration slugs across active and retired entries;
 - paths outside the repository-owned contract and schema directories;
-- document `$schema` declarations or `schemaVersion` values that differ from the manifest;
-- noncontiguous histories or histories that do not end at the current version;
-- migration paths that do not match their contract and version transition;
-- missing, symbolic-link, non-regular, duplicate, or unregistered migration documents;
+- active document `$schema` declarations or `schemaVersion` values that differ from the manifest;
+- noncontiguous histories or histories that do not end at the current or retirement version;
+- retirement versions that are not exactly one greater than the last live version;
+- retirement histories whose final transition is not breaking;
+- migration paths that do not match their stable slug and version transition;
+- missing, unreadable, visually empty, symbolic-link, non-regular, duplicate, or unregistered migration artifacts, regardless of extension;
 - declared surfaces that are not owned by any canonical route;
 - access-failure behavior that is inconsistent with route authentication or surface authorization;
 - rendered access failures without their corresponding route-scoped UI states;
@@ -121,16 +125,20 @@ Input capabilities are declared once in the top-level `inputCapabilities` collec
 
 ## Contract evolution representation
 
-A new contract family starts at version 1 with `changeType: initial`. Each later version adds one contiguous history entry classified as `additive` or `breaking` and registers `docs/migrations/<contract-slug>-vN-to-vN+1.md`.
+A new contract family starts at version 1 with `changeType: initial`. Each later version adds one contiguous history entry classified as `additive` or `breaking` and registers `docs/migrations/<migration-slug>-vN-to-vN+1.md`.
 
-An additive transition must preserve the validity, meaning, and implementation obligations of every document accepted by the preceding version. A breaking transition includes any new invalidation, changed meaning, new mandatory cross-contract invariant, closed-enum change, stable-identifier rename or removal, or changed implementation-evidence obligation.
+The migration slug is a stable family identifier independent of the current document path. Preserve it across document and schema moves so historical migration filenames are never rewritten.
+
+An additive transition must preserve the validity, meaning, and implementation obligations of every document accepted by the preceding version. A breaking transition includes any new invalidation, changed meaning, new mandatory cross-contract invariant, closed-enum change, stable-identifier rename or removal, contract-family retirement, or changed implementation-evidence obligation.
 
 Documentation clarifications, diagnostic improvements, validator refactors, and test refactors do not increment a domain contract version when accepted documents and semantics remain unchanged. Version numbers are local to each contract family and must not be aligned artificially.
 
-Contract identifiers, entity identifiers, and manifest-registered document and schema paths are public repository references. Renaming or removing one is a breaking change and requires an explicit migration that accounts for all contract references, implementation boundaries, tests, evidence, deployment consequences, and rollback implications.
+Contract identifiers, migration slugs, entity identifiers, and manifest-retained document and schema paths are public repository references. Renaming or removing one is a breaking change and requires an explicit migration that accounts for all contract references, implementation boundaries, tests, evidence, deployment consequences, and rollback implications.
 
-`validate_contracts` verifies current contract structure and cross-file invariants. `validate_contract_evolution` verifies contiguous histories and the closed migration inventory. The detailed classification and synchronization rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
+When retiring a non-core family, move its identity and history to a tombstone rather than deleting them. The retirement version follows the last live document version and the final transition is breaking. Core families remain active unless the bootstrap schema itself is changed through a separate reviewed migration.
+
+`validate_contracts` verifies current active contract structure and cross-file invariants. `validate_contract_evolution` verifies active and retired histories, stable migration ownership, and the closed migration-artifact inventory. The detailed classification and synchronization rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
 
 ## Compatibility rule
 
-The contract files and `contracts/manifest.json` are public repository interfaces. Renaming identifiers, moving contract files, changing schema versions, or changing semantics requires coordinated updates to the schema, example document, manifest history, migration note, validators, implementation, navigation, authorization, documentation, deployment configuration, tests, evidence, and rollback plan.
+The contract files and `contracts/manifest.json` are public repository interfaces. Renaming identifiers, moving contract files, retiring a family, changing schema versions, or changing semantics requires coordinated updates to the schema, example document or tombstone, manifest history, migration, validators, implementation, navigation, authorization, documentation, deployment configuration, tests, evidence, and rollback plan.
