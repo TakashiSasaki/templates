@@ -717,6 +717,46 @@ class TextStatsMcpClientTest < Minitest::Test
     assert_includes stderr, "invalid option: --arguments-file"
   end
 
+  def test_stdin_arguments_reject_interactive_terminal
+    error = assert_raises(TextStatsMcpClient::UsageFailure) do
+      STDIN.stub(:tty?, true) do
+        TextStatsMcpClient.read_arguments({ arguments: nil, arguments_stdin: true })
+      end
+    end
+
+    assert_equal 2, error.exit_code
+    assert_includes error.message, "non-interactive"
+  end
+
+  def test_stdin_arguments_timeout_is_bounded_before_transport_start
+    transport_created = false
+    status = nil
+
+    stdout, stderr = capture_io do
+      STDIN.stub(:tty?, false) do
+        STDIN.stub(:read, ->(_limit) { sleep 1 }) do
+          TextStatsMcpClient::StdioTransport.stub(
+            :new,
+            lambda do |_timeout|
+              transport_created = true
+              raise "unexpected transport creation"
+            end
+          ) do
+            status = TextStatsMcpClient.run([
+              "--timeout", "0.05",
+              "tools", "call", "text_stats", "--arguments-stdin"
+            ])
+          end
+        end
+      end
+    end
+
+    assert_equal 5, status
+    refute transport_created
+    assert_equal "", stdout
+    assert_includes stderr, "timeout"
+  end
+
   def test_stdio_response_body_limit_is_enforced_before_json_parse
     oversized_text = "x" * TextStatsMcpClient::MAX_RESPONSE_BYTES
     transport = stdio_transport_for(
