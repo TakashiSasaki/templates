@@ -46,7 +46,7 @@ module TextStatsMcpSystemd
       return unless enabled?
 
       path = @socket_name.start_with?("@") ? "\0#{@socket_name.delete_prefix("@")} " : @socket_name
-      path = path.delete_suffix(" ")
+      path = path.delete_suffix(" ") if @socket_name.start_with?("@")
       socket = Socket.new(Socket::AF_UNIX, Socket::SOCK_DGRAM, 0)
       socket.connect(Socket.pack_sockaddr_un(path))
       socket.send(message, 0)
