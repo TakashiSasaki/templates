@@ -24,11 +24,11 @@ Supported: YES
 Start command: sudo systemctl start text-stats-mcp.service
 Stop command or shutdown method: sudo systemctl stop text-stats-mcp.service
 Endpoint URL: http://127.0.0.1:4572/mcp
-Bind address: 127.0.0.1
-Port selection: fixed render-time integer, default 4572
-Supported protocol eras: initialization-era revision 2025-11-25
-Revision-specific state model: SDK-issued process-local sessions with 300-second idle expiry and explicit DELETE cleanup
-Authentication: exact Bearer token from the systemd credential named `text-stats-mcp-token`, checked on every `/mcp` request
+Bind address: see RUNTIME.md
+Port selection: see RUNTIME.md
+Supported protocol eras: see RUNTIME.md
+Revision-specific state model: see RUNTIME.md
+Authentication: see RUNTIME.md
 Health/readiness check: curl --fail --silent --show-error http://127.0.0.1:4572/readyz
 
 The unit reaches active state only after `mcp/http_server.rb` creates the listener and sends `READY=1` through `NOTIFY_SOCKET`. Every HTTP request validates the exact loopback Host authority and either an absent Origin or the exact same-origin HTTP authority before authentication or dispatch. Invalid Host or Origin receives HTTP 403. Missing or invalid Bearer credentials receive HTTP 401 without exposing credential material.
