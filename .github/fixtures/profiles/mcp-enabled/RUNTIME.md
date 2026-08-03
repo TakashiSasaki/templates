@@ -114,6 +114,7 @@ Run every command from the skill root.
 | Invocation scope | one tool call or multiple sequential `tools/call` requests; never JSON-RPC batch |
 | Interaction modes | non-interactive JSON arguments only |
 | Response-size policy | each successful JSON response body and stdio message is limited to 65,536 bytes; larger responses are rejected before JSON parsing |
+| JSON response media-type policy | JSON HTTP responses for request messages must declare the `application/json` media type; optional parameters are allowed, while a missing or other media type is a protocol failure before JSON parsing |
 | Server-information command | `server-info` |
 | Tool-list command | `tools list` |
 | Tool-show command | `tools show TOOL`; local filtering over lossless `tools/list` pages |
