@@ -5,7 +5,8 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SERVICE_ID="textstats${GITHUB_RUN_ID:-local}${GITHUB_RUN_ATTEMPT:-1}$$"
 SERVICE_USER=${SERVICE_ID:0:31}
 SERVICE_GROUP=$SERVICE_USER
-INSTALL_ROOT="/opt/text-stats-mcp-$SERVICE_USER"
+INSTALL_ROOT="/usr/local/lib/text-stats-mcp-$SERVICE_USER"
+OPT_MODE=$(stat -c %a /opt)
 RUNTIME_BIN_DIR=$(dirname "$(ruby -e 'print File.realpath(RbConfig.ruby)')")
 BUNDLE_PATH=$(command -v bundle)
 PORT=$(ruby -rsocket -e 's=TCPServer.new("127.0.0.1",0); print s.addr[1]; s.close')
@@ -26,6 +27,7 @@ cleanup() {
   sudo rm -f "$UNIT_PATH" "$RESIST_PID_FILE"
   sudo systemctl daemon-reload >/dev/null 2>&1 || true
   sudo rm -rf "$INSTALL_ROOT"
+  sudo chmod "$OPT_MODE" /opt >/dev/null 2>&1 || true
   sudo userdel "$SERVICE_USER" >/dev/null 2>&1 || true
   rm -rf "$TOKEN_DIR"
 }
@@ -59,6 +61,7 @@ assert_zero_status_field() {
 trap diagnose_failure ERR
 trap cleanup EXIT
 
+sudo chmod go-w /opt
 sudo useradd --system --user-group --no-create-home --home-dir /nonexistent \
   --shell /usr/sbin/nologin "$SERVICE_USER"
 sudo install -d -o root -g root -m 0755 "$INSTALL_ROOT"
