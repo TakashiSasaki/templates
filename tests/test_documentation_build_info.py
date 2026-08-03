@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
 from pathlib import Path
+
+import pytest
+
+from scripts.generate_docs_build_info import build_metadata, write_build_info
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/pages.yml"
@@ -27,3 +33,70 @@ def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
     assert guide.index("python scripts/generate_docs_build_info.py") < guide.index(
         "python -m mkdocs build --strict --clean"
     )
+
+
+def test_build_metadata_preserves_ci_identity_and_jst_timestamp() -> None:
+    built_at = datetime(2026, 8, 3, 1, 45, 0, tzinfo=timezone.utc)
+
+    metadata = build_metadata(
+        commit="a" * 40,
+        repository="TakashiSasaki/templates",
+        run_id=123,
+        run_number=45,
+        built_at=built_at,
+    )
+
+    assert metadata == {
+        "built_at_utc": "2026-08-03T01:45:00Z",
+        "built_at_jst": "2026-08-03T10:45:00+09:00",
+        "commit": "a" * 40,
+        "repository": "TakashiSasaki/templates",
+        "run_id": 123,
+        "run_number": 45,
+    }
+
+
+def test_build_metadata_rejects_invalid_identity_values() -> None:
+    built_at = datetime(2026, 8, 3, tzinfo=timezone.utc)
+
+    with pytest.raises(ValueError, match="40-character lowercase hexadecimal"):
+        build_metadata(
+            commit="not-a-commit",
+            repository="TakashiSasaki/templates",
+            run_id=0,
+            run_number=0,
+            built_at=built_at,
+        )
+    with pytest.raises(ValueError, match="owner/repository"):
+        build_metadata(
+            commit="b" * 40,
+            repository="templates",
+            run_id=0,
+            run_number=0,
+            built_at=built_at,
+        )
+    with pytest.raises(ValueError, match="non-negative"):
+        build_metadata(
+            commit="b" * 40,
+            repository="TakashiSasaki/templates",
+            run_id=-1,
+            run_number=0,
+            built_at=built_at,
+        )
+
+
+def test_write_build_info_creates_the_expected_json(tmp_path: Path) -> None:
+    output = tmp_path / "nested/build-info.json"
+    metadata = {
+        "built_at_utc": "2026-08-03T01:45:00Z",
+        "built_at_jst": "2026-08-03T10:45:00+09:00",
+        "commit": "c" * 40,
+        "repository": "TakashiSasaki/templates",
+        "run_id": 0,
+        "run_number": 0,
+    }
+
+    write_build_info(output, metadata)
+
+    assert json.loads(output.read_text(encoding="utf-8")) == metadata
+    assert output.read_text(encoding="utf-8").endswith("\n")
