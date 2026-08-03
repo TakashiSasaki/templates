@@ -19,6 +19,7 @@ except ModuleNotFoundError as exc:
     import validate_contracts  # type: ignore[no-redef]
 
 MIGRATIONS_DIRECTORY = "docs/migrations"
+RESERVED_BOOTSTRAP_MIGRATION_SLUG = "contract-manifest"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -214,6 +215,19 @@ def _validate_entry_identity_inventory(
     retired_contracts: list[dict[str, Any]],
 ) -> list[str]:
     errors: list[str] = []
+
+    for prefix, entries in (
+        ("contract manifest", contracts),
+        ("retired contract manifest", retired_contracts),
+    ):
+        for entry in entries:
+            if entry["migrationSlug"] == RESERVED_BOOTSTRAP_MIGRATION_SLUG:
+                errors.append(
+                    f"{prefix} {entry['id']}: migrationSlug "
+                    f"{RESERVED_BOOTSTRAP_MIGRATION_SLUG} is reserved for "
+                    "the manifest bootstrap"
+                )
+
     entries = contracts + retired_contracts
     for label, key in (
         ("contract id", "id"),
@@ -236,12 +250,22 @@ def _validate_retired_contract(
     last_document_version = entry["lastDocumentSchemaVersion"]
     retired_version = entry["retiredVersion"]
     history = entry["versionHistory"]
+    purpose = entry["purpose"]
     errors: list[str] = []
+
+    if not isinstance(purpose, str):
+        raise TypeError(f"{owner} purpose must be a string")
+    if not _has_visible_character(purpose):
+        errors.append(
+            f"{owner}: purpose must contain at least one visible character"
+        )
 
     if retired_version != last_document_version + 1:
         errors.append(
             f"{owner}: retiredVersion must equal lastDocumentSchemaVersion plus 1"
         )
+    if history and not isinstance(history[-1], dict):
+        raise TypeError(f"{owner} final versionHistory entry must be an object")
     if not history or history[-1].get("changeType") != "breaking":
         errors.append(f"{owner}: retirement transition must be breaking")
 
@@ -311,7 +335,7 @@ def validate_contract_evolution(
         history_errors, migrations = _validate_version_history(
             root,
             owner="contract manifest bootstrap",
-            migration_slug="contract-manifest",
+            migration_slug=RESERVED_BOOTSTRAP_MIGRATION_SLUG,
             current_version=schema_version,
             history=manifest_history,
         )
@@ -336,7 +360,7 @@ def validate_contract_evolution(
             )
             errors.extend(retirement_errors)
             registered_migrations.extend(migrations)
-    except (KeyError, TypeError) as exc:
+    except (KeyError, TypeError, AttributeError) as exc:
         errors.append(
             f"{validate_contracts.MANIFEST_PATH}: evolution metadata is incomplete or malformed: {exc}"
         )
