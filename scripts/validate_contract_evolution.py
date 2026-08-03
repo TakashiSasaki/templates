@@ -117,20 +117,30 @@ def _validate_migration_content(
     return []
 
 
+def _history_is_contiguous(
+    current_version: int,
+    history: list[dict[str, Any]],
+) -> bool:
+    if current_version < 1 or len(history) != current_version:
+        return False
+    return all(
+        isinstance(entry, dict) and entry.get("version") == expected_version
+        for expected_version, entry in enumerate(history, start=1)
+    )
+
+
 def _validate_version_history(
     root: Path,
     *,
     owner: str,
-    slug: str,
+    migration_slug: str,
     current_version: int,
     history: list[dict[str, Any]],
 ) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     migrations: list[str] = []
 
-    expected_versions = list(range(1, current_version + 1))
-    actual_versions = [entry["version"] for entry in history]
-    if actual_versions != expected_versions:
+    if not _history_is_contiguous(current_version, history):
         errors.append(
             f"{owner}: versionHistory must contain contiguous versions "
             f"1 through {current_version}"
@@ -141,7 +151,7 @@ def _validate_version_history(
         migration = transition["migration"]
         migrations.append(migration)
         expected = (
-            f"{MIGRATIONS_DIRECTORY}/{slug}-v{version - 1}-to-v{version}.md"
+            f"{MIGRATIONS_DIRECTORY}/{migration_slug}-v{version - 1}-to-v{version}.md"
         )
         if migration != expected:
             errors.append(
@@ -178,17 +188,72 @@ def _validate_version_history(
 
 def _evolution_metadata(
     manifest: dict[str, Any],
-) -> tuple[int, list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    int,
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     schema_version = manifest["schemaVersion"]
     history = manifest["versionHistory"]
     contracts = manifest["contracts"]
-    if not isinstance(schema_version, int):
+    retired_contracts = manifest["retiredContracts"]
+    if not isinstance(schema_version, int) or isinstance(schema_version, bool):
         raise TypeError("schemaVersion must be an integer")
     if not isinstance(history, list):
         raise TypeError("versionHistory must be an array")
     if not isinstance(contracts, list):
         raise TypeError("contracts must be an array")
-    return schema_version, history, contracts
+    if not isinstance(retired_contracts, list):
+        raise TypeError("retiredContracts must be an array")
+    return schema_version, history, contracts, retired_contracts
+
+
+def _validate_entry_identity_inventory(
+    contracts: list[dict[str, Any]],
+    retired_contracts: list[dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    entries = contracts + retired_contracts
+    for label, key in (
+        ("contract id", "id"),
+        ("contract document", "document"),
+        ("contract schema", "schema"),
+        ("migration slug", "migrationSlug"),
+    ):
+        values = [entry[key] for entry in entries]
+        for duplicate in sorted(_duplicate_values(values)):
+            errors.append(f"duplicate active or retired {label}: {duplicate}")
+    return errors
+
+
+def _validate_retired_contract(
+    root: Path,
+    entry: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    contract_id = entry["id"]
+    owner = f"retired contract manifest {contract_id}"
+    last_document_version = entry["lastDocumentSchemaVersion"]
+    retired_version = entry["retiredVersion"]
+    history = entry["versionHistory"]
+    errors: list[str] = []
+
+    if retired_version != last_document_version + 1:
+        errors.append(
+            f"{owner}: retiredVersion must equal lastDocumentSchemaVersion plus 1"
+        )
+    if not history or history[-1].get("changeType") != "breaking":
+        errors.append(f"{owner}: retirement transition must be breaking")
+
+    history_errors, migrations = _validate_version_history(
+        root,
+        owner=owner,
+        migration_slug=entry["migrationSlug"],
+        current_version=retired_version,
+        history=history,
+    )
+    errors.extend(history_errors)
+    return errors, migrations
 
 
 def validate_contract_evolution(
@@ -213,13 +278,19 @@ def validate_contract_evolution(
             ValueError,
             TypeError,
             KeyError,
+            RuntimeError,
         ) as exc:
             return [
                 f"{validate_contracts.MANIFEST_PATH}: unable to load JSON: {exc}"
             ]
 
     try:
-        schema_version, manifest_history, contracts = _evolution_metadata(manifest)
+        (
+            schema_version,
+            manifest_history,
+            contracts,
+            retired_contracts,
+        ) = _evolution_metadata(manifest)
     except (KeyError, TypeError) as exc:
         return [
             f"{validate_contracts.MANIFEST_PATH}: evolution metadata is incomplete or malformed: {exc}"
@@ -233,10 +304,14 @@ def validate_contract_evolution(
     registered_migrations: list[str] = []
 
     try:
+        errors.extend(
+            _validate_entry_identity_inventory(contracts, retired_contracts)
+        )
+
         history_errors, migrations = _validate_version_history(
             root,
             owner="contract manifest bootstrap",
-            slug="contract-manifest",
+            migration_slug="contract-manifest",
             current_version=schema_version,
             history=manifest_history,
         )
@@ -248,11 +323,18 @@ def validate_contract_evolution(
             history_errors, migrations = _validate_version_history(
                 root,
                 owner=f"contract manifest {contract_id}",
-                slug=Path(entry["document"]).stem,
+                migration_slug=entry["migrationSlug"],
                 current_version=entry["documentSchemaVersion"],
                 history=entry["versionHistory"],
             )
             errors.extend(history_errors)
+            registered_migrations.extend(migrations)
+
+        for entry in retired_contracts:
+            retirement_errors, migrations = _validate_retired_contract(
+                root, entry
+            )
+            errors.extend(retirement_errors)
             registered_migrations.extend(migrations)
     except (KeyError, TypeError) as exc:
         errors.append(
@@ -264,16 +346,12 @@ def validate_contract_evolution(
         errors.append(f"duplicate migration document: {duplicate}")
 
     migrations_root = root / MIGRATIONS_DIRECTORY
-    actual_migrations = set()
+    actual_migrations: set[str] = set()
     if migrations_root.is_dir():
-        for path in migrations_root.rglob("*.md"):
-            relative = path.relative_to(root).as_posix()
-            if (
-                path.is_file()
-                or path.is_symlink()
-                or _non_regular_file(root, relative)
-            ):
-                actual_migrations.add(relative)
+        for path in migrations_root.rglob("*"):
+            if path.is_dir() and not path.is_symlink():
+                continue
+            actual_migrations.add(path.relative_to(root).as_posix())
 
     for relative in sorted(actual_migrations - set(registered_migrations)):
         errors.append(f"unregistered migration document: {relative}")
