@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ def test_workflow_and_local_reproduction_share_build_info_generator() -> None:
 
 
 def test_build_metadata_preserves_ci_identity_and_jst_timestamp() -> None:
-    built_at = datetime(2026, 8, 3, 1, 45, 0, tzinfo=timezone.utc)
+    built_at = datetime(2026, 8, 3, 1, 45, 0, tzinfo=UTC)
 
     metadata = build_metadata(
         commit="a" * 40,
@@ -57,7 +57,7 @@ def test_build_metadata_preserves_ci_identity_and_jst_timestamp() -> None:
 
 
 def test_build_metadata_rejects_invalid_identity_values() -> None:
-    built_at = datetime(2026, 8, 3, tzinfo=timezone.utc)
+    built_at = datetime(2026, 8, 3, tzinfo=UTC)
 
     with pytest.raises(ValueError, match="40-character lowercase hexadecimal"):
         build_metadata(
