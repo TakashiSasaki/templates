@@ -14,6 +14,7 @@ module TextStatsMcp
   HTTP_MAX_SESSIONS = 16
   HTTP_SESSION_IDLE_TIMEOUT = 300
   HTTP_TOKEN_FILE_MAX_BYTES = 4096
+  MANAGED_INSTANCE_NONCE_PATTERN = /\A[0-9a-f]{64}\z/
 
   class ConfigurationError < StandardError; end
 
@@ -44,11 +45,12 @@ module TextStatsMcp
   end
 
   class HttpApplication
-    def initialize(transport:, host:, port:, token_matcher:)
+    def initialize(transport:, host:, port:, token_matcher:, instance_nonce: nil)
       @transport = transport
       @host = host.downcase
       @port = port
       @token_matcher = token_matcher
+      @instance_nonce = instance_nonce
     end
 
     def call(env)
@@ -60,11 +62,11 @@ module TextStatsMcp
       when "/readyz"
         return method_not_allowed("GET") unless request.get?
 
-        json_response(200, status: "ready")
+        json_response(200, health_payload("ready"))
       when "/livez"
         return method_not_allowed("GET") unless request.get?
 
-        json_response(200, status: "live")
+        json_response(200, health_payload("live"))
       when "/mcp"
         return method_not_allowed("POST, DELETE") unless request.post? || request.delete?
         return unauthorized_response unless @token_matcher.call(request)
@@ -76,6 +78,12 @@ module TextStatsMcp
     end
 
     private
+
+    def health_payload(status)
+      payload = { status: status }
+      payload[:instanceNonce] = @instance_nonce if @instance_nonce
+      payload
+    end
 
     def validate_request_authority(request)
       host = request.get_header("HTTP_HOST")
@@ -205,6 +213,29 @@ module TextStatsMcp
     raise ConfigurationError, "unable to read MCP HTTP token file #{path}: #{error.message}"
   end
 
+  def managed_instance_nonce
+    value = ENV["TEXT_STATS_MCP_MANAGED_INSTANCE_NONCE"]
+    return nil unless value
+    unless MANAGED_INSTANCE_NONCE_PATTERN.match?(value)
+      raise ConfigurationError,
+            "TEXT_STATS_MCP_MANAGED_INSTANCE_NONCE must be 64 lowercase hexadecimal characters"
+    end
+
+    value
+  end
+
+  def test_startup_delay
+    return 0.0 unless ENV["TEXT_STATS_MCP_TEST_MODE"] == "1"
+
+    value = Float(ENV.fetch("TEXT_STATS_MCP_TEST_STARTUP_DELAY", "0"))
+    unless value.between?(0.0, 2.0)
+      raise ConfigurationError, "test startup delay must be between 0 and 2 seconds"
+    end
+    value
+  rescue ArgumentError
+    raise ConfigurationError, "test startup delay must be a number between 0 and 2 seconds"
+  end
+
   def session_idle_timeout
     return HTTP_SESSION_IDLE_TIMEOUT unless ENV["TEXT_STATS_MCP_TEST_MODE"] == "1"
 
@@ -241,6 +272,8 @@ module TextStatsMcp
 
     begin
       bind, port, token = load_http_configuration
+      instance_nonce = managed_instance_nonce
+      startup_delay = test_startup_delay
       origin = endpoint_origin(bind, port)
       token_matcher = build_token_matcher(token)
 
@@ -257,7 +290,8 @@ module TextStatsMcp
         transport: transport,
         host: bind,
         port: port,
-        token_matcher: token_matcher
+        token_matcher: token_matcher,
+        instance_nonce: instance_nonce
       )
       shutdown = ShutdownCoordinator.new
 
@@ -265,6 +299,7 @@ module TextStatsMcp
         Signal.trap(signal) { shutdown.request }
       end
 
+      sleep(startup_delay) if startup_delay.positive?
       warn "text-stats MCP HTTP server starting on #{origin}"
       Rackup::Handler::WEBrick.run(
         application,
