@@ -21,8 +21,8 @@ The host launches the trusted bundled command from the skill root, completes ini
 ## Streamable HTTP MCP server variant
 
 Supported: YES
-Manual start command: bundle exec ruby mcp/http_server.rb
-Manual stop method: kill -TERM "$TEXT_STATS_MCP_HTTP_PID"
+Start command: bundle exec ruby mcp/http_server.rb
+Stop command or shutdown method: kill -TERM "$TEXT_STATS_MCP_HTTP_PID"
 Managed start command: TEXT_STATS_MCP_HTTP_TOKEN_FILE=/path/to/mode-0600-token bundle exec ruby mcp/service_manager.rb start
 Managed stop command: bundle exec ruby mcp/service_manager.rb stop
 Managed restart command: bundle exec ruby mcp/service_manager.rb restart
@@ -32,8 +32,9 @@ Port selection: see RUNTIME.md
 Supported protocol eras: see RUNTIME.md
 Revision-specific state model: see RUNTIME.md
 Authentication: see RUNTIME.md
-Readiness: GET /readyz or bundle exec ruby mcp/service_manager.rb ready
-Liveness: GET /livez or bundle exec ruby mcp/service_manager.rb live
+Health/readiness check: curl --fail --silent --show-error http://127.0.0.1:4570/readyz
+Managed readiness check: bundle exec ruby mcp/service_manager.rb ready
+Managed liveness check: bundle exec ruby mcp/service_manager.rb live
 
 The default endpoint is `http://127.0.0.1:4570/mcp`; `RUNTIME.md` owns the startup-selected port and resulting authority. The endpoint is created only by explicit operator action. Foreground mode accepts an exact token through `TEXT_STATS_MCP_HTTP_TOKEN` or a permission-checked file through `TEXT_STATS_MCP_HTTP_TOKEN_FILE`. Managed mode requires the file source so the secret value is absent from argv and controller output. Before every request, including readiness, liveness, and requests reused on one HTTP/1.1 connection, the Rack gate requires the configured loopback Host authority in canonical form and either no Origin or an HTTP Origin whose host and effective port match that authority. Port 80 accepts the equivalent `127.0.0.1` and `127.0.0.1:80` Host forms and Origins with an omitted or explicit `:80`. Invalid Host or present cross-origin requests receive HTTP 403 before authentication or MCP dispatch. Missing or invalid Bearer credentials receive HTTP 401 without exposing the configured token.
 
@@ -76,9 +77,17 @@ A successful `tools/call` result preserves `content`, `structuredContent`, `isEr
 
 One initialized stdio process or HTTP session may serve multiple independent `tools/call` requests. The operation is stateless: every result depends only on the current request's `text` argument. Process, connection, session, and lifecycle-mode reuse do not create hidden domain state.
 
-### Selected interaction and cancellation behavior
+### Selected modern multi-round-trip requests
 
-Modern input-required results, tasks, sampling, elicitation, roots, and optional extensions are not supported or advertised. The sole operation is synchronous and bounded. A stdio timeout closes stdin and applies bounded child-process escalation. In the pinned SDK JSON-response HTTP transport, a caller socket close does not itself signal MCP cancellation; bounded work may complete before the session is explicitly deleted.
+Modern input-required results and multi-round-trip retry behavior are not supported or advertised by the selected revision contract. The caller never fabricates input responses or retries a call as though that feature were negotiated.
+
+### Selected initialization-era server-to-client requests
+
+The fixture advertises no elicitation, sampling, roots, or other server-to-client request capability. Private test clients declare an empty capability object and therefore need no server-to-client request handlers.
+
+### Cancellation, tasks, and extensions
+
+The sole operation is synchronous and bounded. A stdio timeout closes stdin and applies bounded child-process escalation. In the pinned SDK 1.0.0 JSON-response HTTP transport, a caller timeout or socket close abandons the response path but does not itself signal MCP cancellation; bounded work may complete before the session is explicitly deleted. Protocol-level MCP cancellation is separate and is not claimed by this disconnect behavior. Tasks and optional extensions are not advertised.
 
 ### Ownership and workspace policy
 
