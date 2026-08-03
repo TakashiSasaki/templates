@@ -19,6 +19,7 @@ module TextStatsMcpClient
   DEFAULT_MAX_PAGES = 32
   MAX_PAGES = 128
   MAX_ARGUMENT_BYTES = 65_536
+  MAX_RESPONSE_BYTES = 65_536
   ROOT = File.expand_path("..", __dir__)
   SERVER = File.join(ROOT, "mcp", "server.rb")
 
@@ -195,6 +196,7 @@ module TextStatsMcpClient
       when "resource"
         resource = block["resource"]
         return false unless resource.is_a?(Hash) && resource["uri"].is_a?(String)
+        return false if resource.key?("_meta") && !resource["_meta"].is_a?(Hash)
 
         resource["text"].is_a?(String) ^ resource["blob"].is_a?(String)
       else
@@ -273,8 +275,11 @@ module TextStatsMcpClient
         remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
         raise TimeoutFailure, "timeout: stdio MCP response was not received" unless remaining.positive?
 
-        line = Timeout.timeout(remaining) { @stdout.gets }
+        line = Timeout.timeout(remaining) { @stdout.gets("\n", MAX_RESPONSE_BYTES + 1) }
         raise TransportFailure, "stdio transport failure: server output closed" if line.nil?
+        if line.bytesize > MAX_RESPONSE_BYTES
+          raise InvalidResultFailure, "invalid MCP result: stdio response exceeded #{MAX_RESPONSE_BYTES} bytes"
+        end
 
         response = JSON.parse(line)
         unless response.is_a?(Hash) && response["jsonrpc"] == "2.0"
@@ -463,7 +468,35 @@ module TextStatsMcpClient
     def perform(request)
       Timeout.timeout(@timeout) do
         @http.start unless @http.started?
-        @http.request(request)
+        response = nil
+        body = +""
+
+        @http.request(request) do |streamed_response|
+          response = streamed_response
+          if streamed_response.code.to_s.start_with?("2")
+            content_length = streamed_response["content-length"]
+            if content_length && content_length.to_i > MAX_RESPONSE_BYTES
+              raise InvalidResultFailure,
+                    "invalid MCP result: HTTP response exceeded #{MAX_RESPONSE_BYTES} bytes"
+            end
+
+            streamed_response.read_body do |chunk|
+              if body.bytesize + chunk.bytesize > MAX_RESPONSE_BYTES
+                raise InvalidResultFailure,
+                      "invalid MCP result: HTTP response exceeded #{MAX_RESPONSE_BYTES} bytes"
+              end
+
+              body << chunk
+            end
+          else
+            streamed_response.read_body { |_chunk| }
+          end
+        end
+
+        raise TransportFailure, "HTTP transport failure: endpoint returned no response" unless response
+
+        response.body = body
+        response
       end
     rescue Timeout::Error
       raise TimeoutFailure, "timeout: HTTP MCP operation exceeded the bounded timeout"
