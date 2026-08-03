@@ -29,7 +29,11 @@ bundle exec ruby mcp/service_manager.rb restart
 bundle exec ruby mcp/service_manager.rb stop
 ```
 
-Managed startup validates the external secret before process creation, starts only the fixed adapter in its own process group, writes diagnostics to an owner-only log, atomically publishes an owner-only PID plus Linux start-tick record, and waits for readiness. Stop and restart verify process identity before signaling, remove only unchanged stale records, and bound graceful TERM shutdown before KILL escalation. The controller never places the token value in argv, records, or logs. It does not install an OS service, change users, restart automatically, open a non-loopback listener, terminate TLS, configure a reverse proxy, create a container, or provide upgrade orchestration.
+Every controller action using one PID path is serialized by an adjacent owner-only advisory lock. Managed startup validates the external secret and protected runtime directories before process creation, rejects token/log/lock path or inode aliases, starts only the fixed adapter in its own process group, writes diagnostics to an owner-only log, and atomically publishes an owner-only record containing PID, Linux start ticks, and a per-start instance nonce. The controller accepts readiness and liveness only when the HTTP response carries that nonce, so an existing listener on the configured port cannot satisfy startup.
+
+Stop and restart verify PID and start ticks before signaling, remove only the unchanged record inode, and bound graceful TERM shutdown before KILL escalation. A missing process, zombie, or identity mismatch is stale and is never signaled. If bounded cleanup cannot prove that a child exited, the controller fails and retains its record rather than leaving an untracked process. Existing runtime directories must be service-user-owned, non-symlink directories not writable by group or other users. A missing token is a configuration failure. The controller never places the token value in argv, records, or logs.
+
+This controller does not install an OS service, change users, restart automatically, open a non-loopback listener, terminate TLS, configure a reverse proxy, create a container, provide persistence, or orchestrate upgrades.
 
 `client.rb` is a private bounded ad hoc MCP tool client. It is not a stable packaged CLI. From the fixture root, invoke only the fixed helper command:
 
