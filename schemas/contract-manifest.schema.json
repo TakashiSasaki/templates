@@ -16,7 +16,10 @@
     },
     "migrationSlug": {
       "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])"
+      "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])",
+      "not": {
+        "const": "contract-manifest"
+      }
     },
     "documentPath": {
       "type": "string",
@@ -32,7 +35,8 @@
     },
     "nonBlankText": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "[^\\u0000-\\u0020\\u007F-\\u00A0\\u00AD\\u034F\\u061C\\u115F\\u1160\\u1680\\u17B4\\u17B5\\u180B-\\u180F\\u2000-\\u200F\\u2028-\\u202F\\u205F-\\u206F\\u2800\\u3000\\u3164\\uFE00-\\uFE0F\\uFEFF\\uFFA0\\uFFF0-\\uFFFF𓑁𓑂𝅙]"
     },
     "initialVersion": {
       "type": "object",
