@@ -56,6 +56,10 @@ class ContractManifestTests(unittest.TestCase):
                     "contracts/release-evidence.json",
                     "schemas/release-evidence.schema.json",
                 ),
+                "release_bundle": (
+                    "contracts/release-bundle.json",
+                    "schemas/release-bundle.schema.json",
+                ),
             },
             validate_contracts.CONTRACT_SCHEMAS,
         )
