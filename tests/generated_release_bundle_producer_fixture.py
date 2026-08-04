@@ -30,15 +30,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GIT_DIR = ROOT / ".git"
 MANIFEST_PATH = ROOT / "contracts/manifest.json"
-RELEASE_PATH = ROOT / "contracts/release-evidence.json"
 BUNDLE_PATH = ROOT / "contracts/release-bundle.json"
 INDEX_PATH = ROOT / "product/release-bundle-index.json"
 RECORDS_DIR = ROOT / "product/release-bundle-records"
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 RECORD_ID_PATTERN = re.compile(r"^release-bundle-[0-9]{20}$")
+_TIMESTAMP_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$"
+)
 _ALLOWED_TRACKED_CHANGES = {
     "contracts/release-evidence.json",
     "contracts/release-bundle.json",
+}
+_ALLOWED_UNTRACKED_FILES = {
+    "product/release-run.json",
+    "product/release-bundle-index.json",
 }
 _GIT_CONFIG_OVERRIDES = (
     "-c",
@@ -57,6 +64,10 @@ _GIT_CONFIG_OVERRIDES = (
 def fail(message: str) -> None:
     print(f"generated release bundle producer failed: {message}", file=sys.stderr)
     raise SystemExit(2)
+
+
+def is_regular_file(path: Path) -> bool:
+    return not path.is_symlink() and path.is_file()
 
 
 def load_json(path: Path) -> dict[str, object]:
@@ -106,6 +117,15 @@ def git_environment() -> dict[str, str]:
     return environment
 
 
+def validator_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    for name in tuple(environment):
+        if name.startswith("PYTHON"):
+            del environment[name]
+    environment["PYTHONNOUSERSITE"] = "1"
+    return environment
+
+
 def execute_git(arguments: list[str]) -> str:
     completed = subprocess.run(
         arguments,
@@ -141,10 +161,7 @@ def run_git_pinned(*arguments: str) -> str:
 
 
 def allowed_untracked(path: str) -> bool:
-    if path in {
-        "product/release-run.json",
-        "product/release-bundle-index.json",
-    }:
+    if path in _ALLOWED_UNTRACKED_FILES:
         return True
     return (
         path.startswith("product/release-bundle-records/")
@@ -155,6 +172,7 @@ def allowed_untracked(path: str) -> bool:
 def verify_revision_state(revision: str) -> None:
     if GIT_DIR.is_symlink() or not GIT_DIR.is_dir():
         fail("generated repository .git directory is not a regular directory")
+
     expected_root = ROOT.resolve()
     expected_git_dir = GIT_DIR.resolve()
     resolved_git_dir = Path(
@@ -216,29 +234,24 @@ def verify_revision_state(revision: str) -> None:
         )
 
 
-def validator_environment() -> dict[str, str]:
-    environment = os.environ.copy()
-    for name in tuple(environment):
-        if name.startswith("PYTHON"):
-            del environment[name]
-    environment["PYTHONNOUSERSITE"] = "1"
-    return environment
-
-
-def validate_release(revision: str) -> None:
-    completed = subprocess.run(
-        [
-            sys.executable,
-            "-B",
-            "scripts/validate_release_evidence.py",
-            "--expected-revision",
-            revision,
-        ],
+def run_validator(arguments: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-B", *arguments],
         cwd=ROOT,
         env=validator_environment(),
         check=False,
         capture_output=True,
         text=True,
+    )
+
+
+def validate_release(revision: str) -> None:
+    completed = run_validator(
+        (
+            "scripts/validate_release_evidence.py",
+            "--expected-revision",
+            revision,
+        )
     )
     if completed.returncode != 0:
         diagnostic = completed.stderr.strip() or completed.stdout.strip()
@@ -261,14 +274,7 @@ def validate_bundle(revision: str) -> tuple[bool, str]:
         ),
     )
     for arguments in commands:
-        completed = subprocess.run(
-            [sys.executable, "-B", *arguments],
-            cwd=ROOT,
-            env=validator_environment(),
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        completed = run_validator(arguments)
         if completed.returncode != 0:
             diagnostics.append(completed.stderr.strip() or completed.stdout.strip())
     return not diagnostics, "\n".join(diagnostics)
@@ -279,6 +285,7 @@ def active_artifacts() -> list[dict[str, str]]:
     entries = manifest.get("contracts")
     if not isinstance(entries, list):
         fail("contract manifest is malformed")
+
     artifacts: list[dict[str, str]] = []
     for entry in entries:
         if not isinstance(entry, dict):
@@ -312,23 +319,44 @@ def empty_index() -> dict[str, object]:
     }
 
 
+def records_directory_entries() -> dict[str, Path]:
+    if not RECORDS_DIR.exists():
+        return {}
+    if RECORDS_DIR.is_symlink() or not RECORDS_DIR.is_dir():
+        fail("release bundle records path must be a regular non-symbolic directory")
+    try:
+        return {entry.name: entry for entry in RECORDS_DIR.iterdir()}
+    except OSError as exc:
+        fail(f"cannot inspect release bundle records directory: {exc}")
+
+
 def load_index() -> dict[str, object]:
+    directory_entries = records_directory_entries()
     if not INDEX_PATH.exists():
+        if directory_entries:
+            fail(
+                "release bundle records exist without a lifecycle index: "
+                + ", ".join(sorted(directory_entries))
+            )
         return empty_index()
+    if not is_regular_file(INDEX_PATH):
+        fail("release bundle index must be a regular non-symbolic file")
+
     index = load_json(INDEX_PATH)
     records = index.get("records")
     current = index.get("currentRecordId")
     if index.get("schemaVersion") != 1 or not isinstance(records, list):
         fail("release bundle index is malformed")
+
     record_ids: set[str] = set()
+    expected_filenames: set[str] = set()
+    retained_bytes: dict[str, bytes] = {}
     current_count = 0
+
     for record in records:
         if not isinstance(record, dict):
             fail("release bundle index contains a malformed record")
         record_id = record.get("id")
-        path_text = record.get("path")
-        digest = record.get("bundleSha256")
-        status = record.get("status")
         if (
             not isinstance(record_id, str)
             or RECORD_ID_PATTERN.fullmatch(record_id) is None
@@ -336,20 +364,69 @@ def load_index() -> dict[str, object]:
         ):
             fail("release bundle index contains an invalid or duplicate record id")
         record_ids.add(record_id)
+
         expected_path = f"product/release-bundle-records/{record_id}.json"
-        if path_text != expected_path:
+        if record.get("path") != expected_path:
             fail(f"release bundle record {record_id}: path changed")
-        record_path = ROOT / expected_path
+        filename = f"{record_id}.json"
+        expected_filenames.add(filename)
+
+        record_path = directory_entries.get(filename)
+        if record_path is None:
+            fail(f"release bundle record {record_id}: retained file is missing")
+        if not is_regular_file(record_path):
+            fail(
+                f"release bundle record {record_id}: "
+                "retained path must be a regular non-symbolic file"
+            )
         try:
             content = record_path.read_bytes()
         except OSError as exc:
             fail(f"release bundle record {record_id}: cannot read retained bytes: {exc}")
+        retained_bytes[record_id] = content
+
+        digest = record.get("bundleSha256")
+        if not isinstance(digest, str) or DIGEST_PATTERN.fullmatch(digest) is None:
+            fail(f"release bundle record {record_id}: invalid retained digest")
         if digest != sha256_bytes(content):
             fail(f"release bundle record {record_id}: retained bytes changed")
+
+        candidate_revision = record.get("candidateRevision")
+        if (
+            not isinstance(candidate_revision, str)
+            or REVISION_PATTERN.fullmatch(candidate_revision) is None
+        ):
+            fail(f"release bundle record {record_id}: invalid candidate revision")
+        generated_at = record.get("generatedAt")
+        if (
+            not isinstance(generated_at, str)
+            or _TIMESTAMP_PATTERN.fullmatch(generated_at) is None
+        ):
+            fail(f"release bundle record {record_id}: invalid generation timestamp")
+
+        status = record.get("status")
+        superseded_by = record.get("supersededBy")
         if status == "current":
             current_count += 1
-        elif status != "superseded":
+            if superseded_by is not None:
+                fail(f"release bundle record {record_id}: current record has successor")
+        elif status == "superseded":
+            if (
+                not isinstance(superseded_by, str)
+                or RECORD_ID_PATTERN.fullmatch(superseded_by) is None
+                or superseded_by == record_id
+            ):
+                fail(f"release bundle record {record_id}: invalid successor")
+        else:
             fail(f"release bundle record {record_id}: invalid lifecycle status")
+
+    unindexed = set(directory_entries) - expected_filenames
+    if unindexed:
+        fail(
+            "release bundle records directory contains unindexed entries: "
+            + ", ".join(sorted(unindexed))
+        )
+
     if records:
         if current_count != 1 or current not in record_ids:
             fail("release bundle index current record is inconsistent")
@@ -358,8 +435,30 @@ def load_index() -> dict[str, object]:
         )
         if current_record.get("status") != "current":
             fail("release bundle index current record is not marked current")
-    elif current is not None:
-        fail("empty release bundle index must not claim a current record")
+        for record in records:
+            if record.get("status") == "superseded":
+                successor = record.get("supersededBy")
+                if successor not in record_ids:
+                    fail(
+                        f"release bundle record {record['id']}: successor is not retained"
+                    )
+        if not is_regular_file(BUNDLE_PATH):
+            fail("current release bundle must be a regular non-symbolic file")
+        try:
+            current_bytes = BUNDLE_PATH.read_bytes()
+        except OSError as exc:
+            fail(f"cannot read current release bundle: {exc}")
+        if current_bytes != retained_bytes[current]:
+            fail("current release bundle bytes do not match the current retained record")
+    else:
+        if current is not None:
+            fail("empty release bundle index must not claim a current record")
+        if directory_entries:
+            fail(
+                "release bundle records directory contains unindexed entries: "
+                + ", ".join(sorted(directory_entries))
+            )
+
     return index
 
 
@@ -412,7 +511,7 @@ def create_record(revision: str, index: dict[str, object]) -> str:
     }
     content = json_bytes(bundle)
     record_path = ROOT / record_relative
-    if record_path.exists():
+    if record_path.exists() or record_path.is_symlink():
         fail(f"release bundle record already exists: {record_id}")
 
     previous_bundle = BUNDLE_PATH.read_bytes() if BUNDLE_PATH.exists() else None
@@ -462,6 +561,7 @@ def activate_record(
         fail(f"unknown retained release bundle record: {record_id}")
     if target.get("candidateRevision") != revision:
         fail("retained release bundle candidate revision does not match requested revision")
+
     record_path = ROOT / str(target["path"])
     content = record_path.read_bytes()
     if target.get("bundleSha256") != sha256_bytes(content):
