@@ -35,6 +35,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-template-adoption.rb
 
+      - name: Test concrete skill installation modes
+        shell: bash
+        run: ruby .github/scripts/test-installation-modes.rb
+
       - name: Test script-assisted optional-runtime profile fixture
         shell: bash
         run: ruby .github/scripts/test-script-assisted-runtime-profile.rb
