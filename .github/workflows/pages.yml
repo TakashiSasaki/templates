@@ -3,7 +3,7 @@ name: Check documentation site compatibility
 on:
   pull_request:
     branches:
-      - main
+      - skill
     paths:
       - '**/*.md'
       - docs/**
@@ -28,9 +28,9 @@ jobs:
     uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
     with:
       site_ref: site
-      source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+      source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'skill' }}
     # Pull-request runs validate GitHub's proposed merge commit. Scheduled and
-    # manual runs always resolve the current main branch, regardless of the ref
+    # manual runs always resolve the current skill branch, regardless of the ref
     # selected when dispatching the workflow. The called site workflow is
     # build-only and exposes no Pages deployment job or write permission.
     permissions:
