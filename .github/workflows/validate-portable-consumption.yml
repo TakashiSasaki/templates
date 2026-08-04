@@ -47,3 +47,6 @@ jobs:
 
       - name: Test parent-owned archive vendoring
         run: ruby .github/scripts/test-parent-owned-vendoring.rb
+
+      - name: Test core consumption under space and Unicode paths
+        run: ruby .github/scripts/test-path-safe-consumption.rb
