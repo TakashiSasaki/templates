@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
+
+
+class PagesWorkflowBoundaryTests(unittest.TestCase):
+    def test_reusable_workflow_is_build_only(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
+
+        self.assertIn(
+            "  pull_request:\n    branches:\n      - site",
+            trigger_block,
+        )
+        self.assertIn("  workflow_call:", trigger_block)
+        self.assertNotIn("\n  push:\n", trigger_block)
+        self.assertIn("Deprecated compatibility input; ignored", workflow)
+        self.assertIn("actions/upload-pages-artifact@", workflow)
+        self.assertNotIn("actions/configure-pages@", workflow)
+        self.assertNotIn("actions/deploy-pages@", workflow)
+        self.assertNotIn("pages: write", workflow)
+        self.assertNotIn("id-token: write", workflow)
+        self.assertNotIn("name: github-pages", workflow)
+        self.assertNotIn("\n  deploy:\n", workflow)
+
+    def test_deployment_workflow_accepts_only_site_pushes(self) -> None:
+        workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
+
+        self.assertIn(
+            "  push:\n    branches:\n      - site",
+            trigger_block,
+        )
+        self.assertNotIn("pull_request:", trigger_block)
+        self.assertNotIn("workflow_call:", trigger_block)
+        self.assertNotIn("workflow_dispatch:", trigger_block)
+        self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
+        self.assertIn("site_ref: ${{ github.sha }}", workflow)
+        self.assertIn("source_ref: main", workflow)
+        self.assertIn("github.event_name == 'push'", workflow)
+        self.assertIn("github.ref == 'refs/heads/site'", workflow)
+        self.assertNotIn("github.event.repository.default_branch", workflow)
+        self.assertIn("actions/configure-pages@", workflow)
+        self.assertIn("actions/deploy-pages@", workflow)
+        self.assertIn("pages: write", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("name: github-pages", workflow)
+
+
+if __name__ == "__main__":
+    unittest.main()
