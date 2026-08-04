@@ -295,6 +295,41 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
                 _load_json(root / "contracts/release-evidence.json")["mode"],
             )
 
+    def test_runner_rejects_ignored_executable_inputs(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
+            cache = root / "product/__pycache__"
+            cache.mkdir()
+            cache_tag = sys.implementation.cache_tag or "python"
+            ignored_bytecode = cache / f"prove_conformance.{cache_tag}.pyc"
+            ignored_bytecode.write_bytes(b"revision-external-bytecode")
+
+            status = _run_git(
+                root,
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            )
+            self.assertEqual("", status.stdout)
+
+            result = self.run_producer(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "generated repository has ignored uncommitted files",
+                result.stderr,
+            )
+            self.assertIn(
+                ignored_bytecode.relative_to(root).as_posix(),
+                result.stderr,
+            )
+            self.assertFalse((root / "product/release-run.json").exists())
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-evidence.json")["mode"],
+            )
+
 
 class GeneratedReleaseEvidenceProductionScopeTests(unittest.TestCase):
     def test_generated_release_production_suite_is_template_maintainer_only(
