@@ -10,7 +10,7 @@ Before `actions/setup-python` performs its cache lookup, the build job neutraliz
 
 The workflow has only `contents: read`. It contains no Pages artifact upload, Pages deployment or configuration action, `pages: write`, `id-token: write`, `github-pages` environment, deployment job, reusable deployment entry point, or manual publication trigger. No `policy` event can upload or deploy a GitHub Pages site.
 
-The workflow does not fetch `main`, `site`, `webapp`, the former orphan bootstrap branch, or the former `TakashiSasaki/agent-policy` repository. The repository default branch is irrelevant to this boundary. The workflow is scoped explicitly to pushes and pull requests for `policy` and deliberately omits `workflow_dispatch` and `workflow_call`.
+The workflow does not fetch `skill`, `site`, `webapp`, the former orphan bootstrap branch, or the former `TakashiSasaki/agent-policy` repository. The repository default branch is irrelevant to this boundary. The workflow is scoped explicitly to pushes and pull requests for `policy` and deliberately omits `workflow_dispatch` and `workflow_call`.
 
 All third-party actions are pinned to full commit SHAs. `requirements-docs.txt` records the reviewed direct documentation dependencies with arbitrary exact equality (`===`), while `requirements-docs.lock` records the complete arbitrary-exact graph for CPython 3.12.13 on Ubuntu 24.04. `scripts/verify_docs_environment.py` rejects missing, extra, or version-mismatched distributions outside that lock, excluding only the virtual environment's bootstrap `pip`. Dependency updates require a reviewed re-resolution and successful strict build.
 
