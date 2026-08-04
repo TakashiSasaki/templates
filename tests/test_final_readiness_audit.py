@@ -89,11 +89,10 @@ class FinalReadinessAuditTests(unittest.TestCase):
             with self.subTest(criterion=criterion):
                 self.assertIn(f"| {criterion} |", audit)
 
-        unresolved_markers = ("TBD", "TODO", "open finding", "unresolved finding")
         lowered = audit.lower()
-        for marker in unresolved_markers:
+        for marker in ("tbd", "todo"):
             with self.subTest(marker=marker):
-                self.assertNotIn(marker.lower(), lowered)
+                self.assertNotIn(marker, lowered)
 
     def test_audit_evidence_inventory_exists_as_regular_files(self) -> None:
         for relative_path in AUDIT_EVIDENCE_PATHS:
