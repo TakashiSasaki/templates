@@ -50,17 +50,19 @@ The template-maintainer-only fixture:
 1. installs a release producer only in the temporary generated repository;
 2. initializes a fresh Git repository and commits the complete generated-product state;
 3. supplies the resulting immutable commit revision to the producer;
-4. removes inherited Git inputs, disables system and global Git configuration, verifies that `HEAD^{commit}` equals the supplied revision, and requires a clean index and worktree before execution;
-5. requires the exact reviewed command and release-gate registrations;
-6. invokes the known proof script through the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`;
-7. captures actual stdout, stderr, exit code, start time, and completion time;
-8. calculates the digest of the exact authoritative command text;
-9. derives gate status and release decision from the actual command result;
-10. writes a repository-local result artifact and product-mode release evidence;
-11. validates approved evidence through both copied release validator entry points; and
-12. proves that a failed command committed as its own candidate revision produces a rejected decision and cannot satisfy release validation.
+4. removes inherited Git inputs, disables system and global Git configuration, and verifies that `HEAD^{commit}` equals the supplied revision;
+5. rejects tracked changes and ordinary untracked files through fixed status arguments;
+6. separately rejects ignored untracked files through `git ls-files --others --ignored --exclude-standard`, preventing ignored bytecode or other execution inputs from bypassing the clean-tree check;
+7. requires the exact reviewed command and release-gate registrations;
+8. invokes the known proof script through the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`;
+9. captures actual stdout, stderr, exit code, start time, and completion time;
+10. calculates the digest of the exact authoritative command text;
+11. derives gate status and release decision from the actual command result;
+12. writes a repository-local result artifact and product-mode release evidence;
+13. validates approved evidence through both copied release validator entry points; and
+14. proves that a failed command committed as its own candidate revision produces a rejected decision and cannot satisfy release validation.
 
-A mismatched revision, an uncommitted generated-tree change, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and verifying their candidate checkout in product-owned CI.
+A mismatched revision, a tracked or ordinary untracked generated-tree change, an ignored revision-external file, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and verifying all revision-external inputs in product-owned CI.
 
 ## Remaining Phase 3: release-artifact and handoff closure
 
