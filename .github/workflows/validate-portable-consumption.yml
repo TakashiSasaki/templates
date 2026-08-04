@@ -28,6 +28,11 @@ jobs:
         with:
           ruby-version: "3.1"
 
+      - name: Treat Windows drive paths as local tar archives
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_ENV -Value 'TAR_OPTIONS=--force-local'
+
       - name: Validate canonical repository root
         run: ruby .github/scripts/validate-skill-repository.rb
 
