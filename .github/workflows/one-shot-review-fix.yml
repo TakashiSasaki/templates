@@ -106,3 +106,5 @@ jobs:
           git add -A
           git commit -m "Correct skill compatibility scheduling contract"
           git push origin HEAD:agent/skill-branch-rename-migration
+
+# This second push ensures the workflow exists before its trigger event.
