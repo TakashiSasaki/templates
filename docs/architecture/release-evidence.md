@@ -48,6 +48,28 @@ The validator recomputes the SHA-256 digest. Evidence for an old command definit
 
 The contract records command results; it does not execute the command strings. Product CI remains responsible for directly invoking its reviewed commands with the selected runtime and isolation model. The template does not add a generic command dispatcher.
 
+## Producing evidence from execution
+
+A product-owned release workflow should generate result fields from the actual command execution rather than assigning successful values independently of the process result.
+
+For each authoritative command, the workflow should:
+
+1. bind the execution to the immutable candidate revision;
+2. verify that the command ID and command text are the reviewed definitions for that revision;
+3. invoke the reviewed executable and argument vector directly;
+4. capture the real start time, completion time, stdout, stderr, and process result;
+5. normalize the process result into the nonnegative `exitCode` representation required by the contract;
+6. derive `status` from that result;
+7. calculate `commandDigest` from the exact authoritative command text;
+8. persist the detailed result in a reviewable artifact; and
+9. place only the contract-required summary and locator in release evidence.
+
+Gate status must be derived from the command results that constitute the gate. The release decision must be derived from the resulting gate set and the product's approval policy. A failed command must not be rewritten as passed, a failed gate must not be rewritten as passed, and a rejected run must not be represented as approved.
+
+The clean-room producer in `tests/generated_release_evidence_producer_fixture.py` demonstrates this boundary for one known fixture command. It accepts only a candidate revision, requires the exact reviewed command and gate registrations, and invokes the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`. It does not parse command text or expose a general execution interface.
+
+This fixture is not a product release runner. Real products own their command mapping, runtime isolation, secret handling, result retention, artifact integrity, approval policy, and CI integration.
+
 ## Gate closure
 
 Every release gate declared by product-mode implementation evidence must have exactly one gate result. Every command referenced by those gates must have exactly one command result.
@@ -78,6 +100,8 @@ The release decision records its UTC decision time and a visible explanation.
 
 For each command, completion must not precede start. The approval decision must not precede the latest command completion, and record generation must not precede the decision. Timestamp comparison preserves all one-to-nine fractional-second digits permitted by the schema, so sub-microsecond ordering violations are rejected rather than rounded to equality. These checks prevent a chronologically impossible approval record without assuming a specific CI system.
 
+The clean-room producer derives timestamps in order from actual wall-clock observations and advances a later timestamp by one nanosecond when the clock does not advance. This preserves the contract chronology even on clocks whose observable resolution is coarser than one nanosecond.
+
 ## Validation boundary
 
 `scripts/validate_release_evidence.py` supports standalone and module entry points. It first requires:
@@ -97,21 +121,27 @@ It then proves:
 - result and provenance locators contain visible text; and
 - timestamps are chronologically coherent at the schema's full nanosecond precision.
 
-It does not verify that a locator exists remotely, that a CI provider is trustworthy, that an artifact is retained for a particular duration, that a deployment occurred, or that a human approval is required. Those policies remain product-owned.
+It does not prove that a command was actually executed, that stdout or stderr are authentic, that a locator exists remotely, that an artifact is immutable, that a CI provider is trustworthy, that evidence is retained for a particular duration, that a deployment occurred, or that a human approval is required. Those policies and integrity controls remain product-owned.
+
+The actual evidence-production fixture closes only the local conformance gap between a reviewed process result and the version 1 contract fields. It does not convert the validator into an execution engine.
 
 ## Clean-room proof
 
-`tests/test_generated_release_evidence_conformance.py` reuses the generated product fixture, materializes product-mode release evidence, and invokes both copied release validator entry points from the generated repository root.
-
-The fixture also proves stable failure for:
+`tests/test_generated_release_evidence_conformance.py` isolates release-validator semantics by materializing product-mode evidence and invoking both copied release validator entry points from the generated repository root. It proves stable failure for:
 
 - an expected-revision mismatch; and
 - command-definition digest drift.
 
-The suite is template-maintainer-only. A generated product repository retaining the test file skips this clean-room class after its source implementation evidence is in product mode; a separate scope regression verifies that boundary.
+`tests/test_generated_release_evidence_production.py` executes the reviewed proof through the fixed producer and proves:
+
+- a passing process produces passing command and gate results, an approved decision, and evidence accepted by both copied validator entry points;
+- a failing process produces failed command and gate results, a rejected decision, a nonzero producer exit, and evidence rejected by release validation; and
+- command-registration drift is rejected before execution and before product release evidence is created.
+
+Both suites are template-maintainer-only. A generated product repository retaining the files skips the clean-room classes after its source implementation evidence is in product mode; separate scope regressions verify that boundary.
 
 ## Evolution
 
-This family starts at version 1 and has no migration artifact.
+This family remains at version 1. Actual evidence-production conformance populates the existing fields from execution and does not change accepted document structure or semantic obligations.
 
 Changes to required release fields, revision binding, command digest semantics, result coverage, pass/fail obligations, provenance, chronology, or decision rules change accepted documents or release obligations and require a version increment under `contract-evolution.md`.
