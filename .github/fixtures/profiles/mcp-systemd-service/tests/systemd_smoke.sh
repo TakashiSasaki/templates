@@ -13,7 +13,9 @@ TOKEN_DIR=$(mktemp -d)
 MODE_STATE="$TOKEN_DIR/path-modes"
 CLIENT_TOKEN_FILE="$TOKEN_DIR/client-token"
 TOKEN_SOURCE_FILE="$TOKEN_DIR/source-token"
-RESIST_PID_FILE="/run/$SERVICE_USER-resistant.pid"
+RESIST_PARENT_FILE="/run/$SERVICE_USER-resistant-parent.pid"
+RESIST_CHILD_FILE="/run/$SERVICE_USER-resistant-child.pid"
+RESIST_LAUNCHER=0
 UNIT_NAME="$SERVICE_USER.service"
 UNIT_TMP="$TOKEN_DIR/$UNIT_NAME"
 UNIT_PATH="/etc/systemd/system/$UNIT_NAME"
@@ -23,8 +25,12 @@ chmod 0600 "$CLIENT_TOKEN_FILE"
 
 cleanup() {
   set +e
+  if [[ "$RESIST_LAUNCHER" =~ ^[0-9]+$ && "$RESIST_LAUNCHER" -gt 0 ]]; then
+    kill -KILL "$RESIST_LAUNCHER" >/dev/null 2>&1 || true
+    wait "$RESIST_LAUNCHER" >/dev/null 2>&1 || true
+  fi
   sudo systemctl stop "$UNIT_NAME" >/dev/null 2>&1 || true
-  sudo rm -f "$UNIT_PATH" "$RESIST_PID_FILE"
+  sudo rm -f "$UNIT_PATH" "$RESIST_PARENT_FILE" "$RESIST_CHILD_FILE"
   sudo systemctl daemon-reload >/dev/null 2>&1 || true
   sudo rm -rf "$INSTALL_ROOT"
   if [[ -f "$MODE_STATE" ]]; then
@@ -84,6 +90,26 @@ assert_zero_status_field() {
     echo "expected zero $field for PID $pid, got $value" >&2
     return 1
   fi
+}
+
+wait_for_file() {
+  path=$1
+  for _ in $(seq 1 50); do
+    [[ -s "$path" ]] && return 0
+    sleep 0.1
+  done
+  echo "timed out waiting for $path" >&2
+  return 1
+}
+
+assert_dead() {
+  pid=$1
+  for _ in $(seq 1 50); do
+    sudo kill -0 "$pid" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  echo "expected PID $pid to be gone" >&2
+  return 1
 }
 
 trap diagnose_failure ERR
@@ -188,46 +214,46 @@ TEXT_STATS_MCP_HTTP_PORT="$PORT" TEXT_STATS_MCP_SMOKE_TOKEN_FILE="$CLIENT_TOKEN_
 
 CONTROL_GROUP=$(sudo systemctl show -p ControlGroup --value "$UNIT_NAME")
 [[ -n "$CONTROL_GROUP" && "$CONTROL_GROUP" != "/" ]]
-sudo install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 /dev/null "$RESIST_PID_FILE"
-sudo -u "$SERVICE_USER" bash -c \
-  'trap "" TERM INT; echo $$ > "$1"; kill -STOP $$; while :; do sleep 1; done' \
-  bash "$RESIST_PID_FILE" &
+sudo install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 /dev/null "$RESIST_PARENT_FILE"
+sudo install -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0600 /dev/null "$RESIST_CHILD_FILE"
+sudo -u "$SERVICE_USER" bash -c '
+  trap "" TERM INT
+  echo $$ > "$1"
+  kill -STOP $$
+  (
+    trap "" TERM INT
+    while :; do sleep 1; done
+  ) &
+  echo $! > "$2"
+  wait
+' bash "$RESIST_PARENT_FILE" "$RESIST_CHILD_FILE" &
 RESIST_LAUNCHER=$!
-for _ in $(seq 1 50); do
-  [[ -s "$RESIST_PID_FILE" ]] && break
-  sleep 0.1
-done
-RESIST_PID=$(sudo cat "$RESIST_PID_FILE")
-[[ "$RESIST_PID" =~ ^[0-9]+$ ]]
-sudo sh -c "echo '$RESIST_PID' > '/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs'"
-sudo kill -CONT "$RESIST_PID"
-RESIST_CHILD=0
-for _ in $(seq 1 50); do
-  RESIST_CHILD=$(awk '{ print $1 }' "/proc/$RESIST_PID/task/$RESIST_PID/children" 2>/dev/null || true)
-  [[ "$RESIST_CHILD" =~ ^[0-9]+$ ]] && break
-  sleep 0.1
-done
+wait_for_file "$RESIST_PARENT_FILE"
+RESIST_PARENT=$(sudo cat "$RESIST_PARENT_FILE")
+[[ "$RESIST_PARENT" =~ ^[0-9]+$ ]]
+sudo sh -c "echo '$RESIST_PARENT' > '/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs'"
+sudo kill -CONT "$RESIST_PARENT"
+wait_for_file "$RESIST_CHILD_FILE"
+RESIST_CHILD=$(sudo cat "$RESIST_CHILD_FILE")
 [[ "$RESIST_CHILD" =~ ^[0-9]+$ ]]
-grep -qx "$RESIST_PID" "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs"
+grep -qx "$RESIST_PARENT" "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs"
+grep -qx "$RESIST_CHILD" "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs"
 
 STOP_STARTED=$(date +%s)
-sudo systemctl stop "$UNIT_NAME"
+timeout 20s sudo systemctl stop "$UNIT_NAME"
 STOP_ELAPSED=$(( $(date +%s) - STOP_STARTED ))
 (( STOP_ELAPSED >= 9 ))
 ! sudo systemctl is-active --quiet "$UNIT_NAME"
-for _ in $(seq 1 50); do
-  if ! sudo kill -0 "$RESIST_PID" 2>/dev/null && ! sudo kill -0 "$RESIST_CHILD" 2>/dev/null; then
-    break
-  fi
-  sleep 0.1
-done
-! sudo kill -0 "$RESIST_PID" 2>/dev/null
-! sudo kill -0 "$RESIST_CHILD" 2>/dev/null
+assert_dead "$RESIST_PARENT"
+assert_dead "$RESIST_CHILD"
 if [[ -e "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs" ]]; then
   [[ -z "$(cat "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs")" ]]
 fi
+kill -TERM "$RESIST_LAUNCHER" >/dev/null 2>&1 || true
 wait "$RESIST_LAUNCHER" 2>/dev/null || true
+RESIST_LAUNCHER=0
 
+echo "forced control-group shutdown passed"
 RESTARTS_BEFORE_CONFIG=$(sudo systemctl show -p NRestarts --value "$UNIT_NAME")
 printf '%s\n' 'short' | sudo tee "$TOKEN_SOURCE_FILE" >/dev/null
 if sudo systemctl start "$UNIT_NAME"; then
