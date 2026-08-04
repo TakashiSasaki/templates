@@ -144,6 +144,10 @@ def validate_release_bundle_documents(
         return errors + [f"release bundle: metadata is incomplete or malformed: {exc}"]
 
     if mode == "template":
+        if release.get("mode") == "product":
+            errors.append(
+                "release bundle: product release evidence requires product bundle mode"
+            )
         for field in ("subject", "provenance", "handoff"):
             if bundle.get(field) is not None:
                 errors.append(f"release bundle: template mode must not claim {field}")
