@@ -39,6 +39,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-installation-modes.rb
 
+      - name: Test parent-owned vendoring
+        shell: bash
+        run: ruby .github/scripts/test-parent-owned-vendoring.rb
+
       - name: Test script-assisted optional-runtime profile fixture
         shell: bash
         run: ruby .github/scripts/test-script-assisted-runtime-profile.rb
