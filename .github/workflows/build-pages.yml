@@ -15,7 +15,7 @@ on:
         description: Commit, branch, or tag containing the canonical documentation
         required: false
         type: string
-        default: main
+        default: skill
       deployment_timestamp:
         description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
         required: false
@@ -49,7 +49,7 @@ jobs:
       - name: Check out canonical documentation
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || 'main' }}
+          ref: ${{ inputs.source_ref || 'skill' }}
           path: canonical-source
 
       - name: Set up Python
