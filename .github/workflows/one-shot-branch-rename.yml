@@ -1,0 +1,45 @@
+name: One-shot webapp branch terminology migration
+
+on:
+  push:
+    branches:
+      - agent/webapp-skill-branch-terminology
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/webapp-skill-branch-terminology
+
+      - name: Apply exact branch-name replacement
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('README.md')
+          old = 'Changes for this template branch must be based on `webapp`, not on `main`, `site`, or `policy`.'
+          new = 'Changes for this template branch must be based on `webapp`, not on `skill`, `site`, or `policy`.'
+          text = path.read_text(encoding='utf-8')
+          actual = text.count(old)
+          if actual != 1:
+              raise SystemExit(f'{path}: expected one branch-topology sentence, found {actual}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+
+          Path('.github/workflows/one-shot-branch-rename.yml').unlink()
+
+      - name: Commit migration result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Update webapp branch topology reference"
+          git push origin HEAD:agent/webapp-skill-branch-terminology
