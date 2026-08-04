@@ -146,6 +146,8 @@ ruby .github/scripts/validate-profile-contracts.rb
 
 The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. The compatibility adapter, synthesized monolithic interface document, `File.read` monkey patch, and `RUBYOPT` injection have been removed. Some focused direct validators retain their own bounded Markdown parsing while the rule validators use `.github/scripts/lib/profile_contracts.rb`; the supported entry point executes both groups directly.
 
+When the validated skill root is inside a Git worktree, the entry point inspects the real index to reject operational-resource gitlinks. When a flattened release archive has no Git metadata, it supplies an ephemeral empty index only for that metadata-only check. All frontmatter, profile, contract, regular-file, declaration, symlink, and helper checks still run against the extracted filesystem, and the validator writes nothing into the skill root. The validation host still needs the `git` executable to create the temporary index.
+
 For complete repository validation, including frontmatter and exact operational-resource declarations, run:
 
 ```sh
@@ -166,4 +168,8 @@ Track as a project-level submodule:
 git submodule add <repository-url> .agents/skills/<skill-name>
 ```
 
-Vendoring a release archive into `.agents/skills/<skill-name>/` is also valid when the parent repository should own the files directly.
+Vendoring a release archive into `.agents/skills/<skill-name>/` is also valid when the parent repository should own the files directly. Flatten the archive's generated top-level wrapper so that `SKILL.md` is directly under the final skill directory.
+
+`.github/scripts/test-installation-modes.rb` materializes and commits one concrete `script-assisted` skill, installs that exact commit through clone, submodule, and prefixed archive extraction, and requires identical non-Git inventories, file bytes, and file modes. Every installation passes complete validation from an unrelated working directory and executes the same deterministic helper. Negative cases reject an unflattened archive wrapper and undeclared operational files in all three modes.
+
+The smoke proves installation equivalence for one bounded concrete skill. It does not add remote download behavior, release publication, automatic profile selection, automatic licensing, or a generator interface.
