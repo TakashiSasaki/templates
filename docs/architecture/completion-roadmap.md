@@ -1,6 +1,6 @@
 # Webapp template completion roadmap
 
-This roadmap tracks the repository-level work remaining after reviewed execution can produce release evidence bound to the actual immutable generated-product revision. It does not select a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
+This roadmap tracks the repository-level work remaining after reviewed execution can produce release evidence and a digest-closed handoff bundle bound to the actual immutable generated-product revision. It does not select a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
 
 It is not a product backlog. Product-specific implementation, browser support, infrastructure, deployment, observability, approvals, and evidence retention remain the responsibility of each generated repository.
 
@@ -35,7 +35,7 @@ Contract family `release_evidence` version 1 adds:
 - SHA-256 binding from each command result to current authoritative command text;
 - rejection of failed commands, nonzero exit codes, failed gates, stale revisions, digest drift, invalid chronology, and non-approved decisions;
 - standalone and module release validators;
-- eight total validator entry points across contracts, evolution, implementation evidence, and release evidence;
+- eight validator entry points at the release-evidence stage across contracts, evolution, implementation evidence, and release evidence;
 - clean-room exact-revision and command-definition conformance; and
 - synchronized README, template, operationalization, architecture, and validation guidance.
 
@@ -70,9 +70,9 @@ The template-maintainer-only fixture:
 
 A mismatched revision, a tracked or ordinary untracked generated-tree change, an ignored revision-external file, a repository-local bytecode import opportunity, a redirected Git worktree, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and establishing equivalent interpreter, Git metadata, worktree, and revision-external-input boundaries in product-owned CI.
 
-## In-progress Phase 3A: release-bundle contract foundation
+## Completed Phase 3A: release-bundle contract foundation
 
-PR #68 introduces the provider-neutral handoff manifest needed after approved release evidence exists.
+PR #68 introduced the provider-neutral handoff manifest required after approved release evidence exists.
 
 The `release_bundle` version 1 foundation defines:
 
@@ -87,26 +87,32 @@ The `release_bundle` version 1 foundation defines:
 - explicit exclusion of self-digest recursion; and
 - standalone and module validator entry points, bringing the retained validator surface to ten forms.
 
-The architecture defines candidate, merge-test, released, and deployed revision roles without pretending that pre-release repository validation proves release or deployment. It also defines mandatory regeneration, rejection, retry, supersession, rollback, signing, retention, approval, and redaction boundaries.
+The architecture distinguishes candidate, merge-test, released, and deployed revision roles without pretending that pre-release repository validation proves release or deployment. It also defines mandatory regeneration, rejection, retry, supersession, rollback, signing, retention, approval, and redaction boundaries.
 
-## Remaining Phase 3B: bundle production and lifecycle conformance
+## Completed Phase 3B: bundle production and lifecycle conformance
 
-After the contract foundation is merged, the remaining Phase 3 gap is executable clean-room proof that the bundle is generated from the exact approved artifact set rather than from asserted digest values.
+PR #75 proves in the temporary generated-repository clean room that the bundle is generated from the exact approved artifact set rather than from asserted digest values.
 
-Required outcomes:
+The fixture:
 
-- extend the generated-repository clean room to produce `contracts/release-bundle.json` only after valid approved release evidence exists;
-- calculate every artifact digest from exact file bytes through a fixed reviewed implementation;
-- validate the generated bundle through both copied release-bundle entry points for the same candidate revision;
-- reject stale bundle bytes after any active contract changes;
-- reject a bundle for a different candidate revision;
-- reject an artifact set whose release-evidence bytes no longer match;
-- prove that a failed or rejected release run creates no ready bundle;
-- prove that a retry creates a distinct new record rather than rewriting the prior result;
-- define and test the repository-authoritative treatment of a superseded current bundle without choosing an archive provider; and
-- prove rollback reuse is permitted only for an exact retained bundle still accepted by current policy, otherwise requiring new evidence.
+1. installs a bundle producer only in the temporary generated repository before the candidate revision is committed;
+2. requires Python isolated startup for the producer itself;
+3. removes inherited Git inputs, disables system and global Git configuration, verifies the effective Git directory and worktree, and pins subsequent Git operations;
+4. requires `HEAD^{commit}` to equal one explicit lowercase 40-hex candidate revision;
+5. permits only the known release evidence, current bundle, release-run, bundle-index, and retained-record outputs after candidate verification;
+6. requires valid approved release evidence for the same candidate revision;
+7. reads the active contract registry in manifest order and calculates SHA-256 from each exact current document byte sequence;
+8. excludes the bundle document itself to avoid recursive content identity;
+9. writes one immutable repository-local bundle record and copies those exact bytes to `contracts/release-bundle.json` as the current handoff;
+10. validates the generated bundle through both copied release-bundle entry points;
+11. records one repository-authoritative `current` record and marks the previous current record `superseded` without rewriting retained bundle bytes;
+12. makes each retry append a distinct record;
+13. reactivates a retained record only when its exact bytes, candidate revision, index digest, and current validator policy still agree; and
+14. restores the previous current bundle and leaves the index unchanged when retained-record activation is rejected.
 
-A new provider-specific contract family is not required for storage, signing, release publication, deployment, or environment observation.
+The regression suite proves rejection of changed active-contract bytes, changed release-evidence bytes, a different candidate revision, and failed or rejected release execution. It also proves append-only retry, explicit supersession, exact rollback reuse, and mandatory new evidence when a retained bundle is stale under current policy.
+
+The producer accepts no arbitrary command, path, executable, environment, provider, archive, signature, publication target, deployment target, or remote locator. Product repositories remain responsible for durable retention, signing or attestation, approval, encryption, redaction, publication, deployment, and environment observation.
 
 ## Remaining Phase 4: final template readiness audit
 
@@ -127,6 +133,6 @@ The audit must verify:
 
 ## Completion decision
 
-The `webapp` branch can be considered complete when Phase 3B and Phase 4 are merged and no remaining gap requires a framework-neutral, repository-authoritative, locally verifiable contract or conformance check.
+The `webapp` branch can be considered complete when Phase 4 is merged and no remaining gap requires a framework-neutral, repository-authoritative, locally verifiable contract or conformance check.
 
 Further additions should then be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`contract-completeness.md`](contract-completeness.md) rather than expanding the template speculatively.
