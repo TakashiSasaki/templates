@@ -261,6 +261,7 @@ wait "$RESIST_LAUNCHER" 2>/dev/null || true
 RESIST_LAUNCHER=0
 
 echo "forced control-group shutdown passed"
+sudo systemctl reset-failed "$UNIT_NAME"
 RESTARTS_BEFORE_CONFIG=$(sudo systemctl show -p NRestarts --value "$UNIT_NAME")
 printf '%s\n' 'short' | sudo tee "$TOKEN_SOURCE_FILE" >/dev/null
 if sudo systemctl start "$UNIT_NAME"; then
