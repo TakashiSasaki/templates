@@ -14,6 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test GitHub Pages deployment boundary
+        shell: bash
+        run: ruby .github/scripts/test-pages-deployment-boundary.rb
+
       - name: Test documentation publication catalog validation
         shell: bash
         run: |
