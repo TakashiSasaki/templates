@@ -171,7 +171,7 @@ class PagesDeploymentBoundaryTests(unittest.TestCase):
             with self.subTest(expression=expression):
                 self.assert_rejected(
                     "permissions:\n  contents: read\njobs:\n  publish:\n    steps:\n"
-                    f"      - env:\n          TOKEN: \"{expression}\"\n",
+                    f"      - env:\n          TOKEN: >-\n            {expression}\n",
                     "secrets context is forbidden",
                 )
 
