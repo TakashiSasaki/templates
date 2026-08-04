@@ -6,8 +6,10 @@ require "pathname"
 ROOT = Pathname.new(__dir__).join("../..").expand_path
 WORKFLOWS = ROOT.join(".github/workflows")
 COMPATIBILITY = WORKFLOWS.join("pages.yml")
+CONTRIBUTING = ROOT.join("CONTRIBUTING.md")
 
 abort "build-only documentation compatibility workflow is missing" unless COMPATIBILITY.file?
+abort "contributor guidance is missing" unless CONTRIBUTING.file?
 
 workflow_files = WORKFLOWS.children.select { |path| path.file? && path.extname.match?(/\A\.ya?ml\z/) }
 forbidden = {
@@ -43,4 +45,12 @@ abort "main push still triggers documentation workflow" if trigger_block.include
 abort "compatibility workflow still passes a deploy input" if compatibility.match?(/^\s+deploy:/)
 abort "compatibility workflow retains OIDC write permission" if compatibility.include?("id-token: write")
 
-puts "main workflows contain no GitHub Pages deployment route"
+contributing = CONTRIBUTING.read(encoding: "UTF-8")
+if contributing.include?("Publish template documentation")
+  abort "contributor guidance still names the removed main publication workflow"
+end
+unless contributing.include?("No workflow on `main` deploys GitHub Pages")
+  abort "contributor guidance does not state the main deployment boundary"
+end
+
+puts "main workflows and contributor guidance contain no GitHub Pages deployment route"
