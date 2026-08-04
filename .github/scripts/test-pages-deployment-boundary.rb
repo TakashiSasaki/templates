@@ -5,11 +5,9 @@ require "pathname"
 
 ROOT = Pathname.new(__dir__).join("../..").expand_path
 WORKFLOWS = ROOT.join(".github/workflows")
-COMPATIBILITY = WORKFLOWS.join("check-site-compatibility.yml")
-REMOVED_DISPATCHER = WORKFLOWS.join("pages.yml")
+COMPATIBILITY = WORKFLOWS.join("pages.yml")
 
-abort "main Pages dispatcher still exists" if REMOVED_DISPATCHER.exist?
-abort "compatibility workflow is missing" unless COMPATIBILITY.file?
+abort "build-only documentation compatibility workflow is missing" unless COMPATIBILITY.file?
 
 workflow_files = WORKFLOWS.children.select { |path| path.file? && path.extname.match?(/\A\.ya?ml\z/) }
 forbidden = {
@@ -32,12 +30,16 @@ compatibility = COMPATIBILITY.read(encoding: "UTF-8")
 required = [
   "uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site",
   "site_ref: site",
-  "contents: read"
+  "contents: read",
+  "CLI_INTERFACE.md",
+  "MCP_INTERFACE.md"
 ]
 required.each do |token|
   abort "compatibility workflow is missing #{token.inspect}" unless compatibility.include?(token)
 end
 
+trigger_block = compatibility.split("\npermissions:\n", 2).first
+abort "main push still triggers documentation workflow" if trigger_block.include?("\n  push:\n")
 abort "compatibility workflow still passes a deploy input" if compatibility.match?(/^\s+deploy:/)
 abort "compatibility workflow retains OIDC write permission" if compatibility.include?("id-token: write")
 
