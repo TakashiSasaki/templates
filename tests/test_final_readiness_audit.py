@@ -120,10 +120,7 @@ class FinalReadinessAuditTests(unittest.TestCase):
             "## Completed Phase 4: final template readiness audit",
             roadmap,
         )
-        self.assertIn(
-            "[final-readiness-audit.md](final-readiness-audit.md)",
-            roadmap,
-        )
+        self.assertIn("(final-readiness-audit.md)", roadmap)
         self.assertNotIn("## Remaining Phase 4", roadmap)
         self.assertNotIn("`policy`, `main`, or `site`", roadmap)
         for branch in ("skill", "site", "policy"):
