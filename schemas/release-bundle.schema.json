@@ -1,1 +1,208 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["$schema","schemaVersion","mode","artifacts"],"$defs":{"identifier":{"type":"string","pattern":"^[a-z][a-z0-9_]*(?![\\s\\S])"},"nonBlankText":{"type":"string","minLength":1},"revision":{"type":"string","pattern":"^[0-9a-f]{40}$"},"digest":{"type":"string","pattern":"^[0-9a-f]{64}$"},"timestamp":{"type":"string","pattern":"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$"},"subject":{"type":"object","additionalProperties":false,"required":["revision","description"],"properties":{"revision":{"$ref":"#/$defs/revision"},"description":{"$ref":"#/$defs/nonBlankText"}}},"provenance":{"type":"object","additionalProperties":false,"required":["kind","id","locator","generatedAt"],"properties":{"kind":{"enum":["ci-run","local-run","other"]},"id":{"$ref":"#/$defs/nonBlankText"},"locator":{"$ref":"#/$defs/nonBlankText"},"generatedAt":{"$ref":"#/$defs/timestamp"}}},"handoff":{"type":"object","additionalProperties":false,"required":["status","description"],"properties":{"status":{"const":"ready"},"description":{"$ref":"#/$defs/nonBlankText"}}},"artifact":{"type":"object","additionalProperties":false,"required":["contractId","path","sha256"],"properties":{"contractId":{"$ref":"#/$defs/identifier"},"path":{"type":"string","pattern":"^contracts/[a-z][a-z0-9-]*\\.json(?![\\s\\S])"},"sha256":{"$ref":"#/$defs/digest"}}}},"properties":{"$schema":{"const":"../schemas/release-bundle.schema.json"},"schemaVersion":{"const":1},"mode":{"enum":["template","product"]},"subject":{"$ref":"#/$defs/subject"},"provenance":{"$ref":"#/$defs/provenance"},"handoff":{"$ref":"#/$defs/handoff"},"artifacts":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/artifact"}}},"allOf":[{"if":{"properties":{"mode":{"const":"template"}},"required":["mode"]},"then":{"properties":{"artifacts":{"maxItems":0}},"not":{"anyOf":[{"required":["subject"]},{"required":["provenance"]},{"required":["handoff"]}]}}},{"if":{"properties":{"mode":{"const":"product"}},"required":["mode"]},"then":{"required":["subject","provenance","handoff"],"properties":{"artifacts":{"minItems":1}}}}]}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "mode",
+    "artifacts"
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?![\\s\\S])"
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?Z$"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "description"
+      ],
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "description": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "locator",
+        "generatedAt"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "ci-run",
+            "local-run",
+            "other"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/nonBlankText"
+        },
+        "locator": {
+          "$ref": "#/$defs/nonBlankText"
+        },
+        "generatedAt": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "description"
+      ],
+      "properties": {
+        "status": {
+          "const": "ready"
+        },
+        "description": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractId",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "contractId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^contracts/[a-z][a-z0-9-]*\\.json(?![\\s\\S])"
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "const": "../schemas/release-bundle.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "template",
+        "product"
+      ]
+    },
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "handoff": {
+      "$ref": "#/$defs/handoff"
+    },
+    "artifacts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "template"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "artifacts": {
+            "maxItems": 0
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "subject"
+              ]
+            },
+            {
+              "required": [
+                "provenance"
+              ]
+            },
+            {
+              "required": [
+                "handoff"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "product"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "subject",
+          "provenance",
+          "handoff"
+        ],
+        "properties": {
+          "artifacts": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
