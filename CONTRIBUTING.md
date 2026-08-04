@@ -67,7 +67,7 @@ This fixture matrix is the stable baseline for the current profile model. The ca
 
 Pull requests to `main` that change canonical Markdown, `docs/`, or `assets/` are assembled and built against the current `site` branch by **Check documentation site compatibility**. The pull-request run uses GitHub's proposed merge commit, records both exact source commits in the generated artifact, and never deploys it.
 
-The same non-deploying check runs weekly and can be started manually to detect drift between the current `main` and `site` branches. Publication after a merge remains the responsibility of **Publish template documentation**.
+The same non-deploying check runs weekly and can be started manually to detect documentation drift. No workflow on `main` deploys GitHub Pages; publication is outside this branch's authority.
 
 ## Pull requests
 
