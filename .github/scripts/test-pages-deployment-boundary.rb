@@ -45,6 +45,8 @@ trigger_block = compatibility.split("\npermissions:\n", 2).first
 abort "skill push still triggers documentation workflow" if trigger_block.include?("\n  push:\n")
 abort "compatibility workflow does not target skill pull requests" unless trigger_block.include?("\n      - skill\n")
 abort "compatibility workflow still targets the removed main branch" if trigger_block.include?("\n      - main\n")
+abort "skill workflow incorrectly claims a scheduled run" if trigger_block.include?("\n  schedule:\n")
+abort "skill workflow lacks manual drift-check dispatch" unless trigger_block.include?("\n  workflow_dispatch:\n")
 abort "compatibility workflow still passes a deploy input" if compatibility.match?(/^\s+deploy:/)
 abort "compatibility workflow retains OIDC write permission" if compatibility.include?("id-token: write")
 
@@ -54,6 +56,9 @@ if contributing.include?("Publish template documentation")
 end
 unless contributing.include?("No workflow on `skill` deploys GitHub Pages")
   abort "contributor guidance does not state the skill deployment boundary"
+end
+unless contributing.include?("this `skill`-branch workflow does not claim a weekly scheduled run")
+  abort "contributor guidance incorrectly claims a weekly skill schedule"
 end
 
 puts "skill workflows and contributor guidance contain no GitHub Pages deployment route"
