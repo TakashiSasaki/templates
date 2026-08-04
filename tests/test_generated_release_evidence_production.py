@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -8,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 
 from generated_release_evidence_producer_fixture import (  # noqa: E402
-    RELEASE_REVISION,
     _install_release_evidence_producer,
 )
 from test_generated_repository_conformance import (  # noqa: E402
+    _generated_environment,
     _generated_repository,
     _is_template_maintainer_source,
     _load_json,
@@ -20,31 +22,84 @@ from test_generated_repository_conformance import (  # noqa: E402
 )
 
 
+def _git_environment() -> dict[str, str]:
+    environment = _generated_environment()
+    for name in tuple(environment):
+        if name.startswith("GIT_"):
+            del environment[name]
+    environment.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_AUTHOR_NAME": "Webapp conformance fixture",
+            "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
+            "GIT_AUTHOR_DATE": "2026-08-04T00:00:00+00:00",
+            "GIT_COMMITTER_NAME": "Webapp conformance fixture",
+            "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
+            "GIT_COMMITTER_DATE": "2026-08-04T00:00:00+00:00",
+        }
+    )
+    return environment
+
+
+def _run_git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["git", "-C", str(root), *arguments],
+        cwd=root,
+        env=_git_environment(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(arguments)} failed\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
+def _commit_generated_repository(root: Path) -> str:
+    _run_git(root, "init", "--quiet")
+    _run_git(root, "add", "--all", "--force")
+    _run_git(
+        root,
+        "commit",
+        "--quiet",
+        "--message",
+        "Capture generated repository fixture",
+    )
+    revision = _run_git(root, "rev-parse", "--verify", "HEAD^{commit}").stdout.strip()
+    if len(revision) != 40:
+        raise AssertionError(f"unexpected generated revision: {revision!r}")
+    return revision
+
+
 @unittest.skipUnless(
     _is_template_maintainer_source(),
     "template-maintainer-only generated release evidence production suite",
 )
 class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
-    def run_producer(self, root: Path):
+    def run_producer(self, root: Path, revision: str):
         return _run_generated_python(
             root,
             "product/produce_release_evidence.py",
             "--revision",
-            RELEASE_REVISION,
+            revision,
         )
 
-    def assert_release_validates(self, root: Path) -> None:
+    def assert_release_validates(self, root: Path, revision: str) -> None:
         for command in (
             (
                 "scripts/validate_release_evidence.py",
                 "--expected-revision",
-                RELEASE_REVISION,
+                revision,
             ),
             (
                 "-m",
                 "scripts.validate_release_evidence",
                 "--expected-revision",
-                RELEASE_REVISION,
+                revision,
             ),
         ):
             with self.subTest(command=command):
@@ -60,8 +115,9 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
     ) -> None:
         with _generated_repository() as root:
             _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
 
-            result = self.run_producer(root)
+            result = self.run_producer(root, revision)
 
             self.assertEqual(
                 0,
@@ -79,7 +135,9 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
                 root / "contracts/implementation-evidence.json"
             )
 
-            self.assertEqual(RELEASE_REVISION, run["revision"])
+            self.assertEqual(revision, run["revision"])
+            self.assertEqual(revision, run["revisionBinding"]["verifiedHead"])
+            self.assertEqual("clean", run["revisionBinding"]["worktree"])
             self.assertEqual(
                 "python product/prove_conformance.py",
                 run["command"]["authoritativeCommand"],
@@ -98,7 +156,7 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
             self.assertEqual("approved", run["decision"]["status"])
 
             self.assertEqual("product", release["mode"])
-            self.assertEqual(RELEASE_REVISION, release["subject"]["revision"])
+            self.assertEqual(revision, release["subject"]["revision"])
             self.assertEqual(
                 implementation["commands"][0]["id"],
                 release["commandResults"][0]["commandId"],
@@ -116,7 +174,7 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
             self.assertEqual("passed", release["gateResults"][0]["status"])
             self.assertEqual("approved", release["decision"]["status"])
 
-            self.assert_release_validates(root)
+            self.assert_release_validates(root, revision)
 
         self.assertEqual(
             "template",
@@ -132,8 +190,9 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
             first_target = next(iter(inventory["targets"].values()))
             first_target["positive"] = False
             _write_json(inventory_path, inventory)
+            revision = _commit_generated_repository(root)
 
-            result = self.run_producer(root)
+            result = self.run_producer(root, revision)
 
             self.assertEqual(1, result.returncode)
             self.assertIn(
@@ -143,6 +202,8 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
 
             run = _load_json(root / "product/release-run.json")
             release = _load_json(root / "contracts/release-evidence.json")
+            self.assertEqual(revision, run["revisionBinding"]["verifiedHead"])
+            self.assertEqual("clean", run["revisionBinding"]["worktree"])
             self.assertEqual("failed", run["command"]["status"])
             self.assertNotEqual(0, run["command"]["exitCode"])
             self.assertEqual("failed", run["gate"]["status"])
@@ -157,7 +218,7 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
                 root,
                 "scripts/validate_release_evidence.py",
                 "--expected-revision",
-                RELEASE_REVISION,
+                revision,
             )
             self.assertEqual(1, validation.returncode)
             self.assertIn("status must be passed", validation.stderr)
@@ -174,12 +235,58 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
                 "command"
             ] = "python -I product/prove_conformance.py"
             _write_json(implementation_path, implementation)
+            revision = _commit_generated_repository(root)
 
-            result = self.run_producer(root)
+            result = self.run_producer(root, revision)
 
             self.assertEqual(2, result.returncode)
             self.assertIn(
                 "authoritative command registration changed",
+                result.stderr,
+            )
+            self.assertFalse((root / "product/release-run.json").exists())
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-evidence.json")["mode"],
+            )
+
+    def test_runner_rejects_revision_that_does_not_match_generated_tree(
+        self,
+    ) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
+            mismatched_revision = "f" * 40
+            self.assertNotEqual(revision, mismatched_revision)
+
+            result = self.run_producer(root, mismatched_revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "revision does not match generated repository HEAD",
+                result.stderr,
+            )
+            self.assertFalse((root / "product/release-run.json").exists())
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-evidence.json")["mode"],
+            )
+
+    def test_runner_rejects_uncommitted_generated_tree_changes(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
+            inventory_path = root / "product/conformance-targets.json"
+            inventory = _load_json(inventory_path)
+            first_target = next(iter(inventory["targets"].values()))
+            first_target["positive"] = False
+            _write_json(inventory_path, inventory)
+
+            result = self.run_producer(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "generated repository has uncommitted changes",
                 result.stderr,
             )
             self.assertFalse((root / "product/release-run.json").exists())
