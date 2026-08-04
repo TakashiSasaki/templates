@@ -121,6 +121,7 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
   expect_unchanged("successful helper execution", target, baseline_tree, parent, baseline_index)
 
   File.binwrite(invalid_input, "\xFF".b)
+  invalid_input_before = File.binread(invalid_input)
   stdout, stderr, status = capture(
     RbConfig.ruby,
     "scripts/normalize.rb",
@@ -129,10 +130,13 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
     chdir: target,
     env: { "RUBYOPT" => nil }
   )
+  invalid_input_unchanged = File.file?(invalid_input) &&
+                            File.binread(invalid_input) == invalid_input_before
   unless status.exitstatus == 3 && stdout.empty? && stderr.include?("invalid UTF-8 input") &&
-         !File.exist?(invalid_output)
+         !File.exist?(invalid_output) && invalid_input_unchanged
     FAILURES << "failed helper execution did not preserve its boundary: " \
-                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
+                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                "stderr=#{stderr.inspect}, input_unchanged=#{invalid_input_unchanged}"
   end
   expect_unchanged("failed helper execution", target, baseline_tree, parent, baseline_index)
 
