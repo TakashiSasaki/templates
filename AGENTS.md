@@ -164,6 +164,8 @@ ruby .github/scripts/validate-profile-contracts.rb
 
 The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. Some focused validators retain bounded contract-specific Markdown parsing, while rule validators use `.github/scripts/lib/profile_contracts.rb`. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
 
+Clear inherited `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_INDEX_FILE` values before discovering the skill root's Git context. Use the discovered worktree's real index so operational-resource gitlinks are detectable. For a flattened archive with no Git metadata, the supported entry point may create a dedicated ephemeral empty index outside the skill root solely for the gitlink query. The probe must use a stable locale; validation must still run every filesystem and contract rule against the extracted root, must not write into the skill or a caller-owned alternate index, and must fail on unavailable Git or unexpected Git errors rather than silently skipping metadata validation.
+
 ## Completion criteria
 
 Before reporting a change complete:
@@ -177,4 +179,4 @@ Before reporting a change complete:
 7. Confirm that operational resource directories contain no symlinks or gitlinks.
 8. Confirm that selected application and service profiles have completed contract status and required fields.
 9. Confirm that no secrets or environment-specific credentials are committed.
-10. Review the result as if the repository were cloned directly into `.agents/skills/<skill-name>/`.
+10. Review the result as if the repository were cloned, added as a submodule, or vendored directly into `.agents/skills/<skill-name>/`.
