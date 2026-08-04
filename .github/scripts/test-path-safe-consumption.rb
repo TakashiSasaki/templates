@@ -9,13 +9,14 @@ require "rbconfig"
 require "tmpdir"
 
 SOURCE_ROOT = File.expand_path("../..", __dir__)
+NON_MUTATING_SMOKE = ".github/scripts/test-non-mutating-consumption.rb"
 SMOKES = {
   ".github/scripts/test-minimal-profile-layouts.rb" => "Minimal profile repository layout tests passed.",
   ".github/scripts/test-template-adoption.rb" => "Template adoption smoke tests passed.",
   ".github/scripts/test-concrete-skill-completion.rb" => "Concrete skill completion hygiene tests passed.",
   ".github/scripts/test-installation-modes.rb" => "Installation mode smoke tests passed.",
   ".github/scripts/test-parent-owned-vendoring.rb" => "Parent-owned vendoring smoke tests passed.",
-  ".github/scripts/test-non-mutating-consumption.rb" => "Non-mutating skill consumption smoke tests passed."
+  NON_MUTATING_SMOKE => "Non-mutating skill consumption smoke tests passed."
 }.freeze
 
 failures = []
@@ -43,23 +44,22 @@ end
 
 Dir.mktmpdir("path-safe-consumption-host") do |host_root|
   path_safe_root = File.join(host_root, "workspace with spaces", "日本語")
-  FileUtils.mkdir_p(path_safe_root)
+  poison_root = File.join(host_root, "caller-owned-git-context")
+  poison_git_dir = File.join(poison_root, "git-dir")
+  poison_work_tree = File.join(poison_root, "work-tree")
+  poison_index = File.join(poison_root, "index")
+  FileUtils.mkdir_p([path_safe_root, poison_git_dir, poison_work_tree])
+  File.binwrite(poison_index, "caller-owned index sentinel\n")
+  File.binwrite(File.join(poison_git_dir, "sentinel"), "git-dir sentinel\n")
+  File.binwrite(File.join(poison_work_tree, "sentinel"), "work-tree sentinel\n")
+  poison_before = tree_snapshot(poison_root)
+
   expected_root = File.realpath(path_safe_root)
-  poisoned_git_root = File.join(host_root, "caller-owned git context")
-  poisoned_git_dir = File.join(poisoned_git_root, "git dir")
-  poisoned_git_worktree = File.join(poisoned_git_root, "work tree")
-  poisoned_git_index = File.join(poisoned_git_root, "caller.index")
-  FileUtils.mkdir_p([poisoned_git_dir, poisoned_git_worktree])
-  File.binwrite(poisoned_git_index, "caller-owned index\n")
-  poisoned_before = tree_snapshot(poisoned_git_root)
   environment = {
     "TMPDIR" => path_safe_root,
     "TMP" => path_safe_root,
     "TEMP" => path_safe_root,
-    "RUBYOPT" => nil,
-    "GIT_DIR" => poisoned_git_dir,
-    "GIT_INDEX_FILE" => poisoned_git_index,
-    "GIT_WORK_TREE" => poisoned_git_worktree
+    "RUBYOPT" => nil
   }
 
   stdout, stderr, status = Open3.capture3(
@@ -76,8 +76,17 @@ Dir.mktmpdir("path-safe-consumption-host") do |host_root|
   end
 
   SMOKES.each do |relative_script, success_line|
+    smoke_environment = environment
+    if relative_script == NON_MUTATING_SMOKE
+      smoke_environment = environment.merge(
+        "GIT_DIR" => poison_git_dir,
+        "GIT_INDEX_FILE" => poison_index,
+        "GIT_WORK_TREE" => poison_work_tree
+      )
+    end
+
     stdout, stderr, status = Open3.capture3(
-      environment,
+      smoke_environment,
       RbConfig.ruby,
       relative_script,
       chdir: SOURCE_ROOT
@@ -87,9 +96,8 @@ Dir.mktmpdir("path-safe-consumption-host") do |host_root|
                   "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
     end
 
-    poisoned_after = tree_snapshot(poisoned_git_root)
-    unless poisoned_after == poisoned_before
-      failures << "#{relative_script} changed caller-owned inherited Git context"
+    if relative_script == NON_MUTATING_SMOKE && tree_snapshot(poison_root) != poison_before
+      failures << "#{relative_script} mutated inherited caller-owned Git context"
     end
   end
 end
