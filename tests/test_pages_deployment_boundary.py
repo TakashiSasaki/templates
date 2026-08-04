@@ -22,9 +22,17 @@ FORBIDDEN_ACTIONS = frozenset(
         "peaceiris/actions-gh-pages",
     }
 )
-SECRET_EXPRESSION = re.compile(r"\$\{\{\s*secrets\.", re.IGNORECASE)
+SECRET_EXPRESSION = re.compile(
+    r"\$\{\{(?:(?!\}\}).)*\bsecrets\s*(?:\.|\[)",
+    re.IGNORECASE | re.DOTALL,
+)
 BRANCH_PUSH_COMMAND = re.compile(
-    r"(?:^|[;&|\n]\s*)(?:git\b[^\n;&|]{0,160}\bpush\b|gh\s+api\b)",
+    r"(?:^|[;&|]\s*|\n\s*)"
+    r"(?:(?:command|exec)\s+)?"
+    r"(?:env\b[^\n;&|]{0,160}?\s+)?"
+    r"(?:(?:command|exec)\s+)?"
+    r"(?:[^\s;&|]*/)?git\b[^\n;&|]{0,160}\bpush\b"
+    r"|(?:^|[;&|]\s*|\n\s*)gh\s+api\b",
     re.IGNORECASE,
 )
 
@@ -151,6 +159,36 @@ class PagesDeploymentBoundaryTests(unittest.TestCase):
         for label, (source, expected) in cases.items():
             with self.subTest(label=label):
                 self.assert_rejected(source, expected)
+
+    def test_rejects_secret_expression_access_forms(self) -> None:
+        expressions = (
+            "${{ secrets.PAGES_TOKEN }}",
+            "${{ secrets['PAGES_TOKEN'] }}",
+            '${{ secrets [ "PAGES_TOKEN" ] }}',
+            "${{ format('{0}', secrets.PAGES_TOKEN) }}",
+        )
+        for expression in expressions:
+            with self.subTest(expression=expression):
+                self.assert_rejected(
+                    "permissions:\n  contents: read\njobs:\n  publish:\n    steps:\n"
+                    f"      - env:\n          TOKEN: \"{expression}\"\n",
+                    "secrets context is forbidden",
+                )
+
+    def test_rejects_wrapped_repository_push_commands(self) -> None:
+        commands = (
+            "/usr/bin/git push origin gh-pages",
+            "command git push origin gh-pages",
+            "env GIT_SSH_COMMAND=ssh git push origin gh-pages",
+            "env GIT_SSH_COMMAND=ssh command git push origin gh-pages",
+        )
+        for command in commands:
+            with self.subTest(command=command):
+                self.assert_rejected(
+                    "permissions:\n  contents: read\njobs:\n  publish:\n    steps:\n"
+                    f"      - run: {command}\n",
+                    "repository push command is forbidden",
+                )
 
 
 if __name__ == "__main__":
