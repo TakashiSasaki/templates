@@ -32,6 +32,7 @@ compatibility = COMPATIBILITY.read(encoding: "UTF-8")
 required = [
   "uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site",
   "site_ref: site",
+  "source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'skill' }}",
   "contents: read",
   "CLI_INTERFACE.md",
   "MCP_INTERFACE.md"
@@ -42,6 +43,8 @@ end
 
 trigger_block = compatibility.split("\npermissions:\n", 2).first
 abort "skill push still triggers documentation workflow" if trigger_block.include?("\n  push:\n")
+abort "compatibility workflow does not target skill pull requests" unless trigger_block.include?("\n      - skill\n")
+abort "compatibility workflow still targets the removed main branch" if trigger_block.include?("\n      - main\n")
 abort "compatibility workflow still passes a deploy input" if compatibility.match?(/^\s+deploy:/)
 abort "compatibility workflow retains OIDC write permission" if compatibility.include?("id-token: write")
 
