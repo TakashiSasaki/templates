@@ -93,25 +93,74 @@ class ContractManifestTests(unittest.TestCase):
             self.write_manifest(root, manifest)
             (root / "contracts/viewports.json").unlink()
             (root / "schemas/viewports.schema.json").unlink()
-
-            errors = validate_contracts.validate_repository(root)
-
-        self.assertIn("contract manifest: missing core contract id: viewports", errors)
-
-    def test_duplicate_manifest_identifiers_are_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = self.copied_repository(temporary_directory)
-            manifest = validate_contracts.load_contract_manifest(root)
-            duplicate = dict(manifest["contracts"][0])
-            duplicate["document"] = "contracts/duplicate.json"
-            duplicate["schema"] = "schemas/duplicate.schema.json"
-            manifest["contracts"].append(duplicate)
-            self.write_manifest(root, manifest)
-
             errors = validate_contracts.validate_repository(root)
 
         self.assertTrue(
-            any(error.startswith("contract manifest: duplicate contract id:") for error in errors),
+            any(
+                error.startswith("contracts/manifest.json:$.contracts:")
+                and "does not contain items matching the given schema" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_self_referential_registered_symlink_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            target = root / "contracts/surfaces.json"
+            target.unlink()
+            target.symlink_to(target.name)
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertIn(
+            "contract manifest surfaces: document must not be a symbolic link: "
+            "contracts/surfaces.json",
+            errors,
+        )
+
+    def test_symlinked_manifest_is_rejected_before_reading_external_content(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            manifest_path = root / validate_contracts.MANIFEST_PATH
+            external_manifest = root.parent / f"{root.name}-external-manifest.json"
+            external_manifest.write_text(
+                manifest_path.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            manifest_path.unlink()
+            manifest_path.symlink_to(external_manifest)
+            try:
+                errors = validate_contracts.validate_repository(root)
+            finally:
+                external_manifest.unlink(missing_ok=True)
+
+        self.assertIn(
+            "contracts/manifest.json: manifest must not be a symbolic link",
+            errors,
+        )
+
+    def test_unregistered_contract_document_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            (root / "contracts/unregistered.json").write_text("{}\n", encoding="utf-8")
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertIn(
+            "unregistered contract document: contracts/unregistered.json",
+            errors,
+        )
+
+    def test_unregistered_contract_schema_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            (root / "schemas/unregistered.schema.json").write_text(
+                '{"$schema":"https://json-schema.org/draft/2020-12/schema"}\n',
+                encoding="utf-8",
+            )
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertIn(
+            "unregistered contract schema: schemas/unregistered.schema.json",
             errors,
         )
 
@@ -119,46 +168,22 @@ class ContractManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
             (root / "contracts/routes.json").unlink()
-
             errors = validate_contracts.validate_repository(root)
 
-        self.assertTrue(
-            any("contract document not found" in error for error in errors),
+        self.assertIn(
+            "contract manifest routes: missing document: contracts/routes.json",
             errors,
         )
 
-    def test_document_schema_version_must_match_manifest(self) -> None:
+    def test_duplicate_manifest_identifiers_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
-            route_path = root / "contracts/routes.json"
-            routes = validate_contracts.load_json(route_path)
-            routes["schemaVersion"] = 1
-            route_path.write_text(json.dumps(routes, indent=2) + "\n", encoding="utf-8")
-
+            manifest = validate_contracts.load_contract_manifest(root)
+            manifest["contracts"].append(dict(manifest["contracts"][0]))
+            self.write_manifest(root, manifest)
             errors = validate_contracts.validate_repository(root)
 
-        self.assertTrue(
-            any("schemaVersion does not match manifest" in error for error in errors),
-            errors,
-        )
-
-    def test_unregistered_contract_document_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = self.copied_repository(temporary_directory)
-            (root / "contracts/extra.json").write_text("{}\n", encoding="utf-8")
-
-            errors = validate_contracts.validate_repository(root)
-
-        self.assertIn("unregistered contract document: contracts/extra.json", errors)
-
-    def test_unregistered_contract_schema_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = self.copied_repository(temporary_directory)
-            (root / "schemas/extra.schema.json").write_text("{}\n", encoding="utf-8")
-
-            errors = validate_contracts.validate_repository(root)
-
-        self.assertIn("unregistered contract schema: schemas/extra.schema.json", errors)
+        self.assertIn("duplicate contract id: surfaces", errors)
 
     def test_manifest_path_escape_is_rejected_before_file_access(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -166,11 +191,28 @@ class ContractManifestTests(unittest.TestCase):
             manifest = validate_contracts.load_contract_manifest(root)
             manifest["contracts"][0]["document"] = "../outside.json"
             self.write_manifest(root, manifest)
-
             errors = validate_contracts.validate_repository(root)
 
         self.assertTrue(
-            any("path must stay within the repository" in error for error in errors),
+            any(
+                error.startswith(
+                    "contracts/manifest.json:$.contracts[0].document:"
+                )
+                for error in errors
+            )
+        )
+
+    def test_document_schema_version_must_match_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = self.copied_repository(temporary_directory)
+            manifest = validate_contracts.load_contract_manifest(root)
+            manifest["contracts"][1]["documentSchemaVersion"] = 3
+            self.write_manifest(root, manifest)
+            errors = validate_contracts.validate_repository(root)
+
+        self.assertIn(
+            "contracts/routes.json: schemaVersion does not match manifest: "
+            "expected 3, got 2",
             errors,
         )
 
@@ -178,43 +220,12 @@ class ContractManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)
             manifest = validate_contracts.load_contract_manifest(root)
-            manifest["contracts"][0]["purpose"] = " \n\t"
+            manifest["contracts"][0]["purpose"] = "\u2800"
             self.write_manifest(root, manifest)
-
             errors = validate_contracts.validate_repository(root)
 
-        self.assertTrue(
-            any("purpose must contain visible text" in error for error in errors),
-            errors,
-        )
-
-    def test_symlinked_manifest_is_rejected_before_reading_external_content(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = self.copied_repository(temporary_directory)
-            external = Path(temporary_directory) / "outside.json"
-            external.write_text("{}\n", encoding="utf-8")
-            manifest_path = root / validate_contracts.MANIFEST_PATH
-            manifest_path.unlink()
-            manifest_path.symlink_to(external)
-
-            errors = validate_contracts.validate_repository(root)
-
-        self.assertTrue(
-            any("manifest must not be a symbolic link" in error for error in errors),
-            errors,
-        )
-
-    def test_self_referential_registered_symlink_is_reported(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = self.copied_repository(temporary_directory)
-            route_path = root / "contracts/routes.json"
-            route_path.unlink()
-            route_path.symlink_to("routes.json")
-
-            errors = validate_contracts.validate_repository(root)
-
-        self.assertTrue(
-            any("must not be a symbolic link" in error for error in errors),
+        self.assertIn(
+            "contract manifest surfaces: purpose must contain at least one visible character",
             errors,
         )
 
