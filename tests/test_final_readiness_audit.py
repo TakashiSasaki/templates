@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "docs/architecture/final-readiness-audit.md"
 ROADMAP = ROOT / "docs/architecture/completion-roadmap.md"
+TOOLCHAIN = ROOT / "docs/architecture/validation-toolchain.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 
 VALIDATOR_COMMANDS = (
@@ -20,6 +21,10 @@ VALIDATOR_COMMANDS = (
     ".venv/bin/python -m scripts.validate_release_evidence",
     ".venv/bin/python scripts/validate_release_bundle.py",
     ".venv/bin/python -m scripts.validate_release_bundle",
+)
+
+TOOLCHAIN_VALIDATOR_COMMANDS = tuple(
+    command.replace(".venv/bin/python", "python") for command in VALIDATOR_COMMANDS
 )
 
 AUDIT_CRITERIA = (
@@ -111,6 +116,24 @@ class FinalReadinessAuditTests(unittest.TestCase):
         self.assertEqual(
             1,
             workflow.count(".venv/bin/python -m unittest discover -s tests -v"),
+        )
+
+    def test_validation_toolchain_documents_all_retained_validator_forms(self) -> None:
+        toolchain = TOOLCHAIN.read_text(encoding="utf-8")
+        local_commands = toolchain.split(
+            "Run all supported validator forms and the tests:", 1
+        )[1].split("For product-mode release evidence", 1)[0]
+
+        self.assertIn("all ten validator forms", toolchain)
+        self.assertNotIn("all eight validator forms", toolchain)
+        for command in TOOLCHAIN_VALIDATOR_COMMANDS:
+            with self.subTest(command=command):
+                self.assertIn(command, local_commands)
+
+        product_boundary = toolchain.split("## Product-repository boundary", 1)[1]
+        self.assertIn(
+            "release-bundle artifact coverage and handoff binding",
+            product_boundary,
         )
 
     def test_completion_roadmap_records_closed_phase_four(self) -> None:
