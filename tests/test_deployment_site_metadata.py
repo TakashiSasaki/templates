@@ -94,28 +94,42 @@ class CanonicalMetadataTests(unittest.TestCase):
                 self.assertIn(f'href="{CANONICAL_URL}"', html)
                 self.assertNotIn("https://old.example", html)
 
-    def test_missing_or_duplicate_canonical_links_are_rejected(self) -> None:
-        cases = {
-            "missing": "<html><head></head><body></body></html>",
-            "duplicate": (
+    def test_missing_canonical_link_is_inserted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            page = site_root / "404.html"
+            page.write_text(
+                "<html><head><title>Not found</title></head><body></body></html>",
+                encoding="utf-8",
+            )
+
+            normalized = finalize_site_metadata.normalize_canonical_links(
+                site_root,
+                CANONICAL_URL,
+            )
+
+            self.assertEqual(1, normalized)
+            html = page.read_text(encoding="utf-8")
+            self.assertIn(
+                f'<link rel="canonical" href="{CANONICAL_URL}">',
+                html,
+            )
+
+    def test_duplicate_canonical_links_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            (site_root / "index.html").write_text(
                 "<html><head>"
                 '<link rel="canonical" href="https://one.example/">'
                 '<link rel="canonical" href="https://two.example/">'
-                "</head><body></body></html>"
-            ),
-        }
-        for label, html in cases.items():
-            with self.subTest(label=label):
-                with tempfile.TemporaryDirectory() as temporary_directory:
-                    site_root = Path(temporary_directory)
-                    (site_root / "index.html").write_text(html, encoding="utf-8")
-                    with self.assertRaises(
-                        finalize_site_metadata.SiteMetadataError
-                    ):
-                        finalize_site_metadata.normalize_canonical_links(
-                            site_root,
-                            CANONICAL_URL,
-                        )
+                "</head><body></body></html>",
+                encoding="utf-8",
+            )
+            with self.assertRaises(finalize_site_metadata.SiteMetadataError):
+                finalize_site_metadata.normalize_canonical_links(
+                    site_root,
+                    CANONICAL_URL,
+                )
 
 
 class DeploymentWorkflowWiringTests(unittest.TestCase):
