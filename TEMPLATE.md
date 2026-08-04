@@ -10,6 +10,7 @@ This branch defines the repository-level foundation for browser-facing web appli
 - canonical route and navigation contracts with explicit access-failure presentation behavior;
 - user-visible loading, empty, partial, error, offline, and recovery states with explicit route or global ownership scope;
 - supported viewport declarations;
+- machine-readable implementation-evidence requirements and release-gate references;
 - a closed manifest that inventories active contracts, retired-family tombstones, schemas, stable migration slugs, version histories, and migration artifacts;
 - JSON Schemas for those contracts;
 - local validation, tests, and CI;
@@ -55,8 +56,9 @@ Before a generated repository is treated as operational:
 9. Preserve stable contract and entity identifiers unless an explicit breaking migration accounts for every reference.
 10. Define trusted authorization enforcement independently of route or directory names.
 11. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
-12. Add implementation-level tests that prove the declared contracts.
-13. Remove template-only guidance that no longer applies.
+12. Change `contracts/implementation-evidence.json` from `mode: template` to `mode: product` and replace every required boundary, proof, command, and release gate with verified repository-local evidence.
+13. Add implementation-level tests that prove the declared contracts and ensure every proof command is executed by a selected release gate.
+14. Remove template-only guidance that no longer applies.
 
 The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
 
@@ -81,9 +83,13 @@ Validation rejects:
 - rendered access failures without their corresponding route-scoped UI states;
 - redirected or inapplicable access failures that still declare those UI states;
 - route-scoped UI states that are not declared by any route;
-- global UI states that are declared by a route.
+- global UI states that are declared by a route;
+- missing, duplicate, or unknown implementation-evidence targets;
+- implementation proofs that reference unknown commands or gates;
+- product evidence whose selected release gates do not execute its proof commands; and
+- template-mode documents that claim verified implementation locations, product commands, or release gates.
 
-The manifest and its schema are validator bootstrap metadata, not a fifth product-domain contract. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
+The manifest and its schema are validator bootstrap metadata and are not product-domain contracts. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
 
 ## Route-path representation
 
@@ -123,6 +129,23 @@ Upper bounds are deliberately not stored. Deriving them from the next lower boun
 
 Input capabilities are declared once in the top-level `inputCapabilities` collection. They are not attached to breakpoints because viewport width does not determine whether touch, pointer, keyboard, voice, or switch input is available. Responsive layout tests must exercise supported input modes independently of viewport width.
 
+## Implementation evidence representation
+
+`contracts/implementation-evidence.json` is a closed evidence matrix for every surface, route, UI state, viewport, input capability, and registered contract transition.
+
+The template document uses `mode: template`. Its records state which implementation boundary and positive, negative, command, and release evidence a generated repository must provide, but they do not claim that the framework-neutral template contains a product implementation.
+
+A generated repository uses `mode: product` only after every record has:
+
+- a verified implementation boundary and concrete locator;
+- verified positive evidence;
+- verified negative evidence wherever access, degraded behavior, failure, connectivity, or a breaking transition requires it;
+- an authoritative command for every proof;
+- at least one release gate; and
+- release gates that execute every command used by the record's proofs.
+
+The evidence validator proves reference integrity and coverage. It does not execute product commands or decide whether a test semantically proves the declaration. See [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md).
+
 ## Contract evolution representation
 
 A new contract family starts at version 1 with `changeType: initial`. Each later version adds one contiguous history entry classified as `additive` or `breaking` and registers `docs/migrations/<migration-slug>-vN-to-vN+1.md`.
@@ -137,7 +160,7 @@ Contract identifiers, migration slugs, entity identifiers, and manifest-retained
 
 When retiring a non-core family, move its identity and history to a tombstone rather than deleting them. The retirement version follows the last live document version and the final transition is breaking. Core families remain active unless the bootstrap schema itself is changed through a separate reviewed migration.
 
-`validate_contracts` verifies current active contract structure and cross-file invariants. `validate_contract_evolution` verifies active and retired histories, stable migration ownership, and the closed migration-artifact inventory. The detailed classification and synchronization rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
+`validate_contracts` verifies current active contract structure and cross-file invariants. `validate_contract_evolution` verifies active and retired histories, stable migration ownership, and the closed migration-artifact inventory. `validate_implementation_evidence` verifies evidence coverage and release-reference closure. The detailed evolution rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
 
 ## Compatibility rule
 
