@@ -4,8 +4,9 @@ This file applies only to the unrelated `site` branch.
 
 ## Branch responsibilities
 
-- `main` contains the canonical technical documentation, `docs/publication-catalog.json`, and the minimal Pages dispatcher.
-- `site` contains the Zensical configuration, catalog-ID-based navigation manifest, assembly script, styling, and reusable build/deploy workflow.
+- `main` contains the canonical technical documentation and `docs/publication-catalog.json`. It does not own or initiate Pages deployment.
+- `site` contains the Zensical configuration, catalog-ID-based navigation manifest, assembly script, styling, reusable build-only workflow, and the only Pages deployment workflow.
+- `webapp` and `policy` are unrelated histories and must not contain a Pages deployment route.
 - Generated Markdown and HTML are temporary build artifacts and must not be committed.
 
 The publication catalog on `main` owns stable document IDs, canonical source paths, optionality, and the single home-page designation. The site manifest owns reader-facing titles, hierarchy, and destination paths. Do not duplicate catalog-owned values in `site-manifest.json`.
@@ -48,7 +49,7 @@ Page order and section order in the manifest are public information architecture
 
 ## Generated link integrity
 
-The Pages workflow validates links after Zensical has generated the final HTML. This intentionally checks renderer output rather than trying to reproduce Markdown link and heading rules independently.
+The artifact-build workflow validates links after Zensical has generated the final HTML. This intentionally checks renderer output rather than trying to reproduce Markdown link and heading rules independently.
 
 `scripts/validate_site_links.py` reads `project.site_url` from the generated Zensical configuration, scans every generated HTML page, and validates:
 
@@ -61,7 +62,7 @@ The Pages workflow validates links after Zensical has generated the final HTML. 
 
 External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not checked. A local link must resolve to a file in the Pages artifact, and a fragment is valid only on an HTML target containing the referenced identifier.
 
-When a canonical heading, destination, or relative link changes on `main`, the exact source commit passed to the reusable workflow is checked against the current `site` implementation before deployment. Broken page and anchor references therefore fail both pull-request builds and deployed `main` builds.
+When a canonical heading, destination, or relative link changes on `main`, compatibility workflows may pass an exact source commit to the reusable build-only workflow. Broken page and anchor references therefore fail validation before a later direct `site` push can deploy.
 
 ## Build provenance
 
@@ -72,16 +73,46 @@ Every uploaded Pages artifact contains `/build-provenance.json`. The determinist
 - `site_commit`, the full commit SHA actually checked out into `site-source`;
 - `canonical_source_commit`, the full commit SHA actually checked out into `canonical-source`.
 
-The workflow derives both commits from the checkout worktrees after the static build, then writes the provenance file before generated-link validation and artifact upload. Commit values must be lowercase, full-length 40-character SHAs; branch names, tags, and abbreviated SHAs are not accepted.
+The build workflow derives both commits from the checkout worktrees after the static build, then writes the provenance file before generated-link validation and artifact upload. Commit values must be lowercase, full-length 40-character SHAs; branch names, tags, and abbreviated SHAs are not accepted.
 
 The file deliberately excludes timestamps, workflow run IDs, and mutable refs. Identical source commits therefore produce identical provenance content. The provenance file identifies build inputs but is not a cryptographic signature or an attestation of the artifact contents.
 
 ## Build and deployment policy
 
-- Pull requests targeting `site` build and upload a Pages artifact but do not deploy it.
-- Pushes to `site` validate the current site implementation but do not deploy it.
-- The dispatcher on `main` calls the reusable workflow with an exact canonical source commit and explicitly enables deployment.
-- The reusable workflow must check out the site implementation from `site`; it must not infer that ref from the caller's `github.sha` or `github.event_name`.
+`.github/workflows/build-pages.yml` is build-only. It may be invoked for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, uploads a generated artifact, and contains no deployment job, `pages: write`, `id-token: write`, Pages environment, `actions/configure-pages`, or `actions/deploy-pages` step.
+
+The legacy `deploy` workflow-call input is accepted temporarily so an older caller cannot regain deployment merely by passing `deploy: true`. The value is ignored. Removing this compatibility input is safe after all callers stop supplying it.
+
+`.github/workflows/deploy-pages.yml` is the sole deployment authority. It has only this trigger:
+
+```yaml
+on:
+  push:
+    branches:
+      - site
+```
+
+The deployment job additionally requires all of the following:
+
+```text
+github.repository == TakashiSasaki/templates
+github.event_name == push
+github.ref == refs/heads/site
+```
+
+The condition does not inspect `github.event.repository.default_branch`. Changing the repository default branch therefore cannot authorize a deployment from `main`, `webapp`, `policy`, or another ref.
+
+The deployment workflow first calls the local build-only workflow for the exact pushed `site` commit and the current canonical `main` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
+
+Expected behavior:
+
+| Event | Build artifact | Pages deployment |
+|---|---:|---:|
+| pull request targeting `site` | yes | no |
+| push to `site` | yes | yes |
+| `workflow_call` from `main` | yes | no |
+| workflow on `webapp` or `policy` | branch-local only | no |
+| push to any other branch | no site deployment workflow | no |
 
 ## Dependency updates
 
