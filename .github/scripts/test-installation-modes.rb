@@ -126,8 +126,8 @@ def capture(*command, chdir:, env: {})
   Open3.capture3(env, *command, chdir: chdir)
 end
 
-def run!(*command, chdir:)
-  stdout, stderr, status = capture(*command, chdir: chdir)
+def run!(*command, chdir:, env: {})
+  stdout, stderr, status = capture(*command, chdir: chdir, env: env)
   return stdout if status.success?
 
   raise "command failed: #{command.inspect}; status=#{status.exitstatus.inspect}; " \
@@ -194,22 +194,25 @@ def content_map(root)
   EXPECTED_FILES.to_h { |relative| [relative, File.binread(File.join(root, relative))] }
 end
 
-def mode_map(root)
-  EXPECTED_FILES.to_h { |relative| [relative, File.stat(File.join(root, relative)).mode & 0o777] }
+def git_mode_map(root)
+  EXPECTED_FILES.to_h do |relative|
+    executable_bits = File.stat(File.join(root, relative)).mode & 0o111
+    [relative, executable_bits.zero? ? "100644" : "100755"]
+  end
 end
 
-def validate(target, outside)
+def validate(target, outside, environment = {})
   capture(
     RbConfig.ruby,
     VALIDATOR,
     target,
     chdir: outside,
-    env: { "RUBYOPT" => nil }
+    env: environment.merge("RUBYOPT" => nil)
   )
 end
 
-def expect_validation_success(label, target, outside)
-  stdout, stderr, status = validate(target, outside)
+def expect_validation_success(label, target, outside, environment = {})
+  stdout, stderr, status = validate(target, outside, environment)
   return if status.success? && stderr.empty? &&
             stdout.include?("Agent Skill repository structure and profile contracts are valid.")
 
@@ -290,7 +293,7 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
     "archive installation" => archive_target
   }
   expected_content = content_map(source)
-  expected_modes = mode_map(source)
+  expected_git_modes = git_mode_map(source)
 
   targets.each do |label, target|
     actual_inventory = inventory(target)
@@ -298,7 +301,9 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
       FAILURES << "#{label}: expected inventory #{EXPECTED_FILES.sort.inspect}, got #{actual_inventory.inspect}"
     end
     FAILURES << "#{label}: content differs from committed source" unless content_map(target) == expected_content
-    FAILURES << "#{label}: file modes differ from committed source" unless mode_map(target) == expected_modes
+    unless git_mode_map(target) == expected_git_modes
+      FAILURES << "#{label}: Git-significant executable modes differ from committed source"
+    end
     FAILURES << "#{label}: unexpected archive wrapper" if Dir.exist?(File.join(target, "concrete-skill"))
     expect_validation_success(label, target, outside)
     exercise_helper(label, target)
@@ -323,6 +328,20 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
     FAILURES << "archive installation: expected a target independent of Git metadata"
   end
   FAILURES << "archive installation: unexpected .git metadata" if File.exist?(File.join(archive_target, ".git"))
+
+  alternate_index = File.join(workspace, "caller-owned.index")
+  caller_index_environment = { "GIT_INDEX_FILE" => alternate_index }
+  run!("git", "read-tree", "HEAD", chdir: source, env: caller_index_environment)
+  caller_index_before = File.binread(alternate_index)
+  expect_validation_success(
+    "archive installation with caller-owned alternate index",
+    archive_target,
+    outside,
+    caller_index_environment
+  )
+  unless File.binread(alternate_index) == caller_index_before
+    FAILURES << "archive installation: validation modified the caller-owned alternate Git index"
+  end
 
   wrapped_target = File.join(workspace, "wrapped-project", ".agents", "skills", "wrapped-skill")
   FileUtils.mkdir_p(wrapped_target)
