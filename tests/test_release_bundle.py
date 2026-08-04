@@ -210,6 +210,17 @@ class ReleaseBundleTests(unittest.TestCase):
             errors,
         )
 
+    def test_product_release_requires_product_bundle(self) -> None:
+        documents, digests = self.product_documents()
+        documents["release_bundle"] = copy.deepcopy(self.bundle)
+
+        errors = self.validate_product(documents, digests)
+
+        self.assertIn(
+            "release bundle: product release evidence requires product bundle mode",
+            errors,
+        )
+
     def test_bundle_revision_must_match_expected_and_release_revision(self) -> None:
         documents, digests = self.product_documents()
         documents["release_bundle"]["subject"]["revision"] = "f" * 40
