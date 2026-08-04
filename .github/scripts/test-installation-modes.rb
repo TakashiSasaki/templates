@@ -9,6 +9,8 @@ require "tmpdir"
 
 SOURCE_ROOT = File.expand_path("../..", __dir__)
 VALIDATOR = File.join(SOURCE_ROOT, ".github/scripts/validate-skill-repository.rb")
+EXPECTED_FILES = %w[SKILL.md scripts/normalize.rb].freeze
+FAILURES = []
 
 SKILL_DOCUMENT = <<~MARKDOWN.freeze
   ---
@@ -115,35 +117,24 @@ HELPER_SOURCE = <<~'RUBY'.freeze
   end
 RUBY
 
-EXPECTED_FILES = %w[SKILL.md scripts/normalize.rb].freeze
 FORBIDDEN_HELPER_TOKENS = [
-  "Net::",
-  "TCPSocket",
-  "UDPSocket",
-  "open-uri",
-  "gem install",
-  "bundle install",
-  "Kernel.system",
-  "Process.spawn",
-  "Kernel.exec"
+  "Net::", "TCPSocket", "UDPSocket", "open-uri", "gem install",
+  "bundle install", "Kernel.system", "Process.spawn", "Kernel.exec"
 ].freeze
 
-failures = []
-
-capture = lambda do |*command, chdir: nil, env: {}|
+def capture(*command, chdir:, env: {})
   Open3.capture3(env, *command, chdir: chdir)
 end
 
-run! = lambda do |*command, chdir: nil, env: {}|
-  stdout, stderr, status = capture.call(*command, chdir: chdir, env: env)
-  unless status.success?
-    raise "command failed: #{command.inspect}; status=#{status.exitstatus.inspect}; stdout=#{stdout.inspect}; stderr=#{stderr.inspect}"
-  end
+def run!(*command, chdir:)
+  stdout, stderr, status = capture(*command, chdir: chdir)
+  return stdout if status.success?
 
-  stdout
+  raise "command failed: #{command.inspect}; status=#{status.exitstatus.inspect}; " \
+        "stdout=#{stdout.inspect}; stderr=#{stderr.inspect}"
 end
 
-copy_canonical_root = lambda do |target|
+def copy_canonical_root(target)
   FileUtils.mkdir_p(target)
   Dir.children(SOURCE_ROOT).sort.each do |entry|
     next if entry == ".git"
@@ -152,14 +143,13 @@ copy_canonical_root = lambda do |target|
   end
 
   skill_path = File.join(target, "SKILL.md")
-  unless File.file?(skill_path) &&
-         File.read(skill_path, encoding: "UTF-8").include?("Selected profiles: template-scaffold") &&
-         File.file?(File.join(target, "README.md"))
-    raise "copy did not originate from the canonical repository root"
-  end
+  valid_source = File.file?(skill_path) &&
+                 File.read(skill_path, encoding: "UTF-8").include?("Selected profiles: template-scaffold") &&
+                 File.file?(File.join(target, "README.md"))
+  raise "copy did not originate from the canonical repository root" unless valid_source
 end
 
-prune_to = lambda do |root, retained|
+def prune_to(root, retained)
   Find.find(root).to_a.sort_by { |path| -path.count(File::SEPARATOR) }.each do |path|
     next if path == root
 
@@ -175,21 +165,21 @@ prune_to = lambda do |root, retained|
   end
 end
 
-materialize_source = lambda do |target|
-  copy_canonical_root.call(target)
+def materialize_source(target)
+  copy_canonical_root(target)
   File.write(File.join(target, "SKILL.md"), SKILL_DOCUMENT, encoding: "UTF-8")
-  prune_to.call(target, ["SKILL.md"])
+  prune_to(target, ["SKILL.md"])
   FileUtils.mkdir_p(File.join(target, "scripts"))
   File.write(File.join(target, "scripts", "normalize.rb"), HELPER_SOURCE, encoding: "UTF-8")
 
-  run!.call("git", "init", "--quiet", chdir: target)
-  run!.call("git", "config", "user.name", "Installation Mode Fixture", chdir: target)
-  run!.call("git", "config", "user.email", "fixture@example.invalid", chdir: target)
-  run!.call("git", "add", ".", chdir: target)
-  run!.call("git", "commit", "--quiet", "-m", "Create concrete skill", chdir: target)
+  run!("git", "init", "--quiet", chdir: target)
+  run!("git", "config", "user.name", "Installation Mode Fixture", chdir: target)
+  run!("git", "config", "user.email", "fixture@example.invalid", chdir: target)
+  run!("git", "add", ".", chdir: target)
+  run!("git", "commit", "--quiet", "-m", "Create concrete skill", chdir: target)
 end
 
-inventory = lambda do |root|
+def inventory(root)
   Find.find(root).filter_map do |path|
     next if path == root || File.directory?(path)
 
@@ -200,20 +190,16 @@ inventory = lambda do |root|
   end.sort
 end
 
-content_map = lambda do |root|
-  EXPECTED_FILES.to_h do |relative|
-    [relative, File.binread(File.join(root, relative))]
-  end
+def content_map(root)
+  EXPECTED_FILES.to_h { |relative| [relative, File.binread(File.join(root, relative))] }
 end
 
-mode_map = lambda do |root|
-  EXPECTED_FILES.to_h do |relative|
-    [relative, File.stat(File.join(root, relative)).mode & 0o777]
-  end
+def mode_map(root)
+  EXPECTED_FILES.to_h { |relative| [relative, File.stat(File.join(root, relative)).mode & 0o777] }
 end
 
-validate = lambda do |target, outside|
-  capture.call(
+def validate(target, outside)
+  capture(
     RbConfig.ruby,
     VALIDATOR,
     target,
@@ -222,31 +208,31 @@ validate = lambda do |target, outside|
   )
 end
 
-expect_validation_success = lambda do |label, target, outside|
-  stdout, stderr, status = validate.call(target, outside)
-  unless status.success? && stderr.empty? &&
-         stdout.include?("Agent Skill repository structure and profile contracts are valid.")
-    failures << "#{label}: expected validation success; status=#{status.exitstatus.inspect}, " \
-                "stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
-  end
+def expect_validation_success(label, target, outside)
+  stdout, stderr, status = validate(target, outside)
+  return if status.success? && stderr.empty? &&
+            stdout.include?("Agent Skill repository structure and profile contracts are valid.")
+
+  FAILURES << "#{label}: expected validation success; status=#{status.exitstatus.inspect}, " \
+              "stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
 end
 
-expect_validation_failure = lambda do |label, target, outside, diagnostic|
-  _stdout, stderr, status = validate.call(target, outside)
+def expect_validation_failure(label, target, outside, diagnostic)
+  _stdout, stderr, status = validate(target, outside)
   if status.success?
-    failures << "#{label}: expected validation failure"
+    FAILURES << "#{label}: expected validation failure"
   elsif !stderr.include?(diagnostic)
-    failures << "#{label}: expected diagnostic #{diagnostic.inspect}; stderr=#{stderr.inspect}"
+    FAILURES << "#{label}: expected diagnostic #{diagnostic.inspect}; stderr=#{stderr.inspect}"
   end
 end
 
-exercise_helper = lambda do |label, target|
+def exercise_helper(label, target)
   input_path = File.join(target, "input.txt")
   output_path = File.join(target, "output.txt")
   File.binwrite(input_path, "alpha  \r\nbeta\t\r\n")
   before = File.binread(input_path)
 
-  stdout, stderr, status = capture.call(
+  stdout, stderr, status = capture(
     RbConfig.ruby,
     "scripts/normalize.rb",
     "input.txt",
@@ -254,55 +240,46 @@ exercise_helper = lambda do |label, target|
     chdir: target
   )
   output = File.binread(output_path) if File.file?(output_path)
-  unless status.success? && stdout == "output.txt\n" && stderr.empty? &&
-         output == "alpha\nbeta\n" && File.binread(input_path) == before
-    failures << "#{label} helper: status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
-                "stderr=#{stderr.inspect}, output=#{output.inspect}, input_unchanged=#{File.binread(input_path) == before}"
-  end
+  return if status.success? && stdout == "output.txt\n" && stderr.empty? &&
+            output == "alpha\nbeta\n" && File.binread(input_path) == before
+
+  FAILURES << "#{label} helper: status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+              "stderr=#{stderr.inspect}, output=#{output.inspect}, " \
+              "input_unchanged=#{File.binread(input_path) == before}"
 end
 
 Dir.mktmpdir("installation-mode-smoke") do |workspace|
   outside = File.join(workspace, "outside")
   source = File.join(workspace, "concrete-skill-source")
   FileUtils.mkdir_p(outside)
-  materialize_source.call(source)
+  materialize_source(source)
 
   clone_target = File.join(workspace, "user-home", ".agents", "skills", "clone-skill")
   FileUtils.mkdir_p(File.dirname(clone_target))
-  run!.call("git", "clone", "--quiet", source, clone_target)
+  run!("git", "clone", "--quiet", source, clone_target, chdir: workspace)
 
   submodule_project = File.join(workspace, "submodule-project")
   FileUtils.mkdir_p(submodule_project)
-  run!.call("git", "init", "--quiet", chdir: submodule_project)
-  run!.call("git", "config", "user.name", "Installation Mode Fixture", chdir: submodule_project)
-  run!.call("git", "config", "user.email", "fixture@example.invalid", chdir: submodule_project)
+  run!("git", "init", "--quiet", chdir: submodule_project)
+  run!("git", "config", "user.name", "Installation Mode Fixture", chdir: submodule_project)
+  run!("git", "config", "user.email", "fixture@example.invalid", chdir: submodule_project)
   submodule_target = File.join(submodule_project, ".agents", "skills", "submodule-skill")
-  run!.call(
-    "git",
-    "-c",
-    "protocol.file.allow=always",
-    "submodule",
-    "add",
-    "--quiet",
-    source,
-    ".agents/skills/submodule-skill",
+  run!(
+    "git", "-c", "protocol.file.allow=always", "submodule", "add", "--quiet",
+    source, ".agents/skills/submodule-skill",
     chdir: submodule_project
   )
-  run!.call("git", "add", ".gitmodules", ".agents/skills/submodule-skill", chdir: submodule_project)
+  run!("git", "add", ".gitmodules", ".agents/skills/submodule-skill", chdir: submodule_project)
 
   archive_path = File.join(workspace, "concrete-skill.tar")
-  run!.call(
-    "git",
-    "archive",
-    "--format=tar",
-    "--prefix=concrete-skill/",
-    "--output=#{archive_path}",
-    "HEAD",
+  run!(
+    "git", "archive", "--format=tar", "--prefix=concrete-skill/",
+    "--output=#{archive_path}", "HEAD",
     chdir: source
   )
   extracted = File.join(workspace, "archive-extracted")
   FileUtils.mkdir_p(extracted)
-  run!.call("tar", "-xf", archive_path, "-C", extracted)
+  run!("tar", "-xf", archive_path, "-C", extracted, chdir: workspace)
   archive_target = File.join(workspace, "archive-project", ".agents", "skills", "archive-skill")
   FileUtils.mkdir_p(archive_target)
   FileUtils.cp_r("#{File.join(extracted, 'concrete-skill')}/.", archive_target, preserve: true)
@@ -312,51 +289,45 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
     "submodule installation" => submodule_target,
     "archive installation" => archive_target
   }
+  expected_content = content_map(source)
+  expected_modes = mode_map(source)
 
-  expected_content = content_map.call(source)
-  expected_modes = mode_map.call(source)
   targets.each do |label, target|
-    actual_inventory = inventory.call(target)
+    actual_inventory = inventory(target)
     unless actual_inventory == EXPECTED_FILES.sort
-      failures << "#{label}: expected inventory #{EXPECTED_FILES.sort.inspect}, got #{actual_inventory.inspect}"
+      FAILURES << "#{label}: expected inventory #{EXPECTED_FILES.sort.inspect}, got #{actual_inventory.inspect}"
     end
-    failures << "#{label}: content differs from committed source" unless content_map.call(target) == expected_content
-    failures << "#{label}: file modes differ from committed source" unless mode_map.call(target) == expected_modes
-    failures << "#{label}: unexpected archive wrapper" if Dir.exist?(File.join(target, "concrete-skill"))
-    expect_validation_success.call(label, target, outside)
-    exercise_helper.call(label, target)
+    FAILURES << "#{label}: content differs from committed source" unless content_map(target) == expected_content
+    FAILURES << "#{label}: file modes differ from committed source" unless mode_map(target) == expected_modes
+    FAILURES << "#{label}: unexpected archive wrapper" if Dir.exist?(File.join(target, "concrete-skill"))
+    expect_validation_success(label, target, outside)
+    exercise_helper(label, target)
   end
 
-  failures << "clone installation: expected a .git directory" unless File.directory?(File.join(clone_target, ".git"))
-  unless File.file?(File.join(submodule_target, ".git")) &&
-         File.read(File.join(submodule_target, ".git"), encoding: "UTF-8").start_with?("gitdir:")
-    failures << "submodule installation: expected a .git indirection file"
+  FAILURES << "clone installation: expected a .git directory" unless File.directory?(File.join(clone_target, ".git"))
+  submodule_git = File.join(submodule_target, ".git")
+  unless File.file?(submodule_git) && File.read(submodule_git, encoding: "UTF-8").start_with?("gitdir:")
+    FAILURES << "submodule installation: expected a .git indirection file"
   end
-  submodule_index = run!.call(
-    "git",
-    "ls-files",
-    "--stage",
-    "--",
-    ".agents/skills/submodule-skill",
+  submodule_index = run!(
+    "git", "ls-files", "--stage", "--", ".agents/skills/submodule-skill",
     chdir: submodule_project
   )
-  failures << "submodule installation: parent index must retain mode 160000" unless submodule_index.start_with?("160000 ")
+  FAILURES << "submodule installation: parent index must retain mode 160000" unless submodule_index.start_with?("160000 ")
 
-  archive_git_stdout, archive_git_stderr, archive_git_status = capture.call(
-    "git",
-    "rev-parse",
-    "--is-inside-work-tree",
+  archive_stdout, archive_stderr, archive_status = capture(
+    "git", "rev-parse", "--is-inside-work-tree",
     chdir: archive_target
   )
-  if archive_git_status.success? || !archive_git_stdout.empty? || archive_git_stderr.empty?
-    failures << "archive installation: expected validation target to be independent of Git metadata"
+  if archive_status.success? || !archive_stdout.empty? || archive_stderr.empty?
+    FAILURES << "archive installation: expected a target independent of Git metadata"
   end
-  failures << "archive installation: unexpected .git metadata" if File.exist?(File.join(archive_target, ".git"))
+  FAILURES << "archive installation: unexpected .git metadata" if File.exist?(File.join(archive_target, ".git"))
 
   wrapped_target = File.join(workspace, "wrapped-project", ".agents", "skills", "wrapped-skill")
   FileUtils.mkdir_p(wrapped_target)
   FileUtils.cp_r(File.join(extracted, "concrete-skill"), wrapped_target, preserve: true)
-  expect_validation_failure.call(
+  expect_validation_failure(
     "archive wrapper rejection",
     wrapped_target,
     outside,
@@ -366,7 +337,7 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
   targets.each do |label, target|
     undeclared = File.join(target, "scripts", "undeclared.rb")
     File.write(undeclared, "puts 'undeclared'\n", encoding: "UTF-8")
-    expect_validation_failure.call(
+    expect_validation_failure(
       "#{label} undeclared resource rejection",
       target,
       outside,
@@ -376,12 +347,12 @@ Dir.mktmpdir("installation-mode-smoke") do |workspace|
   end
 
   FORBIDDEN_HELPER_TOKENS.each do |token|
-    failures << "committed helper contains forbidden token #{token.inspect}" if HELPER_SOURCE.include?(token)
+    FAILURES << "committed helper contains forbidden token #{token.inspect}" if HELPER_SOURCE.include?(token)
   end
 end
 
-unless failures.empty?
-  failures.each { |failure| warn failure }
+unless FAILURES.empty?
+  FAILURES.each { |failure| warn failure }
   exit 1
 end
 
