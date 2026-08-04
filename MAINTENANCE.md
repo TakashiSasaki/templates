@@ -77,6 +77,16 @@ The build workflow derives both commits from the checkout worktrees after the st
 
 The file deliberately excludes timestamps, workflow run IDs, and mutable refs. Identical source commits therefore produce identical provenance content. The provenance file identifies build inputs but is not a cryptographic signature or an attestation of the artifact contents.
 
+## Published deployment metadata
+
+The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. `scripts/prepare_site_metadata.py` rejects any other value and writes a Zensical `project.copyright` notice so every deployed page footer displays `Deployment time: <timestamp>`.
+
+Build-only invocations do not claim a deployment. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
+
+The timestamp intentionally belongs to generated HTML rather than `/build-provenance.json`. The provenance file remains deterministic, while a deployment artifact is intentionally time-specific.
+
+`project.site_url` must remain `https://takashisasaki.github.io/templates/`. After Zensical builds the site, `scripts/finalize_site_metadata.py` requires exactly one canonical `<link>` in every generated HTML file and normalizes its `href` to that public root URL. Missing or duplicate canonical links fail the artifact build.
+
 ## Build and deployment policy
 
 `.github/workflows/build-pages.yml` is build-only. It may be invoked for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, uploads a generated artifact, and contains no deployment job, `pages: write`, `id-token: write`, Pages environment, `actions/configure-pages`, or `actions/deploy-pages` step.
@@ -102,17 +112,17 @@ github.ref == refs/heads/site
 
 The condition does not inspect `github.event.repository.default_branch`. Changing the repository default branch therefore cannot authorize a deployment from `main`, `webapp`, `policy`, or another ref.
 
-The deployment workflow first calls the local build-only workflow for the exact pushed `site` commit and the current canonical `main` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
+The deployment workflow captures the JST timestamp, then calls the local build-only workflow for the exact pushed `site` commit and the current canonical `main` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
 
 Expected behavior:
 
-| Event | Build artifact | Pages deployment |
-|---|---:|---:|
-| pull request targeting `site` | yes | no |
-| push to `site` | yes | yes |
-| `workflow_call` from `main` | yes | no |
-| workflow on `webapp` or `policy` | branch-local only | no |
-| push to any other branch | no site deployment workflow | no |
+| Event | Build artifact | Footer metadata | Pages deployment |
+|---|---:|---|---:|
+| pull request targeting `site` | yes | preview | no |
+| push to `site` | yes | JST deployment timestamp | yes |
+| `workflow_call` from `main` | yes | preview unless explicitly supplied | no |
+| workflow on `webapp` or `policy` | branch-local only | not applicable | no |
+| push to any other branch | no site deployment workflow | not applicable | no |
 
 ## Dependency updates
 
