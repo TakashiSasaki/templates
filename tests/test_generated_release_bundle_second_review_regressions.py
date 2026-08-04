@@ -101,7 +101,7 @@ class GeneratedReleaseBundleSecondReviewRegressionTests(unittest.TestCase):
             producer = root / "product/produce_release_bundle.py"
             _inject_after_line(
                 producer,
-                "temporary.write_bytes(content)",
+                "output.write(content)",
                 [
                     "if path == INDEX_PATH:",
                     "    raise OSError('injected failure after temporary write')",
@@ -229,7 +229,7 @@ class GeneratedReleaseBundleSecondReviewRegressionTests(unittest.TestCase):
             producer = root / "product/produce_release_bundle.py"
             _inject_after_line(
                 producer,
-                "temporary.write_bytes(content)",
+                "output.write(content)",
                 [
                     "if path == INDEX_PATH:",
                     "    marker = GIT_DIR / 'second-review-index-temporary-ready'",
