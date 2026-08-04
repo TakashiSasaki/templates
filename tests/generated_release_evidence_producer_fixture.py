@@ -7,28 +7,50 @@ RELEASE_EVIDENCE_PRODUCER_SCRIPT = r'''#!/usr/bin/env python3
 
 from __future__ import annotations
 
+import sys
+
+if not sys.flags.isolated:
+    print(
+        "generated release evidence producer failed: "
+        "producer requires Python isolated mode (-I)",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
 import argparse
 import hashlib
 import json
 import os
 import re
 import subprocess
-import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+GIT_DIR = ROOT / ".git"
 IMPLEMENTATION_PATH = ROOT / "contracts/implementation-evidence.json"
 RELEASE_PATH = ROOT / "contracts/release-evidence.json"
 RUN_PATH = ROOT / "product/release-run.json"
 COMMAND_ID = "generated-product-proof"
 COMMAND_TEXT = "python product/prove_conformance.py"
 COMMAND_PURPOSE = "Run every reviewed generated-product proof."
-COMMAND_ARGV = [sys.executable, "product/prove_conformance.py"]
+COMMAND_ARGV = [sys.executable, "-I", "product/prove_conformance.py"]
 GATE_ID = "generated-product-release"
 GATE_PURPOSE = "Block fixture release unless all generated-product proofs pass."
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+_GIT_CONFIG_OVERRIDES = (
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.untrackedCache=false",
+    "-c",
+    "core.ignoreStat=false",
+    "-c",
+    "core.sparseCheckout=false",
+    "-c",
+    "core.sparseCheckoutCone=false",
+)
 
 
 def load_json(path: Path) -> dict[str, object]:
@@ -72,12 +94,14 @@ def git_environment() -> dict[str, str]:
             del environment[name]
     environment["GIT_CONFIG_NOSYSTEM"] = "1"
     environment["GIT_CONFIG_GLOBAL"] = os.devnull
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    environment["GIT_LITERAL_PATHSPECS"] = "1"
     return environment
 
 
-def run_git(*arguments: str) -> str:
+def execute_git(arguments: list[str]) -> str:
     completed = subprocess.run(
-        ["git", "-C", str(ROOT), *arguments],
+        arguments,
         cwd=ROOT,
         env=git_environment(),
         check=False,
@@ -92,14 +116,61 @@ def run_git(*arguments: str) -> str:
     return completed.stdout.strip()
 
 
+def run_git_unpinned(*arguments: str) -> str:
+    return execute_git(
+        [
+            "git",
+            *_GIT_CONFIG_OVERRIDES,
+            "-C",
+            str(ROOT),
+            *arguments,
+        ]
+    )
+
+
+def run_git_pinned(*arguments: str) -> str:
+    return execute_git(
+        [
+            "git",
+            *_GIT_CONFIG_OVERRIDES,
+            "--git-dir",
+            str(GIT_DIR),
+            "--work-tree",
+            str(ROOT),
+            *arguments,
+        ]
+    )
+
+
 def verify_revision(revision: str) -> str:
-    head = run_git("rev-parse", "--verify", "HEAD^{commit}")
+    if GIT_DIR.is_symlink() or not GIT_DIR.is_dir():
+        fail("generated repository .git directory is not a regular directory")
+
+    expected_root = ROOT.resolve()
+    expected_git_dir = GIT_DIR.resolve()
+    resolved_git_dir = Path(
+        run_git_unpinned("rev-parse", "--absolute-git-dir")
+    ).resolve()
+    if resolved_git_dir != expected_git_dir:
+        fail("Git resolved directory does not match generated repository .git")
+
+    resolved_worktree = Path(
+        run_git_unpinned("rev-parse", "--show-toplevel")
+    ).resolve()
+    if resolved_worktree != expected_root:
+        fail("Git resolved worktree does not match generated repository root")
+
+    head = run_git_pinned("rev-parse", "--verify", "HEAD^{commit}")
     if head != revision:
         fail("revision does not match generated repository HEAD")
-    status = run_git("status", "--porcelain=v1", "--untracked-files=all")
+    status = run_git_pinned(
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+    )
     if status:
         fail("generated repository has uncommitted changes")
-    ignored = run_git(
+    ignored = run_git_pinned(
         "ls-files",
         "--others",
         "--ignored",
