@@ -10,10 +10,6 @@ PUBLICATION_GUIDE = ROOT / "docs/documentation-publication.md"
 DOC_REQUIREMENTS = ROOT / "requirements-docs.txt"
 DOC_LOCK = ROOT / "requirements-docs.lock"
 DOC_ENVIRONMENT_VERIFIER = ROOT / "scripts/verify_docs_environment.py"
-DISABLED_DEPLOY_GUARD = (
-    "if: ${{ false && github.event_name != 'pull_request' "
-    "&& github.ref == 'refs/heads/policy' }}"
-)
 ARBITRARY_EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9_.-]+===[A-Za-z0-9][A-Za-z0-9._+!-]*$"
 )
@@ -99,34 +95,42 @@ def workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_pages_workflow_targets_only_policy() -> None:
+def test_documentation_workflow_targets_only_policy() -> None:
     workflow = workflow_text()
 
     assert workflow.count("branches: [policy]") == 2
     assert "branches: [main]" not in workflow
+    assert "branches: [site]" not in workflow
     assert "workflow_dispatch" not in workflow
+    assert "workflow_call" not in workflow
     assert "bootstrap-agent-policy:refs" not in workflow
     assert "TakashiSasaki/agent-policy" not in workflow
     assert "git fetch" not in workflow
 
 
-def test_documentation_build_remains_enabled_but_pages_deployment_is_disabled() -> None:
+def test_policy_documentation_has_no_pages_deployment_route() -> None:
     workflow = workflow_text()
 
-    assert workflow.count(DISABLED_DEPLOY_GUARD) == 2
+    assert "name: Policy documentation build" in workflow
     assert "permissions:\n  contents: read" in workflow
-    assert "pages: write" in workflow
-    assert "id-token: write" in workflow
-    assert "environment:\n      name: github-pages" in workflow
-    assert "actions/upload-pages-artifact@" in workflow
-    assert "actions/deploy-pages@" in workflow
-    assert "actions/configure-pages@" not in workflow
+    assert "\njobs:\n  build:" in workflow
+    assert "\n  deploy:" not in workflow
+    for forbidden in (
+        "pages: write",
+        "id-token: write",
+        "name: github-pages",
+        "actions/upload-pages-artifact@",
+        "actions/configure-pages@",
+        "actions/deploy-pages@",
+        "false &&",
+    ):
+        assert forbidden not in workflow
 
 
 def test_documentation_build_uses_the_validated_runner_and_python_release() -> None:
     workflow = workflow_text()
 
-    assert workflow.count("runs-on: ubuntu-24.04") == 2
+    assert workflow.count("runs-on: ubuntu-24.04") == 1
     assert "runs-on: ubuntu-latest" not in workflow
     assert 'python-version: "3.12.13"' in workflow
     assert 'python-version: "3.12"' not in workflow
@@ -187,9 +191,7 @@ def test_documentation_build_installs_and_verifies_only_the_lock() -> None:
         "--isolated --disable-pip-version-check --no-deps "
         "--requirement requirements-docs.lock"
     ) in workflow
-    assert (
-        "run: .venv/bin/python scripts/verify_docs_environment.py"
-    ) in workflow
+    assert "run: .venv/bin/python scripts/verify_docs_environment.py" in workflow
     assert "run: .venv/bin/python -m pip check" in workflow
     assert "-r requirements-docs.lock" not in workflow
     assert "-r requirements-docs.txt" not in workflow
@@ -237,6 +239,8 @@ def test_documentation_environment_contract_is_documented() -> None:
     assert "CPython 3.12.13" in guide
     assert "Ubuntu 24.04" in guide
     assert "documentation build uses the same clean-runner boundary" in readme
+    assert "contains no GitHub Pages deployment route" in guide
+    assert "contains no GitHub Pages deployment route" in readme
 
 
 def test_documentation_dependency_inputs_are_arbitrary_exact_reviewed_pins() -> None:
@@ -281,17 +285,17 @@ def test_documentation_environment_verifier_is_present() -> None:
     assert DOC_ENVIRONMENT_VERIFIER.is_file()
 
 
-def test_pages_actions_are_immutably_pinned() -> None:
+def test_documentation_actions_are_immutably_pinned() -> None:
     workflow = workflow_text()
 
     expected_actions = (
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
         "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0",
-        "actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b",
-        "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
     )
     for action in expected_actions:
         assert action in workflow
 
     assert "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" not in workflow
     assert "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065" not in workflow
+    assert "actions/checkout@v" not in workflow
+    assert "actions/setup-python@v" not in workflow
