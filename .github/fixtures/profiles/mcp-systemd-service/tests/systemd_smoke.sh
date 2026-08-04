@@ -256,7 +256,7 @@ assert_terminated "$RESIST_CHILD"
 if [[ -e "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs" ]]; then
   [[ -z "$(cat "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs")" ]]
 fi
-kill -TERM "$RESIST_LAUNCHER" >/dev/null 2>&1 || true
+kill -KILL "$RESIST_LAUNCHER" >/dev/null 2>&1 || true
 wait "$RESIST_LAUNCHER" 2>/dev/null || true
 RESIST_LAUNCHER=0
 
