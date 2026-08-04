@@ -1,3 +1,8 @@
-Select a license appropriate for the concrete skill and replace this file with the actual LICENSE file.
+The canonical template repository is licensed under MIT-0 through the included LICENSE file.
 
-Do not assume that the template repository's licensing decision is appropriate for every generated skill.
+For a concrete skill, make the repository license an explicit choice:
+
+- keep LICENSE to use MIT-0 for the concrete skill; or
+- replace LICENSE with another license appropriate for the concrete skill.
+
+After making that choice, remove LICENSE.template. Do not assume that MIT-0 is appropriate for every generated skill or for separately licensed third-party resources retained by the skill.
