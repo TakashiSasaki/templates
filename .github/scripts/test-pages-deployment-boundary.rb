@@ -41,16 +41,16 @@ required.each do |token|
 end
 
 trigger_block = compatibility.split("\npermissions:\n", 2).first
-abort "main push still triggers documentation workflow" if trigger_block.include?("\n  push:\n")
+abort "skill push still triggers documentation workflow" if trigger_block.include?("\n  push:\n")
 abort "compatibility workflow still passes a deploy input" if compatibility.match?(/^\s+deploy:/)
 abort "compatibility workflow retains OIDC write permission" if compatibility.include?("id-token: write")
 
 contributing = CONTRIBUTING.read(encoding: "UTF-8")
 if contributing.include?("Publish template documentation")
-  abort "contributor guidance still names the removed main publication workflow"
+  abort "contributor guidance still names the removed skill publication workflow"
 end
-unless contributing.include?("No workflow on `main` deploys GitHub Pages")
-  abort "contributor guidance does not state the main deployment boundary"
+unless contributing.include?("No workflow on `skill` deploys GitHub Pages")
+  abort "contributor guidance does not state the skill deployment boundary"
 end
 
-puts "main workflows and contributor guidance contain no GitHub Pages deployment route"
+puts "skill workflows and contributor guidance contain no GitHub Pages deployment route"
