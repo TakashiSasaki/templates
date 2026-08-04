@@ -1,6 +1,6 @@
 # Validation toolchain boundary
 
-The Webapp branch carries a small Python toolchain only to validate repository-local contracts, schemas, version histories, migration inventory, implementation-evidence coverage, release-evidence closure, and regression tests. This toolchain is part of template maintenance; it is not a framework, product runtime, package-manager choice, CI provider, deployment target, or coding-agent policy for repositories generated from the template.
+The Webapp branch carries a small Python toolchain only to validate repository-local contracts, schemas, version histories, migration inventory, implementation-evidence coverage, release-evidence closure, release-bundle closure, and regression tests. This toolchain is part of template maintenance; it is not a framework, product runtime, package-manager choice, CI provider, deployment target, or coding-agent policy for repositories generated from the template.
 
 ## Reproducible validation baseline
 
@@ -20,7 +20,7 @@ Dependency entries use the requirement operator `===`, not PEP 440 version match
 
 CI clears `PYTHONPATH`, `PYTHONSAFEPATH`, `PYTHONPLATLIBDIR`, `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, `PYTHONTRACEMALLOC`, and `PYTHONINSPECT` before environment creation, disables pip configuration files, removes requirement, constraint, editable, dependency-group, script-metadata, keyring-provider, exists-action, use-pep517, compile, isolated, use-feature, verbose, debug, no-input, disable-pip-version-check, no-color, require-virtualenv, use-deprecated, no-python-version-warning, and transport/certificate override inputs from the install command, and uses pip's `--isolated` mode so unlisted pip environment inputs cannot alter the locked install. It clears and recreates `.venv`, installs only the entries enumerated in `requirements-dev.lock` with dependency resolution disabled, compares installed distributions with the lock, and runs `pip check`.
 
-The workflow then runs both `validate_contracts` entry points, both `validate_contract_evolution` entry points, both `validate_implementation_evidence` entry points, both `validate_release_evidence` entry points, and the complete unit-test suite. The template release-evidence document is in `mode: template`, so the branch-maintainer CI does not supply a candidate revision. Product release validation supplies an explicit `--expected-revision` value.
+The workflow then runs both `validate_contracts` entry points, both `validate_contract_evolution` entry points, both `validate_implementation_evidence` entry points, both `validate_release_evidence` entry points, both `validate_release_bundle` entry points, and the complete unit-test suite. The template release-evidence and release-bundle documents are in `mode: template`, so the branch-maintainer CI does not supply a candidate revision. Product release validation supplies an explicit `--expected-revision` value.
 
 The ordering is significant. `PYTHONPATH` must be cleared before `python -m venv` because external directories can replace the standard-library `venv` module or run `sitecustomize` during bootstrap. `PYTHONSAFEPATH` must also remain empty throughout validation because later non-isolated `.venv/bin/python` invocations honor it. `PYTHONPLATLIBDIR` must likewise remain empty because later non-isolated invocations use it to override Python's standard-library directory selection. `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, `PYTHONTRACEMALLOC`, and `PYTHONINSPECT` must also be empty because malformed values or interactive inspection can terminate the `venv` step's non-isolated `ensurepip` subprocess before installation.
 
@@ -55,14 +55,18 @@ python scripts/validate_implementation_evidence.py
 python -m scripts.validate_implementation_evidence
 python scripts/validate_release_evidence.py
 python -m scripts.validate_release_evidence
+python scripts/validate_release_bundle.py
+python -m scripts.validate_release_bundle
 python -m unittest discover -s tests -v
 ```
 
-For product-mode release evidence, replace the two release commands with:
+For product-mode release evidence and bundle validation, replace the four release commands with:
 
 ```sh
 python scripts/validate_release_evidence.py --expected-revision <40-hex-commit-sha>
 python -m scripts.validate_release_evidence --expected-revision <40-hex-commit-sha>
+python scripts/validate_release_bundle.py --expected-revision <40-hex-commit-sha>
+python -m scripts.validate_release_bundle --expected-revision <40-hex-commit-sha>
 ```
 
 A different local Python may be useful for compatibility investigation, but CI is authoritative for the selected baseline.
@@ -76,13 +80,13 @@ A dependency update must be an intentional reviewed change that:
 3. updates the reproducibility regression expectations;
 4. clears `PYTHONPATH`, `PYTHONSAFEPATH`, `PYTHONPLATLIBDIR`, `PYTHONHASHSEED`, `PYTHONUTF8`, `PYTHONINTMAXSTRDIGITS`, `PYTHONMALLOC`, `PYTHONIOENCODING`, `PYTHONTRACEMALLOC`, and `PYTHONINSPECT` before the first Python invocation, removes requirement, constraint, editable, dependency-group, script-metadata, progress-bar, keyring-provider, use-pep517, compile, isolated, use-feature, verbose, debug, no-input, disable-pip-version-check, no-color, require-virtualenv, use-deprecated, no-python-version-warning, exists-action, and transport, certificate, timeout, default-timeout, and retry pip inputs, disables pip configuration files, uses pip's `--isolated` install mode, and clears and recreates the virtual environment without system site packages;
 5. installs the lock with dependency resolution disabled, runs `scripts/verify_locked_environment.py`, and runs `pip check` there;
-6. runs all eight validator forms and the complete unit-test suite from that environment; and
+6. runs all ten validator forms and the complete unit-test suite from that environment; and
 7. records any baseline, compatibility, or diagnostic changes in the pull request.
 
 Do not update the lock incidentally with contract, schema, documentation, or fixture work.
 
 ## Product-repository boundary
 
-A repository generated from this template still selects its own implementation runtime, framework, package manager, build commands, browser matrix, CI provider, evidence retention, approval procedure, and deployment mechanism. It may retain this validator toolchain, replace it with an equivalent verified integration, or isolate it from the product runtime. Such a change must preserve current-contract validation semantics, evolution and migration-inventory semantics, implementation-evidence coverage and release-gate reference semantics, release-evidence revision and command-definition binding, and public diagnostics relied on by that repository.
+A repository generated from this template still selects its own implementation runtime, framework, package manager, build commands, browser matrix, CI provider, evidence retention, approval procedure, and deployment mechanism. It may retain this validator toolchain, replace it with an equivalent verified integration, or isolate it from the product runtime. Such a change must preserve current-contract validation semantics, evolution and migration-inventory semantics, implementation-evidence coverage and release-gate reference semantics, release-evidence revision and command-definition binding, release-bundle artifact coverage and handoff binding, and public diagnostics relied on by that repository.
 
-The implementation-evidence validator checks declarations and references only. It does not execute product commands. The generated repository's product workflow executes every command selected by its release gates. The release-evidence validator then checks that the completed results cover the current command and gate definitions for the exact candidate revision; it does not execute command strings, invoke Git, or select a CI provider.
+The implementation-evidence validator checks declarations and references only. It does not execute product commands. The generated repository's product workflow executes every command selected by its release gates. The release-evidence validator then checks that the completed results cover the current command and gate definitions for the exact candidate revision; it does not execute command strings, invoke Git, or select a CI provider. The release-bundle validator checks that the approved release is accompanied by exact, digest-bound active-contract artifacts for the same candidate revision and a ready handoff; it does not package, publish, sign, or deploy those artifacts.
