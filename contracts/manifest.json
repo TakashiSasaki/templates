@@ -1,34 +1,84 @@
 {
   "$schema": "../schemas/contract-manifest.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "versionHistory": [
+    {
+      "version": 1,
+      "changeType": "initial"
+    },
+    {
+      "version": 2,
+      "changeType": "breaking",
+      "migration": "docs/migrations/contract-manifest-v1-to-v2.md"
+    }
+  ],
   "contracts": [
     {
       "id": "surfaces",
       "document": "contracts/surfaces.json",
       "schema": "schemas/surfaces.schema.json",
+      "migrationSlug": "surfaces",
       "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
       "purpose": "Classify browser-facing application surfaces, audiences, access conditions, data classifications, stability, and startup dependencies."
     },
     {
       "id": "routes",
       "document": "contracts/routes.json",
       "schema": "schemas/routes.schema.json",
+      "migrationSlug": "routes",
       "documentSchemaVersion": 2,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/routes-v1-to-v2.md"
+        }
+      ],
       "purpose": "Declare canonical routes, aliases, access-failure behavior, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
     },
     {
       "id": "ui_states",
       "document": "contracts/ui-states.json",
       "schema": "schemas/ui-states.schema.json",
+      "migrationSlug": "ui-states",
       "documentSchemaVersion": 2,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        },
+        {
+          "version": 2,
+          "changeType": "breaking",
+          "migration": "docs/migrations/ui-states-v1-to-v2.md"
+        }
+      ],
       "purpose": "Define reusable user-visible states, ownership scope, recovery actions, announcements, and focus strategies."
     },
     {
       "id": "viewports",
       "document": "contracts/viewports.json",
       "schema": "schemas/viewports.schema.json",
+      "migrationSlug": "viewports",
       "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
       "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
     }
-  ]
+  ],
+  "retiredContracts": []
 }
