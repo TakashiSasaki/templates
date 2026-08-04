@@ -8,6 +8,14 @@ begin
   end
 
   input_path, output_path = ARGV
+  same_path = File.expand_path(input_path) == File.expand_path(output_path)
+  same_file = File.exist?(input_path) && File.exist?(output_path) &&
+              File.identical?(input_path, output_path)
+  if same_path || same_file
+    warn "input and output must refer to different files"
+    exit 2
+  end
+
   text = File.binread(input_path).force_encoding(Encoding::UTF_8)
   unless text.valid_encoding?
     warn "invalid UTF-8 input"
