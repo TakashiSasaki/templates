@@ -150,7 +150,7 @@ Dir.mktmpdir("parent-owned-vendoring") do |workspace|
 
   discovered_root = run!("git", "rev-parse", "--show-toplevel", chdir: target).strip
   FAILURES << "validator target did not discover the parent worktree" \
-    unless File.expand_path(discovered_root) == File.expand_path(parent)
+    unless File.realpath(discovered_root) == File.realpath(parent)
 
   index_before = git_index_bytes(parent)
   expect_validation_success(target, outside)

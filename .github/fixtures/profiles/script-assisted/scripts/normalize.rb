@@ -17,7 +17,7 @@ begin
   normalized = text.gsub("\r\n", "\n").gsub("\r", "\n")
   normalized = normalized.lines.map { |line| line.sub(/[\t ]+(?=\n?\z)/, "") }.join
   normalized = "#{normalized.sub(/\n*\z/, "")}\n"
-  File.write(output_path, normalized, mode: "w", encoding: "UTF-8")
+  File.binwrite(output_path, normalized)
   puts output_path
 rescue SystemCallError => e
   warn e.message
