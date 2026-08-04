@@ -118,9 +118,9 @@ Add product-owned tests that exercise the real implementation path. Each verifie
 - the expected observable result; and
 - whether the proof is positive or negative.
 
-Include positive and negative cases. Examples include unauthenticated access to public and protected routes, forbidden access to role-protected routes, rendered access states, access redirects and their destinations, direct navigation to a deep link, an authentication return to the original route, every declared route-scoped state through at least one owning route, every declared global state through its top-level owner, rejection of global states from route declarations, alias collision prevention, keyboard navigation, zoom, narrow and wide layouts, offline or partial failure, and recovery actions.
+Every target requires at least one positive and one negative proof in both template and product mode. Negative evidence for access-controlled surfaces and routes, degraded/error/connectivity/access states, and breaking transitions must directly exercise the corresponding security, recovery, compatibility, or rollback boundary. Negative evidence for other targets proves invalid ownership, unsupported interaction, clipping, unintended state, or an equivalent failure condition.
 
-Product mode requires negative evidence for authenticated or non-public surfaces, routes with applicable access failures, degraded/error/connectivity/access UI states, and breaking contract transitions. A product may retain additional negative evidence for other targets.
+Examples include unauthenticated access to public and protected routes, forbidden access to role-protected routes, rendered access states, access redirects and their destinations, direct navigation to a deep link, an authentication return to the original route, every declared route-scoped state through at least one owning route, every declared global state through its top-level owner, rejection of global states from route declarations, alias collision prevention, keyboard navigation, zoom, narrow and wide layouts, offline or partial failure, and recovery actions.
 
 For a contract transition, test the previous valid representation, the migrated representation, invalid incomplete migrations, stable-identifier and path mappings, implementation behavior before and after rollout, and rollback to a compatible deployed revision. An additive classification requires evidence that preceding-version instances retain their meaning. A breaking classification requires explicit consumer and deployment migration evidence.
 
@@ -175,7 +175,7 @@ A generated repository is ready for independent product review when:
 - all observable states, viewports, and input capabilities are declared;
 - every declaration and registered transition has exactly one implementation-evidence target;
 - the evidence document uses `mode: product`;
-- every evidence record has a verified implementation boundary, verified positive evidence, required negative evidence, authoritative commands, and selected release gates;
+- every evidence record has a verified implementation boundary, verified positive evidence, verified negative evidence, authoritative commands, and selected release gates;
 - every proof command is executed by at least one selected release gate;
 - stable identifiers and migration slugs are preserved or covered by explicit breaking migrations;
 - retired families have no live registered files but retain complete tombstones, migrations, deployment evidence, and rollback implications;

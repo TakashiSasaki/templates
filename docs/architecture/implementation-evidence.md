@@ -29,10 +29,12 @@ Product mode requires:
 
 - a verified implementation boundary with a concrete repository locator;
 - at least one verified positive proof for every target;
-- verified negative proofs for security-sensitive, failure-sensitive, and breaking-transition targets;
+- at least one verified negative proof for every target;
 - an authoritative command for every proof;
 - at least one selected release gate for every evidence record; and
 - release gates that actually execute every command used by the record's proofs.
+
+Access-controlled surfaces and routes, degraded or failure UI states, and breaking transitions require especially direct negative evidence for their security, recovery, compatibility, or rollback boundary. The universal negative-proof requirement also prevents apparently benign targets from remaining untested for invalid ownership, unsupported interaction, clipping, unintended state, or equivalent failure behavior.
 
 The validator rejects unused gates, unused commands, unknown references, and proof commands that are not executed by a selected gate.
 
@@ -43,8 +45,8 @@ Each record contains:
 - a stable record ID;
 - one typed target;
 - one implementation-boundary declaration;
-- positive evidence;
-- negative evidence; and
+- one or more positive evidence items;
+- one or more negative evidence items; and
 - release-gate references.
 
 A verified implementation boundary uses `locator` to identify a repository-owned component, module, adapter, server boundary, route owner, application shell, migration runner, or equivalent implementation authority. The locator is not required to be a filesystem path, but it must be concrete, reviewable, and stable enough for maintainers to find the responsible implementation.
@@ -65,31 +67,31 @@ A test file alone is not sufficient evidence when the record does not state what
 
 Surface evidence identifies the rendering boundary, audience handling, trusted authentication and authorization enforcement, data-classification behavior, startup dependencies, and diagnostic exposure.
 
-Authenticated or non-public surfaces require negative evidence in product mode.
+Negative evidence proves denied access, unavailable dependencies, prohibited data exposure, or another invalid surface condition without treating client-side names as enforcement.
 
 ### Route
 
 Route evidence identifies navigation and presentation ownership, canonical and alias behavior, deep-link handling, browser history intent, authentication return, access-failure behavior, document title, focus target, and declared UI-state rendering.
 
-Routes with required authentication or an applicable access failure require negative evidence. Client-side route names and directory layout are never accepted as trusted authorization evidence.
+Negative evidence proves invalid navigation and the declared unauthenticated, forbidden, redirected, or inapplicable access behavior. Client-side route names and directory layout are never accepted as trusted authorization evidence.
 
 ### UI state
 
 UI-state evidence identifies the route-level or global owner and proves rendering, focus, announcement, and recovery behavior.
 
-Degraded, error, connectivity, and access states require negative evidence so the repository proves that invalid ownership or missing failure preconditions do not render the state incorrectly.
+Negative evidence proves that the state is not rendered from an invalid owner, without its required precondition, with an invalid recovery transition, or through another undeclared path.
 
 ### Viewport and input capability
 
-Viewport evidence proves the declared lower-bound layout behavior, reflow, zoom, orientation independence, and horizontal-scrolling policy.
+Viewport evidence proves the declared lower-bound layout behavior, reflow, zoom, orientation independence, and horizontal-scrolling policy. Its negative evidence proves the absence of clipping, unintended horizontal scrolling, unsupported orientation dependence, or another invalid boundary behavior.
 
-Input-capability evidence is independent of viewport width. A product must prove that a declared interaction mode can complete applicable workflows without an undeclared mandatory secondary input.
+Input-capability evidence is independent of viewport width. Positive evidence proves completion through the declared mode; negative evidence proves that completion does not require an undeclared mandatory secondary input or expose an inaccessible interaction trap.
 
 ### Contract transition
 
 Transition evidence covers every history entry after version 1, including the manifest bootstrap and retired families.
 
-A breaking transition requires negative evidence for incomplete migration, incompatible consumers, unsafe sequencing, failed rollback, or equivalent release-blocking conditions. The transition record does not replace the deterministic migration document; it connects that document to real product implementation and release evidence.
+Positive evidence proves the migrated representation and compatible implementation behavior. Negative evidence proves that incomplete migration, incompatible consumers, unsafe sequencing, failed rollback, or an equivalent release-blocking condition cannot pass the selected gate. The transition record does not replace the deterministic migration document; it connects that document to real product implementation and release evidence.
 
 ## Commands and release gates
 
@@ -103,15 +105,15 @@ A command that can be run locally but is not part of a release gate is useful di
 
 `scripts/validate_implementation_evidence.py` validates both standalone and module entry points.
 
-It proves:
+Together with the version 1 JSON Schema, it proves:
 
 - complete target coverage;
 - target and identifier uniqueness;
 - cross-contract target validity;
 - complete transition coverage;
+- at least one positive and one negative proof requirement for every target;
 - template-versus-product mode rules;
-- command and release-gate reference integrity;
-- required negative-evidence coverage; and
+- command and release-gate reference integrity; and
 - closure between proof commands and selected release gates.
 
 It does not execute product commands, inspect test semantics, determine whether an implementation locator is truthful, or prove that a test result is sufficient. CI executes the declared product commands, and reviewers verify evidence quality.
