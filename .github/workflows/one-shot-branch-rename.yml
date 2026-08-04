@@ -1,0 +1,64 @@
+name: One-shot skill branch rename migration
+
+on:
+  push:
+    branches:
+      - agent/skill-branch-rename-migration
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/skill-branch-rename-migration
+
+      - name: Apply exact branch-name replacements
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path('.github/workflows/pages.yml'): [
+                  ('      - main\n', '      - skill\n', 1),
+                  ("|| 'main' }}", "|| 'skill' }}", 1),
+                  ('current main branch', 'current skill branch', 1),
+              ],
+              Path('.github/scripts/test-pages-deployment-boundary.rb'): [
+                  ('main push still triggers documentation workflow', 'skill push still triggers documentation workflow', 1),
+                  ('removed main publication workflow', 'removed skill publication workflow', 1),
+                  ('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages', 1),
+                  ('main deployment boundary', 'skill deployment boundary', 1),
+                  ('main workflows and contributor guidance', 'skill workflows and contributor guidance', 1),
+              ],
+              Path('CONTRIBUTING.md'): [
+                  ('Pull requests to `main`', 'Pull requests to `skill`', 1),
+                  ('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages', 1),
+              ],
+          }
+
+          for path, rules in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new, expected in rules:
+                  actual = text.count(old)
+                  if actual != expected:
+                      raise SystemExit(f'{path}: expected {expected} occurrence(s) of {old!r}, found {actual}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          Path('.github/workflows/one-shot-branch-rename.yml').unlink()
+
+      - name: Commit migration result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Migrate documentation compatibility to skill branch"
+          git push origin HEAD:agent/skill-branch-rename-migration
