@@ -22,7 +22,7 @@ end
 Dir.chdir(repository_root) do
   begin
     skill = SkillDocument.read("SKILL.md")
-    ProfileSelection.load("SKILL.md", document: skill)
+    selection = ProfileSelection.load("SKILL.md", document: skill)
   rescue ParseError => e
     warn e.message
     exit 1
@@ -37,6 +37,21 @@ Dir.chdir(repository_root) do
   description = skill.metadata["description"]
   unless description.is_a?(String) && !description.strip.empty?
     errors << "SKILL.md frontmatter description must be a non-empty string."
+  end
+
+  unless selection.template_scaffold?
+    if File.exist?("LICENSE.template") || File.symlink?("LICENSE.template")
+      errors << "A concrete skill must replace or remove LICENSE.template."
+    end
+
+    if File.file?("README.md")
+      readme = File.binread("README.md").force_encoding(Encoding::UTF_8)
+      canonical_title = "# Language-neutral Agent Skill Template"
+      canonical_identity = "This repository is a template for developing a portable Agent Skill"
+      if readme.valid_encoding? && readme.include?(canonical_title) && readme.include?(canonical_identity)
+        errors << "A concrete skill must replace or remove the canonical template README identity."
+      end
+    end
   end
 
   resource_specs = {
