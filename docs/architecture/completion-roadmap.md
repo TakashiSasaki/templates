@@ -107,7 +107,7 @@ The fixture:
 10. validates the generated bundle through both copied release-bundle entry points;
 11. records one repository-authoritative `current` record and marks the previous current record `superseded` without rewriting retained bundle bytes;
 12. makes each retry append a distinct record;
-13. reactivates a retained record only when its exact retained bytes, candidate revision, index digest, and current validator policy still agree; and
+13. reactivates a retained record only when its exact bytes, candidate revision, index digest, and current validator policy still agree; and
 14. restores the previous current bundle and leaves the index unchanged when retained-record activation is rejected.
 
 The regression suite proves rejection of changed active-contract bytes, changed release-evidence bytes, a different candidate revision, and failed or rejected release execution. It also proves append-only retry, explicit supersession, exact rollback reuse, and mandatory new evidence when a retained bundle is stale under current policy.
