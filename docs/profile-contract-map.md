@@ -55,3 +55,5 @@ The `instruction-only` tag is exclusive and cannot participate in a combined sel
 `.github/scripts/validate-profile-contracts.rb` is the supported validation entry point. It runs the focused direct validators and the shared-model rule validators once each.
 
 All rule validators parse `SKILL.md`, `RUNTIME.md`, `INTERFACES.md`, `CLI_INTERFACE.md`, `MCP_INTERFACE.md`, and `WEB_INTERFACE.md` directly through `.github/scripts/lib/profile_contracts.rb`. No in-memory monolithic interface document, `File.read` monkey patch, or `RUBYOPT` compatibility injection is used.
+
+The rule validators inspect the real Git index when the skill root is in a worktree so operational-resource gitlinks remain rejectable. A flattened archive has no index to inspect; in that case the supported orchestrator creates an ephemeral empty index outside the skill root and uses it only for the gitlink query. Filesystem existence, regular-file, symlink, exact declaration, selected-profile, and contract checks continue to use the extracted skill root. The orchestrator must fail rather than silently skip the metadata check when Git is unavailable or returns an unexpected error.
