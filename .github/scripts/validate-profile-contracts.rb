@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "fileutils"
 require "open3"
 require "rbconfig"
 require "tmpdir"
@@ -25,6 +24,15 @@ DEFAULT_RULE_VALIDATORS = %w[
   validate-review-followup-contracts.rb
   validate-late-review-contracts.rb
 ].freeze
+
+BASE_ENVIRONMENT = {
+  "RUBYOPT" => nil,
+  "GIT_DIR" => nil,
+  "GIT_WORK_TREE" => nil,
+  "GIT_INDEX_FILE" => nil
+}.freeze
+
+PROBE_ENVIRONMENT = BASE_ENVIRONMENT.merge("LC_ALL" => "C").freeze
 
 def requested_validators
   specs = DIRECT_VALIDATORS.map { |validator| [validator, true] }
@@ -59,7 +67,12 @@ def run_validators(validator_specs, environment)
 end
 
 def git_worktree_state
-  output, status = Open3.capture2e("git", "rev-parse", "--is-inside-work-tree")
+  output, status = Open3.capture2e(
+    PROBE_ENVIRONMENT,
+    "git",
+    "rev-parse",
+    "--is-inside-work-tree"
+  )
   return [:present, output] if status.success? && output.strip == "true"
   return [:absent, output] if !status.success? && output.include?("not a git repository")
 
@@ -73,21 +86,28 @@ state, diagnostic = git_worktree_state
 
 case state
 when :present
-  exit run_validators(validator_specs, { "RUBYOPT" => nil })
+  exit run_validators(validator_specs, BASE_ENVIRONMENT)
 when :absent
   Dir.mktmpdir("profile-contract-git-index") do |temporary|
     git_dir = File.join(temporary, "repository.git")
-    init_output, init_status = Open3.capture2e("git", "init", "--quiet", "--bare", git_dir)
+    init_output, init_status = Open3.capture2e(
+      BASE_ENVIRONMENT,
+      "git",
+      "init",
+      "--quiet",
+      "--bare",
+      git_dir
+    )
     unless init_status.success?
       warn "Unable to create a temporary Git index for archive validation: #{init_output.strip}"
       exit 1
     end
 
-    environment = {
-      "RUBYOPT" => nil,
+    environment = BASE_ENVIRONMENT.merge(
       "GIT_DIR" => git_dir,
-      "GIT_WORK_TREE" => Dir.pwd
-    }
+      "GIT_WORK_TREE" => Dir.pwd,
+      "GIT_INDEX_FILE" => File.join(git_dir, "index")
+    )
     index_output, index_status = Open3.capture2e(environment, "git", "read-tree", "--empty")
     unless index_status.success?
       warn "Unable to initialize a temporary Git index for archive validation: #{index_output.strip}"
