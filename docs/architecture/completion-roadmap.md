@@ -50,19 +50,25 @@ The template-maintainer-only fixture:
 1. installs a release producer only in the temporary generated repository;
 2. initializes a fresh Git repository and commits the complete generated-product state;
 3. supplies the resulting immutable commit revision to the producer;
-4. removes inherited Git inputs, disables system and global Git configuration, and verifies that `HEAD^{commit}` equals the supplied revision;
-5. rejects tracked changes and ordinary untracked files through fixed status arguments;
-6. separately rejects ignored untracked files through `git ls-files --others --ignored --exclude-standard`, preventing ignored bytecode or other execution inputs from bypassing the clean-tree check;
-7. requires the exact reviewed command and release-gate registrations;
-8. invokes the known proof script through the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`;
-9. captures actual stdout, stderr, exit code, start time, and completion time;
-10. calculates the digest of the exact authoritative command text;
-11. derives gate status and release decision from the actual command result;
-12. writes a repository-local result artifact and product-mode release evidence;
-13. validates approved evidence through both copied release validator entry points; and
-14. proves that a failed command committed as its own candidate revision produces a rejected decision and cannot satisfy release validation.
+4. launches the producer in Python isolated mode before repository-local startup imports can run;
+5. rejects non-isolated producer startup as defense in depth;
+6. removes inherited Git inputs and disables system and global Git configuration;
+7. verifies that the effective Git directory is the generated root `.git` and the effective top-level worktree is the generated repository root;
+8. rejects local `core.worktree` redirection before trusting cleanliness results;
+9. pins subsequent Git commands with explicit `--git-dir` and `--work-tree` arguments and disables fsmonitor, untracked-cache, ignore-stat, and sparse-checkout behavior;
+10. verifies that `HEAD^{commit}` equals the supplied revision;
+11. rejects tracked changes and ordinary untracked files;
+12. separately rejects ignored untracked files through `git ls-files --others --ignored --exclude-standard`;
+13. requires the exact reviewed command and release-gate registrations;
+14. invokes the known proof script through the fixed isolated argument vector `[sys.executable, "-I", "product/prove_conformance.py"]`;
+15. captures actual stdout, stderr, exit code, start time, and completion time;
+16. calculates the digest of the exact authoritative command text;
+17. derives gate status and release decision from the actual command result;
+18. writes a repository-local result artifact and product-mode release evidence;
+19. validates approved evidence through both copied release validator entry points; and
+20. proves that a failed command committed as its own candidate revision produces a rejected decision and cannot satisfy release validation.
 
-A mismatched revision, a tracked or ordinary untracked generated-tree change, an ignored revision-external file, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and verifying all revision-external inputs in product-owned CI.
+A mismatched revision, a tracked or ordinary untracked generated-tree change, an ignored revision-external file, a repository-local bytecode import opportunity, a redirected Git worktree, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and establishing equivalent interpreter, Git metadata, worktree, and revision-external-input boundaries in product-owned CI.
 
 ## Remaining Phase 3: release-artifact and handoff closure
 
