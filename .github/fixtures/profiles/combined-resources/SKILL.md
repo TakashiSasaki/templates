@@ -15,7 +15,7 @@ Use this skill when a proposed public contract must be reviewed against the loca
 
 ## Required inputs and prerequisites
 
-Obtain the supplied contract facts, a caller-supplied staging path for the completed response, and a caller-supplied final output path. When the facts are provided in a file, treat that source as read-only. The facts source, staging path, and output path must be distinct.
+Obtain the supplied contract facts, a caller-supplied staging path for the completed response, and a caller-supplied final output path. When the facts are provided in a file, treat that source as read-only. The facts source, staging path, and output path must be distinct. No two may be hard-link or equivalent aliases of the same file.
 
 ## Operational knowledge
 
@@ -37,9 +37,9 @@ Script: scripts/normalize.rb
 Run when: the staged completed response must be normalized before comparison or delivery
 Exact invocation: ruby scripts/normalize.rb STAGING OUTPUT
 Working directory: repository root
-Inputs and arguments: STAGING is the caller-supplied file containing the completed UTF-8 response generated from the asset; OUTPUT is the distinct final destination path
+Inputs and arguments: STAGING is the caller-supplied file containing the completed UTF-8 response generated from the asset; OUTPUT is the distinct final destination path and must not alias STAGING
 Stdout/result: prints the normalized output path after a successful write
-Stderr/diagnostics: reports invalid arguments, unreadable staging input, invalid UTF-8, or write failures
+Stderr/diagnostics: reports invalid arguments, aliased staging and output files, unreadable staging input, invalid UTF-8, or write failures
 Exit status: zero on success and nonzero on validation or file-system failure
 Files or external state modified: writes or replaces only the caller-supplied OUTPUT path; the supplied facts source and STAGING file remain unchanged
 Network access: NONE
@@ -53,7 +53,7 @@ Idempotency and retry behavior: repeated execution with the same staging input p
 1. Read the supplied contract facts without modifying their source and identify caller-visible changes, missing evidence, and authorization boundaries.
 2. Read `references/review-policy.md` and map each finding to an applicable rule.
 3. Open `assets/response-template.txt`, preserve its heading order, and fill it only with supported findings.
-4. Save the completed UTF-8 response to the caller-supplied STAGING path, which must be distinct from both the supplied facts source and OUTPUT path.
+4. Save the completed UTF-8 response to the caller-supplied STAGING path, which must refer to a different file from both the supplied facts source and OUTPUT path.
 5. Run `ruby scripts/normalize.rb STAGING OUTPUT` from the repository root and stop on a nonzero exit status.
 6. Verify that the supplied facts and staged response are unchanged, verify the normalized response, and report the generated output path.
 
@@ -67,6 +67,6 @@ Confirm that every retained reference, asset, and helper was used according to i
 
 ## Safety and approval
 
-Do not fabricate missing facts, approve compatibility exceptions, disclose unauthorized information, modify the supplied facts source or staging file during normalization, use the same path for facts, staging, and output, write outside the caller-supplied staging and output paths, or access the network.
+Do not fabricate missing facts, approve compatibility exceptions, disclose unauthorized information, modify the supplied facts source or staging file during normalization, use aliased files for facts, staging, and output, write outside the caller-supplied staging and output paths, or access the network.
 
 Selected profiles: knowledge-augmented, asset-driven, script-assisted

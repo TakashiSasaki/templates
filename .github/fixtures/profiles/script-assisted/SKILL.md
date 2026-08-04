@@ -19,9 +19,9 @@ Script: scripts/normalize.rb
 Run when: the input file must be normalized before comparison or delivery
 Exact invocation: ruby scripts/normalize.rb INPUT OUTPUT
 Working directory: repository root
-Inputs and arguments: INPUT is a readable UTF-8 text file and OUTPUT is the destination path
+Inputs and arguments: INPUT is a readable UTF-8 text file and OUTPUT is the destination path; INPUT and OUTPUT must refer to different files, including no hard-link or equivalent alias
 Stdout/result: prints the normalized output path after a successful write
-Stderr/diagnostics: reports invalid arguments, unreadable input, invalid UTF-8, or write failures
+Stderr/diagnostics: reports invalid arguments, aliased input and output files, unreadable input, invalid UTF-8, or write failures
 Exit status: zero on success and nonzero on validation or file-system failure
 Files or external state modified: writes or replaces only the caller-supplied OUTPUT path
 Network access: NONE
@@ -32,7 +32,7 @@ Idempotency and retry behavior: repeated execution with the same input produces 
 
 ## Workflow
 
-1. Confirm the input and output paths.
+1. Confirm that the input and output paths refer to different files.
 2. Run `ruby scripts/normalize.rb INPUT OUTPUT` from the repository root.
 3. Inspect any diagnostic and stop on a nonzero exit status.
 4. Compare the generated output with the normalization requirements.
@@ -47,6 +47,6 @@ Confirm that the output is valid UTF-8, uses LF line endings, has no trailing ho
 
 ## Safety and approval
 
-Write only to the caller-supplied output path and do not access the network or modify the input file.
+Write only to the caller-supplied output path, reject an output path that aliases the input file, and do not access the network or modify the input file.
 
 Selected profiles: script-assisted
