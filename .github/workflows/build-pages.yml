@@ -1,10 +1,7 @@
-name: Build and deploy documentation
+name: Build documentation artifact
 
 on:
   pull_request:
-    branches:
-      - site
-  push:
     branches:
       - site
   workflow_call:
@@ -20,7 +17,7 @@ on:
         type: string
         default: main
       deploy:
-        description: Deploy the generated artifact to GitHub Pages
+        description: Deprecated compatibility input; ignored because this workflow cannot deploy
         required: false
         type: boolean
         default: false
@@ -29,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: documentation-${{ inputs.deploy == true && 'deployment' || github.ref }}
+  group: documentation-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -92,22 +89,3 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/site
-
-  deploy:
-    if: inputs.deploy == true
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
