@@ -1,0 +1,58 @@
+name: One-shot policy branch terminology migration
+
+on:
+  push:
+    branches:
+      - agent/policy-skill-branch-terminology
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@v7
+        with:
+          ref: agent/policy-skill-branch-terminology
+
+      - name: Apply exact branch-name replacements
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path('README.md'): [
+                  ("repository's `main`, `site`, and `webapp` branches", "repository's `skill`, `site`, and `webapp` branches", 1),
+                  ('catalog and navigation work on `main` and `site`', 'catalog and navigation work on `skill` and `site`', 1),
+              ],
+              Path('docs/documentation-publication.md'): [
+                  ('does not fetch `main`, `site`, `webapp`', 'does not fetch `skill`, `site`, `webapp`', 1),
+              ],
+              Path('tests/test_documentation_publication.py'): [
+                  ('    assert "branches: [main]" not in workflow\n', '    assert "branches: [skill]" not in workflow\n    assert "branches: [main]" not in workflow\n', 1),
+              ],
+          }
+
+          for path, rules in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new, expected in rules:
+                  actual = text.count(old)
+                  if actual != expected:
+                      raise SystemExit(f'{path}: expected {expected} occurrence(s) of {old!r}, found {actual}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          Path('.github/workflows/one-shot-branch-rename.yml').unlink()
+
+      - name: Commit migration result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Update policy branch topology references"
+          git push origin HEAD:agent/policy-skill-branch-terminology
