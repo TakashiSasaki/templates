@@ -55,29 +55,57 @@ This fixture isolates release-validator semantics. Its result values are deliber
 
 Before execution, the harness initializes a new Git repository, force-adds the generated fixture files, creates one deterministic commit, and supplies that commit's lowercase 40-hex object name to the producer. A failing proof fixture and a command-drift fixture are each committed as their own immutable generated state before the producer runs.
 
+### Python startup boundary
+
+The harness launches the producer through the fixed argument vector:
+
+```text
+[sys.executable, "-I", "product/produce_release_evidence.py", "--revision", revision]
+```
+
+Isolated mode prevents the script directory, current directory, `PYTHON*` module-path inputs, user site, and repository-local bytecode from participating in interpreter startup or standard-library imports before the producer can inspect the generated repository. The producer also checks `sys.flags.isolated` before its own non-built-in imports and rejects a non-isolated invocation as defense in depth. The harness-level `-I` launch remains the authoritative protection because interpreter startup precedes script execution.
+
+The reviewed proof is also invoked with the current interpreter in isolated mode. Repository files are read through paths derived from the proof script's own location; they are not imported through the ambient module search path.
+
+A regression places a valid ignored sourceless `product/argparse.pyc` beside the producer. A non-isolated pre-fix producer could import that module before revision verification. The corrected launcher and producer boundary prevent the bytecode from executing and reject the revision-external file before producing evidence.
+
+### Git identity and worktree boundary
+
 The producer:
 
-1. accepts one explicit lowercase 40-hex revision and no command input;
-2. removes inherited `GIT_*` process inputs and disables system and global Git configuration;
-3. resolves `HEAD^{commit}` through a fixed Git argument vector and requires it to equal the supplied revision;
-4. requires the generated repository index and worktree to have no tracked changes or ordinary untracked files;
-5. separately enumerates ignored untracked files with the fixed argument vector `git ls-files --others --ignored --exclude-standard` and requires that set to be empty;
-6. requires the exact product-mode implementation evidence produced by the fixture;
-7. requires the exact authoritative command text `python product/prove_conformance.py`;
-8. requires the exact `generated-product-release` gate and its command membership;
-9. invokes `[sys.executable, "product/prove_conformance.py"]` directly with a fixed argument vector;
-10. captures actual stdout, stderr, process result, start time, and completion time;
-11. calculates SHA-256 from the exact authoritative command text;
-12. derives the gate result from the command result;
-13. derives approval or rejection from the gate result;
-14. writes `product/release-run.json`, including the verified HEAD and clean-worktree result; and
-15. writes product-mode `contracts/release-evidence.json` for the verified revision.
+1. removes inherited `GIT_*` process inputs;
+2. disables system and global Git configuration;
+3. requires `.git` to be a non-symbolic directory at the generated root;
+4. resolves the effective absolute Git directory and requires it to equal the generated repository's `.git` directory;
+5. resolves the effective top-level worktree and requires it to equal the generated repository root;
+6. only after those identity checks, runs revision and cleanliness commands with explicit `--git-dir <root>/.git` and `--work-tree <root>` arguments;
+7. disables fsmonitor, untracked-cache, ignore-stat, and sparse-checkout behavior for those fixed invocations;
+8. resolves `HEAD^{commit}` and requires it to equal the supplied revision;
+9. rejects tracked changes and ordinary untracked files; and
+10. separately enumerates ignored untracked files with `git ls-files --others --ignored --exclude-standard` and requires that set to be empty.
+
+The effective-top-level check rejects local Git configuration that redirects `core.worktree` to a different clean directory. Explicit Git-directory and worktree arguments then prevent later status and inventory checks from drifting away from the root whose files the proof executes.
+
+Ignored inputs are checked separately because ordinary porcelain status intentionally omits files matched by ignore rules. This matters for executable caches such as `product/__pycache__/prove_conformance.<tag>.pyc`, which can influence Python execution even though the file is absent from the committed revision.
+
+### Fixed reviewed execution
+
+After Python and Git preflight, the producer:
+
+1. requires the exact product-mode implementation evidence produced by the fixture;
+2. requires the exact authoritative command text `python product/prove_conformance.py`;
+3. requires the exact `generated-product-release` gate and its command membership;
+4. invokes the reviewed proof through a fixed isolated argument vector;
+5. captures actual stdout, stderr, process result, start time, and completion time;
+6. calculates SHA-256 from the exact authoritative command text;
+7. derives the gate result from the command result;
+8. derives approval or rejection from the gate result;
+9. writes `product/release-run.json`, including the verified HEAD and clean-worktree result; and
+10. writes product-mode `contracts/release-evidence.json` for the verified revision.
 
 The producer never parses the authoritative command string and exposes no command, executable, argument, environment, working-directory, gate-selection, or Git-ref parameter. Its Git and proof invocations are fixed reviewed argument vectors. It is fixture code, not a reusable command dispatcher or release orchestrator.
 
-A passing proof execution produces approved evidence that passes both copied release-validator entry points. A failing proof execution produces a failed command result, failed gate result, and rejected decision; the producer exits nonzero and release validation rejects that record. A mismatched revision, a tracked or ordinary untracked change, an ignored untracked file, or command-registration drift is rejected before the proof is executed and before any run artifact or product release claim is created.
-
-Ignored inputs are checked separately because `git status --porcelain=v1 --untracked-files=all` intentionally omits files matched by ignore rules. This matters for executable caches such as `product/__pycache__/prove_conformance.<tag>.pyc`, which can influence Python execution even though the file is absent from the committed revision.
+A passing proof execution produces approved evidence that passes both copied release-validator entry points. A failing proof execution produces a failed command result, failed gate result, and rejected decision; the producer exits nonzero and release validation rejects that record. A mismatched revision, a tracked or ordinary untracked change, an ignored untracked file, a redirected Git worktree, a non-isolated producer launch, or command-registration drift is rejected before the proof is executed and before any run artifact or product release claim is created.
 
 ## Reviewed proof command
 
@@ -89,7 +117,7 @@ python product/prove_conformance.py
 
 The proof script is generated from reviewed test code, reads only repository-local JSON files, performs no network or deployment action, and verifies all positive and negative target results.
 
-The implementation conformance test invokes the proof directly. The evidence-production fixture invokes the same proof through its separately reviewed fixed producer. Neither path interprets command text from the contract.
+The implementation conformance test invokes the proof directly. The evidence-production fixture maps the portable command declaration to the current test interpreter plus isolated-mode startup and invokes the same proof through its separately reviewed fixed producer. Neither path interprets command text from the contract.
 
 This is a narrow conformance mechanism, not a general command executor. Product repositories remain responsible for executing their own reviewed commands in CI with the runtime and isolation appropriate to the selected toolchain.
 
@@ -99,16 +127,18 @@ Across the generated-repository fixtures, the copied repository executes:
 
 1. the reviewed product proof command;
 2. construction and verification of an immutable generated-product Git revision;
-3. tracked, untracked, and ignored-input preflight for that generated tree;
-4. actual release-evidence production for that verified revision;
-5. `scripts/validate_contracts.py`;
-6. `python -m scripts.validate_contracts`;
-7. `scripts/validate_contract_evolution.py`;
-8. `python -m scripts.validate_contract_evolution`;
-9. `scripts/validate_implementation_evidence.py`;
-10. `python -m scripts.validate_implementation_evidence`;
-11. `scripts/validate_release_evidence.py --expected-revision <revision>`; and
-12. `python -m scripts.validate_release_evidence --expected-revision <revision>`.
+3. isolated producer startup before repository-local imports;
+4. generated Git-directory and effective-worktree identity checks;
+5. tracked, ordinary untracked, and ignored-input preflight for the pinned generated tree;
+6. actual release-evidence production for that verified revision;
+7. `scripts/validate_contracts.py`;
+8. `python -m scripts.validate_contracts`;
+9. `scripts/validate_contract_evolution.py`;
+10. `python -m scripts.validate_contract_evolution`;
+11. `scripts/validate_implementation_evidence.py`;
+12. `python -m scripts.validate_implementation_evidence`;
+13. `scripts/validate_release_evidence.py --expected-revision <revision>`; and
+14. `python -m scripts.validate_release_evidence --expected-revision <revision>`.
 
 The product proof checks 52 outcomes: positive and negative evidence for each of the 26 current implementation targets. The eight validator forms must succeed against a generated product state, with the release forms additionally bound to the exact verified fixture revision.
 
@@ -129,12 +159,14 @@ Deliberately broken generated copies must fail with stable diagnostics for:
 - a supplied revision that differs from the generated repository HEAD;
 - a tracked or ordinary untracked change after the generated revision was created;
 - an ignored executable input after the generated revision was created;
+- a repository-local bytecode import opportunity before producer preflight;
+- a local Git configuration that redirects the effective worktree;
 - actual proof failure in a committed generated revision; and
 - command-registration drift in a committed generated revision before evidence production.
 
 For implementation-reference cases, the harness directly invokes `scripts/validate_implementation_evidence.py` from the generated repository root with a fixed argument vector, requires a nonzero exit, and matches the expected stderr diagnostic. It does not call an imported validator from the source checkout. The false-proof case directly invokes the generated reviewed product proof script.
 
-The declarative release cases invoke the copied release-evidence validator with an explicit expected revision. The production cases invoke the copied reviewed producer and then inspect and validate the generated run artifact and release record. Together these cases distinguish copied-entry-point behavior, implementation-reference closure, semantic proof execution, actual generated-tree revision binding, tracked/untracked/ignored input exclusion, command-definition binding, actual result capture, and decision derivation.
+The declarative release cases invoke the copied release-evidence validator with an explicit expected revision. The production cases invoke the copied reviewed producer and then inspect and validate the generated run artifact and release record. Together these cases distinguish copied-entry-point behavior, implementation-reference closure, semantic proof execution, isolated startup, actual generated-tree revision binding, Git metadata/worktree identity, tracked/untracked/ignored input exclusion, command-definition binding, actual result capture, and decision derivation.
 
 ## Versioning rule
 
@@ -146,4 +178,4 @@ The `release_evidence` family remains at version 1. Actual production conformanc
 
 The fixtures do not prove that a real application framework renders a page, that a real authorization provider rejects access, that a remote CI provider is trustworthy, that the generated run artifact is immutable after production, or that a deployment platform releases safely. Those are product-owned proofs.
 
-The fixtures prove that a generated repository can replace template examples with explicit product declarations, close every implementation-evidence reference, create and verify an immutable generated-product commit, exclude tracked, ordinary untracked, and ignored revision-external inputs before executing a reviewed product proof, produce release evidence from the actual result without a generic command dispatcher, bind that evidence to the verified revision and current command definitions, and pass the complete retained validator surface without relying on template-only state.
+The fixtures prove that a generated repository can replace template examples with explicit product declarations, close every implementation-evidence reference, create and verify an immutable generated-product commit, isolate interpreter startup, pin Git identity and worktree selection, exclude tracked, ordinary untracked, and ignored revision-external inputs before executing a reviewed product proof, produce release evidence from the actual result without a generic command dispatcher, bind that evidence to the verified revision and current command definitions, and pass the complete retained validator surface without relying on template-only state.
