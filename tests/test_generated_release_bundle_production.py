@@ -159,6 +159,55 @@ class GeneratedReleaseBundleProductionTests(unittest.TestCase):
         )
         self.assertFalse((ROOT / "product").exists())
 
+    def test_producer_requires_isolated_startup(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            _install_release_bundle_producer(root)
+            revision = _commit_generated_repository(root)
+
+            result = _run_generated_python(
+                root,
+                "product/produce_release_bundle.py",
+                "--revision",
+                revision,
+            )
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "producer requires Python isolated mode (-I)",
+                result.stderr,
+            )
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-bundle.json")["mode"],
+            )
+            self.assertFalse(
+                (root / "product/release-bundle-index.json").exists()
+            )
+
+    def test_unexpected_post_release_output_is_rejected(self) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            (root / "product/unreviewed-output.txt").write_text(
+                "not part of the reviewed release output set\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "generated repository has unexpected untracked files: product/unreviewed-output.txt",
+                result.stderr,
+            )
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-bundle.json")["mode"],
+            )
+            self.assertFalse(
+                (root / "product/release-bundle-index.json").exists()
+            )
+
     def test_changed_active_contract_makes_current_bundle_stale(self) -> None:
         with _generated_repository() as root:
             revision = self.prepare_approved_release(root)
@@ -268,6 +317,82 @@ class GeneratedReleaseBundleProductionTests(unittest.TestCase):
             )
             self.assertFalse(
                 (root / "product/release-bundle-records").exists()
+            )
+
+    def test_index_rejects_an_unregistered_record_file(self) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            self.assertEqual(0, self.run_bundle(root, revision).returncode)
+            index_path = root / "product/release-bundle-index.json"
+            current_path = root / "contracts/release-bundle.json"
+            index_before = index_path.read_bytes()
+            current_before = current_path.read_bytes()
+            rogue_path = root / "product/release-bundle-records/rogue.json"
+            rogue_path.write_text("{}\n", encoding="utf-8")
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "release bundle records directory contains unindexed entries: rogue.json",
+                result.stderr,
+            )
+            self.assertEqual(index_before, index_path.read_bytes())
+            self.assertEqual(current_before, current_path.read_bytes())
+
+    def test_index_rejects_a_symlinked_retained_record(self) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            self.assertEqual(0, self.run_bundle(root, revision).returncode)
+            index_path = root / "product/release-bundle-index.json"
+            index = _load_json(index_path)
+            record_id = index["currentRecordId"]
+            record_path = (
+                root / f"product/release-bundle-records/{record_id}.json"
+            )
+            record_path.unlink()
+            try:
+                record_path.symlink_to(
+                    Path("../../contracts/release-bundle.json")
+                )
+            except OSError as exc:
+                self.skipTest(f"symbolic links are unavailable: {exc}")
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                f"release bundle record {record_id}: retained path must be a regular non-symbolic file",
+                result.stderr,
+            )
+
+    def test_index_requires_current_projection_to_match_retained_bytes(
+        self,
+    ) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            self.assertEqual(0, self.run_bundle(root, revision).returncode)
+            index_path = root / "product/release-bundle-index.json"
+            index_before = index_path.read_bytes()
+            record_count = len(
+                tuple((root / "product/release-bundle-records").iterdir())
+            )
+            bundle_path = root / "contracts/release-bundle.json"
+            bundle = _load_json(bundle_path)
+            bundle["handoff"]["description"] += " Manual projection drift."
+            _write_json(bundle_path, bundle)
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "current release bundle bytes do not match the current retained record",
+                result.stderr,
+            )
+            self.assertEqual(index_before, index_path.read_bytes())
+            self.assertEqual(
+                record_count,
+                len(tuple((root / "product/release-bundle-records").iterdir())),
             )
 
     def test_retry_appends_a_distinct_record_and_supersedes_current(
