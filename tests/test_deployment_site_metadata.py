@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -9,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import assemble_docs  # noqa: E402
 import finalize_site_metadata  # noqa: E402
+import prepare_site_metadata  # noqa: E402
 
 
 CANONICAL_URL = "https://takashisasaki.github.io/templates/"
@@ -20,13 +21,13 @@ class DeploymentNoticeTests(unittest.TestCase):
     def test_deployment_timestamp_becomes_footer_notice(self) -> None:
         self.assertEqual(
             "Deployment time: 2026-08-04 18:08:00 JST",
-            assemble_docs.deployment_notice("2026-08-04 18:08:00 JST"),
+            prepare_site_metadata.deployment_notice("2026-08-04 18:08:00 JST"),
         )
 
     def test_empty_timestamp_marks_non_deploying_build(self) -> None:
         self.assertEqual(
             "Preview build (not deployed)",
-            assemble_docs.deployment_notice(""),
+            prepare_site_metadata.deployment_notice(""),
         )
 
     def test_invalid_timestamp_is_rejected(self) -> None:
@@ -37,8 +38,30 @@ class DeploymentNoticeTests(unittest.TestCase):
             "<script>alert(1)</script>",
         ):
             with self.subTest(value=value):
-                with self.assertRaises(assemble_docs.AssemblyError):
-                    assemble_docs.deployment_notice(value)
+                with self.assertRaises(prepare_site_metadata.SiteMetadataError):
+                    prepare_site_metadata.deployment_notice(value)
+
+    def test_prepared_config_contains_footer_notice(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            config_file = Path(temporary_directory) / "zensical.toml"
+            config_file.write_text(
+                "[project]\n"
+                'site_name = "Test"\n'
+                f'site_url = "{CANONICAL_URL}"\n'
+                "\n[project.theme]\nfont = false\n",
+                encoding="utf-8",
+            )
+
+            notice = prepare_site_metadata.prepare_config(
+                config_file,
+                "2026-08-04 18:08:00 JST",
+                CANONICAL_URL,
+            )
+
+            self.assertEqual("Deployment time: 2026-08-04 18:08:00 JST", notice)
+            config = tomllib.loads(config_file.read_text(encoding="utf-8"))
+            self.assertEqual(notice, config["project"]["copyright"])
+            self.assertEqual(CANONICAL_URL, config["project"]["site_url"])
 
 
 class CanonicalMetadataTests(unittest.TestCase):
@@ -106,6 +129,7 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
 
         self.assertIn("deployment_timestamp:", build_workflow)
+        self.assertIn("scripts/prepare_site_metadata.py", build_workflow)
         self.assertIn(
             '--deployment-timestamp "${{ inputs.deployment_timestamp }}"',
             build_workflow,
@@ -117,11 +141,10 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertIn("deployment_timestamp:", deploy_workflow)
         self.assertIn(
             "deployment_timestamp: "
-            "${{ needs.deployment-metadata.outputs.deployment_timestamp }}",
+            "${{ needs.deployment_metadata.outputs.deployment_timestamp }}",
             deploy_workflow,
         )
 
-        self.assertIn("copyright = __DEPLOYMENT_NOTICE__", template)
         self.assertIn(f'site_url = "{CANONICAL_URL}"', template)
 
 
