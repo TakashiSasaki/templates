@@ -58,7 +58,7 @@ The ordering is part of the trust boundary. Policy CI neutralizes `PYTHONHOME`, 
 
 The lock fixes exact distribution version strings. It does not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Update dependency inputs and the lock only through a reviewed dependency-resolution change.
 
-The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. See `docs/documentation-publication.md` for the reproducible local sequence and the still-disabled Pages deployment boundary.
+The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. It contains no GitHub Pages deployment route and has only `contents: read`; Pages deployment belongs exclusively to the unrelated `site` branch. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
 
 ## Branch and migration status
 
@@ -68,13 +68,13 @@ Completed migration work includes:
 
 - branch-appropriate policy CI;
 - the application-type-independent policy boundary;
-- The former built-in `web-application` profile and its application-architecture rules were removed;
+- removal of the former built-in `web-application` profile and its application-architecture rules;
 - executable toolchain identity migration to `TakashiSasaki/templates`;
 - consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`;
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
-- restoration of a `policy`-scoped strict documentation build with retained but disabled GitHub Pages upload and deployment steps.
+- a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job.
 
-Consumer pin updates, any later decision to enable Pages deployment, Pages settings and custom-domain cutover, and deprecation and archival of the former repository remain separate follow-up changes. See `docs/documentation-publication.md` for the disabled deployment boundary.
+Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `main` and `site`; it must not add a deployment path to `policy`.
 
 ## Trust model
 
