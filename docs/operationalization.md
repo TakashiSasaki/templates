@@ -128,6 +128,14 @@ For retirement, test the final live contract, the breaking retirement migration,
 
 The current-contract validator proves that active declarations are structurally and cross-contract valid. The evolution validator proves that active and retired version chains, stable migration ownership, retirement invariants, and the migration-artifact inventory are complete. The implementation-evidence validator proves target coverage and reference closure. None of these validators execute product tests or prove that the selected semantic classification and evidence quality are correct; those proofs remain in CI results and review.
 
+### Clean-room generated-repository proof
+
+Template maintainers additionally exercise the complete transition in `tests/test_generated_repository_conformance.py`. The regression creates a temporary copy of the template without `.git`, local virtual environments, or cache residue; explicitly settles the copied example values as declarations for a deterministic fixture product; converts only the copied implementation-evidence document to product mode; materializes repository-local boundary and proof locators; and selects a release gate that executes the authoritative fixture proof command.
+
+The harness directly invokes the reviewed fixture script with a fixed argument vector. It does not interpret the command text from the evidence document and does not provide a reusable arbitrary-command executor. After all 52 current positive and negative fixture outcomes pass, the harness executes all six retained validator entry points from the generated repository root.
+
+Negative generated copies must fail for template-mode residue, missing targets, unverified boundaries, unknown commands, unused commands, unused gates, release-gate closure gaps, and false proof results. These regressions prove that template source responsibility and generated product responsibility remain distinct. See [`architecture/generated-repository-conformance.md`](architecture/generated-repository-conformance.md).
+
 ## 6. Integrate validation into CI
 
 Run validation from a clean, documented environment and keep the commands reproducible:
@@ -180,6 +188,6 @@ A generated repository is ready for independent product review when:
 - stable identifiers and migration slugs are preserved or covered by explicit breaking migrations;
 - retired families have no live registered files but retain complete tombstones, migrations, deployment evidence, and rollback implications;
 - trusted authentication and authorization enforcement is tested;
-- if the shipped validators are retained, their locked distribution set and dependency graph verify successfully, all six validator entry points pass, the template test suite passes, and product evidence commands pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics, evolution rules, evidence closure, and failure evidence;
+- if the shipped validators are retained, their locked distribution set and dependency graph verify successfully, all six validator entry points pass, the template test suite—including clean-room generated-repository conformance—passes, and product evidence commands pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics, evolution rules, evidence closure, and failure evidence;
 - build, deployment, migration, retirement, rollback, observability, and release ownership are documented; and
 - template-only guidance and unused alternatives have been removed.
