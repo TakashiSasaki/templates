@@ -16,7 +16,8 @@ If the generated repository retains the shipped Python validators:
 
 - retain `requirements-dev.lock` (or an intentionally updated equivalent lock) for the validator dependencies;
 - create a separate isolated validator environment from that lock;
-- run both entry points for `validate_contracts`, both entry points for `validate_contract_evolution`, both entry points for `validate_implementation_evidence`, and the template test suite with that environment's interpreter;
+- run both entry points for `validate_contracts`, both entry points for `validate_contract_evolution`, both entry points for `validate_implementation_evidence`, and the retained validator regression suite with that environment's interpreter;
+- keep `tests/test_generated_repository_conformance.py` as template-maintainer-only coverage: its clean-room test class is automatically skipped after the copied evidence document switches to `mode: product`, while its scope regression remains active to verify that boundary; and
 - keep this environment separate from the product environment and follow the repository's documented clean-environment procedure.
 
 The product lockfile does not provision the shipped validators, and globally installed Python packages are not an acceptable substitute for the reviewed validator environment.
@@ -128,13 +129,23 @@ For retirement, test the final live contract, the breaking retirement migration,
 
 The current-contract validator proves that active declarations are structurally and cross-contract valid. The evolution validator proves that active and retired version chains, stable migration ownership, retirement invariants, and the migration-artifact inventory are complete. The implementation-evidence validator proves target coverage and reference closure. None of these validators execute product tests or prove that the selected semantic classification and evidence quality are correct; those proofs remain in CI results and review.
 
+### Clean-room generated-repository proof
+
+Template maintainers additionally exercise the complete transition in `tests/test_generated_repository_conformance.py`. The regression creates a temporary copy of the template without `.git`, local virtual environments, or cache residue; explicitly settles the copied example values as declarations for a deterministic fixture product; converts only the copied implementation-evidence document to product mode; materializes repository-local boundary and proof locators; and selects a release gate that executes the authoritative fixture proof command.
+
+The harness directly invokes the reviewed fixture script with a fixed argument vector. It does not interpret the command text from the evidence document and does not provide a reusable arbitrary-command executor. After all 52 current positive and negative fixture outcomes pass, the harness executes all six retained validator entry points from the generated repository root.
+
+The clean-room test class is template-maintainer-only and is guarded by the source evidence mode. A copied repository in `mode: product` skips that class rather than asserting template-only source state; a separate scope regression remains active and verifies the skip boundary.
+
+For the first seven negative generated copies, the harness directly invokes the copied standalone implementation-evidence validator and asserts its nonzero exit plus the expected stderr diagnostic. The false-proof case directly invokes the copied reviewed product proof. These regressions cover template-mode residue, missing targets, unverified boundaries, unknown commands, unused commands, unused gates, release-gate closure gaps, and false proof results while keeping template source responsibility and generated product responsibility distinct. See [`architecture/generated-repository-conformance.md`](architecture/generated-repository-conformance.md).
+
 ## 6. Integrate validation into CI
 
 Run validation from a clean, documented environment and keep the commands reproducible:
 
 1. create the product's isolated environment;
 2. install the product lockfile without undeclared dependency inputs;
-3. if the shipped validators are retained, create their separate isolated validator environment on this clean runner, install `requirements-dev.lock` (or the reviewed equivalent lock) without undeclared dependency inputs, verify its installed distribution set, run `pip check`, invoke all six validator entry points, and run the template test suite with that environment's interpreter; otherwise run the product repository's equivalent verified validation command and preserve the structural, evolution, evidence, semantic, and failure-case mapping;
+3. if the shipped validators are retained, create their separate isolated validator environment on this clean runner, install `requirements-dev.lock` (or the reviewed equivalent lock) without undeclared dependency inputs, verify its installed distribution set, run `pip check`, invoke all six validator entry points, and run the retained validator regression suite; the template-maintainer-only clean-room class must report skipped in product mode rather than execute against product source state; otherwise run the product repository's equivalent verified validation command and preserve the structural, evolution, evidence, semantic, and failure-case mapping;
 4. execute every authoritative command referenced by the product evidence document;
 5. require every selected evidence release gate before publication or deployment;
 6. run product unit, integration, accessibility, migration, retirement, and end-to-end tests not already covered by those commands;
@@ -180,6 +191,6 @@ A generated repository is ready for independent product review when:
 - stable identifiers and migration slugs are preserved or covered by explicit breaking migrations;
 - retired families have no live registered files but retain complete tombstones, migrations, deployment evidence, and rollback implications;
 - trusted authentication and authorization enforcement is tested;
-- if the shipped validators are retained, their locked distribution set and dependency graph verify successfully, all six validator entry points pass, the template test suite passes, and product evidence commands pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics, evolution rules, evidence closure, and failure evidence;
+- if the shipped validators are retained, their locked distribution set and dependency graph verify successfully, all six validator entry points pass, the retained validator regression suite passes with the template-maintainer-only clean-room class skipped in product mode, and product evidence commands pass in CI; otherwise the equivalent verified validation command and product tests pass with preserved contract semantics, evolution rules, evidence closure, and failure evidence;
 - build, deployment, migration, retirement, rollback, observability, and release ownership are documented; and
 - template-only guidance and unused alternatives have been removed.
