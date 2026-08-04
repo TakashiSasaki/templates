@@ -1,12 +1,12 @@
 # Webapp template completion roadmap
 
-This roadmap tracks the remaining repository-level work needed to satisfy the Webapp template goal without selecting a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
+This roadmap tracks the repository-level work remaining after the revision-bound release-evidence foundation is merged. It does not select a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
 
 It is not a product backlog. Product-specific implementation, browser support, infrastructure, deployment, observability, approvals, and evidence retention remain the responsibility of each generated repository.
 
 ## Completed foundation
 
-The `webapp` history already provides:
+The `webapp` history provides:
 
 - closed manifest registration for active and retired contract families;
 - contiguous contract and bootstrap version histories;
@@ -24,22 +24,22 @@ The `webapp` history already provides:
 
 PR #60 completed Phase 1 by proving that a copied template can become a product-mode repository, execute a reviewed fixture proof, pass the retained implementation validators, and fail deterministically when implementation evidence is incomplete or inconsistent.
 
-## In progress: revision-bound release evidence
+## Completed release-evidence foundation
 
-The current phase adds contract family `release_evidence` version 1.
+Contract family `release_evidence` version 1 adds:
 
-Completion criteria for this phase are:
+- template mode with no product release claims;
+- product mode identifying one exact immutable candidate revision;
+- exactly one result for every registered release gate;
+- exactly one result for every command executed by those gates;
+- SHA-256 binding from each command result to current authoritative command text;
+- rejection of failed commands, nonzero exit codes, failed gates, stale revisions, digest drift, invalid chronology, and non-approved decisions;
+- standalone and module release validators;
+- eight total validator entry points across contracts, evolution, implementation evidence, and release evidence;
+- clean-room exact-revision and command-definition conformance; and
+- synchronized README, template, operationalization, architecture, and validation guidance.
 
-- template mode contains no product release claims;
-- product mode identifies one exact immutable candidate revision;
-- every registered release gate has one result;
-- every command executed by those gates has one result;
-- command results are bound to current authoritative command text by SHA-256;
-- failed commands, nonzero exit codes, failed gates, stale revisions, digest drift, invalid chronology, and non-approved decisions fail validation;
-- standalone and module release validators pass in template and generated product modes;
-- the complete CI surface consists of eight validator entry points;
-- clean-room release conformance proves exact-revision and command-definition binding; and
-- README, operationalization, architecture, and completion guidance agree.
+This foundation validates a completed release record. It intentionally does not execute arbitrary command strings or choose how a product stores, signs, approves, or deploys that record.
 
 ## Remaining Phase 2: evidence-production conformance
 
