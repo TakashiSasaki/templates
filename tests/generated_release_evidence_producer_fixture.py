@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-RELEASE_REVISION = "0123456789abcdef0123456789abcdef01234567"
-
 RELEASE_EVIDENCE_PRODUCER_SCRIPT = r'''#!/usr/bin/env python3
 """Produce fixture release evidence from one reviewed command execution."""
 
@@ -12,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -66,6 +65,43 @@ def timestamp_after(previous_ns: int | None = None) -> tuple[int, str]:
     return current_ns, f"{whole}.{nanoseconds:09d}Z"
 
 
+def git_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    for name in tuple(environment):
+        if name.startswith("GIT_"):
+            del environment[name]
+    environment["GIT_CONFIG_NOSYSTEM"] = "1"
+    environment["GIT_CONFIG_GLOBAL"] = os.devnull
+    return environment
+
+
+def run_git(*arguments: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(ROOT), *arguments],
+        cwd=ROOT,
+        env=git_environment(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        fail(
+            "cannot verify generated repository revision: "
+            + completed.stderr.strip()
+        )
+    return completed.stdout.strip()
+
+
+def verify_revision(revision: str) -> str:
+    head = run_git("rev-parse", "--verify", "HEAD^{commit}")
+    if head != revision:
+        fail("revision does not match generated repository HEAD")
+    status = run_git("status", "--porcelain=v1", "--untracked-files=all")
+    if status:
+        fail("generated repository has uncommitted changes")
+    return head
+
+
 def verify_fixed_registration(implementation: dict[str, object]) -> None:
     expected_commands = [
         {
@@ -107,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     if REVISION_PATTERN.fullmatch(arguments.revision) is None:
         fail("revision must be a lowercase 40-hex Git object name")
 
+    verified_head = verify_revision(arguments.revision)
     implementation = load_json(IMPLEMENTATION_PATH)
     verify_fixed_registration(implementation)
 
@@ -130,6 +167,10 @@ def main(argv: list[str] | None = None) -> int:
     run = {
         "schemaVersion": 1,
         "revision": arguments.revision,
+        "revisionBinding": {
+            "verifiedHead": verified_head,
+            "worktree": "clean",
+        },
         "command": {
             "id": COMMAND_ID,
             "authoritativeCommand": COMMAND_TEXT,
