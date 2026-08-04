@@ -85,7 +85,7 @@ Build-only invocations do not claim a deployment. An empty timestamp produces th
 
 The timestamp intentionally belongs to generated HTML rather than `/build-provenance.json`. The provenance file remains deterministic, while a deployment artifact is intentionally time-specific.
 
-`project.site_url` must remain `https://takashisasaki.github.io/templates/`. After Zensical builds the site, `scripts/finalize_site_metadata.py` requires exactly one canonical `<link>` in every generated HTML file and normalizes its `href` to that public root URL. Missing or duplicate canonical links fail the artifact build.
+`project.site_url` must remain `https://takashisasaki.github.io/templates/`. After Zensical builds the site, `scripts/finalize_site_metadata.py` normalizes the canonical `<link>` in every generated HTML file to that public root URL. It inserts the link when Zensical omits it, including on `404.html`, and rejects duplicate canonical links.
 
 ## Build and deployment policy
 
