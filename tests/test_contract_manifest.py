@@ -48,6 +48,10 @@ class ContractManifestTests(unittest.TestCase):
                     "contracts/viewports.json",
                     "schemas/viewports.schema.json",
                 ),
+                "implementation_evidence": (
+                    "contracts/implementation-evidence.json",
+                    "schemas/implementation-evidence.schema.json",
+                ),
             },
             validate_contracts.CONTRACT_SCHEMAS,
         )
@@ -55,7 +59,6 @@ class ContractManifestTests(unittest.TestCase):
             validate_contracts.CONTRACT_SCHEMAS,
             validate_contracts.load_contract_registry(ROOT),
         )
-
 
     def test_missing_manifest_is_reported_without_import_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -75,6 +78,7 @@ class ContractManifestTests(unittest.TestCase):
             "contracts/manifest.json: unable to load JSON:",
             result.stderr,
         )
+
     def test_missing_core_contract_role_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = self.copied_repository(temporary_directory)

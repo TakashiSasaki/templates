@@ -78,6 +78,20 @@
         }
       ],
       "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
+    },
+    {
+      "id": "implementation_evidence",
+      "document": "contracts/implementation-evidence.json",
+      "schema": "schemas/implementation-evidence.schema.json",
+      "migrationSlug": "implementation-evidence",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Map every declared surface, route, UI state, viewport, input capability, and version transition to implementation boundaries, positive and negative evidence, authoritative commands, and release gates."
     }
   ],
   "retiredContracts": []

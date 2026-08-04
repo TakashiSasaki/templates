@@ -2,7 +2,7 @@
 
 This orphan branch is the development source for a framework-neutral web-application repository template. Its history is intentionally unrelated to the other branches in `TakashiSasaki/templates`.
 
-The template provides repository-level design contracts for browser-facing web applications. The current foundation covers application surfaces, routes, user-visible states, supported viewports, a closed contract manifest with active and retired version histories, stable migration ownership, JSON Schemas, validation, tests, and CI. It does not choose an application framework, package manager, deployment target, authentication provider, backend architecture, or coding-agent operating policy.
+The template provides repository-level design contracts for browser-facing web applications. The current foundation covers application surfaces, routes, user-visible states, supported viewports, machine-readable implementation evidence, a closed contract manifest with active and retired version histories, stable migration ownership, JSON Schemas, validation, tests, and CI. It does not choose an application framework, package manager, deployment target, authentication provider, backend architecture, or coding-agent operating policy.
 
 ## Validation baseline
 
@@ -32,6 +32,13 @@ python scripts/validate_contract_evolution.py
 python -m scripts.validate_contract_evolution
 ```
 
+Validate implementation-evidence coverage, command references, and release-gate closure through both supported entry points:
+
+```sh
+python scripts/validate_implementation_evidence.py
+python -m scripts.validate_implementation_evidence
+```
+
 Run the standard-library test suite:
 
 ```sh
@@ -42,8 +49,10 @@ python -m unittest discover -s tests -v
 
 `contracts/manifest.json` is the inventory source of truth. Every active domain contract and schema is registered there; retired non-core families retain tombstones without live document or schema files. Each family has a stable `migrationSlug`, every manifest and contract version has a contiguous history, and every transition after version 1 registers exactly one deterministic migration. The evolution validator scans every artifact under `docs/migrations/`, regardless of extension, and rejects unregistered, missing, duplicated, unreadable, visually empty, non-regular, symbolic, version-mismatched, or evolution-incomplete artifacts.
 
+`contracts/implementation-evidence.json` connects every surface, route, UI state, viewport, input capability, and registered version transition to implementation ownership, positive and negative evidence, authoritative commands, and release gates. The template ships an explicit requirement inventory in `mode: template`; generated repositories switch to `mode: product` only after replacing those requirements with verified repository-local evidence.
+
 ## Template-development rule
 
 Changes for this template branch must be based on `webapp`, not on `main` or `site`. The histories are unrelated and must not be merged merely to share files.
 
-See `TEMPLATE.md` for scope and customization boundaries, [`docs/operationalization.md`](docs/operationalization.md) for the generated-repository workflow, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, `docs/architecture/contract-completeness.md` for the contract inventory and extension criteria, [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md) for versioning, stable migration ownership, retirement, and rollback rules, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.
+See `TEMPLATE.md` for scope and customization boundaries, [`docs/operationalization.md`](docs/operationalization.md) for the generated-repository workflow, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, `docs/architecture/contract-completeness.md` for the contract inventory and extension criteria, [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md) for versioning, stable migration ownership, retirement, and rollback rules, [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md) for implementation ownership and release evidence, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.

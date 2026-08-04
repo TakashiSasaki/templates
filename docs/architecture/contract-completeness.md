@@ -1,18 +1,19 @@
 # Contract completeness
 
-The Webapp template treats contract completeness as three separate questions:
+The Webapp template treats contract completeness as four separate questions:
 
 1. Is every active contract artifact in the repository known to the current-contract validator?
 2. Is every active or retired contract transition known to the evolution validator and backed by one migration artifact?
-3. Does the current set cover the framework-neutral concerns that the template has intentionally accepted?
+3. Does every accepted declaration and transition have one implementation-evidence target?
+4. Does the current set cover the framework-neutral concerns that the template has intentionally accepted?
 
-`contracts/manifest.json` answers the first two questions. Architectural review answers the third.
+`contracts/manifest.json` answers the first two questions. `contracts/implementation-evidence.json` answers the third. Architectural review answers the fourth.
 
 ## Closed inventory
 
 The manifest records each active domain contract's stable identifier, document path, schema path, stable migration slug, current document schema version, complete version history, and purpose. A retired non-core family moves to `retiredContracts`, which retains its identity, final live paths, stable migration slug, last live version, breaking retirement version, complete history, and purpose without retaining live contract or schema files. The manifest also records the bootstrap format's own version history.
 
-The current-contract validator derives its active registry from `contracts`; the evolution validator reads both `contracts` and `retiredContracts`.
+The current-contract validator derives its active registry from `contracts`; the evolution validator reads both `contracts` and `retiredContracts`; the implementation-evidence validator reads the current declarations and every recorded transition.
 
 Validation fails when:
 
@@ -27,8 +28,12 @@ Validation fails when:
 - a retirement history does not end in a breaking transition;
 - a migration path does not match its owning stable slug and transition;
 - a registered migration is missing, unreadable, visually empty, symbolic, or non-regular;
-- a migration is registered more than once; or
-- any artifact under `docs/migrations/`, regardless of extension, is not registered by a version history.
+- a migration is registered more than once;
+- any artifact under `docs/migrations/`, regardless of extension, is not registered by a version history;
+- an evidence target is missing, duplicated, or unknown;
+- a proof references an unknown command or release gate;
+- a product-mode proof command is not executed by a selected release gate; or
+- template mode claims product implementation locations, verified results, commands, or gates.
 
 The manifest document and `schemas/contract-manifest.schema.json` are bootstrap metadata and are excluded from the active domain-contract registry, but their format is independently versioned in the manifest's top-level history.
 
@@ -40,6 +45,7 @@ The manifest document and `schemas/contract-manifest.schema.json` are bootstrap 
 | `routes` | Canonical pathnames, aliases, surface ownership, unauthenticated and forbidden access-failure behavior, authentication return behavior, deep linking, browser history intent, supported states, document-title requirements, and focus targets |
 | `ui_states` | Reusable visible-state categories, route or global presentation ownership, recovery-action identifiers, announcements, and focus strategies |
 | `viewports` | Responsive lower bounds, input capabilities, zoom support, horizontal-scrolling policy, and orientation independence |
+| `implementation_evidence` | Implementation ownership, positive and negative proofs, authoritative commands, release gates, and coverage of every current declaration and registered transition |
 
 Every declared browser-facing surface must be owned by at least one canonical route. Multiple canonical routes may share one surface when they expose the same audience, authentication, authorization, data, stability, and diagnostic boundary.
 
@@ -47,22 +53,25 @@ Every route declares whether unauthenticated and forbidden access failures rende
 
 Every route-scoped UI state must be listed by at least one canonical route. Multiple routes may share one route-scoped state. Global states are owned by an application shell, router, or another top-level presentation boundary and must not be listed by a route. This ownership distinction is framework-neutral and does not prescribe a routing library, state store, rendering model, or component structure.
 
-Cross-contract validation currently checks identifiers, references, surface-to-route coverage, access-failure applicability and state consistency, UI-state scope and route coverage, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity. Evolution validation separately checks active and retired histories, stable migration ownership, retirement invariants, and the closed migration-artifact inventory.
+Every surface, route, UI state, viewport, input capability, and post-version-1 transition has exactly one implementation-evidence target. The template records requirements without pretending to have product code. Generated repositories replace the requirement inventory with verified boundaries, proofs, commands, and release gates.
+
+Current-contract validation checks identifiers, references, surface-to-route coverage, access-failure applicability and state consistency, UI-state scope and route coverage, surface dependency cycles, route collisions, authentication consistency, visible text, and viewport continuity. Evolution validation checks active and retired histories, stable migration ownership, retirement invariants, and the closed migration-artifact inventory. Implementation-evidence validation checks coverage and release-reference closure.
 
 ## Deliberately product-owned
 
-The template does not create machine-readable placeholders for choices whose values depend on the generated product repository:
+The template does not create implementation values whose selection depends on the generated product repository:
 
 - framework and rendering model;
-- package manager and authoritative commands;
+- package manager and authoritative product commands;
+- concrete implementation locators;
 - backend, API, persistence, and deployment topology;
 - authentication provider, redirect destinations, and trusted authorization implementation;
 - browser support matrix;
 - observability platform;
 - concrete offline and installability behavior;
-- implementation evidence and release procedures.
+- actual product tests, expected results, and release procedures.
 
-A future contract may describe one of these concerns only after the reusable semantics are clear and the template can validate them without selecting a competing implementation.
+The implementation-evidence contract defines the reusable shape for those repository-local values. Template mode does not claim them; product mode requires them.
 
 ## Criteria for another contract family
 
@@ -73,6 +82,6 @@ Add another domain contract only when all of the following are true:
 - a generated product repository can provide one authoritative declaration;
 - cross-file references and failure cases can be validated locally;
 - the contract does not require placeholder frameworks, providers, manifests, or deployment files;
-- ownership, retirement, and migration consequences can be documented.
+- ownership, evidence, retirement, and migration consequences can be documented.
 
-A new family begins at version 1 with `changeType: initial` and one stable migration slug. The manifest must be updated in the same change as a new, moved, retired, or versioned contract family. Later transitions follow [`contract-evolution.md`](contract-evolution.md) and must synchronize the schema, example contract or tombstone, manifest history, deterministic migration, validators, tests, guidance, implementation evidence, deployment sequencing, and rollback expectations.
+A new family begins at version 1 with `changeType: initial` and one stable migration slug. The manifest must be updated in the same change as a new, moved, retired, or versioned contract family. Its accepted entities or transitions must also be added to implementation-evidence coverage in the same change. Later transitions follow [`contract-evolution.md`](contract-evolution.md) and must synchronize the schema, example contract or tombstone, manifest history, deterministic migration, validators, tests, guidance, implementation evidence, deployment sequencing, and rollback expectations.

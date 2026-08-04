@@ -63,6 +63,9 @@ class ContractEvolutionTests(unittest.TestCase):
                 },
             ],
             "viewports": [{"version": 1, "changeType": "initial"}],
+            "implementation_evidence": [
+                {"version": 1, "changeType": "initial"}
+            ],
         }
         for entry in manifest["contracts"]:
             entry["versionHistory"] = histories[entry["id"]]
