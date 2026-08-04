@@ -15,7 +15,7 @@ Use this skill when a proposed public contract must be reviewed against the loca
 
 ## Required inputs and prerequisites
 
-Obtain the supplied contract facts, a caller-supplied staging path for the completed response, and a caller-supplied final output path. When the facts are provided in a file, treat that source as read-only. The facts source, staging path, and output path must refer to distinct files, including no hard-link or equivalent aliases.
+Obtain the supplied contract facts, a caller-supplied staging path for the completed response, and a caller-supplied final output path. When the facts are provided in a file, treat that source as read-only. The facts source, staging path, and output path must be distinct. No two may be hard-link or equivalent aliases of the same file.
 
 ## Operational knowledge
 
