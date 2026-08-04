@@ -232,7 +232,7 @@ class GeneratedReleaseBundleSecondReviewRegressionTests(unittest.TestCase):
                 "temporary.write_bytes(content)",
                 [
                     "if path == INDEX_PATH:",
-                    "    marker = GIT_DIR / 'third-review-index-temporary-ready'",
+                    "    marker = GIT_DIR / 'second-review-index-temporary-ready'",
                     "    if not marker.exists():",
                     "        marker.write_text('ready', encoding='utf-8')",
                     "        time.sleep(2.0)",
@@ -254,7 +254,7 @@ class GeneratedReleaseBundleSecondReviewRegressionTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            marker = root / ".git/third-review-index-temporary-ready"
+            marker = root / ".git/second-review-index-temporary-ready"
             deadline = time.monotonic() + 10.0
             while not marker.exists():
                 if first.poll() is not None:
