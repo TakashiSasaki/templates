@@ -114,25 +114,27 @@ The regression suite proves rejection of changed active-contract bytes, changed 
 
 The producer accepts no arbitrary command, path, executable, environment, provider, archive, signature, publication target, deployment target, or remote locator. Product repositories remain responsible for durable retention, signing or attestation, approval, encryption, redaction, publication, deployment, and environment observation.
 
-## Remaining Phase 4: final template readiness audit
+## Completed Phase 4: final template readiness audit
 
-The final phase is a cross-repository consistency and usability audit rather than a feature expansion.
+PR #82 records the final cross-repository consistency and usability audit in [`final-readiness-audit.md`](final-readiness-audit.md) and adds a regression that keeps the audit evidence, CI validator surface, branch terminology, and completion state synchronized.
 
-The audit must verify:
+The audit verifies:
 
 - every active contract, schema, validator, test, migration, and architecture document agrees on identifiers, versions, modes, and responsibilities;
 - all examples are either explicit template requirements or explicit product declarations;
-- all validator entry points are documented and exercised in CI and clean-room fixtures;
+- all ten validator entry points are documented, exercised in CI, and exercised across the generated-repository clean-room fixtures;
 - template-maintainer-only tests skip safely in generated product repositories;
-- no framework, package manager, backend, authentication provider, CI provider, or deployment platform has been selected implicitly;
+- no framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform has been selected implicitly;
 - no generic arbitrary-command executor exists;
-- no `policy`, `main`, or `site` content has entered the unrelated `webapp` history;
-- generated-repository setup, implementation evidence, actual evidence production, release bundle handoff, migration, retirement, rollback, and completion checklists form one coherent workflow;
-- intentionally product-owned concerns are clearly separated from missing template work; and
-- current-head CI passes, Codex reports no unresolved valid findings, and all review threads are resolved.
+- the unrelated `skill`, `site`, and `policy` histories have no common ancestor with `webapp` and have not entered this branch;
+- generated-repository setup, implementation evidence, actual evidence production, release-bundle handoff, migration, retirement, retry, supersession, rollback, and completion checklists form one coherent workflow;
+- intentionally product-owned concerns are separated from missing template work; and
+- current-head CI and fully resolved review remain required merge evidence recorded on the pull request.
+
+The audit found and closed two repository-level completion gaps: the absence of one durable Phase 4 evidence record and the remaining old `main` branch name in this roadmap after the live branch was renamed to `skill`. It found no missing framework-neutral contract or conformance capability.
 
 ## Completion decision
 
-The `webapp` branch can be considered complete when Phase 4 is merged and no remaining gap requires a framework-neutral, repository-authoritative, locally verifiable contract or conformance check.
+With Phase 4 merged after successful current-head CI and resolved review, the `webapp` branch is complete for its stated framework-neutral template scope. No identified gap requires another repository-authoritative, locally verifiable contract or conformance check.
 
-Further additions should then be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`contract-completeness.md`](contract-completeness.md) rather than expanding the template speculatively.
+Further additions should be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`contract-completeness.md`](contract-completeness.md) rather than expanding the template speculatively.
