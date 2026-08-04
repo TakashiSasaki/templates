@@ -224,7 +224,11 @@ class GeneratedReleaseBundleProductionTests(unittest.TestCase):
 
             self.assertEqual(1, validation.returncode)
             self.assertIn(
-                "revision does not match expected revision",
+                "release evidence subject: revision",
+                validation.stderr,
+            )
+            self.assertIn(
+                "does not match expected revision",
                 validation.stderr,
             )
 
