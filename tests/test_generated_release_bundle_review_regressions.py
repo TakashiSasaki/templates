@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 import unittest
@@ -84,6 +83,13 @@ class GeneratedReleaseBundleReviewRegressionTests(unittest.TestCase):
     def test_git_replacement_objects_are_disabled_during_preflight(self) -> None:
         with _generated_repository() as root:
             revision = self.install_and_commit(root)
+            _run_git(root, "config", "user.name", "Fixture Reviewer")
+            _run_git(
+                root,
+                "config",
+                "user.email",
+                "fixture-reviewer@example.invalid",
+            )
             surfaces_path = root / "contracts/surfaces.json"
             surfaces = _load_json(surfaces_path)
             surfaces["surfaces"][0]["purpose"] += " Replacement-only bytes."
@@ -118,13 +124,8 @@ class GeneratedReleaseBundleReviewRegressionTests(unittest.TestCase):
             surfaces["surfaces"][0]["purpose"] += " Ident marker $Id$."
             _write_json(surfaces_path, surfaces)
             revision = _commit_generated_repository(root)
-            _run_git(
-                root,
-                "checkout-index",
-                "--force",
-                "--",
-                "contracts/surfaces.json",
-            )
+            surfaces_path.unlink()
+            _run_git(root, "checkout", "--", "contracts/surfaces.json")
             self.assertIn(b"$Id:", surfaces_path.read_bytes())
             self.assertEqual("", _run_git(root, "diff", "--name-only"))
             self.produce_release(root, revision)
