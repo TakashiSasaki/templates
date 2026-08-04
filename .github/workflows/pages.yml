@@ -11,8 +11,6 @@ on:
       - CLI_INTERFACE.md
       - MCP_INTERFACE.md
       - .github/workflows/pages.yml
-  schedule:
-    - cron: '17 3 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -29,8 +27,8 @@ jobs:
     with:
       site_ref: site
       source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'skill' }}
-    # Pull-request runs validate GitHub's proposed merge commit. Scheduled and
-    # manual runs always resolve the current skill branch, regardless of the ref
+    # Pull-request runs validate GitHub's proposed merge commit. Manually
+    # dispatched runs resolve the current skill branch, regardless of the ref
     # selected when dispatching the workflow. The called site workflow is
     # build-only and exposes no Pages deployment job or write permission.
     permissions:
