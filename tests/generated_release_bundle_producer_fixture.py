@@ -80,13 +80,16 @@ RELEASE_BUNDLE_PRODUCER_SCRIPT = _replace_once(
     temporary_preexisted = temporary.exists() or temporary.is_symlink()
     if temporary_preexisted:
         raise FileExistsError(f"atomic-write temporary already exists: {temporary}")
+    temporary_created = False
     try:
-        temporary.write_bytes(content)
+        with temporary.open("xb") as output:
+            temporary_created = True
+            output.write(content)
         if target_mode is not None:
             temporary.chmod(target_mode)
         temporary.replace(path)
     except OSError:
-        if not temporary_preexisted and (
+        if temporary_created and (
             temporary.exists() or temporary.is_symlink()
         ):
             try:
@@ -96,7 +99,7 @@ RELEASE_BUNDLE_PRODUCER_SCRIPT = _replace_once(
                 pass
         raise
 """,
-    "preserve atomic replacement mode",
+    "exclusive atomic temporary creation and mode preservation",
 )
 
 RELEASE_BUNDLE_PRODUCER_SCRIPT = _replace_once(
