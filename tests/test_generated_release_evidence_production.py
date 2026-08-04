@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import py_compile
 import subprocess
 import sys
 import unittest
@@ -59,6 +60,34 @@ def _run_git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     return result
 
 
+def _run_git_with_worktree(
+    root: Path,
+    worktree: Path,
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        [
+            "git",
+            "--git-dir",
+            str(root / ".git"),
+            "--work-tree",
+            str(worktree),
+            *arguments,
+        ],
+        cwd=root,
+        env=_git_environment(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(arguments)} failed\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return result
+
+
 def _commit_generated_repository(root: Path) -> str:
     _run_git(root, "init", "--quiet")
     _run_git(root, "add", "--all", "--force")
@@ -83,6 +112,7 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
     def run_producer(self, root: Path, revision: str):
         return _run_generated_python(
             root,
+            "-I",
             "product/produce_release_evidence.py",
             "--revision",
             revision,
@@ -143,7 +173,7 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
                 run["command"]["authoritativeCommand"],
             )
             self.assertEqual(
-                [sys.executable, "product/prove_conformance.py"],
+                [sys.executable, "-I", "product/prove_conformance.py"],
                 run["command"]["executionArgv"],
             )
             self.assertEqual(0, run["command"]["exitCode"])
@@ -322,6 +352,87 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
             )
             self.assertIn(
                 ignored_bytecode.relative_to(root).as_posix(),
+                result.stderr,
+            )
+            self.assertFalse((root / "product/release-run.json").exists())
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-evidence.json")["mode"],
+            )
+
+    def test_producer_requires_isolation_before_repository_imports(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
+            sentinel = root / "product/preflight-import-executed"
+            malicious_source = root / "malicious_argparse.py"
+            malicious_source.write_text(
+                "from pathlib import Path\n"
+                f"Path({str(sentinel)!r}).write_text('executed', encoding='utf-8')\n"
+                "raise SystemExit(0)\n",
+                encoding="utf-8",
+            )
+            ignored_bytecode = root / "product/argparse.pyc"
+            py_compile.compile(
+                str(malicious_source),
+                cfile=str(ignored_bytecode),
+                doraise=True,
+            )
+            malicious_source.unlink()
+
+            result = _run_generated_python(
+                root,
+                "product/produce_release_evidence.py",
+                "--revision",
+                revision,
+            )
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "producer requires Python isolated mode (-I)",
+                result.stderr,
+            )
+            self.assertFalse(sentinel.exists())
+            self.assertFalse((root / "product/release-run.json").exists())
+            self.assertEqual(
+                "template",
+                _load_json(root / "contracts/release-evidence.json")["mode"],
+            )
+
+    def test_runner_rejects_redirected_git_worktree(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            revision = _commit_generated_repository(root)
+            alternate = root.parent / "alternate-worktree"
+            alternate.mkdir()
+            _run_git_with_worktree(
+                root,
+                alternate,
+                "checkout",
+                "--quiet",
+                "--force",
+                revision,
+            )
+            _run_git(root, "config", "core.worktree", str(alternate))
+            proof_path = root / "product/prove_conformance.py"
+            proof_path.write_text(
+                "print('generated repository proof: 52 checks passed')\n",
+                encoding="utf-8",
+            )
+
+            redirected_status = _run_git(
+                root,
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+            )
+            self.assertEqual("", redirected_status.stdout)
+
+            result = self.run_producer(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn(
+                "Git resolved worktree does not match generated repository root",
                 result.stderr,
             )
             self.assertFalse((root / "product/release-run.json").exists())
