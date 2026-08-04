@@ -1,10 +1,12 @@
 # Generated-repository conformance
 
-The Webapp template must prove that its contracts and validation toolchain remain usable after a repository is generated and product responsibility replaces template responsibility. This document defines the clean-room conformance model exercised by:
+The Webapp template must prove that its contracts and validation toolchain remain usable after a repository is generated and product responsibility replaces template responsibility. This document defines the current clean-room conformance model exercised by:
 
 - `tests/test_generated_repository_conformance.py`;
 - `tests/test_generated_release_evidence_conformance.py`; and
 - `tests/test_generated_release_evidence_production.py`.
+
+The repository also retains `release_bundle` validation in CI. Phase 3B will extend the generated-repository clean room to produce exact bundle digests and execute those two additional validator forms from product mode.
 
 The model is framework-neutral. It does not select a product framework, package manager, backend, authentication provider, browser automation library, CI provider, deployment platform, or production runtime. Its generated product is a deterministic fixture used only to prove that the template can be operationalized coherently.
 
@@ -14,11 +16,12 @@ The source repository remains a template:
 
 - `contracts/implementation-evidence.json` remains in `mode: template`;
 - `contracts/release-evidence.json` remains in `mode: template`;
+- `contracts/release-bundle.json` remains in `mode: template`;
 - source contracts remain example declarations;
-- no product implementation directory, execution artifact, or product release result is added to the template root; and
+- no product implementation directory, execution artifact, product release result, or product handoff bundle is added to the template root; and
 - the source checkout is never modified while a conformance fixture is running.
 
-Each test creates a new temporary repository tree, excludes source-control and local-environment residue, and changes only that copy. The generated copy owns its product declarations, implementation locators, proof results, commands, release gates, actual command execution, release subject, command and gate results, provenance, decision, and repository-local run artifact. Assertions after fixture disposal verify that the source evidence documents are still in template mode and that no product directory leaked into the source tree.
+Each test creates a new temporary repository tree, excludes source-control and local-environment residue, and changes only that copy. The generated copy currently owns its product declarations, implementation locators, proof results, commands, release gates, actual command execution, release subject, command and gate results, provenance, decision, and repository-local run artifact. Assertions after fixture disposal verify that source implementation and release evidence remain in template mode and that no product directory leaked into the source tree. Phase 3B will add generated-copy ownership and source-mode assertions for the bundle contract.
 
 The implementation fixture deliberately starts without `.git`. The evidence-production fixture installs its reviewed producer, initializes a fresh Git repository in that generated tree, commits the complete generated product state, and uses the resulting immutable commit as the candidate revision. No source-template Git history is copied into the clean room.
 
@@ -121,7 +124,7 @@ The implementation conformance test invokes the proof directly. The evidence-pro
 
 This is a narrow conformance mechanism, not a general command executor. Product repositories remain responsible for executing their own reviewed commands in CI with the runtime and isolation appropriate to the selected toolchain.
 
-## End-to-end validation
+## Current end-to-end validation
 
 Across the generated-repository fixtures, the copied repository executes:
 
@@ -140,7 +143,16 @@ Across the generated-repository fixtures, the copied repository executes:
 13. `scripts/validate_release_evidence.py --expected-revision <revision>`; and
 14. `python -m scripts.validate_release_evidence --expected-revision <revision>`.
 
-The product proof checks 52 outcomes: positive and negative evidence for each of the 26 current implementation targets. The eight validator forms must succeed against a generated product state, with the release forms additionally bound to the exact verified fixture revision.
+The product proof checks 52 outcomes: positive and negative evidence for each of the 26 current implementation targets. These eight validator forms must succeed against a generated product state, with the release forms additionally bound to the exact verified fixture revision.
+
+The repository-wide CI surface now contains ten validator forms because it also executes:
+
+```text
+scripts/validate_release_bundle.py
+python -m scripts.validate_release_bundle
+```
+
+In this Phase 3A foundation, those two forms validate the template-mode bundle contract in CI. Phase 3B will materialize a product-mode bundle from exact generated bytes and add both forms to the clean-room end-to-end sequence.
 
 ## Negative conformance coverage
 
@@ -168,14 +180,22 @@ For implementation-reference cases, the harness directly invokes `scripts/valida
 
 The declarative release cases invoke the copied release-evidence validator with an explicit expected revision. The production cases invoke the copied reviewed producer and then inspect and validate the generated run artifact and release record. Together these cases distinguish copied-entry-point behavior, implementation-reference closure, semantic proof execution, isolated startup, actual generated-tree revision binding, Git metadata/worktree identity, tracked/untracked/ignored input exclusion, command-definition binding, actual result capture, and decision derivation.
 
+Release-bundle unit regressions currently prove exact active-contract coverage, self-reference exclusion, manifest order, path binding, current-byte digest binding, revision equality, and generation chronology. Phase 3B will add those failure cases to generated product copies and actual bundle production.
+
 ## Versioning rule
 
-The generated-repository fixtures do not change an accepted contract document structure or semantic obligation. Fixture-only changes therefore do not increment a domain schema version or register a migration.
+The generated-repository fixture mechanics do not change an accepted contract document structure or semantic obligation. Fixture-only changes therefore do not increment a domain schema version or register a migration.
 
-The `release_evidence` family remains at version 1. Actual production conformance proves that existing version 1 fields can be populated from reviewed execution; it does not add or reinterpret a field. Future changes to required fields or semantics follow the normal contract-evolution rules.
+The `release_evidence` family remains at version 1. Actual production conformance proves that existing version 1 fields can be populated from reviewed execution; it does not add or reinterpret a field.
+
+The `release_bundle` family begins at version 1 in Phase 3A. Its static contract and validator define accepted handoff manifests. Adding clean-room production in Phase 3B will populate those existing fields from exact generated bytes and will not require a version increment unless accepted structure or semantics change.
+
+Future changes to required fields or semantics follow the normal contract-evolution rules.
 
 ## Non-goals
 
-The fixtures do not prove that a real application framework renders a page, that a real authorization provider rejects access, that a remote CI provider is trustworthy, that the generated run artifact is immutable after production, or that a deployment platform releases safely. Those are product-owned proofs.
+The current fixtures do not prove that a real application framework renders a page, that a real authorization provider rejects access, that a remote CI provider is trustworthy, that the generated run artifact is immutable after production, that a bundle was retained or signed, or that a deployment platform releases safely. Those are product-owned proofs.
 
-The fixtures prove that a generated repository can replace template examples with explicit product declarations, close every implementation-evidence reference, create and verify an immutable generated-product commit, isolate interpreter startup, pin Git identity and worktree selection, exclude tracked, ordinary untracked, and ignored revision-external inputs before executing a reviewed product proof, produce release evidence from the actual result without a generic command dispatcher, bind that evidence to the verified revision and current command definitions, and pass the complete retained validator surface without relying on template-only state.
+The current fixtures prove that a generated repository can replace template examples with explicit product declarations, close every implementation-evidence reference, create and verify an immutable generated-product commit, isolate interpreter startup, pin Git identity and worktree selection, exclude tracked, ordinary untracked, and ignored revision-external inputs before executing a reviewed product proof, produce release evidence from the actual result without a generic command dispatcher, bind that evidence to the verified revision and current command definitions, and pass the first eight retained validator forms without relying on template-only state.
+
+Phase 3B remains responsible for proving that the same generated product can compute and validate the exact digest-closed release bundle and thereby pass all ten retained validator forms.
