@@ -203,15 +203,22 @@ See [`architecture/release-bundle.md`](architecture/release-bundle.md).
 
 ### Clean-room generated-repository proof
 
-Template maintainers exercise the implementation transition in `tests/test_generated_repository_conformance.py` and the release transition in `tests/test_generated_release_evidence_conformance.py` and `tests/test_generated_release_evidence_production.py`.
+Template maintainers exercise the complete transition in four template-maintainer-only suites:
+
+- `tests/test_generated_repository_conformance.py` for product declarations, implementation boundaries, proof closure, and the first six validator forms;
+- `tests/test_generated_release_evidence_conformance.py` for declarative release-record revision and command-digest semantics;
+- `tests/test_generated_release_evidence_production.py` for isolated reviewed execution and actual release-evidence generation; and
+- `tests/test_generated_release_bundle_production.py` for exact-byte bundle generation, retained records, retry, supersession, and rollback reuse.
 
 The implementation regression creates a temporary copy of the template without `.git`, local virtual environments, or cache residue; explicitly settles copied example values as product declarations; converts only the copied implementation-evidence document to product mode; materializes repository-local boundary and proof locators; and selects a release gate that executes the authoritative fixture proof command.
 
-The harness directly invokes the reviewed fixture script with a fixed argument vector. It does not interpret command text from the evidence document and does not provide a reusable arbitrary-command executor. After all 52 current positive and negative implementation outcomes pass, it executes the first six validator entry points from the generated repository root.
+The harness directly invokes reviewed fixture scripts through fixed argument vectors. It does not interpret command text from the evidence document and does not provide a reusable arbitrary-command executor. After all 52 current positive and negative implementation outcomes pass, it executes the six pre-release validator entry points from the generated repository root.
 
-The release regressions materialize or produce one exact revision, complete command and gate results, current command digests, provenance, chronology, and approval. They invoke both copied release validator entry points with the expected revision. Negative cases reject revision mismatch, command-definition drift, revision-external inputs, redirected worktrees, and actual proof failure.
+The release suites materialize or produce one exact revision, complete command and gate results, current command digests, provenance, chronology, and approval. They invoke both copied release-evidence validator entry points with the expected revision. Negative cases reject revision mismatch, command-definition drift, revision-external inputs, redirected worktrees, and actual proof failure.
 
-For invalid implementation copies, the harness invokes the copied standalone implementation-evidence validator and asserts its nonzero exit plus the expected stderr diagnostic. The false-proof case directly invokes the copied reviewed product proof. The current generated tests cover the first eight validator entry points while keeping template source responsibility and generated product responsibility distinct. Repository CI covers all ten forms; Phase 3B extends the clean room to actual bundle production and the two bundle forms. See [`architecture/generated-repository-conformance.md`](architecture/generated-repository-conformance.md).
+The bundle suite requires approved release evidence, computes every artifact digest from exact current contract bytes in manifest order, writes an immutable retained record and a current bundle projection, and invokes both copied release-bundle validator entry points with the same expected revision. Negative and lifecycle cases reject stale contract and release-evidence bytes, different revisions, and rejected releases; they also prove append-only retry, repository-authoritative supersession, exact retained-record reactivation, and rejection of rollback reuse under changed current policy.
+
+For invalid implementation copies, the harness invokes the copied standalone implementation-evidence validator and asserts its nonzero exit plus the expected stderr diagnostic. The false-proof case directly invokes the copied reviewed product proof. Across the four suites, generated product copies exercise all ten validator forms while keeping template source responsibility and generated product responsibility distinct. See [`architecture/generated-repository-conformance.md`](architecture/generated-repository-conformance.md).
 
 ## 8. Integrate validation into CI
 
