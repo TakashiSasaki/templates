@@ -15,6 +15,8 @@ The source repository remains a template:
 
 Each test creates a new temporary repository tree, excludes source-control and local-environment residue, and changes only that copy. The generated copy owns its product declarations, implementation locators, proof results, commands, and release gate. Assertions after fixture disposal verify that the source evidence document is still in template mode and that no product directory leaked into the source tree.
 
+The clean-room conformance class is template-maintainer-only. It runs when the source evidence document is in `mode: template` and is automatically skipped when the file is retained in a generated product repository whose source document is in `mode: product`. A separate scope regression remains active in both modes and verifies that this execution boundary is preserved.
+
 ## Fixture materialization
 
 The clean-room fixture performs the following deterministic transition:
@@ -70,7 +72,7 @@ Deliberately broken generated copies must fail with stable diagnostics for:
 - a proof command omitted from the selected release gate; and
 - a false reviewed positive or negative proof result.
 
-The first seven cases exercise the shipped implementation-evidence validator against a generated repository. The final case exercises the reviewed product proof script. Together they distinguish contract-reference closure from semantic proof execution.
+For the first seven cases, the harness directly invokes `scripts/validate_implementation_evidence.py` from the generated repository root with a fixed argument vector, requires a nonzero exit, and matches the expected stderr diagnostic. It does not call an imported validator from the source checkout. The final case directly invokes the generated reviewed product proof script. Together these cases distinguish copied-entry-point behavior, contract-reference closure, and semantic proof execution.
 
 ## Versioning rule
 
