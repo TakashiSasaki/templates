@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: main
+      deployment_timestamp:
+        description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
+        required: false
+        type: string
+        default: ''
       deploy:
         description: Deprecated compatibility input; ignored because this workflow cannot deploy
         required: false
@@ -65,11 +70,32 @@ jobs:
             --site-root site-source \
             --output-root build
 
+      - name: Prepare deployment metadata
+        id: site_metadata
+        run: |
+          notice="$(
+            python site-source/scripts/prepare_site_metadata.py \
+              --config-file build/zensical.toml \
+              --deployment-timestamp "${{ inputs.deployment_timestamp }}" \
+              --canonical-url https://takashisasaki.github.io/templates/
+          )"
+          printf 'notice=%s\n' "$notice" >> "$GITHUB_OUTPUT"
+
       - name: Build the static site
         run: zensical build --config-file build/zensical.toml --clean --strict
 
-      - name: Verify the Pages entry point
-        run: test -f build/site/index.html
+      - name: Normalize generated canonical links
+        run: |
+          python site-source/scripts/finalize_site_metadata.py \
+            --site-root build/site \
+            --canonical-url https://takashisasaki.github.io/templates/
+
+      - name: Verify the Pages entry point and deployment notice
+        run: |
+          test -f build/site/index.html
+          grep --fixed-strings -- \
+            "${{ steps.site_metadata.outputs.notice }}" \
+            build/site/index.html
 
       - name: Record build provenance
         run: |

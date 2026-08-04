@@ -13,12 +13,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment_metadata:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/site'
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_timestamp: ${{ steps.timestamp.outputs.deployment_timestamp }}
+
+    steps:
+      - name: Capture deployment timestamp
+        id: timestamp
+        run: |
+          echo "deployment_timestamp=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')" \
+            >> "$GITHUB_OUTPUT"
+
   build:
     if: github.repository == 'TakashiSasaki/templates'
+    needs: deployment_metadata
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.sha }}
       source_ref: main
+      deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
     permissions:
       contents: read
 
