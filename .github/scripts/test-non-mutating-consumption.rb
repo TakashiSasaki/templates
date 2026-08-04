@@ -10,7 +10,13 @@ require "tmpdir"
 
 SOURCE_ROOT = File.expand_path("../..", __dir__)
 FIXTURE = File.join(SOURCE_ROOT, ".github/fixtures/profiles/script-assisted")
+COMBINED_FIXTURE = File.join(SOURCE_ROOT, ".github/fixtures/profiles/combined-resources")
 VALIDATOR = File.join(SOURCE_ROOT, ".github/scripts/validate-skill-repository.rb")
+GIT_ENV = {
+  "GIT_DIR" => nil,
+  "GIT_INDEX_FILE" => nil,
+  "GIT_WORK_TREE" => nil
+}.freeze
 FAILURES = []
 
 def capture(*command, chdir:, env: {})
@@ -23,6 +29,10 @@ def run!(*command, chdir:, env: {})
 
   raise "command failed: #{command.inspect}; status=#{status.exitstatus.inspect}; " \
         "stdout=#{stdout.inspect}; stderr=#{stderr.inspect}"
+end
+
+def git_run!(*arguments, chdir:)
+  run!("git", *arguments, chdir: chdir, env: GIT_ENV)
 end
 
 def tree_snapshot(root, exclude: [])
@@ -53,7 +63,7 @@ def tree_snapshot(root, exclude: [])
            else
              "other"
            end
-    record = [type, stat.mode & 0o777, stat.mtime.to_r]
+    record = [type, stat.mode & 0o7777, stat.mtime.to_r]
     record << File.binread(path) if stat.file?
     record << File.readlink(path) if stat.symlink?
     snapshot[relative] = record
@@ -61,7 +71,7 @@ def tree_snapshot(root, exclude: [])
 end
 
 def git_index_bytes(repository)
-  index_path = run!("git", "rev-parse", "--git-path", "index", chdir: repository).strip
+  index_path = git_run!("rev-parse", "--git-path", "index", chdir: repository).strip
   index_path = File.expand_path(index_path, repository) unless Pathname.new(index_path).absolute?
   File.binread(index_path)
 end
@@ -115,7 +125,7 @@ def validate(target, outside)
     VALIDATOR,
     target,
     chdir: outside,
-    env: { "RUBYOPT" => nil }
+    env: GIT_ENV.merge("RUBYOPT" => nil)
   )
 end
 
@@ -143,6 +153,53 @@ def expect_alias_rejection(label, target, input_path, output_path, area, expecte
                 "stderr=#{stderr.inspect}, area_unchanged=#{area_after == area_before}"
   end
   expect_context_unchanged(label, target, parent, outside, expected_context)
+end
+
+def expect_local_alias_rejection(label, target, input_path, output_path, area)
+  before = tree_snapshot(area)
+  stdout, stderr, status = run_helper(target, input_path, output_path)
+  after = tree_snapshot(area)
+  diagnostic = "input and output must refer to different files"
+  return if status.exitstatus == 2 && stdout.empty? && stderr.include?(diagnostic) && after == before
+
+  FAILURES << "#{label}: aliased paths were not rejected without mutation: " \
+              "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+              "stderr=#{stderr.inspect}, area_unchanged=#{after == before}"
+end
+
+def exercise_alias_contract(label, fixture)
+  Dir.mktmpdir("#{label}-alias-contract") do |workspace|
+    target = File.join(workspace, "skill")
+    same_area = File.join(workspace, "same-path")
+    hard_area = File.join(workspace, "hard-link")
+    same_path = File.join(same_area, "same.txt")
+    hard_input = File.join(hard_area, "input.txt")
+    hard_output = File.join(hard_area, "output.txt")
+
+    FileUtils.mkdir_p([target, same_area, hard_area])
+    FileUtils.cp_r("#{fixture}/.", target, preserve: true)
+
+    File.binwrite(same_path, "same-path input\r\n")
+    expect_local_alias_rejection(
+      "#{label} same-path rejection",
+      target,
+      same_path,
+      same_path,
+      same_area
+    )
+
+    File.binwrite(hard_input, "hard-link input\r\n")
+    File.link(hard_input, hard_output)
+    FAILURES << "#{label}: hard-link alias fixture does not identify the same file" \
+      unless File.identical?(hard_input, hard_output)
+    expect_local_alias_rejection(
+      "#{label} hard-link rejection",
+      target,
+      hard_input,
+      hard_output,
+      hard_area
+    )
+  end
 end
 
 Dir.mktmpdir("non-mutating-consumption") do |workspace|
@@ -173,12 +230,12 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
   ])
   FileUtils.cp_r("#{FIXTURE}/.", target, preserve: true)
 
-  run!("git", "init", "--quiet", chdir: parent)
-  run!("git", "config", "user.name", "Non-mutating Consumption Fixture", chdir: parent)
-  run!("git", "config", "user.email", "fixture@example.invalid", chdir: parent)
+  git_run!("init", "--quiet", chdir: parent)
+  git_run!("config", "user.name", "Non-mutating Consumption Fixture", chdir: parent)
+  git_run!("config", "user.email", "fixture@example.invalid", chdir: parent)
   File.write(File.join(parent, "README.md"), "# Parent project\n", encoding: "UTF-8")
-  run!("git", "add", ".", chdir: parent)
-  run!("git", "commit", "--quiet", "-m", "Install concrete skill", chdir: parent)
+  git_run!("add", ".", chdir: parent)
+  git_run!("commit", "--quiet", "-m", "Install concrete skill", chdir: parent)
 
   baseline = context_snapshot(target, parent, outside)
 
@@ -248,10 +305,10 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
     outside
   )
 
-  parent_head = run!("git", "rev-parse", "HEAD", chdir: parent).strip
+  parent_head = git_run!("rev-parse", "HEAD", chdir: parent).strip
   gitlink_path = File.join(skill_prefix, "scripts", "index-only-link")
-  run!(
-    "git", "update-index", "--add", "--cacheinfo",
+  git_run!(
+    "update-index", "--add", "--cacheinfo",
     "160000,#{parent_head},#{gitlink_path}",
     chdir: parent
   )
@@ -274,6 +331,8 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
     baseline.merge(index: gitlink_index)
   )
 end
+
+exercise_alias_contract("combined-resources helper", COMBINED_FIXTURE)
 
 unless FAILURES.empty?
   FAILURES.each { |failure| warn failure }
