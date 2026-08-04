@@ -93,5 +93,11 @@ jobs:
       - name: Validate implementation evidence as a module
         run: .venv/bin/python -m scripts.validate_implementation_evidence
 
+      - name: Validate release evidence as a standalone script
+        run: .venv/bin/python scripts/validate_release_evidence.py
+
+      - name: Validate release evidence as a module
+        run: .venv/bin/python -m scripts.validate_release_evidence
+
       - name: Run tests
         run: .venv/bin/python -m unittest discover -s tests -v
