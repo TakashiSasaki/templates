@@ -26,6 +26,9 @@ class ReleaseBundleTests(unittest.TestCase):
         self.manifest = validate_contracts.load_contract_manifest(ROOT)
         self.documents = validate_contracts.load_contract_documents(ROOT)
         self.bundle = self.documents["release_bundle"]
+        self.schema = validate_contracts.load_json(
+            ROOT / "schemas/release-bundle.schema.json"
+        )
 
     def product_documents(self) -> tuple[dict[str, object], dict[str, str]]:
         documents = copy.deepcopy(self.documents)
@@ -173,11 +176,7 @@ class ReleaseBundleTests(unittest.TestCase):
         )
 
     def test_repository_template_document_is_structurally_and_semantically_valid(self) -> None:
-        schema = validate_contracts.load_json(
-            ROOT / "schemas/release-bundle.schema.json"
-        )
-
-        self.assertTrue(Draft202012Validator(schema).is_valid(self.bundle))
+        self.assertTrue(Draft202012Validator(self.schema).is_valid(self.bundle))
         self.assertEqual(
             [],
             validate_release_bundle.validate_release_bundle_documents(
@@ -189,7 +188,12 @@ class ReleaseBundleTests(unittest.TestCase):
 
     def test_fully_bound_product_bundle_is_valid(self) -> None:
         documents, digests = self.product_documents()
+        bundle = documents["release_bundle"]
 
+        self.assertTrue(
+            Draft202012Validator(self.schema).is_valid(bundle),
+            list(Draft202012Validator(self.schema).iter_errors(bundle)),
+        )
         self.assertEqual([], self.validate_product(documents, digests))
 
     def test_product_bundle_requires_expected_revision(self) -> None:
