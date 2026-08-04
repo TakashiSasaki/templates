@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import sys
 import unicodedata
 from datetime import datetime
@@ -72,6 +73,10 @@ def _root_symlink_error(root: Path) -> str | None:
 
 ROOT = _invocation_root()
 RELEASE_EVIDENCE_CONTRACT_ID = "release_evidence"
+_TIMESTAMP_PATTERN = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$"
+)
+TimestampValue = tuple[datetime, int]
 
 
 def _has_visible_character(value: str) -> bool:
@@ -113,19 +118,28 @@ def _parse_timestamp(
     owner: str,
     field: str,
     errors: list[str],
-) -> datetime | None:
+) -> TimestampValue | None:
     if not isinstance(value, str):
         errors.append(f"{owner}: {field} must be a UTC timestamp")
         return None
+
+    match = _TIMESTAMP_PATTERN.fullmatch(value)
+    if match is None:
+        errors.append(f"{owner}: {field} must be a UTC timestamp")
+        return None
+
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        whole_seconds = datetime.strptime(
+            match.group(1),
+            "%Y-%m-%dT%H:%M:%S",
+        )
     except ValueError:
         errors.append(f"{owner}: {field} must be a UTC timestamp")
         return None
-    if not value.endswith("Z") or parsed.utcoffset() is None:
-        errors.append(f"{owner}: {field} must be a UTC timestamp")
-        return None
-    return parsed
+
+    fractional_digits = match.group(2) or ""
+    nanoseconds = int(fractional_digits.ljust(9, "0") or "0")
+    return whole_seconds, nanoseconds
 
 
 def validate_release_evidence_documents(
@@ -153,6 +167,14 @@ def validate_release_evidence_documents(
         return [f"release evidence: metadata is incomplete or malformed: {exc}"]
 
     if mode == "template":
+        if implementation.get("mode") != "template":
+            errors.append(
+                "release evidence: template mode requires template implementation evidence"
+            )
+        if expected_revision is not None:
+            errors.append(
+                "release evidence: template mode must not receive an expected revision"
+            )
         for field in ("subject", "provenance", "decision"):
             if release.get(field) is not None:
                 errors.append(f"release evidence: template mode must not claim {field}")
@@ -277,7 +299,7 @@ def validate_release_evidence_documents(
         errors.append(f"unknown release evidence command result: {command_id}")
 
     command_statuses: dict[str, str] = {}
-    completion_times: list[datetime] = []
+    completion_times: list[TimestampValue] = []
     for result in command_results:
         if not isinstance(result, dict):
             continue
@@ -288,10 +310,24 @@ def validate_release_evidence_documents(
         command_statuses[command_id] = result.get("status")
         command = known_commands.get(command_id)
         if command is not None:
-            expected_digest = _command_digest(command["command"])
-            if result.get("commandDigest") != expected_digest:
+            command_text = command.get("command")
+            if isinstance(command_text, str):
+                try:
+                    expected_digest = _command_digest(command_text)
+                except UnicodeEncodeError:
+                    errors.append(
+                        f"release evidence command {command_id}: "
+                        "authoritative command must be UTF-8 encodable"
+                    )
+                else:
+                    if result.get("commandDigest") != expected_digest:
+                        errors.append(
+                            f"{owner}: commandDigest does not match the authoritative command"
+                        )
+            else:
                 errors.append(
-                    f"{owner}: commandDigest does not match the authoritative command"
+                    f"release evidence command {command_id}: "
+                    "authoritative command must be text"
                 )
         if result.get("status") != "passed":
             errors.append(f"{owner}: status must be passed")
