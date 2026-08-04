@@ -1,6 +1,6 @@
 # Webapp template completion roadmap
 
-This roadmap tracks the repository-level work remaining after reviewed execution can produce revision-bound release evidence. It does not select a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
+This roadmap tracks the repository-level work remaining after reviewed execution can produce release evidence bound to the actual immutable generated-product revision. It does not select a framework, package manager, backend, authentication provider, CI provider, artifact store, or deployment platform.
 
 It is not a product backlog. Product-specific implementation, browser support, infrastructure, deployment, observability, approvals, and evidence retention remain the responsibility of each generated repository.
 
@@ -48,17 +48,19 @@ The clean-room generated repository now proves that a completed release record c
 The template-maintainer-only fixture:
 
 1. installs a release producer only in the temporary generated repository;
-2. accepts only an explicit immutable fixture revision;
-3. requires the exact reviewed command and release-gate registrations;
-4. invokes the known proof script through the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`;
-5. captures actual stdout, stderr, exit code, start time, and completion time;
-6. calculates the digest of the exact authoritative command text;
-7. derives gate status and release decision from the actual command result;
-8. writes a repository-local result artifact and product-mode release evidence;
-9. validates approved evidence through both copied release validator entry points; and
-10. proves that a failed command produces a rejected decision and cannot satisfy release validation.
+2. initializes a fresh Git repository and commits the complete generated-product state;
+3. supplies the resulting immutable commit revision to the producer;
+4. removes inherited Git inputs, disables system and global Git configuration, verifies that `HEAD^{commit}` equals the supplied revision, and requires a clean index and worktree before execution;
+5. requires the exact reviewed command and release-gate registrations;
+6. invokes the known proof script through the fixed argument vector `[sys.executable, "product/prove_conformance.py"]`;
+7. captures actual stdout, stderr, exit code, start time, and completion time;
+8. calculates the digest of the exact authoritative command text;
+9. derives gate status and release decision from the actual command result;
+10. writes a repository-local result artifact and product-mode release evidence;
+11. validates approved evidence through both copied release validator entry points; and
+12. proves that a failed command committed as its own candidate revision produces a rejected decision and cannot satisfy release validation.
 
-Command-registration drift is rejected before execution. The producer accepts no command text or executable input and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands in product-owned CI.
+A mismatched revision, an uncommitted generated-tree change, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and verifying their candidate checkout in product-owned CI.
 
 ## Remaining Phase 3: release-artifact and handoff closure
 
