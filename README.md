@@ -1,11 +1,15 @@
 # Documentation site
 
-This orphan branch contains only the source and deployment workflow for the
-`TakashiSasaki/templates` GitHub Pages site.
+This orphan branch contains the source, reusable artifact-build workflow, and
+exclusive deployment workflow for the `TakashiSasaki/templates` GitHub Pages
+site.
 
-Canonical technical documentation remains on the `main` branch. The Pages
-workflow checks out both branches, assembles a temporary Zensical project, and
-deploys only the generated static files.
+Canonical technical documentation remains on the `main` branch. The build
+workflow checks out both branches and assembles a temporary Zensical project,
+but it has no deployment job or Pages write permission. Only
+`.github/workflows/deploy-pages.yml`, triggered by a direct push to
+`refs/heads/site`, can deploy the generated static files. This rule does not
+consult the repository default branch.
 
 ## Local preview
 
