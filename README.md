@@ -1,6 +1,6 @@
 # Policy toolkit
 
-This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `main`, `site`, and `webapp` branches.
+This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `skill`, `site`, and `webapp` branches.
 
 The toolkit compiles shared and repository-specific operating rules into reproducible agent instructions. It governs how coding and general-purpose agents investigate, change, validate, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories.
 
@@ -74,7 +74,7 @@ Completed migration work includes:
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
 - a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job.
 
-Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `main` and `site`; it must not add a deployment path to `policy`.
+Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `skill` and `site`; it must not add a deployment path to `policy`.
 
 ## Trust model
 

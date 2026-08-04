@@ -99,6 +99,7 @@ def test_documentation_workflow_targets_only_policy() -> None:
     workflow = workflow_text()
 
     assert workflow.count("branches: [policy]") == 2
+    assert "branches: [skill]" not in workflow
     assert "branches: [main]" not in workflow
     assert "branches: [site]" not in workflow
     assert "workflow_dispatch" not in workflow
