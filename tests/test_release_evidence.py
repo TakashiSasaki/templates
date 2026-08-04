@@ -154,6 +154,29 @@ class ReleaseEvidenceTests(unittest.TestCase):
 
         self.assertEqual([], self.validate_product(documents))
 
+    def test_template_release_requires_template_implementation_evidence(self) -> None:
+        documents = self.product_documents()
+        documents["release_evidence"] = copy.deepcopy(self.release)
+
+        errors = self.validate_product(documents, expected_revision=None)
+
+        self.assertIn(
+            "release evidence: template mode requires template implementation evidence",
+            errors,
+        )
+
+    def test_template_release_rejects_an_expected_revision(self) -> None:
+        errors = validate_release_evidence.validate_release_evidence_documents(
+            self.manifest,
+            self.documents,
+            expected_revision=REVISION,
+        )
+
+        self.assertIn(
+            "release evidence: template mode must not receive an expected revision",
+            errors,
+        )
+
     def test_product_release_requires_product_implementation_evidence(self) -> None:
         documents = self.product_documents()
         documents["implementation_evidence"]["mode"] = "template"
@@ -254,6 +277,20 @@ class ReleaseEvidenceTests(unittest.TestCase):
             errors,
         )
 
+    def test_non_utf8_command_text_is_rejected_without_crashing(self) -> None:
+        documents = self.product_documents()
+        documents["implementation_evidence"]["commands"][0][
+            "command"
+        ] = "echo ok\ud800"
+
+        errors = self.validate_product(documents)
+
+        self.assertIn(
+            "release evidence command product-evidence: "
+            "authoritative command must be UTF-8 encodable",
+            errors,
+        )
+
     def test_failed_command_gate_and_decision_block_release(self) -> None:
         documents = self.product_documents()
         release = documents["release_evidence"]
@@ -303,6 +340,52 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.assertIn(
             "release evidence command result product-evidence: "
             "completedAt must not precede startedAt",
+            errors,
+        )
+
+    def test_nanosecond_command_order_is_preserved(self) -> None:
+        documents = self.product_documents()
+        result = documents["release_evidence"]["commandResults"][0]
+        result["startedAt"] = "2026-08-04T00:00:00.000000001Z"
+        result["completedAt"] = "2026-08-04T00:00:00.000000000Z"
+
+        errors = self.validate_product(documents)
+
+        self.assertIn(
+            "release evidence command result product-evidence: "
+            "completedAt must not precede startedAt",
+            errors,
+        )
+
+    def test_nanosecond_decision_order_is_preserved(self) -> None:
+        documents = self.product_documents()
+        release = documents["release_evidence"]
+        release["commandResults"][0][
+            "completedAt"
+        ] = "2026-08-04T00:01:00.000000001Z"
+        release["decision"]["decidedAt"] = "2026-08-04T00:01:00.000000000Z"
+
+        errors = self.validate_product(documents)
+
+        self.assertIn(
+            "release evidence decision: "
+            "decidedAt must not precede command completion",
+            errors,
+        )
+
+    def test_nanosecond_generation_order_is_preserved(self) -> None:
+        documents = self.product_documents()
+        release = documents["release_evidence"]
+        release["decision"]["decidedAt"] = "2026-08-04T00:02:00.000000001Z"
+        release["provenance"][
+            "generatedAt"
+        ] = "2026-08-04T00:02:00.000000000Z"
+
+        errors = self.validate_product(documents)
+
+        self.assertIn(
+            "release evidence provenance: "
+            "generatedAt must not precede decidedAt",
             errors,
         )
 
