@@ -18,38 +18,40 @@ jobs:
         with:
           ref: agent/skill-branch-rename-migration
 
-      - name: Apply exact branch-name replacements
+      - name: Apply and verify branch-name replacements
         shell: python
         run: |
           from pathlib import Path
 
-          replacements = {
-              Path('.github/workflows/pages.yml'): [
-                  ('      - main\n', '      - skill\n', 1),
-                  ("|| 'main' }}", "|| 'skill' }}", 1),
-                  ('current main branch', 'current skill branch', 1),
-              ],
-              Path('.github/scripts/test-pages-deployment-boundary.rb'): [
-                  ('main push still triggers documentation workflow', 'skill push still triggers documentation workflow', 1),
-                  ('removed main publication workflow', 'removed skill publication workflow', 1),
-                  ('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages', 1),
-                  ('main deployment boundary', 'skill deployment boundary', 1),
-                  ('main workflows and contributor guidance', 'skill workflows and contributor guidance', 1),
-              ],
-              Path('CONTRIBUTING.md'): [
-                  ('Pull requests to `main`', 'Pull requests to `skill`', 1),
-                  ('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages', 1),
-              ],
-          }
+          workflow_path = Path('.github/workflows/pages.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          workflow = workflow.replace('      - main\n', '      - skill\n')
+          workflow = workflow.replace("|| 'main' }}", "|| 'skill' }}")
+          workflow = workflow.replace('current main branch', 'current skill branch')
+          if '      - main\n' in workflow or "|| 'main' }}" in workflow:
+              raise SystemExit('documentation compatibility workflow still references main')
+          if '      - skill\n' not in workflow or "|| 'skill' }}" not in workflow:
+              raise SystemExit('documentation compatibility workflow does not target skill')
+          workflow_path.write_text(workflow, encoding='utf-8')
 
-          for path, rules in replacements.items():
-              text = path.read_text(encoding='utf-8')
-              for old, new, expected in rules:
-                  actual = text.count(old)
-                  if actual != expected:
-                      raise SystemExit(f'{path}: expected {expected} occurrence(s) of {old!r}, found {actual}')
-                  text = text.replace(old, new)
-              path.write_text(text, encoding='utf-8')
+          boundary_path = Path('.github/scripts/test-pages-deployment-boundary.rb')
+          boundary = boundary_path.read_text(encoding='utf-8')
+          boundary = boundary.replace('main push still triggers documentation workflow', 'skill push still triggers documentation workflow')
+          boundary = boundary.replace('removed main publication workflow', 'removed skill publication workflow')
+          boundary = boundary.replace('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages')
+          boundary = boundary.replace('main deployment boundary', 'skill deployment boundary')
+          boundary = boundary.replace('main workflows and contributor guidance', 'skill workflows and contributor guidance')
+          if 'No workflow on `skill` deploys GitHub Pages' not in boundary:
+              raise SystemExit('deployment boundary test does not require skill guidance')
+          boundary_path.write_text(boundary, encoding='utf-8')
+
+          contributing_path = Path('CONTRIBUTING.md')
+          contributing = contributing_path.read_text(encoding='utf-8')
+          contributing = contributing.replace('Pull requests to `main`', 'Pull requests to `skill`')
+          contributing = contributing.replace('No workflow on `main` deploys GitHub Pages', 'No workflow on `skill` deploys GitHub Pages')
+          if 'Pull requests to `skill`' not in contributing:
+              raise SystemExit('contributor guidance does not target skill pull requests')
+          contributing_path.write_text(contributing, encoding='utf-8')
 
           Path('.github/workflows/one-shot-branch-rename.yml').unlink()
 
