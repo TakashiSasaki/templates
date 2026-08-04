@@ -128,7 +128,16 @@ The repository-authoritative product contract represents only one current bundle
 - A superseded bundle remains immutable in the product-owned archive. It is removed from consideration as the current handoff and replaced by a newly validated ready bundle. The current contract path must not pretend that the superseded bytes are still current.
 - A rollback must not mutate the original successful bundle. A product may reuse a previously retained immutable bundle only when the rollback target exactly matches its candidate and artifacts and current policy still accepts it. Otherwise, it must execute the current approval policy for the rollback target and generate new release evidence and a new bundle.
 
-Version 1 intentionally does not define a historical bundle ledger or provider-specific supersession record. The next Phase 3 conformance step will prove local stale, mismatched, and superseded-current diagnostics without choosing an archive or release provider.
+Version 1 intentionally does not add a historical bundle ledger or provider-specific supersession fields to the public contract. The template-maintainer clean-room fixture instead proves these lifecycle rules with repository-local retained record files and an index that are not part of the accepted contract family:
+
+- each retry appends a distinct retained record;
+- the index identifies exactly one current record and explicitly supersedes the prior current record;
+- retained record bytes and their index digests are rechecked before any lifecycle operation;
+- unindexed, missing, symbolic, or changed record files are rejected;
+- the current contract projection must equal the exact current retained bytes; and
+- rollback reactivation succeeds only when the retained candidate, exact bytes, current active artifacts, release evidence, and both current validators still agree.
+
+This conformance mechanism demonstrates a locally verifiable repository-authoritative policy without prescribing an external archive, release provider, or product ledger format. Generated products may implement equivalent lifecycle ownership differently, but they must preserve the same immutable-result and current-policy acceptance properties.
 
 ## Product-owned controls
 
