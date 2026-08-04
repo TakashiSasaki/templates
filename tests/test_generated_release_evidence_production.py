@@ -22,6 +22,13 @@ from test_generated_repository_conformance import (  # noqa: E402
     _write_json,
 )
 
+_GIT_CONFIG_OVERRIDES = (
+    "-c",
+    "maintenance.auto=false",
+    "-c",
+    "gc.auto=0",
+)
+
 
 def _git_environment() -> dict[str, str]:
     environment = _generated_environment()
@@ -32,6 +39,8 @@ def _git_environment() -> dict[str, str]:
         {
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_LITERAL_PATHSPECS": "1",
             "GIT_AUTHOR_NAME": "Webapp conformance fixture",
             "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
             "GIT_AUTHOR_DATE": "2026-08-04T00:00:00+00:00",
@@ -45,7 +54,7 @@ def _git_environment() -> dict[str, str]:
 
 def _run_git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        ["git", "-C", str(root), *arguments],
+        ["git", *_GIT_CONFIG_OVERRIDES, "-C", str(root), *arguments],
         cwd=root,
         env=_git_environment(),
         check=False,
@@ -68,6 +77,7 @@ def _run_git_with_worktree(
     result = subprocess.run(
         [
             "git",
+            *_GIT_CONFIG_OVERRIDES,
             "--git-dir",
             str(root / ".git"),
             "--work-tree",
