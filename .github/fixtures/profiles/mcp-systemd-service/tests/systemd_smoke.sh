@@ -102,13 +102,20 @@ wait_for_file() {
   return 1
 }
 
-assert_dead() {
+assert_terminated() {
   pid=$1
   for _ in $(seq 1 50); do
-    sudo kill -0 "$pid" 2>/dev/null || return 0
+    if ! sudo kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    state=$(sudo awk '{ print $3 }' "/proc/$pid/stat" 2>/dev/null || true)
+    if [[ "$state" == "Z" ]]; then
+      return 0
+    fi
     sleep 0.1
   done
-  echo "expected PID $pid to be gone" >&2
+  state=$(sudo awk '{ print $3 }' "/proc/$pid/stat" 2>/dev/null || true)
+  echo "expected PID $pid to be gone or zombie after SIGKILL, state=$state" >&2
   return 1
 }
 
@@ -244,8 +251,8 @@ timeout 20s sudo systemctl stop "$UNIT_NAME"
 STOP_ELAPSED=$(( $(date +%s) - STOP_STARTED ))
 (( STOP_ELAPSED >= 9 ))
 ! sudo systemctl is-active --quiet "$UNIT_NAME"
-assert_dead "$RESIST_PARENT"
-assert_dead "$RESIST_CHILD"
+assert_terminated "$RESIST_PARENT"
+assert_terminated "$RESIST_CHILD"
 if [[ -e "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs" ]]; then
   [[ -z "$(cat "/sys/fs/cgroup${CONTROL_GROUP}/cgroup.procs")" ]]
 fi
