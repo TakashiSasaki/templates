@@ -126,7 +126,9 @@ class FinalReadinessAuditTests(unittest.TestCase):
         )
         self.assertNotIn("## Remaining Phase 4", roadmap)
         self.assertNotIn("`policy`, `main`, or `site`", roadmap)
-        self.assertIn("`skill`, `site`, or `policy`", roadmap)
+        for branch in ("skill", "site", "policy"):
+            with self.subTest(branch=branch):
+                self.assertIn(f"`{branch}`", roadmap)
 
 
 if __name__ == "__main__":
