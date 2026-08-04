@@ -13,6 +13,7 @@ NON_MUTATING_SMOKE = ".github/scripts/test-non-mutating-consumption.rb"
 SMOKES = {
   ".github/scripts/test-minimal-profile-layouts.rb" => "Minimal profile repository layout tests passed.",
   ".github/scripts/test-template-adoption.rb" => "Template adoption smoke tests passed.",
+  ".github/scripts/test-concrete-skill-completion.rb" => "Concrete skill completion hygiene tests passed.",
   ".github/scripts/test-installation-modes.rb" => "Installation mode smoke tests passed.",
   ".github/scripts/test-parent-owned-vendoring.rb" => "Parent-owned vendoring smoke tests passed.",
   NON_MUTATING_SMOKE => "Non-mutating skill consumption smoke tests passed."
