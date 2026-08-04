@@ -1,15 +1,16 @@
 # Documentation site
 
-This orphan branch contains the source, reusable artifact-build workflow, and
+This default branch contains the source, reusable artifact-build workflow, and
 exclusive deployment workflow for the `TakashiSasaki/templates` GitHub Pages
 site.
 
-Canonical technical documentation remains on the `main` branch. The build
+Canonical technical documentation remains on the `skill` branch. The build
 workflow checks out both branches and assembles a temporary Zensical project,
 but it has no deployment job or Pages write permission. Only
 `.github/workflows/deploy-pages.yml`, triggered by a direct push to
-`refs/heads/site`, can deploy the generated static files. This rule does not
-consult the repository default branch.
+`refs/heads/site`, can deploy the generated static files. Deployment authority
+is bound explicitly to `site`; it is not inferred from the repository default
+branch setting.
 
 ## Published metadata
 
@@ -26,12 +27,12 @@ whose URL is `https://takashisasaki.github.io/templates/`.
 From a clone with both branches available:
 
 ```sh
-git worktree add ../templates-main main
+git worktree add ../templates-skill skill
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.txt
 python scripts/assemble_docs.py \
-  --source-root ../templates-main \
+  --source-root ../templates-skill \
   --site-root . \
   --output-root .build
 python scripts/prepare_site_metadata.py \
