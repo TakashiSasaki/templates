@@ -31,6 +31,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-minimal-profile-layouts.rb
 
+      - name: Test canonical template adoption
+        shell: bash
+        run: ruby .github/scripts/test-template-adoption.rb
+
       - name: Test script-assisted optional-runtime profile fixture
         shell: bash
         run: ruby .github/scripts/test-script-assisted-runtime-profile.rb

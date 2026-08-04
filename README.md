@@ -79,6 +79,29 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 9. Keep `WEB_INTERFACE.md` only when `browser-interface` is selected; a headless service alone does not require it.
 10. Add only the manifests, lockfiles, source layout, and tests required by the selected implementation.
 11. Replace `LICENSE.template` with the selected license and remove unused template guidance.
+12. Run complete repository validation against the concrete skill root.
+
+The repository validator accepts an optional skill-root argument, so a pruned installation does not need to retain the template's `.github/` maintainer tooling:
+
+```sh
+ruby /path/to/canonical-template/.github/scripts/validate-skill-repository.rb \
+  /path/to/project/.agents/skills/<skill-name>
+```
+
+Without an argument, the validator preserves the existing behavior and validates the current working directory.
+
+## Canonical adoption smoke
+
+`.github/scripts/test-template-adoption.rb` verifies the end-to-end path from the canonical repository root to two nested installation targets under `.agents/skills/`.
+
+The test copies the actual root while excluding source `.git/` metadata, replaces the template frontmatter and workflow, removes unsupported contracts and maintainer material, and produces:
+
+- one `instruction-only` skill containing only `SKILL.md`;
+- one `script-assisted` skill containing `SKILL.md` and one bounded deterministic helper, without retaining `RUNTIME.md` or a public CLI contract.
+
+Both adopted repositories pass complete validation from the skill root and from an unrelated working directory through the explicit root argument. The smoke also rejects a renamed canonical `SKILL.md`, unresolved placeholders, unnecessary runtime contracts, undeclared helpers, invalid UTF-8, input mutation, network behavior, implicit installation, and accidental wrapper directories.
+
+This is a regression harness, not a generator CLI or interactive scaffolding product. Concrete adopters still make deliberate profile, pruning, and licensing choices.
 
 ## Progressive disclosure
 
@@ -122,6 +145,12 @@ ruby .github/scripts/validate-profile-contracts.rb
 ```
 
 The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. The compatibility adapter, synthesized monolithic interface document, `File.read` monkey patch, and `RUBYOPT` injection have been removed. Some focused direct validators retain their own bounded Markdown parsing while the rule validators use `.github/scripts/lib/profile_contracts.rb`; the supported entry point executes both groups directly.
+
+For complete repository validation, including frontmatter and exact operational-resource declarations, run:
+
+```sh
+ruby .github/scripts/validate-skill-repository.rb [SKILL_ROOT]
+```
 
 ## Installation modes
 

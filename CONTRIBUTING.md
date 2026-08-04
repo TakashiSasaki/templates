@@ -37,7 +37,19 @@ Run the supported profile-aware validation entry point:
 ruby .github/scripts/validate-profile-contracts.rb
 ```
 
+Run complete repository validation from the skill root or pass an explicit adopted skill root:
+
+```sh
+ruby .github/scripts/validate-skill-repository.rb
+ruby /path/to/canonical-template/.github/scripts/validate-skill-repository.rb \
+  /path/to/project/.agents/skills/<skill-name>
+```
+
+The explicit-root form must resolve every contract and operational resource relative to the supplied skill root rather than the caller's current working directory.
+
 Reduced repository fixtures under `.github/fixtures/profiles/` exercise the four single resource-shape profiles, one script-assisted optional-runtime variant, one combined resource profile selecting `knowledge-augmented`, `asset-driven`, and `script-assisted`, one intentionally invalid unsupported-combination fixture proving that `instruction-only` is exclusive, the four single application profiles, and one combined application fixture selecting `packaged-cli` and `mcp-enabled`. The unsupported-combination fixture must contain only a complete `SKILL.md` and fail repository validation with the exact exclusive-profile diagnostic, so unrelated structural failures cannot satisfy the regression. The script-assisted optional-runtime fixture must retain only a complete `SKILL.md`, a completed `RUNTIME.md`, its declared helper, and its declared executable test; pass complete repository validation and the exact distributed test command; require no manifest or lockfile; and reject an unselected or placeholder-bearing retained runtime. The combined resource fixture must pass complete repository validation, execute its declared helper deterministically, and fail when any retained resource directory loses its required selected profile. The combined CLI/MCP fixture must retain the union of both public contracts, use one shared domain implementation behind thin CLI and MCP adapters, pass actual CLI and stdio MCP execution, prove semantic equivalence, build and install the packaged command, and fail when either profile-specific contract is removed. The packaged CLI fixture must pass complete repository validation, its unit tests, gem build and isolated installation, and an installed-command structured-output check.
+
+The canonical adoption smoke under `.github/scripts/test-template-adoption.rb` is separate from the reduced fixture matrix. It must copy the actual repository root, exclude source `.git/` metadata, customize nested `.agents/skills/<name>/` targets, and prune them into one `instruction-only` repository containing only `SKILL.md` and one `script-assisted` repository containing only `SKILL.md` plus its declared deterministic helper. Both targets must pass complete validation from their own root and from an unrelated working directory through the explicit skill-root argument. The smoke must prove that no wrapper directory, runtime record, public interface contract, network behavior, implicit dependency installation, or input mutation is introduced, and must reject a renamed canonical `SKILL.md`, unresolved placeholders, unnecessary runtime contracts, invalid UTF-8, and undeclared helpers. The smoke is a deterministic regression harness, not a generator CLI or interactive scaffolding interface.
 
 The MCP-enabled fixture must pass complete repository validation, install the pinned official Ruby SDK and HTTP runtime, initialize revision `2025-11-25` over both stdio and authenticated loopback Streamable HTTP, share one server factory and domain operation, exercise discovery and calls, prove transport equivalence, distinguish protocol, tool, authentication, request-policy, size-limit, and capacity failures, validate Host and Origin on every reused-connection request, preserve stdio stdout/stderr separation, prove bounded stdio shutdown and graceful HTTP shutdown/restart, and reject missing shared or transport implementation and required contract artifacts. Its private tools-only client executes real initialization, discovery, one and sequential `tools/call` operations over stdio and authenticated loopback HTTP, preserves ordered raw pages and complete results including additive fields, distinguishes transport, timeout, authentication, request-policy, JSON-RPC, tool-result, capacity, invalid-result, and pagination outcomes, and confirms that the client never exposes `packaged-cli`, arbitrary server commands, caller-selected request IDs, implicit HTTP startup, lifecycle control, or unbounded retries.
 
@@ -47,7 +59,7 @@ The combined MCP/systemd-service fixture selects `mcp-enabled` and `headless-ser
 
 The browser-interface fixture must pass complete repository validation, install the pinned Web runtime, remain disabled by default, bind only to loopback, enforce Host and same-origin request policy, preserve security headers and input redaction, separate Web readiness from operation failures, prove startup and PID-based shutdown, and reject missing implementation or required contract artifacts. The headless-service fixture must pass complete repository validation, install the pinned service runtime, bind only to loopback, load authentication material from a permission-checked external file, enforce authorization and non-browser request policy, bound request size and concurrency, separate readiness from liveness and request failures, prove identity-verified shutdown, and reject missing implementation or unsupported browser contracts.
 
-This fixture matrix is the stable baseline for the current profile model. Additional transport variants, remote-client modes, trusted reverse proxies, TLS boundaries, further OS service integrations, containers, persistence, or other production deployment modes require their own explicit contracts and proportionate executable fixtures. One PR should normally add one clear trust boundary or deployment topology; it must not reopen the completed validator-consolidation transition.
+This fixture matrix is the stable baseline for the current profile model. The canonical adoption smoke extends that baseline with the template-consumption path from the full root to concrete nested skills. Additional transport variants, remote-client modes, trusted reverse proxies, TLS boundaries, further OS service integrations, containers, persistence, distribution modes, or other production deployment concerns require their own explicit contracts and proportionate executable fixtures. One PR should normally add one clear trust boundary, deployment topology, adoption boundary, or maintainer concern; it must not reopen the completed validator-consolidation transition.
 
 ## Documentation publication compatibility
 
@@ -60,9 +72,9 @@ The same non-deploying check runs weekly and can be started manually to detect d
 Describe:
 
 - the selected profile tags and behavior changed;
-- the operational resource, interface, trust boundary, or deployment topology affected;
+- the operational resource, interface, trust boundary, deployment topology, adoption boundary, or maintainer concern affected;
 - the source-of-truth files changed;
 - the runtime or dependency impact, or state that none applies;
 - the tests and profile-aware validation executed;
-- any compatibility, security, permission, portability, lifecycle, or deployment implications;
+- any compatibility, security, permission, portability, lifecycle, deployment, or template-consumption implications;
 - modes explicitly unsupported by the PR.
