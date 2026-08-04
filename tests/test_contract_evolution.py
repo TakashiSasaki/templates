@@ -69,6 +69,9 @@ class ContractEvolutionTests(unittest.TestCase):
             "release_evidence": [
                 {"version": 1, "changeType": "initial"}
             ],
+            "release_bundle": [
+                {"version": 1, "changeType": "initial"}
+            ],
         }
         for entry in manifest["contracts"]:
             entry["versionHistory"] = histories[entry["id"]]
