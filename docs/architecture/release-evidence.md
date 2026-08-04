@@ -8,10 +8,12 @@ The release-evidence contract binds one exact product revision to the commands a
 
 Version 1 distinguishes two states:
 
-- `mode: template` is the source-template requirement document. It contains no subject revision, execution provenance, release decision, command results, or gate results.
+- `mode: template` is the source-template requirement document. It contains no subject revision, execution provenance, release decision, command results, or gate results. It is valid only while implementation evidence is also in template mode and validation does not request a candidate revision.
 - `mode: product` is one completed release record generated in an ephemeral product checkout or release workspace.
 
 A product-mode release record is not a replacement for implementation evidence. Implementation evidence declares authoritative commands, gate composition, implementation boundaries, and expected proofs. Release evidence proves that the current command definitions actually ran for one exact revision and that every selected gate passed.
+
+A generated repository cannot satisfy product validation by retaining template release residue. Once implementation evidence becomes product-owned or a candidate revision is supplied, release evidence must also be materialized in product mode.
 
 ## Exact revision binding
 
@@ -42,7 +44,7 @@ Each command result records:
 - UTC start and completion timestamps; and
 - a reviewable result locator.
 
-The validator recomputes the SHA-256 digest. Evidence for an old command definition cannot satisfy a gate after command text changes while retaining the same stable ID.
+The validator recomputes the SHA-256 digest. Evidence for an old command definition cannot satisfy a gate after command text changes while retaining the same stable ID. Authoritative command text must be encodable as strict UTF-8; escaped lone surrogate code points are rejected as diagnostics rather than causing validator failure.
 
 The contract records command results; it does not execute the command strings. Product CI remains responsible for directly invoking its reviewed commands with the selected runtime and isolation model. The template does not add a generic command dispatcher.
 
@@ -74,7 +76,7 @@ Product evidence records one execution provenance object:
 
 The release decision records its UTC decision time and a visible explanation.
 
-For each command, completion must not precede start. The approval decision must not precede the latest command completion, and record generation must not precede the decision. These checks prevent a chronologically impossible approval record without assuming a specific CI system.
+For each command, completion must not precede start. The approval decision must not precede the latest command completion, and record generation must not precede the decision. Timestamp comparison preserves all one-to-nine fractional-second digits permitted by the schema, so sub-microsecond ordering violations are rejected rather than rounded to equality. These checks prevent a chronologically impossible approval record without assuming a specific CI system.
 
 ## Validation boundary
 
@@ -85,14 +87,15 @@ For each command, completion must not precede start. The approval decision must 
 
 It then proves:
 
+- template mode is paired only with template implementation evidence and no expected revision;
 - template mode does not claim product results;
 - product mode uses product implementation evidence;
 - the release subject matches the explicitly supplied revision;
 - command and gate result coverage is closed;
-- command definitions are digest-bound;
+- command definitions are strict-UTF-8 digest-bound;
 - command, gate, exit, and decision outcomes are release-ready;
 - result and provenance locators contain visible text; and
-- timestamps are chronologically coherent.
+- timestamps are chronologically coherent at the schema's full nanosecond precision.
 
 It does not verify that a locator exists remotely, that a CI provider is trustworthy, that an artifact is retained for a particular duration, that a deployment occurred, or that a human approval is required. Those policies remain product-owned.
 
