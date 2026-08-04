@@ -1,0 +1,44 @@
+[Unit]
+Description=Text statistics MCP service
+After=network.target
+StartLimitIntervalSec=30s
+StartLimitBurst=3
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=@@SERVICE_USER@@
+Group=@@SERVICE_GROUP@@
+WorkingDirectory=@@SKILL_ROOT@@
+LoadCredential=text-stats-mcp-token:@@TOKEN_FILE@@
+Environment=PATH=@@RUNTIME_BIN_DIR@@:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=TEXT_STATS_MCP_HTTP_BIND=127.0.0.1
+Environment=TEXT_STATS_MCP_HTTP_PORT=@@PORT@@
+ExecStart=@@BUNDLE_PATH@@ exec ruby mcp/http_server.rb
+Restart=on-failure
+RestartPreventExitStatus=78
+RestartSec=1s
+TimeoutStartSec=15s
+TimeoutStopSec=10s
+KillMode=control-group
+KillSignal=SIGTERM
+FinalKillSignal=SIGKILL
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET
+CapabilityBoundingSet=
+AmbientCapabilities=
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

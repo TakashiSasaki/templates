@@ -85,6 +85,18 @@ operator
 
 The controller may own start, stop, restart, readiness, liveness, external-secret loading, process identity, stale-record handling, and bounded shutdown escalation. It must not expose those controls as MCP tools, mutate application semantics, accept arbitrary server commands, or become an implicit agent fallback.
 
+An OS service-manager topology transfers lifecycle ownership to the selected manager instead of layering it over a bundled controller:
+
+```text
+operator
+  |
+  +--> OS service manager
+           |
+           +--> fixed unit --> fixed server adapter --> shared domain layer
+```
+
+The service manager may own readiness publication, credential injection, failure restart, start limits, process groups, shutdown deadlines, and final escalation. The application must not publish a competing PID record or run a second lifecycle controller for the same process. Permanent configuration failures should have a distinct outcome that the service manager does not retry indefinitely.
+
 ## Trust-boundary decomposition
 
 Treat each of the following as a separate boundary unless a concrete deployment proves otherwise:
@@ -102,7 +114,7 @@ Treat each of the following as a separate boundary unless a concrete deployment 
 - backup and restore;
 - operational diagnostics, metrics, audit, and overload controls.
 
-One PR should normally add one clear boundary or topology. A loopback lifecycle controller does not establish trusted-proxy, TLS, container, persistence, or remote-service safety.
+One PR should normally add one clear boundary or topology. A loopback lifecycle controller or systemd unit does not establish trusted-proxy, TLS, container, persistence, or remote-service safety.
 
 ## Secure lifecycle records
 
@@ -111,6 +123,8 @@ When a controller records process identity, PID alone is usually insufficient be
 Lifecycle metadata and external secret files should be bounded, regular, non-symlink files with explicit ownership and permissions. Publish records atomically and remove only the exact record the controller created or revalidated. Configuration failure must occur before opening a listener or starting an unrelated process.
 
 Graceful shutdown requires a documented drain or stop signal, a bounded grace period, deterministic escalation, and tests for resistant or stale processes. Restart should mean complete stop followed by start unless a separate handoff topology is explicitly selected and tested.
+
+For an OS service manager, use the manager's unit identity and control group rather than adding an application PID file. Keep secret values out of unit environment lines and argv; use a manager-supported credential mechanism when selected. Publish readiness only after the listener and required configuration are usable, and separate restartable runtime failure from non-restartable configuration failure.
 
 ## State authority
 
@@ -170,6 +184,17 @@ For a managed local lifecycle variant, proportionate evidence includes:
 - graceful shutdown and TERM-to-KILL escalation;
 - token redaction from argv, lifecycle records, and logs;
 - unchanged protocol and domain behavior through the managed process.
+
+For an OS service-manager variant, proportionate evidence includes:
+
+- deterministic rendering and static verification of one fixed unit;
+- no implicit unit installation or lifecycle mutation by the renderer;
+- manager-owned readiness after listener creation;
+- manager-provided credentials with no secret in argv, environment values, unit text, or journals;
+- explicit restart, unexpected-failure restart, bounded start limits, and non-restartable configuration failure;
+- control-group stop with bounded final escalation;
+- unchanged protocol and domain behavior through the managed unit;
+- hardening directives tested against the real process rather than documented only.
 
 ## Removal discipline
 
