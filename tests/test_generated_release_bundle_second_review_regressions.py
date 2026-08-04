@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -202,6 +203,108 @@ class GeneratedReleaseBundleSecondReviewRegressionTests(unittest.TestCase):
             )
             index = _load_json(root / "product/release-bundle-index.json")
             self.assertEqual(3, len(index["records"]))
+
+    def test_intent_to_add_entry_is_rejected(self) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            unexpected = root / "product/revision-external.txt"
+            unexpected.write_text("revision-external\n", encoding="utf-8")
+            _run_git(
+                root,
+                "add",
+                "--intent-to-add",
+                "--",
+                "product/revision-external.txt",
+            )
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn("staged changes", result.stderr)
+
+    def test_transient_preflight_waits_for_lifecycle_lock(self) -> None:
+        with _generated_repository() as root:
+            _install_release_evidence_producer(root)
+            _install_release_bundle_producer(root)
+            producer = root / "product/produce_release_bundle.py"
+            _inject_after_line(
+                producer,
+                "temporary.write_bytes(content)",
+                [
+                    "if path == INDEX_PATH:",
+                    "    marker = GIT_DIR / 'third-review-index-temporary-ready'",
+                    "    if not marker.exists():",
+                    "        marker.write_text('ready', encoding='utf-8')",
+                    "        time.sleep(2.0)",
+                ],
+            )
+            revision = _commit_generated_repository(root)
+            self.produce_release(root, revision)
+            command = [
+                sys.executable,
+                "-I",
+                "product/produce_release_bundle.py",
+                "--revision",
+                revision,
+            ]
+            first = subprocess.Popen(
+                command,
+                cwd=root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            marker = root / ".git/third-review-index-temporary-ready"
+            deadline = time.monotonic() + 10.0
+            while not marker.exists():
+                if first.poll() is not None:
+                    stdout, stderr = first.communicate(timeout=1)
+                    self.fail(
+                        "first producer exited before publishing its temporary\n"
+                        f"stdout:\n{stdout}\nstderr:\n{stderr}"
+                    )
+                if time.monotonic() >= deadline:
+                    first.kill()
+                    stdout, stderr = first.communicate(timeout=1)
+                    self.fail(
+                        "first producer did not publish its temporary\n"
+                        f"stdout:\n{stdout}\nstderr:\n{stderr}"
+                    )
+                time.sleep(0.02)
+
+            second = subprocess.Popen(
+                command,
+                cwd=root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            first_stdout, first_stderr = first.communicate(timeout=20)
+            second_stdout, second_stderr = second.communicate(timeout=20)
+
+            self.assertEqual(
+                0,
+                first.returncode,
+                f"stdout:\n{first_stdout}\nstderr:\n{first_stderr}",
+            )
+            self.assertEqual(
+                0,
+                second.returncode,
+                f"stdout:\n{second_stdout}\nstderr:\n{second_stderr}",
+            )
+            index = _load_json(root / "product/release-bundle-index.json")
+            self.assertEqual(2, len(index["records"]))
+
+    def test_tracked_file_mode_must_match_candidate_tree(self) -> None:
+        with _generated_repository() as root:
+            revision = self.prepare_approved_release(root)
+            tracked = root / "contracts/surfaces.json"
+            tracked.chmod(tracked.stat().st_mode | 0o111)
+
+            result = self.run_bundle(root, revision)
+
+            self.assertEqual(2, result.returncode)
+            self.assertIn("worktree modes differ from candidate tree", result.stderr)
 
     def test_lifecycle_schema_version_requires_exact_integer(self) -> None:
         for malformed in (True, 1.0):
