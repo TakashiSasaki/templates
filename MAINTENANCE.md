@@ -4,23 +4,25 @@ This file applies only to the unrelated `site` branch.
 
 ## Branch responsibilities
 
-- `main` contains the canonical technical documentation and `docs/publication-catalog.json`. It does not own or initiate Pages deployment.
-- `site` contains the Zensical configuration, catalog-ID-based navigation manifest, assembly script, styling, reusable build-only workflow, and the only Pages deployment workflow.
+- `skill` contains the canonical technical documentation and `docs/publication-catalog.json`. It does not own or initiate Pages deployment.
+- `site` is the repository default branch and contains the Zensical configuration, catalog-ID-based navigation manifest, assembly script, styling, reusable build-only workflow, and the only Pages deployment workflow.
 - `webapp` and `policy` are unrelated histories and must not contain a Pages deployment route.
 - Generated Markdown and HTML are temporary build artifacts and must not be committed.
 
-The publication catalog on `main` owns stable document IDs, canonical source paths, optionality, and the single home-page designation. The site manifest owns reader-facing titles, hierarchy, and destination paths. Do not duplicate catalog-owned values in `site-manifest.json`.
+The former `main` branch was renamed to `skill`. Site workflows must reference `skill` explicitly and must not infer the canonical documentation source from the repository default branch.
+
+The publication catalog on `skill` owns stable document IDs, canonical source paths, optionality, and the single home-page designation. The site manifest owns reader-facing titles, hierarchy, and destination paths. Do not duplicate catalog-owned values in `site-manifest.json`.
 
 ## Change process
 
-1. Branch from `site`, not from `main`.
+1. Branch from `site`, not from `skill`.
 2. Open a pull request whose base branch is `site`.
 3. Require the documentation-site build to succeed before merging.
-4. Keep canonical prose and publication-catalog changes on `main`.
+4. Keep canonical prose and publication-catalog changes on `skill`.
 5. Update `site-manifest.json` when a catalog document ID is added or removed, or when navigation hierarchy, reader-facing title, or destination path changes.
-6. Do not update the site manifest for a canonical source rename or optionality change; update the existing catalog entry on `main` while preserving its stable document ID.
+6. Do not update the site manifest for a canonical source rename or optionality change; update the existing catalog entry on `skill` while preserving its stable document ID.
 
-A coordinated publication-set change normally merges the `main` catalog change first and the `site` navigation change second. During the interval, Pages assembly fails intentionally because catalog and navigation coverage must be exact.
+A coordinated publication-set change normally merges the `skill` catalog change first and the `site` navigation change second. During the interval, Pages assembly fails intentionally because catalog and navigation coverage must be exact.
 
 ## Navigation manifest
 
@@ -29,7 +31,7 @@ A coordinated publication-set change normally merges the `main` catalog change f
 - a page with `title`, `document`, and `destination` fields;
 - a section with `title` and a non-empty `children` array containing page or nested section nodes.
 
-`document` is a stable ID declared by `docs/publication-catalog.json` on `main`. Page nodes must not contain canonical `source` or `optional` fields.
+`document` is a stable ID declared by `docs/publication-catalog.json` on `skill`. Page nodes must not contain canonical `source` or `optional` fields.
 
 The assembler enforces these invariants before copying any canonical page:
 
@@ -62,7 +64,7 @@ The artifact-build workflow validates links after Zensical has generated the fin
 
 External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not checked. A local link must resolve to a file in the Pages artifact, and a fragment is valid only on an HTML target containing the referenced identifier.
 
-When a canonical heading, destination, or relative link changes on `main`, compatibility workflows may pass an exact source commit to the reusable build-only workflow. Broken page and anchor references therefore fail validation before a later direct `site` push can deploy.
+When a canonical heading, destination, or relative link changes on `skill`, compatibility workflows may pass an exact source commit to the reusable build-only workflow. Broken page and anchor references therefore fail validation before a later direct `site` push can deploy.
 
 ## Build provenance
 
@@ -110,9 +112,9 @@ github.event_name == push
 github.ref == refs/heads/site
 ```
 
-The condition does not inspect `github.event.repository.default_branch`. Changing the repository default branch therefore cannot authorize a deployment from `main`, `webapp`, `policy`, or another ref.
+The repository default branch is `site`, but the condition does not use default-branch status as an authorization input. A future default-branch change therefore cannot authorize a deployment from `skill`, `webapp`, `policy`, or another ref.
 
-The deployment workflow captures the JST timestamp, then calls the local build-only workflow for the exact pushed `site` commit and the current canonical `main` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
+The deployment workflow captures the JST timestamp, then calls the local build-only workflow for the exact pushed `site` commit and the current canonical `skill` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
 
 Expected behavior:
 
@@ -120,7 +122,7 @@ Expected behavior:
 |---|---:|---|---:|
 | pull request targeting `site` | yes | preview | no |
 | push to `site` | yes | JST deployment timestamp | yes |
-| `workflow_call` from `main` | yes | preview unless explicitly supplied | no |
+| `workflow_call` from `skill` | yes | preview unless explicitly supplied | no |
 | workflow on `webapp` or `policy` | branch-local only | not applicable | no |
 | push to any other branch | no site deployment workflow | not applicable | no |
 
@@ -130,4 +132,4 @@ Expected behavior:
 
 ## Local build
 
-Follow the worktree-based instructions in `README.md`. The assembly script reads the canonical files and publication catalog from a separate `main` checkout and writes the temporary project under `.build/`.
+Follow the worktree-based instructions in `README.md`. The assembly script reads the canonical files and publication catalog from a separate `skill` checkout and writes the temporary project under `.build/`.
