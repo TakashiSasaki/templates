@@ -1,2 +1,3 @@
 # Reviewed direct dependency input for the Webapp contract validator.
 jsonschema===4.26.0
+PyYAML===6.0.3
