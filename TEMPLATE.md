@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This branch defines the repository-level foundation for browser-facing web applications. It starts with contracts that remain useful across frameworks and deployment platforms.
+This branch defines the repository-level foundation for browser-facing web applications. It starts with contracts that remain useful across frameworks, CI providers, and deployment platforms.
 
 ## Included in the foundation
 
@@ -10,17 +10,18 @@ This branch defines the repository-level foundation for browser-facing web appli
 - canonical route and navigation contracts with explicit access-failure presentation behavior;
 - user-visible loading, empty, partial, error, offline, and recovery states with explicit route or global ownership scope;
 - supported viewport declarations;
-- machine-readable implementation-evidence requirements and release-gate references;
+- machine-readable implementation-evidence requirements and release-gate definitions;
+- machine-readable release evidence bound to an exact candidate revision and current authoritative command definitions;
 - a closed manifest that inventories active contracts, retired-family tombstones, schemas, stable migration slugs, version histories, and migration artifacts;
 - JSON Schemas for those contracts;
 - local validation, tests, and CI;
-- an explicit boundary between reusable template contracts and product-owned implementation decisions.
+- an explicit boundary between reusable template contracts and product-owned implementation, execution, approval, and deployment decisions.
 
 ## Responsibility boundary
 
-This template owns the reusable shape and validation of Web-application design contracts. A repository created from the template owns the concrete product declarations, implementation, deployment, and evidence that the implementation satisfies those declarations.
+This template owns the reusable shape and validation of Web-application design contracts, implementation evidence, and release evidence. A repository created from the template owns the concrete product declarations, implementation, command execution, CI configuration, approval process, deployment, and evidence retention.
 
-The pinned Python environment in `requirements-dev.lock` and `.github/workflows/contract-validation.yml` is the branch-maintainer validation toolchain. It verifies the template-owned contracts and tests; it does not select the generated product's framework, runtime, package manager, browser support, or deployment mechanism.
+The pinned Python environment in `requirements-dev.lock` and `.github/workflows/contract-validation.yml` is the branch-maintainer validation toolchain. It verifies the template-owned contracts and tests; it does not select the generated product's framework, runtime, package manager, browser support, CI provider, artifact store, or deployment mechanism.
 
 Coding-agent operating rules, source-control procedures, approval workflows, repository governance, and unrelated policy tooling are outside the Webapp template contract. A generated repository may adopt such mechanisms independently, but that adoption is not a prerequisite for using or validating this template.
 
@@ -34,12 +35,15 @@ The foundation does not select or emulate all possible implementations. A concre
 - backend and API topology;
 - authentication and authorization provider;
 - persistence model;
+- CI execution environment;
 - deployment target;
 - observability platform;
 - supported browser matrix;
-- offline and installability scope.
+- offline and installability scope;
+- release-result storage and retention; and
+- release approval and rollback procedure.
 
-Do not retain multiple competing manifests, lockfiles, framework starters, or deployment configurations as placeholders.
+Do not retain multiple competing manifests, lockfiles, framework starters, CI configurations, or deployment configurations as placeholders.
 
 ## Required customization
 
@@ -55,12 +59,16 @@ Before a generated repository is treated as operational:
 8. Move a retired non-core family to `retiredContracts`, remove its live files, and preserve its tombstone, stable slug, complete history, breaking retirement migration, deployment implications, and rollback procedure.
 9. Preserve stable contract and entity identifiers unless an explicit breaking migration accounts for every reference.
 10. Define trusted authorization enforcement independently of route or directory names.
-11. Select one implementation toolchain and record authoritative build, test, lint, and deployment commands.
+11. Select one implementation toolchain and record authoritative build, test, lint, validation, and deployment commands.
 12. Change `contracts/implementation-evidence.json` from `mode: template` to `mode: product` and replace every required boundary, proof, command, and release gate with verified repository-local evidence.
 13. Add implementation-level tests that prove the declared contracts and ensure every proof command is executed by a selected release gate.
-14. Remove template-only guidance that no longer applies.
+14. Execute authoritative commands for one exact immutable candidate revision.
+15. Materialize `contracts/release-evidence.json` as a product-mode release record in an ephemeral checkout, generated artifact, release workspace, or equivalent evidence bundle.
+16. Bind every command result to the current authoritative command text by SHA-256, record every gate result, provenance, chronology, and the release decision, and validate both release entry points with the exact expected revision.
+17. Document evidence retention, approval, deployment, rollback, and redaction ownership.
+18. Remove template-only guidance that no longer applies.
 
-The complete generated-repository sequence, including contract customization, implementation evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
+The complete generated-repository sequence, including contract customization, implementation evidence, release evidence, CI integration, and deployment ownership, is described in [`docs/operationalization.md`](docs/operationalization.md).
 
 ## Contract-set completeness
 
@@ -86,10 +94,17 @@ Validation rejects:
 - global UI states that are declared by a route;
 - missing, duplicate, or unknown implementation-evidence targets;
 - implementation proofs that reference unknown commands or gates;
-- product evidence whose selected release gates do not execute its proof commands; and
-- template-mode documents that claim verified implementation locations, product commands, or release gates.
+- product implementation evidence whose selected release gates do not execute its proof commands;
+- template implementation evidence that claims verified implementation locations, product commands, or release gates;
+- product release evidence without an explicitly supplied expected revision;
+- release evidence whose subject revision differs from that expected revision;
+- missing, duplicate, or unknown command or gate results;
+- command results whose SHA-256 digest does not match current authoritative command text;
+- failed commands, nonzero exit codes, failed gates, or a non-approved decision;
+- impossible release chronology; and
+- template release evidence that claims a product subject, provenance, decision, command result, or gate result.
 
-The manifest and its schema are validator bootstrap metadata and are not product-domain contracts. See `docs/architecture/contract-completeness.md` for the current coverage boundary and the criteria for adding another contract family.
+The manifest and its schema are validator bootstrap metadata and are not product-domain contracts. See [`docs/architecture/contract-completeness.md`](docs/architecture/contract-completeness.md) for the current coverage boundary and the criteria for adding another contract family.
 
 ## Route-path representation
 
@@ -133,7 +148,7 @@ Input capabilities are declared once in the top-level `inputCapabilities` collec
 
 `contracts/implementation-evidence.json` is a closed evidence matrix for every surface, route, UI state, viewport, input capability, and registered contract transition.
 
-The template document uses `mode: template`. Its records state which implementation boundary and positive, negative, command, and release evidence a generated repository must provide, but they do not claim that the framework-neutral template contains a product implementation.
+The template document uses `mode: template`. Its records state which implementation boundary and positive, negative, command, and release integration a generated repository must provide, but they do not claim that the framework-neutral template contains a product implementation.
 
 A generated repository uses `mode: product` only after every record has:
 
@@ -146,7 +161,28 @@ A generated repository uses `mode: product` only after every record has:
 
 Access-controlled surfaces and routes, degraded or failure UI states, and breaking transitions require especially direct negative evidence for their security, recovery, compatibility, or rollback boundary. Other targets still require negative evidence for invalid ownership, unsupported interaction, clipping, unintended state, or an equivalent failure condition.
 
-The evidence validator proves reference integrity and coverage. It does not execute product commands or decide whether a test semantically proves the declaration. See [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md).
+The implementation-evidence validator proves reference integrity and coverage. It does not execute product commands or decide whether a test semantically proves the declaration. See [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md).
+
+## Release evidence representation
+
+`contracts/release-evidence.json` records completed execution for one exact product candidate revision.
+
+The template document uses `mode: template` and contains no subject revision, provenance, decision, command results, or gate results.
+
+A generated product release record uses `mode: product` only after:
+
+- the candidate revision is fixed as a lowercase 40-hex Git object name;
+- authoritative commands have executed for that revision;
+- every command referenced by every registered release gate has one result;
+- every registered release gate has one result;
+- every command result includes SHA-256 of current command text, pass/fail status, exit code, UTC start and completion times, and a reviewable result locator;
+- execution provenance is recorded;
+- approval occurs after command completion; and
+- the record is validated with the exact expected revision.
+
+The release-evidence validator does not execute commands, invoke Git, infer a CI-provider variable, verify a remote locator, or require a specific approval system. It verifies revision, command-definition, result, gate, outcome, and chronology closure. See [`docs/architecture/release-evidence.md`](docs/architecture/release-evidence.md).
+
+A release record normally belongs in an ephemeral checkout or evidence artifact. Requiring a committed file to contain its own commit SHA would create a circular self-reference.
 
 ## Contract evolution representation
 
@@ -154,16 +190,16 @@ A new contract family starts at version 1 with `changeType: initial`. Each later
 
 The migration slug is a stable family identifier independent of the current document path. Preserve it across document and schema moves so historical migration filenames are never rewritten.
 
-An additive transition must preserve the validity, meaning, and implementation obligations of every document accepted by the preceding version. A breaking transition includes any new invalidation, changed meaning, new mandatory cross-contract invariant, closed-enum change, stable-identifier rename or removal, contract-family retirement, or changed implementation-evidence obligation.
+An additive transition must preserve the validity, meaning, and implementation obligations of every document accepted by the preceding version. A breaking transition includes any new invalidation, changed meaning, new mandatory cross-contract invariant, closed-enum change, stable-identifier rename or removal, contract-family retirement, changed implementation-evidence obligation, or changed release-evidence obligation.
 
 Documentation clarifications, diagnostic improvements, validator refactors, and test refactors do not increment a domain contract version when accepted documents and semantics remain unchanged. Version numbers are local to each contract family and must not be aligned artificially.
 
-Contract identifiers, migration slugs, entity identifiers, and manifest-retained document and schema paths are public repository references. Renaming or removing one is a breaking change and requires an explicit migration that accounts for all contract references, implementation boundaries, tests, evidence, deployment consequences, and rollback implications.
+Contract identifiers, migration slugs, entity identifiers, and manifest-retained document and schema paths are public repository references. Renaming or removing one is a breaking change and requires an explicit migration that accounts for all contract references, implementation boundaries, tests, evidence, deployment consequences, release consequences, and rollback implications.
 
 When retiring a non-core family, move its identity and history to a tombstone rather than deleting them. The retirement version follows the last live document version and the final transition is breaking. Core families remain active unless the bootstrap schema itself is changed through a separate reviewed migration.
 
-`validate_contracts` verifies current active contract structure and cross-file invariants. `validate_contract_evolution` verifies active and retired histories, stable migration ownership, and the closed migration-artifact inventory. `validate_implementation_evidence` verifies evidence coverage and release-reference closure. The detailed evolution rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
+`validate_contracts` verifies current active contract structure and cross-file invariants. `validate_contract_evolution` verifies active and retired histories, stable migration ownership, and the closed migration-artifact inventory. `validate_implementation_evidence` verifies implementation coverage and release-gate reference closure. `validate_release_evidence` verifies revision-bound command and gate results and release-decision closure. The detailed evolution rules are defined in [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md).
 
 ## Compatibility rule
 
-The contract files and `contracts/manifest.json` are public repository interfaces. Renaming identifiers, moving contract files, retiring a family, changing schema versions, or changing semantics requires coordinated updates to the schema, example document or tombstone, manifest history, migration, validators, implementation, navigation, authorization, documentation, deployment configuration, tests, evidence, and rollback plan.
+The contract files and `contracts/manifest.json` are public repository interfaces. Renaming identifiers, moving contract files, retiring a family, changing schema versions, changing semantics, changing authoritative command text, or changing gate composition requires coordinated updates to the schema, example document or tombstone, manifest history, migration, validators, implementation, navigation, authorization, documentation, deployment configuration, tests, implementation evidence, release evidence, and rollback plan.

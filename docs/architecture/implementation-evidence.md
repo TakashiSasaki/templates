@@ -1,6 +1,6 @@
 # Implementation evidence
 
-The implementation-evidence contract connects framework-neutral product declarations to repository-local implementation, tests, authoritative commands, and release gates. It does not select a framework, test runner, package manager, runtime, or deployment platform.
+The implementation-evidence contract connects framework-neutral product declarations to repository-local implementation, tests, authoritative commands, and release-gate definitions. It does not select a framework, test runner, package manager, runtime, CI provider, or deployment platform.
 
 ## Contract family
 
@@ -91,15 +91,17 @@ Input-capability evidence is independent of viewport width. Positive evidence pr
 
 Transition evidence covers every history entry after version 1, including the manifest bootstrap and retired families.
 
-Positive evidence proves the migrated representation and compatible implementation behavior. Negative evidence proves that incomplete migration, incompatible consumers, unsafe sequencing, failed rollback, or an equivalent release-blocking condition cannot pass the selected gate. The transition record does not replace the deterministic migration document; it connects that document to real product implementation and release evidence.
+Positive evidence proves the migrated representation and compatible implementation behavior. Negative evidence proves that incomplete migration, incompatible consumers, unsafe sequencing, failed rollback, or an equivalent release-blocking condition cannot pass the selected gate. The transition record does not replace the deterministic migration document; it connects that document to real product implementation and release obligations.
 
-## Commands and release gates
+## Commands and release-gate definitions
 
 `commands` assigns stable IDs to authoritative repository commands. The command text is product-owned and may invoke any selected test runner or validation toolchain.
 
 `releaseGates` groups command IDs into checks that block publication or deployment. A record may select more than one gate, but every proof command must be executed by at least one selected gate.
 
-A command that can be run locally but is not part of a release gate is useful diagnostic tooling, not release evidence.
+A command that can be run locally but is not part of a release gate is useful diagnostic tooling, not release-gate coverage.
+
+These objects define what must run. They do not prove that a command ran for the candidate revision. `contracts/release-evidence.json` records that completed execution, binds each command result to the current command text by SHA-256, covers every registered gate, and records the revision-specific release decision. See [`release-evidence.md`](release-evidence.md).
 
 ## Validation boundary
 
@@ -116,10 +118,10 @@ Together with the version 1 JSON Schema, it proves:
 - command and release-gate reference integrity; and
 - closure between proof commands and selected release gates.
 
-It does not execute product commands, inspect test semantics, determine whether an implementation locator is truthful, or prove that a test result is sufficient. CI executes the declared product commands, and reviewers verify evidence quality.
+It does not execute product commands, inspect test semantics, determine whether an implementation locator is truthful, or prove that a test result is sufficient. Product CI executes the declared commands, reviewers verify evidence quality, and the release-evidence validator verifies revision-specific result closure.
 
 ## Evolution
 
 This family starts at version 1 and therefore has no migration artifact.
 
-Later changes to required target coverage, proof fields, product-mode obligations, negative-evidence rules, or release-gate semantics change accepted documents or implementation obligations and require a version increment under `contract-evolution.md`.
+Later changes to required target coverage, proof fields, product-mode obligations, negative-evidence rules, command definitions, or release-gate semantics change accepted documents or implementation obligations and require a version increment under `contract-evolution.md`. A product release record generated before a command-text or gate-definition change must not be reused for the changed definition.

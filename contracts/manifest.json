@@ -92,6 +92,20 @@
         }
       ],
       "purpose": "Map every declared surface, route, UI state, viewport, input capability, and version transition to implementation boundaries, positive and negative evidence, authoritative commands, and release gates."
+    },
+    {
+      "id": "release_evidence",
+      "document": "contracts/release-evidence.json",
+      "schema": "schemas/release-evidence.schema.json",
+      "migrationSlug": "release-evidence",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Bind one exact product revision to completed authoritative commands, selected release gates, execution provenance, and an approved release decision."
     }
   ],
   "retiredContracts": []
