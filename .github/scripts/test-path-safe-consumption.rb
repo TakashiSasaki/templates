@@ -11,7 +11,8 @@ SMOKES = {
   ".github/scripts/test-minimal-profile-layouts.rb" => "Minimal profile repository layout tests passed.",
   ".github/scripts/test-template-adoption.rb" => "Template adoption smoke tests passed.",
   ".github/scripts/test-installation-modes.rb" => "Installation mode smoke tests passed.",
-  ".github/scripts/test-parent-owned-vendoring.rb" => "Parent-owned vendoring smoke tests passed."
+  ".github/scripts/test-parent-owned-vendoring.rb" => "Parent-owned vendoring smoke tests passed.",
+  ".github/scripts/test-non-mutating-consumption.rb" => "Non-mutating skill consumption smoke tests passed."
 }.freeze
 
 failures = []
