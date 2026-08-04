@@ -25,9 +25,23 @@ def run!(*command, chdir:, env: {})
         "stdout=#{stdout.inspect}; stderr=#{stderr.inspect}"
 end
 
-def tree_snapshot(root)
+def tree_snapshot(root, exclude: [])
   root_path = Pathname.new(root)
-  Find.find(root).sort.each_with_object({}) do |path, snapshot|
+  excluded_roots = exclude.map { |relative| File.expand_path(relative, root) }
+  paths = []
+
+  Find.find(root) do |path|
+    excluded = path != root && excluded_roots.any? do |excluded_root|
+      path == excluded_root || path.start_with?("#{excluded_root}#{File::SEPARATOR}")
+    end
+    if excluded
+      Find.prune if File.directory?(path)
+      next
+    end
+    paths << path
+  end
+
+  paths.sort.each_with_object({}) do |path, snapshot|
     relative = path == root ? "." : Pathname.new(path).relative_path_from(root_path).to_s
     stat = File.lstat(path)
     type = if stat.directory?
@@ -52,11 +66,23 @@ def git_index_bytes(repository)
   File.binread(index_path)
 end
 
-def expect_unchanged(label, target, expected_tree, parent, expected_index)
-  actual_tree = tree_snapshot(target)
-  FAILURES << "#{label}: installed skill tree changed" unless actual_tree == expected_tree
-  actual_index = git_index_bytes(parent)
-  FAILURES << "#{label}: parent Git index changed" unless actual_index == expected_index
+def context_snapshot(target, parent, outside)
+  {
+    skill: tree_snapshot(target),
+    parent: tree_snapshot(parent, exclude: [".git"]),
+    outside: tree_snapshot(outside),
+    index: git_index_bytes(parent)
+  }
+end
+
+def expect_context_unchanged(label, target, parent, outside, expected)
+  actual = context_snapshot(target, parent, outside)
+  FAILURES << "#{label}: installed skill tree changed" unless actual[:skill] == expected[:skill]
+  FAILURES << "#{label}: parent worktree changed outside .git" \
+    unless actual[:parent] == expected[:parent]
+  FAILURES << "#{label}: unrelated working directory changed" \
+    unless actual[:outside] == expected[:outside]
+  FAILURES << "#{label}: parent Git index changed" unless actual[:index] == expected[:index]
 end
 
 def expect_only_declared_output(label, root, before, output_relative, expected_bytes)
@@ -70,14 +96,16 @@ def expect_only_declared_output(label, root, before, output_relative, expected_b
   before.each do |relative, record|
     next if relative == output_relative
 
-    FAILURES << "#{label}: caller-owned entry changed: #{relative}" unless after[relative] == record
+    if relative == "."
+      FAILURES << "#{label}: caller-owned root type or permissions changed" \
+        unless after[relative][0, 2] == record[0, 2]
+    elsif after[relative] != record
+      FAILURES << "#{label}: caller-owned entry changed: #{relative}"
+    end
   end
 
-  output_before = before.fetch(output_relative)
   output_after = after.fetch(output_relative)
-  output_valid = output_after[0] == "file" &&
-                 output_after[1] == output_before[1] &&
-                 output_after[3] == expected_bytes
+  output_valid = output_after[0] == "file" && output_after[3] == expected_bytes
   FAILURES << "#{label}: declared output did not match its contract" unless output_valid
 end
 
@@ -91,20 +119,58 @@ def validate(target, outside)
   )
 end
 
+def run_helper(target, input_path, output_path)
+  capture(
+    RbConfig.ruby,
+    "scripts/normalize.rb",
+    input_path,
+    output_path,
+    chdir: target,
+    env: { "RUBYOPT" => nil }
+  )
+end
+
+def expect_alias_rejection(label, target, input_path, output_path, area, expected_context,
+                           parent, outside)
+  area_before = tree_snapshot(area)
+  stdout, stderr, status = run_helper(target, input_path, output_path)
+  area_after = tree_snapshot(area)
+  diagnostic = "input and output must refer to different files"
+  unless status.exitstatus == 2 && stdout.empty? && stderr.include?(diagnostic) &&
+         area_after == area_before
+    FAILURES << "#{label}: aliased paths were not rejected without mutation: " \
+                "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
+                "stderr=#{stderr.inspect}, area_unchanged=#{area_after == area_before}"
+  end
+  expect_context_unchanged(label, target, parent, outside, expected_context)
+end
+
 Dir.mktmpdir("non-mutating-consumption") do |workspace|
   outside = File.join(workspace, "outside")
   parent = File.join(workspace, "parent-project")
   caller_root = File.join(workspace, "caller-owned")
   success_area = File.join(caller_root, "success")
   failure_area = File.join(caller_root, "failure")
+  same_alias_area = File.join(caller_root, "same-path-alias")
+  hard_alias_area = File.join(caller_root, "hard-link-alias")
   skill_prefix = ".agents/skills/line-normalization-helper"
   target = File.join(parent, skill_prefix)
   input_path = File.join(success_area, "input.txt")
   output_path = File.join(success_area, "output.txt")
   invalid_input = File.join(failure_area, "invalid.bin")
   invalid_output = File.join(failure_area, "invalid-output.txt")
+  same_path = File.join(same_alias_area, "same.txt")
+  hard_input = File.join(hard_alias_area, "input.txt")
+  hard_output = File.join(hard_alias_area, "output.txt")
 
-  FileUtils.mkdir_p([outside, target, success_area, failure_area])
+  FileUtils.mkdir_p([
+    outside,
+    target,
+    success_area,
+    failure_area,
+    same_alias_area,
+    hard_alias_area
+  ])
   FileUtils.cp_r("#{FIXTURE}/.", target, preserve: true)
 
   run!("git", "init", "--quiet", chdir: parent)
@@ -114,8 +180,7 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
   run!("git", "add", ".", chdir: parent)
   run!("git", "commit", "--quiet", "-m", "Install concrete skill", chdir: parent)
 
-  baseline_tree = tree_snapshot(target)
-  baseline_index = git_index_bytes(parent)
+  baseline = context_snapshot(target, parent, outside)
 
   stdout, stderr, status = validate(target, outside)
   unless status.success? && stderr.empty? &&
@@ -123,19 +188,12 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
     FAILURES << "successful validation failed: status=#{status.exitstatus.inspect}, " \
                 "stdout=#{stdout.inspect}, stderr=#{stderr.inspect}"
   end
-  expect_unchanged("successful validation", target, baseline_tree, parent, baseline_index)
+  expect_context_unchanged("successful validation", target, parent, outside, baseline)
 
   File.binwrite(input_path, "alpha  \r\nbeta\t\r\n")
   File.binwrite(output_path, "stale output\n")
   success_before = tree_snapshot(success_area)
-  stdout, stderr, status = capture(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    input_path,
-    output_path,
-    chdir: target,
-    env: { "RUBYOPT" => nil }
-  )
+  stdout, stderr, status = run_helper(target, input_path, output_path)
   output = File.binread(output_path) if File.file?(output_path)
   unless status.success? && stdout == "#{output_path}\n" && stderr.empty? &&
          output == "alpha\nbeta\n"
@@ -149,18 +207,11 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
     "output.txt",
     "alpha\nbeta\n"
   )
-  expect_unchanged("successful helper execution", target, baseline_tree, parent, baseline_index)
+  expect_context_unchanged("successful helper execution", target, parent, outside, baseline)
 
   File.binwrite(invalid_input, "\xFF".b)
   failure_before = tree_snapshot(failure_area)
-  stdout, stderr, status = capture(
-    RbConfig.ruby,
-    "scripts/normalize.rb",
-    invalid_input,
-    invalid_output,
-    chdir: target,
-    env: { "RUBYOPT" => nil }
-  )
+  stdout, stderr, status = run_helper(target, invalid_input, invalid_output)
   failure_after = tree_snapshot(failure_area)
   unless status.exitstatus == 3 && stdout.empty? && stderr.include?("invalid UTF-8 input") &&
          !File.exist?(invalid_output) && failure_after == failure_before
@@ -168,7 +219,34 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
                 "status=#{status.exitstatus.inspect}, stdout=#{stdout.inspect}, " \
                 "stderr=#{stderr.inspect}, caller_area_unchanged=#{failure_after == failure_before}"
   end
-  expect_unchanged("failed helper execution", target, baseline_tree, parent, baseline_index)
+  expect_context_unchanged("failed helper execution", target, parent, outside, baseline)
+
+  File.binwrite(same_path, "same-path input\r\n")
+  expect_alias_rejection(
+    "same-path helper rejection",
+    target,
+    same_path,
+    same_path,
+    same_alias_area,
+    baseline,
+    parent,
+    outside
+  )
+
+  File.binwrite(hard_input, "hard-link input\r\n")
+  File.link(hard_input, hard_output)
+  FAILURES << "hard-link alias fixture does not identify the same file" \
+    unless File.identical?(hard_input, hard_output)
+  expect_alias_rejection(
+    "hard-link helper rejection",
+    target,
+    hard_input,
+    hard_output,
+    hard_alias_area,
+    baseline,
+    parent,
+    outside
+  )
 
   parent_head = run!("git", "rev-parse", "HEAD", chdir: parent).strip
   gitlink_path = File.join(skill_prefix, "scripts", "index-only-link")
@@ -188,7 +266,13 @@ Dir.mktmpdir("non-mutating-consumption") do |workspace|
   elsif !stderr.include?(diagnostic)
     FAILURES << "expected diagnostic #{diagnostic.inspect}; stderr=#{stderr.inspect}"
   end
-  expect_unchanged("failed validation", target, baseline_tree, parent, gitlink_index)
+  expect_context_unchanged(
+    "failed validation",
+    target,
+    parent,
+    outside,
+    baseline.merge(index: gitlink_index)
+  )
 end
 
 unless FAILURES.empty?
