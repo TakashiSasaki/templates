@@ -99,6 +99,17 @@ def verify_revision(revision: str) -> str:
     status = run_git("status", "--porcelain=v1", "--untracked-files=all")
     if status:
         fail("generated repository has uncommitted changes")
+    ignored = run_git(
+        "ls-files",
+        "--others",
+        "--ignored",
+        "--exclude-standard",
+    )
+    if ignored:
+        fail(
+            "generated repository has ignored uncommitted files: "
+            + ", ".join(ignored.splitlines())
+        )
     return head
 
 
