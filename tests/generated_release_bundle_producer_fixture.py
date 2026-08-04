@@ -47,6 +47,8 @@ _ALLOWED_UNTRACKED_FILES = {
     "product/release-run.json",
     "product/release-bundle-index.json",
 }
+_LIFECYCLE_INDEX_PATH = "product/release-bundle-index.json"
+_LIFECYCLE_RECORDS_PREFIX = "product/release-bundle-records/"
 _GIT_CONFIG_OVERRIDES = (
     "-c",
     "core.fsmonitor=false",
@@ -58,6 +60,8 @@ _GIT_CONFIG_OVERRIDES = (
     "core.sparseCheckout=false",
     "-c",
     "core.sparseCheckoutCone=false",
+    "-c",
+    "core.quotePath=false",
 )
 
 
@@ -78,6 +82,16 @@ def load_json(path: Path) -> dict[str, object]:
         fail(f"cannot load {path.relative_to(ROOT)}: {exc}")
     if not isinstance(value, dict):
         fail(f"expected JSON object: {path.relative_to(ROOT)}")
+    return value
+
+
+def load_json_bytes(content: bytes, label: str) -> dict[str, object]:
+    try:
+        value = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        fail(f"{label}: retained bundle is not valid UTF-8 JSON: {exc}")
+    if not isinstance(value, dict):
+        fail(f"{label}: retained bundle must be a JSON object")
     return value
 
 
@@ -140,17 +154,45 @@ def execute_git(arguments: list[str]) -> str:
     return completed.stdout.strip()
 
 
-def run_git_unpinned(*arguments: str) -> str:
-    return execute_git(
-        ["git", *_GIT_CONFIG_OVERRIDES, "-C", str(ROOT), *arguments]
+def execute_git_bytes(arguments: list[str]) -> bytes:
+    completed = subprocess.run(
+        arguments,
+        cwd=ROOT,
+        env=git_environment(),
+        check=False,
+        capture_output=True,
     )
+    if completed.returncode != 0:
+        diagnostic = completed.stderr.decode("utf-8", errors="replace").strip()
+        fail("cannot verify generated repository revision: " + diagnostic)
+    return completed.stdout
+
+
+def git_prefix() -> list[str]:
+    return ["git", "--no-replace-objects", *_GIT_CONFIG_OVERRIDES]
+
+
+def run_git_unpinned(*arguments: str) -> str:
+    return execute_git([*git_prefix(), "-C", str(ROOT), *arguments])
 
 
 def run_git_pinned(*arguments: str) -> str:
     return execute_git(
         [
-            "git",
-            *_GIT_CONFIG_OVERRIDES,
+            *git_prefix(),
+            "--git-dir",
+            str(GIT_DIR),
+            "--work-tree",
+            str(ROOT),
+            *arguments,
+        ]
+    )
+
+
+def run_git_pinned_bytes(*arguments: str) -> bytes:
+    return execute_git_bytes(
+        [
+            *git_prefix(),
             "--git-dir",
             str(GIT_DIR),
             "--work-tree",
@@ -163,10 +205,58 @@ def run_git_pinned(*arguments: str) -> str:
 def allowed_untracked(path: str) -> bool:
     if path in _ALLOWED_UNTRACKED_FILES:
         return True
-    return (
-        path.startswith("product/release-bundle-records/")
-        and path.endswith(".json")
+    return path.startswith(_LIFECYCLE_RECORDS_PREFIX) and path.endswith(".json")
+
+
+def candidate_tracked_paths(revision: str) -> list[str]:
+    return [
+        line
+        for line in run_git_pinned(
+            "ls-tree",
+            "-r",
+            "--name-only",
+            revision,
+        ).splitlines()
+        if line
+    ]
+
+
+def verify_lifecycle_paths_are_untracked(candidate_paths: list[str]) -> None:
+    tracked_outputs = sorted(
+        path
+        for path in candidate_paths
+        if path == _LIFECYCLE_INDEX_PATH
+        or path.startswith(_LIFECYCLE_RECORDS_PREFIX)
     )
+    if tracked_outputs:
+        fail("candidate tracks lifecycle output paths: " + ", ".join(tracked_outputs))
+
+
+def verify_raw_candidate_bytes(
+    revision: str,
+    candidate_paths: list[str],
+) -> None:
+    mismatches: list[str] = []
+    for relative in candidate_paths:
+        if relative in _ALLOWED_TRACKED_CHANGES:
+            continue
+        worktree_path = ROOT / relative
+        if worktree_path.is_symlink() or not worktree_path.is_file():
+            mismatches.append(relative)
+            continue
+        try:
+            worktree_bytes = worktree_path.read_bytes()
+        except OSError:
+            mismatches.append(relative)
+            continue
+        candidate_bytes = run_git_pinned_bytes("show", f"{revision}:{relative}")
+        if worktree_bytes != candidate_bytes:
+            mismatches.append(relative)
+    if mismatches:
+        fail(
+            "raw worktree bytes differ from candidate blobs: "
+            + ", ".join(sorted(mismatches))
+        )
 
 
 def verify_revision_state(revision: str) -> None:
@@ -186,9 +276,20 @@ def verify_revision_state(revision: str) -> None:
     if resolved_worktree != expected_root:
         fail("Git resolved worktree does not match generated repository root")
 
+    replacement_refs = run_git_pinned(
+        "for-each-ref",
+        "--format=%(refname)",
+        "refs/replace",
+    )
+    if replacement_refs:
+        fail("Git replacement objects are not permitted")
+
     head = run_git_pinned("rev-parse", "--verify", "HEAD^{commit}")
     if head != revision:
         fail("revision does not match generated repository HEAD")
+    candidate_paths = candidate_tracked_paths(revision)
+    verify_lifecycle_paths_are_untracked(candidate_paths)
+
     if run_git_pinned("diff", "--cached", "--name-only"):
         fail("generated repository has staged changes")
 
@@ -203,6 +304,8 @@ def verify_revision_state(revision: str) -> None:
             "generated repository has unexpected tracked changes: "
             + ", ".join(sorted(unexpected_tracked))
         )
+
+    verify_raw_candidate_bytes(revision, candidate_paths)
 
     status = run_git_pinned(
         "status",
@@ -320,9 +423,11 @@ def empty_index() -> dict[str, object]:
 
 
 def records_directory_entries() -> dict[str, Path]:
+    if RECORDS_DIR.is_symlink():
+        fail("release bundle records path must be a regular non-symbolic directory")
     if not RECORDS_DIR.exists():
         return {}
-    if RECORDS_DIR.is_symlink() or not RECORDS_DIR.is_dir():
+    if not RECORDS_DIR.is_dir():
         fail("release bundle records path must be a regular non-symbolic directory")
     try:
         return {entry.name: entry for entry in RECORDS_DIR.iterdir()}
@@ -330,8 +435,58 @@ def records_directory_entries() -> dict[str, Path]:
         fail(f"cannot inspect release bundle records directory: {exc}")
 
 
+def verify_retained_bundle_metadata(
+    record_id: str,
+    expected_path: str,
+    candidate_revision: str,
+    generated_at: str,
+    content: bytes,
+) -> None:
+    label = f"release bundle record {record_id}"
+    bundle = load_json_bytes(content, label)
+    provenance = bundle.get("provenance")
+    subject = bundle.get("subject")
+    if not isinstance(provenance, dict):
+        fail(f"{label}: retained bundle provenance is malformed")
+    if not isinstance(subject, dict):
+        fail(f"{label}: retained bundle subject is malformed")
+    if provenance.get("id") != record_id:
+        fail(f"{label}: provenance id does not match index")
+    if provenance.get("locator") != expected_path:
+        fail(f"{label}: provenance locator does not match index")
+    if subject.get("revision") != candidate_revision:
+        fail(f"{label}: subject revision does not match index")
+    if provenance.get("generatedAt") != generated_at:
+        fail(f"{label}: generation timestamp does not match index")
+
+
+def verify_successor_chains(
+    records_by_id: dict[str, dict[str, object]],
+    current: str,
+) -> None:
+    for record_id, record in records_by_id.items():
+        if record.get("status") != "superseded":
+            continue
+        seen = {record_id}
+        cursor = record_id
+        while cursor != current:
+            cursor_record = records_by_id[cursor]
+            successor = cursor_record.get("supersededBy")
+            if not isinstance(successor, str) or successor not in records_by_id:
+                fail(f"release bundle record {cursor}: successor is not retained")
+            if successor in seen:
+                fail(
+                    f"release bundle record {record_id}: "
+                    "successor chain contains a cycle"
+                )
+            seen.add(successor)
+            cursor = successor
+
+
 def load_index() -> dict[str, object]:
     directory_entries = records_directory_entries()
+    if INDEX_PATH.is_symlink():
+        fail("release bundle index must be a regular non-symbolic file")
     if not INDEX_PATH.exists():
         if directory_entries:
             fail(
@@ -339,7 +494,7 @@ def load_index() -> dict[str, object]:
                 + ", ".join(sorted(directory_entries))
             )
         return empty_index()
-    if not is_regular_file(INDEX_PATH):
+    if not INDEX_PATH.is_file():
         fail("release bundle index must be a regular non-symbolic file")
 
     index = load_json(INDEX_PATH)
@@ -349,6 +504,7 @@ def load_index() -> dict[str, object]:
         fail("release bundle index is malformed")
 
     record_ids: set[str] = set()
+    records_by_id: dict[str, dict[str, object]] = {}
     expected_filenames: set[str] = set()
     retained_bytes: dict[str, bytes] = {}
     current_count = 0
@@ -364,6 +520,7 @@ def load_index() -> dict[str, object]:
         ):
             fail("release bundle index contains an invalid or duplicate record id")
         record_ids.add(record_id)
+        records_by_id[record_id] = record
 
         expected_path = f"product/release-bundle-records/{record_id}.json"
         if record.get("path") != expected_path:
@@ -403,6 +560,13 @@ def load_index() -> dict[str, object]:
             or _TIMESTAMP_PATTERN.fullmatch(generated_at) is None
         ):
             fail(f"release bundle record {record_id}: invalid generation timestamp")
+        verify_retained_bundle_metadata(
+            record_id,
+            expected_path,
+            candidate_revision,
+            generated_at,
+            content,
+        )
 
         status = record.get("status")
         superseded_by = record.get("supersededBy")
@@ -428,20 +592,12 @@ def load_index() -> dict[str, object]:
         )
 
     if records:
-        if current_count != 1 or current not in record_ids:
+        if current_count != 1 or not isinstance(current, str) or current not in record_ids:
             fail("release bundle index current record is inconsistent")
-        current_record = next(
-            record for record in records if record.get("id") == current
-        )
+        current_record = records_by_id[current]
         if current_record.get("status") != "current":
             fail("release bundle index current record is not marked current")
-        for record in records:
-            if record.get("status") == "superseded":
-                successor = record.get("supersededBy")
-                if successor not in record_ids:
-                    fail(
-                        f"release bundle record {record['id']}: successor is not retained"
-                    )
+        verify_successor_chains(records_by_id, current)
         if not is_regular_file(BUNDLE_PATH):
             fail("current release bundle must be a regular non-symbolic file")
         try:
@@ -473,10 +629,16 @@ def next_record_identity(existing_ids: set[str]) -> tuple[str, str]:
 
 def restore_current(previous: bytes | None) -> None:
     if previous is None:
-        if BUNDLE_PATH.exists():
+        if BUNDLE_PATH.exists() or BUNDLE_PATH.is_symlink():
             BUNDLE_PATH.unlink()
     else:
         write_bytes(BUNDLE_PATH, previous)
+
+
+def rollback_created_record(previous_bundle: bytes | None, record_path: Path) -> None:
+    restore_current(previous_bundle)
+    if record_path.exists() or record_path.is_symlink():
+        record_path.unlink()
 
 
 def create_record(revision: str, index: dict[str, object]) -> str:
@@ -515,12 +677,16 @@ def create_record(revision: str, index: dict[str, object]) -> str:
         fail(f"release bundle record already exists: {record_id}")
 
     previous_bundle = BUNDLE_PATH.read_bytes() if BUNDLE_PATH.exists() else None
-    write_bytes(record_path, content)
-    write_bytes(BUNDLE_PATH, content)
+    try:
+        write_bytes(record_path, content)
+        write_bytes(BUNDLE_PATH, content)
+    except OSError as exc:
+        rollback_created_record(previous_bundle, record_path)
+        fail(f"cannot write generated release bundle: {exc}")
+
     valid, diagnostic = validate_bundle(revision)
     if not valid:
-        restore_current(previous_bundle)
-        record_path.unlink(missing_ok=True)
+        rollback_created_record(previous_bundle, record_path)
         fail("generated bundle did not validate: " + diagnostic)
 
     for record in records:
@@ -538,7 +704,11 @@ def create_record(revision: str, index: dict[str, object]) -> str:
         }
     )
     index["currentRecordId"] = record_id
-    write_bytes(INDEX_PATH, json_bytes(index))
+    try:
+        write_bytes(INDEX_PATH, json_bytes(index))
+    except OSError as exc:
+        rollback_created_record(previous_bundle, record_path)
+        fail(f"cannot publish release bundle index: {exc}")
     return record_id
 
 
@@ -568,7 +738,10 @@ def activate_record(
         fail("retained release bundle bytes no longer match the index")
 
     previous_bundle = BUNDLE_PATH.read_bytes() if BUNDLE_PATH.exists() else None
-    write_bytes(BUNDLE_PATH, content)
+    try:
+        write_bytes(BUNDLE_PATH, content)
+    except OSError as exc:
+        fail(f"cannot project retained release bundle: {exc}")
     valid, diagnostic = validate_bundle(revision)
     if not valid:
         restore_current(previous_bundle)
@@ -588,7 +761,11 @@ def activate_record(
             record["status"] = "superseded"
             record["supersededBy"] = record_id
     index["currentRecordId"] = record_id
-    write_bytes(INDEX_PATH, json_bytes(index))
+    try:
+        write_bytes(INDEX_PATH, json_bytes(index))
+    except OSError as exc:
+        restore_current(previous_bundle)
+        fail(f"cannot publish release bundle index: {exc}")
     return record_id
 
 
