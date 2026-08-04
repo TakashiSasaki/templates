@@ -14,11 +14,15 @@ DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
 LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
 LOCK_VERIFIER = ROOT / "scripts/verify_locked_environment.py"
 
-EXPECTED_DIRECT_REQUIREMENTS = ("jsonschema===4.26.0",)
+EXPECTED_DIRECT_REQUIREMENTS = (
+    "jsonschema===4.26.0",
+    "PyYAML===6.0.3",
+)
 EXPECTED_LOCKED_REQUIREMENTS = (
     "attrs===26.1.0",
     "jsonschema===4.26.0",
     "jsonschema-specifications===2025.9.1",
+    "PyYAML===6.0.3",
     "referencing===0.37.0",
     "rpds-py===2026.6.3",
     "typing_extensions===4.16.0",
