@@ -2,7 +2,7 @@
 
 This orphan branch is the development source for a framework-neutral web-application repository template. Its history is intentionally unrelated to the other branches in `TakashiSasaki/templates`.
 
-The template provides repository-level design contracts for browser-facing web applications. The current foundation covers application surfaces, routes, user-visible states, supported viewports, machine-readable implementation evidence, revision-bound release evidence, a closed contract manifest with active and retired version histories, stable migration ownership, JSON Schemas, validation, tests, and CI. It does not choose an application framework, package manager, deployment target, CI provider, authentication provider, backend architecture, or coding-agent operating policy.
+The template provides repository-level design contracts for browser-facing web applications. The current foundation covers application surfaces, routes, user-visible states, supported viewports, machine-readable implementation evidence, revision-bound release evidence, digest-closed release bundles, a closed contract manifest with active and retired version histories, stable migration ownership, JSON Schemas, validation, tests, and CI. It does not choose an application framework, package manager, deployment target, CI provider, authentication provider, backend architecture, artifact store, or coding-agent operating policy.
 
 ## Validation baseline
 
@@ -53,6 +53,20 @@ python scripts/validate_release_evidence.py --expected-revision <40-hex-commit-s
 python -m scripts.validate_release_evidence --expected-revision <40-hex-commit-sha>
 ```
 
+Validate template-mode release-bundle requirements through both entry points:
+
+```sh
+python scripts/validate_release_bundle.py
+python -m scripts.validate_release_bundle
+```
+
+After approved release evidence exists, a generated product validates the digest-closed handoff bundle for the same candidate revision:
+
+```sh
+python scripts/validate_release_bundle.py --expected-revision <40-hex-commit-sha>
+python -m scripts.validate_release_bundle --expected-revision <40-hex-commit-sha>
+```
+
 Run the standard-library test suite:
 
 ```sh
@@ -69,6 +83,8 @@ The clean-room generated-repository classes are template-maintainer-only. When t
 
 `contracts/release-evidence.json` records whether the current command and gate definitions actually passed for one exact product revision. Product mode covers every registered gate and every command executed by those gates, binds command results to current command text by SHA-256, records result locators and UTC chronology, and requires an approved release decision. The validator records no CI-provider assumptions and executes no command strings.
 
+`contracts/release-bundle.json` records the exact active contract bytes handed to the next system after approval. Product mode binds the same candidate revision to every active contract except the bundle manifest itself, in manifest order, using the registered path and SHA-256 of current file bytes. The separate manifest avoids self-digest recursion while including release evidence as a digest-bound artifact. Packaging, signing, retention, release publication, deployment, and environment observation remain product-owned.
+
 ## Generated-repository conformance
 
 `tests/test_generated_repository_conformance.py` copies the complete template into a temporary clean-room repository, excludes source-control and local-environment residue, explicitly settles the example contracts as declarations for a deterministic fixture product, converts only the copied implementation-evidence document to `mode: product`, and materializes repository-local implementation and proof locations for all 26 current targets.
@@ -77,10 +93,10 @@ The fixture registers one reviewed product proof command and one selected releas
 
 `tests/test_generated_release_evidence_conformance.py` extends the generated product with revision-bound command and gate results and executes both release validator entry points. It proves stable rejection of revision mismatch and command-definition digest drift.
 
-The combined clean-room coverage therefore exercises all eight retained validator entry points. Additional negative copies cover template residue, missing targets, unverified boundaries, unknown or unused commands, unused gates, release-gate closure gaps, and false proof results. The template source remains in template mode before and after every fixture run. See [`docs/architecture/generated-repository-conformance.md`](docs/architecture/generated-repository-conformance.md).
+The existing clean-room coverage exercises the first eight retained validator entry points. CI additionally executes both release-bundle validator forms. Phase 3B will extend the clean room to produce exact artifact digests and exercise all ten forms from a generated product. Additional negative copies currently cover template residue, missing targets, unverified boundaries, unknown or unused commands, unused gates, release-gate closure gaps, false proof results, release revision mismatch, and command-definition drift. The template source remains in template mode before and after every fixture run. See [`docs/architecture/generated-repository-conformance.md`](docs/architecture/generated-repository-conformance.md).
 
 ## Template-development rule
 
 Changes for this template branch must be based on `webapp`, not on `main`, `site`, or `policy`. The histories are unrelated and must not be merged merely to share files.
 
-See `TEMPLATE.md` for scope and customization boundaries, [`docs/operationalization.md`](docs/operationalization.md) for the generated-repository workflow, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, [`docs/architecture/contract-completeness.md`](docs/architecture/contract-completeness.md) for the closed contract inventory and extension criteria, [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md) for versioning, stable migration ownership, retirement, and rollback rules, [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md) for implementation ownership and release-gate definitions, [`docs/architecture/release-evidence.md`](docs/architecture/release-evidence.md) for exact-revision release results, [`docs/architecture/generated-repository-conformance.md`](docs/architecture/generated-repository-conformance.md) for the clean-room product transition, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.
+See `TEMPLATE.md` for scope and customization boundaries, [`docs/operationalization.md`](docs/operationalization.md) for the generated-repository workflow, `docs/architecture/responsibility-boundaries.md` for ownership of template, product, and operational concerns, [`docs/architecture/contract-completeness.md`](docs/architecture/contract-completeness.md) for the closed contract inventory and extension criteria, [`docs/architecture/contract-evolution.md`](docs/architecture/contract-evolution.md) for versioning, stable migration ownership, retirement, and rollback rules, [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md) for implementation ownership and release-gate definitions, [`docs/architecture/release-evidence.md`](docs/architecture/release-evidence.md) for exact-revision release results, [`docs/architecture/release-bundle.md`](docs/architecture/release-bundle.md) for digest-closed provider-neutral handoff, [`docs/architecture/generated-repository-conformance.md`](docs/architecture/generated-repository-conformance.md) for the clean-room product transition, and `docs/architecture/validation-toolchain.md` for the validation environment and dependency-update procedure.
