@@ -26,12 +26,13 @@ python -m scripts.validate_release_evidence --expected-revision <commit-sha>
 
 The validator compares the supplied revision with `subject.revision`. It does not infer a revision from a CI-provider-specific environment variable and does not run Git commands. Release orchestration must pass the immutable candidate revision explicitly.
 
-The release orchestrator must separately prove that the commands ran from the tree identified by that revision. Copying an arbitrary well-formed SHA into both the record and the validator argument does not establish this association. A suitable product workflow verifies the checked-out immutable revision, rejects revision-external tracked, ordinary untracked, and ignored executable inputs, and only then begins command execution.
+The release orchestrator must separately prove that the commands ran from the tree identified by that revision. Copying an arbitrary well-formed SHA into both the record and the validator argument does not establish this association. A suitable product workflow verifies the checked-out immutable revision, pins the Git directory and effective worktree being inspected, rejects revision-external tracked, ordinary untracked, and ignored executable inputs, and only then begins command execution.
 
-This avoids three ambiguity classes:
+This avoids four ambiguity classes:
 
 - evidence generated for an earlier revision cannot approve a later checkout;
-- a mutable branch or tag name cannot substitute for an immutable release subject; and
+- a mutable branch or tag name cannot substitute for an immutable release subject;
+- local Git configuration cannot redirect cleanliness checks to a different tree; and
 - a clean record cannot be asserted for an execution environment whose source-affecting content differs from the named revision.
 
 A repository should normally materialize product-mode release evidence in an ephemeral checkout or generated artifact after the candidate commands finish. Committing a file that attempts to name its own commit would create a circular self-reference and is not required.
@@ -57,27 +58,58 @@ A product-owned release workflow should generate result fields from the actual c
 
 For each candidate revision and authoritative command, the workflow should:
 
-1. resolve and verify the immutable checked-out revision;
-2. require the index and tracked worktree to match that revision;
-3. reject ordinary untracked and ignored files that can affect execution, or execute from a freshly materialized isolated checkout that cannot contain them;
-4. verify that the command ID and command text are the reviewed definitions for that revision;
-5. invoke the reviewed executable and argument vector directly;
-6. capture the real start time, completion time, stdout, stderr, and process result;
-7. normalize the process result into the nonnegative `exitCode` representation required by the contract;
-8. derive `status` from that result;
-9. calculate `commandDigest` from the exact authoritative command text;
-10. persist the detailed result in a reviewable artifact; and
-11. place only the contract-required summary and locator in release evidence.
+1. launch the evidence producer or equivalent trusted orchestration with an interpreter and module path isolated from repository-local startup code;
+2. resolve and verify the immutable checked-out revision;
+3. verify that Git's effective metadata directory and worktree are the repository intended for execution;
+4. pin subsequent Git operations to those verified paths rather than relying on ambient or local configuration;
+5. require the index and tracked worktree to match that revision;
+6. reject ordinary untracked and ignored files that can affect execution, or execute from a freshly materialized isolated checkout that cannot contain them;
+7. verify that the command ID and command text are the reviewed definitions for that revision;
+8. invoke the reviewed executable and argument vector directly under the selected isolation model;
+9. capture the real start time, completion time, stdout, stderr, and process result;
+10. normalize the process result into the nonnegative `exitCode` representation required by the contract;
+11. derive `status` from that result;
+12. calculate `commandDigest` from the exact authoritative command text;
+13. persist the detailed result in a reviewable artifact; and
+14. place only the contract-required summary and locator in release evidence.
 
-Ignored files require explicit treatment. Git's ordinary porcelain status omits files covered by ignore rules, but ignored bytecode, generated modules, configuration, plugins, or runtime inputs can still alter execution. A workflow must not describe its execution tree as revision-clean merely because `git status --porcelain` is empty.
+Interpreter startup is part of the execution boundary. Running a repository-local producer as an ordinary Python script can place its directory on `sys.path` before the script performs any preflight. A sourceless ignored module can then shadow a standard-library import and execute outside the named revision. Product-owned orchestration must isolate startup before executing repository-local evidence code, not merely check `sys.path` after imports have begun.
+
+Ignored files also require explicit treatment. Git's ordinary porcelain status omits files covered by ignore rules, but ignored bytecode, generated modules, configuration, plugins, or runtime inputs can still alter execution. A workflow must not describe its execution tree as revision-clean merely because `git status --porcelain` is empty.
+
+Git metadata selection requires the same care. A repository-local `core.worktree` setting can make `HEAD` resolve from one `.git` directory while status checks inspect another directory. Verify the effective top level before trusting cleanliness, then pin the metadata and worktree arguments for subsequent checks.
 
 Gate status must be derived from the command results that constitute the gate. The release decision must be derived from the resulting gate set and the product's approval policy. A failed command must not be rewritten as passed, a failed gate must not be rewritten as passed, and a rejected run must not be represented as approved.
 
-The clean-room producer in `tests/generated_release_evidence_producer_fixture.py` demonstrates this boundary for one known fixture command. The test harness creates a fresh Git repository from the generated product tree and supplies the resulting commit. The producer removes inherited `GIT_*` inputs, disables system and global Git configuration, resolves `HEAD^{commit}` through a fixed argument vector, requires equality with the supplied revision, requires ordinary status to be clean, separately rejects every path returned by `git ls-files --others --ignored --exclude-standard`, and then invokes `[sys.executable, "product/prove_conformance.py"]`.
+## Clean-room producer boundary
 
-The producer accepts only the candidate revision. It does not parse command text or expose a general execution or Git-ref interface. Its Git and proof commands are fixed reviewed argument vectors.
+The clean-room producer in `tests/generated_release_evidence_producer_fixture.py` demonstrates these controls for one known fixture command.
 
-This fixture is not a product release runner. Real products own their revision-verification mechanism, command mapping, runtime isolation, secret handling, ignored-input policy, result retention, artifact integrity, approval policy, and CI integration.
+The harness creates a fresh Git repository from the generated product tree, commits it, and supplies the resulting commit. It launches the producer through:
+
+```text
+[sys.executable, "-I", "product/produce_release_evidence.py", "--revision", revision]
+```
+
+The producer rejects a non-isolated invocation before its own non-built-in imports. The harness-level isolated launch is authoritative because interpreter startup and possible `sitecustomize` loading occur before script code.
+
+The producer then:
+
+- removes inherited `GIT_*` inputs;
+- disables system and global Git configuration;
+- requires a non-symbolic root `.git` directory;
+- verifies the effective absolute Git directory and top-level worktree;
+- rejects a redirected worktree before using cleanliness results;
+- pins later Git invocations with explicit `--git-dir` and `--work-tree` arguments;
+- disables fsmonitor, untracked cache, ignore-stat, and sparse-checkout behavior for those invocations;
+- verifies `HEAD^{commit}` equals the supplied revision;
+- requires ordinary status to be clean;
+- separately rejects every path returned by `git ls-files --others --ignored --exclude-standard`; and
+- invokes the reviewed proof through `[sys.executable, "-I", "product/prove_conformance.py"]`.
+
+The producer accepts only the candidate revision. It does not parse command text or expose a general execution, environment, working-directory, or Git-ref interface. Its Git and proof commands are fixed reviewed argument vectors.
+
+This fixture is not a product release runner. Real products own their revision-verification mechanism, command mapping, runtime isolation, secret handling, Git metadata policy, ignored-input policy, result retention, artifact integrity, approval policy, and CI integration.
 
 ## Gate closure
 
@@ -130,9 +162,9 @@ It then proves:
 - result and provenance locators contain visible text; and
 - timestamps are chronologically coherent at the schema's full nanosecond precision.
 
-It does not prove that the supplied revision identifies the executing tree, that revision-external ignored inputs were absent, that a command was actually executed, that stdout or stderr are authentic, that a locator exists remotely, that an artifact is immutable, that a CI provider is trustworthy, that evidence is retained for a particular duration, that a deployment occurred, or that a human approval is required. Those policies and integrity controls remain product-owned.
+It does not prove that the supplied revision identifies the executing tree, that interpreter startup was isolated, that Git inspected the intended worktree, that revision-external ignored inputs were absent, that a command was actually executed, that stdout or stderr are authentic, that a locator exists remotely, that an artifact is immutable, that a CI provider is trustworthy, that evidence is retained for a particular duration, that a deployment occurred, or that a human approval is required. Those policies and integrity controls remain product-owned.
 
-The actual evidence-production fixture closes the local conformance gap by adding revision/worktree/ignored-input verification and connecting a reviewed process result to the version 1 contract fields. It does not convert the validator into an execution engine.
+The actual evidence-production fixture closes the local conformance gap by adding isolated startup, Git-directory/worktree identity, revision and input verification, and connection of a reviewed process result to the version 1 contract fields. It does not convert the validator into an execution engine.
 
 ## Clean-room proof
 
@@ -147,7 +179,9 @@ The actual evidence-production fixture closes the local conformance gap by addin
 - a failing process committed as its own generated revision produces failed command and gate results, a rejected decision, a nonzero producer exit, and evidence rejected by release validation;
 - a supplied revision that differs from generated `HEAD` is rejected before execution;
 - a tracked or ordinary untracked generated-tree change is rejected before execution;
-- an ignored `product/__pycache__/prove_conformance.<tag>.pyc` input is rejected even though ordinary porcelain status is empty; and
+- an ignored `product/__pycache__/prove_conformance.<tag>.pyc` input is rejected even though ordinary porcelain status is empty;
+- a valid repository-local sourceless module cannot execute before producer preflight because the producer is launched in isolated mode;
+- a local `core.worktree` redirect is rejected even when the redirected status appears clean; and
 - command-registration drift committed as its own generated revision is rejected before proof execution and before product release evidence is created.
 
 Both suites are template-maintainer-only. A generated product repository retaining the files skips the clean-room classes after its source implementation evidence is in product mode; separate scope regressions verify that boundary.
