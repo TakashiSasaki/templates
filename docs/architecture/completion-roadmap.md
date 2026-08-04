@@ -43,7 +43,7 @@ This foundation validates a completed release record. It intentionally does not 
 
 ## Completed Phase 2: evidence-production conformance
 
-The clean-room generated repository now proves that a completed release record can be produced from actual reviewed execution rather than asserted result values.
+The clean-room generated repository proves that a completed release record can be produced from actual reviewed execution rather than asserted result values.
 
 The template-maintainer-only fixture:
 
@@ -70,21 +70,43 @@ The template-maintainer-only fixture:
 
 A mismatched revision, a tracked or ordinary untracked generated-tree change, an ignored revision-external file, a repository-local bytecode import opportunity, a redirected Git worktree, and command-registration drift are rejected before proof execution. The producer accepts no command text, executable, argument vector, environment, working directory, gate choice, or Git ref and is not a repository command dispatcher. Real products remain responsible for directly executing their selected reviewed commands and establishing equivalent interpreter, Git metadata, worktree, and revision-external-input boundaries in product-owned CI.
 
-## Remaining Phase 3: release-artifact and handoff closure
+## In-progress Phase 3A: release-bundle contract foundation
 
-The next gap is provider-neutral definition and conformance for handing completed evidence to release or deployment systems.
+PR #68 introduces the provider-neutral handoff manifest needed after approved release evidence exists.
+
+The `release_bundle` version 1 foundation defines:
+
+- template mode with no candidate, provenance, handoff, or artifact claims;
+- product mode for one explicit candidate revision;
+- equality with both the validator's expected revision and `release_evidence.subject.revision`;
+- one deterministic artifact descriptor for every active domain contract except the bundle manifest itself;
+- exact contract identity, manifest path, manifest order, and SHA-256 binding to current file bytes;
+- inclusion of release evidence as a digest-bound artifact;
+- bundle generation after release-evidence generation;
+- a provider-neutral `ready` handoff statement;
+- explicit exclusion of self-digest recursion; and
+- standalone and module validator entry points, bringing the retained validator surface to ten forms.
+
+The architecture defines candidate, merge-test, released, and deployed revision roles without pretending that pre-release repository validation proves release or deployment. It also defines mandatory regeneration, rejection, retry, supersession, rollback, signing, retention, approval, and redaction boundaries.
+
+## Remaining Phase 3B: bundle production and lifecycle conformance
+
+After the contract foundation is merged, the remaining Phase 3 gap is executable clean-room proof that the bundle is generated from the exact approved artifact set rather than from asserted digest values.
 
 Required outcomes:
 
-- define the minimum immutable evidence bundle: contract documents, candidate revision, command and gate results, provenance, decision, and reviewable locators;
-- explain how to avoid self-referential committed evidence;
-- distinguish candidate revision, merge-test revision, released revision, and deployed revision;
-- define when a new record is mandatory after source, command, gate, contract, or evidence-policy changes;
-- define product-owned retention, signing, attestation, approval, and redaction boundaries;
-- define release rejection, retry, supersession, and rollback evidence expectations; and
-- add clean-room diagnostics for stale, mismatched, or superseded bundles where these can be verified locally without choosing a provider.
+- extend the generated-repository clean room to produce `contracts/release-bundle.json` only after valid approved release evidence exists;
+- calculate every artifact digest from exact file bytes through a fixed reviewed implementation;
+- validate the generated bundle through both copied release-bundle entry points for the same candidate revision;
+- reject stale bundle bytes after any active contract changes;
+- reject a bundle for a different candidate revision;
+- reject an artifact set whose release-evidence bytes no longer match;
+- prove that a failed or rejected release run creates no ready bundle;
+- prove that a retry creates a distinct new record rather than rewriting the prior result;
+- define and test the repository-authoritative treatment of a superseded current bundle without choosing an archive provider; and
+- prove rollback reuse is permitted only for an exact retained bundle still accepted by current policy, otherwise requiring new evidence.
 
-A new contract family is not automatically required. Extend `release_evidence` only if the accepted document structure or semantic obligations actually change.
+A new provider-specific contract family is not required for storage, signing, release publication, deployment, or environment observation.
 
 ## Remaining Phase 4: final template readiness audit
 
@@ -99,12 +121,12 @@ The audit must verify:
 - no framework, package manager, backend, authentication provider, CI provider, or deployment platform has been selected implicitly;
 - no generic arbitrary-command executor exists;
 - no `policy`, `main`, or `site` content has entered the unrelated `webapp` history;
-- generated-repository setup, implementation evidence, actual evidence production, release handoff, migration, retirement, rollback, and completion checklists form one coherent workflow;
+- generated-repository setup, implementation evidence, actual evidence production, release bundle handoff, migration, retirement, rollback, and completion checklists form one coherent workflow;
 - intentionally product-owned concerns are clearly separated from missing template work; and
 - current-head CI passes, Codex reports no unresolved valid findings, and all review threads are resolved.
 
 ## Completion decision
 
-The `webapp` branch can be considered complete when Phases 3 and 4 are merged and no remaining gap requires a framework-neutral, repository-authoritative, locally verifiable contract or conformance check.
+The `webapp` branch can be considered complete when Phase 3B and Phase 4 are merged and no remaining gap requires a framework-neutral, repository-authoritative, locally verifiable contract or conformance check.
 
 Further additions should then be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`contract-completeness.md`](contract-completeness.md) rather than expanding the template speculatively.
