@@ -10,6 +10,10 @@ Typical installation target:
 
 The template starts from the smallest valid skill and adds implementation or service concerns only when the skill actually needs them. It deliberately does **not** require a programming runtime, package manager, CLI, MCP server, or Web interface.
 
+## License
+
+The canonical template repository is licensed under MIT-0; see `LICENSE`. A concrete skill may keep that file to use MIT-0 or replace it with another license appropriate for the completed skill. After making the choice, remove `LICENSE.template`. Separately licensed third-party resources retained by a skill remain subject to their own terms.
+
 ## Core principle
 
 An Agent Skill is first an instruction and resource package for an agent:
@@ -78,7 +82,7 @@ A concrete skill should delete unused optional files and directories. Keeping a 
 8. For `mcp-enabled`, complete `INTERFACES.md`, `MCP_INTERFACE.md`, and the applicable MCP maintainer documentation.
 9. Keep `WEB_INTERFACE.md` only when `browser-interface` is selected; a headless service alone does not require it.
 10. Add only the manifests, lockfiles, source layout, and tests required by the selected implementation.
-11. Replace `LICENSE.template` with the selected license and remove unused template guidance.
+11. Choose the concrete skill's repository license: keep `LICENSE` to use MIT-0 or replace it with another appropriate license, then remove `LICENSE.template`.
 12. Run complete repository validation against the concrete skill root.
 
 The repository validator accepts an optional skill-root argument, so a pruned installation does not need to retain the template's `.github/` maintainer tooling:
