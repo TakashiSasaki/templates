@@ -13,14 +13,15 @@ from urllib.parse import urlsplit
 
 
 LINK_TAG_PATTERN = re.compile(r"<link\b[^>]*>", re.IGNORECASE | re.DOTALL)
+HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
 HREF_ATTRIBUTE_PATTERN = re.compile(
-    r"\bhref\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)",
+    r"(?<![-:\w])href\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)",
     re.IGNORECASE,
 )
 
 
 class SiteMetadataError(RuntimeError):
-    """Raised when generated HTML metadata is missing or ambiguous."""
+    """Raised when generated HTML metadata is ambiguous or cannot be normalized."""
 
 
 class LinkElementParser(HTMLParser):
@@ -83,24 +84,35 @@ def rewrite_canonical_link(source: str, canonical_url: str, path: Path) -> str:
         tag = match.group(0)
         if canonical_links(tag):
             canonical_tags.append(tag)
-    if len(canonical_tags) != 1:
+    if len(canonical_tags) > 1:
         raise SiteMetadataError(
-            f"{path}: expected exactly one canonical link, found {len(canonical_tags)}"
+            f"{path}: expected at most one canonical link, found {len(canonical_tags)}"
         )
 
     escaped_url = html.escape(canonical_url, quote=True)
+    if not canonical_tags:
+        head_closes = list(HEAD_CLOSE_PATTERN.finditer(source))
+        if len(head_closes) != 1:
+            raise SiteMetadataError(
+                f"{path}: expected exactly one closing head tag, found {len(head_closes)}"
+            )
+        insertion = f'<link rel="canonical" href="{escaped_url}">\n'
+        position = head_closes[0].start()
+        updated = source[:position] + insertion + source[position:]
+    else:
 
-    def replace_tag(match: re.Match[str]) -> str:
-        tag = match.group(0)
-        if not canonical_links(tag):
-            return tag
-        replacement = f'href="{escaped_url}"'
-        if HREF_ATTRIBUTE_PATTERN.search(tag) is not None:
-            return HREF_ATTRIBUTE_PATTERN.sub(replacement, tag, count=1)
-        closing = "/>" if tag.endswith("/>") else ">"
-        return tag[: -len(closing)] + " " + replacement + closing
+        def replace_tag(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            if not canonical_links(tag):
+                return tag
+            replacement = f'href="{escaped_url}"'
+            if HREF_ATTRIBUTE_PATTERN.search(tag) is not None:
+                return HREF_ATTRIBUTE_PATTERN.sub(replacement, tag, count=1)
+            closing = "/>" if tag.endswith("/>") else ">"
+            return tag[: -len(closing)] + " " + replacement + closing
 
-    updated = LINK_TAG_PATTERN.sub(replace_tag, source)
+        updated = LINK_TAG_PATTERN.sub(replace_tag, source)
+
     links = canonical_links(updated)
     if len(links) != 1 or links[0].get("href") != canonical_url:
         raise SiteMetadataError(f"{path}: canonical URL normalization failed")
