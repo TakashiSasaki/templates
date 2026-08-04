@@ -138,11 +138,13 @@ The template document uses `mode: template`. Its records state which implementat
 A generated repository uses `mode: product` only after every record has:
 
 - a verified implementation boundary and concrete locator;
-- verified positive evidence;
-- verified negative evidence wherever access, degraded behavior, failure, connectivity, or a breaking transition requires it;
+- verified positive evidence for every target;
+- verified negative evidence for every target;
 - an authoritative command for every proof;
 - at least one release gate; and
 - release gates that execute every command used by the record's proofs.
+
+Access-controlled surfaces and routes, degraded or failure UI states, and breaking transitions require especially direct negative evidence for their security, recovery, compatibility, or rollback boundary. Other targets still require negative evidence for invalid ownership, unsupported interaction, clipping, unintended state, or an equivalent failure condition.
 
 The evidence validator proves reference integrity and coverage. It does not execute product commands or decide whether a test semantically proves the declaration. See [`docs/architecture/implementation-evidence.md`](docs/architecture/implementation-evidence.md).
 
