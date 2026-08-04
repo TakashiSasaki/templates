@@ -1,0 +1,129 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import assemble_docs  # noqa: E402
+import finalize_site_metadata  # noqa: E402
+
+
+CANONICAL_URL = "https://takashisasaki.github.io/templates/"
+
+
+class DeploymentNoticeTests(unittest.TestCase):
+    def test_deployment_timestamp_becomes_footer_notice(self) -> None:
+        self.assertEqual(
+            "Deployment time: 2026-08-04 18:08:00 JST",
+            assemble_docs.deployment_notice("2026-08-04 18:08:00 JST"),
+        )
+
+    def test_empty_timestamp_marks_non_deploying_build(self) -> None:
+        self.assertEqual(
+            "Preview build (not deployed)",
+            assemble_docs.deployment_notice(""),
+        )
+
+    def test_invalid_timestamp_is_rejected(self) -> None:
+        for value in (
+            "2026-08-04T09:08:00Z",
+            "2026-8-4 18:08 JST",
+            "2026-08-04 18:08:00 UTC",
+            "<script>alert(1)</script>",
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(assemble_docs.AssemblyError):
+                    assemble_docs.deployment_notice(value)
+
+
+class CanonicalMetadataTests(unittest.TestCase):
+    def test_every_generated_page_uses_the_public_site_canonical_url(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            nested = site_root / "guide"
+            nested.mkdir()
+            (site_root / "index.html").write_text(
+                "<html><head>"
+                '<link rel="canonical" href="https://old.example/root">'
+                "</head><body>home</body></html>",
+                encoding="utf-8",
+            )
+            (nested / "index.html").write_text(
+                "<html><head>"
+                "<link href='https://old.example/guide/' rel='alternate canonical'>"
+                "</head><body>guide</body></html>",
+                encoding="utf-8",
+            )
+
+            normalized = finalize_site_metadata.normalize_canonical_links(
+                site_root,
+                CANONICAL_URL,
+            )
+
+            self.assertEqual(2, normalized)
+            for path in (site_root / "index.html", nested / "index.html"):
+                html = path.read_text(encoding="utf-8")
+                self.assertIn(f'href="{CANONICAL_URL}"', html)
+                self.assertNotIn("https://old.example", html)
+
+    def test_missing_or_duplicate_canonical_links_are_rejected(self) -> None:
+        cases = {
+            "missing": "<html><head></head><body></body></html>",
+            "duplicate": (
+                "<html><head>"
+                '<link rel="canonical" href="https://one.example/">'
+                '<link rel="canonical" href="https://two.example/">'
+                "</head><body></body></html>"
+            ),
+        }
+        for label, html in cases.items():
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    site_root = Path(temporary_directory)
+                    (site_root / "index.html").write_text(html, encoding="utf-8")
+                    with self.assertRaises(
+                        finalize_site_metadata.SiteMetadataError
+                    ):
+                        finalize_site_metadata.normalize_canonical_links(
+                            site_root,
+                            CANONICAL_URL,
+                        )
+
+
+class DeploymentWorkflowWiringTests(unittest.TestCase):
+    def test_workflows_render_deployment_time_and_fix_canonical_url(self) -> None:
+        build_workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
+            encoding="utf-8"
+        )
+        deploy_workflow = (ROOT / ".github/workflows/deploy-pages.yml").read_text(
+            encoding="utf-8"
+        )
+        template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
+
+        self.assertIn("deployment_timestamp:", build_workflow)
+        self.assertIn(
+            '--deployment-timestamp "${{ inputs.deployment_timestamp }}"',
+            build_workflow,
+        )
+        self.assertIn("scripts/finalize_site_metadata.py", build_workflow)
+        self.assertIn(f"--canonical-url {CANONICAL_URL}", build_workflow)
+
+        self.assertIn("TZ=Asia/Tokyo", deploy_workflow)
+        self.assertIn("deployment_timestamp:", deploy_workflow)
+        self.assertIn(
+            "deployment_timestamp: "
+            "${{ needs.deployment-metadata.outputs.deployment_timestamp }}",
+            deploy_workflow,
+        )
+
+        self.assertIn("copyright = __DEPLOYMENT_NOTICE__", template)
+        self.assertIn(f'site_url = "{CANONICAL_URL}"', template)
+
+
+if __name__ == "__main__":
+    unittest.main()
