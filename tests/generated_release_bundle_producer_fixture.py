@@ -216,17 +216,26 @@ def verify_revision_state(revision: str) -> None:
         )
 
 
+def validator_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    for name in tuple(environment):
+        if name.startswith("PYTHON"):
+            del environment[name]
+    environment["PYTHONNOUSERSITE"] = "1"
+    return environment
+
+
 def validate_release(revision: str) -> None:
     completed = subprocess.run(
         [
             sys.executable,
-            "-I",
             "-B",
             "scripts/validate_release_evidence.py",
             "--expected-revision",
             revision,
         ],
         cwd=ROOT,
+        env=validator_environment(),
         check=False,
         capture_output=True,
         text=True,
@@ -253,8 +262,9 @@ def validate_bundle(revision: str) -> tuple[bool, str]:
     )
     for arguments in commands:
         completed = subprocess.run(
-            [sys.executable, "-I", "-B", *arguments],
+            [sys.executable, "-B", *arguments],
             cwd=ROOT,
+            env=validator_environment(),
             check=False,
             capture_output=True,
             text=True,
