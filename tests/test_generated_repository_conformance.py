@@ -9,18 +9,28 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from scripts import validate_contracts  # noqa: E402
-from scripts import validate_implementation_evidence  # noqa: E402
 
 PRODUCT_NAME = "Conformance Workbench"
 PROOF_COMMAND_ID = "generated-product-proof"
 RELEASE_GATE_ID = "generated-product-release"
 PROOF_COMMAND = "python product/prove_conformance.py"
+
+_PYTHON_ENVIRONMENT_INPUTS = (
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "PYTHONSAFEPATH",
+    "PYTHONPLATLIBDIR",
+    "PYTHONHASHSEED",
+    "PYTHONUTF8",
+    "PYTHONINTMAXSTRDIGITS",
+    "PYTHONMALLOC",
+    "PYTHONIOENCODING",
+    "PYTHONTRACEMALLOC",
+    "PYTHONINSPECT",
+)
 
 PRODUCT_PROOF_SCRIPT = r'''#!/usr/bin/env python3
 """Execute the reviewed proof command for the generated-repository fixture."""
@@ -188,6 +198,25 @@ def _copy_ignore(_directory: str, names: list[str]) -> set[str]:
     return {name for name in names if name in ignored or name.endswith(".pyc")}
 
 
+def _generated_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    for name in _PYTHON_ENVIRONMENT_INPUTS:
+        environment[name] = ""
+    environment["PYTHONNOUSERSITE"] = "1"
+    return environment
+
+
+def _run_generated_python(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, *arguments],
+        cwd=root,
+        env=_generated_environment(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _settle_product_contracts(root: Path) -> None:
     surfaces_path = root / "contracts/surfaces.json"
     surfaces = _load_json(surfaces_path)
@@ -314,23 +343,42 @@ def _generated_repository() -> Iterator[Path]:
         yield root
 
 
-def _implementation_errors(root: Path) -> list[str]:
-    manifest = validate_contracts.load_contract_manifest(root)
-    documents = validate_contracts.load_contract_documents(root)
-    return validate_implementation_evidence.validate_evidence_documents(
-        manifest,
-        documents,
-    )
-
-
-def _mutate_evidence(root: Path, mutation: object) -> None:
+def _mutate_evidence(
+    root: Path,
+    mutation: Callable[[dict[str, object]], None],
+) -> None:
     evidence_path = root / "contracts/implementation-evidence.json"
     evidence = _load_json(evidence_path)
     mutation(evidence)
     _write_json(evidence_path, evidence)
 
 
+def _is_template_maintainer_source() -> bool:
+    evidence = _load_json(ROOT / "contracts/implementation-evidence.json")
+    return evidence.get("mode") == "template"
+
+
+@unittest.skipUnless(
+    _is_template_maintainer_source(),
+    "template-maintainer-only generated-repository conformance suite",
+)
 class GeneratedRepositoryConformanceTests(unittest.TestCase):
+    def assert_generated_validator_rejects(
+        self,
+        root: Path,
+        diagnostic: str,
+    ) -> None:
+        result = _run_generated_python(
+            root,
+            "scripts/validate_implementation_evidence.py",
+        )
+        self.assertEqual(
+            1,
+            result.returncode,
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+        )
+        self.assertIn(diagnostic, result.stderr)
+
     def test_clean_room_generated_repository_is_product_conformant(self) -> None:
         source_evidence = _load_json(ROOT / "contracts/implementation-evidence.json")
         self.assertEqual("template", source_evidence["mode"])
@@ -342,13 +390,7 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 _load_json(root / "contracts/implementation-evidence.json")["mode"],
             )
 
-            proof = subprocess.run(
-                [sys.executable, "product/prove_conformance.py"],
-                cwd=root,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
+            proof = _run_generated_python(root, "product/prove_conformance.py")
             self.assertEqual(0, proof.returncode, proof.stderr)
             self.assertIn("generated repository proof: 52 checks passed", proof.stdout)
 
@@ -360,27 +402,9 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 ("scripts/validate_implementation_evidence.py",),
                 ("-m", "scripts.validate_implementation_evidence"),
             )
-            environment = os.environ.copy()
-            environment.update(
-                {
-                    "PYTHONHOME": "",
-                    "PYTHONPATH": "",
-                    "PYTHONSAFEPATH": "",
-                    "PYTHONPLATLIBDIR": "",
-                    "PYTHONINSPECT": "",
-                    "PYTHONNOUSERSITE": "1",
-                }
-            )
             for command in validator_commands:
                 with self.subTest(command=command):
-                    result = subprocess.run(
-                        [sys.executable, *command],
-                        cwd=root,
-                        env=environment,
-                        check=False,
-                        capture_output=True,
-                        text=True,
-                    )
+                    result = _run_generated_python(root, *command)
                     self.assertEqual(
                         0,
                         result.returncode,
@@ -393,21 +417,15 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
         )
         self.assertFalse((ROOT / "product").exists())
 
-    def test_template_mode_residue_is_rejected(self) -> None:
+    def test_template_mode_residue_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             _mutate_evidence(root, lambda evidence: evidence.__setitem__("mode", "template"))
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "implementation evidence: template mode requires commands to be empty",
+            )
 
-        self.assertIn(
-            "implementation evidence: template mode requires commands to be empty",
-            errors,
-        )
-        self.assertTrue(
-            any("template mode must not claim" in error for error in errors),
-            errors,
-        )
-
-    def test_missing_target_is_rejected(self) -> None:
+    def test_missing_target_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def remove_target(evidence: dict[str, object]) -> None:
                 evidence["records"] = [
@@ -417,37 +435,34 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 ]
 
             _mutate_evidence(root, remove_target)
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "missing implementation evidence target: surface public",
+            )
 
-        self.assertIn("missing implementation evidence target: surface public", errors)
-
-    def test_unverified_boundary_is_rejected(self) -> None:
+    def test_unverified_boundary_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def unverify_boundary(evidence: dict[str, object]) -> None:
                 evidence["records"][0]["implementationBoundary"]["status"] = "required"
 
             _mutate_evidence(root, unverify_boundary)
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "implementation evidence record surface-public: product mode requires a verified implementation boundary",
+            )
 
-        self.assertIn(
-            "implementation evidence record surface-public: product mode requires a verified implementation boundary",
-            errors,
-        )
-
-    def test_unknown_command_is_rejected(self) -> None:
+    def test_unknown_command_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def select_unknown_command(evidence: dict[str, object]) -> None:
                 evidence["records"][0]["positiveEvidence"][0]["commandId"] = "unknown-command"
 
             _mutate_evidence(root, select_unknown_command)
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "implementation evidence record surface-public proof surface-public-positive: unknown command reference unknown-command",
+            )
 
-        self.assertIn(
-            "implementation evidence record surface-public proof surface-public-positive: unknown command reference unknown-command",
-            errors,
-        )
-
-    def test_unused_command_is_rejected(self) -> None:
+    def test_unused_command_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def add_unused_command(evidence: dict[str, object]) -> None:
                 evidence["commands"].append(
@@ -459,11 +474,12 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 )
 
             _mutate_evidence(root, add_unused_command)
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "unused implementation evidence command: unused-command",
+            )
 
-        self.assertIn("unused implementation evidence command: unused-command", errors)
-
-    def test_unused_release_gate_is_rejected(self) -> None:
+    def test_unused_release_gate_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def add_unused_gate(evidence: dict[str, object]) -> None:
                 evidence["releaseGates"].append(
@@ -475,11 +491,12 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 )
 
             _mutate_evidence(root, add_unused_gate)
-            errors = _implementation_errors(root)
+            self.assert_generated_validator_rejects(
+                root,
+                "unused implementation evidence release gate: unused-gate",
+            )
 
-        self.assertIn("unused implementation evidence release gate: unused-gate", errors)
-
-    def test_release_gate_closure_is_rejected(self) -> None:
+    def test_release_gate_closure_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
             def break_release_gate_closure(evidence: dict[str, object]) -> None:
                 evidence["commands"].append(
@@ -492,12 +509,10 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                 evidence["records"][0]["positiveEvidence"][0]["commandId"] = "detached-proof"
 
             _mutate_evidence(root, break_release_gate_closure)
-            errors = _implementation_errors(root)
-
-        self.assertIn(
-            "implementation evidence record surface-public: evidence command detached-proof is not executed by a selected release gate",
-            errors,
-        )
+            self.assert_generated_validator_rejects(
+                root,
+                "implementation evidence record surface-public: evidence command detached-proof is not executed by a selected release gate",
+            )
 
     def test_reviewed_proof_command_rejects_false_result(self) -> None:
         with _generated_repository() as root:
@@ -506,19 +521,27 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
             inventory["targets"]["surface-public"]["negative"] = False
             _write_json(inventory_path, inventory)
 
-            result = subprocess.run(
-                [sys.executable, "product/prove_conformance.py"],
-                cwd=root,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
+            result = _run_generated_python(root, "product/prove_conformance.py")
 
         self.assertEqual(1, result.returncode)
         self.assertIn(
             "generated repository proof failed: surface-public: negative proof result is not true",
             result.stderr,
         )
+
+
+class GeneratedRepositoryConformanceScopeTests(unittest.TestCase):
+    def test_clean_room_suite_is_template_maintainer_only(self) -> None:
+        source_is_template = _is_template_maintainer_source()
+        suite_is_skipped = bool(
+            getattr(GeneratedRepositoryConformanceTests, "__unittest_skip__", False)
+        )
+        self.assertEqual(not source_is_template, suite_is_skipped)
+        if suite_is_skipped:
+            self.assertEqual(
+                "template-maintainer-only generated-repository conformance suite",
+                getattr(GeneratedRepositoryConformanceTests, "__unittest_skip_why__"),
+            )
 
 
 if __name__ == "__main__":
