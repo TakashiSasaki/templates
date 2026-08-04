@@ -106,6 +106,20 @@
         }
       ],
       "purpose": "Bind one exact product revision to completed authoritative commands, selected release gates, execution provenance, and an approved release decision."
+    },
+    {
+      "id": "release_bundle",
+      "document": "contracts/release-bundle.json",
+      "schema": "schemas/release-bundle.schema.json",
+      "migrationSlug": "release-bundle",
+      "documentSchemaVersion": 1,
+      "versionHistory": [
+        {
+          "version": 1,
+          "changeType": "initial"
+        }
+      ],
+      "purpose": "Bind one exact candidate revision to a deterministic, digest-closed set of active contract documents for provider-neutral release handoff."
     }
   ],
   "retiredContracts": []
