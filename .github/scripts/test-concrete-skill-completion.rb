@@ -9,6 +9,8 @@ require "tmpdir"
 SOURCE_ROOT = File.expand_path("../..", __dir__)
 FIXTURE = File.join(SOURCE_ROOT, ".github/fixtures/profiles/instruction-only")
 VALIDATOR = File.join(SOURCE_ROOT, ".github/scripts/validate-skill-repository.rb")
+CANONICAL_LICENSE_PATH = File.join(SOURCE_ROOT, "LICENSE")
+LICENSE_TEMPLATE_PATH = File.join(SOURCE_ROOT, "LICENSE.template")
 GIT_ENV = {
   "GIT_DIR" => nil,
   "GIT_INDEX_FILE" => nil,
@@ -16,6 +18,16 @@ GIT_ENV = {
   "RUBYOPT" => nil
 }.freeze
 FAILURES = []
+
+EXPECTED_CANONICAL_LICENSE = <<~LICENSE.freeze
+  MIT No Attribution
+
+  Copyright 2026 Takashi Sasaki
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+LICENSE
 
 CANONICAL_TEMPLATE_README = <<~MARKDOWN.freeze
   # Language-neutral Agent Skill Template
@@ -81,10 +93,34 @@ def expect_failure(label, diagnostic)
   end
 end
 
+unless File.file?(CANONICAL_LICENSE_PATH) && !File.symlink?(CANONICAL_LICENSE_PATH) &&
+       File.read(CANONICAL_LICENSE_PATH, encoding: "UTF-8") == EXPECTED_CANONICAL_LICENSE
+  FAILURES << "canonical template license: expected the exact maintained MIT-0 text"
+end
+
+license_guidance = if File.file?(LICENSE_TEMPLATE_PATH) && !File.symlink?(LICENSE_TEMPLATE_PATH)
+                     File.read(LICENSE_TEMPLATE_PATH, encoding: "UTF-8")
+                   else
+                     ""
+                   end
+[
+  "keep LICENSE to use MIT-0 for the concrete skill",
+  "replace LICENSE with another license appropriate for the concrete skill",
+  "remove LICENSE.template"
+].each do |required_text|
+  unless license_guidance.include?(required_text)
+    FAILURES << "license template guidance: missing #{required_text.inspect}"
+  end
+end
+
 expect_success("completed instruction-only skill")
 
 expect_success("concrete README is allowed") do |directory|
   File.write(File.join(directory, "README.md"), CONCRETE_README, encoding: "UTF-8")
+end
+
+expect_success("concrete skill may retain canonical MIT-0 license") do |directory|
+  FileUtils.cp(CANONICAL_LICENSE_PATH, File.join(directory, "LICENSE"), preserve: true)
 end
 
 expect_failure(
