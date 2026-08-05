@@ -48,6 +48,21 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn('"policy"', source_lock)
         self.assertIn('"webapp"', source_lock)
 
+    def test_publication_resolver_runs_under_pinned_python(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+
+        setup_position = workflow.index("- name: Set up Python")
+        resolver_position = workflow.index("- name: Resolve publication source revisions")
+        provider_checkout_position = workflow.index("- name: Check out skill publication")
+
+        self.assertLess(setup_position, resolver_position)
+        self.assertLess(resolver_position, provider_checkout_position)
+        self.assertIn("python-version: '3.12'", workflow)
+        self.assertIn(
+            "python site-source/scripts/resolve_publication_sources.py",
+            workflow,
+        )
+
     def test_deployment_workflow_accepts_only_site_pushes(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
