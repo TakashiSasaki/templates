@@ -42,8 +42,8 @@ Every document object has exactly these fields:
 
 - `id`: a unique lowercase kebab-case identifier that remains stable when a
   source file is renamed;
-- `source`: a unique safe relative POSIX path to a Markdown file under the
-  repository root;
+- `source`: a unique safe relative POSIX path to an existing regular Markdown
+  file under the repository root;
 - `optional`: a boolean indicating whether an assembler may skip the document
   when the source is absent from a reduced source tree;
 - `home`: a boolean; exactly one non-optional document must be the publication
