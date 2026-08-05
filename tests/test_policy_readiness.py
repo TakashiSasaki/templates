@@ -116,6 +116,8 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
                 "remains on its current full SHA with an explicit no-promotion rationale",
                 "separate promotion commit synchronizes",
                 "to the frozen candidate",
+                "retaining the existing verifier lock when compatible",
+                "updating it when the candidate requires a different probe environment",
             ),
         ),
     }
@@ -136,6 +138,19 @@ def test_candidate_verification_excludes_release_alignment() -> None:
     assert "it is not a candidate-local gate" in roadmap
     assert "without marking that sequence gate passed" in roadmap
     assert "Mark `release-alignment` passed only after" in roadmap
+
+
+def test_verifier_lock_promotion_is_conditional() -> None:
+    roadmap = normalized(ROADMAP)
+
+    assert "updates the verifier lock only when the candidate requires" in roadmap
+    assert "otherwise it retains and verifies the existing compatible lock" in roadmap
+    assert "Update the stable verifier lock in that promotion commit only when" in roadmap
+    assert "otherwise retain and verify the existing compatible lock" in roadmap
+    assert (
+        "update `release/toolchain.json`, the bootstrap manifest, and the stable verifier lock"
+        not in roadmap
+    )
 
 
 def test_completion_uses_distinct_candidate_promotion_and_audit_commits() -> None:

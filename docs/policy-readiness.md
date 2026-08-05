@@ -49,7 +49,7 @@ candidate contains working release machinery.
 | `ci` | `candidate commit` | Policy CI is reproducible on its fixed baseline, neutralizes external Python and pip inputs, and verifies the installed distribution set. | `.github/workflows/ci.yml`, `tests/test_ci_reproducibility.py`, `tests/test_verify_ci_environment.py` |
 | `documentation` | `candidate commit` | Documentation builds strictly without any Pages upload or deployment authority on `policy`. | `.github/workflows/pages.yml`, `docs/documentation-publication.md`, `tests/test_documentation_publication.py` |
 | `consistency` | `candidate commit` | README, architecture, ADRs, operational guides, release metadata, workflows, and tests in the candidate do not contradict one another. | the candidate audit evidence and the full test suite |
-| `release-alignment` | `completion sequence` | The stable channel either remains on its current full SHA with an explicit no-promotion rationale, or a separate promotion commit synchronizes the descriptor, bootstrap manifest, and verifier lock to the frozen candidate. | `docs/release-lifecycle.md`, `release/toolchain.json`, the promotion and audit records |
+| `release-alignment` | `completion sequence` | The stable channel either remains on its current full SHA with an explicit no-promotion rationale, or a separate promotion commit synchronizes the descriptor and bootstrap manifest to the frozen candidate while retaining the existing verifier lock when compatible or updating it when the candidate requires a different probe environment. | `docs/release-lifecycle.md`, `release/toolchain.json`, the promotion and audit records |
 
 The existing anchors identify where evidence is expected; they do not pre-approve a gate. The
 audit must inspect behavior and cross-document consistency rather than merely confirm filenames.
@@ -60,7 +60,9 @@ The completion sequence uses distinct immutable commit roles:
 
 1. The **candidate commit** contains the audited toolchain implementation and must remain unchanged.
 2. When `release-alignment` requires stable movement, a later **promotion commit** updates the
-   stable descriptor, bootstrap manifest, and verifier lock to the candidate SHA.
+   stable descriptor and bootstrap manifest to the candidate SHA. It updates the verifier lock
+   only when the candidate requires a different probe environment; otherwise it retains and
+   verifies the existing compatible lock.
 3. A later **audit-record commit** adds or updates `docs/policy-readiness-audit.md`. It names the
    candidate SHA and, when required, the promotion commit SHA.
 
@@ -82,6 +84,8 @@ The final audit must be committed as `docs/policy-readiness-audit.md`. It must c
 - confirmation that the candidate is frozen and is not referenced through a mutable branch or tag;
 - the stable promotion decision;
 - when promotion is required, the later promotion commit's 40-character lowercase Git SHA;
+- when promotion is required, whether the verifier lock was retained as compatible or updated
+  because the candidate required a different probe environment;
 - when promotion is not required, the explicit reason that the existing stable pin remains valid.
 
 The audit record must not claim completion while any gate is failed, unknown, waived without an
@@ -135,8 +139,10 @@ remains build-only.
 ### Phase 4: satisfy the release-alignment gate
 
 - Decide whether the audited candidate requires stable release movement.
-- When required, update `release/toolchain.json`, the bootstrap manifest, and the stable verifier
-  lock in a separate later promotion commit.
+- When required, update `release/toolchain.json` and the bootstrap manifest in a separate later
+  promotion commit.
+- Update the stable verifier lock in that promotion commit only when the candidate requires a
+  different probe environment; otherwise retain and verify the existing compatible lock.
 - Verify that the candidate is a strict ancestor of the promotion commit.
 - When promotion is not required, preserve the existing stable pin and record the reason.
 - Mark `release-alignment` passed only after the promotion or no-promotion evidence exists.
