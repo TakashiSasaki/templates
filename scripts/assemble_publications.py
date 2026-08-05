@@ -287,7 +287,13 @@ def load_manifest(
     )
 
 
-def copy_asset(source: Path, destination: Path, field: str) -> None:
+def copy_asset(
+    source: Path,
+    destination: Path,
+    field: str,
+    *,
+    skip_markdown: bool = False,
+) -> None:
     if source.is_symlink():
         raise AssemblyError(f"{field} must not be a symlink")
     entries = (
@@ -309,7 +315,9 @@ def copy_asset(source: Path, destination: Path, field: str) -> None:
         if not item.is_file():
             continue
         target = destination if source.is_file() else destination / relative_item
-        if target.suffix.lower() == ".md":
+        if item.suffix.lower() == ".md" or target.suffix.lower() == ".md":
+            if skip_markdown:
+                continue
             raise AssemblyError(
                 f"{field} would publish undeclared Markdown: {target}"
             )
@@ -481,13 +489,15 @@ def assemble(
             copy_asset(source, destination, f"{name} asset")
 
         # Catalog v1 predates explicit asset roots. Preserve its established
-        # convention by publishing a provider-owned top-level assets directory.
+        # convention for non-Markdown files only. Markdown remains catalog-only
+        # and is omitted rather than becoming an implicit page or build failure.
         legacy_assets = root / "assets"
         if name != "site" and not assets and legacy_assets.is_dir():
             copy_asset(
                 legacy_assets,
                 docs_root / name / "assets",
                 f"{name} legacy assets",
+                skip_markdown=True,
             )
 
     site_assets = site_root / "assets"
