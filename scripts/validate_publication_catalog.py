@@ -72,10 +72,18 @@ def read_json_object(path: Path) -> dict[str, Any]:
 
 
 def safe_relative_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+    ):
         raise CatalogError(f"{field} must be a safe non-empty relative POSIX path")
     parts = value.split("/")
-    if any(part in ("", ".", "..") for part in parts):
+    if any(
+        part in ("", ".", "..") or part.casefold() == ".git"
+        for part in parts
+    ):
         raise CatalogError(f"{field} must be a safe non-empty relative POSIX path")
     path = PurePosixPath(value)
     if path.is_absolute():
@@ -145,9 +153,16 @@ def resolve_without_symlinks(
     relative: PurePosixPath,
     field: str,
 ) -> Path:
+    source_root = source_root.resolve(strict=True)
     current = source_root
     for part in relative.parts:
         current /= part
+        try:
+            current.relative_to(source_root)
+        except ValueError as exc:
+            raise CatalogError(
+                f"{field} must remain within source root: {relative}"
+            ) from exc
         if current.is_symlink():
             raise CatalogError(f"{field} must not traverse a symbolic link: {relative}")
     return current
@@ -179,6 +194,9 @@ def validate_asset_tree(path: Path, field: str) -> None:
     if not path.is_dir():
         raise CatalogError(f"{field} does not exist: {path}")
     for entry in path.rglob("*"):
+        relative_entry = entry.relative_to(path)
+        if any(part.casefold() == ".git" for part in relative_entry.parts):
+            raise CatalogError(f"{field} contains a .git subtree: {entry}")
         if entry.is_symlink():
             raise CatalogError(f"{field} contains a symbolic link: {entry}")
         if entry.is_file() and entry.suffix.lower() == ".md":
@@ -195,6 +213,8 @@ def validate_catalog(
     schema_version = data.get("schema_version")
     if type(schema_version) is not int or schema_version not in (1, 2):
         raise CatalogError("schema_version must be the integer 1 or 2")
+    if schema_version == 1 and "assets" in data:
+        raise CatalogError("schema_version 1 does not support assets")
 
     allowed_top_level = {"schema_version", "documents"}
     if schema_version == 2:
@@ -205,8 +225,6 @@ def validate_catalog(
             "catalog contains unsupported top-level fields: "
             + ", ".join(sorted(unknown))
         )
-    if schema_version == 1 and "assets" in data:
-        raise CatalogError("schema_version 1 does not support assets")
 
     raw_documents = data.get("documents")
     if not isinstance(raw_documents, list) or not raw_documents:
