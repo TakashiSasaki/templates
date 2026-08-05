@@ -509,11 +509,15 @@ def assemble(
             f"{page['publication']}:{page['document']}",
         )
         if not source.is_file():
-            if document["optional"] and not source.exists():
-                skipped.add((page["publication"], page["document"]))
-                continue
+            if not source.exists():
+                if document["optional"]:
+                    skipped.add((page["publication"], page["document"]))
+                    continue
+                raise AssemblyError(
+                    f"required publication document does not exist: {source}"
+                )
             raise AssemblyError(
-                f"required publication document does not exist: {source}"
+                f"publication document must be a regular file: {source}"
             )
         target = docs_root.joinpath(*page["destination"].parts)
         try:
