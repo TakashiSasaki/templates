@@ -45,9 +45,21 @@ same document contract and adds explicit non-Markdown asset roots:
 }
 ```
 
+Each document contains exactly `id`, `source`, `optional`, and `home`.
+A required document source must identify an existing regular Markdown file.
+An optional document source may be absent, but when present it must also be a
+regular Markdown file. Exactly one non-optional document is the publication
+landing page.
+
+Each version 2 asset contains exactly `source`, `destination`, and `optional`.
 Asset destinations are relative to the `policy` namespace in the generated
 site. Markdown files are forbidden inside asset roots because every published
 Markdown page must be named explicitly in `documents`.
+
+All source and destination values are portable relative POSIX paths. They may
+not be absolute, contain empty, `.` or `..` components, use backslashes or
+colons, enter a `.git` subtree in any letter case, traverse symbolic links, or
+escape the declared source root.
 
 ## Validation
 
