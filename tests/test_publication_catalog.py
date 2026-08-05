@@ -146,6 +146,25 @@ class PublicationCatalogTests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "document IDs must be unique"):
                 validate_catalog(catalog, root)
 
+    def test_duplicate_document_sources_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 1,
+                    "documents": [
+                        self.valid_document(),
+                        self.valid_document(
+                            document_id="second",
+                            home=False,
+                        ),
+                    ],
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "document sources must be unique"):
+                validate_catalog(catalog, root)
+
     def test_markdown_inside_asset_root_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -192,6 +211,59 @@ class PublicationCatalogTests(unittest.TestCase):
                 },
             )
             with self.assertRaisesRegex(CatalogError, "symbolic link"):
+                validate_catalog(catalog, root)
+
+    def test_asset_git_subtree_is_rejected(self) -> None:
+        for git_name in (".git", ".GIT"):
+            with self.subTest(git_name=git_name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "README.md").write_text("# Home\n", encoding="utf-8")
+                git_dir = root / "assets" / git_name
+                git_dir.mkdir(parents=True)
+                (git_dir / "config").write_text("secret\n", encoding="utf-8")
+                catalog = self.write_catalog(
+                    root,
+                    {
+                        "schema_version": 2,
+                        "documents": [self.valid_document()],
+                        "assets": [
+                            {
+                                "source": "assets",
+                                "destination": "assets",
+                                "optional": False,
+                            }
+                        ],
+                    },
+                )
+                with self.assertRaisesRegex(CatalogError, "contains a \\.git subtree"):
+                    validate_catalog(catalog, root)
+
+    def test_missing_required_document_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            with self.assertRaisesRegex(CatalogError, "not a regular file"):
+                validate_catalog(catalog, root)
+
+    def test_missing_required_asset_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Home\n", encoding="utf-8")
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [
+                        {
+                            "source": "missing-assets",
+                            "destination": "assets",
+                            "optional": False,
+                        }
+                    ],
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "asset source does not exist"):
                 validate_catalog(catalog, root)
 
     def test_sensitive_and_windows_ambiguous_paths_are_rejected(self) -> None:
