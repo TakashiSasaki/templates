@@ -54,7 +54,8 @@ landing page.
 Each version 2 asset contains exactly `source`, `destination`, and `optional`.
 Asset destinations are relative to the `policy` namespace in the generated
 site. Markdown files are forbidden inside asset roots because every published
-Markdown page must be named explicitly in `documents`.
+Markdown page must be named explicitly in `documents`. Asset roots must not
+contain a nested `.git` subtree in any letter case.
 
 All source and destination values are portable relative POSIX paths. They may
 not be absolute, contain empty, `.` or `..` components, use backslashes or
