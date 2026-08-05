@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for deterministic Pages build provenance."""
+"""CLI regression tests for deterministic multi-publication provenance."""
 
 from __future__ import annotations
 
@@ -11,9 +11,15 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "write_build_provenance.py"
+SCRIPT = (
+    Path(__file__).resolve().parents[1]
+    / "scripts"
+    / "write_publication_provenance.py"
+)
 SITE_COMMIT = "a" * 40
-SOURCE_COMMIT = "b" * 40
+SKILL_COMMIT = "b" * 40
+POLICY_COMMIT = "c" * 40
+WEBAPP_COMMIT = "d" * 40
 
 
 class BuildProvenanceTests(unittest.TestCase):
@@ -32,28 +38,33 @@ class BuildProvenanceTests(unittest.TestCase):
         *,
         repository: str = "TakashiSasaki/templates",
         site_commit: str = SITE_COMMIT,
-        source_commit: str = SOURCE_COMMIT,
+        publication_commits: tuple[str, ...] = (
+            f"skill={SKILL_COMMIT}",
+            f"policy={POLICY_COMMIT}",
+            f"webapp={WEBAPP_COMMIT}",
+        ),
         output: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--output",
+            str(output or self.output),
+            "--repository",
+            repository,
+            "--site-commit",
+            site_commit,
+        ]
+        for value in publication_commits:
+            command.extend(("--publication-commit", value))
         return subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT),
-                "--output",
-                str(output or self.output),
-                "--repository",
-                repository,
-                "--site-commit",
-                site_commit,
-                "--canonical-source-commit",
-                source_commit,
-            ],
+            command,
             check=False,
             capture_output=True,
             text=True,
         )
 
-    def test_writes_deterministic_schema(self) -> None:
+    def test_writes_deterministic_schema_v2(self) -> None:
         first = self.run_writer()
         self.assertEqual(first.returncode, 0, first.stderr)
         first_bytes = self.output.read_bytes()
@@ -64,14 +75,18 @@ class BuildProvenanceTests(unittest.TestCase):
         self.assertEqual(
             json.loads(first_bytes),
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "repository": "TakashiSasaki/templates",
                 "site_commit": SITE_COMMIT,
-                "canonical_source_commit": SOURCE_COMMIT,
+                "publication_commits": {
+                    "policy": POLICY_COMMIT,
+                    "skill": SKILL_COMMIT,
+                    "webapp": WEBAPP_COMMIT,
+                },
             },
         )
 
-    def test_rejects_non_full_or_non_lowercase_commits(self) -> None:
+    def test_rejects_non_full_or_non_lowercase_site_commit(self) -> None:
         for value in ("a" * 39, "A" * 40, "g" * 40):
             with self.subTest(value=value):
                 result = self.run_writer(site_commit=value)
@@ -80,6 +95,29 @@ class BuildProvenanceTests(unittest.TestCase):
                     "site commit must be a full lowercase 40-character Git commit SHA",
                     result.stderr,
                 )
+
+    def test_rejects_invalid_publication_commit(self) -> None:
+        result = self.run_writer(publication_commits=("skill=not-a-sha",))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "skill publication commit must be a full lowercase 40-character Git commit SHA",
+            result.stderr,
+        )
+
+    def test_rejects_duplicate_publication_name(self) -> None:
+        result = self.run_writer(
+            publication_commits=(
+                f"skill={SKILL_COMMIT}",
+                f"skill={POLICY_COMMIT}",
+            )
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("duplicate publication commit: skill", result.stderr)
+
+    def test_requires_at_least_one_publication_commit(self) -> None:
+        result = self.run_writer(publication_commits=())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("at least one publication commit is required", result.stderr)
 
     def test_rejects_invalid_repository_identifier(self) -> None:
         result = self.run_writer(repository="TakashiSasaki")
