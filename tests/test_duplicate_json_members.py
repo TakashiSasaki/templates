@@ -3,24 +3,14 @@
 
 from __future__ import annotations
 
-import runpy
 import tempfile
 import unittest
 from pathlib import Path
 
-SITE_ROOT = Path(__file__).resolve().parents[1]
-ASSEMBLER = runpy.run_path(str(SITE_ROOT / "scripts" / "assemble_docs.py"))
-AssemblyError = ASSEMBLER["AssemblyError"]
-load_manifest = ASSEMBLER["load_manifest"]
-load_publication_catalog = ASSEMBLER["load_publication_catalog"]
+from scripts.assemble_publications import AssemblyError, load_catalog, load_manifest
 
 
 class DuplicateJsonMemberTests(unittest.TestCase):
-    def write(self, directory: str, name: str, content: str) -> Path:
-        path = Path(directory) / name
-        path.write_text(content, encoding="utf-8")
-        return path
-
     def test_catalog_duplicate_member_is_rejected(self) -> None:
         content = (
             '{"schema_version":1,"documents":['
@@ -28,24 +18,33 @@ class DuplicateJsonMemberTests(unittest.TestCase):
             '"optional":false,"home":true}]}'
         )
         with tempfile.TemporaryDirectory(prefix="duplicate-catalog-test-") as directory:
-            path = self.write(directory, "publication-catalog.json", content)
+            root = Path(directory)
+            catalog = root / "docs" / "publication-catalog.json"
+            catalog.parent.mkdir(parents=True)
+            catalog.write_text(content, encoding="utf-8")
+
             with self.assertRaisesRegex(
                 AssemblyError,
-                "publication catalog contains duplicate object member: source",
+                "test catalog contains duplicate member: source",
             ):
-                load_publication_catalog(path)
+                load_catalog("test", root)
 
     def test_manifest_duplicate_member_is_rejected(self) -> None:
         content = (
-            '{"navigation":['
-            '{"title":"Overview","document":"overview","document":"other",'
+            '{"schema_version":2,'
+            '"home":{"publication":"site","document":"portal-home"},'
+            '"navigation":['
+            '{"title":"Home","publication":"site",'
+            '"document":"portal-home","document":"other",'
             '"destination":"index.md"}]}'
         )
         with tempfile.TemporaryDirectory(prefix="duplicate-manifest-test-") as directory:
-            path = self.write(directory, "site-manifest.json", content)
+            path = Path(directory) / "site-manifest.json"
+            path.write_text(content, encoding="utf-8")
+
             with self.assertRaisesRegex(
                 AssemblyError,
-                "site manifest contains duplicate object member: document",
+                "site manifest contains duplicate member: document",
             ):
                 load_manifest(path)
 

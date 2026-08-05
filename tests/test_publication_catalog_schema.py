@@ -4,15 +4,11 @@
 from __future__ import annotations
 
 import json
-import runpy
 import tempfile
 import unittest
 from pathlib import Path
 
-SITE_ROOT = Path(__file__).resolve().parents[1]
-ASSEMBLER = runpy.run_path(str(SITE_ROOT / "scripts" / "assemble_docs.py"))
-AssemblyError = ASSEMBLER["AssemblyError"]
-load_publication_catalog = ASSEMBLER["load_publication_catalog"]
+from scripts.assemble_publications import AssemblyError, load_catalog
 
 
 class PublicationCatalogSchemaVersionTests(unittest.TestCase):
@@ -29,13 +25,16 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             ],
         }
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
-            path = Path(directory) / "publication-catalog.json"
+            root = Path(directory)
+            path = root / "docs" / "publication-catalog.json"
+            path.parent.mkdir(parents=True)
             path.write_text(json.dumps(catalog), encoding="utf-8")
+
             with self.assertRaisesRegex(
                 AssemblyError,
-                "schema_version must be the integer 1",
+                "test catalog schema_version must be integer 1 or 2",
             ):
-                load_publication_catalog(path)
+                load_catalog("test", root)
 
 
 if __name__ == "__main__":
