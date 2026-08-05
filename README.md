@@ -74,6 +74,8 @@ Completed migration work includes:
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
 - a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job.
 
+Toolkit completion criteria and ecosystem migration completion are tracked separately in `docs/policy-readiness.md`. Core capabilities or successful individual workflows do not, by themselves, declare the toolkit complete; completion requires a cross-cutting audit of one exact candidate full SHA.
+
 Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `skill` and `site`; it must not add a deployment path to `policy`.
 
 ## Trust model

@@ -57,9 +57,16 @@ The old orphan branch was not merged into the new history. Its relevant source f
 
 ## Remaining migration work
 
-1. Identify and update consumer repositories that still pin `TakashiSasaki/agent-policy` or a rewritten pre-migration SHA.
-2. Decide through a separate reviewed change whether and when to enable Pages deployment. Only after enablement should repository Pages settings, custom-domain cutover, deployment, and public-endpoint verification proceed as described in `documentation-publication.md`.
+Branch-local toolkit completion and ecosystem migration completion are separate tracks. Their
+criteria and sequencing are defined in `policy-readiness.md`.
+
+1. Identify and update consumer repositories that still pin `TakashiSasaki/agent-policy` or a
+   rewritten pre-migration SHA.
+2. When selected policy documentation should appear on the repository site, coordinate catalog
+   and navigation changes through the unrelated `skill` and `site` branches. The `policy`
+   workflow remains build-only.
 3. Add a deprecation notice to `TakashiSasaki/agent-policy` and stop active automation there.
 4. Archive the former repository only after all active consumers have migrated.
 
-The former repository must not be deleted during migration because existing full-SHA pins and historical links depend on its objects remaining addressable.
+The former repository must not be deleted during migration because existing full-SHA pins and
+historical links depend on its objects remaining addressable.
