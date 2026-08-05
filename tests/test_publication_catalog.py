@@ -15,6 +15,40 @@ class PublicationCatalogTests(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
+    @staticmethod
+    def valid_document(
+        *,
+        document_id: str = "overview",
+        source: str = "README.md",
+        optional: bool = False,
+        home: bool = True,
+    ) -> dict[str, object]:
+        return {
+            "id": document_id,
+            "source": source,
+            "optional": optional,
+            "home": home,
+        }
+
+    @staticmethod
+    def valid_asset(
+        *,
+        source: str = "assets",
+        destination: str = "assets",
+        optional: bool = False,
+    ) -> dict[str, object]:
+        return {
+            "source": source,
+            "destination": destination,
+            "optional": optional,
+        }
+
+    def valid_v1_catalog(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "documents": [self.valid_document()],
+        }
+
     def test_repository_catalog_is_valid(self) -> None:
         root = Path(__file__).resolve().parents[1]
         documents, assets = validate_catalog(
@@ -22,7 +56,19 @@ class PublicationCatalogTests(unittest.TestCase):
             root,
         )
         self.assertGreater(len(documents), 0)
-        self.assertGreaterEqual(len(assets), 0)
+        self.assertEqual(
+            {"contracts", "schemas"},
+            {asset.source.as_posix() for asset in assets},
+        )
+
+    def test_valid_version_1_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Home\n", encoding="utf-8")
+            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            documents, assets = validate_catalog(catalog, root)
+            self.assertEqual(["overview"], [item.document_id for item in documents])
+            self.assertEqual([], assets)
 
     def test_valid_version_2_catalog(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -33,28 +79,42 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [self.valid_asset()],
+                },
+            )
+            documents, assets = validate_catalog(catalog, root)
+            self.assertEqual(["overview"], [item.document_id for item in documents])
+            self.assertEqual(1, len(assets))
+
+    def test_missing_optional_sources_are_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Home\n", encoding="utf-8")
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
                     "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
+                        self.valid_document(),
+                        self.valid_document(
+                            document_id="optional-guide",
+                            source="docs/optional-guide.md",
+                            optional=True,
+                            home=False,
+                        ),
                     ],
                     "assets": [
-                        {
-                            "source": "assets",
-                            "destination": "assets",
-                            "optional": False,
-                        }
+                        self.valid_asset(
+                            source="optional-assets",
+                            destination="optional-assets",
+                            optional=True,
+                        )
                     ],
                 },
             )
             documents, assets = validate_catalog(catalog, root)
-            self.assertEqual(
-                ["overview"],
-                [document.document_id for document in documents],
-            )
+            self.assertEqual(2, len(documents))
             self.assertEqual(1, len(assets))
 
     def test_duplicate_json_member_is_rejected(self) -> None:
@@ -69,6 +129,23 @@ class PublicationCatalogTests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "duplicate object member"):
                 validate_catalog(path, root)
 
+    def test_version_1_assets_are_rejected_with_dedicated_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document()],
+                    "assets": [],
+                },
+            )
+            with self.assertRaisesRegex(
+                CatalogError,
+                "schema_version 1 does not support assets",
+            ):
+                validate_catalog(catalog, root)
+
     def test_overlapping_asset_destinations_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -79,25 +156,13 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
                     "assets": [
-                        {
-                            "source": "one",
-                            "destination": "assets",
-                            "optional": False,
-                        },
-                        {
-                            "source": "two",
-                            "destination": "assets/nested",
-                            "optional": False,
-                        },
+                        self.valid_asset(source="one"),
+                        self.valid_asset(
+                            source="two",
+                            destination="assets/nested",
+                        ),
                     ],
                 },
             )
@@ -117,29 +182,33 @@ class PublicationCatalogTests(unittest.TestCase):
     def test_duplicate_document_ids_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "one.md").write_text("# One\n", encoding="utf-8")
-            (root / "two.md").write_text("# Two\n", encoding="utf-8")
             catalog = self.write_catalog(
                 root,
                 {
                     "schema_version": 1,
                     "documents": [
-                        {
-                            "id": "same",
-                            "source": "one.md",
-                            "optional": False,
-                            "home": True,
-                        },
-                        {
-                            "id": "same",
-                            "source": "two.md",
-                            "optional": False,
-                            "home": False,
-                        },
+                        self.valid_document(source="one.md"),
+                        self.valid_document(source="two.md", home=False),
                     ],
                 },
             )
             with self.assertRaisesRegex(CatalogError, "document IDs must be unique"):
+                validate_catalog(catalog, root)
+
+    def test_duplicate_document_sources_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 1,
+                    "documents": [
+                        self.valid_document(),
+                        self.valid_document(document_id="second", home=False),
+                    ],
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "document sources must be unique"):
                 validate_catalog(catalog, root)
 
     def test_markdown_inside_asset_root_is_rejected(self) -> None:
@@ -153,21 +222,8 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
-                    "assets": [
-                        {
-                            "source": "assets",
-                            "destination": "assets",
-                            "optional": False,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
+                    "assets": [self.valid_asset()],
                 },
             )
             with self.assertRaisesRegex(CatalogError, "contains Markdown"):
@@ -184,24 +240,145 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
-                    "assets": [
-                        {
-                            "source": "assets",
-                            "destination": "assets",
-                            "optional": False,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
+                    "assets": [self.valid_asset()],
                 },
             )
             with self.assertRaisesRegex(CatalogError, "symbolic link"):
+                validate_catalog(catalog, root)
+
+    def test_asset_git_subtree_is_rejected(self) -> None:
+        for git_name in (".git", ".GIT"):
+            with self.subTest(git_name=git_name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "README.md").write_text("# Home\n", encoding="utf-8")
+                git_dir = root / "assets" / git_name
+                git_dir.mkdir(parents=True)
+                (git_dir / "config").write_text("secret\n", encoding="utf-8")
+                catalog = self.write_catalog(
+                    root,
+                    {
+                        "schema_version": 2,
+                        "documents": [self.valid_document()],
+                        "assets": [self.valid_asset()],
+                    },
+                )
+                with self.assertRaisesRegex(CatalogError, "contains a \\.git subtree"):
+                    validate_catalog(catalog, root)
+
+    def test_missing_required_document_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            with self.assertRaisesRegex(CatalogError, "not a regular file"):
+                validate_catalog(catalog, root)
+
+    def test_missing_required_asset_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Home\n", encoding="utf-8")
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [self.valid_asset(source="missing-assets")],
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "asset source does not exist"):
+                validate_catalog(catalog, root)
+
+    def test_sensitive_and_windows_ambiguous_paths_are_rejected(self) -> None:
+        cases = (
+            ".git/config.md",
+            ".GIT/config.md",
+            "C:outside.md",
+            "docs/file.md:stream",
+            "../outside.md",
+            "docs//outside.md",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(
+                    root,
+                    {
+                        "schema_version": 1,
+                        "documents": [self.valid_document(source=source)],
+                    },
+                )
+                with self.assertRaisesRegex(CatalogError, "safe non-empty relative"):
+                    validate_catalog(catalog, root)
+
+    def test_document_contract_and_home_invariants_are_rejected(self) -> None:
+        cases: tuple[tuple[str, dict[str, object], str], ...] = (
+            (
+                "invalid document ID",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(document_id="Overview")],
+                },
+                "lowercase kebab-case",
+            ),
+            (
+                "non-Markdown source",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(source="README.txt")],
+                },
+                "Markdown file",
+            ),
+            (
+                "missing home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(home=False)],
+                },
+                "exactly one home",
+            ),
+            (
+                "multiple homes",
+                {
+                    "schema_version": 1,
+                    "documents": [
+                        self.valid_document(),
+                        self.valid_document(
+                            document_id="second",
+                            source="second.md",
+                        ),
+                    ],
+                },
+                "exactly one home",
+            ),
+            (
+                "optional home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(optional=True)],
+                },
+                "must not be optional",
+            ),
+        )
+        for label, payload, message in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(root, payload)
+                with self.assertRaisesRegex(CatalogError, message):
+                    validate_catalog(catalog, root)
+
+    def test_unknown_top_level_field_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [],
+                    "unexpected": True,
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "unsupported top-level fields"):
                 validate_catalog(catalog, root)
 
 
