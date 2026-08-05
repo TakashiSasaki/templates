@@ -13,6 +13,7 @@ and `policy` catalogs. Only `site` assembles and deploys GitHub Pages.
 
 - stable document IDs within the `webapp` publication namespace;
 - canonical source paths;
+- source optionality;
 - the publication landing document;
 - explicit non-Markdown asset roots needed by the published documents.
 
@@ -27,17 +28,38 @@ The effective document identity is `webapp:<document-id>`. The catalog field
 `home: true` selects the landing page for the Web application section, not the
 global site home.
 
+## Schema contract
+
+Schema version `1` declares only Markdown documents. Schema version `2` retains
+the same document contract and adds explicit non-Markdown asset roots.
+
+Each document contains exactly `id`, `source`, `optional`, and `home`. A
+required document source must identify an existing regular Markdown file. An
+optional document source may be absent, but when present it must also be a
+regular Markdown file. Exactly one non-optional document is the publication
+landing page.
+
+Each version 2 asset contains exactly `source`, `destination`, and `optional`.
+A required asset source must exist. An optional asset source may be absent.
+Asset destinations are relative to the `webapp` namespace in the generated
+site.
+
 ## Machine-readable references
 
 The Web application documentation links to normative JSON contracts and JSON
-Schemas. Catalog schema version `2` therefore adds explicit `assets` entries.
-The site copies those roots into the `webapp` namespace while preserving their
-relative structure.
+Schemas. The site copies the declared asset roots into the `webapp` namespace
+while preserving their relative structure.
 
 Markdown is not allowed inside an asset root. Every published Markdown page
 must appear explicitly in `documents`, which keeps the public page set
 reviewable and prevents fixtures or internal notes from becoming pages
 implicitly.
+
+All source and destination values are portable relative POSIX paths. They may
+not be absolute, contain empty, `.` or `..` components, use backslashes or
+colons, enter a `.git` subtree in any letter case, traverse symbolic links, or
+escape the declared source root. Existing asset trees must not contain nested
+`.git` subtrees in any letter case, symbolic links, or Markdown files.
 
 ## Validation
 
