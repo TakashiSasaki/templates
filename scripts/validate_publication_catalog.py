@@ -72,10 +72,18 @@ def read_json_object(path: Path) -> dict[str, Any]:
 
 
 def safe_relative_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+    ):
         raise CatalogError(f"{field} must be a safe non-empty relative POSIX path")
     parts = value.split("/")
-    if any(part in ("", ".", "..") for part in parts):
+    if any(
+        part in ("", ".", "..") or part.casefold() == ".git"
+        for part in parts
+    ):
         raise CatalogError(f"{field} must be a safe non-empty relative POSIX path")
     path = PurePosixPath(value)
     if path.is_absolute():
@@ -145,9 +153,16 @@ def resolve_without_symlinks(
     relative: PurePosixPath,
     field: str,
 ) -> Path:
+    source_root = source_root.resolve(strict=True)
     current = source_root
     for part in relative.parts:
         current /= part
+        try:
+            current.relative_to(source_root)
+        except ValueError as exc:
+            raise CatalogError(
+                f"{field} must remain within source root: {relative}"
+            ) from exc
         if current.is_symlink():
             raise CatalogError(f"{field} must not traverse a symbolic link: {relative}")
     return current
