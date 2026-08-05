@@ -15,6 +15,27 @@ class PublicationCatalogTests(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
+    @staticmethod
+    def valid_document(
+        *,
+        document_id: str = "overview",
+        source: str = "README.md",
+        optional: bool = False,
+        home: bool = True,
+    ) -> dict[str, object]:
+        return {
+            "id": document_id,
+            "source": source,
+            "optional": optional,
+            "home": home,
+        }
+
+    def valid_v1_catalog(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "documents": [self.valid_document()],
+        }
+
     def test_repository_catalog_is_valid(self) -> None:
         root = Path(__file__).resolve().parents[1]
         documents, assets = validate_catalog(
@@ -33,14 +54,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
                     "assets": [
                         {
                             "source": "assets",
@@ -79,14 +93,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
                     "assets": [
                         {
                             "source": "one",
@@ -124,18 +131,15 @@ class PublicationCatalogTests(unittest.TestCase):
                 {
                     "schema_version": 1,
                     "documents": [
-                        {
-                            "id": "same",
-                            "source": "one.md",
-                            "optional": False,
-                            "home": True,
-                        },
-                        {
-                            "id": "same",
-                            "source": "two.md",
-                            "optional": False,
-                            "home": False,
-                        },
+                        self.valid_document(
+                            document_id="same",
+                            source="one.md",
+                        ),
+                        self.valid_document(
+                            document_id="same",
+                            source="two.md",
+                            home=False,
+                        ),
                     ],
                 },
             )
@@ -153,14 +157,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
                     "assets": [
                         {
                             "source": "assets",
@@ -184,14 +181,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 root,
                 {
                     "schema_version": 2,
-                    "documents": [
-                        {
-                            "id": "overview",
-                            "source": "README.md",
-                            "optional": False,
-                            "home": True,
-                        }
-                    ],
+                    "documents": [self.valid_document()],
                     "assets": [
                         {
                             "source": "assets",
@@ -203,6 +193,111 @@ class PublicationCatalogTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(CatalogError, "symbolic link"):
                 validate_catalog(catalog, root)
+
+    def test_sensitive_and_windows_ambiguous_paths_are_rejected(self) -> None:
+        cases = (
+            ".git/config.md",
+            ".GIT/config.md",
+            "C:outside.md",
+            "docs/file.md:stream",
+            "../outside.md",
+            "docs//outside.md",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(
+                    root,
+                    {
+                        "schema_version": 1,
+                        "documents": [self.valid_document(source=source)],
+                    },
+                )
+                with self.assertRaisesRegex(CatalogError, "safe non-empty relative"):
+                    validate_catalog(catalog, root)
+
+    def test_document_contract_and_home_invariants_are_rejected(self) -> None:
+        cases: tuple[tuple[str, dict[str, object], str], ...] = (
+            (
+                "invalid document ID",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(document_id="Overview")],
+                },
+                "lowercase kebab-case",
+            ),
+            (
+                "non-Markdown source",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(source="README.txt")],
+                },
+                "Markdown file",
+            ),
+            (
+                "missing home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(home=False)],
+                },
+                "exactly one home",
+            ),
+            (
+                "multiple homes",
+                {
+                    "schema_version": 1,
+                    "documents": [
+                        self.valid_document(),
+                        self.valid_document(
+                            document_id="second",
+                            source="second.md",
+                        ),
+                    ],
+                },
+                "exactly one home",
+            ),
+            (
+                "optional home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(optional=True)],
+                },
+                "must not be optional",
+            ),
+        )
+        for label, payload, message in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(root, payload)
+                with self.assertRaisesRegex(CatalogError, message):
+                    validate_catalog(catalog, root)
+
+    def test_schema_version_contract_is_rejected_when_extended(self) -> None:
+        cases = (
+            (
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document()],
+                    "assets": [],
+                },
+                "unsupported top-level fields",
+            ),
+            (
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [],
+                    "unexpected": True,
+                },
+                "unsupported top-level fields",
+            ),
+        )
+        for payload, message in cases:
+            with self.subTest(payload=payload), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(root, payload)
+                with self.assertRaisesRegex(CatalogError, message):
+                    validate_catalog(catalog, root)
 
 
 if __name__ == "__main__":
