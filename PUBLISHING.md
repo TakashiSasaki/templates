@@ -139,12 +139,13 @@ verify that:
 - `site` is the allowed deployment branch;
 - obsolete `main` authorization has been removed;
 - the `site` push workflow completes its build and deploy jobs successfully;
-- `/templates/`, `/templates/policy/`, and `/templates/webapp/` are reachable;
+- `/templates/`, `/templates/skill/`, `/templates/policy/`, and
+  `/templates/webapp/` are reachable;
 - the deployed `build-provenance.json` matches the reviewed lock file.
 
 Do not broaden the environment to all branches as a workaround. The workflow
-conditions and environment policy should independently enforce the same `site`
--only deployment boundary.
+conditions and environment policy should independently enforce the same
+`site`-only deployment boundary.
 
 ## Completion criteria
 
