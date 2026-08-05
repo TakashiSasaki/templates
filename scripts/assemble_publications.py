@@ -13,6 +13,8 @@ from typing import Any, Iterator
 
 NAV_PLACEHOLDER = "__GENERATED_NAV__"
 NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+OUTPUT_MARKER = ".publication-assembly-root"
+OUTPUT_MARKER_CONTENT = "managed by scripts/assemble_publications.py\n"
 
 
 class AssemblyError(RuntimeError):
@@ -287,6 +289,35 @@ def load_manifest(
     )
 
 
+def asset_entries(source: Path, field: str) -> list[Path]:
+    """Return an asset tree without ever following directory symlinks."""
+    if source.is_symlink():
+        raise AssemblyError(f"{field} must not be a symlink")
+    if source.is_file():
+        return [source]
+    if not source.is_dir():
+        return []
+
+    result: list[Path] = []
+    pending = [source]
+    while pending:
+        directory = pending.pop()
+        try:
+            children = sorted(directory.iterdir(), key=lambda item: item.name)
+        except OSError as exc:
+            raise AssemblyError(f"unable to inspect {field} {directory}: {exc}") from exc
+        for item in children:
+            relative_item = item.relative_to(source)
+            if any(part.casefold() == ".git" for part in relative_item.parts):
+                raise AssemblyError(f"{field} contains a .git subtree: {item}")
+            if item.is_symlink():
+                raise AssemblyError(f"{field} contains a symlink: {item}")
+            result.append(item)
+            if item.is_dir():
+                pending.append(item)
+    return result
+
+
 def copy_asset(
     source: Path,
     destination: Path,
@@ -294,26 +325,14 @@ def copy_asset(
     *,
     skip_markdown: bool = False,
 ) -> None:
-    if source.is_symlink():
-        raise AssemblyError(f"{field} must not be a symlink")
-    entries = (
-        [source]
-        if source.is_file()
-        else list(source.rglob("*"))
-        if source.is_dir()
-        else []
-    )
+    entries = asset_entries(source, field)
     if not entries:
         raise AssemblyError(f"{field} does not exist or is empty: {source}")
 
     for item in entries:
-        relative_item = Path() if source.is_file() else item.relative_to(source)
-        if any(part.casefold() == ".git" for part in relative_item.parts):
-            raise AssemblyError(f"{field} contains a .git subtree: {item}")
-        if item.is_symlink():
-            raise AssemblyError(f"{field} contains a symlink: {item}")
         if not item.is_file():
             continue
+        relative_item = Path() if source.is_file() else item.relative_to(source)
         target = destination if source.is_file() else destination / relative_item
         if item.suffix.lower() == ".md" or target.suffix.lower() == ".md":
             if skip_markdown:
@@ -346,6 +365,62 @@ def render_nav(nodes: list[dict[str, Any]], indent: int = 0) -> str:
     return "[\n" + ",\n".join(values) + f"\n{prefix}]"
 
 
+def real_paths_overlap(first: Path, second: Path) -> bool:
+    return first == second or first in second.parents or second in first.parents
+
+
+def prepare_output_root(output_root: Path, protected_roots: list[Path]) -> Path:
+    """Create or safely replace a tool-owned assembly directory."""
+    if output_root.is_symlink():
+        raise AssemblyError("output root must not be a symlink")
+
+    resolved_output = output_root.resolve(strict=False)
+    if resolved_output.parent == resolved_output:
+        raise AssemblyError("output root must not be a filesystem root")
+
+    current_directory = Path.cwd().resolve(strict=True)
+    if resolved_output == current_directory or resolved_output in current_directory.parents:
+        raise AssemblyError(
+            "output root must not be the current working directory or its ancestor"
+        )
+
+    for protected_root in protected_roots:
+        resolved_protected = protected_root.resolve(strict=True)
+        if real_paths_overlap(resolved_output, resolved_protected):
+            raise AssemblyError(
+                f"output root must not overlap publication root: {resolved_protected}"
+            )
+
+    if output_root.exists():
+        if not output_root.is_dir():
+            raise AssemblyError("output root must be a directory")
+        entries = list(output_root.iterdir())
+        if entries:
+            marker = output_root / OUTPUT_MARKER
+            if marker.is_symlink() or not marker.is_file():
+                raise AssemblyError(
+                    "existing output root is not managed by publication assembly"
+                )
+            try:
+                marker_content = marker.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise AssemblyError(
+                    f"unable to verify output root marker {marker}: {exc}"
+                ) from exc
+            if marker_content != OUTPUT_MARKER_CONTENT:
+                raise AssemblyError(
+                    "existing output root is not managed by publication assembly"
+                )
+            shutil.rmtree(output_root)
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    (output_root / OUTPUT_MARKER).write_text(
+        OUTPUT_MARKER_CONTENT,
+        encoding="utf-8",
+    )
+    return output_root
+
+
 def assemble(
     publication_roots: dict[str, Path],
     site_root: Path,
@@ -373,10 +448,7 @@ def assemble(
             )
         seen.add(key)
         destinations.add(page["destination"])
-        if (
-            key[0] not in publications
-            or key[1] not in publications[key[0]][1]
-        ):
+        if key[0] not in publications or key[1] not in publications[key[0]][1]:
             raise AssemblyError(
                 f"site manifest references unknown document: {key[0]}:{key[1]}"
             )
@@ -419,10 +491,10 @@ def assemble(
     if not home_document["home"]:
         raise AssemblyError("global home must be the selected publication home")
 
-    if output_root.is_symlink():
-        raise AssemblyError("output root must not be a symlink")
-    if output_root.exists():
-        shutil.rmtree(output_root)
+    output_root = prepare_output_root(
+        output_root,
+        [site_root, *(root for root, _, _ in publications.values())],
+    )
     docs_root = output_root / "docs"
     docs_root.mkdir(parents=True)
 
@@ -465,10 +537,7 @@ def assemble(
                     result.append(
                         {"title": node["title"], "children": children}
                     )
-            elif (
-                node["publication"],
-                node["document"],
-            ) not in skipped:
+            elif (node["publication"], node["document"]) not in skipped:
                 result.append(node)
         return result
 
