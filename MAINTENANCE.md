@@ -4,107 +4,112 @@ This file applies only to the unrelated `site` branch.
 
 ## Branch responsibilities
 
-- `skill` contains the canonical technical documentation and `docs/publication-catalog.json`. It does not own or initiate Pages deployment.
-- `site` is the repository default branch and contains the Zensical configuration, catalog-ID-based navigation manifest, assembly script, styling, reusable build-only workflow, and the only Pages deployment workflow.
-- `webapp` and `policy` are unrelated histories and must not contain a Pages deployment route.
+- `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated-site validation, build provenance, and the only Pages deployment workflow.
 - Generated Markdown and HTML are temporary build artifacts and must not be committed.
 
-The former `main` branch was renamed to `skill`. Site workflows must reference `skill` explicitly and must not infer the canonical documentation source from the repository default branch.
-
-The publication catalog on `skill` owns stable document IDs, canonical source paths, optionality, and the single home-page designation. The site manifest owns reader-facing titles, hierarchy, and destination paths. Do not duplicate catalog-owned values in `site-manifest.json`.
+The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
 
 ## Change process
 
-1. Branch from `site`, not from `skill`.
-2. Open a pull request whose base branch is `site`.
-3. Require the documentation-site build to succeed before merging.
-4. Keep canonical prose and publication-catalog changes on `skill`.
-5. Update `site-manifest.json` when a catalog document ID is added or removed, or when navigation hierarchy, reader-facing title, or destination path changes.
-6. Do not update the site manifest for a canonical source rename or optionality change; update the existing catalog entry on `skill` while preserving its stable document ID.
+1. Make canonical documentation and catalog changes on the provider branch that owns them.
+2. Merge the provider pull request and record its actual merge commit SHA.
+3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
+4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
+5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
+6. Require the integrated documentation build to succeed against the exact locked commits before merging the site pull request.
 
-A coordinated publication-set change normally merges the `skill` catalog change first and the `site` navigation change second. During the interval, Pages assembly fails intentionally because catalog and navigation coverage must be exact.
+Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
+
+## Publication catalogs
+
+Each publication root contains `docs/publication-catalog.json`.
+
+Catalog schema version 1 contains:
+
+- `schema_version`, the integer `1`;
+- a non-empty `documents` array.
+
+Catalog schema version 2 additionally permits an `assets` array for explicit non-Markdown asset roots.
+
+Each document entry contains exactly:
+
+- `id`, a stable lowercase kebab-case identifier within that publication;
+- `source`, a safe relative POSIX Markdown path;
+- `optional`, a boolean;
+- `home`, a boolean.
+
+Each catalog defines exactly one non-optional home document. Document IDs and source paths are unique within the publication. Catalog paths reject absolute paths, backslashes, colon-bearing Windows or NTFS-ambiguous forms, empty or dot components, parent traversal, `.git` components in any case, and symlink traversal.
+
+Schema version 2 asset entries contain exactly `source`, `destination`, and `optional`. Asset source and destination roots must be unique and non-overlapping. Asset trees may not contain symlinks, `.git` subtrees, or Markdown files. Schema version 1 retains the legacy top-level `assets/` convention for non-Markdown files only; Markdown under that directory is not published implicitly.
 
 ## Navigation manifest
 
-`site-manifest.json` contains a top-level `navigation` array. Each item is exactly one of the following node types:
+`site-manifest.json` uses schema version 2 and contains exactly:
 
-- a page with `title`, `document`, and `destination` fields;
-- a section with `title` and a non-empty `children` array containing page or nested section nodes.
+- `schema_version`, the integer `2`;
+- `home`, identifying one `publication` and `document` pair;
+- `navigation`, a non-empty array.
 
-`document` is a stable ID declared by `docs/publication-catalog.json` on `skill`. Page nodes must not contain canonical `source` or `optional` fields.
+Each navigation node is exactly one of:
 
-The assembler enforces these invariants before copying any canonical page:
+- a page with `title`, `publication`, `document`, and `destination`;
+- a section with `title` and a non-empty `children` array.
+
+A page is identified by the namespaced pair `publication:document`, such as `skill:overview`. Page nodes do not duplicate catalog-owned source paths, optionality, or home flags.
+
+The assembler enforces these invariants before publication:
 
 - page and section fields may not be mixed;
 - unsupported fields are rejected;
-- every navigation title is non-empty and globally unique;
-- every page document ID and destination is globally unique;
-- every catalog document ID appears exactly once in navigation;
-- unknown document IDs and catalog omissions are rejected;
-- destination values are safe relative Markdown paths;
-- the first navigation entry references the catalog home document and generates `index.md`;
-- an explicitly empty section is invalid;
-- a missing source is omitted only when the catalog marks that document optional;
-- a section whose children are all omitted optional documents is omitted from generated navigation.
+- every `publication:document` pair and generated destination is unique;
+- every catalog document appears exactly once in navigation;
+- unknown or omitted catalog documents are rejected;
+- destination values are safe relative POSIX Markdown paths;
+- the first page is the declared global home and generates `index.md`;
+- a missing source is omitted only when its catalog entry is optional;
+- an empty section after optional-document filtering is omitted.
 
-Page order and section order in the manifest are public information architecture. Keep Core Skill and profile-selection material before optional CLI, MCP, Web, and deployment guidance.
+Page and section order are public information architecture and must be reviewed as such.
+
+## Assembly output boundary
+
+`scripts/assemble_publications.py` assembles the site publication and all locked provider publications into one temporary Zensical project.
+
+The output root may not be a symlink, filesystem root, current working directory or its ancestor, a regular file, or a path that overlaps any publication root. A pre-existing non-empty output directory is removed only when it contains the assembler-owned `.publication-assembly-root` marker with the expected value. This prevents a mistyped `--output-root` from deleting unrelated data.
+
+Asset traversal explicitly rejects file and directory symlinks before descending and never follows them.
 
 ## Generated link integrity
 
-The artifact-build workflow validates links after Zensical has generated the final HTML. This intentionally checks renderer output rather than trying to reproduce Markdown link and heading rules independently.
+The build validates links after Zensical generates final HTML. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content.
 
-`scripts/validate_site_links.py` reads `project.site_url` from the generated Zensical configuration, scans every generated HTML page, and validates:
-
-- relative links and same-origin absolute links that remain inside the configured site path;
-- directory-style page URLs and explicit `index.html` aliases;
-- links to generated non-HTML assets;
-- fragment identifiers against actual generated `id` or legacy anchor `name` values;
-- percent-encoded paths and fragments after URL decoding;
-- locally authored relative or root-relative links that escape the configured site path.
-
-External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not checked. A local link must resolve to a file in the Pages artifact, and a fragment is valid only on an HTML target containing the referenced identifier.
-
-When a canonical heading, destination, or relative link changes on `skill`, compatibility workflows may pass an exact source commit to the reusable build-only workflow. Broken page and anchor references therefore fail validation before a later direct `site` push can deploy.
+External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content.
 
 ## Build provenance
 
-Every uploaded Pages artifact contains `/build-provenance.json`. The deterministic schema records:
+Every uploaded Pages artifact contains `/build-provenance.json` with deterministic schema version 2:
 
-- `schema_version`, currently the integer `1`;
+- `schema_version`, the integer `2`;
 - `repository`, currently `TakashiSasaki/templates`;
-- `site_commit`, the full commit SHA actually checked out into `site-source`;
-- `canonical_source_commit`, the full commit SHA actually checked out into `canonical-source`.
+- `site_commit`, the full commit checked out into `site-source`;
+- `publication_commits`, an object mapping publication names such as `skill`, `policy`, and `webapp` to their checked-out full commits.
 
-The build workflow derives both commits from the checkout worktrees after the static build, then writes the provenance file before generated-link validation and artifact upload. Commit values must be lowercase, full-length 40-character SHAs; branch names, tags, and abbreviated SHAs are not accepted.
+`scripts/write_publication_provenance.py` receives provider commits through repeated `--publication-commit NAME=SHA` arguments. Names are lowercase kebab-case. Commit values are lowercase full 40-character SHAs. Duplicate publication names, mutable refs, abbreviated SHAs, invalid repository identifiers, missing output directories, and symbolic-link outputs are rejected.
 
-The file deliberately excludes timestamps, workflow run IDs, and mutable refs. Identical source commits therefore produce identical provenance content. The provenance file identifies build inputs but is not a cryptographic signature or an attestation of the artifact contents.
+The file excludes timestamps, workflow run IDs, and mutable refs. It identifies build inputs but is not a cryptographic signature or artifact attestation.
 
 ## Published deployment metadata
 
-The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. `scripts/prepare_site_metadata.py` rejects any other value and writes a Zensical `project.copyright` notice so every deployed page footer displays `Deployment time: <timestamp>`.
+The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
 
-Build-only invocations do not claim a deployment. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
-
-The timestamp intentionally belongs to generated HTML rather than `/build-provenance.json`. The provenance file remains deterministic, while a deployment artifact is intentionally time-specific.
-
-`project.site_url` must remain `https://takashisasaki.github.io/templates/`. After Zensical builds the site, `scripts/finalize_site_metadata.py` normalizes the canonical `<link>` in every generated HTML file to that public root URL. It inserts the link when Zensical omits it, including on `404.html`, and rejects duplicate canonical links.
+`project.site_url` must remain `https://takashisasaki.github.io/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page and rejects duplicate canonical links.
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may be invoked for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, uploads a generated artifact, and contains no deployment job, `pages: write`, `id-token: write`, Pages environment, `actions/configure-pages`, or `actions/deploy-pages` step.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, assembles and strictly builds the portal, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
-The legacy `deploy` workflow-call input is accepted temporarily so an older caller cannot regain deployment merely by passing `deploy: true`. The value is ignored. Removing this compatibility input is safe after all callers stop supplying it.
-
-`.github/workflows/deploy-pages.yml` is the sole deployment authority. It has only this trigger:
-
-```yaml
-on:
-  push:
-    branches:
-      - site
-```
-
-The deployment job additionally requires all of the following:
+`.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`, and its deployment job additionally requires:
 
 ```text
 github.repository == TakashiSasaki/templates
@@ -112,9 +117,7 @@ github.event_name == push
 github.ref == refs/heads/site
 ```
 
-The repository default branch is `site`, but the condition does not use default-branch status as an authorization input. A future default-branch change therefore cannot authorize a deployment from `skill`, `webapp`, `policy`, or another ref.
-
-The deployment workflow captures the JST timestamp, then calls the local build-only workflow for the exact pushed `site` commit and the current canonical `skill` source. Only after that build succeeds does the deployment job receive `pages: write` and `id-token: write`. The deployment workflow has no `workflow_call`, `workflow_dispatch`, or pull-request trigger, so another branch workflow cannot invoke it as a reusable deployment service.
+Default-branch status is not an authorization input. Changing the default branch therefore cannot authorize deployment from `skill`, `policy`, `webapp`, or another ref.
 
 Expected behavior:
 
@@ -122,14 +125,31 @@ Expected behavior:
 |---|---:|---|---:|
 | pull request targeting `site` | yes | preview | no |
 | push to `site` | yes | JST deployment timestamp | yes |
-| `workflow_call` from `skill` | yes | preview unless explicitly supplied | no |
-| workflow on `webapp` or `policy` | branch-local only | not applicable | no |
+| `workflow_call` | yes | preview unless explicitly supplied | no |
+| workflow on a provider branch | branch-local only | not applicable | no |
 | push to any other branch | no site deployment workflow | not applicable | no |
 
 ## Dependency updates
 
-`requirements.txt` pins the Zensical version. Update it intentionally, run the strict site build, and review the generated navigation and URLs before merging.
+`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, canonical URLs, and link-validation results before merging.
 
-## Local build
+## Local validation
 
-Follow the worktree-based instructions in `README.md`. The assembly script reads the canonical files and publication catalog from a separate `skill` checkout and writes the temporary project under `.build/`.
+Check out the four unrelated branches into separate directories at the commits recorded in `publication-sources.json`, then run:
+
+```sh
+python -m unittest discover --start-directory site/tests --verbose
+python site/scripts/assemble_publications.py \
+  --publication site=site \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp \
+  --site-root site \
+  --output-root build
+zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/validate_site_links.py \
+  --site-root build/site \
+  --config-file build/zensical.toml
+```
+
+Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file.
