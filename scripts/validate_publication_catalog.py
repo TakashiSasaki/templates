@@ -194,6 +194,9 @@ def validate_asset_tree(path: Path, field: str) -> None:
     if not path.is_dir():
         raise CatalogError(f"{field} does not exist: {path}")
     for entry in path.rglob("*"):
+        relative_entry = entry.relative_to(path)
+        if any(part.casefold() == ".git" for part in relative_entry.parts):
+            raise CatalogError(f"{field} contains a .git subtree: {entry}")
         if entry.is_symlink():
             raise CatalogError(f"{field} contains a symbolic link: {entry}")
         if entry.is_file() and entry.suffix.lower() == ".md":
