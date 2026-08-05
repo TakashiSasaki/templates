@@ -28,6 +28,17 @@ Use the [Web application publication](webapp/) for Web application template
 contracts, implementation and release evidence, validation, responsibility
 boundaries, contract evolution, and migration guidance.
 
+## Explore complete repository trees
+
+Use the [repository tree overview](repository-trees/) to inspect every tracked
+path in the exact `skill`, `policy`, and `webapp` revisions used by this build.
+Directories are presented as collapsible trees. Cataloged documents link back to
+their human-readable Pages locations, while all other files link to immutable
+GitHub source views at the rendered full commit SHA.
+
+The tree is an inventory, not a second publication mechanism. Listing a file
+does not copy its contents into Pages or make an uncataloged document public.
+
 ## What is published
 
 Each provider branch declares its public boundary in
