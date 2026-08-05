@@ -35,6 +35,28 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("build-provenance.json", portal)
         self.assertIn("Machine-readable contracts and schemas", portal)
 
+    def test_portal_and_policy_include_all_top_level_entry_points(self) -> None:
+        policy = " ".join(PUBLISHING_POLICY.read_text(encoding="utf-8").split())
+        portal = " ".join(PORTAL_HOME.read_text(encoding="utf-8").split())
+
+        self.assertIn(
+            "- `/templates/`, `/templates/skill/`, `/templates/policy/`, and "
+            "`/templates/webapp/` are reachable;",
+            policy,
+        )
+        self.assertIn(
+            "under `/templates/skill/`, `/templates/policy/`, and "
+            "`/templates/webapp/`.",
+            portal,
+        )
+
+    def test_policy_does_not_render_site_only_as_a_list_item(self) -> None:
+        raw_policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
+        normalized_policy = " ".join(raw_policy.split())
+
+        self.assertNotIn("\n-only deployment boundary", raw_policy)
+        self.assertIn("`site`-only deployment boundary", normalized_policy)
+
     def test_integrated_navigation_has_stable_provider_entry_points(self) -> None:
         manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
         pages = list(iter_pages(manifest["navigation"]))
