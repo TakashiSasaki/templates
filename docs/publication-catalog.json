@@ -1,0 +1,161 @@
+{
+  "schema_version": 2,
+  "documents": [
+    {
+      "id": "overview",
+      "source": "docs/index.md",
+      "optional": false,
+      "home": true
+    },
+    {
+      "id": "getting-started",
+      "source": "docs/getting-started.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "managed-operation",
+      "source": "docs/managed-operation.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "cli",
+      "source": "docs/cli.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "bootstrap",
+      "source": "docs/bootstrap.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adoption",
+      "source": "docs/adoption.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "release-lifecycle",
+      "source": "docs/release-lifecycle.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "policy-readiness",
+      "source": "docs/policy-readiness.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "documentation-publication",
+      "source": "docs/documentation-publication.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "publication-catalog",
+      "source": "docs/publication-catalog.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "pwa",
+      "source": "docs/pwa.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "google-ai-studio",
+      "source": "docs/agent-environments/google-ai-studio.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "repository-structure",
+      "source": "docs/repository-structure.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "architecture",
+      "source": "docs/architecture.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "configuration",
+      "source": "docs/configuration.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "policy-authoring",
+      "source": "docs/policy-authoring.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "external-artifact-intake",
+      "source": "docs/external-artifact-intake.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "regression-prevention",
+      "source": "docs/regression-prevention.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "bootstrap-model",
+      "source": "docs/bootstrap-model.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "threat-model",
+      "source": "docs/threat-model.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-bootstrap-history",
+      "source": "docs/adr/0001-unrelated-bootstrap-history.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-repository-adoption",
+      "source": "docs/adr/0002-repository-adoption.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-application-neutral-scope",
+      "source": "docs/adr/0003-application-neutral-policy-scope.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-integrated-bootstrap-skill",
+      "source": "docs/adr/0004-integrated-bootstrap-skill.md",
+      "optional": false,
+      "home": false
+    }
+  ],
+  "assets": [
+    {
+      "source": "docs/assets",
+      "destination": "assets",
+      "optional": false
+    },
+    {
+      "source": "docs/manifest.webmanifest",
+      "destination": "manifest.webmanifest",
+      "optional": false
+    }
+  ]
+}

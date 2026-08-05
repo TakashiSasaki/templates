@@ -25,6 +25,7 @@ nav:
       - Toolchain release lifecycle: release-lifecycle.md
       - Policy completion roadmap: policy-readiness.md
       - Documentation publication: documentation-publication.md
+      - Publication catalog: publication-catalog.md
       - PWAとして利用する: pwa.md
   - エージェント環境:
       - Google AI Studio Build mode: agent-environments/google-ai-studio.md
