@@ -14,16 +14,16 @@ def normalized(path: Path) -> str:
     return " ".join(path.read_text(encoding="utf-8").split())
 
 
-def readiness_gate_conditions() -> dict[str, str]:
-    gates: dict[str, str] = {}
+def readiness_gates() -> dict[str, tuple[str, str]]:
+    gates: dict[str, tuple[str, str]] = {}
     for line in ROADMAP.read_text(encoding="utf-8").splitlines():
         if not line.startswith("| `"):
             continue
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        assert len(cells) == 3
+        assert len(cells) == 4
         gate = cells[0].removeprefix("`").removesuffix("`")
         assert gate not in gates
-        gates[gate] = cells[1]
+        gates[gate] = (cells[1], cells[2])
     return gates
 
 
@@ -38,63 +38,104 @@ def test_readiness_separates_toolkit_and_ecosystem_completion() -> None:
     )
 
 
-def test_readiness_enforces_every_cross_cutting_gate_condition() -> None:
-    gates = readiness_gate_conditions()
-    required_fragments = {
-        "scope": ("application-type independent", "excludes product architecture"),
+def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
+    gates = readiness_gates()
+    required = {
+        "scope": (
+            "`candidate commit`",
+            ("application-type independent", "excludes product architecture"),
+        ),
         "configuration": (
-            "`.agent-policy.yml`",
-            "sole semantic configuration entry point",
-            "validates deterministically",
+            "`candidate commit`",
+            (
+                "`.agent-policy.yml`",
+                "sole semantic configuration entry point",
+                "validates deterministically",
+            ),
         ),
         "generation": (
-            "`init --apply`",
-            "`render`",
-            "deterministically write",
-            "dry-run `init`",
-            "without mutation",
+            "`candidate commit`",
+            (
+                "`init --apply`",
+                "`render`",
+                "deterministically write",
+                "dry-run `init`",
+                "without mutation",
+            ),
         ),
         "validation": (
-            "`validate` is read-only",
-            "`check` is read-only",
-            "stale or modified generated artifacts",
-            "without changing the repository",
+            "`candidate commit`",
+            (
+                "`validate` is read-only",
+                "`check` is read-only",
+                "stale or modified generated artifacts",
+                "without changing the repository",
+            ),
         ),
         "adoption": (
-            "Inspection, preparation, preview",
-            "explicit transactional finalization",
-            "safety boundary",
+            "`candidate commit`",
+            (
+                "Inspection, preparation, preview",
+                "explicit transactional finalization",
+                "safety boundary",
+            ),
         ),
         "bootstrap": (
-            "executes only the stable full SHA",
-            "no adoption-finalization route",
+            "`candidate commit`",
+            ("executes only the stable full SHA", "no adoption-finalization route"),
         ),
-        "release": (
-            "stable descriptor",
-            "bootstrap manifest",
-            "verifier lock",
-            "separate candidate and promotion commits",
+        "release-model": (
+            "`candidate commit`",
+            (
+                "schema-validated stable descriptor",
+                "synchronization verifier",
+                "separate candidate-and-promotion lifecycle",
+                "free of mutable release references",
+            ),
         ),
-        "identity": ("TakashiSasaki/templates", "policy"),
+        "identity": ("`candidate commit`", ("TakashiSasaki/templates", "policy")),
         "ci": (
-            "fixed baseline",
-            "neutralizes external Python and pip inputs",
-            "verifies the installed distribution set",
+            "`candidate commit`",
+            (
+                "fixed baseline",
+                "neutralizes external Python and pip inputs",
+                "verifies the installed distribution set",
+            ),
         ),
         "documentation": (
-            "builds strictly",
-            "without any Pages upload or deployment authority on `policy`",
+            "`candidate commit`",
+            ("builds strictly", "without any Pages upload or deployment authority on `policy`"),
         ),
         "consistency": (
-            "README, architecture, ADRs",
-            "do not contradict one another",
+            "`candidate commit`",
+            ("README, architecture, ADRs", "in the candidate do not contradict one another"),
+        ),
+        "release-alignment": (
+            "`completion sequence`",
+            (
+                "remains on its current full SHA with an explicit no-promotion rationale",
+                "separate promotion commit synchronizes",
+                "to the frozen candidate",
+            ),
         ),
     }
 
-    assert set(gates) == set(required_fragments)
-    for gate, fragments in required_fragments.items():
+    assert set(gates) == set(required)
+    for gate, (expected_point, fragments) in required.items():
+        point, condition = gates[gate]
+        assert point == expected_point
         for fragment in fragments:
-            assert fragment in gates[gate]
+            assert fragment in condition
+
+
+def test_candidate_verification_excludes_release_alignment() -> None:
+    roadmap = normalized(ROADMAP)
+
+    assert "every readiness gate whose evaluation point is `candidate commit`" in roadmap
+    assert "`release-alignment` gate is evaluated later across the completion sequence" in roadmap
+    assert "it is not a candidate-local gate" in roadmap
+    assert "without marking that sequence gate passed" in roadmap
+    assert "Mark `release-alignment` passed only after" in roadmap
 
 
 def test_completion_uses_distinct_candidate_promotion_and_audit_commits() -> None:
