@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "documents": [
+    {
+      "id": "overview",
+      "source": "README.md",
+      "optional": false,
+      "home": true
+    },
+    {
+      "id": "template",
+      "source": "TEMPLATE.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "operationalization",
+      "source": "docs/operationalization.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "publication-catalog",
+      "source": "docs/publication-catalog.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "completion-roadmap",
+      "source": "docs/architecture/completion-roadmap.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "contract-completeness",
+      "source": "docs/architecture/contract-completeness.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "contract-evolution",
+      "source": "docs/architecture/contract-evolution.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "final-readiness-audit",
+      "source": "docs/architecture/final-readiness-audit.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "generated-repository-conformance",
+      "source": "docs/architecture/generated-repository-conformance.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "implementation-evidence",
+      "source": "docs/architecture/implementation-evidence.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "release-bundle",
+      "source": "docs/architecture/release-bundle.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "release-evidence",
+      "source": "docs/architecture/release-evidence.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "responsibility-boundaries",
+      "source": "docs/architecture/responsibility-boundaries.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "validation-toolchain",
+      "source": "docs/architecture/validation-toolchain.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "contract-manifest-migration",
+      "source": "docs/migrations/contract-manifest-v1-to-v2.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "routes-migration",
+      "source": "docs/migrations/routes-v1-to-v2.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "ui-states-migration",
+      "source": "docs/migrations/ui-states-v1-to-v2.md",
+      "optional": false,
+      "home": false
+    }
+  ],
+  "assets": [
+    {
+      "source": "contracts",
+      "destination": "contracts",
+      "optional": false
+    },
+    {
+      "source": "schemas",
+      "destination": "schemas",
+      "optional": false
+    }
+  ]
+}
