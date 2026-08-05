@@ -43,7 +43,7 @@ navigation prioritizes explanatory Markdown intended for human readers.
 The portal uses stable namespaced document identities such as
 `policy:overview` and `webapp:implementation-evidence`. The `site` branch maps
 those identities to reader-facing titles, hierarchy, ordering, and stable paths
-under `/templates/policy/` and `/templates/webapp/`.
+under `/templates/skill/`, `/templates/policy/`, and `/templates/webapp/`.
 
 ## Reproducible publication
 
