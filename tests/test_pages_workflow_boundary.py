@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
+SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
 class PagesWorkflowBoundaryTests(unittest.TestCase):
@@ -20,7 +21,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertIn("  workflow_call:", trigger_block)
         self.assertNotIn("\n  push:\n", trigger_block)
-        self.assertIn("Deprecated compatibility input; ignored", workflow)
+        self.assertIn("Deprecated compatibility alias for skill_ref", workflow)
         self.assertIn("actions/upload-pages-artifact@", workflow)
         self.assertNotIn("actions/configure-pages@", workflow)
         self.assertNotIn("actions/deploy-pages@", workflow)
@@ -29,14 +30,23 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("name: github-pages", workflow)
         self.assertNotIn("\n  deploy:\n", workflow)
 
-    def test_reusable_workflow_defaults_to_skill_source(self) -> None:
+    def test_reusable_workflow_checks_out_all_locked_publications(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertIn("source_ref:", workflow)
-        self.assertIn("        default: skill", workflow)
-        self.assertIn("inputs.source_ref || 'skill'", workflow)
-        self.assertNotIn("        default: main", workflow)
-        self.assertNotIn("inputs.source_ref || 'main'", workflow)
+        self.assertIn("publication-sources.json", workflow)
+        self.assertIn("path: skill-source", workflow)
+        self.assertIn("path: policy-source", workflow)
+        self.assertIn("path: webapp-source", workflow)
+        self.assertIn("--publication site=site-source", workflow)
+        self.assertIn("--publication skill=skill-source", workflow)
+        self.assertIn("--publication policy=policy-source", workflow)
+        self.assertIn("--publication webapp=webapp-source", workflow)
+        self.assertNotIn("path: canonical-source", workflow)
+
+        source_lock = SOURCE_LOCK.read_text(encoding="utf-8")
+        self.assertIn('"skill"', source_lock)
+        self.assertIn('"policy"', source_lock)
+        self.assertIn('"webapp"', source_lock)
 
     def test_deployment_workflow_accepts_only_site_pushes(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
@@ -51,7 +61,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("workflow_dispatch:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
         self.assertIn("site_ref: ${{ github.sha }}", workflow)
-        self.assertIn("source_ref: skill", workflow)
+        self.assertNotIn("source_ref: skill", workflow)
         self.assertNotIn("source_ref: main", workflow)
         self.assertIn("github.event_name == 'push'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)

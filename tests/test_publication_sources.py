@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from io import StringIO
+from pathlib import Path
+
+from scripts.resolve_publication_sources import (
+    SourceLockError,
+    resolve_sources,
+    write_outputs,
+)
+
+
+class PublicationSourceLockTests(unittest.TestCase):
+    def write_lock(self, root: Path, payload: object) -> Path:
+        path = root / "publication-sources.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return path
+
+    def valid_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "repository": "TakashiSasaki/templates",
+            "publications": {
+                "skill": {"revision": "1" * 40},
+                "policy": {"revision": "2" * 40},
+                "webapp": {"revision": "3" * 40},
+            },
+        }
+
+    def test_resolves_locked_commits_and_override(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            resolved = resolve_sources(
+                self.write_lock(root, self.valid_payload()),
+                {"policy": "agent/policy-preview"},
+            )
+            self.assertEqual("1" * 40, resolved["skill"])
+            self.assertEqual("agent/policy-preview", resolved["policy"])
+            output = StringIO()
+            write_outputs(output, resolved)
+            self.assertEqual(
+                [
+                    f"skill={'1' * 40}",
+                    "policy=agent/policy-preview",
+                    f"webapp={'3' * 40}",
+                ],
+                output.getvalue().splitlines(),
+            )
+
+    def test_boolean_schema_version_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = self.valid_payload()
+            payload["schema_version"] = True
+            with self.assertRaisesRegex(SourceLockError, "integer 1"):
+                resolve_sources(self.write_lock(root, payload), {})
+
+    def test_non_full_locked_revision_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = self.valid_payload()
+            publications = payload["publications"]
+            assert isinstance(publications, dict)
+            publications["skill"] = {"revision": "skill"}
+            with self.assertRaisesRegex(SourceLockError, "full lowercase"):
+                resolve_sources(self.write_lock(root, payload), {})
+
+    def test_duplicate_json_member_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "publication-sources.json"
+            path.write_text(
+                '{"schema_version":1,"schema_version":1}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(SourceLockError, "duplicate object member"):
+                resolve_sources(path, {})
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "portal-home",
+      "source": "docs/index.md",
+      "optional": false,
+      "home": true
+    }
+  ]
+}

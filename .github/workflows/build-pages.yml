@@ -12,10 +12,25 @@ on:
         type: string
         default: site
       source_ref:
-        description: Commit, branch, or tag containing the canonical documentation
+        description: Deprecated compatibility alias for skill_ref
         required: false
         type: string
-        default: skill
+        default: ''
+      skill_ref:
+        description: Optional override for the locked skill publication revision
+        required: false
+        type: string
+        default: ''
+      policy_ref:
+        description: Optional override for the locked policy publication revision
+        required: false
+        type: string
+        default: ''
+      webapp_ref:
+        description: Optional override for the locked webapp publication revision
+        required: false
+        type: string
+        default: ''
       deployment_timestamp:
         description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
         required: false
@@ -46,11 +61,47 @@ jobs:
           ref: ${{ inputs.site_ref || github.event.pull_request.head.sha || 'site' }}
           path: site-source
 
-      - name: Check out canonical documentation
+      - name: Resolve publication source revisions
+        id: publication_refs
+        env:
+          SOURCE_REF_COMPAT: ${{ inputs.source_ref }}
+          SKILL_REF_OVERRIDE: ${{ inputs.skill_ref }}
+          POLICY_REF_OVERRIDE: ${{ inputs.policy_ref }}
+          WEBAPP_REF_OVERRIDE: ${{ inputs.webapp_ref }}
+        run: |
+          overrides=()
+          skill_override="${SKILL_REF_OVERRIDE:-$SOURCE_REF_COMPAT}"
+          if [ -n "$skill_override" ]; then
+            overrides+=(--override "skill=$skill_override")
+          fi
+          if [ -n "$POLICY_REF_OVERRIDE" ]; then
+            overrides+=(--override "policy=$POLICY_REF_OVERRIDE")
+          fi
+          if [ -n "$WEBAPP_REF_OVERRIDE" ]; then
+            overrides+=(--override "webapp=$WEBAPP_REF_OVERRIDE")
+          fi
+          python site-source/scripts/resolve_publication_sources.py \
+            --lock site-source/publication-sources.json \
+            --output "$GITHUB_OUTPUT" \
+            "${overrides[@]}"
+
+      - name: Check out skill publication
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.source_ref || 'skill' }}
-          path: canonical-source
+          ref: ${{ steps.publication_refs.outputs.skill }}
+          path: skill-source
+
+      - name: Check out policy publication
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.policy }}
+          path: policy-source
+
+      - name: Check out webapp publication
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.webapp }}
+          path: webapp-source
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -61,12 +112,15 @@ jobs:
         run: python -m pip install --requirement site-source/requirements.txt
 
       - name: Run site assembly tests
-        run: python -m unittest discover --start-directory site-source/tests --verbose
+        run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
       - name: Assemble the documentation project
         run: |
-          python site-source/scripts/assemble_docs.py \
-            --source-root canonical-source \
+          python site-source/scripts/assemble_publications.py \
+            --publication site=site-source \
+            --publication skill=skill-source \
+            --publication policy=policy-source \
+            --publication webapp=webapp-source \
             --site-root site-source \
             --output-root build
 
@@ -93,17 +147,22 @@ jobs:
       - name: Verify the Pages entry point and deployment notice
         run: |
           test -f build/site/index.html
+          test -f build/site/skill/index.html
+          test -f build/site/policy/index.html
+          test -f build/site/webapp/index.html
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html
 
       - name: Record build provenance
         run: |
-          python site-source/scripts/write_build_provenance.py \
+          python site-source/scripts/write_publication_provenance.py \
             --output build/site/build-provenance.json \
             --repository "$GITHUB_REPOSITORY" \
             --site-commit "$(git -C site-source rev-parse HEAD)" \
-            --canonical-source-commit "$(git -C canonical-source rev-parse HEAD)"
+            --publication-commit "skill=$(git -C skill-source rev-parse HEAD)" \
+            --publication-commit "policy=$(git -C policy-source rev-parse HEAD)" \
+            --publication-commit "webapp=$(git -C webapp-source rev-parse HEAD)"
 
       - name: Validate generated site links
         run: |
