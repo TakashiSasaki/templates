@@ -12,6 +12,7 @@ TREE_PAGE = ROOT / "docs/repository-trees/webapp.md"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
 FINAL_WEBAPP_REVISION = "1671c5b503377b87d157aeaa714bdf7c43797dc9"
+VALIDATED_SITE_REVISION = "f372805850848fb4fc05205ebb47d27e5e6b45f6"
 
 
 def navigation_pages(nodes: list[object]) -> dict[tuple[str, str], dict[str, object]]:
@@ -69,16 +70,19 @@ class WebappDistributionIntegrationTests(unittest.TestCase):
         self.assertIn("`template/` subtree", page)
         self.assertIn("GENERATED_REPOSITORY_TREE:webapp", page)
 
-    def test_integration_does_not_resume_pages_deployment(self) -> None:
+    def test_deployment_is_active_only_after_suspended_validation(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertEqual("suspended", state["status"])
-        self.assertNotIn("actions/configure-pages@", workflow)
-        self.assertNotIn("actions/deploy-pages@", workflow)
-        self.assertNotIn("pages: write", workflow)
-        self.assertNotIn("id-token: write", workflow)
-        self.assertNotIn("name: github-pages", workflow)
+        self.assertEqual("active", state["status"])
+        self.assertEqual(VALIDATED_SITE_REVISION, state["validated_site_revision"])
+        self.assertEqual(FINAL_WEBAPP_REVISION, state["locked_webapp_revision"])
+        self.assertIn("actions/configure-pages@", workflow)
+        self.assertIn("actions/deploy-pages@", workflow)
+        self.assertIn("pages: write", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("name: github-pages", workflow)
+        self.assertIn("github.ref == 'refs/heads/site'", workflow)
 
 
 if __name__ == "__main__":
