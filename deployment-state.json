@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "status": "suspended",
-  "reason": "skill template artifact boundary restructuring",
-  "locked_skill_revision": "d6afc2e0669d2c56d81f6e547a5f9303f505f6d8",
+  "reason": "skill template integration complete; awaiting separate site deployment restoration",
+  "locked_skill_revision": "1ee1cfd6355131746a780ea46d165e5ae1cadf50",
   "resume_conditions": [
     "the skill branch exposes the canonical copyable profile-aware template at template/ and passes its complete validation suite",
     "site is updated to the final reviewed skill full commit SHA",
