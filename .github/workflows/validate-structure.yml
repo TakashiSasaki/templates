@@ -24,6 +24,10 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Python validator dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
+
       - name: Test Skill source and distribution boundary
         shell: bash
         run: ruby .github/scripts/test-distribution-boundary.rb
@@ -39,8 +43,7 @@ jobs:
       - name: Validate copyable Skill root
         shell: bash
         run: |
-          ruby .github/scripts/validate-skill-repository.rb template
-          ruby template/.github/scripts/test-template-baseline.rb
+          python .github/scripts/validate_skill_repository.py template
           python template/.github/scripts/test_template_baseline.py
 
       - name: Audit restructuring completion

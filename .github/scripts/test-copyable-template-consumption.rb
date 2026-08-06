@@ -16,6 +16,16 @@ ENGINE_PATHS = {
   ".github/scripts/test-template-adoption.rb" => "Template adoption smoke tests passed.",
   ".github/scripts/test-installation-modes.rb" => "Installation mode smoke tests passed."
 }.freeze
+ENGINE_REWRITES = {
+  ".github/scripts/test-template-adoption.rb" => {
+    ".github/scripts/validate-skill-repository.rb" => ".github/scripts/validate_skill_repository.py",
+    "command = [RbConfig.ruby, VALIDATOR]" => "command = [ENV.fetch(\"PYTHON\", \"python\"), VALIDATOR]"
+  },
+  ".github/scripts/test-installation-modes.rb" => {
+    ".github/scripts/validate-skill-repository.rb" => ".github/scripts/validate_skill_repository.py",
+    "    RbConfig.ruby,\n    VALIDATOR," => "    ENV.fetch(\"PYTHON\", \"python\"),\n    VALIDATOR,"
+  }
+}.freeze
 SOURCE_ONLY_PATHS = %w[
   CHANGELOG.md
   CONTRIBUTING.md
@@ -66,6 +76,18 @@ def copy_template(target)
   FileUtils.cp_r("#{TEMPLATE_ROOT}/.", target, preserve: true)
 end
 
+def adapt_engine_for_python(relative, path)
+  content = File.read(path, encoding: "UTF-8")
+  ENGINE_REWRITES.fetch(relative).each do |before, after|
+    unless content.include?(before)
+      raise "Python engine rewrite source is missing in #{relative}: #{before.inspect}"
+    end
+
+    content = content.sub(before, after)
+  end
+  File.write(path, content, encoding: "UTF-8")
+end
+
 def run_engine(path, root)
   Open3.capture3(GIT_ENV, RbConfig.ruby, path, chdir: root)
 end
@@ -114,6 +136,11 @@ Dir.mktmpdir("copyable-template-consumption") do |workspace|
     end
     FileUtils.mkdir_p(File.dirname(destination))
     FileUtils.cp(source, destination, preserve: true)
+    begin
+      adapt_engine_for_python(relative, destination)
+    rescue StandardError => e
+      failures << e.message
+    end
   end
 
   ENGINE_PATHS.each do |relative, success_line|

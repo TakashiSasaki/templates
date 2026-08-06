@@ -60,22 +60,22 @@ Do not duplicate one decision across several authorities. Cross-reference the ow
 Run the supported profile-aware validation entry point:
 
 ```sh
-ruby .github/scripts/validate-profile-contracts.rb
+python .github/scripts/validate_profile_contracts.py
 ```
 
-This entry point executes focused direct validators and shared-model rule validators against the retained contract files. Some focused direct validators retain their own bounded Markdown parsing for contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.rb`.
+This entry point executes focused direct validators and shared-model rule validators against the retained contract files. Some focused direct validators retain their own bounded Markdown parsing for contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.py`.
 
 For complete repository validation, run:
 
 ```sh
-ruby .github/scripts/validate-skill-repository.rb
+python .github/scripts/validate_skill_repository.py
 ```
 
 The repository entry point checks frontmatter, the machine-readable profile selection, exact operational-resource declarations, retained contract requirements, unresolved placeholders, public-interface consistency, runtime/interface alignment, Git link boundaries, and concrete-Skill completion rules. It also invokes the supported profile-aware validation entry point.
 
-The validation host requires CRuby 3.1 or newer and Git. When a flattened archive has no Git metadata, the validator creates an ephemeral empty index outside the Skill root only for the metadata-only gitlink check. It must not mutate the Skill or a caller-owned alternate index.
+The validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git. When a flattened archive has no Git metadata, the validator creates an ephemeral empty index outside the Skill root only for the metadata-only gitlink check. It must not mutate the Skill or a caller-owned alternate index.
 
-The included GitHub Actions workflow runs the same complete repository validation. Retain, replace, or remove that workflow according to the concrete repository’s CI policy; it is not an operational Skill resource.
+The included GitHub Actions workflow installs the pinned validator dependency and runs the same complete repository validation. Retain, replace, or remove that workflow according to the concrete repository’s CI policy; it is not an operational Skill resource.
 
 ## Resource discipline
 

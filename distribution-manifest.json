@@ -28,88 +28,18 @@
   ],
   "mirrors": [
     {
-      "source": ".github/scripts/lib",
-      "destination": ".github/scripts/lib",
+      "source": ".github/scripts/lib/core_profile_interfaces.py",
+      "destination": ".github/scripts/lib/core_profile_interfaces.py",
       "exclude": []
     },
     {
-      "source": ".github/scripts/validate-bundled-mcp-client-consistency.rb",
-      "destination": ".github/scripts/validate-bundled-mcp-client-consistency.rb",
+      "source": ".github/scripts/lib/core_profile_runtime.py",
+      "destination": ".github/scripts/lib/core_profile_runtime.py",
       "exclude": []
     },
     {
-      "source": ".github/scripts/validate-cli-exit-code-contract.rb",
-      "destination": ".github/scripts/validate-cli-exit-code-contract.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-cli-structured-output-contract.rb",
-      "destination": ".github/scripts/validate-cli-structured-output-contract.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-concrete-profile-consistency.rb",
-      "destination": ".github/scripts/validate-concrete-profile-consistency.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-core-profile-contracts.rb",
-      "destination": ".github/scripts/validate-core-profile-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-decomposed-interface-contracts.rb",
-      "destination": ".github/scripts/validate-decomposed-interface-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-extended-profile-contracts.rb",
-      "destination": ".github/scripts/validate-extended-profile-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-interface-routing-contract.rb",
-      "destination": ".github/scripts/validate-interface-routing-contract.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-interface-runtime-consistency.rb",
-      "destination": ".github/scripts/validate-interface-runtime-consistency.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-interface-summary-details.rb",
-      "destination": ".github/scripts/validate-interface-summary-details.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-late-review-contracts.rb",
-      "destination": ".github/scripts/validate-late-review-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-mcp-runtime-authority.rb",
-      "destination": ".github/scripts/validate-mcp-runtime-authority.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-profile-contracts.rb",
-      "destination": ".github/scripts/validate-profile-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-review-followup-contracts.rb",
-      "destination": ".github/scripts/validate-review-followup-contracts.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-selected-contract-scalar-placeholders.rb",
-      "destination": ".github/scripts/validate-selected-contract-scalar-placeholders.rb",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate-skill-repository.rb",
-      "destination": ".github/scripts/validate-skill-repository.rb",
+      "source": ".github/scripts/lib/profile_contracts.py",
+      "destination": ".github/scripts/lib/profile_contracts.py",
       "exclude": []
     },
     {
@@ -195,7 +125,6 @@
   ],
   "distribution_owned_files": [
     ".editorconfig",
-    ".github/scripts/test-template-baseline.rb",
     ".github/scripts/test_template_baseline.py",
     ".github/workflows/validate-skill.yml",
     ".gitignore",
