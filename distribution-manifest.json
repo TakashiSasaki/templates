@@ -128,6 +128,16 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_decomposed_interface_contracts.py",
+      "destination": ".github/scripts/validate_decomposed_interface_contracts.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_interface_routing_contract.py",
+      "destination": ".github/scripts/validate_interface_routing_contract.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_late_review_contracts.py",
       "destination": ".github/scripts/validate_late_review_contracts.py",
       "exclude": []
