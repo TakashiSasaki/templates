@@ -3,7 +3,7 @@
 
 require "pathname"
 
-ROOT = Pathname.new(File.expand_path("..", __dir__))
+ROOT = Pathname.new(File.expand_path("../..", __dir__))
 failures = []
 
 required = %w[
