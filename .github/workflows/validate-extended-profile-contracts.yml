@@ -137,10 +137,10 @@ jobs:
         working-directory: template
         run: python .github/scripts/validate_review_followup_contracts.py
 
-      - name: Validate all profile contracts in the copyable template
+      - name: Validate the copyable template repository with Python
         shell: bash
         working-directory: template
-        run: ruby .github/scripts/validate-profile-contracts.rb
+        run: python .github/scripts/validate_skill_repository.py
 
   cli-mcp-combined-profile-fixture:
     runs-on: ubuntu-latest
