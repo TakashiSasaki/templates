@@ -1,104 +1,85 @@
-# Language-neutral Agent Skill Template
+# Agent Skill template source repository
 
-This repository is a template for developing a portable Agent Skill. Its root is intended to become the installable Skill directory directly:
+This `skill` branch develops and validates a reusable, language-neutral Agent Skill template. The branch root is the template product’s source repository; it is not an installable Skill directory.
 
-```text
-<project>/.agents/skills/<skill-name>/
+## Copyable template
+
+The canonical user-facing artifact is `template/`. Copy its contents, including hidden files, into an empty destination:
+
+```sh
+mkdir -p /path/to/new-skill
+cp -a template/. /path/to/new-skill/
 ```
 
-`SKILL.md` is the only universally required operational file. Keep references, assets, scripts, runtime records, public interfaces, implementation, tests, and service material only when the selected Skill actually needs them.
+After copying, the destination root is the installable Skill directory and contains `SKILL.md` directly. Do not retain a `template/` wrapper in the destination.
 
-## Start a concrete Skill
+The distribution is byte-preserving. Copying does not rewrite placeholders, choose profiles, rename paths, select a runtime, or choose a license. Those decisions belong to the developer of the concrete Skill.
 
-1. Copy the complete template contents into an empty destination so `SKILL.md` is directly under the destination root.
-2. Choose a final lowercase hyphenated Skill name and replace the template frontmatter in `SKILL.md`.
-3. Rewrite the trigger, exclusions, prerequisites, workflow, outputs, validation, safety rules, and failure behavior around the real task.
-4. Replace `Selected profiles: template-scaffold` with `instruction-only` alone or the smallest sufficient compatible profile tags.
-5. Add or complete only the resources, runtime, implementation, interfaces, and tests required by those profiles.
-6. Delete every unsupported optional contract and directory rather than retaining placeholder material.
-7. Choose the concrete Skill license. Keep `LICENSE` to use MIT-0 or replace it, then remove `LICENSE.template`.
-8. Run the included validation before treating the Skill as complete.
+## Profile model
 
-Do not retain `template-scaffold` after adding operational resources, executable implementation, runtime manifests, or public interfaces.
+The template remains one profile-aware scaffold rather than a collection of mutually exclusive profile directories.
 
-## Profiles
+- `template-scaffold` identifies only the uncustomized template.
+- `instruction-only` is the sole exclusive concrete profile.
+- `knowledge-augmented`, `asset-driven`, `script-assisted`, `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service` remain selectively composable.
+- Combined profiles retain the union of their required contracts.
+- A concrete Skill removes unsupported optional contracts and resources after copying.
 
-Profiles are selectable contract patterns, not maturity levels.
+The consumer-facing contracts, profile definitions, resource placeholders, and concrete-Skill validation guidance exist only under `template/`.
 
-| Profile | Typical retained contents | Use when |
-|---|---|---|
-| `instruction-only` | `SKILL.md` | Existing agent tools and knowledge are sufficient |
-| `knowledge-augmented` | `SKILL.md`, declared `references/` | The workflow needs bounded domain knowledge, policy, schemas, or procedures |
-| `asset-driven` | `SKILL.md`, declared `assets/` | The workflow consumes or emits static templates and resources |
-| `script-assisted` | `SKILL.md`, declared `scripts/`, optional tests and `RUNTIME.md` | A private deterministic helper improves reliability |
-| `packaged-cli` | `RUNTIME.md`, `INTERFACES.md`, `CLI_INTERFACE.md`, implementation and tests | A stable command is a maintained public interface |
-| `mcp-enabled` | `RUNTIME.md`, `INTERFACES.md`, `MCP_INTERFACE.md`, applicable `mcp/` and tests | Operations are exposed through MCP |
-| `browser-interface` | `RUNTIME.md`, `WEB_INTERFACE.md`, implementation and tests | A browser-facing interface is intentional |
-| `headless-service` | `RUNTIME.md`, applicable API/deployment material, implementation and tests | An independently reachable non-browser service is intentional |
+## Repository areas
 
-`instruction-only` is exclusive. Compatible non-`instruction-only` profiles may be combined, and a combination retains the union of their required contracts. A service-enabled Skill may still use knowledge, assets, or helper scripts.
+- `template/`: the complete copyable Skill-development template;
+- `distribution-manifest.json`: the exact distribution inventory and the bounded validator-source projections copied into `template/.github/scripts/`;
+- `.github/scripts/`: source validators, canonical fixtures, clean-room adoption tests, publication checks, and distribution checks;
+- `.github/fixtures/`: positive, combined-profile, deployment-variant, and negative concrete-Skill evidence;
+- `.github/workflows/`: source-repository CI and build-only documentation compatibility checks;
+- `docs/architecture/`: template-product architecture and distribution-boundary records;
+- `docs/publication-catalog.json`: stable public-document IDs and canonical sources consumed by the unrelated `site` branch;
+- `docs/publication-maintenance.md`: cross-branch publication maintenance rules;
+- `CHANGELOG.md`, `CONTRIBUTING.md`, root `AGENTS.md`, and root `LICENSE`: template-product maintenance material.
 
-See `docs/skill-profiles.md` for selection, retention, removal, and validation rules. See `docs/profile-contract-map.md` for contract ownership.
-
-## Contract ownership
-
-- `SKILL.md`: trigger, workflow, resources, helper invocation, outputs, validation, safety, and selected profiles.
-- `RUNTIME.md`: runtime identity, dependencies, exact commands, packaging, protocol selections, process lifecycle, and deployment topology when retained.
-- `INTERFACES.md`: preferred agent route and deterministic fallback when packaged CLI or MCP is selected.
-- `CLI_INTERFACE.md`: caller-visible packaged CLI behavior.
-- `MCP_INTERFACE.md`: caller-visible MCP negotiation, transport, pagination, results, interaction, cancellation, and compatibility.
-- `WEB_INTERFACE.md`: browser-visible routing, security, operation policy, health, and failure behavior.
-- `references/`: operational knowledge declared by exact path in `SKILL.md`.
-- `assets/`: static resources declared by exact path in `SKILL.md`.
-- `scripts/`: private helpers or stable in-place launchers declared by exact path in `SKILL.md`.
-- `src/`, `mcp/`, and `tests/`: implementation and evidence required by the selected profiles.
-
-Do not duplicate one decision across several authorities. Cross-reference the owning contract.
+The branch root deliberately contains no `SKILL.md`, runtime contract, interface contract, operational resource directory, or concrete-Skill placeholder. Those files belong to `template/` alone.
 
 ## Validation
 
-Run the supported profile-aware validation entry point:
+Run the source boundary and copyable-distribution checks:
 
 ```sh
-python .github/scripts/validate_profile_contracts.py
+ruby .github/scripts/test-distribution-boundary.rb
+ruby .github/scripts/test-skill-distribution.rb
+ruby .github/scripts/validate-skill-distribution.rb
 ```
 
-This entry point executes focused direct validators and shared-model rule validators against the retained contract files. Some focused direct validators retain their own bounded Markdown parsing for contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.py`.
-
-For complete repository validation, run:
+Validate the uncustomized copyable Skill root independently with Python 3.12, PyYAML 6.0.3, and Git:
 
 ```sh
-python .github/scripts/validate_skill_repository.py
+python .github/scripts/validate_skill_repository.py template
+python template/.github/scripts/test_template_baseline.py
 ```
 
-The repository entry point checks frontmatter, the machine-readable profile selection, exact operational-resource declarations, retained contract requirements, unresolved placeholders, public-interface consistency, runtime/interface alignment, Git link boundaries, and concrete-Skill completion rules. It also invokes the supported profile-aware validation entry point.
+Validate adoption and installation from a source-independent copy:
 
-The validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git. When a flattened archive has no Git metadata, the validator creates an ephemeral empty index outside the Skill root only for the metadata-only gitlink check. It must not mutate the Skill or a caller-owned alternate index.
+```sh
+ruby .github/scripts/test-copyable-template-consumption.rb
+```
 
-The included GitHub Actions workflow installs the pinned validator dependency and runs the same complete repository validation. Retain, replace, or remove that workflow according to the concrete repository’s CI policy; it is not an operational Skill resource.
+The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, clone, submodule, archive, parent-owned vendoring, non-mutating consumption, and space/Unicode path behavior.
 
-## Resource discipline
+## Publication and deployment
 
-Every retained file under `references/`, `assets/`, or `scripts/` must be a regular non-symlink file and must have an exact corresponding declaration in `SKILL.md`. State when the agent reads, uses, or executes it and what it provides or modifies.
+The `skill` branch owns stable publication document IDs and canonical repository-relative source paths. Public consumer contracts resolve below `template/`; the source overview remains `README.md`.
 
-Do not use Git submodules or symlinks for operational resources. Do not install runtimes, package managers, or dependencies silently. Keep network access, permissions, side effects, approval, idempotency, diagnostics, and retry behavior explicit.
+The unrelated `site` branch owns navigation, full-SHA source locking, assembly, provenance, repository-tree views, and GitHub Pages deployment. Pages deployment is suspended during this restructuring. Skill pull requests continue to invoke the build-only site compatibility workflow.
 
-## Runtime neutrality
+After the final reviewed Skill merge commit, `site` will lock that full SHA, publish separate complete-source and copyable-template views, pass strict build validation, and restore deployment only in a separate reviewed pull request.
 
-Runtime neutrality means delaying an implementation choice until the workflow requires one. It does not mean retaining competing manifests for unused ecosystems.
+## Development constraints
 
-An instruction-only, knowledge-augmented, or asset-driven Skill may need no runtime. A small helper does not automatically become a packaged CLI. MCP, browser, and service interfaces remain optional and require their applicable contracts only when intentionally supported.
-
-## Completion checklist
-
-Before treating the result as a concrete Skill:
-
-- replace the template name, description, workflow, and `template-scaffold` marker;
-- retain only supported profiles and the union of their required contracts;
-- declare every operational resource by exact path;
-- remove unsupported contracts, directories, examples, and placeholders;
-- complete runtime and public-interface decisions where applicable;
-- choose the final license and remove `LICENSE.template`;
-- run representative success, failure, side-effect, permission, and compatibility tests proportionate to the selected profile;
-- run the repository validator; and
-- verify that the repository can be installed with `SKILL.md` directly at the Skill root.
+- Do not merge, rebase, or cherry-pick unrelated `site`, `policy`, or `webapp` history into `skill`.
+- Preserve the eight profile tags and their composition semantics.
+- Do not reintroduce consumer-facing Skill contracts or resource placeholders at the branch root.
+- Keep concrete-Skill validators in the distribution only when they operate without source-maintainer siblings.
+- Keep fixtures, publication integration, source audits, review guidance, and template-maintainer tests outside `template/`.
+- Keep each validator projection declared in `distribution-manifest.json` byte- and mode-identical to its source implementation.
+- Treat `template/` as the user-facing artifact and the complete branch as its source and conformance system.
