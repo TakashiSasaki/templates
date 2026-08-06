@@ -68,6 +68,8 @@ class LandingPageTests(unittest.TestCase):
             self.assertIn(selector, css)
         self.assertIn(":focus-visible", css)
         self.assertIn("h1:has(+ .portal-landing)", css)
+        self.assertIn("container: portal / inline-size", css)
+        self.assertIn("@container portal (max-width: 42rem)", css)
         self.assertIn("prefers-reduced-motion", css)
         self.assertNotIn("@import", css)
 
