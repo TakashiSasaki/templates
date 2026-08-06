@@ -19,9 +19,22 @@ jobs:
         with:
           ruby-version: "3.1"
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Python validator dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
+
       - name: Test shared profile contract model
         shell: bash
         run: ruby .github/scripts/test-profile-contract-model.rb
+
+      - name: Test shared Python profile contract model
+        shell: bash
+        run: python .github/scripts/test_profile_contract_model.py
 
       - name: Test direct profile contract validation
         shell: bash
