@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
+DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
 
 class PagesWorkflowBoundaryTests(unittest.TestCase):
@@ -68,7 +70,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             workflow,
         )
 
-    def test_deployment_workflow_accepts_only_site_pushes(self) -> None:
+    def test_site_push_workflow_is_build_only_while_suspended(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
 
@@ -81,16 +83,27 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("workflow_dispatch:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
         self.assertIn("site_ref: ${{ github.sha }}", workflow)
-        self.assertNotIn("source_ref: skill", workflow)
-        self.assertNotIn("source_ref: main", workflow)
         self.assertIn("github.event_name == 'push'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
-        self.assertIn("actions/configure-pages@", workflow)
-        self.assertIn("actions/deploy-pages@", workflow)
-        self.assertIn("pages: write", workflow)
-        self.assertIn("id-token: write", workflow)
-        self.assertIn("name: github-pages", workflow)
+        self.assertNotIn("actions/configure-pages@", workflow)
+        self.assertNotIn("actions/deploy-pages@", workflow)
+        self.assertNotIn("pages: write", workflow)
+        self.assertNotIn("id-token: write", workflow)
+        self.assertNotIn("name: github-pages", workflow)
+        self.assertNotIn("\n  deploy:\n", workflow)
+        self.assertNotIn("deployment_timestamp", workflow)
+
+    def test_machine_readable_deployment_state_is_suspended(self) -> None:
+        state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, state["schema_version"])
+        self.assertEqual("suspended", state["status"])
+        self.assertIn("webapp", state["reason"])
+        conditions = state["resume_conditions"]
+        self.assertIsInstance(conditions, list)
+        self.assertGreaterEqual(len(conditions), 4)
+        self.assertTrue(all(isinstance(value, str) and value for value in conditions))
 
 
 if __name__ == "__main__":
