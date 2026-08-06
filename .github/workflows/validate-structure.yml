@@ -19,6 +19,11 @@ jobs:
         with:
           ruby-version: "3.1"
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Test Skill source and distribution boundary
         shell: bash
         run: ruby .github/scripts/test-distribution-boundary.rb
@@ -48,12 +53,13 @@ jobs:
       - name: Test documentation publication catalog validation
         shell: bash
         run: |
-          ruby .github/scripts/test-publication-catalog.rb
-          ruby .github/scripts/test-publication-schema-version.rb
+          python .github/scripts/test_publication_catalog.py
+          python .github/scripts/test_publication_schema_version.py
+          python .github/scripts/test_publication_catalog_root_resolution.py
 
       - name: Validate documentation publication catalog
         shell: bash
-        run: ruby .github/scripts/validate-publication-catalog.rb
+        run: python .github/scripts/validate_publication_catalog.py
 
       - name: Reject committed secret assignments
         shell: bash
