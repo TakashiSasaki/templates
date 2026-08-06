@@ -45,15 +45,15 @@ def run() -> int:
             version_field = structured_document.field("Contract version field")
 
             unresolved_selector = re.compile(
-                r"^(?:NONE|NOT (?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|"
+                r"^(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|FIXME|"
                 r"PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|"
-                r"SEE DOCUMENTATION)$",
+                r"SEE\s+DOCUMENTATION)$",
                 re.IGNORECASE,
             )
             unresolved_selector_payload = re.compile(
-                r"(?:^|[:=]|\s)(?:NONE|NOT (?:SUPPORTED|APPLICABLE)|TODO|TBD|"
+                r"(?:^|[:=]|\s)(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|"
                 r"FIXME|PLACEHOLDER|UNSELECTED|PENDING|AUTOMATIC|DEFAULT|"
-                r"SEE DOCUMENTATION)(?=$|[\s.,;])",
+                r"SEE\s+DOCUMENTATION)(?=$|[\s.,;])",
                 re.IGNORECASE,
             )
             option_selector = re.compile(
@@ -89,13 +89,14 @@ def run() -> int:
                 )
 
             negative_format = re.compile(
-                r"\b(?:PLAIN TEXT|HUMAN[-\s]+READABLE|TEXT ONLY|NO STRUCTURED|"
-                r"UNSTRUCTURED|NOT MACHINE[-\s]+READABLE)\b",
+                r"\b(?:PLAIN\s+TEXT|HUMAN[-\s]+READABLE|TEXT\s+ONLY|"
+                r"NO\s+STRUCTURED|UNSTRUCTURED|"
+                r"NOT\s+MACHINE[-\s]+READABLE)\b",
                 re.IGNORECASE,
             )
             generic_format = re.compile(
                 r"^(?:TEXT|BINARY|CUSTOM|OTHER|UNKNOWN|NONE|"
-                r"NOT (?:SUPPORTED|APPLICABLE)|TODO|TBD|UNSELECTED)$",
+                r"NOT\s+(?:SUPPORTED|APPLICABLE)|TODO|TBD|UNSELECTED)$",
                 re.IGNORECASE,
             )
             explicit_format_name = re.compile(
@@ -114,7 +115,8 @@ def run() -> int:
                 )
 
             negative_version = re.compile(
-                r"^(?:NONE|NOT (?:SUPPORTED|APPLICABLE)|NO VERSION FIELD)$|"
+                r"^(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE)|"
+                r"NO\s+VERSION\s+FIELD)$|"
                 r"\b(?:WITHOUT|OMITTED|ABSENT)\b",
                 re.IGNORECASE,
             )
