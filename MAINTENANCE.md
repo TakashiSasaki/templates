@@ -172,11 +172,24 @@ The file excludes timestamps, workflow run IDs, and mutable refs. It identifies 
 
 The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
 
-`project.site_url` must remain `https://templates.moukaeritai.work/`. The configured domain is hosted at the root path, so generated same-origin links must not retain `/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links. The build also scans generated HTML and XML for the retired GitHub project URL, the custom domain with the retired subpath, and root-relative `/templates/` attributes.
+`project.site_url` must remain `https://templates.moukaeritai.work/`. The configured domain is hosted at the root path, so generated same-origin links must not retain `/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links. For normal generated pages, the same pass also inserts or validates exactly one `/app.webmanifest` link and one `#3f51b5` theme-color element. Sandboxed inline-preview pages deliberately receive canonical metadata only. The build also scans generated HTML and XML for the retired GitHub project URL, the custom domain with the retired subpath, and root-relative `/templates/` attributes.
+
+## PWA shell maintenance
+
+The installable shell is owned entirely by the `site` branch:
+
+- `assets/app.webmanifest` defines the root-scoped application identity, start URL, scope, standalone display mode, theme colors, and SVG icon declarations;
+- `assets/icon.svg` is the shared scalable PWA icon and Zensical favicon;
+- `assets/javascripts/pwa.js` preserves the static manifest and theme metadata when present and registers `/service-worker.js` with root scope in a secure context;
+- `assets/service-worker.js` precaches only `/`, `/app.webmanifest`, and `/icon.svg`, uses network-first document navigation, falls back to the cached portal home, and returns an explicit HTTP 503 response if both the network and cached home are unavailable.
+
+Do not broadly precache generated documentation pages. Provider publications change independently and must remain network-first to avoid serving stale documentation after deployment. A cache-key change must increment `CACHE_NAME` so the activation handler can delete the previous shell cache.
+
+`tests/test_pwa_assets.py` owns the source-level PWA contract, including manifest shape, shared SVG safety, favicon and registration wiring, generated metadata insertion and preview exclusion, duplicate or conflicting metadata rejection, minimal cache scope, and the guaranteed `Response` fallback. The Pages build separately verifies that the manifest, icon, service worker, registration script, manifest link, and theme-color metadata exist in the generated artifact.
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, verifies the generated PWA shell, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`. The metadata, build, and deploy jobs each require:
 

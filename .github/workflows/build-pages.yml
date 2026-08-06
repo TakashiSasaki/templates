@@ -183,7 +183,7 @@ jobs:
       - name: Build the static site
         run: zensical build --config-file build/zensical.toml --clean --strict
 
-      - name: Normalize generated canonical links
+      - name: Normalize generated canonical links and PWA metadata
         run: |
           python site-source/scripts/finalize_site_metadata.py \
             --site-root build/site \
@@ -218,6 +218,16 @@ jobs:
       - name: Verify the Pages entry point and deployment notice
         run: |
           test -f build/site/index.html
+          test -f build/site/app.webmanifest
+          test -f build/site/icon.svg
+          test -f build/site/service-worker.js
+          test -f build/site/javascripts/pwa.js
+          grep --fixed-strings -- \
+            '<link rel="manifest" href="/app.webmanifest">' \
+            build/site/index.html
+          grep --fixed-strings -- \
+            '<meta name="theme-color" content="#3f51b5">' \
+            build/site/index.html
           test -f build/site/skill/index.html
           test -f build/site/policy/index.html
           test -f build/site/webapp/index.html
