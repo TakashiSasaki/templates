@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every Skill top-level entry after making template the sole consumer-facing Skill authority.",
+  "purpose": "Classify every Skill top-level entry after completing the source and copyable-template separation.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
@@ -18,7 +18,8 @@
       "LICENSE",
       "README.md",
       "distribution-manifest.json",
-      "docs"
+      "docs",
+      "maintainer"
     ],
     "split": []
   },
