@@ -36,6 +36,10 @@ jobs:
         shell: bash
         run: python .github/scripts/test_profile_contract_model.py
 
+      - name: Test Python review-fix regressions
+        shell: bash
+        run: python .github/scripts/test_python_review_fixes.py
+
       - name: Test direct profile contract validation
         shell: bash
         run: ruby .github/scripts/test-direct-profile-contracts.rb
