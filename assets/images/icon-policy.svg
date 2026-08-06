@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Policy template icon</title>
+  <desc id="desc">A shield containing a validation check.</desc>
+  <defs>
+    <linearGradient id="g" x1="15" y1="8" x2="51" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a58aff"/>
+      <stop offset="1" stop-color="#7047e8"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6 53 14v17c0 14-8.5 23-21 28C19.5 54 11 45 11 31V14z" fill="url(#g)"/>
+  <path d="m21 32 7 7 15-17" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
