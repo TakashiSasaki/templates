@@ -276,6 +276,13 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                 f"<!-- GENERATED_REPOSITORY_TREE:{publication} -->\n",
                 encoding="utf-8",
             )
+        template_page = root / "docs/repository-trees/webapp/template.md"
+        template_page.parent.mkdir(parents=True)
+        template_page.write_text(
+            "# Web application copyable template\n\n"
+            "<!-- GENERATED_WEBAPP_TEMPLATE_TREE -->\n",
+            encoding="utf-8",
+        )
 
     def test_preparation_augments_catalog_and_navigation_without_mutating_source(
         self,
@@ -319,6 +326,10 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                     {document["id"] for document in catalog["documents"]}
                 )
             )
+            self.assertIn(
+                "repository-tree-webapp-template",
+                {document["id"] for document in catalog["documents"]},
+            )
             self.assertEqual(manifest["navigation"][1]["title"], "Repository trees")
             self.assertEqual(
                 [
@@ -331,6 +342,10 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                     "repository-trees/policy.md",
                     "repository-trees/webapp.md",
                 ],
+            )
+            self.assertEqual(
+                "repository-trees/webapp/template.md",
+                manifest["navigation"][2]["destination"],
             )
             self.assertEqual(
                 source_catalog,
@@ -346,6 +361,9 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             prepare(site_root, output_root)
             self.assertTrue(
                 (output_root / "docs/repository-trees/skill.md").is_file()
+            )
+            self.assertTrue(
+                (output_root / "docs/repository-trees/webapp/template.md").is_file()
             )
 
     def test_preparation_rejects_site_doc_symlinks(self) -> None:
@@ -373,6 +391,12 @@ class RepositoryTreeConfigurationTests(unittest.TestCase):
                 f"<!-- GENERATED_REPOSITORY_TREE:{publication} -->",
                 template.read_text(encoding="utf-8"),
             )
+        copyable = TREE_TEMPLATES / "webapp/template.md"
+        self.assertTrue(copyable.is_file())
+        self.assertIn(
+            "<!-- GENERATED_WEBAPP_TEMPLATE_TREE -->",
+            copyable.read_text(encoding="utf-8"),
+        )
 
     def test_workflow_prepares_and_generates_trees_before_static_build(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
@@ -380,17 +404,25 @@ class RepositoryTreeConfigurationTests(unittest.TestCase):
         preparation = workflow.index("- name: Prepare repository-tree publication")
         assembly = workflow.index("- name: Assemble the documentation project")
         generation = workflow.index("- name: Generate repository trees")
+        template_generation = workflow.index(
+            "- name: Generate Webapp copyable template tree"
+        )
         static_build = workflow.index("- name: Build the static site")
 
         self.assertLess(preparation, assembly)
         self.assertLess(assembly, generation)
-        self.assertLess(generation, static_build)
+        self.assertLess(generation, template_generation)
+        self.assertLess(template_generation, static_build)
         self.assertIn(
             "python site-source/scripts/prepare_repository_tree_publication.py",
             workflow,
         )
         self.assertIn(
             "python site-source/scripts/generate_repository_trees.py",
+            workflow,
+        )
+        self.assertIn(
+            "python site-source/scripts/generate_webapp_template_tree.py",
             workflow,
         )
         self.assertIn("--publication site=site-publication", workflow)
@@ -401,6 +433,10 @@ class RepositoryTreeConfigurationTests(unittest.TestCase):
         self.assertIn("build/site/repository-trees/skill/index.html", workflow)
         self.assertIn("build/site/repository-trees/policy/index.html", workflow)
         self.assertIn("build/site/repository-trees/webapp/index.html", workflow)
+        self.assertIn(
+            "build/site/repository-trees/webapp/template/index.html",
+            workflow,
+        )
 
     def test_policy_keeps_inventory_separate_from_publication_boundary(self) -> None:
         raw_policy = POLICY.read_text(encoding="utf-8")
