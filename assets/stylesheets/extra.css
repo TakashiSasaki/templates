@@ -22,3 +22,47 @@
   overflow-wrap: normal;
   word-break: normal;
 }
+
+.repository-file-viewer {
+  margin: 1rem 0 1.5rem;
+  scroll-margin-top: 4.5rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.35rem;
+  overflow: hidden;
+  background: var(--md-default-bg-color);
+}
+
+.repository-file-viewer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 0.05rem solid var(--md-default-fg-color--lightest);
+}
+
+.repository-file-viewer__toolbar [data-preview-label] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.repository-file-viewer iframe {
+  display: block;
+  width: 100%;
+  height: min(65vh, 44rem);
+  min-height: 24rem;
+  border: 0;
+  background: var(--md-code-bg-color);
+}
+
+.repository-file-preview-link {
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 44.984375em) {
+  .repository-file-viewer iframe {
+    height: 55vh;
+    min-height: 18rem;
+  }
+}
