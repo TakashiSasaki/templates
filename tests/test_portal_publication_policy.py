@@ -27,9 +27,12 @@ class PortalPublicationPolicyTests(unittest.TestCase):
     def test_portal_home_is_reader_oriented_and_exposes_all_publications(self) -> None:
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
-        self.assertIn("[Skill publication](skill/)", portal)
-        self.assertIn("[Policy publication](policy/)", portal)
-        self.assertIn("[Web application publication](webapp/)", portal)
+        for destination in ("skill/", "policy/", "webapp/"):
+            with self.subTest(destination=destination):
+                self.assertIn(f'href="{destination}"', portal)
+        for label in ("Skill", "Policy", "Web application"):
+            with self.subTest(label=label):
+                self.assertIn(f'class="portal-card__label">{label}</span>', portal)
         self.assertIn("explicit allowlist", portal)
         self.assertIn("full 40-character commit SHAs", portal)
         self.assertIn("build-provenance.json", portal)

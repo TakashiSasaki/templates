@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" role="img" aria-labelledby="title desc">
+  <title id="title">Templates portal architecture</title>
+  <desc id="desc">Skill, policy, and Web application template nodes connect to a central validated publication portal.</desc>
+  <defs>
+    <linearGradient id="panel" x1="76" y1="28" x2="686" y2="532" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#13253d"/>
+      <stop offset="1" stop-color="#0a1424"/>
+    </linearGradient>
+    <linearGradient id="core" x1="304" y1="188" x2="462" y2="372" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#43c8ff"/>
+      <stop offset="1" stop-color="#795dff"/>
+    </linearGradient>
+    <linearGradient id="line" x1="153" y1="119" x2="608" y2="451" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38d7b2"/>
+      <stop offset=".5" stop-color="#47bfff"/>
+      <stop offset="1" stop-color="#8f70ff"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0v40" fill="none" stroke="#8aa4c7" stroke-width="1" opacity=".12"/>
+    </pattern>
+  </defs>
+  <rect x="18" y="18" width="724" height="524" rx="38" fill="url(#panel)"/>
+  <rect x="18" y="18" width="724" height="524" rx="38" fill="url(#grid)"/>
+  <circle cx="382" cy="280" r="173" fill="#31bfff" opacity=".055"/>
+  <circle cx="382" cy="280" r="125" fill="#8264ff" opacity=".06"/>
+
+  <path d="M382 280 173 133M382 280l207-147M382 280l207 180" fill="none" stroke="url(#line)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M382 280 173 461" fill="none" stroke="#46c7ff" stroke-width="8" stroke-linecap="round" opacity=".78"/>
+  <g fill="#dff7ff">
+    <circle cx="277" cy="206" r="7"/><circle cx="486" cy="206" r="7"/>
+    <circle cx="486" cy="371" r="7"/><circle cx="277" cy="371" r="7"/>
+  </g>
+
+  <g transform="translate(296 181)">
+    <path d="m86 0 78 45v90l-78 45-78-45V45z" fill="url(#core)"/>
+    <path d="m86 22 59 34v68l-59 34-59-34V56z" fill="#fff" opacity=".12"/>
+    <rect x="49" y="59" width="74" height="62" rx="12" fill="#0e1b31" opacity=".88"/>
+    <path d="M61 78h50M61 91h36M61 104h44" stroke="#dff7ff" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="382" y="392" text-anchor="middle" fill="#eaf7ff" font-family="system-ui,sans-serif" font-size="17" font-weight="700">VALIDATED PORTAL</text>
+  <text x="382" y="416" text-anchor="middle" fill="#8fb0d2" font-family="system-ui,sans-serif" font-size="13" letter-spacing="2">ASSEMBLY · LINKS · PROVENANCE</text>
+
+  <g transform="translate(91 74)">
+    <rect width="164" height="118" rx="24" fill="#102b2b" stroke="#38d7b2" stroke-width="3"/>
+    <rect x="22" y="24" width="38" height="45" rx="10" fill="#38d7b2"/><rect x="78" y="24" width="38" height="45" rx="10" fill="#38d7b2" opacity=".7"/>
+    <path d="M60 38h18M60 55h18" stroke="#dffff7" stroke-width="5" stroke-linecap="round"/>
+    <text x="82" y="94" text-anchor="middle" fill="#dffff7" font-family="system-ui,sans-serif" font-size="20" font-weight="700">Skill</text>
+  </g>
+  <g transform="translate(507 74)">
+    <rect width="164" height="118" rx="24" fill="#261f47" stroke="#8f70ff" stroke-width="3"/>
+    <path d="M82 19 111 30v23c0 19-12 31-29 38-17-7-29-19-29-38V30z" fill="#8f70ff"/>
+    <path d="m68 52 10 10 20-25" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="82" y="105" text-anchor="middle" fill="#f0ebff" font-family="system-ui,sans-serif" font-size="20" font-weight="700">Policy</text>
+  </g>
+  <g transform="translate(507 399)">
+    <rect width="164" height="118" rx="24" fill="#132d4b" stroke="#47bfff" stroke-width="3"/>
+    <rect x="42" y="21" width="80" height="59" rx="10" fill="#47bfff"/>
+    <path d="M42 36h80" stroke="#e7f8ff" stroke-width="5"/>
+    <rect x="52" y="46" width="19" height="23" rx="4" fill="#e7f8ff"/>
+    <rect x="79" y="46" width="32" height="9" rx="4" fill="#e7f8ff" opacity=".9"/>
+    <rect x="79" y="60" width="32" height="9" rx="4" fill="#e7f8ff" opacity=".65"/>
+    <text x="82" y="103" text-anchor="middle" fill="#e7f8ff" font-family="system-ui,sans-serif" font-size="20" font-weight="700">Webapp</text>
+  </g>
+  <g transform="translate(91 399)">
+    <rect width="164" height="118" rx="24" fill="#10243a" stroke="#46c7ff" stroke-width="3"/>
+    <circle cx="43" cy="34" r="7" fill="#46c7ff"/><circle cx="43" cy="58" r="7" fill="#46c7ff"/><circle cx="43" cy="82" r="7" fill="#46c7ff"/>
+    <path d="M50 34h68M50 58h50M50 82h61" stroke="#ccefff" stroke-width="5" stroke-linecap="round"/>
+    <text x="82" y="105" text-anchor="middle" fill="#e7f8ff" font-family="system-ui,sans-serif" font-size="15" font-weight="700">Repository trees</text>
+  </g>
+</svg>

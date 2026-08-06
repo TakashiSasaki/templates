@@ -1,5 +1,109 @@
 # Templates documentation portal
 
+<div class="portal-landing">
+
+<section class="portal-hero" aria-labelledby="portal-title">
+  <div class="portal-hero__copy">
+    <p class="portal-kicker">Templates documentation portal</p>
+    <h1 id="portal-title">Reusable foundations.<br><span>Verifiable delivery.</span></h1>
+    <p class="portal-hero__lead">
+      Independent templates for agent skills, operational policy, and Web applications,
+      assembled into one reproducible documentation portal.
+    </p>
+    <div class="portal-actions">
+      <a class="portal-button portal-button--primary" href="#choose-a-template">Choose a template</a>
+      <a class="portal-button portal-button--secondary" href="repository-trees/">Inspect repository trees</a>
+    </div>
+    <div class="portal-signals" aria-label="Publication properties">
+      <span>Independent histories</span>
+      <span>Explicit allowlists</span>
+      <span>Full-SHA inputs</span>
+      <span>Validated output</span>
+    </div>
+  </div>
+  <div class="portal-hero__visual">
+    <img src="images/landing-architecture.svg" alt="Skill, policy, and Web application templates connected through a validated documentation portal">
+  </div>
+</section>
+
+<section class="portal-section" id="choose-a-template" aria-labelledby="choose-a-template-title">
+  <div class="portal-section__heading">
+    <p class="portal-kicker">Choose a publication</p>
+    <h2 id="choose-a-template-title">Three responsibilities, one engineering system</h2>
+    <p>Start from the artifact you need to build. Each publication owns a distinct responsibility boundary.</p>
+  </div>
+
+  <div class="portal-card-grid">
+    <a class="portal-card portal-card--skill" href="skill/">
+      <span class="portal-card__icon"><img src="images/icon-skill.svg" alt=""></span>
+      <span class="portal-card__label">Skill</span>
+      <strong>Build a reusable capability</strong>
+      <span>Contracts, runtime decisions, interface routing, and guidance for CLI, MCP, and human Web callers.</span>
+      <span class="portal-card__action">Explore Skill <span aria-hidden="true">→</span></span>
+    </a>
+
+    <a class="portal-card portal-card--policy" href="policy/">
+      <span class="portal-card__icon"><img src="images/icon-policy.svg" alt=""></span>
+      <span class="portal-card__label">Policy</span>
+      <strong>Define how agents operate</strong>
+      <span>Application-neutral adoption, bootstrap, managed operation, validation, lifecycle, and threat modeling.</span>
+      <span class="portal-card__action">Explore Policy <span aria-hidden="true">→</span></span>
+    </a>
+
+    <a class="portal-card portal-card--webapp" href="webapp/">
+      <span class="portal-card__icon"><img src="images/icon-webapp.svg" alt=""></span>
+      <span class="portal-card__label">Web application</span>
+      <strong>Deliver a verifiable product</strong>
+      <span>Application contracts, implementation and release evidence, validation, responsibility boundaries, and migrations.</span>
+      <span class="portal-card__action">Explore Web application <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
+</section>
+
+<section class="portal-section portal-publication" aria-labelledby="publication-model-title">
+  <div class="portal-section__heading">
+    <p class="portal-kicker">Publication model</p>
+    <h2 id="publication-model-title">Independent at source. Integrated for readers.</h2>
+    <p>The <code>site</code> branch selects reviewed provider commits without merging their unrelated histories.</p>
+  </div>
+  <div class="portal-publication__layout">
+    <img class="portal-publication__diagram" src="images/publication-pipeline.svg" alt="Skill, policy, and Web application branches pass through catalogs, full-SHA locks, assembly, and validation before GitHub Pages publication">
+    <div class="portal-principles">
+      <article>
+        <span>01</span>
+        <div><h3>Explicit boundary</h3><p>Each provider catalog is an allowlist. Uncataloged files do not become public by proximity.</p></div>
+      </article>
+      <article>
+        <span>02</span>
+        <div><h3>Immutable inputs</h3><p>Provider revisions are recorded as full commit SHAs rather than mutable branch tips.</p></div>
+      </article>
+      <article>
+        <span>03</span>
+        <div><h3>Validated output</h3><p>The integrated build checks navigation, links, fragments, repository trees, and provenance.</p></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="portal-tree-callout" aria-labelledby="repository-trees-title">
+  <div>
+    <p class="portal-kicker">Exact build inputs</p>
+    <h2 id="repository-trees-title">Inspect the complete repository trees</h2>
+    <p>Browse every tracked path at the exact <code>skill</code>, <code>policy</code>, and <code>webapp</code> revisions used by this publication.</p>
+    <a class="portal-button portal-button--primary" href="repository-trees/">Open repository trees</a>
+  </div>
+  <div class="portal-tree-callout__tree" aria-hidden="true">
+    <span>templates/</span>
+    <span>├── skill/</span>
+    <span>├── policy/</span>
+    <span>└── webapp/</span>
+  </div>
+</section>
+
+</div>
+
+## About this portal
+
 This site is the single GitHub Pages entry point for the major branches of
 `TakashiSasaki/templates`. It presents the documentation owned by the unrelated
 `skill`, `policy`, and `webapp` branch histories as one reader-oriented portal.
@@ -12,36 +116,6 @@ The source branches remain independent and retain ownership of their canonical
 documents. The `site` branch selects reviewed provider commits, validates the
 combined publication, and owns the public information architecture and the only
 GitHub Pages deployment route.
-
-## Choose a publication
-
-### Skill
-
-Use the [Skill publication](skill/) for reusable skill contracts, runtime
-decisions, interface routing, and guidance for CLI, MCP, and human Web callers.
-
-### Policy
-
-Use the [Policy publication](policy/) for application-neutral agent policy
-adoption, bootstrap, managed operation, validation, release lifecycle, threat
-modeling, and architecture decisions.
-
-### Web application
-
-Use the [Web application publication](webapp/) for Web application template
-contracts, implementation and release evidence, validation, responsibility
-boundaries, contract evolution, and migration guidance.
-
-## Explore complete repository trees
-
-Use the [repository tree overview](repository-trees/) to inspect every tracked
-path in the exact `skill`, `policy`, and `webapp` revisions used by this build.
-Directories are presented as collapsible trees. Cataloged documents link back to
-their human-readable Pages locations, while all other files link to immutable
-GitHub source views at the rendered full commit SHA.
-
-The tree is an inventory, not a second publication mechanism. Listing a file
-does not copy its contents into Pages or make an uncataloged document public.
 
 ## What is published
 

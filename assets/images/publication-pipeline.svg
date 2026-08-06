@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-labelledby="title desc">
+  <title id="title">Publication pipeline</title>
+  <desc id="desc">Three provider branches flow through explicit catalogs and full-SHA locks into assembly, validation, provenance, and GitHub Pages.</desc>
+  <defs>
+    <linearGradient id="flow" x1="74" y1="150" x2="886" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3fd7b3"/>
+      <stop offset=".55" stop-color="#45bfff"/>
+      <stop offset="1" stop-color="#8b6dff"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#172b45"/>
+      <stop offset="1" stop-color="#0e1b2d"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="940" height="280" rx="28" fill="#0e192a"/>
+  <path d="M185 72h82c24 0 24 78 48 78h36M185 150h166M185 228h82c24 0 24-78 48-78h36" fill="none" stroke="url(#flow)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M487 150h70M693 150h70" stroke="url(#flow)" stroke-width="7" stroke-linecap="round"/>
+  <path d="m256 63 14 9-14 9M256 141l14 9-14 9M256 219l14 9-14 9M543 141l14 9-14 9M749 141l14 9-14 9" fill="none" stroke="#dff6ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g font-family="system-ui,sans-serif">
+    <g><rect x="35" y="42" width="150" height="60" rx="16" fill="#123934" stroke="#3fd7b3" stroke-width="2"/><text x="110" y="68" text-anchor="middle" fill="#e2fff8" font-size="17" font-weight="700">skill</text><text x="110" y="88" text-anchor="middle" fill="#91d9ca" font-size="12">provider branch</text></g>
+    <g><rect x="35" y="120" width="150" height="60" rx="16" fill="#292243" stroke="#8b6dff" stroke-width="2"/><text x="110" y="146" text-anchor="middle" fill="#f0ecff" font-size="17" font-weight="700">policy</text><text x="110" y="166" text-anchor="middle" fill="#b8a9e8" font-size="12">provider branch</text></g>
+    <g><rect x="35" y="198" width="150" height="60" rx="16" fill="#142e49" stroke="#45bfff" stroke-width="2"/><text x="110" y="224" text-anchor="middle" fill="#e8f8ff" font-size="17" font-weight="700">webapp</text><text x="110" y="244" text-anchor="middle" fill="#9dccdf" font-size="12">provider branch</text></g>
+
+    <g><rect x="351" y="94" width="136" height="112" rx="20" fill="url(#card)" stroke="#45bfff" stroke-width="2"/><text x="419" y="128" text-anchor="middle" fill="#e8f8ff" font-size="16" font-weight="700">Catalog + lock</text><text x="419" y="154" text-anchor="middle" fill="#9ebbd3" font-size="12">explicit allowlist</text><text x="419" y="176" text-anchor="middle" fill="#9ebbd3" font-size="12">full commit SHA</text></g>
+    <g><rect x="557" y="94" width="136" height="112" rx="20" fill="url(#card)" stroke="#45bfff" stroke-width="2"/><text x="625" y="128" text-anchor="middle" fill="#e8f8ff" font-size="16" font-weight="700">Assemble</text><text x="625" y="154" text-anchor="middle" fill="#9ebbd3" font-size="12">navigation</text><text x="625" y="176" text-anchor="middle" fill="#9ebbd3" font-size="12">links + assets</text></g>
+    <g><rect x="763" y="94" width="162" height="112" rx="20" fill="#252044" stroke="#8b6dff" stroke-width="2"/><text x="844" y="128" text-anchor="middle" fill="#f0ecff" font-size="16" font-weight="700">GitHub Pages</text><text x="844" y="154" text-anchor="middle" fill="#b8a9e8" font-size="12">validated artifact</text><text x="844" y="176" text-anchor="middle" fill="#b8a9e8" font-size="12">build provenance</text></g>
+  </g>
+</svg>
