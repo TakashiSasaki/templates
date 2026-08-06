@@ -128,6 +128,11 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_review_followup_contracts.py",
+      "destination": ".github/scripts/validate_review_followup_contracts.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
       "destination": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
       "exclude": []
