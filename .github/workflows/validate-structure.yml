@@ -55,6 +55,7 @@ jobs:
         run: |
           python .github/scripts/test_publication_catalog.py
           python .github/scripts/test_publication_schema_version.py
+          python .github/scripts/test_publication_catalog_root_resolution.py
 
       - name: Validate documentation publication catalog
         shell: bash
