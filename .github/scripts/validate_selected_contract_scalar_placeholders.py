@@ -41,12 +41,15 @@ def run() -> int:
         path: Path,
         document: MarkdownDocument,
         context: str | None = None,
+        line_offset: int = 0,
     ) -> None:
         for entry in document.each_scalar():
             if not ValuePolicy.unresolved_scalar(entry.value):
                 continue
 
-            location = f"{path} {context}" if context else f"{path}:{entry.line_number}"
+            location = f"{path}:{line_offset + entry.line_number}"
+            if context:
+                location += f" ({context})"
             value = ValuePolicy.strip_backticks(entry.value)
             rendered = repr(value)
 
@@ -160,10 +163,19 @@ def run() -> int:
             section = runtime.section(heading)
             if section is None:
                 continue
+            heading_line_number = next(
+                (
+                    index
+                    for index, line in enumerate(runtime.lines, start=1)
+                    if line.rstrip() == heading
+                ),
+                0,
+            )
             scan_scalar_values(
                 RUNTIME_PATH,
                 MarkdownDocument(section, path=RUNTIME_PATH),
                 heading,
+                line_offset=heading_line_number,
             )
 
     if errors:
