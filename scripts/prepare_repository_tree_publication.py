@@ -7,7 +7,7 @@ import argparse
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
 OUTPUT_MARKER = ".repository-tree-publication-root"
@@ -41,6 +41,12 @@ TREE_DOCUMENTS = (
 WEBAPP_TEMPLATE_DOCUMENT = {
     "id": "repository-tree-webapp-template",
     "source": "docs/repository-trees/webapp/template.md",
+    "optional": False,
+    "home": False,
+}
+SKILL_TEMPLATE_DOCUMENT = {
+    "id": "repository-tree-skill-template",
+    "source": "docs/repository-trees/skill/template.md",
     "optional": False,
     "home": False,
 }
@@ -78,6 +84,12 @@ WEBAPP_TEMPLATE_NAVIGATION = {
     "publication": "site",
     "document": "repository-tree-webapp-template",
     "destination": "repository-trees/webapp/template.md",
+}
+SKILL_TEMPLATE_NAVIGATION = {
+    "title": "Skill copyable template",
+    "publication": "site",
+    "document": "repository-tree-skill-template",
+    "destination": "repository-trees/skill/template.md",
 }
 
 
@@ -157,10 +169,7 @@ def copy_tree(source: Path, destination: Path, label: str) -> None:
     while pending:
         current_source, current_destination = pending.pop()
         try:
-            children = sorted(
-                current_source.iterdir(),
-                key=lambda child: child.name,
-            )
+            children = sorted(current_source.iterdir(), key=lambda child: child.name)
         except OSError as exc:
             raise PreparationError(
                 f"unable to inspect {label} {current_source}: {exc}"
@@ -180,7 +189,10 @@ def copy_tree(source: Path, destination: Path, label: str) -> None:
                 )
 
 
-def augment_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
+def augment_catalog(
+    catalog: dict[str, Any],
+    generated_documents: Iterable[dict[str, Any]] = (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT),
+) -> dict[str, Any]:
     documents = catalog.get("documents")
     if not isinstance(documents, list):
         raise PreparationError("site publication catalog documents must be an array")
@@ -197,7 +209,7 @@ def augment_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
         existing_sources.add(source)
 
     additions = []
-    for document in (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT):
+    for document in generated_documents:
         if document["id"] in existing_ids or document["source"] in existing_sources:
             raise PreparationError(
                 "base site publication must not predeclare generated repository trees"
@@ -209,13 +221,17 @@ def augment_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+def augment_manifest(
+    manifest: dict[str, Any],
+    template_navigation: Iterable[dict[str, Any]] = (WEBAPP_TEMPLATE_NAVIGATION,),
+) -> dict[str, Any]:
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list) or not navigation:
         raise PreparationError("site manifest navigation must be a non-empty array")
+    template_navigation = tuple(template_navigation)
     generated_titles = {
         TREE_NAVIGATION["title"],
-        WEBAPP_TEMPLATE_NAVIGATION["title"],
+        *(entry["title"] for entry in template_navigation),
     }
     if any(
         isinstance(node, dict) and node.get("title") in generated_titles
@@ -229,10 +245,26 @@ def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     result["navigation"] = [
         navigation[0],
         json.loads(json.dumps(TREE_NAVIGATION)),
-        json.loads(json.dumps(WEBAPP_TEMPLATE_NAVIGATION)),
+        *(json.loads(json.dumps(entry)) for entry in template_navigation),
         *navigation[1:],
     ]
     return result
+
+
+def generated_template_contracts(
+    output_root: Path,
+) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+    documents = [*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT]
+    navigation = [WEBAPP_TEMPLATE_NAVIGATION]
+    skill_template = output_root / SKILL_TEMPLATE_DOCUMENT["source"]
+    if skill_template.is_symlink():
+        raise PreparationError(
+            f"repository-tree template must not be a symlink: {skill_template}"
+        )
+    if skill_template.is_file():
+        documents.append(SKILL_TEMPLATE_DOCUMENT)
+        navigation.append(SKILL_TEMPLATE_NAVIGATION)
+    return tuple(documents), tuple(navigation)
 
 
 def prepare(site_root: Path, output_root: Path) -> list[str]:
@@ -260,19 +292,26 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         )
     shutil.copy2(template_source, output_root / template_source.name)
 
+    generated_documents, template_navigation = generated_template_contracts(output_root)
     catalog_path = output_root / "docs/publication-catalog.json"
     prepared_manifest_path = output_root / "site-manifest.json"
 
     write_json(
         catalog_path,
-        augment_catalog(read_json(catalog_path, "site publication catalog")),
+        augment_catalog(
+            read_json(catalog_path, "site publication catalog"),
+            generated_documents,
+        ),
     )
     write_json(
         prepared_manifest_path,
-        augment_manifest(read_json(manifest_path, "site manifest")),
+        augment_manifest(
+            read_json(manifest_path, "site manifest"),
+            template_navigation,
+        ),
     )
 
-    for document in (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT):
+    for document in generated_documents:
         template = output_root / document["source"]
         if not template.is_file():
             raise PreparationError(
@@ -281,7 +320,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
 
     return [
         f"prepared site publication: {output_root.resolve()}",
-        f"generated documents: {len(TREE_DOCUMENTS) + 1}",
+        f"generated documents: {len(generated_documents)}",
     ]
 
 

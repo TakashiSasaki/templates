@@ -5,7 +5,7 @@ This file applies only to the unrelated `site` branch.
 ## Branch responsibilities
 
 - `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated repository-tree inventories, bounded inline file previews, generated-site validation, build provenance, and the only Pages deployment workflow.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, generated-site validation, build provenance, and the only Pages deployment workflow.
 - Generated Markdown, preview HTML, and final site HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
@@ -17,7 +17,7 @@ The four major branches have unrelated histories. Do not merge, rebase, or cherr
 3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
 4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
 5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
-6. Require the integrated documentation build, repository-tree generation, Webapp copyable-template tree generation, inline-preview generation, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
+6. Require the integrated documentation build, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -74,36 +74,26 @@ Page and section order are public information architecture and must be reviewed 
 
 ## Repository-tree publication preparation
 
-Repository trees are generated pages, not canonical provider documents.
-`scripts/prepare_repository_tree_publication.py` creates a temporary site
-publication root before assembly. It copies the site-owned documentation
-templates and assets without following symlinks, then adds exactly five generated
-document declarations:
+Repository trees are generated pages, not canonical provider documents. `scripts/prepare_repository_tree_publication.py` creates a temporary site publication root before assembly. It copies the site-owned documentation templates and assets without following symlinks, then adds exactly six generated document declarations:
 
 - `repository-trees/index.md`;
 - `repository-trees/skill.md`;
 - `repository-trees/policy.md`;
 - `repository-trees/webapp.md`;
+- `repository-trees/skill/template.md`;
 - `repository-trees/webapp/template.md`.
 
-The first four documents are grouped under the generated `Repository trees`
-navigation section. The Webapp copyable-template document is added as the
-separate generated `Web application copyable template` navigation entry. The
-canonical `docs/publication-catalog.json` and `site-manifest.json` are not
-modified in place. The temporary declarations are passed through the ordinary
-assembler, so exact catalog-to-navigation coverage and destination validation
-still apply.
+The first four documents are grouped under the generated `Repository trees` navigation section. The Skill and Webapp copyable-template documents are separate generated navigation entries. The canonical `docs/publication-catalog.json` and `site-manifest.json` are not modified in place. The temporary declarations are passed through the ordinary assembler, so exact catalog-to-navigation coverage and destination validation still apply.
 
-The preparation output root may not be a symlink, filesystem root, or a path
-overlapping the canonical site source. A non-empty output directory is replaced
-only when it contains the exact tool-owned marker.
+The Skill declaration is enabled only when the site source contains its template page. This preserves compatibility for reduced test fixtures while the production site always includes both copyable-template pages. A present nested template must be a regular file and may not be a symlink.
 
-## Repository-tree generation
+The preparation output root may not be a symlink, filesystem root, or a path overlapping the canonical site source. A non-empty output directory is replaced only when it contains the exact tool-owned marker.
 
-`scripts/generate_repository_trees.py` runs after assembly and before the
-Webapp-specific copyable-template generator. It uses
-`git ls-tree --full-tree -r -t -z HEAD` for each checked-out provider repository.
-This has the following consequences:
+## Complete repository-tree generation
+
+`scripts/generate_repository_trees.py` runs after assembly and before either copyable-template generator. It uses `git ls-tree --full-tree -r -t -z HEAD` for each checked-out provider repository.
+
+Consequently:
 
 - only tracked Git entries are listed;
 - untracked working-tree files and `.git` administration data are excluded;
@@ -115,34 +105,29 @@ This has the following consequences:
 - cataloged Markdown receives a Pages link plus an immutable source link;
 - uncataloged files link only to GitHub and their contents are not copied by the tree generator.
 
-Workflow-call revision overrides are reflected in the generated links because
-the generator reads the actual checked-out commit rather than the normal lock
-file value.
+Workflow-call revision overrides are reflected in generated links because the generator reads the actual checked-out commit rather than the normal lock-file value.
+
+## Skill copyable-template tree generation
+
+`scripts/generate_skill_template_tree.py` runs after the complete provider trees and before the Webapp copyable-template generator. It selects only the tracked `template/` subtree from the locked Skill checkout and renders that subtree as the Skill root received by a downstream template consumer.
+
+Displayed paths are relative to the copy boundary, while immutable GitHub links continue to identify canonical `template/...` paths at the exact checked-out Skill commit. Cataloged Markdown files retain their human-readable Pages links. The complete Skill source tree remains the audit view for publication integration, distribution validation, canonical fixtures, negative fixtures, and source-maintainer tests.
+
+Inline previews are owned by the complete Skill source-tree page. The dedicated Skill copyable-template page does not receive an inline preview panel or duplicate preview links. It retains immutable source links for every entry, keeping provider and aggregate preview byte budgets closed.
+
+The generated page must show `SKILL.md` directly below the displayed copy root. Absence of a tracked `template/` directory is a hard build error rather than a reason to render an empty or fallback tree.
 
 ## Webapp copyable-template tree generation
 
-`scripts/generate_webapp_template_tree.py` runs after the complete provider trees
-and before inline-preview generation. It selects only the tracked `template/`
-subtree from the locked Webapp checkout and renders that subtree as the
-repository root received by a downstream template consumer.
+`scripts/generate_webapp_template_tree.py` runs after the Skill copyable-template generator and before inline-preview generation. It selects only the tracked `template/` subtree from the locked Webapp checkout and renders that subtree as the repository root received by a downstream template consumer.
 
-Displayed paths are relative to the copy boundary, while immutable GitHub links
-continue to identify the canonical `template/...` paths at the exact checked-out
-Webapp commit. Cataloged Markdown files retain their human-readable Pages links.
-The complete Webapp source tree remains the audit view for publication tooling,
-distribution validation, clean-room fixtures, and source-maintainer tests.
+Displayed paths are relative to the copy boundary, while immutable GitHub links continue to identify canonical `template/...` paths at the exact checked-out Webapp commit. Cataloged Markdown files retain their human-readable Pages links. The complete Webapp source tree remains the audit view for publication tooling, distribution validation, clean-room fixtures, and source-maintainer tests.
 
-Inline previews are owned by the complete Webapp source-tree page. The dedicated
-copyable-template page does not receive an inline preview panel or duplicate
-preview links. It retains immutable source links for every entry, keeping the
-provider and aggregate preview byte budgets closed.
+Inline previews are owned by the complete Webapp source-tree page. The dedicated Webapp copyable-template page does not receive an inline preview panel or duplicate preview links. It retains immutable source links for every entry, keeping provider and aggregate preview byte budgets closed.
 
 ## Inline file-preview generation
 
-`scripts/generate_repository_file_previews.py` runs after both repository-tree
-generators and before static-site generation. It uses the object IDs emitted by
-`git ls-tree`, then reads the exact committed blobs with `git cat-file`.
-It does not read preview content through mutable working-tree paths.
+`scripts/generate_repository_file_previews.py` runs after all repository-tree generators and before static-site generation. It uses the object IDs emitted by `git ls-tree`, then reads the exact committed blobs with `git cat-file`. It does not read preview content through mutable working-tree paths.
 
 A file receives a preview link only when all of the following hold:
 
@@ -152,17 +137,9 @@ A file receives a preview link only when all of the following hold:
 - the decoded text contains no NUL or disallowed control characters;
 - provider candidate and aggregate byte budgets remain within the configured bounds.
 
-The generator HTML-escapes repository text and writes deterministic preview
-pages under `repository-trees/previews/<publication>/<full-sha>/`. Preview pages
-have a restrictive content security policy and are loaded by the repository-tree
-page through an iframe with an empty `sandbox` attribute and
-`referrerpolicy="no-referrer"`. The immutable GitHub source link remains present
-for every file. Binary, oversized, invalid-text, symlink, and gitlink entries
-remain GitHub-only.
+The generator HTML-escapes repository text and writes deterministic preview pages under `repository-trees/previews/<publication>/<full-sha>/`. Preview pages have a restrictive content security policy and are loaded by the repository-tree page through an iframe with an empty `sandbox` attribute and `referrerpolicy="no-referrer"`. The immutable GitHub source link remains present for every file. Binary, oversized, invalid-text, symlink, and gitlink entries remain GitHub-only.
 
-`assets/javascripts/repository-tree-viewer.js` updates the shared viewer label,
-source link, and iframe title when a preview link is selected. It does not inject
-repository content into the parent page and does not use `innerHTML`.
+`assets/javascripts/repository-tree-viewer.js` updates the shared viewer label, source link, and iframe title when a preview link is selected. It does not inject repository content into the parent page and does not use `innerHTML`.
 
 ## Assembly output boundary
 
@@ -185,7 +162,7 @@ Every uploaded Pages artifact contains `/build-provenance.json` with determinist
 - `schema_version`, the integer `2`;
 - `repository`, currently `TakashiSasaki/templates`;
 - `site_commit`, the full commit checked out into `site-source`;
-- `publication_commits`, an object mapping publication names such as `skill`, `policy`, and `webapp` to their checked-out full commits.
+- `publication_commits`, an object mapping `skill`, `policy`, and `webapp` to their checked-out full commits.
 
 `scripts/write_publication_provenance.py` receives provider commits through repeated `--publication-commit NAME=SHA` arguments. Names are lowercase kebab-case. Commit values are lowercase full 40-character SHAs. Duplicate publication names, mutable refs, abbreviated SHAs, invalid repository identifiers, missing output directories, and symbolic-link outputs are rejected.
 
@@ -199,7 +176,7 @@ The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invokin
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates the complete provider trees, generates the Webapp copyable-template tree, generates bounded inline previews, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`, and its deployment job additionally requires:
 
@@ -211,19 +188,21 @@ github.ref == refs/heads/site
 
 Default-branch status is not an authorization input. Changing the default branch therefore cannot authorize deployment from `skill`, `policy`, `webapp`, or another ref.
 
-Expected behavior:
+While `deployment-state.json` is `suspended`, the site-push workflow invokes only the reusable build and contains no Pages/OIDC write permissions, `github-pages` environment, Pages configuration, or deployment action. Restoration requires a separate reviewed `site` pull request.
+
+Expected behavior while suspended:
 
 | Event | Build artifact | Footer metadata | Pages deployment |
 |---|---:|---|---:|
 | pull request targeting `site` | yes | preview | no |
-| push to `site` | yes | JST deployment timestamp | yes |
+| push to `site` | yes | preview | no |
 | `workflow_call` | yes | preview unless explicitly supplied | no |
 | workflow on a provider branch | branch-local only | not applicable | no |
 | push to any other branch | no site deployment workflow | not applicable | no |
 
 ## Dependency updates
 
-`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, repository trees, the Webapp copyable-template tree, inline previews, canonical URLs, and link-validation results before merging.
+`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, canonical URLs, provenance, and link-validation results before merging.
 
 ## Local validation
 
@@ -248,6 +227,11 @@ python site/scripts/generate_repository_trees.py \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
+python site/scripts/generate_skill_template_tree.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --skill-root sources/skill
 python site/scripts/generate_webapp_template_tree.py \
   --repository TakashiSasaki/templates \
   --site-root site-publication \
@@ -261,6 +245,13 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/write_publication_provenance.py \
+  --output build/site/build-provenance.json \
+  --repository TakashiSasaki/templates \
+  --site-commit "$(git -C site rev-parse HEAD)" \
+  --publication-commit "skill=$(git -C sources/skill rev-parse HEAD)" \
+  --publication-commit "policy=$(git -C sources/policy rev-parse HEAD)" \
+  --publication-commit "webapp=$(git -C sources/webapp rev-parse HEAD)"
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
