@@ -7,7 +7,7 @@ It intentionally does not select an application framework, package manager, rend
 ## Start here
 
 1. Read [`TEMPLATE.md`](TEMPLATE.md) for the scope and required customization contract.
-2. Replace the example declarations in [`contracts/`](contracts/) with product-specific declarations.
+2. Replace the example declarations registered by [`contracts/manifest.json`](contracts/manifest.json) with product-specific declarations.
 3. Select one product toolchain and add the application implementation.
 4. Change `contracts/implementation-evidence.json` from `mode: template` to `mode: product` only after every required implementation boundary and positive and negative proof is verified.
 5. Materialize product release evidence and the release bundle for one exact immutable candidate revision.
