@@ -6,7 +6,11 @@ repo_url = "https://github.com/TakashiSasaki/templates"
 repo_name = "TakashiSasaki/templates"
 docs_dir = "docs"
 site_dir = "site"
-extra_css = ["stylesheets/extra.css"]
+extra_css = [
+  "stylesheets/extra.css",
+  "stylesheets/landing-cover.css",
+  "stylesheets/landing-shell.css"
+]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
   "javascripts/pwa.js"

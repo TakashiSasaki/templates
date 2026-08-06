@@ -1,0 +1,18 @@
+/* Let the graphic cover use the available desktop canvas without changing documentation pages. */
+@media screen and (min-width: 60rem) {
+  .md-main__inner:has(.portal-landing--cover) {
+    width: min(100% - 2rem, 92rem);
+    max-width: 92rem;
+  }
+
+  .md-main__inner:has(.portal-landing--cover) > .md-sidebar {
+    display: none;
+  }
+
+  .md-main__inner:has(.portal-landing--cover) > .md-content,
+  .md-main__inner:has(.portal-landing--cover) .md-content__inner {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+}

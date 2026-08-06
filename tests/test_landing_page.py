@@ -10,7 +10,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / "docs" / "index.md"
+OVERVIEW = ROOT / "docs" / "overview.md"
 STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
+COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
+SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
 IMAGES = ROOT / "assets" / "images"
 EXPECTED_SVGS = {
     "landing-architecture.svg",
@@ -71,17 +74,40 @@ def validate_static_svg(path: Path) -> None:
 
 
 class LandingPageTests(unittest.TestCase):
-    def test_landing_page_exposes_all_primary_destinations(self) -> None:
+    def test_graphical_cover_exposes_primary_destinations_and_overview(self) -> None:
         text = INDEX.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
-        self.assertIn('class="portal-landing"', text)
-        self.assertIn('id="choose-a-template"', text)
+        self.assertIn('class="portal-landing portal-landing--cover"', text)
+        self.assertIn('class="portal-cover"', text)
+        self.assertIn('href="overview/"', text)
         for destination in ("skill/", "policy/", "webapp/", "repository-trees/"):
             self.assertIn(f'href="{destination}"', text)
+        for label in ("Skill", "Policy", "Web application"):
+            self.assertIn(
+                f'class="portal-domain-card__label">{label}</span>',
+                text,
+            )
 
-    def test_landing_page_references_only_declared_svg_artwork(self) -> None:
-        text = INDEX.read_text(encoding="utf-8")
-        references = set(re.findall(r'src="images/([a-z0-9-]+\.svg)"', text))
+    def test_overview_preserves_the_detailed_portal_explanation(self) -> None:
+        text = OVERVIEW.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("# Portal overview\n\n"))
+        self.assertIn('id="choose-a-template"', text)
+        self.assertIn("Publication catalogs are explicit allowlists", text)
+        self.assertIn("full 40-character commit SHAs", text)
+        self.assertIn("build-provenance.json", text)
+        self.assertIn("Machine-readable contracts and schemas", text)
+        self.assertIn("under `/skill/`, `/policy/`, and `/webapp/`.", text)
+
+    def test_landing_pages_reference_only_declared_svg_artwork(self) -> None:
+        text = "\n".join(
+            (
+                INDEX.read_text(encoding="utf-8"),
+                OVERVIEW.read_text(encoding="utf-8"),
+            )
+        )
+        references = set(
+            re.findall(r'src="(?:\.\./)?images/([a-z0-9-]+\.svg)"', text)
+        )
         self.assertEqual(references, EXPECTED_SVGS)
         self.assertEqual(
             {path.name for path in IMAGES.glob("*.svg")},
@@ -112,8 +138,10 @@ class LandingPageTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         validate_static_svg(path)
 
-    def test_landing_styles_are_scoped_and_accessible(self) -> None:
+    def test_cover_and_overview_styles_are_scoped_and_responsive(self) -> None:
         css = STYLESHEET.read_text(encoding="utf-8")
+        cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
+        shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
         for selector in (
             ".portal-landing",
             ".portal-hero",
@@ -122,12 +150,37 @@ class LandingPageTests(unittest.TestCase):
             ".portal-tree-callout",
         ):
             self.assertIn(selector, css)
-        self.assertIn(":focus-visible", css)
+        for selector in (
+            ".portal-landing--cover",
+            ".portal-cover",
+            ".portal-domain-grid",
+            ".portal-domain-card",
+            ".portal-cover-features",
+        ):
+            self.assertIn(selector, cover_css)
+        self.assertIn(":focus-visible", cover_css)
         self.assertIn("h1:has(+ .portal-landing)", css)
         self.assertIn("container: portal / inline-size", css)
-        self.assertIn("@container portal (max-width: 42rem)", css)
-        self.assertIn("prefers-reduced-motion", css)
-        self.assertNotIn("@import", css)
+        self.assertIn("@container portal (max-width: 46rem)", cover_css)
+        self.assertIn("@container portal (max-width: 40rem)", cover_css)
+        self.assertIn("prefers-reduced-motion", cover_css)
+        self.assertNotIn("@import", cover_css)
+
+        self.assertIn("@media screen and (min-width: 60rem)", shell_css)
+        self.assertIn(":has(.portal-landing--cover)", shell_css)
+        self.assertIn("> .md-sidebar", shell_css)
+        self.assertNotIn("@import", shell_css)
+
+        template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
+        parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
+        self.assertEqual(
+            parsed["project"]["extra_css"],
+            [
+                "stylesheets/extra.css",
+                "stylesheets/landing-cover.css",
+                "stylesheets/landing-shell.css",
+            ],
+        )
 
     def test_portal_metadata_matches_the_integrated_site(self) -> None:
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")

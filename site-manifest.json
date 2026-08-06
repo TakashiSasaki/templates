@@ -12,6 +12,12 @@
       "destination": "index.md"
     },
     {
+      "title": "Portal overview",
+      "publication": "site",
+      "document": "portal-overview",
+      "destination": "overview/index.md"
+    },
+    {
       "title": "Skill",
       "children": [
         {
