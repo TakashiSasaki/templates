@@ -14,6 +14,8 @@ from scripts.prepare_repository_tree_publication import (
 )
 
 
+ROOT = Path(__file__).resolve().parents[1]
+MAINTENANCE = ROOT / "MAINTENANCE.md"
 REPOSITORY = "TakashiSasaki/templates"
 
 
@@ -140,6 +142,8 @@ class WebappTemplateTreeTests(unittest.TestCase):
             self.assertIn("manifest.json", page)
             self.assertIn("/templates/webapp/", page)
             self.assertNotIn("GENERATED_WEBAPP_TEMPLATE_TREE", page)
+            self.assertNotIn("repository-file-viewer", page)
+            self.assertNotIn("repository-file-preview-link", page)
             self.assertIn("Web application copyable template", index)
             self.assertIn(revision, index)
             self.assertNotIn("GENERATED_WEBAPP_TEMPLATE_SUMMARY", index)
@@ -178,6 +182,25 @@ class WebappTemplateTreeTests(unittest.TestCase):
             "Web application copyable template",
             WEBAPP_TEMPLATE_NAVIGATION["title"],
         )
+
+    def test_maintenance_documents_the_copyable_tree_pipeline(self) -> None:
+        maintenance = MAINTENANCE.read_text(encoding="utf-8")
+
+        self.assertRegex(
+            maintenance,
+            r"exactly five generated\s+document declarations",
+        )
+        self.assertIn("`repository-trees/webapp/template.md`", maintenance)
+        self.assertIn("does not receive an inline preview panel", maintenance)
+
+        commands = (
+            "python site/scripts/generate_repository_trees.py",
+            "python site/scripts/generate_webapp_template_tree.py",
+            "python site/scripts/generate_repository_file_previews.py",
+            "zensical build",
+        )
+        positions = [maintenance.index(command) for command in commands]
+        self.assertEqual(sorted(positions), positions)
 
 
 if __name__ == "__main__":
