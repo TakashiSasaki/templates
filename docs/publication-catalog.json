@@ -6,6 +6,11 @@
       "source": "docs/index.md",
       "optional": false,
       "home": true
+    },
+    {
+      "id": "portal-overview",
+      "source": "docs/overview.md",
+      "optional": false
     }
   ]
 }
