@@ -39,14 +39,11 @@ jobs:
       - name: Test reduced profile layouts
         run: ruby .github/scripts/test-minimal-profile-layouts.rb
 
-      - name: Test canonical template adoption
-        run: ruby .github/scripts/test-template-adoption.rb
+      - name: Test clean-room template adoption and installation
+        run: ruby .github/scripts/test-copyable-template-consumption.rb
 
       - name: Test concrete skill completion hygiene
         run: ruby .github/scripts/test-concrete-skill-completion.rb
-
-      - name: Test clone, submodule, and archive installation
-        run: ruby .github/scripts/test-installation-modes.rb
 
       - name: Test parent-owned archive vendoring
         run: ruby .github/scripts/test-parent-owned-vendoring.rb
