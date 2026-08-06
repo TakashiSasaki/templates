@@ -51,10 +51,6 @@ jobs:
         shell: bash
         run: ruby .github/scripts/validate-publication-catalog.rb
 
-      - name: Validate transitional source scaffold
-        shell: bash
-        run: ruby .github/scripts/validate-skill-repository.rb
-
       - name: Reject committed secret assignments
         shell: bash
         run: |
