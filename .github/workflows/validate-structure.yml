@@ -41,6 +41,7 @@ jobs:
         run: |
           ruby .github/scripts/validate-skill-repository.rb template
           ruby template/.github/scripts/test-template-baseline.rb
+          python template/.github/scripts/test_template_baseline.py
 
       - name: Audit restructuring completion
         shell: bash
