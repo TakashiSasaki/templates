@@ -8,7 +8,8 @@ docs_dir = "docs"
 site_dir = "site"
 extra_css = [
   "stylesheets/extra.css",
-  "stylesheets/landing-cover.css"
+  "stylesheets/landing-cover.css",
+  "stylesheets/landing-shell.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
