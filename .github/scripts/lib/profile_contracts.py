@@ -42,10 +42,10 @@ class ValuePolicy:
     )
     _TODO_OR_UNSELECTED = re.compile(r"\b(?:TODO|UNSELECTED)\b", re.IGNORECASE)
     _NOT_CONCRETE = re.compile(
-        r"^(?:NONE|NOT (?:SUPPORTED|APPLICABLE))$", re.IGNORECASE
+        r"^(?:NONE|NOT\s+(?:SUPPORTED|APPLICABLE))$", re.IGNORECASE
     )
     _NOT_RESOLVED_ALLOWING_UNSUPPORTED = re.compile(
-        r"^(?:NONE|NOT APPLICABLE)$", re.IGNORECASE
+        r"^(?:NONE|NOT\s+APPLICABLE)$", re.IGNORECASE
     )
 
     @staticmethod
@@ -148,7 +148,7 @@ class MarkdownDocument:
                 break
 
         body = "\n".join(self.lines[start:end])
-        if start < len(self.lines):
+        if body:
             body += "\n"
         return body
 
