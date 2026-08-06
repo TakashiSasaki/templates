@@ -1,9 +1,11 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every webapp top-level entry after introducing the copyable template projection.",
+  "status": "implemented",
+  "purpose": "Classify every webapp top-level entry under the implemented source and copyable-distribution architecture.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
+  "maintainerLayout": "all source-only paths remain outside template; a dedicated maintainer directory is not required",
   "topLevelClassification": {
     "distribution": [
       "template"
@@ -35,6 +37,6 @@
     "The contents of template are copied byte-for-byte to a product repository root.",
     "No required reference below template may escape template.",
     "Publication integration and source-only conformance fixtures remain outside template.",
-    "Clean-room product conformance starts from template rather than the complete branch root."
+    "All implementation, release-evidence, and release-bundle clean-room stages start from template rather than the complete branch root."
   ]
 }

@@ -50,6 +50,12 @@
       "home": false
     },
     {
+      "id": "distribution-readiness-audit",
+      "source": "docs/architecture/distribution-readiness-audit.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "final-readiness-audit",
       "source": "docs/architecture/final-readiness-audit.md",
       "optional": false,
