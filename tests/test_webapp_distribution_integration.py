@@ -69,20 +69,25 @@ class WebappDistributionIntegrationTests(unittest.TestCase):
         self.assertIn("`template/` subtree", page)
         self.assertIn("GENERATED_REPOSITORY_TREE:webapp", page)
 
-    def test_completed_webapp_distribution_remains_locked_during_skill_suspension(self) -> None:
+    def test_completed_distributions_remain_locked_after_pages_restoration(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertEqual(FINAL_WEBAPP_REVISION, source_lock["publications"]["webapp"]["revision"])
-        self.assertEqual("suspended", state["status"])
+        self.assertEqual(
+            FINAL_WEBAPP_REVISION,
+            source_lock["publications"]["webapp"]["revision"],
+        )
+        self.assertEqual("active", state["status"])
         self.assertIn("skill", state["reason"])
-        self.assertNotIn("actions/configure-pages@", workflow)
-        self.assertNotIn("actions/deploy-pages@", workflow)
-        self.assertNotIn("pages: write", workflow)
-        self.assertNotIn("id-token: write", workflow)
-        self.assertNotIn("name: github-pages", workflow)
+        self.assertIn("actions/configure-pages@v6", workflow)
+        self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertIn("pages: write", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("name: github-pages", workflow)
+        self.assertIn("github.event_name == 'push'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
+        self.assertNotIn("github.event.repository.default_branch", workflow)
 
 
 if __name__ == "__main__":
