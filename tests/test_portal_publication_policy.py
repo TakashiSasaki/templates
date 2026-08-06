@@ -9,6 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTAL_HOME = ROOT / "docs/index.md"
+PORTAL_OVERVIEW = ROOT / "docs/overview.md"
 README = ROOT / "README.md"
 PUBLISHING_POLICY = ROOT / "PUBLISHING.md"
 SITE_MANIFEST = ROOT / "site-manifest.json"
@@ -24,23 +25,31 @@ def iter_pages(nodes: list[dict[str, Any]]):
 
 
 class PortalPublicationPolicyTests(unittest.TestCase):
-    def test_portal_home_is_reader_oriented_and_exposes_all_publications(self) -> None:
+    def test_portal_cover_is_reader_oriented_and_exposes_all_publications(self) -> None:
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
+        self.assertIn('href="overview/"', portal)
         for destination in ("skill/", "policy/", "webapp/"):
             with self.subTest(destination=destination):
                 self.assertIn(f'href="{destination}"', portal)
         for label in ("Skill", "Policy", "Web application"):
             with self.subTest(label=label):
-                self.assertIn(f'class="portal-card__label">{label}</span>', portal)
-        self.assertIn("explicit allowlist", portal)
-        self.assertIn("full 40-character commit SHAs", portal)
-        self.assertIn("build-provenance.json", portal)
-        self.assertIn("Machine-readable contracts and schemas", portal)
+                self.assertIn(
+                    f'class="portal-domain-card__label">{label}</span>',
+                    portal,
+                )
+
+    def test_portal_overview_preserves_publication_policy_explanation(self) -> None:
+        overview = PORTAL_OVERVIEW.read_text(encoding="utf-8")
+
+        self.assertIn("explicit allowlists", overview)
+        self.assertIn("full 40-character commit SHAs", overview)
+        self.assertIn("build-provenance.json", overview)
+        self.assertIn("Machine-readable contracts and schemas", overview)
 
     def test_portal_and_policy_include_all_top_level_entry_points(self) -> None:
         policy = " ".join(PUBLISHING_POLICY.read_text(encoding="utf-8").split())
-        portal = " ".join(PORTAL_HOME.read_text(encoding="utf-8").split())
+        overview = " ".join(PORTAL_OVERVIEW.read_text(encoding="utf-8").split())
 
         self.assertIn(
             "- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;",
@@ -48,7 +57,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         )
         self.assertIn(
             "under `/skill/`, `/policy/`, and `/webapp/`.",
-            portal,
+            overview,
         )
 
     def test_policy_does_not_render_site_only_as_a_list_item(self) -> None:
@@ -58,7 +67,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertNotIn("\n-only deployment boundary", raw_policy)
         self.assertIn("`site`-only deployment boundary", normalized_policy)
 
-    def test_integrated_navigation_has_stable_provider_entry_points(self) -> None:
+    def test_integrated_navigation_has_stable_portal_and_provider_entry_points(self) -> None:
         manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
         pages = list(iter_pages(manifest["navigation"]))
         indexed = {
@@ -66,11 +75,17 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             for page in pages
         }
 
+        self.assertEqual(indexed[("site", "portal-home")], "index.md")
+        self.assertEqual(
+            indexed[("site", "portal-overview")],
+            "overview/index.md",
+        )
         self.assertEqual(indexed[("skill", "overview")], "skill/index.md")
         self.assertEqual(indexed[("policy", "overview")], "policy/index.md")
         self.assertEqual(indexed[("webapp", "overview")], "webapp/index.md")
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]
+        self.assertIn("Portal overview", top_level_titles)
         self.assertIn("Skill", top_level_titles)
         self.assertIn("Policy", top_level_titles)
         self.assertIn("Web application", top_level_titles)
