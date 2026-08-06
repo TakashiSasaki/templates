@@ -140,6 +140,14 @@ jobs:
             --publication policy=policy-source \
             --publication webapp=webapp-source
 
+      - name: Generate Skill copyable template tree
+        run: |
+          python site-source/scripts/generate_skill_template_tree.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-root site-publication \
+            --output-root build \
+            --skill-root skill-source
+
       - name: Generate Webapp copyable template tree
         run: |
           python site-source/scripts/generate_webapp_template_tree.py \
@@ -186,6 +194,7 @@ jobs:
           test -f build/site/webapp/index.html
           test -f build/site/repository-trees/index.html
           test -f build/site/repository-trees/skill/index.html
+          test -f build/site/repository-trees/skill/template/index.html
           test -f build/site/repository-trees/policy/index.html
           test -f build/site/repository-trees/webapp/index.html
           test -f build/site/repository-trees/webapp/template/index.html
@@ -203,8 +212,10 @@ jobs:
               )"
             fi
           done
-          grep --fixed-strings -- 'Copyable root:' \
-            build/site/repository-trees/webapp/template/index.html
+          for copyable in skill webapp; do
+            grep --fixed-strings -- 'Copyable root:' \
+              "build/site/repository-trees/${copyable}/template/index.html"
+          done
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html
