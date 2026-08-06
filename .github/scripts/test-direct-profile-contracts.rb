@@ -27,12 +27,12 @@ if orchestrator_text.include?("decomposed-interface-compat") || orchestrator_tex
 end
 
 canonical_validation_docs = {
-  "AGENTS.md" => [
+  "template/AGENTS.md" => [
     "Run the supported profile-aware validation entry point:",
     "focused direct validators and shared-model rule validators",
     "Some focused validators retain bounded contract-specific Markdown parsing"
   ],
-  "README.md" => [
+  "template/README.md" => [
     "Run the supported profile-aware validation entry point:",
     "focused direct validators and shared-model rule validators",
     "Some focused direct validators retain their own bounded Markdown parsing"
@@ -41,7 +41,7 @@ canonical_validation_docs = {
     "Run the supported profile-aware validation entry point:",
     "This fixture matrix is the stable baseline"
   ],
-  "docs/skill-profiles.md" => [
+  "template/docs/skill-profiles.md" => [
     "Run the supported profile-aware validation entry point:",
     "focused direct validators and shared-model rule validators",
     "Focused validators may retain bounded parser logic"
