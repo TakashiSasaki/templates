@@ -72,6 +72,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-cli-structured-output-contract.rb
 
+      - name: Test Ruby and Python CLI validator parity
+        shell: bash
+        run: python .github/scripts/test_python_cli_contract_parity.py
+
       - name: Test MCP runtime-authority declaration
         shell: bash
         run: ruby .github/scripts/test-mcp-runtime-authority.rb
