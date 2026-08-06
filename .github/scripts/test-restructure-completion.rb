@@ -131,11 +131,11 @@ boundary = ROOT.join("docs/architecture/distribution-boundary.md").read(encoding
 ].each do |snippet|
   failures << "distribution boundary omits completion statement: #{snippet.inspect}" unless boundary.include?(snippet)
 end
-%w[
-  "future `template/`"
-  "After this migration"
-  "Until the structural migration is merged"
-  "The future `template/` tree"
+[
+  "future `template/`",
+  "After this migration",
+  "Until the structural migration is merged",
+  "The future `template/` tree",
   "The intended source layout"
 ].each do |stale|
   failures << "distribution boundary retains transitional wording: #{stale.inspect}" if boundary.include?(stale)
