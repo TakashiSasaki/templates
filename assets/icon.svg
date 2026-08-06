@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Templates portal</title>
+  <rect width="512" height="512" rx="112" fill="#3f51b5"/>
+  <rect x="126" y="132" width="238" height="274" rx="34" fill="#c5cae9" opacity="0.55"/>
+  <path d="M148 104h164l76 76v222c0 20-16 36-36 36H148c-20 0-36-16-36-36V140c0-20 16-36 36-36Z" fill="#ffffff"/>
+  <path d="M312 104v58c0 20 16 36 36 36h40Z" fill="#e8eaf6"/>
+  <path d="M312 104 388 180" fill="none" stroke="#c5cae9" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="none" stroke="#3f51b5" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M196 222v118"/>
+    <path d="M196 264h96"/>
+    <path d="M196 340h96"/>
+  </g>
+  <g fill="#3f51b5">
+    <circle cx="196" cy="222" r="18"/>
+    <circle cx="196" cy="340" r="18"/>
+    <circle cx="292" cy="264" r="18"/>
+    <circle cx="292" cy="340" r="18"/>
+  </g>
+</svg>
