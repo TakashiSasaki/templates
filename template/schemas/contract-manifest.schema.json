@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "versionHistory",
+    "contracts",
+    "retiredContracts"
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?![\\s\\S])"
+    },
+    "migrationSlug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(?![\\s\\S])",
+      "not": {
+        "const": "contract-manifest"
+      }
+    },
+    "documentPath": {
+      "type": "string",
+      "pattern": "^contracts/[a-z][a-z0-9-]*\\.json(?![\\s\\S])"
+    },
+    "schemaPath": {
+      "type": "string",
+      "pattern": "^schemas/[a-z][a-z0-9-]*\\.schema\\.json(?![\\s\\S])"
+    },
+    "migrationPath": {
+      "type": "string",
+      "pattern": "^docs/migrations/[a-z][a-z0-9-]*-v[1-9][0-9]*-to-v[1-9][0-9]*\\.md(?![\\s\\S])"
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "initialVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "changeType"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "changeType": {
+          "const": "initial"
+        }
+      }
+    },
+    "transitionVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "changeType",
+        "migration"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "changeType": {
+          "enum": [
+            "additive",
+            "breaking"
+          ]
+        },
+        "migration": {
+          "$ref": "#/$defs/migrationPath"
+        }
+      }
+    },
+    "versionHistory": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/initialVersion"
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/transitionVersion"
+      }
+    },
+    "activeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document",
+        "schema",
+        "migrationSlug",
+        "documentSchemaVersion",
+        "versionHistory",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "document": {
+          "$ref": "#/$defs/documentPath"
+        },
+        "schema": {
+          "$ref": "#/$defs/schemaPath"
+        },
+        "migrationSlug": {
+          "$ref": "#/$defs/migrationSlug"
+        },
+        "documentSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "versionHistory": {
+          "$ref": "#/$defs/versionHistory"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
+    },
+    "retiredContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document",
+        "schema",
+        "migrationSlug",
+        "lastDocumentSchemaVersion",
+        "retiredVersion",
+        "versionHistory",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "document": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/documentPath"
+            },
+            {
+              "not": {
+                "const": "contracts/manifest.json"
+              }
+            }
+          ]
+        },
+        "schema": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/schemaPath"
+            },
+            {
+              "not": {
+                "const": "schemas/contract-manifest.schema.json"
+              }
+            }
+          ]
+        },
+        "migrationSlug": {
+          "$ref": "#/$defs/migrationSlug"
+        },
+        "lastDocumentSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retiredVersion": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "versionHistory": {
+          "$ref": "#/$defs/versionHistory"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonBlankText"
+        }
+      }
+    }
+  },
+  "properties": {
+    "$schema": {
+      "const": "../schemas/contract-manifest.schema.json"
+    },
+    "schemaVersion": {
+      "const": 2
+    },
+    "versionHistory": {
+      "$ref": "#/$defs/versionHistory"
+    },
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/activeContract"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "id",
+              "document",
+              "schema"
+            ],
+            "properties": {
+              "id": {
+                "const": "surfaces"
+              },
+              "document": {
+                "const": "contracts/surfaces.json"
+              },
+              "schema": {
+                "const": "schemas/surfaces.schema.json"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "id",
+              "document",
+              "schema"
+            ],
+            "properties": {
+              "id": {
+                "const": "routes"
+              },
+              "document": {
+                "const": "contracts/routes.json"
+              },
+              "schema": {
+                "const": "schemas/routes.schema.json"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "id",
+              "document",
+              "schema"
+            ],
+            "properties": {
+              "id": {
+                "const": "ui_states"
+              },
+              "document": {
+                "const": "contracts/ui-states.json"
+              },
+              "schema": {
+                "const": "schemas/ui-states.schema.json"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "id",
+              "document",
+              "schema"
+            ],
+            "properties": {
+              "id": {
+                "const": "viewports"
+              },
+              "document": {
+                "const": "contracts/viewports.json"
+              },
+              "schema": {
+                "const": "schemas/viewports.schema.json"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "retiredContracts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/retiredContract"
+      }
+    }
+  }
+}
