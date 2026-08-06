@@ -40,13 +40,11 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         portal = " ".join(PORTAL_HOME.read_text(encoding="utf-8").split())
 
         self.assertIn(
-            "- `/templates/`, `/templates/skill/`, `/templates/policy/`, and "
-            "`/templates/webapp/` are reachable;",
+            "- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;",
             policy,
         )
         self.assertIn(
-            "under `/templates/skill/`, `/templates/policy/`, and "
-            "`/templates/webapp/`.",
+            "under `/skill/`, `/policy/`, and `/webapp/`.",
             portal,
         )
 
@@ -105,6 +103,12 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("obsolete `main` authorization has been removed", policy)
         self.assertIn("Do not broaden the environment to all branches", policy)
         self.assertIn("Pull requests cannot change this setting", readme)
+        self.assertIn(
+            "`https://templates.moukaeritai.work/` is the configured Pages base URL",
+            policy,
+        )
+        self.assertIn("HTTPS enforcement is enabled", policy)
+        self.assertIn("https://templates.moukaeritai.work/", readme)
 
 
 if __name__ == "__main__":
