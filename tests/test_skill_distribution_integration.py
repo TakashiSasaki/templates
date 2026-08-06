@@ -25,7 +25,8 @@ class SkillDistributionIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(FINAL_SKILL_REVISION, state["locked_skill_revision"])
         self.assertRegex(FINAL_SKILL_REVISION, r"\A[0-9a-f]{40}\Z")
-        self.assertEqual("suspended", state["status"])
+        self.assertEqual("active", state["status"])
+        self.assertIn("skill", state["reason"])
 
     def test_repository_tree_pages_distinguish_source_and_distribution(self) -> None:
         source_page = SOURCE_TREE_PAGE.read_text(encoding="utf-8")
