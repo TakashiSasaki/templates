@@ -34,10 +34,12 @@ copy_source = lambda do |target|
   end
 end
 
-expect_failure = lambda do |label, expected|
+expect_failure = lambda do |label, expected, &mutation|
+  raise ArgumentError, "negative test mutation is required" unless mutation
+
   Dir.mktmpdir("skill-distribution-negative") do |temporary|
     copy_source.call(temporary)
-    yield temporary
+    mutation.call(temporary)
     Open3.capture3("git", "add", "-A", chdir: temporary)
     stdout, stderr, status = run_validator.call(temporary)
     failures << "#{label}: validation unexpectedly succeeded: #{stdout.inspect}" if status.success?
