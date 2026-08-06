@@ -11,7 +11,7 @@ SITE_MANIFEST = ROOT / "site-manifest.json"
 TREE_PAGE = ROOT / "docs/repository-trees/webapp.md"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
-FINAL_WEBAPP_REVISION = "5be45deadec531b548cca7456cd8f02374cce2bf"
+FINAL_WEBAPP_REVISION = "1671c5b503377b87d157aeaa714bdf7c43797dc9"
 
 
 def navigation_pages(nodes: list[object]) -> dict[tuple[str, str], dict[str, object]]:
