@@ -133,8 +133,18 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_core_profile_contracts.py",
+      "destination": ".github/scripts/validate_core_profile_contracts.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_decomposed_interface_contracts.py",
       "destination": ".github/scripts/validate_decomposed_interface_contracts.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_extended_profile_contracts.py",
+      "destination": ".github/scripts/validate_extended_profile_contracts.py",
       "exclude": []
     },
     {

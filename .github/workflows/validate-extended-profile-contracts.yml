@@ -100,6 +100,10 @@ jobs:
         shell: bash
         run: python .github/scripts/test_python_bundled_mcp_validator_parity.py
 
+      - name: Test core/extended Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_core_extended_validator_parity.py
+
       - name: Test MCP runtime-authority declaration
         shell: bash
         run: ruby .github/scripts/test-mcp-runtime-authority.rb
