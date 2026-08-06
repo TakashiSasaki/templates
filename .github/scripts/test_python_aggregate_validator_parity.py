@@ -11,6 +11,8 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from validate_review_followup_contracts import _is_executable_root_file
+
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
@@ -157,7 +159,7 @@ def run() -> int:
             source=".github/fixtures/profiles/packaged-cli",
             replacements={
                 "SKILL.md": (
-                    "name: deterministic-text-statistics-cli",
+                    "name: text-stat-cli",
                     "name: Invalid_Name",
                 )
             },
@@ -166,6 +168,15 @@ def run() -> int:
     ]
 
     failures: list[str] = []
+    if _is_executable_root_file(Path("README.md"), platform_name="nt"):
+        failures.append(
+            "Windows executable classification treated README.md as executable"
+        )
+    if not _is_executable_root_file(Path("launcher.cmd"), platform_name="nt"):
+        failures.append(
+            "Windows executable classification did not recognize launcher.cmd"
+        )
+
     for case in cases:
         for validator, (ruby_command, python_command) in VALIDATORS.items():
             ruby_result = _run(ruby_command, validator, case)

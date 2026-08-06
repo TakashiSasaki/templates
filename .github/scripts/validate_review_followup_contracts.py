@@ -25,6 +25,19 @@ SOURCE_EXTENSIONS = {
     ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".m", ".mm", ".dart",
     ".groovy", ".gradle", ".bats", ".feature", ".t",
 }
+WINDOWS_EXECUTABLE_EXTENSIONS = {".com", ".exe", ".bat", ".cmd"}
+
+
+def _is_executable_root_file(
+    path: Path,
+    *,
+    platform_name: str = os.name,
+) -> bool:
+    """Apply portable executable semantics without Windows os.access false positives."""
+
+    if platform_name == "nt":
+        return path.suffix.casefold() in WINDOWS_EXECUTABLE_EXTENSIONS
+    return os.access(path, os.X_OK)
 
 
 def _extract_path(value: object | None) -> str | None:
@@ -63,7 +76,7 @@ def run() -> int:
         path
         for path in repository.root_files()
         if Path(path).suffix.lower() in SOURCE_EXTENSIONS
-        or os.access(repository.root / path, os.X_OK)
+        or _is_executable_root_file(repository.root / path)
     ]
 
     if selection.template_scaffold():
