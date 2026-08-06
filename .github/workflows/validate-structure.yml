@@ -18,6 +18,10 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-distribution-boundary.rb
 
+      - name: Test copyable Skill distribution
+        shell: bash
+        run: ruby .github/scripts/test-skill-distribution.rb
+
       - name: Test GitHub Pages deployment boundary
         shell: bash
         run: ruby .github/scripts/test-pages-deployment-boundary.rb
