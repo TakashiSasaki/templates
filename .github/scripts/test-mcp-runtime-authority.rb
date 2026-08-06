@@ -5,7 +5,18 @@ require "open3"
 require "rbconfig"
 require "tmpdir"
 
-validator = File.expand_path("validate-mcp-runtime-authority.rb", __dir__)
+validators = [
+  [
+    "Ruby",
+    { "RUBYOPT" => nil },
+    [RbConfig.ruby, File.expand_path("validate-mcp-runtime-authority.rb", __dir__)]
+  ],
+  [
+    "Python",
+    {},
+    [ENV.fetch("PYTHON", "python"), File.expand_path("validate_mcp_runtime_authority.py", __dir__)]
+  ]
+].freeze
 label = "Runtime, SDK, revision, era boundary, and schema source of truth"
 
 contract = lambda do |declaration|
@@ -35,15 +46,17 @@ cases.each do |name, mcp_contract, expected_success|
     File.write(File.join(directory, "SKILL.md"), "Selected profiles: mcp-enabled\n")
     File.write(File.join(directory, "MCP_INTERFACE.md"), mcp_contract)
 
-    _stdout, stderr, status = Open3.capture3(
-      { "RUBYOPT" => nil },
-      RbConfig.ruby,
-      validator,
-      chdir: directory
-    )
-    next if status.success? == expected_success
+    validators.each do |implementation, environment, command|
+      _stdout, stderr, status = Open3.capture3(
+        environment,
+        *command,
+        chdir: directory
+      )
+      next if status.success? == expected_success
 
-    failures << "#{name}: expected success=#{expected_success}, got #{status.success?}; diagnostics=#{stderr.strip.inspect}"
+      failures << "#{implementation} #{name}: expected success=#{expected_success}, " \
+                  "got #{status.success?}; diagnostics=#{stderr.strip.inspect}"
+    end
   end
 end
 
@@ -52,4 +65,4 @@ unless failures.empty?
   exit 1
 end
 
-puts "MCP runtime-authority declaration tests passed."
+puts "MCP runtime-authority declaration tests passed for Ruby and Python."
