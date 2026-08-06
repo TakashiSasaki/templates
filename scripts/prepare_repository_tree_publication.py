@@ -220,6 +220,13 @@ def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 
 def prepare(site_root: Path, output_root: Path) -> list[str]:
     site_root = site_root.resolve(strict=True)
+
+    manifest_path = site_root / "site-manifest.json"
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        raise PreparationError(
+            f"site manifest must be a regular file: {manifest_path}"
+        )
+
     output_root = prepare_output_root(output_root, site_root)
 
     docs_source = site_root / "docs"
@@ -237,7 +244,6 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
     shutil.copy2(template_source, output_root / template_source.name)
 
     catalog_path = output_root / "docs/publication-catalog.json"
-    manifest_path = site_root / "site-manifest.json"
     prepared_manifest_path = output_root / "site-manifest.json"
 
     write_json(
