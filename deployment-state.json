@@ -4,7 +4,8 @@
   "reason": "webapp copyable template distribution integrated and validated",
   "restored_after": {
     "webapp_revision": "1671c5b503377b87d157aeaa714bdf7c43797dc9",
-    "site_integration_revision": "552af87fb32e614072ac195e83514e47feaf5c01"
+    "webapp_integration_revision": "552af87fb32e614072ac195e83514e47feaf5c01",
+    "site_pre_restoration_revision": "f372805850848fb4fc05205ebb47d27e5e6b45f6"
   },
   "deployment_boundary": {
     "trigger": "push to refs/heads/site",
