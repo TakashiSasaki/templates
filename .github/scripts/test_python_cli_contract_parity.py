@@ -13,7 +13,10 @@ from pathlib import Path
 SCRIPT_ROOT = Path(__file__).resolve().parent
 VALIDATORS = {
     "Ruby exit-code": ["ruby", str(SCRIPT_ROOT / "validate-cli-exit-code-contract.rb")],
-    "Python exit-code": [sys.executable, str(SCRIPT_ROOT / "validate_cli_exit_code_contract.py")],
+    "Python exit-code": [
+        sys.executable,
+        str(SCRIPT_ROOT / "validate_cli_exit_code_contract.py"),
+    ],
     "Ruby structured-output": [
         "ruby",
         str(SCRIPT_ROOT / "validate-cli-structured-output-contract.rb"),
@@ -164,7 +167,9 @@ def run() -> int:
         ),
     ]
     for case_name, contract in exit_shape_cases:
-        with tempfile.TemporaryDirectory(prefix="python-cli-exit-shape-parity-") as directory:
+        with tempfile.TemporaryDirectory(
+            prefix="python-cli-exit-shape-parity-"
+        ) as directory:
             root = Path(directory)
             _write_skill(root)
             (root / "CLI_INTERFACE.md").write_text(contract, encoding="utf-8")
@@ -181,30 +186,151 @@ def run() -> int:
     structured_cases = [
         ("long option with value", "--output json", "JSON", "contractVersion", True),
         ("boolean JSON flag", "--json", "NDJSON", "metadata.contractVersion", True),
-        ("environment assignment", "SKILL_OUTPUT=json", "JSON", "/metadata/contractVersion", True),
-        ("named environment assignment", "environment variable: SKILL_OUTPUT=json", "JSON", "contractVersion", True),
-        ("named subcommand", "subcommand: export-json", "TOML", "contractVersion", True),
-        ("Apache Avro", "--format avro", "Apache Avro", "metadata.contractVersion", True),
-        ("vendor media type", "--media-type application/vnd.example+json", "application/vnd.example+json", "contractVersion", True),
+        (
+            "environment assignment",
+            "SKILL_OUTPUT=json",
+            "JSON",
+            "/metadata/contractVersion",
+            True,
+        ),
+        (
+            "named environment assignment",
+            "environment variable: SKILL_OUTPUT=json",
+            "JSON",
+            "contractVersion",
+            True,
+        ),
+        (
+            "named subcommand",
+            "subcommand: export-json",
+            "TOML",
+            "contractVersion",
+            True,
+        ),
+        (
+            "Apache Avro",
+            "--format avro",
+            "Apache Avro",
+            "metadata.contractVersion",
+            True,
+        ),
+        (
+            "vendor media type",
+            "--media-type application/vnd.example+json",
+            "application/vnd.example+json",
+            "contractVersion",
+            True,
+        ),
         ("missing selector", None, "JSON", "contractVersion", False),
         ("TODO selector", "TODO", "JSON", "contractVersion", False),
         ("automatic selector", "automatic", "JSON", "contractVersion", False),
-        ("prose selector", "use the structured mode documented elsewhere", "JSON", "contractVersion", False),
-        ("environment name without value", "environment variable: SKILL_OUTPUT", "JSON", "contractVersion", False),
+        (
+            "prose selector",
+            "use the structured mode documented elsewhere",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
+        (
+            "environment name without value",
+            "environment variable: SKILL_OUTPUT",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
         ("TBD named option", "option: TBD", "JSON", "contractVersion", False),
-        ("pending subcommand", "subcommand: pending", "JSON", "contractVersion", False),
-        ("TBD option argument", "--output TBD", "JSON", "contractVersion", False),
-        ("DEFAULT environment value", "SKILL_OUTPUT=DEFAULT", "JSON", "contractVersion", False),
+        (
+            "pending subcommand",
+            "subcommand: pending",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
+        (
+            "TBD option argument",
+            "--output TBD",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
+        (
+            "DEFAULT environment value",
+            "SKILL_OUTPUT=DEFAULT",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
+        (
+            "tabbed NOT SUPPORTED selector",
+            "option: NOT\tSUPPORTED",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
+        (
+            "spaced SEE DOCUMENTATION selector",
+            "option: SEE   DOCUMENTATION",
+            "JSON",
+            "contractVersion",
+            False,
+        ),
         ("plain text", "--output text", "plain text only", "contractVersion", False),
+        (
+            "tabbed plain text",
+            "--output text",
+            "plain\ttext",
+            "contractVersion",
+            False,
+        ),
         ("human readable", "--human", "human readable", "contractVersion", False),
-        ("unstructured", "--output raw", "unstructured output", "contractVersion", False),
-        ("generic custom", "--output custom", "custom", "contractVersion", False),
-        ("missing version field", "--json", "JSON", "no version field", False),
-        ("prose version field", "--json", "JSON", "the version field in metadata", False),
+        (
+            "unstructured",
+            "--output raw",
+            "unstructured output",
+            "contractVersion",
+            False,
+        ),
+        (
+            "generic custom",
+            "--output custom",
+            "custom",
+            "contractVersion",
+            False,
+        ),
+        (
+            "tabbed NOT APPLICABLE format",
+            "--json",
+            "NOT\tAPPLICABLE",
+            "contractVersion",
+            False,
+        ),
+        (
+            "missing version field",
+            "--json",
+            "JSON",
+            "no version field",
+            False,
+        ),
+        (
+            "spaced missing version field",
+            "--json",
+            "JSON",
+            "NO\tVERSION  FIELD",
+            False,
+        ),
+        (
+            "prose version field",
+            "--json",
+            "JSON",
+            "the version field in metadata",
+            False,
+        ),
     ]
 
     for case_name, selector, format_name, version_field, expected_success in structured_cases:
-        with tempfile.TemporaryDirectory(prefix="python-cli-structured-parity-") as directory:
+        with tempfile.TemporaryDirectory(
+            prefix="python-cli-structured-parity-"
+        ) as directory:
             root = Path(directory)
             _write_skill(root)
             (root / "CLI_INTERFACE.md").write_text(
