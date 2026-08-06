@@ -54,7 +54,7 @@ Validate the uncustomized copyable Skill root independently:
 
 ```sh
 ruby .github/scripts/validate-skill-repository.rb template
-ruby template/tests/test-template-baseline.rb
+ruby template/.github/scripts/test-template-baseline.rb
 ```
 
 The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, portable paths, adoption, clone, submodule, archive, and parent-owned vendoring behavior.

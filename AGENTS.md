@@ -86,7 +86,7 @@ ruby .github/scripts/test-distribution-boundary.rb
 ruby .github/scripts/test-skill-distribution.rb
 ruby .github/scripts/validate-skill-distribution.rb
 ruby .github/scripts/validate-skill-repository.rb template
-ruby template/tests/test-template-baseline.rb
+ruby template/.github/scripts/test-template-baseline.rb
 ```
 
 Then run all tests proportionate to the affected profiles and source boundaries. Networked or executable profile changes require their real fixture and negative-path evidence, not only Markdown checks.

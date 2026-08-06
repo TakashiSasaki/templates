@@ -23,5 +23,5 @@ jobs:
         run: ruby .github/scripts/validate-skill-repository.rb
 
       - name: Test uncustomized template baseline
-        if: hashFiles('tests/test-template-baseline.rb') != ''
-        run: ruby tests/test-template-baseline.rb
+        if: hashFiles('.github/scripts/test-template-baseline.rb') != ''
+        run: ruby .github/scripts/test-template-baseline.rb

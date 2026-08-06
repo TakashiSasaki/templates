@@ -209,10 +209,10 @@
     }
   ],
   "distribution_owned_files": [
+    ".github/scripts/test-template-baseline.rb",
     ".github/workflows/validate-skill.yml",
     "AGENTS.md",
-    "README.md",
-    "tests/test-template-baseline.rb"
+    "README.md"
   ],
   "forbidden_distribution_paths": [
     ".github/REVIEW_GUIDELINES.md",

@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           ruby .github/scripts/validate-skill-repository.rb template
-          ruby template/tests/test-template-baseline.rb
+          ruby template/.github/scripts/test-template-baseline.rb
 
       - name: Test GitHub Pages deployment boundary
         shell: bash
