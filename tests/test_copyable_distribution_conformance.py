@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import sys
 import unittest
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
@@ -14,21 +12,9 @@ sys.path.insert(0, str(SOURCE_ROOT / "tests"))
 import test_generated_repository_conformance as generated  # noqa: E402
 
 
-@contextmanager
-def _generated_from_distribution() -> Iterator[Path]:
-    """Reuse the reviewed product fixture with only template/ as its source root."""
-
-    original_root = generated.ROOT
-    generated.ROOT = DISTRIBUTION_ROOT
-    try:
-        with generated._generated_repository() as root:
-            yield root
-    finally:
-        generated.ROOT = original_root
-
-
 class CopyableDistributionConformanceTests(unittest.TestCase):
     def test_distribution_starts_in_template_mode(self) -> None:
+        self.assertEqual(DISTRIBUTION_ROOT, generated.DISTRIBUTION_ROOT)
         for relative in (
             "contracts/implementation-evidence.json",
             "contracts/release-evidence.json",
@@ -48,7 +34,7 @@ class CopyableDistributionConformanceTests(unittest.TestCase):
         self.assertEqual("template", source_evidence["mode"])
         self.assertEqual("template", distribution_evidence["mode"])
 
-        with _generated_from_distribution() as root:
+        with generated._generated_repository() as root:
             self.assertFalse((root / ".git").exists())
             self.assertFalse((root / "template").exists())
             self.assertFalse((root / "distribution-manifest.json").exists())
@@ -108,7 +94,7 @@ class CopyableDistributionConformanceTests(unittest.TestCase):
         self.assertFalse((DISTRIBUTION_ROOT / "product").exists())
 
     def test_distribution_fixture_rejects_template_mode_residue(self) -> None:
-        with _generated_from_distribution() as root:
+        with generated._generated_repository() as root:
             evidence_path = root / "contracts/implementation-evidence.json"
             evidence = generated._load_json(evidence_path)
             evidence["mode"] = "template"
