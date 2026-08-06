@@ -178,7 +178,7 @@ The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invokin
 
 `.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
-`.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`, and its deployment job additionally requires:
+`.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`. The metadata, build, and deploy jobs each require:
 
 ```text
 github.repository == TakashiSasaki/templates
@@ -186,19 +186,21 @@ github.event_name == push
 github.ref == refs/heads/site
 ```
 
-Default-branch status is not an authorization input. Changing the default branch therefore cannot authorize deployment from `skill`, `policy`, `webapp`, or another ref.
+The metadata job captures the JST deployment timestamp. The build job invokes the reusable workflow at the exact pushed `site` SHA with `contents: read` only. The final deployment job alone receives `pages: write` and `id-token: write`, owns the `github-pages` environment, configures Pages, and deploys the uploaded artifact.
 
-While `deployment-state.json` is `suspended`, the site-push workflow invokes only the reusable build and contains no Pages/OIDC write permissions, `github-pages` environment, Pages configuration, or deployment action. Restoration requires a separate reviewed `site` pull request.
+Default-branch status is not an authorization input. Changing the default branch therefore cannot authorize deployment from `skill`, `policy`, `webapp`, or another ref. Pull requests run only the reusable build workflow and cannot reach the deployment workflow because its trigger contains only a push to `site`.
 
-Expected behavior while suspended:
+Expected behavior:
 
 | Event | Build artifact | Footer metadata | Pages deployment |
 |---|---:|---|---:|
 | pull request targeting `site` | yes | preview | no |
-| push to `site` | yes | preview | no |
+| push to `site` | yes | JST deployment timestamp | yes |
 | `workflow_call` | yes | preview unless explicitly supplied | no |
 | workflow on a provider branch | branch-local only | not applicable | no |
 | push to any other branch | no site deployment workflow | not applicable | no |
+
+`deployment-state.json` records the active state and the final reviewed Skill revision. `DEPLOYMENT_RESTORATION.md` records the completed gates and restored authority boundary.
 
 ## Dependency updates
 

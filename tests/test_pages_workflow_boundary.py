@@ -70,7 +70,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             workflow,
         )
 
-    def test_site_push_workflow_is_build_only_while_suspended(self) -> None:
+    def test_site_push_workflow_is_the_only_deployment_authority(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
 
@@ -83,30 +83,41 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("workflow_dispatch:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
         self.assertIn("site_ref: ${{ github.sha }}", workflow)
+        self.assertIn("github.repository == 'TakashiSasaki/templates'", workflow)
         self.assertIn("github.event_name == 'push'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
-        self.assertNotIn("actions/configure-pages@", workflow)
-        self.assertNotIn("actions/deploy-pages@", workflow)
-        self.assertNotIn("pages: write", workflow)
-        self.assertNotIn("id-token: write", workflow)
-        self.assertNotIn("name: github-pages", workflow)
-        self.assertNotIn("\n  deploy:\n", workflow)
-        self.assertNotIn("deployment_timestamp", workflow)
 
-    def test_machine_readable_deployment_state_is_suspended_for_skill(self) -> None:
+        self.assertIn("TZ=Asia/Tokyo", workflow)
+        self.assertIn("deployment_timestamp:", workflow)
+        self.assertIn("needs: deployment_metadata", workflow)
+        self.assertIn("needs: build", workflow)
+        self.assertIn("pages: write", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("name: github-pages", workflow)
+        self.assertIn("actions/configure-pages@v6", workflow)
+        self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertIn("\n  deploy:\n", workflow)
+
+        metadata = workflow.index("  deployment_metadata:")
+        build = workflow.index("  build:")
+        deploy = workflow.index("  deploy:")
+        self.assertLess(metadata, build)
+        self.assertLess(build, deploy)
+
+    def test_machine_readable_deployment_state_is_active_for_final_skill(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
 
         self.assertEqual(1, state["schema_version"])
-        self.assertEqual("suspended", state["status"])
+        self.assertEqual("active", state["status"])
         self.assertIn("skill", state["reason"])
         self.assertEqual(
             source_lock["publications"]["skill"]["revision"],
             state["locked_skill_revision"],
         )
         self.assertRegex(state["locked_skill_revision"], r"\A[0-9a-f]{40}\Z")
-        conditions = state["resume_conditions"]
+        conditions = state["completed_conditions"]
         self.assertIsInstance(conditions, list)
         self.assertGreaterEqual(len(conditions), 4)
         self.assertTrue(all(isinstance(value, str) and value for value in conditions))
