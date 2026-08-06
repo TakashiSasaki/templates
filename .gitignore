@@ -1,4 +1,6 @@
 .build/
+build/
+site-publication/
 .venv/
 __pycache__/
 *.py[cod]

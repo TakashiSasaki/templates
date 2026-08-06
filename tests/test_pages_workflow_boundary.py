@@ -37,10 +37,15 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("path: skill-source", workflow)
         self.assertIn("path: policy-source", workflow)
         self.assertIn("path: webapp-source", workflow)
-        self.assertIn("--publication site=site-source", workflow)
+        self.assertIn(
+            "python site-source/scripts/prepare_repository_tree_publication.py",
+            workflow,
+        )
+        self.assertIn("--publication site=site-publication", workflow)
         self.assertIn("--publication skill=skill-source", workflow)
         self.assertIn("--publication policy=policy-source", workflow)
         self.assertIn("--publication webapp=webapp-source", workflow)
+        self.assertNotIn("--publication site=site-source", workflow)
         self.assertNotIn("path: canonical-source", workflow)
 
         source_lock = SOURCE_LOCK.read_text(encoding="utf-8")

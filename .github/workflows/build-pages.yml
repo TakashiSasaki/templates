@@ -114,15 +114,31 @@ jobs:
       - name: Run site assembly tests
         run: PYTHONPATH=site-source python -m unittest discover --start-directory site-source/tests --verbose
 
+      - name: Prepare repository-tree publication
+        run: |
+          python site-source/scripts/prepare_repository_tree_publication.py \
+            --site-root site-source \
+            --output-root site-publication
+
       - name: Assemble the documentation project
         run: |
           python site-source/scripts/assemble_publications.py \
-            --publication site=site-source \
+            --publication site=site-publication \
             --publication skill=skill-source \
             --publication policy=policy-source \
             --publication webapp=webapp-source \
-            --site-root site-source \
+            --site-root site-publication \
             --output-root build
+
+      - name: Generate repository trees
+        run: |
+          python site-source/scripts/generate_repository_trees.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-root site-publication \
+            --output-root build \
+            --publication skill=skill-source \
+            --publication policy=policy-source \
+            --publication webapp=webapp-source
 
       - name: Prepare deployment metadata
         id: site_metadata
@@ -150,6 +166,10 @@ jobs:
           test -f build/site/skill/index.html
           test -f build/site/policy/index.html
           test -f build/site/webapp/index.html
+          test -f build/site/repository-trees/index.html
+          test -f build/site/repository-trees/skill/index.html
+          test -f build/site/repository-trees/policy/index.html
+          test -f build/site/repository-trees/webapp/index.html
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html

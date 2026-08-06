@@ -5,7 +5,7 @@ This file applies only to the unrelated `site` branch.
 ## Branch responsibilities
 
 - `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated-site validation, build provenance, and the only Pages deployment workflow.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated repository-tree inventories, generated-site validation, build provenance, and the only Pages deployment workflow.
 - Generated Markdown and HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
@@ -17,7 +17,7 @@ The four major branches have unrelated histories. Do not merge, rebase, or cherr
 3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
 4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
 5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
-6. Require the integrated documentation build to succeed against the exact locked commits before merging the site pull request.
+6. Require the integrated documentation build, repository-tree generation, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -72,9 +72,51 @@ The assembler enforces these invariants before publication:
 
 Page and section order are public information architecture and must be reviewed as such.
 
+## Repository-tree publication preparation
+
+Repository trees are generated pages, not canonical provider documents.
+`scripts/prepare_repository_tree_publication.py` creates a temporary site
+publication root before assembly. It copies the site-owned documentation
+templates and assets without following symlinks, then adds exactly four generated
+document declarations and one `Repository trees` navigation section:
+
+- `repository-trees/index.md`;
+- `repository-trees/skill.md`;
+- `repository-trees/policy.md`;
+- `repository-trees/webapp.md`.
+
+The canonical `docs/publication-catalog.json` and `site-manifest.json` are not
+modified in place. The temporary declarations are passed through the ordinary
+assembler, so exact catalog-to-navigation coverage and destination validation
+still apply.
+
+The preparation output root may not be a symlink, filesystem root, or a path
+overlapping the canonical site source. A non-empty output directory is replaced
+only when it contains the exact tool-owned marker.
+
+## Repository-tree generation
+
+`scripts/generate_repository_trees.py` runs after assembly and before static-site
+generation. It uses `git ls-tree --full-tree -r -t -z HEAD` for each checked-out
+provider repository. This has the following consequences:
+
+- only tracked Git entries are listed;
+- untracked working-tree files and `.git` administration data are excluded;
+- directory, regular-file, symlink, and gitlink types come from Git metadata;
+- symlinks and gitlinks are displayed but never followed;
+- path text is HTML-escaped and path bytes are percent-encoded in GitHub URLs;
+- directories precede files and each group is sorted deterministically;
+- all GitHub links use the exact full commit returned by `git rev-parse HEAD`;
+- cataloged Markdown receives a Pages link plus an immutable source link;
+- uncataloged files link only to GitHub and their contents are not copied.
+
+Workflow-call revision overrides are reflected in the generated links because
+the generator reads the actual checked-out commit rather than the normal lock
+file value.
+
 ## Assembly output boundary
 
-`scripts/assemble_publications.py` assembles the site publication and all locked provider publications into one temporary Zensical project.
+`scripts/assemble_publications.py` assembles the prepared site publication and all locked provider publications into one temporary Zensical project.
 
 The output root may not be a symlink, filesystem root, current working directory or its ancestor, a regular file, or a path that overlaps any publication root. A pre-existing non-empty output directory is removed only when it contains the assembler-owned `.publication-assembly-root` marker with the expected value. This prevents a mistyped `--output-root` from deleting unrelated data.
 
@@ -84,7 +126,7 @@ Asset traversal explicitly rejects file and directory symlinks before descending
 
 The build validates links after Zensical generates final HTML. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content.
 
-External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content.
+External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository-tree source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
 
 ## Build provenance
 
@@ -107,7 +149,7 @@ The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invokin
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, assembles and strictly builds the portal, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates repository trees, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`, and its deployment job additionally requires:
 
@@ -131,7 +173,7 @@ Expected behavior:
 
 ## Dependency updates
 
-`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, canonical URLs, and link-validation results before merging.
+`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, repository trees, canonical URLs, and link-validation results before merging.
 
 ## Local validation
 
@@ -139,13 +181,23 @@ Check out the four unrelated branches into separate directories at the commits r
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
+python site/scripts/prepare_repository_tree_publication.py \
+  --site-root site \
+  --output-root site-publication
 python site/scripts/assemble_publications.py \
-  --publication site=site \
+  --publication site=site-publication \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp \
-  --site-root site \
+  --site-root site-publication \
   --output-root build
+python site/scripts/generate_repository_trees.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
 python site/scripts/validate_site_links.py \
   --site-root build/site \

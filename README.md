@@ -29,6 +29,7 @@ The `site` branch owns:
 - the global portal home;
 - cross-publication navigation, titles, ordering, and generated destinations;
 - full-commit source locking in `publication-sources.json`;
+- generated repository-tree inventories for the exact checked-out revisions;
 - integrated assembly, strict site generation, link validation, provenance,
   and Pages deployment.
 
@@ -45,17 +46,28 @@ publications:
 - `/templates/webapp/` for Web application templates, evidence, release, and
   migration guidance.
 
+It also provides `/templates/repository-trees/` with complete tracked-path
+inventories for the three provider revisions. Cataloged Markdown files link to
+their Pages documentation; other entries link to GitHub at the exact rendered
+full commit SHA. The inventory does not copy uncataloged file contents into the
+Pages artifact.
+
 Primary navigation prioritizes explanatory Markdown. Explicitly published
 contracts, schemas, and other machine-readable assets remain supporting material
 reachable from their explanatory pages.
 
 ## Key files
 
-- `docs/publication-catalog.json`: the site branch's own portal-home
-  publication;
-- `site-manifest.json`: schema-versioned integrated navigation;
+- `docs/publication-catalog.json`: the canonical site portal publication;
+- `docs/repository-trees/*.md`: reviewed templates for generated tree pages;
+- `site-manifest.json`: canonical integrated navigation before generated
+  inventory augmentation;
 - `publication-sources.json`: reviewed full-SHA provider inputs;
 - `PUBLISHING.md`: normative public-boundary and deployment policy;
+- `scripts/prepare_repository_tree_publication.py`: creates a temporary site
+  publication with validated tree-page catalog and navigation entries;
+- `scripts/generate_repository_trees.py`: generates tracked-path trees and
+  immutable GitHub links from `git ls-tree`;
 - `scripts/assemble_publications.py`: catalog validation and multi-source
   assembly;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
@@ -68,13 +80,23 @@ Check out the four unrelated branches into separate directories, then run:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
+python site/scripts/prepare_repository_tree_publication.py \
+  --site-root site \
+  --output-root site-publication
 python site/scripts/assemble_publications.py \
-  --publication site=site \
+  --publication site=site-publication \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp \
-  --site-root site \
+  --site-root site-publication \
   --output-root build
+python site/scripts/generate_repository_trees.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
 python site/scripts/validate_site_links.py \
   --site-root build/site \
@@ -82,7 +104,9 @@ python site/scripts/validate_site_links.py \
 ```
 
 The checked-out provider commits must match `publication-sources.json` unless a
-reviewed workflow-call override is deliberately being tested.
+reviewed workflow-call override is deliberately being tested. Tree links are
+always generated from the actual checked-out commit, so override builds remain
+internally consistent.
 
 ## Deployment boundary
 

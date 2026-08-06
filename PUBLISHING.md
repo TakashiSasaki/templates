@@ -59,6 +59,32 @@ The following rules apply:
 Adding a file to a provider branch does not publish it. Adding or changing a
 catalog entry is a public-interface change and requires review as such.
 
+## Repository inventory
+
+The integrated site may publish a generated directory-tree inventory for the
+reviewed `skill`, `policy`, and `webapp` checkouts. This inventory is metadata
+about the Git tree and is separate from the publication catalog boundary.
+
+A path appearing in the inventory does not make the file part of the Pages
+publication. The inventory generator must not copy unlisted file contents into
+the Pages artifact. It may provide:
+
+- a human-readable, collapsible view of every tracked path;
+- immutable GitHub links using the full checked-out commit SHA;
+- Pages links for Markdown files that are already cataloged and navigable;
+- entry-type labels for symlinks and gitlinks.
+
+The inventory must be generated from Git tree metadata rather than an
+unrestricted filesystem walk. Untracked files and `.git` administration data
+must not appear. The generator must not follow symlinks or gitlinks, render
+repository HTML or scripts as active content, or use mutable branch names in
+file links.
+
+Repository-tree pages are generated into a prepared site publication before the
+strict static-site build. Their temporary catalog and navigation declarations
+must be validated by the same assembler that validates canonical documentation.
+Generated Markdown and HTML remain build artifacts and must not be committed.
+
 ## Human-readable information architecture
 
 The portal must provide a clear entry point for each major publication:
@@ -66,6 +92,13 @@ The portal must provide a clear entry point for each major publication:
 - `/templates/skill/` for reusable skill and interface contracts;
 - `/templates/policy/` for application-neutral agent policy and operation;
 - `/templates/webapp/` for Web application template contracts and evidence.
+
+It must also provide stable generated inventory entry points:
+
+- `/templates/repository-trees/`;
+- `/templates/repository-trees/skill/`;
+- `/templates/repository-trees/policy/`;
+- `/templates/repository-trees/webapp/`.
 
 Navigation is organized by reader task and conceptual hierarchy rather than by
 repository layout alone. Overview, adoption, operation, architecture, evidence,
@@ -89,6 +122,10 @@ The build artifact contains `build-provenance.json` with:
 - the exact `site` commit;
 - the exact `skill`, `policy`, and `webapp` commits.
 
+Repository-tree links must use the corresponding checked-out provider commit.
+Workflow-call revision overrides therefore produce tree links for the overridden
+commit rather than the normal lock value.
+
 The provenance file identifies deterministic source inputs. It is not a digital
 signature, software bill of materials, or artifact attestation.
 
@@ -108,8 +145,9 @@ A provider publication change uses this sequence:
 6. Update `site-manifest.json` when documents, reader-facing titles, hierarchy,
    order, or generated destinations change.
 7. Build the integrated site against the exact locked commits.
-8. Require tests, strict site generation, entry-point checks, provenance
-   generation, and generated-link validation to pass.
+8. Require tests, repository-tree generation, strict site generation,
+   entry-point checks, provenance generation, and generated-link validation to
+   pass.
 9. Merge the `site` pull request. A push to `site` is the only deployment event.
 
 Provider and `site` changes remain separate pull requests because they have
@@ -141,6 +179,7 @@ verify that:
 - the `site` push workflow completes its build and deploy jobs successfully;
 - `/templates/`, `/templates/skill/`, `/templates/policy/`, and
   `/templates/webapp/` are reachable;
+- all four `/templates/repository-trees/` entry points are reachable;
 - the deployed `build-provenance.json` matches the reviewed lock file.
 
 Do not broaden the environment to all branches as a workaround. The workflow
@@ -154,6 +193,9 @@ A publication update is complete only when all of the following hold:
 - each required catalog document appears exactly once in integrated navigation;
 - unknown and uncataloged documents are not published;
 - required provider entry points are generated;
+- repository inventories cover all tracked entries without following symlinks
+  or gitlinks;
+- repository inventory links use the exact checked-out provider commits;
 - internal links, fragments, assets, and canonical URLs validate;
 - provenance records exact full-SHA inputs;
 - no provider branch can deploy Pages;
