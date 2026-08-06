@@ -149,7 +149,11 @@ def validate(
     if not root_path.is_dir():
         raise ValidationError(f"Repository root does not exist: {root_path}")
 
-    catalog = _read_catalog(Path(catalog_path))
+    resolved_catalog_path = Path(catalog_path).expanduser()
+    if not resolved_catalog_path.is_absolute():
+        resolved_catalog_path = root_path / resolved_catalog_path
+
+    catalog = _read_catalog(resolved_catalog_path)
     _validate_exact_keys(catalog, ROOT_KEYS, "publication catalog")
 
     schema_version = catalog["schema_version"]
