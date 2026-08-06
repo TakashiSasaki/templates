@@ -46,6 +46,10 @@ jobs:
           python .github/scripts/validate_skill_repository.py template
           python template/.github/scripts/test_template_baseline.py
 
+      - name: Audit Python-only validator cutover
+        shell: bash
+        run: python .github/scripts/test_python_template_validator_cutover.py
+
       - name: Audit restructuring completion
         shell: bash
         run: ruby .github/scripts/test-restructure-completion.rb
