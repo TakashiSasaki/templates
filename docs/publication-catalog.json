@@ -9,67 +9,67 @@
     },
     {
       "id": "skill-contract",
-      "source": "SKILL.md",
+      "source": "template/SKILL.md",
       "optional": false,
       "home": false
     },
     {
       "id": "skill-profiles",
-      "source": "docs/skill-profiles.md",
+      "source": "template/docs/skill-profiles.md",
       "optional": false,
       "home": false
     },
     {
       "id": "profile-contract-map",
-      "source": "docs/profile-contract-map.md",
+      "source": "template/docs/profile-contract-map.md",
       "optional": false,
       "home": false
     },
     {
       "id": "runtime-decision-record",
-      "source": "RUNTIME.md",
+      "source": "template/RUNTIME.md",
       "optional": false,
       "home": false
     },
     {
       "id": "interface-routing",
-      "source": "INTERFACES.md",
+      "source": "template/INTERFACES.md",
       "optional": false,
       "home": false
     },
     {
       "id": "packaged-cli-interface",
-      "source": "CLI_INTERFACE.md",
+      "source": "template/CLI_INTERFACE.md",
       "optional": false,
       "home": false
     },
     {
       "id": "mcp-interface",
-      "source": "MCP_INTERFACE.md",
+      "source": "template/MCP_INTERFACE.md",
       "optional": false,
       "home": false
     },
     {
       "id": "human-web-interface",
-      "source": "WEB_INTERFACE.md",
+      "source": "template/WEB_INTERFACE.md",
       "optional": false,
       "home": false
     },
     {
       "id": "architecture",
-      "source": "docs/architecture.md",
+      "source": "template/docs/architecture.md",
       "optional": false,
       "home": false
     },
     {
       "id": "runtime-selection",
-      "source": "docs/runtime-selection.md",
+      "source": "template/docs/runtime-selection.md",
       "optional": false,
       "home": false
     },
     {
       "id": "mcp-transports",
-      "source": "docs/mcp-transports.md",
+      "source": "template/docs/mcp-transports.md",
       "optional": true,
       "home": false
     }

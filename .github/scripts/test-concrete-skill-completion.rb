@@ -9,8 +9,8 @@ require "tmpdir"
 SOURCE_ROOT = File.expand_path("../..", __dir__)
 FIXTURE = File.join(SOURCE_ROOT, ".github/fixtures/profiles/instruction-only")
 VALIDATOR = File.join(SOURCE_ROOT, ".github/scripts/validate-skill-repository.rb")
-CANONICAL_LICENSE_PATH = File.join(SOURCE_ROOT, "LICENSE")
-LICENSE_TEMPLATE_PATH = File.join(SOURCE_ROOT, "LICENSE.template")
+CANONICAL_LICENSE_PATH = File.join(SOURCE_ROOT, "template", "LICENSE")
+LICENSE_TEMPLATE_PATH = File.join(SOURCE_ROOT, "template", "LICENSE.template")
 GIT_ENV = {
   "GIT_DIR" => nil,
   "GIT_INDEX_FILE" => nil,
@@ -32,7 +32,7 @@ LICENSE
 CANONICAL_TEMPLATE_README = <<~MARKDOWN.freeze
   # Language-neutral Agent Skill Template
 
-  This repository is a template for developing a portable Agent Skill whose repository root is intended to become the skill directory itself.
+  This repository is a template for developing a portable Agent Skill. Its root is intended to become the installable Skill directory directly:
 MARKDOWN
 
 CONCRETE_README = <<~MARKDOWN.freeze

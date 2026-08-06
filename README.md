@@ -1,10 +1,10 @@
 # Agent Skill template source repository
 
-This `skill` branch develops and validates a reusable, language-neutral Agent Skill template. The branch root is the template product’s source repository; it is not the directory users should install as a Skill.
+This `skill` branch develops and validates a reusable, language-neutral Agent Skill template. The branch root is the template product’s source repository; it is not an installable Skill directory.
 
 ## Copyable template
 
-The canonical copyable artifact is `template/`. Copy its contents, including hidden files, into an empty destination:
+The canonical user-facing artifact is `template/`. Copy its contents, including hidden files, into an empty destination:
 
 ```sh
 mkdir -p /path/to/new-skill
@@ -25,20 +25,21 @@ The template remains one profile-aware scaffold rather than a collection of mutu
 - Combined profiles retain the union of their required contracts.
 - A concrete Skill removes unsupported optional contracts and resources after copying.
 
-See `template/docs/skill-profiles.md` and `template/docs/profile-contract-map.md` for the consumer-facing rules.
+The consumer-facing contracts, profile definitions, resource placeholders, and concrete-Skill validation guidance exist only under `template/`.
 
 ## Repository areas
 
-- `template/`: copyable Skill-development template and concrete-Skill validators;
-- `distribution-manifest.json`: exact source-to-distribution inventory and byte-preserving mirror contract;
-- `.github/scripts/`: source validators, canonical fixtures, adoption tests, publication checks, and distribution checks;
+- `template/`: the complete copyable Skill-development template;
+- `distribution-manifest.json`: the exact distribution inventory and the bounded validator-source projections copied into `template/.github/scripts/`;
+- `.github/scripts/`: source validators, canonical fixtures, clean-room adoption tests, publication checks, and distribution checks;
 - `.github/fixtures/`: positive, combined-profile, deployment-variant, and negative concrete-Skill evidence;
 - `.github/workflows/`: source-repository CI and build-only documentation compatibility checks;
-- `docs/architecture/`: template-product architecture, distribution boundary, and migration records;
-- `docs/publication-catalog.json`: stable public-document interface consumed by the unrelated `site` branch;
-- `CHANGELOG.md`, `CONTRIBUTING.md`, and root `AGENTS.md`: template-product maintenance material.
+- `docs/architecture/`: template-product architecture and distribution-boundary records;
+- `docs/publication-catalog.json`: stable public-document IDs and canonical sources consumed by the unrelated `site` branch;
+- `docs/publication-maintenance.md`: cross-branch publication maintenance rules;
+- `CHANGELOG.md`, `CONTRIBUTING.md`, root `AGENTS.md`, and root `LICENSE`: template-product maintenance material.
 
-Some root-level contract and resource files remain as byte-authoritative source mirrors during the staged migration. They are inputs to `template/` under `distribution-manifest.json`, not a supported installable Skill root. Later migration phases will reduce or relocate those mirrors after every adoption and installation suite consumes `template/` directly.
+The branch root deliberately contains no `SKILL.md`, runtime contract, interface contract, operational resource directory, or concrete-Skill placeholder. Those files belong to `template/` alone.
 
 ## Validation
 
@@ -57,19 +58,28 @@ ruby .github/scripts/validate-skill-repository.rb template
 ruby template/.github/scripts/test-template-baseline.rb
 ```
 
-The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, portable paths, adoption, clone, submodule, archive, and parent-owned vendoring behavior.
+Validate adoption and installation from a source-independent copy:
+
+```sh
+ruby .github/scripts/test-copyable-template-consumption.rb
+```
+
+The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, clone, submodule, archive, parent-owned vendoring, non-mutating consumption, and space/Unicode path behavior.
 
 ## Publication and deployment
 
-The `skill` branch owns stable publication document IDs and source paths. The unrelated `site` branch owns navigation, full-SHA source locking, assembly, provenance, and GitHub Pages deployment.
+The `skill` branch owns stable publication document IDs and canonical repository-relative source paths. Public consumer contracts resolve below `template/`; the source overview remains `README.md`.
 
-Pages deployment is suspended during this restructuring. Skill pull requests continue to invoke the build-only site compatibility workflow. After the final reviewed Skill merge commit, `site` will lock that full SHA, publish separate complete-source and copyable-template views, pass strict build validation, and restore deployment only in a separate reviewed pull request.
+The unrelated `site` branch owns navigation, full-SHA source locking, assembly, provenance, repository-tree views, and GitHub Pages deployment. Pages deployment is suspended during this restructuring. Skill pull requests continue to invoke the build-only site compatibility workflow.
+
+After the final reviewed Skill merge commit, `site` will lock that full SHA, publish separate complete-source and copyable-template views, pass strict build validation, and restore deployment only in a separate reviewed pull request.
 
 ## Development constraints
 
 - Do not merge, rebase, or cherry-pick unrelated `site`, `policy`, or `webapp` history into `skill`.
 - Preserve the eight profile tags and their composition semantics.
+- Do not reintroduce consumer-facing Skill contracts or resource placeholders at the branch root.
 - Keep concrete-Skill validators in the distribution only when they operate without source-maintainer siblings.
-- Keep fixtures, publication integration, source audits, and template-maintainer tests outside `template/`.
-- Change mirrored source and distribution bytes together; the distribution validator rejects drift, undeclared files, mode changes, symlinks, and maintainer-only leakage.
+- Keep fixtures, publication integration, source audits, review guidance, and template-maintainer tests outside `template/`.
+- Keep each validator projection declared in `distribution-manifest.json` byte- and mode-identical to its source implementation.
 - Treat `template/` as the user-facing artifact and the complete branch as its source and conformance system.
