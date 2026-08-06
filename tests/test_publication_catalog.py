@@ -270,27 +270,123 @@ class PublicationCatalogTests(unittest.TestCase):
                         "assets": [self.valid_asset()],
                     },
                 )
-                with self.assertRaisesRegex(CatalogError, "nested .git subtree"):
+                with self.assertRaisesRegex(CatalogError, "contains a \\.git subtree"):
                     validate_catalog(catalog, root)
 
-    def test_asset_markdown_case_variants_are_rejected(self) -> None:
-        for extension in (".md", ".MD", ".mD"):
-            with self.subTest(extension=extension), tempfile.TemporaryDirectory() as directory:
+    def test_missing_required_document_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            with self.assertRaisesRegex(CatalogError, "not a regular file"):
+                validate_catalog(catalog, root)
+
+    def test_missing_required_asset_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Home\n", encoding="utf-8")
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [self.valid_asset(source="missing-assets")],
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "asset source does not exist"):
+                validate_catalog(catalog, root)
+
+    def test_sensitive_and_windows_ambiguous_paths_are_rejected(self) -> None:
+        cases = (
+            ".git/config.md",
+            ".GIT/config.md",
+            "C:outside.md",
+            "docs/file.md:stream",
+            "../outside.md",
+            "docs//outside.md",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
-                (root / "README.md").write_text("# Home\n", encoding="utf-8")
-                assets = root / "assets"
-                assets.mkdir()
-                (assets / f"hidden{extension}").write_text("# Hidden\n", encoding="utf-8")
                 catalog = self.write_catalog(
                     root,
                     {
-                        "schema_version": 2,
-                        "documents": [self.valid_document()],
-                        "assets": [self.valid_asset()],
+                        "schema_version": 1,
+                        "documents": [self.valid_document(source=source)],
                     },
                 )
-                with self.assertRaisesRegex(CatalogError, "contains Markdown"):
+                with self.assertRaisesRegex(CatalogError, "safe non-empty relative"):
                     validate_catalog(catalog, root)
+
+    def test_document_contract_and_home_invariants_are_rejected(self) -> None:
+        cases: tuple[tuple[str, dict[str, object], str], ...] = (
+            (
+                "invalid document ID",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(document_id="Overview")],
+                },
+                "lowercase kebab-case",
+            ),
+            (
+                "non-Markdown source",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(source="README.txt")],
+                },
+                "Markdown file",
+            ),
+            (
+                "missing home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(home=False)],
+                },
+                "exactly one home",
+            ),
+            (
+                "multiple homes",
+                {
+                    "schema_version": 1,
+                    "documents": [
+                        self.valid_document(),
+                        self.valid_document(
+                            document_id="second",
+                            source="second.md",
+                        ),
+                    ],
+                },
+                "exactly one home",
+            ),
+            (
+                "optional home",
+                {
+                    "schema_version": 1,
+                    "documents": [self.valid_document(optional=True)],
+                },
+                "must not be optional",
+            ),
+        )
+        for label, payload, message in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(root, payload)
+                with self.assertRaisesRegex(CatalogError, message):
+                    validate_catalog(catalog, root)
+
+    def test_unknown_top_level_field_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.write_catalog(
+                root,
+                {
+                    "schema_version": 2,
+                    "documents": [self.valid_document()],
+                    "assets": [],
+                    "unexpected": True,
+                },
+            )
+            with self.assertRaisesRegex(CatalogError, "unsupported top-level fields"):
+                validate_catalog(catalog, root)
 
 
 if __name__ == "__main__":
