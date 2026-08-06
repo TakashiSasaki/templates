@@ -5,8 +5,8 @@ This file applies only to the unrelated `site` branch.
 ## Branch responsibilities
 
 - `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated repository-tree inventories, generated-site validation, build provenance, and the only Pages deployment workflow.
-- Generated Markdown and HTML are temporary build artifacts and must not be committed.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated repository-tree inventories, bounded inline file previews, generated-site validation, build provenance, and the only Pages deployment workflow.
+- Generated Markdown, preview HTML, and final site HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
 
@@ -17,7 +17,7 @@ The four major branches have unrelated histories. Do not merge, rebase, or cherr
 3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
 4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
 5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
-6. Require the integrated documentation build, repository-tree generation, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
+6. Require the integrated documentation build, repository-tree generation, inline-preview generation, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -108,11 +108,38 @@ provider repository. This has the following consequences:
 - directories precede files and each group is sorted deterministically;
 - all GitHub links use the exact full commit returned by `git rev-parse HEAD`;
 - cataloged Markdown receives a Pages link plus an immutable source link;
-- uncataloged files link only to GitHub and their contents are not copied.
+- uncataloged files link only to GitHub and their contents are not copied by the tree generator.
 
 Workflow-call revision overrides are reflected in the generated links because
 the generator reads the actual checked-out commit rather than the normal lock
 file value.
+
+## Inline file-preview generation
+
+`scripts/generate_repository_file_previews.py` runs after repository-tree
+generation and before static-site generation. It uses the object IDs emitted by
+`git ls-tree`, then reads the exact committed blobs with `git cat-file`.
+It does not read preview content through mutable working-tree paths.
+
+A file receives a preview link only when all of the following hold:
+
+- the Git entry is a regular file, not a symlink or gitlink;
+- the blob is at most 256 KiB;
+- the complete blob decodes as strict UTF-8;
+- the decoded text contains no NUL or disallowed control characters;
+- provider candidate and aggregate byte budgets remain within the configured bounds.
+
+The generator HTML-escapes repository text and writes deterministic preview
+pages under `repository-trees/previews/<publication>/<full-sha>/`. Preview pages
+have a restrictive content security policy and are loaded by the repository-tree
+page through an iframe with an empty `sandbox` attribute and
+`referrerpolicy="no-referrer"`. The immutable GitHub source link remains present
+for every file. Binary, oversized, invalid-text, symlink, and gitlink entries
+remain GitHub-only.
+
+`assets/javascripts/repository-tree-viewer.js` updates the shared viewer label,
+source link, and iframe title when a preview link is selected. It does not inject
+repository content into the parent page and does not use `innerHTML`.
 
 ## Assembly output boundary
 
@@ -124,7 +151,7 @@ Asset traversal explicitly rejects file and directory symlinks before descending
 
 ## Generated link integrity
 
-The build validates links after Zensical generates final HTML. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content.
+The build validates links after Zensical generates final HTML. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages.
 
 External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository-tree source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
 
@@ -145,11 +172,11 @@ The file excludes timestamps, workflow run IDs, and mutable refs. It identifies 
 
 The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
 
-`project.site_url` must remain `https://takashisasaki.github.io/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page and rejects duplicate canonical links.
+`project.site_url` must remain `https://takashisasaki.github.io/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links.
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates repository trees, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates repository trees and bounded inline previews, strictly builds the site, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`, and its deployment job additionally requires:
 
@@ -173,7 +200,7 @@ Expected behavior:
 
 ## Dependency updates
 
-`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, repository trees, canonical URLs, and link-validation results before merging.
+`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, repository trees, inline previews, canonical URLs, and link-validation results before merging.
 
 ## Local validation
 
@@ -198,10 +225,17 @@ python site/scripts/generate_repository_trees.py \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
+python site/scripts/generate_repository_file_previews.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
 ```
 
-Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file.
+Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links and preview URLs always use the actual checked-out provider commit.

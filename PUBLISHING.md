@@ -30,6 +30,7 @@ The `site` branch owns:
 - cross-publication titles, hierarchy, ordering, and generated destinations;
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
+- generated repository inventories and bounded inline file previews;
 - generated link, fragment, asset, canonical-URL, and provenance validation;
 - the sole repository workflow authorized to deploy GitHub Pages.
 
@@ -38,26 +39,30 @@ example `policy:overview` or `webapp:implementation-evidence`.
 
 ## Public boundary
 
-Publication catalogs are explicit allowlists. The assembler must not infer that
-a file is public from its directory, extension, Git tracking status, or presence
-in a provider branch.
+Publication catalogs are explicit allowlists for rendered documentation and
+supporting publication assets. The assembler must not infer that a file is a
+published document from its directory, extension, Git tracking status, or
+presence in a provider branch.
 
 The following rules apply:
 
 1. Only Markdown entries in a provider publication catalog are rendered as
-   documents.
-2. Only non-Markdown assets declared by the applicable catalog schema are
-   copied.
+   documentation pages.
+2. Only non-Markdown assets declared by the applicable catalog schema are copied
+   as provider publication assets.
 3. Tests, workflows, scripts, generated output, working notes, and newly added
-   files remain unpublished unless deliberately cataloged.
+   files do not become cataloged documentation merely because they are tracked.
 4. Branch-wide copies and unrestricted glob-based publication are prohibited.
 5. Machine-readable contracts and schemas may be published as supporting
    assets, but the navigation should lead readers through explanatory Markdown.
 6. Catalog paths and asset traversal must reject parent traversal, unsafe path
    forms, `.git` components, and symbolic-link traversal.
+7. Repository inventory previews are a separate, bounded rendering surface and
+   must satisfy every constraint in the following section.
 
-Adding a file to a provider branch does not publish it. Adding or changing a
-catalog entry is a public-interface change and requires review as such.
+Adding a file to a provider branch does not publish it as a cataloged document or
+provider asset. Adding or changing a catalog entry is a public-interface change
+and requires review as such.
 
 ## Repository inventory
 
@@ -66,24 +71,47 @@ reviewed `skill`, `policy`, and `webapp` checkouts. This inventory is metadata
 about the Git tree and is separate from the publication catalog boundary.
 
 A path appearing in the inventory does not make the file part of the Pages
-publication. The inventory generator must not copy unlisted file contents into
-the Pages artifact. It may provide:
+publication as a cataloged document or provider asset. The tree generator must
+not copy unlisted file contents; the separate inline-preview generator may emit
+only the bounded escaped representations defined below.
+
+The inventory may provide:
 
 - a human-readable, collapsible view of every tracked path;
 - immutable GitHub links using the full checked-out commit SHA;
 - Pages links for Markdown files that are already cataloged and navigable;
-- entry-type labels for symlinks and gitlinks.
+- entry-type labels for symlinks and gitlinks;
+- a sandboxed inline frame for eligible regular text files.
 
 The inventory must be generated from Git tree metadata rather than an
 unrestricted filesystem walk. Untracked files and `.git` administration data
-must not appear. The generator must not follow symlinks or gitlinks, render
-repository HTML or scripts as active content, or use mutable branch names in
-file links.
+must not appear. The generators must not follow symlinks or gitlinks. Mutable
+branch names must not be used in generated file links.
 
-Repository-tree pages are generated into a prepared site publication before the
-strict static-site build. Their temporary catalog and navigation declarations
-must be validated by the same assembler that validates canonical documentation.
-Generated Markdown and HTML remain build artifacts and must not be committed.
+### Inline previews
+
+Inline preview generation has a narrower mandatory boundary:
+
+- content is read from the exact Git blob objects named by `git ls-tree`, never
+  from mutable working-tree paths;
+- only regular files that decode as strict UTF-8 text are eligible;
+- NUL bytes, invalid UTF-8, disallowed control characters, binary files,
+  symlinks, and gitlinks are excluded;
+- each preview source is limited to 256 KiB;
+- candidate and aggregate preview byte budgets are enforced before publication;
+- repository markup is HTML-escaped and shown as text rather than rendered as
+  active repository HTML;
+- generated preview pages declare a restrictive content security policy and are
+  loaded through an iframe with the `sandbox` attribute and no permissions;
+- preview URLs include the provider publication and exact checked-out revision;
+- the immutable GitHub source link remains available as the fallback and source
+  of record.
+
+Repository-tree pages and preview HTML are generated into the temporary assembled
+project before the strict static-site build. Temporary catalog and navigation
+declarations must be validated by the same assembler that validates canonical
+documentation. Generated Markdown, preview HTML, and final site HTML remain build
+artifacts and must not be committed.
 
 ## Human-readable information architecture
 
@@ -122,9 +150,9 @@ The build artifact contains `build-provenance.json` with:
 - the exact `site` commit;
 - the exact `skill`, `policy`, and `webapp` commits.
 
-Repository-tree links must use the corresponding checked-out provider commit.
-Workflow-call revision overrides therefore produce tree links for the overridden
-commit rather than the normal lock value.
+Repository-tree links and preview URLs must use the corresponding checked-out
+provider commit. Workflow-call revision overrides therefore produce inventory
+and preview output for the overridden commit rather than the normal lock value.
 
 The provenance file identifies deterministic source inputs. It is not a digital
 signature, software bill of materials, or artifact attestation.
@@ -145,9 +173,9 @@ A provider publication change uses this sequence:
 6. Update `site-manifest.json` when documents, reader-facing titles, hierarchy,
    order, or generated destinations change.
 7. Build the integrated site against the exact locked commits.
-8. Require tests, repository-tree generation, strict site generation,
-   entry-point checks, provenance generation, and generated-link validation to
-   pass.
+8. Require tests, repository-tree generation, inline-preview generation, strict
+   site generation, entry-point checks, provenance generation, and generated-link
+   validation to pass.
 9. Merge the `site` pull request. A push to `site` is the only deployment event.
 
 Provider and `site` changes remain separate pull requests because they have
@@ -180,6 +208,8 @@ verify that:
 - `/templates/`, `/templates/skill/`, `/templates/policy/`, and
   `/templates/webapp/` are reachable;
 - all four `/templates/repository-trees/` entry points are reachable;
+- preview links load the corresponding sandboxed frame without replacing source
+  links;
 - the deployed `build-provenance.json` matches the reviewed lock file.
 
 Do not broaden the environment to all branches as a workaround. The workflow
@@ -191,12 +221,16 @@ conditions and environment policy should independently enforce the same
 A publication update is complete only when all of the following hold:
 
 - each required catalog document appears exactly once in integrated navigation;
-- unknown and uncataloged documents are not published;
+- unknown and uncataloged files are not rendered as cataloged documentation;
 - required provider entry points are generated;
 - repository inventories cover all tracked entries without following symlinks
   or gitlinks;
 - repository inventory links use the exact checked-out provider commits;
-- internal links, fragments, assets, and canonical URLs validate;
+- inline previews are generated only from eligible bounded Git blobs and render
+  escaped text in sandboxed frames;
+- binary, oversized, symlink, gitlink, and invalid-text entries retain GitHub-only
+  fallback behavior;
+- internal links, fragments, assets, preview targets, and canonical URLs validate;
 - provenance records exact full-SHA inputs;
 - no provider branch can deploy Pages;
 - a `site` push successfully deploys the reviewed artifact.

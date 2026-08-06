@@ -19,17 +19,18 @@ Each provider branch owns its public source boundary in
 - its section landing document;
 - explicit non-Markdown asset roots when catalog schema version 2 is used.
 
-The catalog is an explicit allowlist. A branch, directory, file extension, or
-Git tracking status does not implicitly make a file public. Tests, workflows,
-helper scripts, working notes, generated output, and future files remain outside
-the Pages artifact unless deliberately cataloged.
+The catalog is an explicit allowlist for rendered documentation and provider
+assets. Repository inventory previews are a separate bounded surface: they do
+not add files to the documentation catalog and are generated only from eligible
+immutable Git blobs under the constraints in `PUBLISHING.md`.
 
 The `site` branch owns:
 
 - the global portal home;
 - cross-publication navigation, titles, ordering, and generated destinations;
 - full-commit source locking in `publication-sources.json`;
-- generated repository-tree inventories for the exact checked-out revisions;
+- generated repository-tree inventories and sandboxed text previews for the
+  exact checked-out revisions;
 - integrated assembly, strict site generation, link validation, provenance,
   and Pages deployment.
 
@@ -48,9 +49,11 @@ publications:
 
 It also provides `/templates/repository-trees/` with complete tracked-path
 inventories for the three provider revisions. Cataloged Markdown files link to
-their Pages documentation; other entries link to GitHub at the exact rendered
-full commit SHA. The inventory does not copy uncataloged file contents into the
-Pages artifact.
+their Pages documentation. Eligible regular UTF-8 text files up to 256 KiB can
+be opened in a sandboxed inline frame, while every file retains an immutable
+GitHub source link at the exact rendered full commit SHA. Binary, oversized,
+symlink, gitlink, invalid-UTF-8, and control-character inputs remain
+GitHub-only.
 
 Primary navigation prioritizes explanatory Markdown. Explicitly published
 contracts, schemas, and other machine-readable assets remain supporting material
@@ -68,6 +71,10 @@ reachable from their explanatory pages.
   publication with validated tree-page catalog and navigation entries;
 - `scripts/generate_repository_trees.py`: generates tracked-path trees and
   immutable GitHub links from `git ls-tree`;
+- `scripts/generate_repository_file_previews.py`: reads exact Git blob objects,
+  emits escaped static preview pages, and connects them to sandboxed iframes;
+- `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
+  viewer without rendering repository content in the parent document;
 - `scripts/assemble_publications.py`: catalog validation and multi-source
   assembly;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
@@ -97,6 +104,13 @@ python site/scripts/generate_repository_trees.py \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
+python site/scripts/generate_repository_file_previews.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
 python site/scripts/validate_site_links.py \
   --site-root build/site \
@@ -104,9 +118,9 @@ python site/scripts/validate_site_links.py \
 ```
 
 The checked-out provider commits must match `publication-sources.json` unless a
-reviewed workflow-call override is deliberately being tested. Tree links are
-always generated from the actual checked-out commit, so override builds remain
-internally consistent.
+reviewed workflow-call override is deliberately being tested. Tree links and
+preview URLs are always generated from the actual checked-out commit, so
+override builds remain internally consistent.
 
 ## Deployment boundary
 

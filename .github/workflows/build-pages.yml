@@ -140,6 +140,16 @@ jobs:
             --publication policy=policy-source \
             --publication webapp=webapp-source
 
+      - name: Generate inline file previews
+        run: |
+          python site-source/scripts/generate_repository_file_previews.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-root site-publication \
+            --output-root build \
+            --publication skill=skill-source \
+            --publication policy=policy-source \
+            --publication webapp=webapp-source
+
       - name: Prepare deployment metadata
         id: site_metadata
         run: |
@@ -170,6 +180,20 @@ jobs:
           test -f build/site/repository-trees/skill/index.html
           test -f build/site/repository-trees/policy/index.html
           test -f build/site/repository-trees/webapp/index.html
+          for publication in skill policy webapp; do
+            page="build/site/repository-trees/${publication}/index.html"
+            grep --fixed-strings -- 'repository-file-viewer' "$page"
+            if grep --quiet --fixed-strings -- 'repository-file-preview-link' "$page"; then
+              test -n "$(
+                find \
+                  "build/site/repository-trees/previews/${publication}" \
+                  -type f \
+                  -name '*.html' \
+                  -print \
+                  -quit
+              )"
+            fi
+          done
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html
