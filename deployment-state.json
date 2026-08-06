@@ -1,11 +1,12 @@
 {
   "schema_version": 1,
-  "status": "suspended",
-  "reason": "webapp template source and copyable distribution restructuring",
-  "resume_conditions": [
-    "the webapp copyable template distribution is complete and validated",
-    "site is updated to the final reviewed webapp full commit SHA",
-    "the integrated site passes build-only validation against that revision",
-    "a separate reviewed site pull request restores site-only deployment authority"
-  ]
+  "status": "active",
+  "reason": "webapp copyable distribution integration completed and passed suspended build-only validation",
+  "validated_site_revision": "f372805850848fb4fc05205ebb47d27e5e6b45f6",
+  "locked_webapp_revision": "1671c5b503377b87d157aeaa714bdf7c43797dc9",
+  "deployment_authority": {
+    "branch": "site",
+    "workflow": ".github/workflows/deploy-pages.yml",
+    "environment": "github-pages"
+  }
 }
