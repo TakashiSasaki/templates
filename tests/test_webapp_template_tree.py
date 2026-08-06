@@ -183,18 +183,21 @@ class WebappTemplateTreeTests(unittest.TestCase):
             WEBAPP_TEMPLATE_NAVIGATION["title"],
         )
 
-    def test_maintenance_documents_the_copyable_tree_pipeline(self) -> None:
+    def test_maintenance_documents_both_copyable_tree_pipelines(self) -> None:
         maintenance = MAINTENANCE.read_text(encoding="utf-8")
 
         self.assertRegex(
             maintenance,
-            r"exactly five generated\s+document declarations",
+            r"exactly six generated\s+document declarations",
         )
+        self.assertIn("`repository-trees/skill/template.md`", maintenance)
         self.assertIn("`repository-trees/webapp/template.md`", maintenance)
+        self.assertIn("## Skill copyable-template tree generation", maintenance)
         self.assertIn("does not receive an inline preview panel", maintenance)
 
         commands = (
             "python site/scripts/generate_repository_trees.py",
+            "python site/scripts/generate_skill_template_tree.py",
             "python site/scripts/generate_webapp_template_tree.py",
             "python site/scripts/generate_repository_file_previews.py",
             "zensical build",
