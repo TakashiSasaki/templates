@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "source_root": "template",
+  "destination_root": ".",
+  "content_transformation_allowed": false,
+  "required_top_level_entries": [
+    ".github",
+    ".gitignore",
+    "README.md",
+    "TEMPLATE.md",
+    "contracts",
+    "docs",
+    "requirements-dev.lock",
+    "requirements-dev.txt",
+    "schemas",
+    "scripts",
+    "tests"
+  ],
+  "mirrors": [
+    {
+      "source": ".gitignore",
+      "destination": ".gitignore",
+      "exclude": []
+    },
+    {
+      "source": "TEMPLATE.md",
+      "destination": "TEMPLATE.md",
+      "exclude": []
+    },
+    {
+      "source": "contracts",
+      "destination": "contracts",
+      "exclude": []
+    },
+    {
+      "source": "docs",
+      "destination": "docs",
+      "exclude": [
+        "architecture/completion-roadmap.md",
+        "architecture/distribution-boundary.md",
+        "architecture/distribution-classification.json",
+        "architecture/final-readiness-audit.md",
+        "architecture/generated-repository-conformance.md",
+        "publication-catalog.json",
+        "publication-catalog.md"
+      ]
+    },
+    {
+      "source": "requirements-dev.lock",
+      "destination": "requirements-dev.lock",
+      "exclude": []
+    },
+    {
+      "source": "requirements-dev.txt",
+      "destination": "requirements-dev.txt",
+      "exclude": []
+    },
+    {
+      "source": "schemas",
+      "destination": "schemas",
+      "exclude": []
+    },
+    {
+      "source": "scripts",
+      "destination": "scripts",
+      "exclude": [
+        "validate_distribution.py",
+        "validate_publication_catalog.py"
+      ]
+    }
+  ],
+  "distribution_owned_files": [
+    ".github/workflows/contract-validation.yml",
+    "README.md",
+    "tests/test_template_baseline.py"
+  ],
+  "forbidden_distribution_paths": [
+    "docs/architecture/completion-roadmap.md",
+    "docs/architecture/distribution-boundary.md",
+    "docs/architecture/distribution-classification.json",
+    "docs/architecture/final-readiness-audit.md",
+    "docs/architecture/generated-repository-conformance.md",
+    "docs/publication-catalog.json",
+    "docs/publication-catalog.md",
+    "scripts/validate_distribution.py",
+    "scripts/validate_publication_catalog.py"
+  ]
+}

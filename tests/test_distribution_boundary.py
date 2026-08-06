@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path, PurePosixPath
 
@@ -43,6 +45,8 @@ class DistributionBoundaryTests(unittest.TestCase):
             if path.name not in IGNORED_LOCAL_ENTRIES
         )
         self.assertEqual(actual, sorted(classified))
+        self.assertEqual(["template"], classification["distribution"])
+        self.assertIn("distribution-manifest.json", classification["maintainer"])
 
     def test_copy_contract_is_literal_and_uses_safe_relative_roots(self) -> None:
         value = self.load_classification()
@@ -56,7 +60,7 @@ class DistributionBoundaryTests(unittest.TestCase):
         self.assertEqual(
             {
                 "distribution": "template",
-                "maintainer": "maintainer",
+                "maintainer": ".",
                 "publicationInterface": "docs/publication-catalog.json",
             },
             roots,
@@ -83,6 +87,25 @@ class DistributionBoundaryTests(unittest.TestCase):
         ):
             with self.subTest(required_term=required_term):
                 self.assertIn(required_term, combined)
+
+    def test_distribution_validator_passes_both_entry_points(self) -> None:
+        for command in (
+            ("scripts/validate_distribution.py",),
+            ("-m", "scripts.validate_distribution"),
+        ):
+            with self.subTest(command=command):
+                result = subprocess.run(
+                    [sys.executable, *command],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(
+                    0,
+                    result.returncode,
+                    f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+                )
 
 
 if __name__ == "__main__":

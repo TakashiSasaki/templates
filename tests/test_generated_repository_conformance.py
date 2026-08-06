@@ -194,7 +194,7 @@ def _write_json(path: Path, value: object) -> None:
 
 
 def _copy_ignore(_directory: str, names: list[str]) -> set[str]:
-    ignored = {".git", ".venv", ".pytest_cache", "__pycache__"}
+    ignored = {".git", ".venv", ".pytest_cache", "__pycache__", "template"}
     return {name for name in names if name in ignored or name.endswith(".pyc")}
 
 

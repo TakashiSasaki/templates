@@ -10,21 +10,26 @@ ROADMAP = ROOT / "docs/architecture/completion-roadmap.md"
 TOOLCHAIN = ROOT / "docs/architecture/validation-toolchain.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 
-VALIDATOR_COMMANDS = (
-    ".venv/bin/python scripts/validate_contracts.py",
-    ".venv/bin/python -m scripts.validate_contracts",
-    ".venv/bin/python scripts/validate_contract_evolution.py",
-    ".venv/bin/python -m scripts.validate_contract_evolution",
-    ".venv/bin/python scripts/validate_implementation_evidence.py",
-    ".venv/bin/python -m scripts.validate_implementation_evidence",
-    ".venv/bin/python scripts/validate_release_evidence.py",
-    ".venv/bin/python -m scripts.validate_release_evidence",
-    ".venv/bin/python scripts/validate_release_bundle.py",
-    ".venv/bin/python -m scripts.validate_release_bundle",
+SOURCE_VALIDATOR_COMMANDS = (
+    "run: .venv/bin/python scripts/validate_contracts.py",
+    "run: .venv/bin/python -m scripts.validate_contracts",
+    "run: .venv/bin/python scripts/validate_contract_evolution.py",
+    "run: .venv/bin/python -m scripts.validate_contract_evolution",
+    "run: .venv/bin/python scripts/validate_implementation_evidence.py",
+    "run: .venv/bin/python -m scripts.validate_implementation_evidence",
+    "run: .venv/bin/python scripts/validate_release_evidence.py",
+    "run: .venv/bin/python -m scripts.validate_release_evidence",
+    "run: .venv/bin/python scripts/validate_release_bundle.py",
+    "run: .venv/bin/python -m scripts.validate_release_bundle",
+)
+
+DISTRIBUTED_VALIDATOR_COMMANDS = tuple(
+    command.replace("run: .venv/bin/python", "run: ../.venv/bin/python")
+    for command in SOURCE_VALIDATOR_COMMANDS
 )
 
 TOOLCHAIN_VALIDATOR_COMMANDS = tuple(
-    command.replace(".venv/bin/python", "python") for command in VALIDATOR_COMMANDS
+    command.removeprefix("run: .venv/bin/") for command in SOURCE_VALIDATOR_COMMANDS
 )
 
 AUDIT_CRITERIA = (
@@ -43,6 +48,9 @@ AUDIT_CRITERIA = (
 AUDIT_EVIDENCE_PATHS = (
     "TEMPLATE.md",
     ".github/workflows/contract-validation.yml",
+    "distribution-manifest.json",
+    "template/README.md",
+    "template/.github/workflows/contract-validation.yml",
     "contracts/manifest.json",
     "contracts/surfaces.json",
     "contracts/routes.json",
@@ -59,6 +67,7 @@ AUDIT_EVIDENCE_PATHS = (
     "schemas/implementation-evidence.schema.json",
     "schemas/release-evidence.schema.json",
     "schemas/release-bundle.schema.json",
+    "scripts/validate_distribution.py",
     "scripts/validate_contracts.py",
     "scripts/validate_contract_evolution.py",
     "scripts/validate_implementation_evidence.py",
@@ -68,6 +77,7 @@ AUDIT_EVIDENCE_PATHS = (
     "docs/migrations/routes-v1-to-v2.md",
     "docs/migrations/ui-states-v1-to-v2.md",
     "docs/operationalization.md",
+    "docs/architecture/distribution-boundary.md",
     "docs/architecture/responsibility-boundaries.md",
     "docs/architecture/contract-completeness.md",
     "docs/architecture/contract-evolution.md",
@@ -106,16 +116,32 @@ class FinalReadinessAuditTests(unittest.TestCase):
                 self.assertTrue(path.is_file(), f"missing audit evidence: {relative_path}")
                 self.assertFalse(path.is_symlink(), f"symbolic audit evidence: {relative_path}")
 
-    def test_ci_exercises_each_retained_validator_entry_point_once(self) -> None:
+    def test_ci_exercises_source_and_distributed_validator_entry_points_once(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        for command in VALIDATOR_COMMANDS:
+        for command in SOURCE_VALIDATOR_COMMANDS + DISTRIBUTED_VALIDATOR_COMMANDS:
             with self.subTest(command=command):
                 self.assertEqual(1, workflow.count(command))
 
         self.assertEqual(
             1,
-            workflow.count(".venv/bin/python -m unittest discover -s tests -v"),
+            workflow.count(
+                "run: .venv/bin/python -m unittest discover -s tests -v"
+            ),
+        )
+        self.assertEqual(
+            1,
+            workflow.count(
+                "run: ../.venv/bin/python -m unittest discover -s tests -v"
+            ),
+        )
+        self.assertEqual(
+            1,
+            workflow.count("run: .venv/bin/python scripts/validate_distribution.py"),
+        )
+        self.assertEqual(
+            1,
+            workflow.count("run: .venv/bin/python -m scripts.validate_distribution"),
         )
 
     def test_validation_toolchain_documents_all_retained_validator_forms(self) -> None:

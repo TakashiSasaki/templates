@@ -1,30 +1,33 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every current webapp top-level entry before physical source and distribution separation.",
+  "purpose": "Classify every webapp top-level entry after introducing the copyable template projection.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
   "topLevelClassification": {
     "distribution": [
-      ".gitignore",
-      "TEMPLATE.md",
-      "contracts",
-      "requirements-dev.lock",
-      "requirements-dev.txt",
-      "schemas"
+      "template"
     ],
     "split": [
       ".github",
+      ".gitignore",
       "README.md",
+      "TEMPLATE.md",
+      "contracts",
       "docs",
+      "requirements-dev.lock",
+      "requirements-dev.txt",
+      "schemas",
       "scripts",
       "tests"
     ],
-    "maintainer": []
+    "maintainer": [
+      "distribution-manifest.json"
+    ]
   },
   "targetSourceRoots": {
     "distribution": "template",
-    "maintainer": "maintainer",
+    "maintainer": ".",
     "publicationInterface": "docs/publication-catalog.json"
   },
   "requiredSeparationRules": [

@@ -3,19 +3,19 @@
   "documents": [
     {
       "id": "overview",
-      "source": "README.md",
+      "source": "template/README.md",
       "optional": false,
       "home": true
     },
     {
       "id": "template",
-      "source": "TEMPLATE.md",
+      "source": "template/TEMPLATE.md",
       "optional": false,
       "home": false
     },
     {
       "id": "operationalization",
-      "source": "docs/operationalization.md",
+      "source": "template/docs/operationalization.md",
       "optional": false,
       "home": false
     },
@@ -33,13 +33,13 @@
     },
     {
       "id": "contract-completeness",
-      "source": "docs/architecture/contract-completeness.md",
+      "source": "template/docs/architecture/contract-completeness.md",
       "optional": false,
       "home": false
     },
     {
       "id": "contract-evolution",
-      "source": "docs/architecture/contract-evolution.md",
+      "source": "template/docs/architecture/contract-evolution.md",
       "optional": false,
       "home": false
     },
@@ -63,61 +63,61 @@
     },
     {
       "id": "implementation-evidence",
-      "source": "docs/architecture/implementation-evidence.md",
+      "source": "template/docs/architecture/implementation-evidence.md",
       "optional": false,
       "home": false
     },
     {
       "id": "release-bundle",
-      "source": "docs/architecture/release-bundle.md",
+      "source": "template/docs/architecture/release-bundle.md",
       "optional": false,
       "home": false
     },
     {
       "id": "release-evidence",
-      "source": "docs/architecture/release-evidence.md",
+      "source": "template/docs/architecture/release-evidence.md",
       "optional": false,
       "home": false
     },
     {
       "id": "responsibility-boundaries",
-      "source": "docs/architecture/responsibility-boundaries.md",
+      "source": "template/docs/architecture/responsibility-boundaries.md",
       "optional": false,
       "home": false
     },
     {
       "id": "validation-toolchain",
-      "source": "docs/architecture/validation-toolchain.md",
+      "source": "template/docs/architecture/validation-toolchain.md",
       "optional": false,
       "home": false
     },
     {
       "id": "contract-manifest-migration",
-      "source": "docs/migrations/contract-manifest-v1-to-v2.md",
+      "source": "template/docs/migrations/contract-manifest-v1-to-v2.md",
       "optional": false,
       "home": false
     },
     {
       "id": "routes-migration",
-      "source": "docs/migrations/routes-v1-to-v2.md",
+      "source": "template/docs/migrations/routes-v1-to-v2.md",
       "optional": false,
       "home": false
     },
     {
       "id": "ui-states-migration",
-      "source": "docs/migrations/ui-states-v1-to-v2.md",
+      "source": "template/docs/migrations/ui-states-v1-to-v2.md",
       "optional": false,
       "home": false
     }
   ],
   "assets": [
     {
-      "source": "contracts",
+      "source": "template/contracts",
       "destination": "contracts",
       "optional": false
     },
     {
-      "source": "schemas",
+      "source": "template/schemas",
       "destination": "schemas",
       "optional": false
     }

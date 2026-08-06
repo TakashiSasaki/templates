@@ -57,9 +57,16 @@ class PublicationCatalogTests(unittest.TestCase):
         )
         self.assertGreater(len(documents), 0)
         self.assertEqual(
-            {"contracts", "schemas"},
+            {"template/contracts", "template/schemas"},
             {asset.source.as_posix() for asset in assets},
         )
+        self.assertEqual(
+            {"contracts", "schemas"},
+            {asset.destination.as_posix() for asset in assets},
+        )
+        home = [document for document in documents if document.home]
+        self.assertEqual(1, len(home))
+        self.assertEqual("template/README.md", home[0].source.as_posix())
 
     def test_valid_version_1_catalog(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
