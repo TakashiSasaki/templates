@@ -84,6 +84,10 @@ jobs:
         shell: bash
         run: python .github/scripts/test_python_initial_validator_parity.py
 
+      - name: Test concrete and late-review Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_cutover_validator_parity.py
+
       - name: Test MCP runtime-authority declaration
         shell: bash
         run: ruby .github/scripts/test-mcp-runtime-authority.rb

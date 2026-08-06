@@ -123,6 +123,16 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_concrete_profile_consistency.py",
+      "destination": ".github/scripts/validate_concrete_profile_consistency.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_late_review_contracts.py",
+      "destination": ".github/scripts/validate_late_review_contracts.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_mcp_runtime_authority.py",
       "destination": ".github/scripts/validate_mcp_runtime_authority.py",
       "exclude": []
