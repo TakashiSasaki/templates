@@ -96,12 +96,13 @@ Deployment restoration requires all of the following:
 
 ## Validation
 
-Run on `skill`:
+Run on `skill` with Python 3.12 available as `python3.12`:
 
 ```sh
-python .github/scripts/test_publication_catalog.py
-python .github/scripts/test_publication_schema_version.py
-python .github/scripts/validate_publication_catalog.py
+python3.12 .github/scripts/test_publication_catalog.py
+python3.12 .github/scripts/test_publication_schema_version.py
+python3.12 .github/scripts/test_publication_catalog_root_resolution.py
+python3.12 .github/scripts/validate_publication_catalog.py
 ruby .github/scripts/test-restructure-completion.rb
 ```
 
