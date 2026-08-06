@@ -116,6 +116,7 @@
   "distribution_owned_files": [
     ".editorconfig",
     ".github/scripts/test-template-baseline.rb",
+    ".github/scripts/test_template_baseline.py",
     ".github/workflows/validate-skill.yml",
     ".gitignore",
     "AGENTS.md",
