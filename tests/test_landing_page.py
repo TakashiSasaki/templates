@@ -13,6 +13,7 @@ INDEX = ROOT / "docs" / "index.md"
 OVERVIEW = ROOT / "docs" / "overview.md"
 STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
 COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
+SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
 IMAGES = ROOT / "assets" / "images"
 EXPECTED_SVGS = {
     "landing-architecture.svg",
@@ -140,6 +141,7 @@ class LandingPageTests(unittest.TestCase):
     def test_cover_and_overview_styles_are_scoped_and_responsive(self) -> None:
         css = STYLESHEET.read_text(encoding="utf-8")
         cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
+        shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
         for selector in (
             ".portal-landing",
             ".portal-hero",
@@ -164,11 +166,20 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion", cover_css)
         self.assertNotIn("@import", cover_css)
 
+        self.assertIn("@media screen and (min-width: 60rem)", shell_css)
+        self.assertIn(":has(.portal-landing--cover)", shell_css)
+        self.assertIn("> .md-sidebar", shell_css)
+        self.assertNotIn("@import", shell_css)
+
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
         parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
         self.assertEqual(
             parsed["project"]["extra_css"],
-            ["stylesheets/extra.css", "stylesheets/landing-cover.css"],
+            [
+                "stylesheets/extra.css",
+                "stylesheets/landing-cover.css",
+                "stylesheets/landing-shell.css",
+            ],
         )
 
     def test_portal_metadata_matches_the_integrated_site(self) -> None:
