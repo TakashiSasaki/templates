@@ -117,16 +117,16 @@ artifacts and must not be committed.
 
 The portal must provide a clear entry point for each major publication:
 
-- `/templates/skill/` for reusable skill and interface contracts;
-- `/templates/policy/` for application-neutral agent policy and operation;
-- `/templates/webapp/` for Web application template contracts and evidence.
+- `/skill/` for reusable skill and interface contracts;
+- `/policy/` for application-neutral agent policy and operation;
+- `/webapp/` for Web application template contracts and evidence.
 
 It must also provide stable generated inventory entry points:
 
-- `/templates/repository-trees/`;
-- `/templates/repository-trees/skill/`;
-- `/templates/repository-trees/policy/`;
-- `/templates/repository-trees/webapp/`.
+- `/repository-trees/`;
+- `/repository-trees/skill/`;
+- `/repository-trees/policy/`;
+- `/repository-trees/webapp/`.
 
 Navigation is organized by reader task and conceptual hierarchy rather than by
 repository layout alone. Overview, adoption, operation, architecture, evidence,
@@ -193,11 +193,24 @@ only a push to `refs/heads/site` in `TakashiSasaki/templates` and grants Pages
 write and identity-token permissions only to the deployment job. Default-branch
 status is not an authorization input.
 
+`https://templates.moukaeritai.work/` is the configured Pages base URL. It is a
+root-hosted site: the configured base path must be empty, and generated links
+must not retain the former `/templates/` project path. The deployment workflow
+compares the repository-owned expected URL with the `actions/configure-pages`
+base URL, host, and base-path outputs and fails closed before deployment when
+GitHub's external Pages settings drift.
+
 The GitHub `github-pages` environment is an external repository setting and is
 not changed by a pull request. Its custom deployment branch policy must allow
 exactly the `site` branch for this repository. A stale rule that allows `main`
 instead of `site` causes the build and artifact upload to succeed while the
 deployment job is rejected before runner steps begin.
+
+The custom domain and TLS controls are also external repository and DNS state.
+Before publication is complete, the Pages custom domain must be
+`templates.moukaeritai.work`, the certificate must be approved, and HTTPS
+enforcement is enabled. A custom Actions deployment does not rely on a committed
+`CNAME` file; GitHub's Pages setting and DNS are the authoritative domain state.
 
 The environment rule is a release gate. Before declaring publication complete,
 verify that:
@@ -205,12 +218,13 @@ verify that:
 - `site` is the allowed deployment branch;
 - obsolete `main` authorization has been removed;
 - the `site` push workflow completes its build and deploy jobs successfully;
-- `/templates/`, `/templates/skill/`, `/templates/policy/`, and
-  `/templates/webapp/` are reachable;
-- all four `/templates/repository-trees/` entry points are reachable;
+- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;
+- all four `/repository-trees/` entry points are reachable;
 - preview links load the corresponding sandboxed frame without replacing source
   links;
-- the deployed `build-provenance.json` matches the reviewed lock file.
+- the deployed `/build-provenance.json` matches the reviewed lock file;
+- HTTP requests redirect to HTTPS and the deployed response uses the custom
+  domain.
 
 Do not broaden the environment to all branches as a workaround. The workflow
 conditions and environment policy should independently enforce the same

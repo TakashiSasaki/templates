@@ -185,6 +185,8 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
             2,
             build_workflow.count('--canonical-url "${PUBLIC_SITE_URL}"'),
         )
+        self.assertIn("Verify generated public URL boundary", build_workflow)
+        self.assertIn("https://takashisasaki.github.io/templates/", build_workflow)
 
         self.assertIn(f"PUBLIC_SITE_URL: {CANONICAL_URL}", deploy_workflow)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", deploy_workflow)
@@ -200,7 +202,7 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertIn("${{ steps.pages.outputs.host }}", deploy_workflow)
         self.assertIn("${{ steps.pages.outputs.base_path }}", deploy_workflow)
         self.assertIn('expected_base_url="${PUBLIC_SITE_URL%/}"', deploy_workflow)
-        self.assertIn('expected_host="${PUBLIC_SITE_URL#https://}"', deploy_workflow)
+        self.assertIn('expected_host="${expected_base_url#https://}"', deploy_workflow)
         self.assertIn('test "$ACTUAL_BASE_URL" = "$expected_base_url"', deploy_workflow)
         self.assertIn('test "$ACTUAL_HOST" = "$expected_host"', deploy_workflow)
         self.assertIn('test -z "$ACTUAL_BASE_PATH"', deploy_workflow)
