@@ -2,7 +2,7 @@
 
 GitHub Pages deployment from the `site` branch was temporarily suspended while the `webapp` branch was restructured into a template-development source tree with a separately copyable application-template distribution.
 
-The suspension is complete. The final reviewed Webapp publication revision is `1671c5b503377b87d157aeaa714bdf7c43797dc9`. It was integrated into `site` by merge commit `552af87fb32e614072ac195e83514e47feaf5c01`, and the resulting site-push build completed source locking, publication assembly, repository-tree generation, bounded previews, strict static-site generation, provenance, link validation, and Pages-artifact creation successfully before deployment authority was restored.
+The suspension is complete. The final reviewed Webapp publication revision is `1671c5b503377b87d157aeaa714bdf7c43797dc9`. It was integrated into `site` by merge commit `552af87fb32e614072ac195e83514e47feaf5c01`. A subsequent reviewed Site change added the dedicated copyable-template tree, producing pre-restoration Site revision `f372805850848fb4fc05205ebb47d27e5e6b45f6`. Build-only Site pushes for these revisions completed source locking, publication assembly, repository-tree generation, bounded previews, strict static-site generation, provenance, link validation, and Pages-artifact creation successfully before deployment authority was restored.
 
 Deployment is active under the following boundary:
 
