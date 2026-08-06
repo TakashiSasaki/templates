@@ -1,4 +1,4 @@
-name: Build documentation while deployment is suspended
+name: Deploy documentation from site
 
 on:
   push:
@@ -13,13 +13,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deployment_metadata:
     if: >-
       github.repository == 'TakashiSasaki/templates' &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/site'
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_timestamp: ${{ steps.timestamp.outputs.deployment_timestamp }}
+
+    steps:
+      - name: Capture deployment timestamp
+        id: timestamp
+        run: |
+          echo "deployment_timestamp=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')" \
+            >> "$GITHUB_OUTPUT"
+
+  build:
+    if: github.repository == 'TakashiSasaki/templates'
+    needs: deployment_metadata
     uses: ./.github/workflows/build-pages.yml
     with:
       site_ref: ${{ github.sha }}
+      deployment_timestamp: ${{ needs.deployment_metadata.outputs.deployment_timestamp }}
     permissions:
       contents: read
+
+  deploy:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/site'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
