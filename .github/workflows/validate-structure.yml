@@ -37,6 +37,10 @@ jobs:
           ruby .github/scripts/validate-skill-repository.rb template
           ruby template/.github/scripts/test-template-baseline.rb
 
+      - name: Audit restructuring completion
+        shell: bash
+        run: ruby .github/scripts/test-restructure-completion.rb
+
       - name: Test GitHub Pages deployment boundary
         shell: bash
         run: ruby .github/scripts/test-pages-deployment-boundary.rb
