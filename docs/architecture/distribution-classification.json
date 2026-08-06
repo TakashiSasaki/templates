@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Classify every current Skill top-level entry before physical template-source and copyable-distribution separation.",
+  "targetDistributionRoot": "template",
+  "directCopyDestination": ".",
+  "contentTransformationAllowed": false,
+  "topLevelClassification": {
+    "distribution": [
+      "CLI_INTERFACE.md",
+      "INTERFACES.md",
+      "LICENSE.template",
+      "MCP_INTERFACE.md",
+      "RUNTIME.md",
+      "SKILL.md",
+      "WEB_INTERFACE.md",
+      "assets",
+      "examples",
+      "mcp",
+      "references",
+      "scripts",
+      "src",
+      "tests"
+    ],
+    "split": [
+      ".editorconfig",
+      ".gitignore",
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "LICENSE",
+      "README.md",
+      "docs"
+    ],
+    "maintainer": [
+      ".github",
+      "CHANGELOG.md"
+    ]
+  },
+  "targetSourceRoots": {
+    "distribution": "template",
+    "maintainer": "maintainer",
+    "publicationInterface": "docs/publication-catalog.json"
+  },
+  "profileModel": {
+    "templateMarker": "template-scaffold",
+    "exclusiveProfiles": [
+      "instruction-only"
+    ],
+    "composableProfiles": [
+      "asset-driven",
+      "browser-interface",
+      "headless-service",
+      "knowledge-augmented",
+      "mcp-enabled",
+      "packaged-cli",
+      "script-assisted"
+    ],
+    "compositionRule": "union-of-required-contracts"
+  },
+  "requiredSeparationRules": [
+    "The branch root becomes the template-product source artifact rather than an installable Skill directory.",
+    "The contents of template are copied byte-for-byte to a concrete Skill root.",
+    "No required reference below template may escape template.",
+    "Publication integration and source-only conformance infrastructure remain outside template.",
+    "The profile model retains instruction-only as exclusive and combines other selected profiles by the union of required contracts.",
+    "Clean-room concrete-Skill conformance starts from template rather than the complete branch root.",
+    "Template consumers prune unsupported optional contracts only after copying the closed distribution artifact."
+  ]
+}
