@@ -1,0 +1,27 @@
+name: Validate Agent Skill
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Skill
+        uses: actions/checkout@v4
+
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Validate Skill repository
+        run: ruby .github/scripts/validate-skill-repository.rb
+
+      - name: Test uncustomized template baseline
+        if: hashFiles('.github/scripts/test-template-baseline.rb') != ''
+        run: ruby .github/scripts/test-template-baseline.rb

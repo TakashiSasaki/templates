@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "source_root": "template",
+  "destination_root": ".",
+  "content_transformation_allowed": false,
+  "required_top_level_entries": [
+    ".editorconfig",
+    ".github",
+    ".gitignore",
+    "AGENTS.md",
+    "CLI_INTERFACE.md",
+    "INTERFACES.md",
+    "LICENSE",
+    "LICENSE.template",
+    "MCP_INTERFACE.md",
+    "README.md",
+    "RUNTIME.md",
+    "SKILL.md",
+    "WEB_INTERFACE.md",
+    "assets",
+    "docs",
+    "examples",
+    "mcp",
+    "references",
+    "scripts",
+    "src",
+    "tests"
+  ],
+  "mirrors": [
+    {
+      "source": ".editorconfig",
+      "destination": ".editorconfig",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/lib",
+      "destination": ".github/scripts/lib",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-bundled-mcp-client-consistency.rb",
+      "destination": ".github/scripts/validate-bundled-mcp-client-consistency.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-cli-exit-code-contract.rb",
+      "destination": ".github/scripts/validate-cli-exit-code-contract.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-cli-structured-output-contract.rb",
+      "destination": ".github/scripts/validate-cli-structured-output-contract.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-concrete-profile-consistency.rb",
+      "destination": ".github/scripts/validate-concrete-profile-consistency.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-core-profile-contracts.rb",
+      "destination": ".github/scripts/validate-core-profile-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-decomposed-interface-contracts.rb",
+      "destination": ".github/scripts/validate-decomposed-interface-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-extended-profile-contracts.rb",
+      "destination": ".github/scripts/validate-extended-profile-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-interface-routing-contract.rb",
+      "destination": ".github/scripts/validate-interface-routing-contract.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-interface-runtime-consistency.rb",
+      "destination": ".github/scripts/validate-interface-runtime-consistency.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-interface-summary-details.rb",
+      "destination": ".github/scripts/validate-interface-summary-details.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-late-review-contracts.rb",
+      "destination": ".github/scripts/validate-late-review-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-mcp-runtime-authority.rb",
+      "destination": ".github/scripts/validate-mcp-runtime-authority.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-profile-contracts.rb",
+      "destination": ".github/scripts/validate-profile-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-review-followup-contracts.rb",
+      "destination": ".github/scripts/validate-review-followup-contracts.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-selected-contract-scalar-placeholders.rb",
+      "destination": ".github/scripts/validate-selected-contract-scalar-placeholders.rb",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate-skill-repository.rb",
+      "destination": ".github/scripts/validate-skill-repository.rb",
+      "exclude": []
+    },
+    {
+      "source": ".gitignore",
+      "destination": ".gitignore",
+      "exclude": []
+    },
+    {
+      "source": "CLI_INTERFACE.md",
+      "destination": "CLI_INTERFACE.md",
+      "exclude": []
+    },
+    {
+      "source": "INTERFACES.md",
+      "destination": "INTERFACES.md",
+      "exclude": []
+    },
+    {
+      "source": "LICENSE",
+      "destination": "LICENSE",
+      "exclude": []
+    },
+    {
+      "source": "LICENSE.template",
+      "destination": "LICENSE.template",
+      "exclude": []
+    },
+    {
+      "source": "MCP_INTERFACE.md",
+      "destination": "MCP_INTERFACE.md",
+      "exclude": []
+    },
+    {
+      "source": "RUNTIME.md",
+      "destination": "RUNTIME.md",
+      "exclude": []
+    },
+    {
+      "source": "SKILL.md",
+      "destination": "SKILL.md",
+      "exclude": []
+    },
+    {
+      "source": "WEB_INTERFACE.md",
+      "destination": "WEB_INTERFACE.md",
+      "exclude": []
+    },
+    {
+      "source": "assets",
+      "destination": "assets",
+      "exclude": []
+    },
+    {
+      "source": "docs",
+      "destination": "docs",
+      "exclude": [
+        "architecture/distribution-boundary.md",
+        "architecture/distribution-classification.json",
+        "publication-catalog.json",
+        "publication-maintenance.md"
+      ]
+    },
+    {
+      "source": "examples",
+      "destination": "examples",
+      "exclude": []
+    },
+    {
+      "source": "mcp",
+      "destination": "mcp",
+      "exclude": []
+    },
+    {
+      "source": "references",
+      "destination": "references",
+      "exclude": []
+    },
+    {
+      "source": "scripts",
+      "destination": "scripts",
+      "exclude": []
+    },
+    {
+      "source": "src",
+      "destination": "src",
+      "exclude": []
+    },
+    {
+      "source": "tests",
+      "destination": "tests",
+      "exclude": []
+    }
+  ],
+  "distribution_owned_files": [
+    ".github/scripts/test-template-baseline.rb",
+    ".github/workflows/validate-skill.yml",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "forbidden_distribution_paths": [
+    ".github/REVIEW_GUIDELINES.md",
+    ".github/fixtures",
+    ".github/scripts/test-skill-distribution.rb",
+    ".github/workflows/pages.yml",
+    ".github/workflows/validate-extended-profile-contracts.yml",
+    ".github/workflows/validate-portable-consumption.yml",
+    ".github/workflows/validate-structure.yml",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "distribution-manifest.json",
+    "docs/architecture/distribution-boundary.md",
+    "docs/architecture/distribution-classification.json",
+    "docs/publication-catalog.json",
+    "docs/publication-maintenance.md"
+  ]
+}

@@ -87,8 +87,9 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-cli-exit-code-meanings.rb
 
-      - name: Validate all profile contracts
+      - name: Validate all profile contracts in the copyable template
         shell: bash
+        working-directory: template
         run: ruby .github/scripts/validate-profile-contracts.rb
 
   cli-mcp-combined-profile-fixture:
