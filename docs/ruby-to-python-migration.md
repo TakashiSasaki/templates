@@ -89,18 +89,19 @@ The principal risk is behavioral drift in the shared profile parser and in MCP/s
 
 ## Pull-request plan
 
-The migration is estimated at eight reviewable pull requests.
+The migration is now estimated at nine reviewable pull requests. The original eight-PR estimate remains within its stated eight-to-ten range, but implementation of the copyable validator layer showed that its shared parser, parallel parity harness, and full validator cutover should not be reviewed as one oversized change.
 
-1. **Python publication catalog validation** — replace the isolated catalog validator and its regression tests; establish the migration record. This pull request.
-2. **Python copyable-template validators** — port `profile_contracts` and every validator shipped under `template/.github/scripts/`; change the downstream workflow to Python; update `distribution-manifest.json`.
-3. **Python maintainer validators** — port root contract, distribution, adoption, publication, and interface test drivers; remove duplicated Ruby validator sources.
-4. **Python script and packaged-CLI fixtures** — replace normalize scripts, Ruby gems, gemspecs, Bundler files, launchers, and CLI/MCP combined fixtures with Python packages and tests.
-5. **Python browser and headless-service fixtures** — replace HTTP servers, PID lifecycle implementations, tests, and runtime contracts.
-6. **Python MCP and systemd fixtures** — replace MCP client/server/service-manager code, HTTP transports, unit rendering, smoke clients, and dependency setup.
-7. **Skill Ruby purge and prevention gate** — remove remaining Ruby files, Ruby/Bundler references and ignore rules; remove `ruby/setup-ruby`; add a Python regression check rejecting active `.rb`, Gemfile, gemspec, `ruby`, `bundle`, and `ruby/setup-ruby` surfaces outside an explicitly empty allowlist.
-8. **Site publication integration** — after the final Skill merge, update the unrelated `site` branch lock to the final full SHA and verify complete-tree, copyable-tree, preview, build, provenance, and link validation.
+1. **Python publication catalog validation — merged as PR #115** — replace the isolated catalog validator and its regression tests; establish the migration record. Merge commit: `8583a735a044c7618d695a0b8cd1923bbdfd3bc1`.
+2. **Python copyable-validator foundation — PR #116** — add and mirror the shared Python parser, safe YAML policy, Python template-baseline audit, initial validator ports, and Ruby/Python parity harnesses while retaining the Ruby implementations.
+3. **Python copyable-validator cutover** — port the remaining validators shipped under `template/.github/scripts/`, complete positive and negative parity coverage, switch the downstream workflow to Python, replace Ruby projections in `distribution-manifest.json`, and remove the superseded distributed Ruby implementations.
+4. **Python maintainer validators** — port root contract, distribution, adoption, publication, and interface test drivers; remove duplicated Ruby validator sources.
+5. **Python script and packaged-CLI fixtures** — replace normalize scripts, Ruby gems, gemspecs, Bundler files, launchers, and CLI/MCP combined fixtures with Python packages and tests.
+6. **Python browser and headless-service fixtures** — replace HTTP servers, PID lifecycle implementations, tests, and runtime contracts.
+7. **Python MCP and systemd fixtures** — replace MCP client/server/service-manager code, HTTP transports, unit rendering, smoke clients, and dependency setup.
+8. **Skill Ruby purge and prevention gate** — remove remaining Ruby files, Ruby/Bundler references and ignore rules; remove `ruby/setup-ruby`; add a Python regression check rejecting active `.rb`, Gemfile, gemspec, `ruby`, `bundle`, and `ruby/setup-ruby` surfaces outside an explicitly empty allowlist.
+9. **Site publication integration** — after the final Skill merge, update the unrelated `site` branch lock to the final full SHA and verify complete-tree, copyable-tree, preview, build, provenance, and link validation.
 
-Large fixture findings may justify splitting items 5 or 6, so the realistic range is eight to ten pull requests. PR boundaries must remain within one unrelated branch history; no merge, rebase, or cherry-pick is permitted between `skill` and `site`.
+Large fixture findings may still justify splitting items 6 or 7, so the realistic range remains nine to ten pull requests. PR boundaries must remain within one unrelated branch history; no merge, rebase, or cherry-pick is permitted between `skill` and `site`.
 
 ## Acceptance criteria
 
