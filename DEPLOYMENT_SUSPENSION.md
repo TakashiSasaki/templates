@@ -1,14 +1,16 @@
-# GitHub Pages deployment suspension record
+# Temporary GitHub Pages deployment suspension
 
-GitHub Pages deployment from the `site` branch was temporarily suspended while the `webapp` branch was restructured into a template-development source tree with a separately copyable application-template distribution.
+GitHub Pages deployment from the `site` branch is intentionally suspended while the `skill` branch is restructured from a repository-root installable skill into a template-product source repository with a separately copyable profile-aware skill template under `template/`.
 
-During the suspension, the existing Pages site remained available. Pushes to `site` continued to exercise source locking, publication assembly, source and copyable-template repository-tree generation, bounded previews, strict static-site generation, provenance, link validation, and Pages-artifact creation, but received no Pages write or OpenID Connect authority and did not invoke `actions/deploy-pages`.
+The currently deployed Pages site remains available. The suspension prevents subsequent pushes to `site` from replacing it. During the suspension, `.github/workflows/deploy-pages.yml` continues to invoke the reusable build workflow so that source locking, publication assembly, repository-tree generation, bounded previews, strict static-site generation, provenance, link validation, and Pages-artifact creation remain exercised. It grants no `pages: write` or `id-token: write` permission and invokes neither `actions/configure-pages` nor `actions/deploy-pages`.
 
-The reopening conditions were completed in order:
+`deployment-state.json` is the machine-readable source of the suspension state, the currently locked Skill revision, and the reopening conditions.
 
-1. The `webapp` copyable distribution and its source, distribution, and clean-room product conformance suites were completed.
-2. `publication-sources.json` was locked to reviewed Webapp revision `1671c5b503377b87d157aeaa714bdf7c43797dc9`.
-3. The integrated site, including the dedicated copyable-template tree, passed build-only validation at site revision `f372805850848fb4fc05205ebb47d27e5e6b45f6`.
-4. A separate pull request restored deployment authority only to a push to `refs/heads/site`, retained the reusable build workflow as build-only, and restored Pages and OpenID Connect permissions only on the deployment job.
+Deployment may be restored only in a separate pull request based on the then-current `site` branch after all of the following are true:
 
-`deployment-state.json` is the machine-readable current state. The unrelated histories of `site`, `webapp`, `skill`, and `policy` remained separate throughout the transition.
+1. The `skill` branch exposes the canonical copyable profile-aware template at `template/`, preserves the supported profile tags and combinations, and passes its complete validation suite.
+2. `publication-sources.json` locks `skill` to the final reviewed lowercase full 40-character merge commit SHA.
+3. The integrated site publishes separate complete-source and copyable-template views for Skill and passes build-only validation against that exact revision.
+4. The restoring pull request reinstates deployment authority only for a push to `refs/heads/site`, keeps the reusable build workflow build-only, and restores Pages permissions only on the deployment job.
+
+The unrelated histories of `site`, `skill`, `policy`, and `webapp` remain separate throughout the transition.

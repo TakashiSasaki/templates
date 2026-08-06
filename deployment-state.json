@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "reason": "webapp copyable distribution integration completed and passed suspended build-only validation",
-  "validated_site_revision": "f372805850848fb4fc05205ebb47d27e5e6b45f6",
-  "locked_webapp_revision": "1671c5b503377b87d157aeaa714bdf7c43797dc9",
-  "deployment_authority": {
-    "branch": "site",
-    "workflow": ".github/workflows/deploy-pages.yml",
-    "environment": "github-pages"
-  }
+  "status": "suspended",
+  "reason": "skill template artifact boundary restructuring",
+  "locked_skill_revision": "d6afc2e0669d2c56d81f6e547a5f9303f505f6d8",
+  "resume_conditions": [
+    "the skill branch exposes the canonical copyable profile-aware template at template/ and passes its complete validation suite",
+    "site is updated to the final reviewed skill full commit SHA",
+    "the integrated site publishes and validates the skill copyable-template tree against that revision",
+    "a separate reviewed site pull request restores site-only deployment authority"
+  ]
 }
