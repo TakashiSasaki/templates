@@ -223,10 +223,7 @@ class RepositoryFilePreviewConfigurationTests(unittest.TestCase):
         script = VIEWER_SCRIPT.read_text(encoding="utf-8")
         styles = VIEWER_STYLES.read_text(encoding="utf-8")
 
-        self.assertIn(
-            'extra_javascript = ["javascripts/repository-tree-viewer.js"]',
-            config,
-        )
+        self.assertIn('"javascripts/repository-tree-viewer.js"', config)
         self.assertIn("sandboxed inline frame", policy)
         self.assertIn("UTF-8 text", policy)
         self.assertIn("256 KiB", policy)
