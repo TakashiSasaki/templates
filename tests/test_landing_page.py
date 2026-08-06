@@ -23,6 +23,7 @@ EXPECTED_SVGS = {
 class LandingPageTests(unittest.TestCase):
     def test_landing_page_exposes_all_primary_destinations(self) -> None:
         text = INDEX.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
         self.assertIn('class="portal-landing"', text)
         self.assertIn('id="choose-a-template"', text)
         for destination in ("skill/", "policy/", "webapp/", "repository-trees/"):
@@ -66,6 +67,7 @@ class LandingPageTests(unittest.TestCase):
         ):
             self.assertIn(selector, css)
         self.assertIn(":focus-visible", css)
+        self.assertIn("h1:has(+ .portal-landing)", css)
         self.assertIn("prefers-reduced-motion", css)
         self.assertNotIn("@import", css)
 
