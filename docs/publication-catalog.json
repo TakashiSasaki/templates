@@ -10,7 +10,8 @@
     {
       "id": "portal-overview",
       "source": "docs/overview.md",
-      "optional": false
+      "optional": false,
+      "home": false
     }
   ]
 }
