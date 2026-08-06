@@ -99,10 +99,12 @@ Deployment restoration requires all of the following:
 Run on `skill`:
 
 ```sh
-ruby .github/scripts/test-publication-catalog.rb
-ruby .github/scripts/test-publication-schema-version.rb
-ruby .github/scripts/validate-publication-catalog.rb
+python .github/scripts/test_publication_catalog.py
+python .github/scripts/test_publication_schema_version.py
+python .github/scripts/validate_publication_catalog.py
 ruby .github/scripts/test-restructure-completion.rb
 ```
+
+The remaining Ruby command is part of the broader repository-validator migration tracked in `docs/ruby-to-python-migration.md`; publication-catalog validation itself requires only Python 3.12 and the standard library.
 
 A Skill pull request that changes `README.md`, `docs/**`, `template/**`, or `.github/workflows/pages.yml` also runs the build-only site compatibility workflow. Publication work is not complete until the corresponding locked-SHA site integration passes.
