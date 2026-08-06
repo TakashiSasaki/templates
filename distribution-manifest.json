@@ -111,6 +111,26 @@
       "source": ".github/scripts/validate-skill-repository.rb",
       "destination": ".github/scripts/validate-skill-repository.rb",
       "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_cli_exit_code_contract.py",
+      "destination": ".github/scripts/validate_cli_exit_code_contract.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_cli_structured_output_contract.py",
+      "destination": ".github/scripts/validate_cli_structured_output_contract.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_mcp_runtime_authority.py",
+      "destination": ".github/scripts/validate_mcp_runtime_authority.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
+      "destination": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
+      "exclude": []
     }
   ],
   "distribution_owned_files": [
