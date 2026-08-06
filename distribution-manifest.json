@@ -123,11 +123,6 @@
       "exclude": []
     },
     {
-      "source": "AGENTS.md",
-      "destination": "AGENTS.md",
-      "exclude": []
-    },
-    {
       "source": "CLI_INTERFACE.md",
       "destination": "CLI_INTERFACE.md",
       "exclude": []
@@ -215,6 +210,7 @@
   ],
   "distribution_owned_files": [
     ".github/workflows/validate-skill.yml",
+    "AGENTS.md",
     "README.md",
     "tests/test-template-baseline.rb"
   ],
