@@ -48,6 +48,8 @@ actual = ROOT.children.filter_map do |path|
   path.basename.to_s
 end.sort
 failures << "top-level classification mismatch: expected #{actual.inspect}, got #{classified.sort.inspect}" unless actual == classified.sort
+failures << "template must be the sole distribution top-level entry" unless classification["distribution"] == ["template"]
+failures << "distribution manifest must remain maintainer-owned" unless classification.fetch("maintainer", []).include?("distribution-manifest.json")
 
 failures << "schemaVersion must be integer 1" unless value["schemaVersion"] == 1
 failures << "targetDistributionRoot must be template" unless value["targetDistributionRoot"] == "template"
@@ -57,7 +59,7 @@ failures << "contentTransformationAllowed must be false" unless value["contentTr
 roots = value["targetSourceRoots"]
 expected_roots = {
   "distribution" => "template",
-  "maintainer" => "maintainer",
+  "maintainer" => ".",
   "publicationInterface" => "docs/publication-catalog.json"
 }
 failures << "targetSourceRoots mismatch" unless roots == expected_roots

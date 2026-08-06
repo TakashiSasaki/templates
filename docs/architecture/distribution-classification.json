@@ -1,43 +1,45 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every current Skill top-level entry before physical template-source and copyable-distribution separation.",
+  "purpose": "Classify every Skill top-level entry after introducing the copyable template projection.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
   "topLevelClassification": {
     "distribution": [
+      "template"
+    ],
+    "maintainer": [
+      "CHANGELOG.md",
+      "distribution-manifest.json"
+    ],
+    "split": [
+      ".editorconfig",
+      ".github",
+      ".gitignore",
+      "AGENTS.md",
       "CLI_INTERFACE.md",
+      "CONTRIBUTING.md",
       "INTERFACES.md",
+      "LICENSE",
       "LICENSE.template",
       "MCP_INTERFACE.md",
+      "README.md",
       "RUNTIME.md",
       "SKILL.md",
       "WEB_INTERFACE.md",
       "assets",
+      "docs",
       "examples",
       "mcp",
       "references",
       "scripts",
       "src",
       "tests"
-    ],
-    "split": [
-      ".editorconfig",
-      ".gitignore",
-      "AGENTS.md",
-      "CONTRIBUTING.md",
-      "LICENSE",
-      "README.md",
-      "docs"
-    ],
-    "maintainer": [
-      ".github",
-      "CHANGELOG.md"
     ]
   },
   "targetSourceRoots": {
     "distribution": "template",
-    "maintainer": "maintainer",
+    "maintainer": ".",
     "publicationInterface": "docs/publication-catalog.json"
   },
   "profileModel": {
@@ -57,7 +59,7 @@
     "compositionRule": "union-of-required-contracts"
   },
   "requiredSeparationRules": [
-    "The branch root becomes the template-product source artifact rather than an installable Skill directory.",
+    "The branch root is the template-product source artifact rather than an installable Skill directory.",
     "The contents of template are copied byte-for-byte to a concrete Skill root.",
     "No required reference below template may escape template.",
     "Publication integration and source-only conformance infrastructure remain outside template.",
