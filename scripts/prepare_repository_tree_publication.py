@@ -38,6 +38,12 @@ TREE_DOCUMENTS = (
         "home": False,
     },
 )
+WEBAPP_TEMPLATE_DOCUMENT = {
+    "id": "repository-tree-webapp-template",
+    "source": "docs/repository-trees/webapp/template.md",
+    "optional": False,
+    "home": False,
+}
 TREE_NAVIGATION = {
     "title": "Repository trees",
     "children": [
@@ -66,6 +72,12 @@ TREE_NAVIGATION = {
             "destination": "repository-trees/webapp.md",
         },
     ],
+}
+WEBAPP_TEMPLATE_NAVIGATION = {
+    "title": "Web application copyable template",
+    "publication": "site",
+    "document": "repository-tree-webapp-template",
+    "destination": "repository-trees/webapp/template.md",
 }
 
 
@@ -185,7 +197,7 @@ def augment_catalog(catalog: dict[str, Any]) -> dict[str, Any]:
         existing_sources.add(source)
 
     additions = []
-    for document in TREE_DOCUMENTS:
+    for document in (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT):
         if document["id"] in existing_ids or document["source"] in existing_sources:
             raise PreparationError(
                 "base site publication must not predeclare generated repository trees"
@@ -201,8 +213,12 @@ def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list) or not navigation:
         raise PreparationError("site manifest navigation must be a non-empty array")
+    generated_titles = {
+        TREE_NAVIGATION["title"],
+        WEBAPP_TEMPLATE_NAVIGATION["title"],
+    }
     if any(
-        isinstance(node, dict) and node.get("title") == TREE_NAVIGATION["title"]
+        isinstance(node, dict) and node.get("title") in generated_titles
         for node in navigation
     ):
         raise PreparationError(
@@ -213,6 +229,7 @@ def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     result["navigation"] = [
         navigation[0],
         json.loads(json.dumps(TREE_NAVIGATION)),
+        json.loads(json.dumps(WEBAPP_TEMPLATE_NAVIGATION)),
         *navigation[1:],
     ]
     return result
@@ -255,7 +272,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         augment_manifest(read_json(manifest_path, "site manifest")),
     )
 
-    for document in TREE_DOCUMENTS:
+    for document in (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT):
         template = output_root / document["source"]
         if not template.is_file():
             raise PreparationError(
@@ -264,7 +281,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
 
     return [
         f"prepared site publication: {output_root.resolve()}",
-        f"generated documents: {len(TREE_DOCUMENTS)}",
+        f"generated documents: {len(TREE_DOCUMENTS) + 1}",
     ]
 
 

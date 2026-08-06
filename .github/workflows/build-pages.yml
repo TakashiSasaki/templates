@@ -140,6 +140,14 @@ jobs:
             --publication policy=policy-source \
             --publication webapp=webapp-source
 
+      - name: Generate Webapp copyable template tree
+        run: |
+          python site-source/scripts/generate_webapp_template_tree.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --site-root site-publication \
+            --output-root build \
+            --webapp-root webapp-source
+
       - name: Generate inline file previews
         run: |
           python site-source/scripts/generate_repository_file_previews.py \
@@ -180,6 +188,7 @@ jobs:
           test -f build/site/repository-trees/skill/index.html
           test -f build/site/repository-trees/policy/index.html
           test -f build/site/repository-trees/webapp/index.html
+          test -f build/site/repository-trees/webapp/template/index.html
           for publication in skill policy webapp; do
             page="build/site/repository-trees/${publication}/index.html"
             grep --fixed-strings -- 'repository-file-viewer' "$page"
@@ -194,6 +203,8 @@ jobs:
               )"
             fi
           done
+          grep --fixed-strings -- 'Copyable root:' \
+            build/site/repository-trees/webapp/template/index.html
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html
