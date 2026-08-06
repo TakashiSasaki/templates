@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Callable, Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
+DISTRIBUTION_ROOT = ROOT / "template"
 
 PRODUCT_NAME = "Conformance Workbench"
 PROOF_COMMAND_ID = "generated-product-proof"
@@ -194,7 +195,7 @@ def _write_json(path: Path, value: object) -> None:
 
 
 def _copy_ignore(_directory: str, names: list[str]) -> set[str]:
-    ignored = {".git", ".venv", ".pytest_cache", "__pycache__", "template"}
+    ignored = {".git", ".venv", ".pytest_cache", "__pycache__"}
     return {name for name in names if name in ignored or name.endswith(".pyc")}
 
 
@@ -337,7 +338,7 @@ def _materialize_product_evidence(root: Path) -> None:
 def _generated_repository() -> Iterator[Path]:
     with tempfile.TemporaryDirectory() as temporary_directory:
         root = Path(temporary_directory) / "generated-repository"
-        shutil.copytree(ROOT, root, ignore=_copy_ignore)
+        shutil.copytree(DISTRIBUTION_ROOT, root, ignore=_copy_ignore)
         _settle_product_contracts(root)
         _materialize_product_evidence(root)
         yield root
@@ -381,10 +382,21 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
 
     def test_clean_room_generated_repository_is_product_conformant(self) -> None:
         source_evidence = _load_json(ROOT / "contracts/implementation-evidence.json")
+        distributed_evidence = _load_json(
+            DISTRIBUTION_ROOT / "contracts/implementation-evidence.json"
+        )
         self.assertEqual("template", source_evidence["mode"])
+        self.assertEqual("template", distributed_evidence["mode"])
 
         with _generated_repository() as root:
             self.assertFalse((root / ".git").exists())
+            self.assertFalse((root / "template").exists())
+            self.assertFalse((root / "distribution-manifest.json").exists())
+            self.assertFalse((root / "docs/publication-catalog.json").exists())
+            self.assertFalse((root / "scripts/validate_distribution.py").exists())
+            self.assertFalse(
+                (root / "scripts/validate_publication_catalog.py").exists()
+            )
             self.assertEqual(
                 "product",
                 _load_json(root / "contracts/implementation-evidence.json")["mode"],
@@ -415,7 +427,14 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
             "template",
             _load_json(ROOT / "contracts/implementation-evidence.json")["mode"],
         )
+        self.assertEqual(
+            "template",
+            _load_json(
+                DISTRIBUTION_ROOT / "contracts/implementation-evidence.json"
+            )["mode"],
+        )
         self.assertFalse((ROOT / "product").exists())
+        self.assertFalse((DISTRIBUTION_ROOT / "product").exists())
 
     def test_template_mode_residue_is_rejected_by_copied_validator(self) -> None:
         with _generated_repository() as root:
@@ -542,6 +561,15 @@ class GeneratedRepositoryConformanceScopeTests(unittest.TestCase):
                 "template-maintainer-only generated-repository conformance suite",
                 getattr(GeneratedRepositoryConformanceTests, "__unittest_skip_why__"),
             )
+
+    def test_shared_fixture_source_is_the_copyable_distribution(self) -> None:
+        self.assertTrue(DISTRIBUTION_ROOT.is_dir())
+        self.assertTrue((DISTRIBUTION_ROOT / "README.md").is_file())
+        self.assertTrue((DISTRIBUTION_ROOT / "contracts/manifest.json").is_file())
+        self.assertFalse((DISTRIBUTION_ROOT / "distribution-manifest.json").exists())
+        self.assertFalse(
+            (DISTRIBUTION_ROOT / "docs/publication-catalog.json").exists()
+        )
 
 
 if __name__ == "__main__":
