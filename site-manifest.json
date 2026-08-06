@@ -326,6 +326,18 @@
               "destination": "webapp/docs/architecture/contract-evolution.md"
             },
             {
+              "title": "Distribution boundary",
+              "publication": "webapp",
+              "document": "distribution-boundary",
+              "destination": "webapp/docs/architecture/distribution-boundary.md"
+            },
+            {
+              "title": "Distribution readiness audit",
+              "publication": "webapp",
+              "document": "distribution-readiness-audit",
+              "destination": "webapp/docs/architecture/distribution-readiness-audit.md"
+            },
+            {
               "title": "Final readiness audit",
               "publication": "webapp",
               "document": "final-readiness-audit",
