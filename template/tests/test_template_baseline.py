@@ -49,12 +49,23 @@ class TemplateBaselineTests(unittest.TestCase):
             "docs/architecture/completion-roadmap.md",
             "docs/architecture/distribution-boundary.md",
             "docs/architecture/distribution-classification.json",
+            "docs/architecture/distribution-readiness-audit.md",
             "docs/architecture/final-readiness-audit.md",
             "docs/architecture/generated-repository-conformance.md",
+            "scripts/validate_distribution.py",
             "scripts/validate_publication_catalog.py",
         }
         present = sorted(path for path in forbidden if (ROOT / path).exists())
         self.assertEqual([], present)
+
+    def test_downstream_overview_links_to_a_concrete_contract_document(self) -> None:
+        overview = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "[`contracts/manifest.json`](contracts/manifest.json)",
+            overview,
+        )
+        self.assertNotIn("[`contracts/`](contracts/)", overview)
 
     def test_all_retained_validator_entry_points_pass_from_distribution_root(self) -> None:
         commands = (
