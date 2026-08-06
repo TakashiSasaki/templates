@@ -186,7 +186,10 @@ class WebappTemplateTreeTests(unittest.TestCase):
     def test_maintenance_documents_the_copyable_tree_pipeline(self) -> None:
         maintenance = MAINTENANCE.read_text(encoding="utf-8")
 
-        self.assertIn("exactly five generated document declarations", maintenance)
+        self.assertRegex(
+            maintenance,
+            r"exactly five generated\s+document declarations",
+        )
         self.assertIn("`repository-trees/webapp/template.md`", maintenance)
         self.assertIn("does not receive an inline preview panel", maintenance)
 
