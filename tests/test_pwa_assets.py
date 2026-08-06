@@ -98,6 +98,27 @@ class PwaAssetTests(unittest.TestCase):
                 Path("index.html"),
             )
 
+    def test_conflicting_or_duplicate_pwa_metadata_is_rejected(self) -> None:
+        cases = {
+            "conflicting theme color": '<meta name="theme-color" content="#000000">',
+            "duplicate manifests": (
+                '<link rel="manifest" href="/app.webmanifest">'
+                '<link rel="manifest" href="/app.webmanifest">'
+            ),
+            "duplicate theme colors": (
+                '<meta name="theme-color" content="#3f51b5">'
+                '<meta name="theme-color" content="#3f51b5">'
+            ),
+        }
+        for name, metadata in cases.items():
+            with self.subTest(name=name):
+                source = f"<html><head>{metadata}</head><body></body></html>"
+                with self.assertRaises(finalize_site_metadata.SiteMetadataError):
+                    finalize_site_metadata.ensure_pwa_metadata(
+                        source,
+                        Path("index.html"),
+                    )
+
     def test_service_worker_limits_cache_to_the_root_shell(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
@@ -106,6 +127,9 @@ class PwaAssetTests(unittest.TestCase):
             self.assertIn(f'self.addEventListener("{event}"', worker)
         self.assertIn('event.request.mode === "navigate"', worker)
         self.assertIn('caches.match("/")', worker)
+        self.assertIn("function offlineResponse()", worker)
+        self.assertIn("return cached || offlineResponse();", worker)
+        self.assertIn("status: 503", worker)
 
 
 if __name__ == "__main__":
