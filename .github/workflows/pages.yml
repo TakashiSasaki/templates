@@ -5,11 +5,9 @@ on:
     branches:
       - skill
     paths:
-      - '**/*.md'
+      - README.md
       - docs/**
-      - assets/**
-      - CLI_INTERFACE.md
-      - MCP_INTERFACE.md
+      - template/**
       - .github/workflows/pages.yml
   workflow_dispatch:
 

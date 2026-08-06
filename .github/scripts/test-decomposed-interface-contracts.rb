@@ -15,14 +15,20 @@ validators = [
 
 pages_workflow_path = File.expand_path("../workflows/pages.yml", __dir__)
 unless File.file?(pages_workflow_path)
-  warn "Missing documentation publishing workflow: #{pages_workflow_path}"
+  warn "Missing documentation compatibility workflow: #{pages_workflow_path}"
   exit 1
 end
 
 pages_workflow = File.read(pages_workflow_path)
-%w[CLI_INTERFACE.md MCP_INTERFACE.md].each do |path|
+%w[README.md docs/** template/**].each do |path|
   unless /^\s*-\s+#{Regexp.escape(path)}\s*$/.match?(pages_workflow)
-    warn "Publish template documentation must trigger when #{path} changes."
+    warn "Documentation compatibility must trigger when #{path} changes."
+    exit 1
+  end
+end
+%w[CLI_INTERFACE.md MCP_INTERFACE.md assets/**].each do |path|
+  if /^\s*-\s+#{Regexp.escape(path)}\s*$/.match?(pages_workflow)
+    warn "Documentation compatibility retains removed root path filter #{path}."
     exit 1
   end
 end

@@ -51,8 +51,16 @@ expect_failure.call("missing declared file", "declared files are missing") do |r
   File.delete(File.join(root, "template", "SKILL.md"))
 end
 
-expect_failure.call("mirrored byte drift", "mirrored bytes differ") do |root|
-  File.open(File.join(root, "template", "RUNTIME.md"), "a", encoding: "UTF-8") { |file| file << "\nDRIFT\n" }
+expect_failure.call("mirrored validator drift", "mirrored bytes differ") do |root|
+  path = File.join(root, "template", ".github", "scripts", "validate-skill-repository.rb")
+  File.open(path, "a", encoding: "UTF-8") { |file| file << "\n# DRIFT\n" }
+end
+
+expect_failure.call("owned inventory omission", "undeclared files are present") do |root|
+  path = File.join(root, "distribution-manifest.json")
+  manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
+  manifest.fetch("distribution_owned_files").delete("RUNTIME.md")
+  File.write(path, JSON.pretty_generate(manifest) + "\n", encoding: "UTF-8")
 end
 
 expect_failure.call("undeclared distribution file", "undeclared files are present") do |root|

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every Skill top-level entry after introducing the copyable template projection.",
+  "purpose": "Classify every Skill top-level entry after making template the sole consumer-facing Skill authority.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
@@ -9,33 +9,18 @@
       "template"
     ],
     "maintainer": [
-      "CHANGELOG.md",
-      "distribution-manifest.json"
-    ],
-    "split": [
       ".editorconfig",
       ".github",
       ".gitignore",
       "AGENTS.md",
-      "CLI_INTERFACE.md",
+      "CHANGELOG.md",
       "CONTRIBUTING.md",
-      "INTERFACES.md",
       "LICENSE",
-      "LICENSE.template",
-      "MCP_INTERFACE.md",
       "README.md",
-      "RUNTIME.md",
-      "SKILL.md",
-      "WEB_INTERFACE.md",
-      "assets",
-      "docs",
-      "examples",
-      "mcp",
-      "references",
-      "scripts",
-      "src",
-      "tests"
-    ]
+      "distribution-manifest.json",
+      "docs"
+    ],
+    "split": []
   },
   "targetSourceRoots": {
     "distribution": "template",

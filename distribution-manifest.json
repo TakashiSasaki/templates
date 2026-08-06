@@ -28,11 +28,6 @@
   ],
   "mirrors": [
     {
-      "source": ".editorconfig",
-      "destination": ".editorconfig",
-      "exclude": []
-    },
-    {
       "source": ".github/scripts/lib",
       "destination": ".github/scripts/lib",
       "exclude": []
@@ -116,103 +111,35 @@
       "source": ".github/scripts/validate-skill-repository.rb",
       "destination": ".github/scripts/validate-skill-repository.rb",
       "exclude": []
-    },
-    {
-      "source": ".gitignore",
-      "destination": ".gitignore",
-      "exclude": []
-    },
-    {
-      "source": "CLI_INTERFACE.md",
-      "destination": "CLI_INTERFACE.md",
-      "exclude": []
-    },
-    {
-      "source": "INTERFACES.md",
-      "destination": "INTERFACES.md",
-      "exclude": []
-    },
-    {
-      "source": "LICENSE",
-      "destination": "LICENSE",
-      "exclude": []
-    },
-    {
-      "source": "LICENSE.template",
-      "destination": "LICENSE.template",
-      "exclude": []
-    },
-    {
-      "source": "MCP_INTERFACE.md",
-      "destination": "MCP_INTERFACE.md",
-      "exclude": []
-    },
-    {
-      "source": "RUNTIME.md",
-      "destination": "RUNTIME.md",
-      "exclude": []
-    },
-    {
-      "source": "SKILL.md",
-      "destination": "SKILL.md",
-      "exclude": []
-    },
-    {
-      "source": "WEB_INTERFACE.md",
-      "destination": "WEB_INTERFACE.md",
-      "exclude": []
-    },
-    {
-      "source": "assets",
-      "destination": "assets",
-      "exclude": []
-    },
-    {
-      "source": "docs",
-      "destination": "docs",
-      "exclude": [
-        "architecture/distribution-boundary.md",
-        "architecture/distribution-classification.json",
-        "publication-catalog.json",
-        "publication-maintenance.md"
-      ]
-    },
-    {
-      "source": "examples",
-      "destination": "examples",
-      "exclude": []
-    },
-    {
-      "source": "mcp",
-      "destination": "mcp",
-      "exclude": []
-    },
-    {
-      "source": "references",
-      "destination": "references",
-      "exclude": []
-    },
-    {
-      "source": "scripts",
-      "destination": "scripts",
-      "exclude": []
-    },
-    {
-      "source": "src",
-      "destination": "src",
-      "exclude": []
-    },
-    {
-      "source": "tests",
-      "destination": "tests",
-      "exclude": []
     }
   ],
   "distribution_owned_files": [
+    ".editorconfig",
     ".github/scripts/test-template-baseline.rb",
     ".github/workflows/validate-skill.yml",
+    ".gitignore",
     "AGENTS.md",
-    "README.md"
+    "CLI_INTERFACE.md",
+    "INTERFACES.md",
+    "LICENSE",
+    "LICENSE.template",
+    "MCP_INTERFACE.md",
+    "README.md",
+    "RUNTIME.md",
+    "SKILL.md",
+    "WEB_INTERFACE.md",
+    "assets/README.md",
+    "docs/architecture.md",
+    "docs/mcp-transports.md",
+    "docs/profile-contract-map.md",
+    "docs/runtime-selection.md",
+    "docs/skill-profiles.md",
+    "examples/README.md",
+    "mcp/README.md",
+    "references/README.md",
+    "scripts/README.md",
+    "src/README.md",
+    "tests/README.md"
   ],
   "forbidden_distribution_paths": [
     ".github/REVIEW_GUIDELINES.md",

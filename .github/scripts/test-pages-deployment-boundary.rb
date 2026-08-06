@@ -34,11 +34,18 @@ required = [
   "site_ref: site",
   "source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'skill' }}",
   "contents: read",
-  "CLI_INTERFACE.md",
-  "MCP_INTERFACE.md"
+  "- README.md",
+  "- docs/**",
+  "- template/**"
 ]
 required.each do |token|
   abort "compatibility workflow is missing #{token.inspect}" unless compatibility.include?(token)
+end
+
+%w[CLI_INTERFACE.md MCP_INTERFACE.md assets/**].each do |removed_filter|
+  if compatibility.lines.any? { |line| line.strip == "- #{removed_filter}" }
+    abort "compatibility workflow retains removed root path filter #{removed_filter.inspect}"
+  end
 end
 
 trigger_block = compatibility.split("\npermissions:\n", 2).first
