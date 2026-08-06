@@ -78,6 +78,7 @@
   --portal-surface-alt: #f4f8fc;
   --portal-line: rgba(39, 70, 104, 0.14);
   --portal-shadow: 0 1.2rem 3rem rgba(22, 45, 76, 0.12);
+  container: portal / inline-size;
   margin: 0 0 2.4rem;
 }
 
@@ -465,6 +466,19 @@
 [data-md-color-scheme="slate"] .portal-button--secondary,
 [data-md-color-scheme="slate"] .portal-principles article {
   background: rgba(255, 255, 255, 0.04);
+}
+
+@container portal (max-width: 42rem) {
+  .portal-hero,
+  .portal-publication__layout,
+  .portal-tree-callout {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-hero__visual {
+    max-width: 34rem;
+    margin-inline: auto;
+  }
 }
 
 @media screen and (max-width: 76rem) {
