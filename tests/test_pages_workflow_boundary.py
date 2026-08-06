@@ -10,6 +10,9 @@ BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
+FINAL_WEBAPP_REVISION = "1671c5b503377b87d157aeaa714bdf7c43797dc9"
+WEBAPP_INTEGRATION_REVISION = "552af87fb32e614072ac195e83514e47feaf5c01"
+SITE_PRE_RESTORATION_REVISION = "f372805850848fb4fc05205ebb47d27e5e6b45f6"
 
 
 class PagesWorkflowBoundaryTests(unittest.TestCase):
@@ -70,7 +73,7 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
             workflow,
         )
 
-    def test_site_push_workflow_is_build_only_while_suspended(self) -> None:
+    def test_site_push_workflow_deploys_only_after_a_successful_build(self) -> None:
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
 
@@ -83,27 +86,52 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("workflow_dispatch:", trigger_block)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", workflow)
         self.assertIn("site_ref: ${{ github.sha }}", workflow)
+        self.assertIn(
+            "deployment_timestamp: "
+            "${{ needs.deployment_metadata.outputs.deployment_timestamp }}",
+            workflow,
+        )
         self.assertIn("github.event_name == 'push'", workflow)
         self.assertIn("github.ref == 'refs/heads/site'", workflow)
         self.assertNotIn("github.event.repository.default_branch", workflow)
-        self.assertNotIn("actions/configure-pages@", workflow)
-        self.assertNotIn("actions/deploy-pages@", workflow)
-        self.assertNotIn("pages: write", workflow)
-        self.assertNotIn("id-token: write", workflow)
-        self.assertNotIn("name: github-pages", workflow)
-        self.assertNotIn("\n  deploy:\n", workflow)
-        self.assertNotIn("deployment_timestamp", workflow)
+        self.assertIn("\n  deployment_metadata:\n", workflow)
+        self.assertIn("\n  build:\n", workflow)
+        self.assertIn("\n  deploy:\n", workflow)
+        self.assertIn("needs: deployment_metadata", workflow)
+        self.assertIn("needs: build", workflow)
+        self.assertIn("actions/configure-pages@v6", workflow)
+        self.assertIn("actions/deploy-pages@v5", workflow)
+        self.assertEqual(1, workflow.count("pages: write"))
+        self.assertEqual(1, workflow.count("id-token: write"))
+        self.assertEqual(1, workflow.count("name: github-pages"))
+        self.assertIn("url: ${{ steps.deployment.outputs.page_url }}", workflow)
 
-    def test_machine_readable_deployment_state_is_suspended(self) -> None:
+    def test_machine_readable_deployment_state_is_active(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
 
         self.assertEqual(1, state["schema_version"])
-        self.assertEqual("suspended", state["status"])
+        self.assertEqual("active", state["status"])
         self.assertIn("webapp", state["reason"])
-        conditions = state["resume_conditions"]
-        self.assertIsInstance(conditions, list)
-        self.assertGreaterEqual(len(conditions), 4)
-        self.assertTrue(all(isinstance(value, str) and value for value in conditions))
+        self.assertEqual(
+            FINAL_WEBAPP_REVISION,
+            state["restored_after"]["webapp_revision"],
+        )
+        self.assertEqual(
+            WEBAPP_INTEGRATION_REVISION,
+            state["restored_after"]["webapp_integration_revision"],
+        )
+        self.assertEqual(
+            SITE_PRE_RESTORATION_REVISION,
+            state["restored_after"]["site_pre_restoration_revision"],
+        )
+        self.assertEqual(
+            {
+                "trigger": "push to refs/heads/site",
+                "build_workflow": ".github/workflows/build-pages.yml",
+                "environment": "github-pages",
+            },
+            state["deployment_boundary"],
+        )
 
 
 if __name__ == "__main__":
