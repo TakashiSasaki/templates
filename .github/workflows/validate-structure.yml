@@ -14,6 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test Skill source and distribution boundary
+        shell: bash
+        run: ruby .github/scripts/test-distribution-boundary.rb
+
       - name: Test GitHub Pages deployment boundary
         shell: bash
         run: ruby .github/scripts/test-pages-deployment-boundary.rb
