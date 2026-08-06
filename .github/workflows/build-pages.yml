@@ -45,6 +45,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PUBLIC_SITE_URL: https://templates.moukaeritai.work/
+
 concurrency:
   group: documentation-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -173,7 +176,7 @@ jobs:
             python site-source/scripts/prepare_site_metadata.py \
               --config-file build/zensical.toml \
               --deployment-timestamp "${{ inputs.deployment_timestamp }}" \
-              --canonical-url https://takashisasaki.github.io/templates/
+              --canonical-url "${PUBLIC_SITE_URL}"
           )"
           printf 'notice=%s\n' "$notice" >> "$GITHUB_OUTPUT"
 
@@ -184,7 +187,33 @@ jobs:
         run: |
           python site-source/scripts/finalize_site_metadata.py \
             --site-root build/site \
-            --canonical-url https://takashisasaki.github.io/templates/
+            --canonical-url "${PUBLIC_SITE_URL}"
+
+      - name: Verify generated public URL boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("build/site")
+          forbidden_text = (
+              "https://takashisasaki.github.io/templates/",
+              "https://templates.moukaeritai.work/templates/",
+          )
+          root_attribute = re.compile(r'''(?:href|src|action)=["']/templates(?:/|["'])''')
+          failures = []
+          for path in root.rglob("*"):
+              if not path.is_file() or path.suffix.lower() not in {".html", ".xml"}:
+                  continue
+              text = path.read_text(encoding="utf-8")
+              if any(value in text for value in forbidden_text) or root_attribute.search(text):
+                  failures.append(path.as_posix())
+          if failures:
+              raise SystemExit(
+                  "generated site retains the retired /templates/ publication base: "
+                  + ", ".join(failures)
+              )
+          PY
 
       - name: Verify the Pages entry point and deployment notice
         run: |

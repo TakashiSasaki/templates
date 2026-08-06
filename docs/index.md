@@ -4,6 +4,10 @@ This site is the single GitHub Pages entry point for the major branches of
 `TakashiSasaki/templates`. It presents the documentation owned by the unrelated
 `skill`, `policy`, and `webapp` branch histories as one reader-oriented portal.
 
+The public origin is `https://templates.moukaeritai.work/`. The site is served
+from the domain root; the former `/templates/` project path is not part of the
+public information architecture.
+
 The source branches remain independent and retain ownership of their canonical
 documents. The `site` branch selects reviewed provider commits, validates the
 combined publication, and owns the public information architecture and the only
@@ -54,7 +58,7 @@ navigation prioritizes explanatory Markdown intended for human readers.
 The portal uses stable namespaced document identities such as
 `policy:overview` and `webapp:implementation-evidence`. The `site` branch maps
 those identities to reader-facing titles, hierarchy, ordering, and stable paths
-under `/templates/skill/`, `/templates/policy/`, and `/templates/webapp/`.
+under `/skill/`, `/policy/`, and `/webapp/`.
 
 ## Reproducible publication
 
@@ -62,10 +66,10 @@ Provider inputs are recorded as lowercase full 40-character commit SHAs in
 `publication-sources.json`. A `site` commit therefore identifies exact provider
 revisions rather than mutable branch tips.
 
-Every uploaded Pages artifact also contains `/templates/build-provenance.json`.
-It records the built `site` commit and the exact `skill`, `policy`, and `webapp`
-commits. This metadata identifies the inputs used for the publication; it is not
-a cryptographic signature or artifact attestation.
+Every uploaded Pages artifact also contains `/build-provenance.json`. It records
+the built `site` commit and the exact `skill`, `policy`, and `webapp` commits.
+This metadata identifies the inputs used for the publication; it is not a
+cryptographic signature or artifact attestation.
 
 ## Change ownership
 

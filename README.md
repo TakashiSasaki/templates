@@ -5,6 +5,10 @@ for `TakashiSasaki/templates`. It assembles one reader-oriented documentation
 portal from branch-owned publication catalogs in the unrelated `skill`,
 `policy`, and `webapp` histories.
 
+The public portal is `https://templates.moukaeritai.work/`. The custom domain is
+served from the domain root rather than from the former `/templates/` project
+path.
+
 The normative cross-branch publication rules are documented in
 [`PUBLISHING.md`](PUBLISHING.md).
 
@@ -42,18 +46,17 @@ A document is identified by the pair `publication:document`, such as
 The generated site exposes stable top-level entry points for all major
 publications:
 
-- `/templates/skill/` for reusable skill and caller-interface contracts;
-- `/templates/policy/` for application-neutral agent policy and operation;
-- `/templates/webapp/` for Web application templates, evidence, release, and
-  migration guidance.
+- `/skill/` for reusable skill and caller-interface contracts;
+- `/policy/` for application-neutral agent policy and operation;
+- `/webapp/` for Web application templates, evidence, release, and migration
+  guidance.
 
-It also provides `/templates/repository-trees/` with complete tracked-path
-inventories for the three provider revisions. Cataloged Markdown files link to
-their Pages documentation. Eligible regular UTF-8 text files up to 256 KiB can
-be opened in a sandboxed inline frame, while every file retains an immutable
-GitHub source link at the exact rendered full commit SHA. Binary, oversized,
-symlink, gitlink, invalid-UTF-8, and control-character inputs remain
-GitHub-only.
+It also provides `/repository-trees/` with complete tracked-path inventories for
+the three provider revisions. Cataloged Markdown files link to their Pages
+documentation. Eligible regular UTF-8 text files up to 256 KiB can be opened in
+a sandboxed inline frame, while every file retains an immutable GitHub source
+link at the exact rendered full commit SHA. Binary, oversized, symlink, gitlink,
+invalid-UTF-8, and control-character inputs remain GitHub-only.
 
 Primary navigation prioritizes explanatory Markdown. Explicitly published
 contracts, schemas, and other machine-readable assets remain supporting material
@@ -133,6 +136,11 @@ custom deployment branch policy must allow exactly `site`; it must not retain a
 stale `main`-only rule or be broadened to every branch. Pull requests cannot
 change this setting, so it must be verified separately before publication is
 declared complete.
+
+The Pages custom-domain setting must remain `templates.moukaeritai.work`, and
+Enforce HTTPS must be enabled after GitHub has approved the certificate. The
+deployment workflow verifies the configured Pages base URL, host, and empty base
+path before invoking `actions/deploy-pages`.
 
 A provider publication change requires a provider PR and a coordinated site PR.
 Merge the provider PR with a merge commit, update the site source lock to that

@@ -172,7 +172,7 @@ The file excludes timestamps, workflow run IDs, and mutable refs. It identifies 
 
 The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
 
-`project.site_url` must remain `https://takashisasaki.github.io/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links.
+`project.site_url` must remain `https://templates.moukaeritai.work/`. The configured domain is hosted at the root path, so generated same-origin links must not retain `/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links. The build also scans generated HTML and XML for the retired GitHub project URL, the custom domain with the retired subpath, and root-relative `/templates/` attributes.
 
 ## Build and deployment policy
 
@@ -186,7 +186,7 @@ github.event_name == push
 github.ref == refs/heads/site
 ```
 
-The metadata job captures the JST deployment timestamp. The build job invokes the reusable workflow at the exact pushed `site` SHA with `contents: read` only. The final deployment job alone receives `pages: write` and `id-token: write`, owns the `github-pages` environment, configures Pages, and deploys the uploaded artifact.
+The metadata job captures the JST deployment timestamp. The build job invokes the reusable workflow at the exact pushed `site` SHA with `contents: read` only. The final deployment job alone receives `pages: write` and `id-token: write`, owns the `github-pages` environment, configures Pages, verifies that the configured Pages base URL is `https://templates.moukaeritai.work`, verifies the host and empty base path, and then deploys the uploaded artifact.
 
 Default-branch status is not an authorization input. Changing the default branch therefore cannot authorize deployment from `skill`, `policy`, `webapp`, or another ref. Pull requests run only the reusable build workflow and cannot reach the deployment workflow because its trigger contains only a push to `site`.
 

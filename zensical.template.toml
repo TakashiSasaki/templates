@@ -1,6 +1,6 @@
 [project]
 site_name = "Language-neutral Agent Skill Template"
-site_url = "https://takashisasaki.github.io/templates/"
+site_url = "https://templates.moukaeritai.work/"
 site_description = "A language-neutral repository template for portable Agent Skills with CLI and MCP interfaces."
 repo_url = "https://github.com/TakashiSasaki/templates"
 repo_name = "TakashiSasaki/templates"
