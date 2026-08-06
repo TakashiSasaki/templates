@@ -145,9 +145,13 @@ class PublicUrlContractTests(unittest.TestCase):
         self.assertFalse(parsed.fragment)
 
     def test_production_configuration_generates_root_based_public_paths(self) -> None:
-        base_path = generate_repository_trees.configured_base_path(
-            ROOT / "zensical.template.toml"
-        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            config_file = Path(temporary_directory) / "zensical.toml"
+            config_file.write_text(
+                "[project]\n" f'site_url = "{CANONICAL_URL}"\n',
+                encoding="utf-8",
+            )
+            base_path = generate_repository_trees.configured_base_path(config_file)
 
         self.assertEqual("/", base_path)
         self.assertEqual(
