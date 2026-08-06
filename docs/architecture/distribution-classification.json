@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Classify every current webapp top-level entry before physical source and distribution separation.",
+  "targetDistributionRoot": "template",
+  "directCopyDestination": ".",
+  "contentTransformationAllowed": false,
+  "topLevelClassification": {
+    "distribution": [
+      ".gitignore",
+      "TEMPLATE.md",
+      "contracts",
+      "requirements-dev.lock",
+      "requirements-dev.txt",
+      "schemas"
+    ],
+    "split": [
+      ".github",
+      "README.md",
+      "docs",
+      "scripts",
+      "tests"
+    ],
+    "maintainer": []
+  },
+  "targetSourceRoots": {
+    "distribution": "template",
+    "maintainer": "maintainer",
+    "publicationInterface": "docs/publication-catalog.json"
+  },
+  "requiredSeparationRules": [
+    "The branch root remains the template-development source artifact.",
+    "The contents of template are copied byte-for-byte to a product repository root.",
+    "No required reference below template may escape template.",
+    "Publication integration and source-only conformance fixtures remain outside template.",
+    "Clean-room product conformance starts from template rather than the complete branch root."
+  ]
+}
