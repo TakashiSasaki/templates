@@ -113,6 +113,11 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_bundled_mcp_client_consistency.py",
+      "destination": ".github/scripts/validate_bundled_mcp_client_consistency.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_cli_exit_code_contract.py",
       "destination": ".github/scripts/validate_cli_exit_code_contract.py",
       "exclude": []
