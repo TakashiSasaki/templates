@@ -92,6 +92,10 @@ jobs:
         shell: bash
         run: python .github/scripts/test_python_interface_validator_parity.py
 
+      - name: Test interface runtime/summary Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_runtime_summary_validator_parity.py
+
       - name: Test MCP runtime-authority declaration
         shell: bash
         run: ruby .github/scripts/test-mcp-runtime-authority.rb

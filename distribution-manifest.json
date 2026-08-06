@@ -138,6 +138,16 @@
       "exclude": []
     },
     {
+      "source": ".github/scripts/validate_interface_runtime_consistency.py",
+      "destination": ".github/scripts/validate_interface_runtime_consistency.py",
+      "exclude": []
+    },
+    {
+      "source": ".github/scripts/validate_interface_summary_details.py",
+      "destination": ".github/scripts/validate_interface_summary_details.py",
+      "exclude": []
+    },
+    {
       "source": ".github/scripts/validate_late_review_contracts.py",
       "destination": ".github/scripts/validate_late_review_contracts.py",
       "exclude": []
