@@ -133,7 +133,7 @@ class CanonicalMetadataTests(unittest.TestCase):
 
 
 class DeploymentWorkflowWiringTests(unittest.TestCase):
-    def test_build_workflow_retains_metadata_support_while_deployment_is_suspended(self) -> None:
+    def test_deployment_workflow_supplies_timestamp_to_the_build(self) -> None:
         build_workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(
             encoding="utf-8"
         )
@@ -151,11 +151,13 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertIn("scripts/finalize_site_metadata.py", build_workflow)
         self.assertIn(f"--canonical-url {CANONICAL_URL}", build_workflow)
 
-        self.assertIn("uses: ./.github/workflows/build-pages.yml", deploy_workflow)
-        self.assertNotIn("TZ=Asia/Tokyo", deploy_workflow)
-        self.assertNotIn("deployment_timestamp:", deploy_workflow)
-        self.assertNotIn("actions/deploy-pages@", deploy_workflow)
-
+        self.assertIn("TZ=Asia/Tokyo", deploy_workflow)
+        self.assertIn("deployment_timestamp:", deploy_workflow)
+        self.assertIn(
+            "${{ needs.deployment_metadata.outputs.deployment_timestamp }}",
+            deploy_workflow,
+        )
+        self.assertIn("actions/deploy-pages@", deploy_workflow)
         self.assertIn(f'site_url = "{CANONICAL_URL}"', template)
 
 
