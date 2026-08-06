@@ -100,6 +100,11 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-cli-exit-code-meanings.rb
 
+      - name: Validate Python review follow-up contracts in the copyable template
+        shell: bash
+        working-directory: template
+        run: python .github/scripts/validate_review_followup_contracts.py
+
       - name: Validate all profile contracts in the copyable template
         shell: bash
         working-directory: template
