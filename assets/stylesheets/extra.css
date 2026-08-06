@@ -61,6 +61,12 @@
 }
 
 /* Portal landing page. Keep every rule scoped to avoid changing provider documents. */
+/* Keep the Markdown source title available to the site generator without
+   duplicating the visible hero heading. */
+.md-content__inner > h1:has(+ .portal-landing) {
+  display: none;
+}
+
 .portal-landing {
   --portal-cyan: #1ea7e8;
   --portal-cyan-bright: #40c9ff;
