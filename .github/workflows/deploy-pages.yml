@@ -1,5 +1,6 @@
 name: Deploy documentation from site
 
+# Keep this workflow source-controlled so each diagnostic retry uses a new commit SHA.
 on:
   push:
     branches:
