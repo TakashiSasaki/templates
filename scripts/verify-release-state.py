@@ -46,6 +46,16 @@ REQUIRED_RELEASE_PATHS = (
     "src/agent_policy/renderer.py",
     "templates/workflows/check-agent-policy.yml.j2",
 )
+SCHEMA_V2_REQUIRED_RELEASE_PATHS = (
+    "profiles/review.yml",
+    "src/agent_policy/commands/check.py",
+    "src/agent_policy/commands/render.py",
+    "src/agent_policy/commands/validate.py",
+    "src/agent_policy/config.py",
+    "src/agent_policy/policy_loader.py",
+    "templates/policy-context.md.j2",
+)
+SUPPORTED_AGENT_POLICY_SCHEMA_VERSIONS = frozenset({1, 2})
 PINNED_PROBE = r"""
 from __future__ import annotations
 
@@ -62,6 +72,7 @@ from agent_policy.manifest import build_manifest
 from agent_policy.renderer import environment
 
 revision = os.environ["RELEASE_REVISION"]
+agent_policy_schema = int(os.environ["RELEASE_AGENT_POLICY_SCHEMA"])
 manifest = build_manifest(
     toolchain_revision=revision,
     profiles=["core"],
@@ -100,6 +111,97 @@ with tempfile.TemporaryDirectory(prefix="agent-policy-pinned-release-") as tempo
 workflow = environment().get_template(
     "workflows/check-agent-policy.yml.j2"
 ).render(revision=revision)
+
+context_probe = None
+if agent_policy_schema >= 2:
+    from agent_policy.commands import check, render, validate
+
+    policy_template = """---
+id: {rule_id}
+severity: mandatory
+overridable: true
+order: 1000
+---
+# {title}
+
+Pinned release context probe.
+"""
+    with tempfile.TemporaryDirectory(
+        prefix="agent-policy-pinned-context-"
+    ) as temporary:
+        root = Path(temporary)
+        (root / ".git").mkdir()
+        (root / "policy").mkdir()
+        (root / "policy/coding.md").write_text(
+            policy_template.format(
+                rule_id="project.release-probe-coding",
+                title="Pinned coding context rule",
+            ),
+            encoding="utf-8",
+        )
+        (root / "policy/review.md").write_text(
+            policy_template.format(
+                rule_id="project.release-probe-review",
+                title="Pinned review context rule",
+            ),
+            encoding="utf-8",
+        )
+        (root / ".agent-policy.yml").write_text(
+            f"""schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: {revision}
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/coding.md
+  review:
+    profiles:
+      - core
+      - security-baseline
+      - review
+    project_policy:
+      files:
+        - policy/review.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+  review:
+    enabled: true
+    path: .github/REVIEW_GUIDELINES.md
+    context: review
+    renderer: policy-context-md
+skills:
+  enabled: []
+""",
+            encoding="utf-8",
+        )
+        validate_diagnostics = validate.run(root, ".agent-policy.yml")
+        render_diagnostics = render.run(root, ".agent-policy.yml")
+        check_diagnostics = check.run(root, ".agent-policy.yml")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        review = (root / ".github/REVIEW_GUIDELINES.md").read_text(
+            encoding="utf-8"
+        )
+        context_probe = {
+            "validate": [item.code for item in validate_diagnostics],
+            "render": [item.code for item in render_diagnostics],
+            "check": [item.code for item in check_diagnostics],
+            "agents_has_coding": "project.release-probe-coding" in agents,
+            "agents_has_review": "project.release-probe-review" in agents,
+            "agents_has_shared_review": "review.require-change-causality" in agents,
+            "review_has_coding": "project.release-probe-coding" in review,
+            "review_has_review": "project.release-probe-review" in review,
+            "review_has_shared_review": "review.require-change-causality" in review,
+            "review_has_security": "security.validate-boundaries" in review,
+        }
+
 print(
     json.dumps(
         {
@@ -107,6 +209,7 @@ print(
             "adoption": adoption,
             "lock": lock,
             "workflow": workflow,
+            "context_probe": context_probe,
         }
     )
 )
@@ -129,6 +232,59 @@ def validate_schema(value: object, schema: dict[str, Any], label: str) -> None:
         return
     location = ".".join(str(part) for part in errors[0].path) or "root"
     raise ValueError(f"Invalid {label} at {location}: {errors[0].message}")
+
+
+def schema_contract_version(schema: dict[str, Any], label: str) -> int:
+    try:
+        declaration = schema["properties"]["schema_version"]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"{label} schema does not declare schema_version") from exc
+    if not isinstance(declaration, dict):
+        raise ValueError(f"{label} schema_version declaration must be an object")
+
+    const = declaration.get("const")
+    if type(const) is int and const >= 1:
+        return const
+
+    enum = declaration.get("enum")
+    if isinstance(enum, list) and enum:
+        if any(type(item) is not int or item < 1 for item in enum):
+            raise ValueError(
+                f"{label} schema_version enum must contain positive integers"
+            )
+        if len(enum) != len(set(enum)):
+            raise ValueError(f"{label} schema_version enum must not contain duplicates")
+        return max(enum)
+
+    raise ValueError(
+        f"{label} schema_version must declare a positive integer const or enum"
+    )
+
+
+def verify_context_probe(probe: dict[str, Any], schema_version: int) -> None:
+    context_probe = probe.get("context_probe")
+    if schema_version == 1:
+        if context_probe is not None:
+            raise ValueError("Schema-v1 pinned release unexpectedly ran context probe")
+        return
+    if schema_version != 2:
+        raise ValueError(
+            f"Release verifier does not support agent-policy schema {schema_version}"
+        )
+    expected = {
+        "validate": [],
+        "render": [],
+        "check": [],
+        "agents_has_coding": True,
+        "agents_has_review": False,
+        "agents_has_shared_review": False,
+        "review_has_coding": False,
+        "review_has_review": True,
+        "review_has_shared_review": True,
+        "review_has_security": True,
+    }
+    if context_probe != expected:
+        raise ValueError("Pinned schema-v2 context rendering probe failed")
 
 
 def git_text(*arguments: str) -> str:
@@ -237,11 +393,13 @@ def run_pinned_probe(
     tree: Path,
     revision: str,
     probe_python: Path,
+    agent_policy_schema: int,
 ) -> dict[str, Any]:
     environment = os.environ.copy()
     environment["PYTHONNOUSERSITE"] = "1"
     environment["PYTHONPATH"] = str(tree / "src")
     environment["RELEASE_REVISION"] = revision
+    environment["RELEASE_AGENT_POLICY_SCHEMA"] = str(agent_policy_schema)
     output = subprocess.check_output(
         [str(probe_python), "-s", "-c", PINNED_PROBE],
         cwd=tree,
@@ -289,12 +447,23 @@ def verify_pinned_release(
 
     config_schema = load_object(tree / "schemas/agent-policy.schema.json")
     adoption_schema = load_object(tree / "schemas/adoption-state.schema.json")
-    config_version = config_schema["properties"]["schema_version"]["const"]
-    adoption_version = adoption_schema["properties"]["schema_version"]["const"]
+    config_version = schema_contract_version(config_schema, "agent-policy")
+    adoption_version = schema_contract_version(adoption_schema, "adoption-state")
+    if config_version not in SUPPORTED_AGENT_POLICY_SCHEMA_VERSIONS:
+        raise ValueError(
+            f"Release verifier does not support agent-policy schema {config_version}"
+        )
     if config_version != contracts["agent_policy_schema"]:
         raise ValueError("Pinned agent-policy schema version differs from release state")
     if adoption_version != contracts["adoption_state_schema"]:
         raise ValueError("Pinned adoption-state schema version differs from release state")
+
+    if config_version >= 2:
+        for relative in SCHEMA_V2_REQUIRED_RELEASE_PATHS:
+            if not (tree / relative).is_file():
+                raise ValueError(
+                    f"Schema-v2 stable revision is missing required path: {relative}"
+                )
 
     config_toolchain = config_schema["properties"]["toolchain"]
     adoption_toolchain = adoption_schema["properties"]["toolchain"]
@@ -303,7 +472,12 @@ def verify_pinned_release(
             "Pinned configuration and adoption schemas define different toolchains"
         )
 
-    probe = run_pinned_probe(tree, revision, probe_python)
+    probe = run_pinned_probe(
+        tree,
+        revision,
+        probe_python,
+        config_version,
+    )
     manifest = probe["manifest"]
     adoption = probe["adoption"]
     lock = probe["lock"]
@@ -333,6 +507,8 @@ def verify_pinned_release(
             raise ValueError(
                 f"Pinned consumer workflow contains mutable reference {mutable}"
             )
+
+    verify_context_probe(probe, config_version)
 
 
 def verify_release_state(git_ref: str | None) -> str:
