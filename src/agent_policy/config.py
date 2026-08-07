@@ -13,10 +13,21 @@ from .yamlutil import load_yaml
 
 
 @dataclass(frozen=True)
+class OverrideDeclaration:
+    id: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class PolicyContext:
     name: str
     profiles: tuple[str, ...]
     project_policy_files: tuple[str, ...]
+    overrides: tuple[OverrideDeclaration, ...]
+
+    @property
+    def override_reasons(self) -> dict[str, str]:
+        return {item.id: item.reason for item in self.overrides}
 
 
 @dataclass(frozen=True)
@@ -62,6 +73,7 @@ class Config:
                     project_policy_files=tuple(
                         item for item in files if isinstance(item, str)
                     ),
+                    overrides=(),
                 )
             }
 
@@ -80,14 +92,28 @@ class Config:
                 if isinstance(project_policy, dict)
                 else None
             )
-            if not isinstance(profiles, list) or not isinstance(files, list):
+            raw_overrides = raw.get("overrides", [])
+            if (
+                not isinstance(profiles, list)
+                or not isinstance(files, list)
+                or not isinstance(raw_overrides, list)
+            ):
                 continue
+            overrides: list[OverrideDeclaration] = []
+            for item in raw_overrides:
+                if not isinstance(item, dict):
+                    continue
+                rule_id = item.get("id")
+                reason = item.get("reason")
+                if isinstance(rule_id, str) and isinstance(reason, str):
+                    overrides.append(OverrideDeclaration(rule_id, reason))
             result[name] = PolicyContext(
                 name=name,
                 profiles=tuple(item for item in profiles if isinstance(item, str)),
                 project_policy_files=tuple(
                     item for item in files if isinstance(item, str)
                 ),
+                overrides=tuple(overrides),
             )
         return result
 
@@ -223,6 +249,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
         diagnostics.append(Diagnostic("error", "SCHEMA", error.message, location))
 
     profiles_dir = package_root() / "profiles"
+    invalid_policy_inputs = False
     for context in config.contexts.values():
         profile_path = (
             "profiles"
@@ -231,6 +258,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
         )
         for profile in context.profiles:
             if not (profiles_dir / f"{profile}.yml").is_file():
+                invalid_policy_inputs = True
                 diagnostics.append(
                     Diagnostic(
                         "error",
@@ -249,6 +277,17 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                 )
             )
 
+        override_ids = [item.id for item in context.overrides]
+        if len(override_ids) != len(set(override_ids)):
+            diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "DUPLICATE_OVERRIDE",
+                    "Override rule IDs must be unique within a context",
+                    f"contexts.{context.name}.overrides",
+                )
+            )
+
     for output in config.output_specs:
         if output.context not in config.contexts:
             diagnostics.append(
@@ -264,9 +303,11 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
         try:
             path = resolve_inside(repository_root, policy_file, allow_missing=False)
         except (ValueError, FileNotFoundError) as exc:
+            invalid_policy_inputs = True
             diagnostics.append(Diagnostic("error", "POLICY_PATH", str(exc), policy_file))
             continue
         if not path.is_file():
+            invalid_policy_inputs = True
             diagnostics.append(
                 Diagnostic(
                     "error",
@@ -275,6 +316,28 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                     policy_file,
                 )
             )
+
+    if not invalid_policy_inputs:
+        from .policy_loader import load_rules
+
+        for context in config.contexts.values():
+            try:
+                load_rules(
+                    repository_root,
+                    list(context.profiles),
+                    list(context.project_policy_files),
+                    declared_overrides=context.override_reasons,
+                    require_explicit_overrides=config.schema_version >= 2,
+                )
+            except Exception as exc:
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "POLICY_COMPOSITION",
+                        str(exc),
+                        f"contexts.{context.name}",
+                    )
+                )
 
     try:
         reserved_lock_path = resolve_lock_path(repository_root, allow_missing=True)

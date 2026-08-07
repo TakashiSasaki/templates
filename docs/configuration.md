@@ -107,6 +107,35 @@ In schema version 1, `project_policy.files` accepts an ordered list of repositor
 
 The low-level manifest builder supports multiple files. The `init` command intentionally scaffolds exactly one placeholder file; adoption of an existing repository can preserve multiple existing policy files through `adopt prepare`.
 
+## Explicit shared-policy overrides
+
+Schema version 2 requires repository-local replacement of a shared rule to be declared explicitly. Reusing an overridable shared rule ID in a context-local policy file is not sufficient by itself. The same context must declare the exact rule ID under `overrides` and provide a non-empty reason.
+
+```yaml
+contexts:
+  coding:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/generated-artifacts.md
+    overrides:
+      - id: consistency.synchronize-derived-artifacts
+        reason: This repository uses a separately validated generation authority.
+```
+
+An override declaration is an exception record, not a second source of policy text. The repository-local policy file supplies the replacement rule body; `overrides` records which canonical shared rule is intentionally being replaced and why.
+
+Validation rejects all of the following in schema version 2:
+
+- a repository-local rule that reuses a shared rule ID without a matching override declaration;
+- an override declaration for a rule that is not actually replaced in that context;
+- replacement of a shared rule whose metadata has `overridable: false`;
+- duplicate repository-local rule IDs within one context; and
+- duplicate override declarations for the same rule ID within one context.
+
+Schema version 1 keeps its legacy implicit override behavior for compatibility. New multi-context configurations should use schema version 2 and explicit override declarations so that exceptions to shared normative authority are reviewable and machine-checkable.
+
 ## Adoption state
 
 `.agent-policy/adoption.json` is a generated migration-state record, not a second semantic configuration source. In the prepared phase it records:
