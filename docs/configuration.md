@@ -13,9 +13,82 @@ verification:
 
 Repositories with tiered or task-dependent verification may omit this field and express the detailed rules in repository-local policy until the configuration schema supports richer verification tiers.
 
+## Schema version 1
+
+Schema version 1 preserves the original single-context model. Top-level `profiles` and `project_policy.files` define one implicit `default` policy context, and `outputs.agents` is rendered through the `agents-md` renderer.
+
+```yaml
+schema_version: 1
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 0123456789abcdef0123456789abcdef01234567
+profiles:
+  - core
+  - security-baseline
+project_policy:
+  files:
+    - policy/project.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+skills:
+  enabled:
+    - validate-agent-policy
+```
+
+The `init` and `adopt` commands continue to emit schema version 1 in this phase. Existing managed repositories therefore do not need a configuration migration merely because the toolchain learns schema version 2.
+
+## Schema version 2 policy contexts
+
+Schema version 2 separates semantic policy selection from output presentation. Each named entry under `contexts` selects shared profiles and repository-local policy files. Each named output then references exactly one context and one renderer.
+
+```yaml
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 0123456789abcdef0123456789abcdef01234567
+contexts:
+  coding:
+    profiles:
+      - core
+      - security-baseline
+    project_policy:
+      files:
+        - policy/coding.md
+  review:
+    profiles:
+      - core
+      - security-baseline
+      - review
+    project_policy:
+      files:
+        - policy/review.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+  review:
+    enabled: true
+    path: .github/REVIEW_GUIDELINES.md
+    context: review
+    renderer: policy-context-md
+skills:
+  enabled:
+    - validate-agent-policy
+```
+
+The context is the semantic authority boundary. A renderer does not select, add, remove, or override policy rules; it only presents the rules selected by its referenced context.
+
+`agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral context document for uses such as pull-request review. Provider-specific event names, GitHub diff-side fields, response JSON schemas, numeric confidence serialization, and Codex, Gemini, Antigravity, or other engine invocation details are adapter concerns and are not introduced by either shared policy or `policy-context-md`.
+
+All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.
+
 ## Agent output
 
-The agent instruction output keeps both an enable flag and a path.
+In schema version 1 the agent instruction output keeps both an enable flag and a path.
 
 ```yaml
 outputs:
@@ -26,9 +99,13 @@ outputs:
 
 When `enabled` is `false`, the path remains declarative but no agent instruction file is rendered. This permits a later explicit cutover without losing the intended destination. Adoption preparation instead enables output at a shadow path such as `.agent-policy/preview/AGENTS.md`. Finalization rewrites this path to the retained primary instruction path and regenerates the lock.
 
+Schema version 2 generalizes the same enable/path semantics to every named output and additionally requires `context` and `renderer`.
+
 ## Project policy files
 
-`project_policy.files` accepts an ordered list of repository-local policy files. The low-level manifest builder supports multiple files. The `init` command intentionally scaffolds exactly one placeholder file; adoption of an existing repository can preserve multiple existing policy files through `adopt prepare`.
+In schema version 1, `project_policy.files` accepts an ordered list of repository-local policy files. In schema version 2, each `contexts.<name>.project_policy.files` list has the same meaning but is scoped to that context.
+
+The low-level manifest builder supports multiple files. The `init` command intentionally scaffolds exactly one placeholder file; adoption of an existing repository can preserve multiple existing policy files through `adopt prepare`.
 
 ## Adoption state
 
