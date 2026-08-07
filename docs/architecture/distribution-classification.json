@@ -9,6 +9,8 @@
       "template"
     ],
     "maintainer": [
+      ".agent-policy.lock",
+      ".agent-policy.yml",
       ".editorconfig",
       ".github",
       ".gitignore",
@@ -19,7 +21,8 @@
       "README.md",
       "distribution-manifest.json",
       "docs",
-      "maintainer"
+      "maintainer",
+      "policy"
     ],
     "split": []
   },
