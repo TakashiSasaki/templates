@@ -52,7 +52,7 @@ expect_failure.call("missing declared file", "declared files are missing") do |r
 end
 
 expect_failure.call("mirrored validator drift", "mirrored bytes differ") do |root|
-  path = File.join(root, "template", ".github", "scripts", "validate-skill-repository.rb")
+  path = File.join(root, "template", ".github", "scripts", "validate_skill_repository.py")
   File.open(path, "a", encoding: "UTF-8") { |file| file << "\n# DRIFT\n" }
 end
 
