@@ -82,7 +82,22 @@ skills:
 
 The context is the semantic authority boundary. A renderer does not select, add, remove, or override policy rules; it only presents the rules selected by its referenced context.
 
-`agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral context document for uses such as pull-request review. Provider-specific event names, GitHub diff-side fields, response JSON schemas, numeric confidence serialization, and Codex, Gemini, Antigravity, or other engine invocation details are adapter concerns and are not introduced by either shared policy or `policy-context-md`.
+`agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral context document for uses such as pull-request review.
+
+`github-review-json-v1` is an additive schema-version-2 renderer for a GitHub-oriented blocking-review transport. It renders exactly the same semantic rules selected by the referenced context, then adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md`.
+
+A repository that needs the GitHub JSON adapter can select it without changing its semantic review context:
+
+```yaml
+outputs:
+  review:
+    enabled: true
+    path: .github/REVIEW_GUIDELINES.md
+    context: review
+    renderer: github-review-json-v1
+```
+
+Codex, Gemini, Antigravity, or another engine may consume the generated adapter document; engine invocation details remain outside the semantic policy. Other provider-specific event names, APIs, or serialization contracts require their own renderer or external adapter rather than changes to the review-rule modules.
 
 All configured repository-local policy inputs are included in the generated lock. Each output, however, is rendered only from the profiles and repository-local policy files belonging to its referenced context. Output paths must be unique and must not overwrite configuration, policy input, or reserved generated-state paths.
 
