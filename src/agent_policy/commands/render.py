@@ -15,7 +15,7 @@ from ..lockfile import (
 )
 from ..paths import resolve_inside
 from ..policy_loader import load_rules
-from ..renderer import GENERATED_MARKER, render_agents, render_skill
+from ..renderer import GENERATED_MARKER, render_output, render_skill
 
 
 def _write_atomic(path: Path, content: str) -> None:
@@ -165,16 +165,32 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
         diagnostics = validate_config(repository_root, config)
         if diagnostics:
             return diagnostics
-        rules = load_rules(repository_root, config.profiles, config.project_policy_files)
 
         planned: dict[str, tuple[Path, str]] = {}
-        if config.output_agents_path:
+        contexts = config.contexts
+        for output in config.output_specs:
+            if not output.enabled:
+                continue
+            context = contexts[output.context]
+            rules = load_rules(
+                repository_root,
+                list(context.profiles),
+                list(context.project_policy_files),
+            )
+            content = render_output(
+                output.renderer,
+                config,
+                rules,
+                context_name=context.name,
+                project_policy_files=context.project_policy_files,
+            )
             _add_planned_output(
                 repository_root,
                 planned,
-                config.output_agents_path,
-                render_agents(config, rules),
+                output.path,
+                content,
             )
+
         for skill in config.enabled_skills:
             for relative, content in render_skill(
                 skill,

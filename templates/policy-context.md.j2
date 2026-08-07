@@ -1,23 +1,24 @@
 <!--
 agent-policy-generated: true
 configuration: {{ config.relative_path }}
+context: {{ context_name }}
+renderer: policy-context-md
 DO NOT EDIT DIRECTLY
 -->
 
-# Repository agent instructions
+# Policy context: {{ context_name }}
 
-These instructions were generated from shared policy profiles and repository-specific policy files.
+These instructions were generated for one semantic policy context. The context selects policy; the renderer only determines presentation.
 
 ## Policy system
 
 - Semantic configuration: `{{ config.relative_path }}`
+- Policy context: `{{ context_name }}`
 - Pinned shared toolchain: `{{ config.data.toolchain.repository }}@{{ config.data.toolchain.revision }}`
 {% if project_policy_files %}- Repository policy inputs:
 {% for path in project_policy_files %}  - `{{ path }}`
-{% endfor %}{% endif %}{% if config.enabled_skills %}- Generated operational skills:
-{% for skill in config.enabled_skills %}  - `.agents/skills/{{ skill }}/SKILL.md`
 {% endfor %}{% endif %}
-Do not edit this generated file directly. Change `{{ config.relative_path }}` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
+Do not edit this generated file directly. Change the context or its repository policy inputs in `{{ config.relative_path }}`, then regenerate with the pinned toolchain.
 
 {% for rule in rules %}
 ## {{ rule.title }}
@@ -28,11 +29,3 @@ Do not edit this generated file directly. Change `{{ config.relative_path }}` or
 {% else %}_Source: `{{ rule.source }}` in this repository; rule ID: `{{ rule.id }}`; severity: `{{ rule.severity }}`._
 {% endif %}
 {% endfor %}
-{% set verification_command = config.data.get('verification', {}).get('command') %}
-{% if verification_command %}
-## Required verification command
-
-```bash
-{{ verification_command }}
-```
-{% endif %}

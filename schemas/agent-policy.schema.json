@@ -6,14 +6,12 @@
   "required": [
     "schema_version",
     "toolchain",
-    "profiles",
-    "project_policy",
     "outputs",
     "skills"
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "enum": [1, 2]
     },
     "toolchain": {
       "type": "object",
@@ -57,6 +55,48 @@
         }
       }
     },
+    "contexts": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profiles",
+          "project_policy"
+        ],
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            }
+          },
+          "project_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "files"
+            ],
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "verification": {
       "type": "object",
       "additionalProperties": false,
@@ -69,29 +109,7 @@
     },
     "outputs": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "agents"
-      ],
-      "properties": {
-        "agents": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "enabled",
-            "path"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "path": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        }
-      }
+      "minProperties": 1
     },
     "skills": {
       "type": "object",
@@ -110,5 +128,111 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "profiles",
+          "project_policy"
+        ],
+        "properties": {
+          "contexts": false,
+          "outputs": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "agents"
+            ],
+            "properties": {
+              "agents": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "enabled",
+                  "path"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "contexts"
+        ],
+        "properties": {
+          "profiles": false,
+          "project_policy": false,
+          "outputs": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[a-z0-9][a-z0-9-]*$"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled",
+                "path",
+                "context",
+                "renderer"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "renderer": {
+                  "enum": [
+                    "agents-md",
+                    "policy-context-md"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

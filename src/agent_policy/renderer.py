@@ -29,9 +29,66 @@ def environment() -> Environment:
     )
 
 
-def render_agents(config: Config, rules: Iterable[Rule]) -> str:
+def render_agents(
+    config: Config,
+    rules: Iterable[Rule],
+    *,
+    context_name: str = "default",
+    project_policy_files: Iterable[str] | None = None,
+) -> str:
     template = environment().get_template("AGENTS.md.j2")
-    return template.render(config=config, rules=list(rules))
+    policy_files = (
+        list(config.project_policy_files)
+        if project_policy_files is None
+        else list(project_policy_files)
+    )
+    return template.render(
+        config=config,
+        rules=list(rules),
+        context_name=context_name,
+        project_policy_files=policy_files,
+    )
+
+
+def render_policy_context(
+    config: Config,
+    rules: Iterable[Rule],
+    *,
+    context_name: str,
+    project_policy_files: Iterable[str],
+) -> str:
+    template = environment().get_template("policy-context.md.j2")
+    return template.render(
+        config=config,
+        rules=list(rules),
+        context_name=context_name,
+        project_policy_files=list(project_policy_files),
+    )
+
+
+def render_output(
+    renderer: str,
+    config: Config,
+    rules: Iterable[Rule],
+    *,
+    context_name: str,
+    project_policy_files: Iterable[str],
+) -> str:
+    if renderer == "agents-md":
+        return render_agents(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    if renderer == "policy-context-md":
+        return render_policy_context(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    raise ValueError(f"Unknown output renderer: {renderer}")
 
 
 def render_consumer_workflow(toolchain_revision: str) -> str:
