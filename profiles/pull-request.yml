@@ -1,0 +1,3 @@
+policy_files:
+  - policy/pull-request/target-branch-head-freshness.md
+  - policy/pull-request/review-thread-closure.md
