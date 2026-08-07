@@ -45,9 +45,17 @@ def test_pull_request_profile_is_closed_and_atomic() -> None:
 def test_pull_request_policy_metadata_schema() -> None:
     metadata = [_metadata(path) for path in sorted(POLICY_DIR.glob("*.md"))]
     required = {"id", "severity", "overridable", "order"}
+
     assert metadata
     assert all(required.issubset(item) for item in metadata)
+    assert all(isinstance(item["id"], str) and item["id"] for item in metadata)
+    assert all(
+        isinstance(item["severity"], str) and item["severity"]
+        for item in metadata
+    )
     assert all(type(item["overridable"]) is bool for item in metadata)
+    assert all(type(item["order"]) is int for item in metadata)
+
     orders = [item["order"] for item in metadata]
     assert len(orders) == len(set(orders))
 
@@ -69,5 +77,16 @@ def test_pull_request_rules_are_provider_neutral() -> None:
     corpus = "\n".join(
         path.read_text(encoding="utf-8") for path in POLICY_DIR.glob("*.md")
     )
-    for provider_term in ("GitHub", "GitLab", "Bitbucket"):
+    provider_terms = (
+        "Antigravity",
+        "Codex",
+        "Gemini",
+        "GitHub",
+        "GitLab",
+        "Bitbucket",
+        "LEFT",
+        "RIGHT",
+        "REQUEST_CHANGES",
+    )
+    for provider_term in provider_terms:
         assert provider_term not in corpus
