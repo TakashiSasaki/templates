@@ -2,7 +2,7 @@
   "schema_version": 2,
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "497c608ae14bf182f463d78225fdf2a51f67ac9f"
+    "revision": "a288262c1e81fdd07f1c30e61302c4aae02b33af"
   },
   "entrypoint": {
     "executable": "agent-policy"
