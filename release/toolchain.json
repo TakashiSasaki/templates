@@ -3,10 +3,10 @@
   "channel": "stable",
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "12ee3e793d7625408516c08fe99c2d7489add12a"
+    "revision": "a60caac2509a500854e067b30c1be7386cb1887b"
   },
   "contracts": {
-    "agent_policy_schema": 1,
+    "agent_policy_schema": 2,
     "adoption_state_schema": 1,
     "bootstrap_manifest": 2,
     "lock": 1
