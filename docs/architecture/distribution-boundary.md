@@ -49,9 +49,12 @@ The source layout uses one explicit copy boundary rather than requiring every so
 
 ```text
 /
+├── .agent-policy.lock         # deterministic shared-policy lock
+├── .agent-policy.yml          # source-maintainer shared-policy configuration
 ├── .github/workflows/          # source-maintainer CI
 ├── README.md                   # source-maintainer overview
 ├── distribution-manifest.json # closed source-to-distribution definition
+├── policy/                     # repository-local maintainer policy
 ├── contracts/                  # source-owned canonical contract inputs
 ├── schemas/                    # source-owned canonical schema inputs
 ├── scripts/                    # reusable validators plus source-only validators
