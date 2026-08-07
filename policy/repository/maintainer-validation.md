@@ -11,6 +11,8 @@ Use the isolated Python and pip bootstrap procedure documented in `README.md` be
 For changes that can affect Webapp contracts or validation, run both supported entry points for the applicable validators and run the standard-library test suite. The complete retained baseline includes:
 
 ```sh
+python scripts/validate_distribution.py
+python -m scripts.validate_distribution
 python scripts/validate_contracts.py
 python -m scripts.validate_contracts
 python scripts/validate_contract_evolution.py
