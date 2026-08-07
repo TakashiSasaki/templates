@@ -78,6 +78,73 @@ def test_release_schema_allows_prior_stable_contract_versions() -> None:
         assert contract_properties[name] == {"type": "integer", "minimum": 1}
 
 
+def test_schema_contract_version_accepts_const_and_version_enum() -> None:
+    assert (
+        verifier.schema_contract_version(
+            {"properties": {"schema_version": {"const": 1}}},
+            "const-schema",
+        )
+        == 1
+    )
+    assert (
+        verifier.schema_contract_version(
+            {"properties": {"schema_version": {"enum": [1, 2]}}},
+            "enum-schema",
+        )
+        == 2
+    )
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        {},
+        {"const": 0},
+        {"const": True},
+        {"enum": []},
+        {"enum": [1, "2"]},
+        {"enum": [1, 1]},
+    ],
+)
+def test_schema_contract_version_rejects_invalid_declarations(
+    declaration: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError):
+        verifier.schema_contract_version(
+            {"properties": {"schema_version": declaration}},
+            "invalid-schema",
+        )
+
+
+def test_context_probe_contract_covers_v1_and_v2() -> None:
+    verifier.verify_context_probe({"context_probe": None}, 1)
+    verifier.verify_context_probe(
+        {
+            "context_probe": {
+                "validate": [],
+                "render": [],
+                "check": [],
+                "agents_has_coding": True,
+                "agents_has_review": False,
+                "agents_has_shared_review": False,
+                "review_has_coding": False,
+                "review_has_review": True,
+                "review_has_shared_review": True,
+                "review_has_security": True,
+            }
+        },
+        2,
+    )
+
+    with pytest.raises(ValueError, match="context rendering probe failed"):
+        verifier.verify_context_probe(
+            {"context_probe": {"validate": ["SCHEMA"]}},
+            2,
+        )
+    with pytest.raises(ValueError, match="does not support"):
+        verifier.verify_context_probe({"context_probe": None}, 3)
+
+
 def test_stable_release_verifier_dependencies_are_fully_locked() -> None:
     expected = [
         "attrs==26.1.0",
@@ -116,6 +183,11 @@ def test_configuration_and_adoption_schemas_share_the_toolchain_contract() -> No
     config_toolchain = config_schema["properties"]["toolchain"]  # type: ignore[index]
     adoption_toolchain = adoption_schema["properties"]["toolchain"]  # type: ignore[index]
     assert config_toolchain == adoption_toolchain
+
+
+def test_current_configuration_schema_contract_is_version_two() -> None:
+    config_schema = load_object(CONFIG_SCHEMA)
+    assert verifier.schema_contract_version(config_schema, "agent-policy") == 2
 
 
 def test_generated_release_artifacts_share_one_full_sha() -> None:
@@ -214,11 +286,13 @@ def test_pinned_probe_uses_the_supplied_isolated_python(
     ) -> str:
         observed["arguments"] = arguments
         observed["environment"] = kwargs["env"]
-        return "{}"
+        return '{"context_probe": null}'
 
     monkeypatch.setattr(verifier.subprocess, "check_output", fake_check_output)
 
-    assert verifier.run_pinned_probe(tree, "a" * 40, probe_python) == {}
+    assert verifier.run_pinned_probe(tree, "a" * 40, probe_python, 1) == {
+        "context_probe": None
+    }
     assert observed["arguments"] == [
         str(probe_python),
         "-s",
@@ -230,3 +304,4 @@ def test_pinned_probe_uses_the_supplied_isolated_python(
     assert environment["PYTHONNOUSERSITE"] == "1"
     assert environment["PYTHONPATH"] == str(tree / "src")
     assert environment["RELEASE_REVISION"] == "a" * 40
+    assert environment["RELEASE_AGENT_POLICY_SCHEMA"] == "1"
