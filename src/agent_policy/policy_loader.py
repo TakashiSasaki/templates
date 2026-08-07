@@ -58,9 +58,19 @@ def profile_policy_paths(profile: str) -> list[Path]:
     return [package_root() / str(item) for item in data["policy_files"]]
 
 
-def load_rules(repository_root: Path, profiles: list[str], local_files: list[str]) -> list[Rule]:
+def load_rules(
+    repository_root: Path,
+    profiles: list[str],
+    local_files: list[str],
+    *,
+    declared_overrides: dict[str, str] | None = None,
+    require_explicit_overrides: bool = False,
+) -> list[Rule]:
     rules: list[Rule] = []
     seen: dict[str, Rule] = {}
+    declarations = {} if declared_overrides is None else dict(declared_overrides)
+    applied_overrides: set[str] = set()
+
     for profile in profiles:
         for path in profile_policy_paths(profile):
             rule = parse_policy(
@@ -69,17 +79,41 @@ def load_rules(repository_root: Path, profiles: list[str], local_files: list[str
                 "toolchain",
             )
             if rule.id in seen:
-                raise ValueError(f"Duplicate rule ID: {rule.id}")
+                previous = seen[rule.id]
+                raise ValueError(
+                    f"Duplicate shared rule ID {rule.id}: "
+                    f"{previous.source} and {rule.source}"
+                )
             seen[rule.id] = rule
             rules.append(rule)
+
     for relative in local_files:
         path = resolve_inside(repository_root, relative, allow_missing=False)
         rule = parse_policy(path, relative, "repository")
         previous = seen.get(rule.id)
+        if previous is not None and previous.origin == "repository":
+            raise ValueError(
+                f"Duplicate repository rule ID {rule.id}: "
+                f"{previous.source} and {rule.source}"
+            )
         if previous is not None and not previous.overridable:
             raise ValueError(f"Rule {rule.id} is not overridable (defined in {previous.source})")
+        if previous is not None and require_explicit_overrides:
+            if rule.id not in declarations:
+                raise ValueError(
+                    f"Repository override for {rule.id} must be declared with a reason"
+                )
+            applied_overrides.add(rule.id)
         if previous is not None:
             rules.remove(previous)
         seen[rule.id] = rule
         rules.append(rule)
+
+    if require_explicit_overrides:
+        unused = sorted(set(declarations) - applied_overrides)
+        if unused:
+            raise ValueError(
+                "Declared overrides do not replace shared rules: " + ", ".join(unused)
+            )
+
     return sorted(rules, key=lambda item: (item.order, item.id))
