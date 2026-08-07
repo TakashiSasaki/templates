@@ -91,14 +91,18 @@ def load_rules(
         path = resolve_inside(repository_root, relative, allow_missing=False)
         rule = parse_policy(path, relative, "repository")
         previous = seen.get(rule.id)
-        if previous is not None and previous.origin == "repository":
+        if (
+            previous is not None
+            and previous.origin == "repository"
+            and require_explicit_overrides
+        ):
             raise ValueError(
                 f"Duplicate repository rule ID {rule.id}: "
                 f"{previous.source} and {rule.source}"
             )
         if previous is not None and not previous.overridable:
             raise ValueError(f"Rule {rule.id} is not overridable (defined in {previous.source})")
-        if previous is not None and require_explicit_overrides:
+        if previous is not None and previous.origin == "toolchain" and require_explicit_overrides:
             if rule.id not in declarations:
                 raise ValueError(
                     f"Repository override for {rule.id} must be declared with a reason"
