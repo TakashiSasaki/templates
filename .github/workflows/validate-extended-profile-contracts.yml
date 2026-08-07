@@ -84,6 +84,30 @@ jobs:
         shell: bash
         run: python .github/scripts/test_python_initial_validator_parity.py
 
+      - name: Test concrete and late-review Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_cutover_validator_parity.py
+
+      - name: Test interface routing/decomposition Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_interface_validator_parity.py
+
+      - name: Test interface runtime/summary Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_runtime_summary_validator_parity.py
+
+      - name: Test bundled MCP client Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_bundled_mcp_validator_parity.py
+
+      - name: Test core/extended Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_core_extended_validator_parity.py
+
+      - name: Test aggregate/repository Ruby/Python parity
+        shell: bash
+        run: python .github/scripts/test_python_aggregate_validator_parity.py
+
       - name: Test MCP runtime-authority declaration
         shell: bash
         run: ruby .github/scripts/test-mcp-runtime-authority.rb
@@ -113,10 +137,10 @@ jobs:
         working-directory: template
         run: python .github/scripts/validate_review_followup_contracts.py
 
-      - name: Validate all profile contracts in the copyable template
+      - name: Validate the copyable template repository with Python
         shell: bash
         working-directory: template
-        run: ruby .github/scripts/validate-profile-contracts.rb
+        run: python .github/scripts/validate_skill_repository.py
 
   cli-mcp-combined-profile-fixture:
     runs-on: ubuntu-latest

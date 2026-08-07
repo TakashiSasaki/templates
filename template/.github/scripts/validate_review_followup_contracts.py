@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from lib.profile_contracts import (
     ParseError,
@@ -25,6 +25,19 @@ SOURCE_EXTENSIONS = {
     ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".m", ".mm", ".dart",
     ".groovy", ".gradle", ".bats", ".feature", ".t",
 }
+WINDOWS_EXECUTABLE_EXTENSIONS = {".com", ".exe", ".bat", ".cmd"}
+
+
+def _is_executable_root_file(
+    path: Path,
+    *,
+    platform_name: str = os.name,
+) -> bool:
+    """Apply portable executable semantics without Windows os.access false positives."""
+
+    if platform_name == "nt":
+        return path.suffix.casefold() in WINDOWS_EXECUTABLE_EXTENSIONS
+    return os.access(path, os.X_OK)
 
 
 def _extract_path(value: object | None) -> str | None:
@@ -39,7 +52,9 @@ def _extract_path(value: object | None) -> str | None:
     elif not quoted and re.fullmatch(r"\S+", normalized):
         candidate = ValuePolicy.strip_backticks(normalized)
 
-    if candidate is None or candidate.startswith("/"):
+    if candidate is None or candidate.startswith("/") or "\\" in candidate:
+        return None
+    if PureWindowsPath(candidate).drive:
         return None
     parts = PurePosixPath(candidate).parts
     if ".." in parts:
@@ -63,7 +78,7 @@ def run() -> int:
         path
         for path in repository.root_files()
         if Path(path).suffix.lower() in SOURCE_EXTENSIONS
-        or os.access(repository.root / path, os.X_OK)
+        or _is_executable_root_file(repository.root / path)
     ]
 
     if selection.template_scaffold():

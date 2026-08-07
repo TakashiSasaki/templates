@@ -264,7 +264,9 @@ Validation should be profile-aware:
 Run the supported profile-aware validation entry point:
 
 ```sh
-ruby .github/scripts/validate-profile-contracts.rb
+python .github/scripts/validate_profile_contracts.py
 ```
 
-The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Focused validators may retain bounded parser logic for their contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.rb`.
+The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Focused validators may retain bounded parser logic for their contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.py`.
+
+The validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git.

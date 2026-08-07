@@ -52,8 +52,8 @@ The `instruction-only` tag is exclusive and cannot participate in a combined sel
 
 ## Validation architecture
 
-`.github/scripts/validate-profile-contracts.rb` is the supported validation entry point. It runs the focused direct validators and the shared-model rule validators once each.
+`.github/scripts/validate_profile_contracts.py` is the supported validation entry point. It runs the focused direct validators and the shared-model rule validators once each.
 
-All rule validators parse `SKILL.md`, `RUNTIME.md`, `INTERFACES.md`, `CLI_INTERFACE.md`, `MCP_INTERFACE.md`, and `WEB_INTERFACE.md` directly through `.github/scripts/lib/profile_contracts.rb`. No in-memory monolithic interface document, `File.read` monkey patch, or `RUBYOPT` compatibility injection is used.
+All shared-model validators parse `SKILL.md`, `RUNTIME.md`, `INTERFACES.md`, `CLI_INTERFACE.md`, `MCP_INTERFACE.md`, and `WEB_INTERFACE.md` directly through `.github/scripts/lib/profile_contracts.py`. No in-memory monolithic interface document or compatibility parser shim is used.
 
 The orchestrator clears inherited `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_INDEX_FILE` values before detecting the skill root's Git context, and uses a stable C locale for that probe. Rule validators inspect the discovered worktree's real index so operational-resource gitlinks remain rejectable. A flattened archive has no index to inspect; in that case the orchestrator creates a dedicated ephemeral empty index outside the skill root and uses it only for the gitlink query. Filesystem existence, regular-file, symlink, exact declaration, selected-profile, and contract checks continue to use the extracted skill root. The temporary context must not modify the skill or any caller-owned alternate index, and the orchestrator must fail rather than silently skip metadata validation when Git is unavailable or returns an unexpected error.

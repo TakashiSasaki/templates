@@ -159,12 +159,12 @@ Do not require service-grade tests from an instruction-only skill, and do not un
 Run the supported profile-aware validation entry point:
 
 ```sh
-ruby .github/scripts/validate-profile-contracts.rb
+python .github/scripts/validate_profile_contracts.py
 ```
 
-The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. Some focused validators retain bounded contract-specific Markdown parsing, while rule validators use `.github/scripts/lib/profile_contracts.rb`. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
+The entry point runs focused direct validators and shared-model rule validators against the committed decomposed contract files. Some focused validators retain bounded contract-specific Markdown parsing, while rule validators use `.github/scripts/lib/profile_contracts.py`. Do not recreate a monolithic interface document or duplicate CLI and MCP contracts in `INTERFACES.md`.
 
-Clear inherited `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_INDEX_FILE` values before discovering the skill root's Git context. Use the discovered worktree's real index so operational-resource gitlinks are detectable. For a flattened archive with no Git metadata, the supported entry point may create a dedicated ephemeral empty index outside the skill root solely for the gitlink query. The probe must use a stable locale; validation must still run every filesystem and contract rule against the extracted root, must not write into the skill or a caller-owned alternate index, and must fail on unavailable Git or unexpected Git errors rather than silently skipping metadata validation.
+The validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git. Clear inherited `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_INDEX_FILE` values before discovering the skill root's Git context. Use the discovered worktree's real index so operational-resource gitlinks are detectable. For a flattened archive with no Git metadata, the supported entry point may create a dedicated ephemeral empty index outside the skill root solely for the gitlink query. The probe must use a stable locale; validation must still run every filesystem and contract rule against the extracted root, must not write into the skill or a caller-owned alternate index, and must fail on unavailable Git or unexpected Git errors rather than silently skipping metadata validation.
 
 ## Completion criteria
 

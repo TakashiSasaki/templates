@@ -28,13 +28,22 @@ jobs:
         with:
           ruby-version: "3.1"
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Python validator dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
+
       - name: Treat Windows drive paths as local tar archives
         if: runner.os == 'Windows'
         shell: pwsh
         run: Add-Content -Path $env:GITHUB_ENV -Value 'TAR_OPTIONS=--force-local'
 
       - name: Validate canonical copyable template root
-        run: ruby .github/scripts/validate-skill-repository.rb template
+        run: python .github/scripts/validate_skill_repository.py template
 
       - name: Test reduced profile layouts
         run: ruby .github/scripts/test-minimal-profile-layouts.rb

@@ -17,8 +17,8 @@ def run() -> int:
         "SKILL.md",
         "README.md",
         "AGENTS.md",
-        ".github/scripts/validate-skill-repository.rb",
-        ".github/scripts/validate-profile-contracts.rb",
+        ".github/scripts/validate_skill_repository.py",
+        ".github/scripts/validate_profile_contracts.py",
         ".github/scripts/lib/profile_contracts.py",
     ]
     for relative in required:
