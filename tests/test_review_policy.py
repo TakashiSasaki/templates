@@ -42,12 +42,25 @@ def test_review_profile_is_closed_and_atomic() -> None:
     assert [path.parent for path in paths] == [REVIEW_DIR] * len(paths)
     assert all(path.is_file() for path in paths)
     assert [_rule_id(path) for path in paths] == EXPECTED
-    assert sorted(path.name for path in REVIEW_DIR.glob("*.md")) == sorted(path.name for path in paths)
+    actual_files = sorted(path.name for path in REVIEW_DIR.glob("*.md"))
+    profile_files = sorted(path.name for path in paths)
+    assert actual_files == profile_files
 
 
 def test_shared_review_rules_are_provider_neutral() -> None:
-    corpus = "\n".join(path.read_text(encoding="utf-8") for path in REVIEW_DIR.glob("*.md"))
-    for provider_term in ("Antigravity", "Codex", "Gemini", "GitHub", "LEFT", "RIGHT", "REQUEST_CHANGES"):
+    corpus = "\n".join(
+        path.read_text(encoding="utf-8") for path in REVIEW_DIR.glob("*.md")
+    )
+    provider_terms = (
+        "Antigravity",
+        "Codex",
+        "Gemini",
+        "GitHub",
+        "LEFT",
+        "RIGHT",
+        "REQUEST_CHANGES",
+    )
+    for provider_term in provider_terms:
         assert provider_term not in corpus
 
 
