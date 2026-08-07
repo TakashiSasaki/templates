@@ -6,7 +6,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from lib.profile_contracts import (
     ParseError,
@@ -52,7 +52,9 @@ def _extract_path(value: object | None) -> str | None:
     elif not quoted and re.fullmatch(r"\S+", normalized):
         candidate = ValuePolicy.strip_backticks(normalized)
 
-    if candidate is None or candidate.startswith("/"):
+    if candidate is None or candidate.startswith("/") or "\\" in candidate:
+        return None
+    if PureWindowsPath(candidate).drive:
         return None
     parts = PurePosixPath(candidate).parts
     if ".." in parts:

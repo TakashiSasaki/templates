@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from lib.profile_contracts import MarkdownDocument, ValuePolicy
+from validate_review_followup_contracts import _extract_path
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
@@ -85,6 +86,25 @@ def run() -> int:
                 completed.stderr.strip(),
             )
 
+    def rejects_nonportable_repository_paths() -> None:
+        _assert(
+            _extract_path("`pyproject.toml`") == "pyproject.toml",
+            "portable relative path was rejected",
+        )
+        for value in (
+            "`/etc/passwd`",
+            "`../outside.toml`",
+            "`C:/Windows/win.ini`",
+            "`C:\\Windows\\win.ini`",
+            "`C:relative\\file.toml`",
+            "`folder\\file.toml`",
+            "`\\\\server\\share\\file.toml`",
+        ):
+            _assert(
+                _extract_path(value) is None,
+                f"non-portable path was accepted: {value}",
+            )
+
     check(
         "rejects nonstandard-whitespace sentinels",
         rejects_nonstandard_whitespace_sentinels,
@@ -94,13 +114,17 @@ def run() -> int:
         "reports absolute line and section context",
         reports_absolute_line_and_section_context,
     )
+    check(
+        "rejects non-portable repository paths",
+        rejects_nonportable_repository_paths,
+    )
 
     if failures:
         for failure in failures:
             print(failure, file=sys.stderr)
         return 1
 
-    print("Python review-fix regression tests passed (3 cases).")
+    print("Python review-fix regression tests passed (4 cases).")
     return 0
 
 
