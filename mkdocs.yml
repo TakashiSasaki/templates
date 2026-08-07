@@ -35,6 +35,7 @@ nav:
       - 設定ファイル: configuration.md
       - 規約の作成: policy-authoring.md
       - Policy authority inventory: policy-authority-inventory.md
+      - Shared review policy: review-policy.md
       - 外部artifact受領規約: external-artifact-intake.md
       - 退行防止の普遍規約: regression-prevention.md
       - ブートストラップモデル: bootstrap-model.md
