@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+from agent_policy.policy_loader import load_rules
+
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/review.yml"
 REVIEW_DIR = ROOT / "policy/review"
@@ -45,6 +47,19 @@ def test_review_profile_is_closed_and_atomic() -> None:
     actual_files = sorted(path.name for path in REVIEW_DIR.glob("*.md"))
     profile_files = sorted(path.name for path in paths)
     assert actual_files == profile_files
+
+
+def test_review_profile_composes_with_shared_baselines() -> None:
+    rules = load_rules(
+        ROOT,
+        ["core", "security-baseline", "review"],
+        [],
+    )
+    rule_ids = [rule.id for rule in rules]
+    assert len(rule_ids) == len(set(rule_ids))
+    assert set(EXPECTED).issubset(rule_ids)
+    assert "compatibility.preserve-contracts" in rule_ids
+    assert "security.validate-boundaries" in rule_ids
 
 
 def test_shared_review_rules_are_provider_neutral() -> None:
