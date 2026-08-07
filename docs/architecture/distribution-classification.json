@@ -24,7 +24,10 @@
       "tests"
     ],
     "maintainer": [
-      "distribution-manifest.json"
+      ".agent-policy.lock",
+      ".agent-policy.yml",
+      "distribution-manifest.json",
+      "policy"
     ]
   },
   "targetSourceRoots": {

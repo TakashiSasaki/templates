@@ -1,0 +1,23 @@
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: a60caac2509a500854e067b30c1be7386cb1887b
+contexts:
+  coding:
+    profiles:
+      - core
+      - security-baseline
+    project_policy:
+      files:
+        - policy/repository/authority-boundary.md
+        - policy/repository/history-boundary.md
+        - policy/repository/reading-scope.md
+        - policy/repository/maintainer-validation.md
+outputs:
+  agents:
+    enabled: false
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+skills:
+  enabled: []
