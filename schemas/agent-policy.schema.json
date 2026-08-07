@@ -247,7 +247,8 @@
                 "renderer": {
                   "enum": [
                     "agents-md",
-                    "policy-context-md"
+                    "policy-context-md",
+                    "github-review-json-v1"
                   ]
                 }
               }
