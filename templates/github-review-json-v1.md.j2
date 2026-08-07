@@ -34,7 +34,7 @@ Do not edit this generated file directly. Change the context or its repository p
 
 ## Adapter contract
 
-Return exactly one standard JSON object. Do not wrap it in Markdown fences and do not emit prose before or after it.
+Return exactly one standard JSON object. Do not wrap it in Markdown fences and do not emit prose before or after it. Any fenced JSON block later in this document is documentation-only and its fence lines must not appear in the emitted review output.
 
 Set `analysis_status` to one of:
 
@@ -60,7 +60,7 @@ Do not anchor a finding at a downstream symptom when the causal changed line is 
 
 Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Normally omit findings below `0.90`; semantic severity and confidence are independent.
 
-The complete output shape is:
+The following fenced block is a documentation-only example of the complete JSON object shape. Emit only a JSON object matching this shape; never emit the opening or closing fence lines:
 
 ```json
 {
