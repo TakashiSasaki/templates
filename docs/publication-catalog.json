@@ -98,6 +98,12 @@
       "home": false
     },
     {
+      "id": "policy-authority-inventory",
+      "source": "docs/policy-authority-inventory.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "external-artifact-intake",
       "source": "docs/external-artifact-intake.md",
       "optional": false,
@@ -142,6 +148,12 @@
     {
       "id": "adr-integrated-bootstrap-skill",
       "source": "docs/adr/0004-integrated-bootstrap-skill.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "adr-single-policy-authority",
+      "source": "docs/adr/0005-single-policy-authority.md",
       "optional": false,
       "home": false
     }
