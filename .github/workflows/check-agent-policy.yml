@@ -4,9 +4,13 @@ on:
   workflow_dispatch: {}
 permissions:
   contents: read
+concurrency:
+  group: check-agent-policy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: TakashiSasaki/templates@a60caac2509a500854e067b30c1be7386cb1887b
