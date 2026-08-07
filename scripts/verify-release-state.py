@@ -116,7 +116,7 @@ context_probe = None
 if agent_policy_schema >= 2:
     from agent_policy.commands import check, render, validate
 
-    policy_template = """---
+    policy_template = '''---
 id: {rule_id}
 severity: mandatory
 overridable: true
@@ -125,7 +125,7 @@ order: 1000
 # {title}
 
 Pinned release context probe.
-"""
+'''
     with tempfile.TemporaryDirectory(
         prefix="agent-policy-pinned-context-"
     ) as temporary:
@@ -147,7 +147,7 @@ Pinned release context probe.
             encoding="utf-8",
         )
         (root / ".agent-policy.yml").write_text(
-            f"""schema_version: 2
+            f'''schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
   revision: {revision}
@@ -179,7 +179,7 @@ outputs:
     renderer: policy-context-md
 skills:
   enabled: []
-""",
+''',
             encoding="utf-8",
         )
         validate_diagnostics = validate.run(root, ".agent-policy.yml")
