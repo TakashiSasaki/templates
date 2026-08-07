@@ -12,7 +12,7 @@ PROFILE = ROOT / "profiles/pull-request.yml"
 POLICY_DIR = ROOT / "policy/pull-request"
 
 EXPECTED = [
-    "pull-request.verify-target-head-freshness",
+    "pull-request.verify-target-branch-head-freshness",
     "pull-request.close-review-threads-before-merge",
 ]
 
