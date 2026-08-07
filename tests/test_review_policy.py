@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from agent_policy.policy_loader import load_rules
+from agent_policy.policy_loader import load_rules, parse_policy
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE = ROOT / "profiles/review.yml"
@@ -32,10 +33,17 @@ EXPECTED = [
 
 
 def _rule_id(path: Path) -> str:
+    source = path.relative_to(ROOT).as_posix()
+    return parse_policy(path, source, "toolchain").id
+
+
+def _metadata(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
-    frontmatter = text.split("---", 2)[1]
+    assert text.startswith("---\n"), f"missing YAML front matter: {path}"
+    _, frontmatter, _body = text.split("---\n", 2)
     data = yaml.safe_load(frontmatter)
-    return data["id"]
+    assert isinstance(data, dict), f"invalid YAML front matter: {path}"
+    return data
 
 
 def test_review_profile_is_closed_and_atomic() -> None:
@@ -47,6 +55,24 @@ def test_review_profile_is_closed_and_atomic() -> None:
     actual_files = sorted(path.name for path in REVIEW_DIR.glob("*.md"))
     profile_files = sorted(path.name for path in paths)
     assert actual_files == profile_files
+
+
+def test_review_policy_metadata_schema() -> None:
+    metadata = [_metadata(path) for path in sorted(REVIEW_DIR.glob("*.md"))]
+    required = {"id", "severity", "overridable", "order"}
+
+    assert metadata
+    assert all(required.issubset(item) for item in metadata)
+    assert all(isinstance(item["id"], str) and item["id"] for item in metadata)
+    assert all(
+        isinstance(item["severity"], str) and item["severity"]
+        for item in metadata
+    )
+    assert all(type(item["overridable"]) is bool for item in metadata)
+    assert all(type(item["order"]) is int for item in metadata)
+
+    orders = [item["order"] for item in metadata]
+    assert len(orders) == len(set(orders))
 
 
 def test_review_profile_composes_with_shared_baselines() -> None:
