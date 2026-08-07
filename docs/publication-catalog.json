@@ -104,6 +104,12 @@
       "home": false
     },
     {
+      "id": "review-policy",
+      "source": "docs/review-policy.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "external-artifact-intake",
       "source": "docs/external-artifact-intake.md",
       "optional": false,
