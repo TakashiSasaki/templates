@@ -43,7 +43,7 @@ jobs:
         run: Add-Content -Path $env:GITHUB_ENV -Value 'TAR_OPTIONS=--force-local'
 
       - name: Validate canonical copyable template root
-        run: python .github/scripts/validate_skill_repository.py template
+        run: python template/.github/scripts/validate_skill_repository.py template
 
       - name: Test reduced profile layouts
         run: ruby .github/scripts/test-minimal-profile-layouts.rb
