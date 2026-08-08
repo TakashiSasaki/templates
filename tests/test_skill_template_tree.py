@@ -100,9 +100,9 @@ def prepare_output_root(root: Path) -> None:
         "# Template tree\n\n<!-- GENERATED_SKILL_TEMPLATE_TREE -->\n",
         encoding="utf-8",
     )
-    overview = root / "docs" / "repository-trees" / "overview.md"
-    overview.parent.mkdir(parents=True, exist_ok=True)
-    overview.write_text(
+    index = root / "docs" / "repository-trees" / "index.md"
+    index.parent.mkdir(parents=True, exist_ok=True)
+    index.write_text(
         "# Trees\n\n<!-- GENERATED_SKILL_TEMPLATE_SUMMARY -->\n",
         encoding="utf-8",
     )
@@ -129,8 +129,8 @@ class SkillTemplateTreeTests(unittest.TestCase):
                 / "skill"
                 / "template.md"
             ).read_text(encoding="utf-8")
-            overview = (
-                output_root / "docs" / "repository-trees" / "overview.md"
+            index = (
+                output_root / "docs" / "repository-trees" / "index.md"
             ).read_text(encoding="utf-8")
 
             self.assertIn(f"skill template: 2 files at {revision}", message)
@@ -142,9 +142,9 @@ class SkillTemplateTreeTests(unittest.TestCase):
             self.assertNotIn("GENERATED_SKILL_TEMPLATE_TREE", page)
             self.assertNotIn("repository-file-viewer", page)
             self.assertNotIn("repository-file-preview-link", page)
-            self.assertIn("Skill copyable template", overview)
-            self.assertIn(revision, overview)
-            self.assertNotIn("GENERATED_SKILL_TEMPLATE_SUMMARY", overview)
+            self.assertIn("Skill copyable template", index)
+            self.assertIn(revision, index)
+            self.assertNotIn("GENERATED_SKILL_TEMPLATE_SUMMARY", index)
 
     def test_missing_template_subtree_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
