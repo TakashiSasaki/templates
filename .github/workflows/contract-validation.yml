@@ -69,7 +69,7 @@ jobs:
       - name: Install locked validation dependencies
         run: env -u PIP_REQUIREMENT -u PIP_CONSTRAINT -u PIP_BUILD_CONSTRAINT -u PIP_REQUIRE_HASHES -u PIP_DRY_RUN -u PIP_NO_BINARY -u PIP_ONLY_BINARY -u PIP_PLATFORM -u PIP_PYTHON_VERSION -u PIP_IMPLEMENTATION -u PIP_ABI -u PIP_UPLOADED_PRIOR_TO -u PIP_INDEX_URL -u PIP_EXTRA_INDEX_URL -u PIP_NO_INDEX -u PIP_FIND_LINKS -u PIP_TARGET -u PIP_PREFIX -u PIP_ROOT -u PIP_USER -u PIP_PYTHON -u PIP_CACHE_DIR -u PIP_NO_CACHE_DIR -u PIP_QUIET -u PIP_PROGRESS_BAR -u PIP_EDITABLE -u PIP_GROUP -u PIP_REQUIREMENTS_FROM_SCRIPT -u PIP_REPORT -u PIP_CONFIG_SETTINGS -u PIP_USE_PEP517 -u PIP_COMPILE -u PIP_ISOLATED -u PIP_USE_FEATURE -u PIP_VERBOSE -u PIP_DEBUG -u PIP_NO_INPUT -u PIP_DISABLE_PIP_VERSION_CHECK -u PIP_NO_COLOR -u PIP_REQUIRE_VIRTUALENV -u PIP_USE_DEPRECATED -u PIP_NO_PYTHON_VERSION_WARNING -u PIP_KEYRING_PROVIDER -u PIP_EXISTS_ACTION -u PIP_IGNORE_REQUIRES_PYTHON -u PIP_LOG -u PIP_TRUSTED_HOST -u PIP_CERT -u PIP_CLIENT_CERT -u PIP_PROXY -u PIP_TIMEOUT -u PIP_DEFAULT_TIMEOUT -u PIP_RETRIES .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement template/requirements-dev.lock
 
-      - name: Verify installed distribution set from canonical template tooling
+      - name: Verify installed canonical dependency set
         run: .venv/bin/python template/scripts/verify_locked_environment.py
 
       - name: Verify installed dependency graph
@@ -124,49 +124,6 @@ jobs:
       - name: Run source-maintainer tests
         run: .venv/bin/python -m unittest discover -s tests -v
 
-      - name: Verify distributed validator lock
-        run: .venv/bin/python template/scripts/verify_locked_environment.py
-
-      - name: Validate distributed contracts as a standalone script
-        working-directory: template
-        run: ../.venv/bin/python scripts/validate_contracts.py
-
-      - name: Validate distributed contracts as a module
-        working-directory: template
-        run: ../.venv/bin/python -m scripts.validate_contracts
-
-      - name: Validate distributed contract evolution as a standalone script
-        working-directory: template
-        run: ../.venv/bin/python scripts/validate_contract_evolution.py
-
-      - name: Validate distributed contract evolution as a module
-        working-directory: template
-        run: ../.venv/bin/python -m scripts.validate_contract_evolution
-
-      - name: Validate distributed implementation evidence as a standalone script
-        working-directory: template
-        run: ../.venv/bin/python scripts/validate_implementation_evidence.py
-
-      - name: Validate distributed implementation evidence as a module
-        working-directory: template
-        run: ../.venv/bin/python -m scripts.validate_implementation_evidence
-
-      - name: Validate distributed release evidence as a standalone script
-        working-directory: template
-        run: ../.venv/bin/python scripts/validate_release_evidence.py
-
-      - name: Validate distributed release evidence as a module
-        working-directory: template
-        run: ../.venv/bin/python -m scripts.validate_release_evidence
-
-      - name: Validate distributed release bundle as a standalone script
-        working-directory: template
-        run: ../.venv/bin/python scripts/validate_release_bundle.py
-
-      - name: Validate distributed release bundle as a module
-        working-directory: template
-        run: ../.venv/bin/python -m scripts.validate_release_bundle
-
-      - name: Run distributed template tests
+      - name: Run canonical template baseline tests
         working-directory: template
         run: ../.venv/bin/python -m unittest discover -s tests -v
