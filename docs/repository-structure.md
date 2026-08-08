@@ -6,7 +6,7 @@ description: templatesのpolicyブランチにおける規約ツールチェー�
 
 `TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には、規約ツールチェーンと初回導入用trust seedの両方を配置します。
 
-bootstrap skillは別branchではなく `skills/bootstrap-agent-policy/` にあります。共有historyを持ちますが、manifestがレビュー済みのfull commit SHAを固定するため、mutableな`policy`先端を実行しません。
+bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifestがレビュー済みのfull commit SHAを固定するため、mutableな`policy`先端を実行しません。
 
 ## `policy` ブランチ
 
@@ -31,7 +31,7 @@ bootstrap skillは別branchではなく `skills/bootstrap-agent-policy/` にあ�
 | `tests/` | 設定、adoption transaction、rendering、lock、path safety、repository identity、bootstrap trust boundaryを検査する。 |
 | `docs/` | 導入方法、設計、ADR、PWA資産、repository preview UI。 |
 | `scripts/` | repository preview生成・検証など、branchの保守とpublicationを支援するscript。 |
-| `.github/workflows/` | `policy`向けCI。publicationやrepository hygieneはrepository設定とともに別途復旧する。 |
+| `.github/workflows/` | `policy`向けCIとbuild-only documentation validation。Pages deployment authorityは持たない。 |
 
 ## 統合済みbootstrap skill
 
