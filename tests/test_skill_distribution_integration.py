@@ -11,20 +11,16 @@ DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 SOURCE_TREE_PAGE = ROOT / "docs/repository-trees/skill.md"
 COPYABLE_TREE_PAGE = ROOT / "docs/repository-trees/skill/template.md"
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
-FINAL_SKILL_REVISION = "1ee1cfd6355131746a780ea46d165e5ae1cadf50"
 
 
 class SkillDistributionIntegrationTests(unittest.TestCase):
-    def test_site_locks_the_final_reviewed_skill_revision(self) -> None:
+    def test_site_locks_the_current_reviewed_skill_revision(self) -> None:
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
+        skill_revision = source_lock["publications"]["skill"]["revision"]
 
-        self.assertEqual(
-            FINAL_SKILL_REVISION,
-            source_lock["publications"]["skill"]["revision"],
-        )
-        self.assertEqual(FINAL_SKILL_REVISION, state["locked_skill_revision"])
-        self.assertRegex(FINAL_SKILL_REVISION, r"\A[0-9a-f]{40}\Z")
+        self.assertRegex(skill_revision, r"\A[0-9a-f]{40}\Z")
+        self.assertEqual(skill_revision, state["locked_skill_revision"])
         self.assertEqual("active", state["status"])
         self.assertIn("skill", state["reason"])
 

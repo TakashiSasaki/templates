@@ -227,6 +227,18 @@
               "destination": "policy/policy-authoring.md"
             },
             {
+              "title": "Policy authority inventory",
+              "publication": "policy",
+              "document": "policy-authority-inventory",
+              "destination": "policy/policy-authority-inventory.md"
+            },
+            {
+              "title": "Shared review policy",
+              "publication": "policy",
+              "document": "review-policy",
+              "destination": "policy/review-policy.md"
+            },
+            {
               "title": "External artifact intake",
               "publication": "policy",
               "document": "external-artifact-intake",
@@ -278,6 +290,18 @@
               "publication": "policy",
               "document": "adr-integrated-bootstrap-skill",
               "destination": "policy/adr/0004-integrated-bootstrap-skill.md"
+            },
+            {
+              "title": "ADR-0005 Single policy authority",
+              "publication": "policy",
+              "document": "adr-single-policy-authority",
+              "destination": "policy/adr/0005-single-policy-authority.md"
+            },
+            {
+              "title": "ADR-0006 Copyable artifact policy adoption",
+              "publication": "policy",
+              "document": "adr-copyable-artifact-policy-adoption",
+              "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"
             }
           ]
         }

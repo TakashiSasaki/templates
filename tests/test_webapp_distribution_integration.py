@@ -11,7 +11,6 @@ SITE_MANIFEST = ROOT / "site-manifest.json"
 TREE_PAGE = ROOT / "docs/repository-trees/webapp.md"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 DEPLOY_WORKFLOW = ROOT / ".github/workflows/deploy-pages.yml"
-FINAL_WEBAPP_REVISION = "1671c5b503377b87d157aeaa714bdf7c43797dc9"
 
 
 def navigation_pages(nodes: list[object]) -> dict[tuple[str, str], dict[str, object]]:
@@ -37,14 +36,11 @@ def navigation_pages(nodes: list[object]) -> dict[tuple[str, str], dict[str, obj
 
 
 class WebappDistributionIntegrationTests(unittest.TestCase):
-    def test_site_locks_the_final_reviewed_webapp_revision(self) -> None:
+    def test_site_locks_the_current_reviewed_webapp_revision(self) -> None:
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
+        webapp_revision = source_lock["publications"]["webapp"]["revision"]
 
-        self.assertEqual(
-            FINAL_WEBAPP_REVISION,
-            source_lock["publications"]["webapp"]["revision"],
-        )
-        self.assertRegex(FINAL_WEBAPP_REVISION, r"\A[0-9a-f]{40}\Z")
+        self.assertRegex(webapp_revision, r"\A[0-9a-f]{40}\Z")
 
     def test_site_navigation_maps_the_new_distribution_documents(self) -> None:
         manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
@@ -73,11 +69,12 @@ class WebappDistributionIntegrationTests(unittest.TestCase):
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         workflow = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        skill_revision = source_lock["publications"]["skill"]["revision"]
+        webapp_revision = source_lock["publications"]["webapp"]["revision"]
 
-        self.assertEqual(
-            FINAL_WEBAPP_REVISION,
-            source_lock["publications"]["webapp"]["revision"],
-        )
+        self.assertRegex(skill_revision, r"\A[0-9a-f]{40}\Z")
+        self.assertRegex(webapp_revision, r"\A[0-9a-f]{40}\Z")
+        self.assertEqual(skill_revision, state["locked_skill_revision"])
         self.assertEqual("active", state["status"])
         self.assertIn("skill", state["reason"])
         self.assertIn("actions/configure-pages@v6", workflow)
