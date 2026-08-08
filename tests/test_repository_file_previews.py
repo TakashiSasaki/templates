@@ -73,6 +73,10 @@ class RepositoryFilePreviewTests(unittest.TestCase):
             encoding="utf-8",
         )
         (tree_root / "index.md").write_text(
+            "# Repository trees\n\n* [Overview](overview.md) - Generated overview.\n",
+            encoding="utf-8",
+        )
+        (tree_root / "overview.md").write_text(
             "# Repository trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
             encoding="utf-8",
         )
