@@ -24,6 +24,7 @@ nav:
       - 既存リポジトリの導入: adoption.md
       - Toolchain release lifecycle: release-lifecycle.md
       - Policy completion roadmap: policy-readiness.md
+      - Policy readiness audit: policy-readiness-audit.md
       - Documentation publication: documentation-publication.md
       - Publication catalog: publication-catalog.md
       - PWAとして利用する: pwa.md
