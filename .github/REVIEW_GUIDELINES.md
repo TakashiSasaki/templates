@@ -256,7 +256,7 @@ Each inline finding must identify the smallest changed location that introduced 
 - `line`: changed-file line number;
 - `side`: `RIGHT` for the post-change line or `LEFT` for a deleted pre-change line.
 
-Do not anchor a finding at a downstream symptom when the causal line is available. If the causal line cannot be identified in the diff, do not fabricate an inline location.
+Do not anchor a finding at a downstream symptom when the causal changed line is available. If the causal line cannot be identified in the diff, do not fabricate an inline location.
 
 Each emitted finding must include a JSON numeric `confidence` from `0.0` through `1.0`. Normally omit findings below `0.90`; semantic severity and confidence are independent.
 
