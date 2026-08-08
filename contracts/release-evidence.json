@@ -1,7 +1,0 @@
-{
-  "$schema": "../schemas/release-evidence.schema.json",
-  "schemaVersion": 1,
-  "mode": "template",
-  "commandResults": [],
-  "gateResults": []
-}
