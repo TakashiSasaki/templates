@@ -6,13 +6,14 @@ from pathlib import Path
 
 from scripts.verify_locked_environment import compare_distribution_sets
 
-ROOT = Path(__file__).resolve().parents[1]
-README = ROOT / "README.md"
-WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
-TOOLCHAIN_GUIDE = ROOT / "docs/architecture/validation-toolchain.md"
-DIRECT_REQUIREMENTS = ROOT / "requirements-dev.txt"
-LOCKED_REQUIREMENTS = ROOT / "requirements-dev.lock"
-LOCK_VERIFIER = ROOT / "scripts/verify_locked_environment.py"
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE_ROOT = SOURCE_ROOT / "template"
+README = SOURCE_ROOT / "README.md"
+WORKFLOW = SOURCE_ROOT / ".github/workflows/contract-validation.yml"
+TOOLCHAIN_GUIDE = TEMPLATE_ROOT / "docs/architecture/validation-toolchain.md"
+DIRECT_REQUIREMENTS = TEMPLATE_ROOT / "requirements-dev.txt"
+LOCKED_REQUIREMENTS = TEMPLATE_ROOT / "requirements-dev.lock"
+LOCK_VERIFIER = TEMPLATE_ROOT / "scripts/verify_locked_environment.py"
 
 EXPECTED_DIRECT_REQUIREMENTS = (
     "jsonschema===4.26.0",
@@ -243,7 +244,11 @@ class ValidationReproducibilityTests(unittest.TestCase):
                     source,
                 )
                 self.assertIn("export PIP_CONFIG_FILE=/dev/null", source)
-                self.assertIn("python scripts/verify_locked_environment.py", source)
+        self.assertIn(
+            "python template/scripts/verify_locked_environment.py",
+            readme,
+        )
+        self.assertIn("python scripts/verify_locked_environment.py", toolchain_guide)
 
     def test_distribution_set_verifier_rejects_injected_packages(self) -> None:
         expected = {"jsonschema": "4.26.0"}
@@ -293,11 +298,11 @@ class ValidationReproducibilityTests(unittest.TestCase):
         readme = README.read_text(encoding="utf-8")
 
         self.assertIn(
-            "python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "python -m pip install --isolated --disable-pip-version-check --no-deps --requirement template/requirements-dev.lock",
             readme,
         )
         self.assertNotIn(
-            "python -m pip install --disable-pip-version-check --requirement requirements-dev.lock",
+            "python -m pip install --disable-pip-version-check --requirement template/requirements-dev.lock",
             readme,
         )
 
