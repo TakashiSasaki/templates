@@ -134,12 +134,6 @@
       "home": false
     },
     {
-      "id": "adr-bootstrap-history",
-      "source": "docs/adr/0001-unrelated-bootstrap-history.md",
-      "optional": false,
-      "home": false
-    },
-    {
       "id": "adr-repository-adoption",
       "source": "docs/adr/0002-repository-adoption.md",
       "optional": false,
