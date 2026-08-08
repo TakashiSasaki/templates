@@ -15,7 +15,7 @@ OUTPUT_MARKER_CONTENT = "managed by scripts/prepare_repository_tree_publication.
 TREE_DOCUMENTS = (
     {
         "id": "repository-trees",
-        "source": "docs/repository-trees/index.md",
+        "source": "docs/repository-trees/overview.md",
         "optional": False,
         "home": False,
     },
@@ -331,7 +331,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        messages = prepare(args.site_root, args.output_root)
+        messages = prepare(site_root=args.site_root, output_root=args.output_root)
     except PreparationError as exc:
         parser.error(str(exc))
     for message in messages:
