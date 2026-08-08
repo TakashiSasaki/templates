@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSIFICATION = ROOT / "docs/architecture/distribution-classification.json"
+DISTRIBUTION_MANIFEST = ROOT / "distribution-manifest.json"
 IGNORED_LOCAL_ENTRIES = {
     ".git",
     ".venv",
@@ -88,6 +89,23 @@ class DistributionBoundaryTests(unittest.TestCase):
         ):
             with self.subTest(required_term=required_term):
                 self.assertIn(required_term, combined)
+
+    def test_source_maintainer_policy_does_not_flow_into_distribution(self) -> None:
+        manifest = json.loads(DISTRIBUTION_MANIFEST.read_text(encoding="utf-8"))
+        forbidden = set(manifest["forbidden_distribution_paths"])
+
+        self.assertTrue(
+            {
+                ".agent-policy",
+                ".agent-policy.lock",
+                ".agent-policy.yml",
+                ".github/workflows/check-agent-policy.yml",
+                "AGENTS.md",
+                "policy",
+            }.issubset(forbidden)
+        )
+        self.assertNotIn("AGENTS.md", manifest["required_top_level_entries"])
+        self.assertNotIn("AGENTS.md", manifest["distribution_owned_files"])
 
     def test_distribution_validator_passes_both_entry_points(self) -> None:
         for command in (
