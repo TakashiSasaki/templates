@@ -51,8 +51,9 @@ The source layout uses one explicit copy boundary rather than requiring every so
 /
 ├── .agent-policy.lock         # deterministic shared-policy lock
 ├── .agent-policy.yml          # source-maintainer shared-policy configuration
-├── .github/workflows/          # source-maintainer CI
-├── README.md                   # source-maintainer overview
+├── .github/workflows/         # source-maintainer CI
+├── AGENTS.md                  # generated source-maintainer agent instructions
+├── README.md                  # source-maintainer overview
 ├── distribution-manifest.json # closed source-to-distribution definition
 ├── policy/                     # repository-local maintainer policy
 ├── contracts/                  # source-owned canonical contract inputs
@@ -63,7 +64,7 @@ The source layout uses one explicit copy boundary rather than requiring every so
 └── template/                   # directly copyable downstream repository root
 ```
 
-The physical rule is simple and testable: every path below `template/` is distributed; every source-only path is outside `template/`. A separate `maintainer/` directory would not strengthen the downstream copy boundary and would require widespread path rewrites without changing which bytes are distributed. Source ownership is therefore enforced by the closed manifest and validator instead of by one additional naming layer.
+The physical rule is simple and testable: every path below `template/` is distributed; every source-only path is outside `template/`. The generated root `AGENTS.md` is maintainer-only policy output and is not projected into `template/`. A separate `maintainer/` directory would not strengthen the downstream copy boundary and would require widespread path rewrites without changing which bytes are distributed. Source ownership is therefore enforced by the closed manifest and validator instead of by one additional naming layer.
 
 The distribution tree contains:
 
@@ -111,6 +112,8 @@ The principal split points are:
 - `docs`: downstream contract, migration, evidence, and adoption guidance is separated from source audits and publication integration;
 - `scripts`: reusable validators are separated from publication and distribution validators;
 - `tests`: downstream baseline validation is separated from source clean-room generation, producer fixtures, publication tests, and review regressions.
+
+Root `AGENTS.md` is instead wholly `maintainer`: it is generated from the source-maintainer policy configuration and must not be copied into the Webapp product template.
 
 ## Conformance strategy
 

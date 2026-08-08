@@ -46,6 +46,7 @@ class DistributionBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(actual, sorted(classified))
         self.assertEqual(["template"], classification["distribution"])
+        self.assertIn("AGENTS.md", classification["maintainer"])
         self.assertIn("distribution-manifest.json", classification["maintainer"])
 
     def test_copy_contract_is_literal_and_uses_safe_relative_roots(self) -> None:

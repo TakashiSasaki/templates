@@ -1,10 +1,10 @@
 lock_version: 1
 toolchain:
   repository: TakashiSasaki/templates
-  revision: a60caac2509a500854e067b30c1be7386cb1887b
+  revision: 5de32547e68fa15e24ff3b8affadf12e9d730a41
 inputs:
   .agent-policy.yml:
-    sha256: 89670f1e7343beb298e1ba494a236440a7a02fd0fc9d1e5c62e3e93ee84b9bec
+    sha256: 868fe3da01f413f40739caa6563f8aca8cfc17418b0ab5b4367f7fb718382e84
   policy/repository/authority-boundary.md:
     sha256: 019152d9bb9efdc1b0fc542b2ab13deb73db2f4ff53f0cc7b356c97822c7c904
   policy/repository/history-boundary.md:
@@ -13,4 +13,6 @@ inputs:
     sha256: b1279defc109ff80eb32ded6ab10d4f02c307bcd59ee0f9f3653a52026738f6d
   policy/repository/reading-scope.md:
     sha256: 97238f5a8f6aa079b6637b1c84dffd0904981e479ce6270593fbfd1e5858311d
-outputs: {}
+outputs:
+  AGENTS.md:
+    sha256: 3d648496adaae1b9adb02f92199999f4e71cdd45bb93a4fd19c933c84c557273
