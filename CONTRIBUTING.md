@@ -1,12 +1,14 @@
 # Contributing
 
-Changes to the policy schema, rule merge semantics, lock-file format, or bootstrap trust model require an architecture decision record.
+Canonical repository-maintainer operating policy is declared by `.agent-policy.yml` and the files under `repository-policy/`; generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority.
 
-Before committing:
+For architecture-sensitive changes, follow `repository-policy/architecture-decisions.md`. In particular, that canonical rule governs changes to the policy schema, rule merge or override semantics, lock-file format, and bootstrap trust model.
+
+For validation requirements, follow `repository-policy/maintainer-validation.md` and the maintained development sequence in `README.md`. Typical focused local checks include:
 
 ```bash
 python -m pytest
 python -m compileall -q src
 ```
 
-Generated fixtures must be reproducible from committed inputs.
+Generated fixtures are expected to remain reproducible from committed inputs; generated-output synchronization itself is governed by the shared policy selected in `.agent-policy.yml`.
