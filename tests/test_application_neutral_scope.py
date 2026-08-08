@@ -5,7 +5,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ADR = ROOT / "docs/adr/0003-application-neutral-policy-scope.md"
 README = ROOT / "README.md"
-MIGRATION = ROOT / "docs/migration-from-agent-policy.md"
 MKDOCS = ROOT / "mkdocs.yml"
 REMOVED_PROFILE = ROOT / "profiles/web-application.yml"
 REMOVED_DOCUMENT = ROOT / "docs/web-application-profile.md"
@@ -58,12 +57,8 @@ def test_application_neutral_scope_decision_is_documented_and_published() -> Non
     assert "adr/0003-application-neutral-policy-scope.md" in navigation
 
 
-def test_migration_status_reports_scope_removal_as_completed() -> None:
+def test_current_readme_states_application_neutral_scope() -> None:
     readme = README.read_text(encoding="utf-8")
-    migration = MIGRATION.read_text(encoding="utf-8")
 
-    assert "application-specific policy removal" not in readme
-    assert "The former built-in `web-application` profile" in readme
-    assert "## Migration progress" in migration
-    assert "Removed the built-in application-specific profile" in migration
-    assert "Remove or relocate application-specific profiles and rules" not in migration
+    assert "application-type-independent" in readme
+    assert "does not define the architecture or product requirements" in readme
