@@ -61,6 +61,12 @@ python -m scripts.validate_release_bundle --expected-revision <40-hex-commit-sha
 
 The initial documents use explicit template mode where applicable. Template mode states requirements without claiming that a product implementation, command execution, approval decision, or handoff already exists.
 
+## Repository policy is optional
+
+This copyable Web-application foundation is not pre-enrolled in the source repository's shared policy toolchain. It intentionally contains no inherited `.agent-policy.yml`, lock file, generated maintainer `AGENTS.md`, repository-local policy input, or shared-policy check workflow.
+
+After copying, the owner of the concrete product repository may adopt shared repository policy separately if that operating model is desired. Treat that as an explicit repository-maintenance decision using a reviewed immutable toolchain revision, and preserve the Web-application contracts already established by this foundation. Policy adoption is not part of the byte-preserving copy operation and is not a prerequisite for validating the artifact contracts.
+
 ## Product ownership
 
 The generated product owns all concrete implementation and operational decisions, including:
