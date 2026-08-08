@@ -23,7 +23,11 @@ class DistributionReadinessAuditTests(unittest.TestCase):
         self.assertIs(classification["contentTransformationAllowed"], False)
         self.assertEqual(["template"], classification["topLevelClassification"]["distribution"])
         self.assertIn(
-            "dedicated maintainer directory is not required",
+            "downstream authority lives only under template",
+            classification["maintainerLayout"],
+        )
+        self.assertIn(
+            "source-maintainer paths remain outside template",
             classification["maintainerLayout"],
         )
         rules = " ".join(classification["requiredSeparationRules"])
