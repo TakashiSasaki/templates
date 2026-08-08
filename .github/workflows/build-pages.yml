@@ -202,6 +202,7 @@ jobs:
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'
+          from html.parser import HTMLParser
           from pathlib import Path
           import re
 
@@ -211,12 +212,48 @@ jobs:
               "https://templates.moukaeritai.work/templates/",
           )
           root_attribute = re.compile(r'''(?:href|src|action)=["']/templates(?:/|["'])''')
+
+          class URLAttributeParser(HTMLParser):
+              def __init__(self) -> None:
+                  super().__init__()
+                  self.targets = []
+
+              def collect(self, attrs) -> None:
+                  for name, value in attrs:
+                      if name in {"href", "src", "action", "content"} and value:
+                          self.targets.append(value)
+
+              def handle_starttag(self, tag, attrs) -> None:
+                  self.collect(attrs)
+
+              def handle_startendtag(self, tag, attrs) -> None:
+                  self.collect(attrs)
+
+          def retired_target(value: str) -> bool:
+              return (
+                  any(value.startswith(prefix) for prefix in forbidden_text)
+                  or value == "/templates"
+                  or value.startswith("/templates/")
+              )
+
           failures = []
           for path in root.rglob("*"):
               if not path.is_file() or path.suffix.lower() not in {".html", ".xml"}:
                   continue
               text = path.read_text(encoding="utf-8")
-              if any(value in text for value in forbidden_text) or root_attribute.search(text):
+              relative = path.relative_to(root)
+              browser_source_view = (
+                  path.suffix.lower() == ".html"
+                  and len(relative.parts) == 4
+                  and relative.parts[0] == "files"
+                  and relative.parts[2] == "content"
+              )
+              if browser_source_view:
+                  parser = URLAttributeParser()
+                  parser.feed(text)
+                  if any(retired_target(target) for target in parser.targets):
+                      failures.append(path.as_posix())
+              elif any(value in text for value in forbidden_text) or root_attribute.search(text):
                   failures.append(path.as_posix())
           if failures:
               raise SystemExit(
