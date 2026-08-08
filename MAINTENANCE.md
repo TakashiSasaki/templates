@@ -5,8 +5,8 @@ This file applies only to the unrelated `site` branch.
 ## Branch responsibilities
 
 - `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, generated-site validation, build provenance, and the only Pages deployment workflow.
-- Generated Markdown, preview HTML, and final site HTML are temporary build artifacts and must not be committed.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, the bounded static repository browser, generated-site validation, build provenance, and the only Pages deployment workflow.
+- Generated Markdown, preview HTML, repository-browser HTML, and final site HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
 
@@ -17,7 +17,7 @@ The four major branches have unrelated histories. Do not merge, rebase, or cherr
 3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
 4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
 5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
-6. Require the integrated documentation build, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
+6. Require the integrated documentation build, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, static repository-browser generation, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -141,6 +141,16 @@ The generator HTML-escapes repository text and writes deterministic preview page
 
 `assets/javascripts/repository-tree-viewer.js` updates the shared viewer label, source link, and iframe title when a preview link is selected. It does not inject repository content into the parent page and does not use `innerHTML`.
 
+## Static repository-browser generation
+
+`scripts/generate_repository_browser.py` generates the standalone `/files/` surface after the strict Zensical build and site-metadata normalization, and before final public-URL and generated-link validation. It receives the exact `site`, `skill`, `policy`, and `webapp` checkouts used by the build and writes branch entry pages plus hashed file-view pages under `build/site/files/`.
+
+The browser derives paths from `git ls-tree`, reads regular-file content from exact blob object IDs with `git cat-file`, never follows symlinks or gitlinks, and labels every branch view with the checked-out full 40-character SHA. Text rendering is limited to strict UTF-8 regular files of at most 1 MiB, with a 64 MiB candidate-content ceiling per branch. Invalid, binary, control-bearing, or oversized files receive local fallback viewer pages instead of active content. Pygments highlighting is performed at build time; repository content is HTML-escaped and displayed in a sandboxed iframe under restrictive content security policy.
+
+`prepare_browser_root()` is intentionally fail-closed. `build/site` must already exist as a regular directory, but `build/site/files/` must not exist at invocation time. The generator writes `.repository-browser-root` as ownership/provenance metadata but does not use that marker to delete or replace a pre-existing browser tree. This differs deliberately from the assembly workspace: a browser re-run should regenerate the enclosing Pages artifact or explicitly remove the prior generated `files/` subtree rather than grant the browser generator recursive deletion authority.
+
+The stable public entry points are `/files/` and `/files/<branch>/`. Hashed `content/*.html` paths are implementation details. The parent tree retains immutable full-SHA GitHub links, while browser rendering itself has no runtime GitHub API, raw-content, CDN, or client-side syntax-highlighting dependency.
+
 ## Assembly output boundary
 
 `scripts/assemble_publications.py` assembles the prepared site publication and all locked provider publications into one temporary Zensical project.
@@ -151,9 +161,9 @@ Asset traversal explicitly rejects file and directory symlinks before descending
 
 ## Generated link integrity
 
-The build validates links after Zensical generates final HTML. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages.
+The build validates links after Zensical generates final HTML and after the standalone repository browser is added. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages and landing-page links to `/files/`.
 
-External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository-tree source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
+External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
 
 ## Build provenance
 
@@ -189,7 +199,7 @@ Do not broadly precache generated documentation pages. Provider publications cha
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, verifies the generated PWA shell, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, generates the bounded static repository browser, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`. The metadata, build, and deploy jobs each require:
 
@@ -217,7 +227,7 @@ Expected behavior:
 
 ## Dependency updates
 
-`requirements.txt` pins the Zensical version. Update it intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, canonical URLs, provenance, and link-validation results before merging.
+`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. Update them intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, the static repository browser, canonical URLs, provenance, and link-validation results before merging.
 
 ## Local validation
 
@@ -260,6 +270,13 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/generate_repository_browser.py \
+  --repository TakashiSasaki/templates \
+  --output-root build/site \
+  --branch site=site \
+  --branch skill=sources/skill \
+  --branch policy=sources/policy \
+  --branch webapp=sources/webapp
 python site/scripts/write_publication_provenance.py \
   --output build/site/build-provenance.json \
   --repository TakashiSasaki/templates \
@@ -272,4 +289,4 @@ python site/scripts/validate_site_links.py \
   --config-file build/zensical.toml
 ```
 
-Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links and preview URLs always use the actual checked-out provider commit.
+Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, and repository-browser snapshots always use the actual checked-out commits.
