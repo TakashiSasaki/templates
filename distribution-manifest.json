@@ -42,6 +42,8 @@
         "architecture/distribution-readiness-audit.md",
         "architecture/final-readiness-audit.md",
         "architecture/generated-repository-conformance.md",
+        "architecture/index.md",
+        "index.md",
         "publication-catalog.json",
         "publication-catalog.md"
       ]
@@ -73,6 +75,8 @@
   "distribution_owned_files": [
     ".github/workflows/contract-validation.yml",
     "README.md",
+    "docs/architecture/index.md",
+    "docs/index.md",
     "tests/test_template_baseline.py"
   ],
   "forbidden_distribution_paths": [
