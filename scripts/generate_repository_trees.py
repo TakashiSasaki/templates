@@ -494,7 +494,7 @@ def generate(
             f"{counts['published_documents']} |"
         )
     replace_marker(
-        docs_root / "overview.md",
+        docs_root / "index.md",
         INDEX_MARKER,
         "\n".join(table) + "\n",
     )
