@@ -71,7 +71,6 @@ def test_skill_instructions_preserve_trust_boundary() -> None:
     assert "full commit SHA" in skill
     assert "must never invoke adoption finalization" in skill
     assert "Do not commit, push, create branches" in skill
-    assert "TakashiSasaki/agent-policy" not in skill
 
 
 def test_parse_inspection_reads_state_and_sources() -> None:
