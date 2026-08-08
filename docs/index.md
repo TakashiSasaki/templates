@@ -49,10 +49,11 @@ agent-policy check
 
 ## 次に読むページ
 
-- [はじめに](getting-started.md)
-- [Managed repository operation](managed-operation.md)
-- [CLIリファレンス](cli.md)
-- [ブートストラップスキル](bootstrap.md)
-- [既存リポジトリの導入](adoption.md)
-- [アーキテクチャ](architecture.md)
-- [脅威モデル](threat-model.md)
+- [はじめに](getting-started.md) — 初回導入と基本的な利用経路を確認します。
+- [Managed repository operation](managed-operation.md) — 導入後の管理対象リポジトリでの通常運用を説明します。
+- [CLIリファレンス](cli.md) — `agent-policy` コマンドと各サブコマンドの契約を確認します。
+- [ブートストラップスキル](bootstrap.md) — immutableなtrust seedから初期化・adoption準備へ入る経路を説明します。
+- [既存リポジトリの導入](adoption.md) — 既存instructionを保持した段階的adoptionを説明します。
+- [アーキテクチャ](architecture.md) — policy compiler、生成物、lock、trust boundaryの全体設計を説明します。
+- [Architecture decisions](adr/index.md) — 現在有効なADRを短い説明付きで一覧します。
+- [脅威モデル](threat-model.md) — toolchainが防御する脅威と信頼境界を確認します。
