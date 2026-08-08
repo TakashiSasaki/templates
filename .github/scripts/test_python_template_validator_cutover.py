@@ -14,6 +14,10 @@ MANIFEST_PATH = REPOSITORY_ROOT / "distribution-manifest.json"
 WORKFLOW_PATH = (
     REPOSITORY_ROOT / "template" / ".github" / "workflows" / "validate-skill.yml"
 )
+SOURCE_WORKFLOW_PATHS = (
+    REPOSITORY_ROOT / ".github" / "workflows" / "validate-portable-consumption.yml",
+    REPOSITORY_ROOT / ".github" / "workflows" / "validate-structure.yml",
+)
 
 REQUIRED_TEMPLATE_FILES = {
     "test_template_baseline.py",
@@ -90,6 +94,23 @@ def run() -> int:
         if required not in workflow:
             failures.append(
                 f"copyable validation workflow is missing required Python setup: {required}"
+            )
+
+    canonical_source_invocation = (
+        "python template/.github/scripts/validate_skill_repository.py template"
+    )
+    legacy_source_invocation = "python .github/scripts/validate_skill_repository.py template"
+    for source_workflow_path in SOURCE_WORKFLOW_PATHS:
+        source_workflow = source_workflow_path.read_text(encoding="utf-8")
+        if legacy_source_invocation in source_workflow:
+            failures.append(
+                "source workflow still executes the root projected Python validator: "
+                f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
+            )
+        if canonical_source_invocation not in source_workflow:
+            failures.append(
+                "source workflow does not execute the template-owned Python validator: "
+                f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
             )
 
     if failures:

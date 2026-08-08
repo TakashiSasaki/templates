@@ -43,7 +43,7 @@ jobs:
       - name: Validate copyable Skill root
         shell: bash
         run: |
-          python .github/scripts/validate_skill_repository.py template
+          python template/.github/scripts/validate_skill_repository.py template
           python template/.github/scripts/test_template_baseline.py
 
       - name: Audit Python-only validator cutover
