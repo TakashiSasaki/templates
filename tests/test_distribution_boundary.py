@@ -94,6 +94,9 @@ class DistributionBoundaryTests(unittest.TestCase):
         manifest = json.loads(DISTRIBUTION_MANIFEST.read_text(encoding="utf-8"))
         forbidden = set(manifest["forbidden_distribution_paths"])
 
+        self.assertEqual(2, manifest["schema_version"])
+        self.assertNotIn("mirrors", manifest)
+        self.assertNotIn("distribution_owned_files", manifest)
         self.assertTrue(
             {
                 ".agent-policy",
@@ -105,7 +108,8 @@ class DistributionBoundaryTests(unittest.TestCase):
             }.issubset(forbidden)
         )
         self.assertNotIn("AGENTS.md", manifest["required_top_level_entries"])
-        self.assertNotIn("AGENTS.md", manifest["distribution_owned_files"])
+        self.assertNotIn("AGENTS.md", manifest["distribution_files"])
+        self.assertIn("scripts/validate_contracts.py", manifest["distribution_files"])
 
     def test_distribution_validator_passes_both_entry_points(self) -> None:
         for command in (

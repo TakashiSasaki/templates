@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source_root": "template",
   "destination_root": ".",
   "content_transformation_allowed": false,
@@ -16,67 +16,49 @@
     "scripts",
     "tests"
   ],
-  "mirrors": [
-    {
-      "source": ".gitignore",
-      "destination": ".gitignore",
-      "exclude": []
-    },
-    {
-      "source": "TEMPLATE.md",
-      "destination": "TEMPLATE.md",
-      "exclude": []
-    },
-    {
-      "source": "contracts",
-      "destination": "contracts",
-      "exclude": []
-    },
-    {
-      "source": "docs",
-      "destination": "docs",
-      "exclude": [
-        "architecture/completion-roadmap.md",
-        "architecture/distribution-boundary.md",
-        "architecture/distribution-classification.json",
-        "architecture/distribution-readiness-audit.md",
-        "architecture/final-readiness-audit.md",
-        "architecture/generated-repository-conformance.md",
-        "architecture/index.md",
-        "index.md",
-        "publication-catalog.json",
-        "publication-catalog.md"
-      ]
-    },
-    {
-      "source": "requirements-dev.lock",
-      "destination": "requirements-dev.lock",
-      "exclude": []
-    },
-    {
-      "source": "requirements-dev.txt",
-      "destination": "requirements-dev.txt",
-      "exclude": []
-    },
-    {
-      "source": "schemas",
-      "destination": "schemas",
-      "exclude": []
-    },
-    {
-      "source": "scripts",
-      "destination": "scripts",
-      "exclude": [
-        "validate_distribution.py",
-        "validate_publication_catalog.py"
-      ]
-    }
-  ],
-  "distribution_owned_files": [
+  "distribution_files": [
     ".github/workflows/contract-validation.yml",
+    ".gitignore",
     "README.md",
+    "TEMPLATE.md",
+    "contracts/implementation-evidence.json",
+    "contracts/manifest.json",
+    "contracts/release-bundle.json",
+    "contracts/release-evidence.json",
+    "contracts/routes.json",
+    "contracts/surfaces.json",
+    "contracts/ui-states.json",
+    "contracts/viewports.json",
+    "docs/architecture/contract-completeness.md",
+    "docs/architecture/contract-evolution.md",
+    "docs/architecture/implementation-evidence.md",
     "docs/architecture/index.md",
+    "docs/architecture/release-bundle.md",
+    "docs/architecture/release-evidence.md",
+    "docs/architecture/responsibility-boundaries.md",
+    "docs/architecture/validation-toolchain.md",
     "docs/index.md",
+    "docs/migrations/contract-manifest-v1-to-v2.md",
+    "docs/migrations/routes-v1-to-v2.md",
+    "docs/migrations/ui-states-v1-to-v2.md",
+    "docs/operationalization.md",
+    "requirements-dev.lock",
+    "requirements-dev.txt",
+    "schemas/contract-manifest.schema.json",
+    "schemas/implementation-evidence.schema.json",
+    "schemas/release-bundle.schema.json",
+    "schemas/release-evidence.schema.json",
+    "schemas/routes.schema.json",
+    "schemas/surfaces.schema.json",
+    "schemas/ui-states.schema.json",
+    "schemas/viewports.schema.json",
+    "scripts/validate_contract_evolution.py",
+    "scripts/validate_contracts.py",
+    "scripts/validate_contracts_impl.py",
+    "scripts/validate_implementation_evidence.py",
+    "scripts/validate_release_bundle.py",
+    "scripts/validate_release_evidence.py",
+    "scripts/verify_locked_environment.py",
     "tests/test_template_baseline.py"
   ],
   "forbidden_distribution_paths": [
