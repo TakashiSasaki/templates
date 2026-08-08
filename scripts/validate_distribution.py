@@ -61,6 +61,8 @@ def _load_manifest() -> dict[str, Any]:
 def _safe_relative_path(value: Any, context: str, *, allow_dot: bool = False) -> str:
     if not isinstance(value, str) or not value:
         fail(f"{context}: path must be a non-empty string")
+    if "\0" in value:
+        fail(f"{context}: null byte in path is prohibited: {value!r}")
     if value == "." and allow_dot:
         return value
     if "\\" in value or ":" in value:

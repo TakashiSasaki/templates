@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "implemented",
-  "purpose": "Classify every webapp top-level entry under the implemented source and copyable-distribution architecture.",
+  "purpose": "Classify every webapp top-level entry after making template the sole canonical downstream source tree.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
-  "maintainerLayout": "all source-only paths remain outside template; a dedicated maintainer directory is not required",
+  "maintainerLayout": "downstream authority lives only under template; source-maintainer paths remain outside template",
   "topLevelClassification": {
     "distribution": [
       "template"
@@ -14,12 +14,7 @@
       ".github",
       ".gitignore",
       "README.md",
-      "TEMPLATE.md",
-      "contracts",
       "docs",
-      "requirements-dev.lock",
-      "requirements-dev.txt",
-      "schemas",
       "scripts",
       "tests"
     ],
@@ -37,7 +32,7 @@
     "publicationInterface": "docs/publication-catalog.json"
   },
   "requiredSeparationRules": [
-    "The branch root remains the template-development source artifact.",
+    "The branch root remains the template-development source artifact while template is the sole canonical downstream source tree.",
     "The contents of template are copied byte-for-byte to a product repository root.",
     "No required reference below template may escape template.",
     "Publication integration and source-only conformance fixtures remain outside template.",
