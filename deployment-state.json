@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "status": "active",
-  "reason": "skill template restructuring and site integration completed",
-  "locked_skill_revision": "1ee1cfd6355131746a780ea46d165e5ae1cadf50",
+  "reason": "skill template restructuring and site integration completed; later reviewed source revisions publish through the same site-only boundary",
+  "locked_skill_revision": "84137a615b361a1ad7a40717c08d9a7ad504d47e",
   "completed_conditions": [
     "the skill branch exposes the canonical copyable profile-aware template at template/ and passes its complete validation suite",
-    "site locks the final reviewed skill full commit SHA",
+    "site locks the current reviewed skill full commit SHA",
     "the integrated site publishes and validates separate complete-source and skill copyable-template trees against that revision",
-    "site-only deployment authority is restored by a separate reviewed site pull request"
+    "site-only deployment authority is active and remains confined to a push of the site branch"
   ]
 }
