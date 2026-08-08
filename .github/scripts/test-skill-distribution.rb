@@ -12,6 +12,22 @@ VALIDATOR = File.join(SOURCE_ROOT, ".github/scripts/validate-skill-distribution.
 
 failures = []
 
+manifest = JSON.parse(File.read(File.join(SOURCE_ROOT, "distribution-manifest.json"), encoding: "UTF-8"))
+required_policy_exclusions = [
+  ".agent-policy",
+  ".agent-policy.lock",
+  ".agent-policy.yml",
+  ".github/workflows/check-agent-policy.yml",
+  "policy"
+]
+missing_policy_exclusions = required_policy_exclusions - manifest.fetch("forbidden_distribution_paths")
+unless missing_policy_exclusions.empty?
+  failures << "source-maintainer policy paths must remain forbidden from template/: #{missing_policy_exclusions.inspect}"
+end
+unless manifest.fetch("distribution_owned_files").include?("AGENTS.md")
+  failures << "template/AGENTS.md must remain an artifact-owned distribution file"
+end
+
 run_validator = lambda do |root|
   Open3.capture3({ "RUBYOPT" => nil }, RbConfig.ruby, VALIDATOR, root, chdir: root)
 end
