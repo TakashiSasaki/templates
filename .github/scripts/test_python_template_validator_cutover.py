@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -14,9 +15,28 @@ MANIFEST_PATH = REPOSITORY_ROOT / "distribution-manifest.json"
 WORKFLOW_PATH = (
     REPOSITORY_ROOT / "template" / ".github" / "workflows" / "validate-skill.yml"
 )
-SOURCE_WORKFLOW_PATHS = (
+DIRECT_SOURCE_WORKFLOW_PATHS = (
     REPOSITORY_ROOT / ".github" / "workflows" / "validate-portable-consumption.yml",
     REPOSITORY_ROOT / ".github" / "workflows" / "validate-structure.yml",
+)
+TEMPLATE_WORKDIR_SOURCE_WORKFLOW_PATHS = (
+    REPOSITORY_ROOT / ".github" / "workflows" / "validate-extended-profile-contracts.yml",
+)
+
+CANONICAL_DIRECT_PATTERN = re.compile(
+    r"python(?:\s+-\S+)*\s+"
+    r"template/\.github/scripts/validate_skill_repository\.py"
+    r"\s+template(?:\s|$)"
+)
+LEGACY_DIRECT_PATTERN = re.compile(
+    r"python(?:\s+-\S+)*\s+"
+    r"\.github/scripts/validate_skill_repository\.py"
+    r"\s+template(?:\s|$)"
+)
+TEMPLATE_WORKDIR_PATTERN = re.compile(
+    r"working-directory:\s*template\s*\n"
+    r"\s*run:\s*python(?:\s+-\S+)*\s+"
+    r"\.github/scripts/validate_skill_repository\.py(?:\s|$)"
 )
 
 REQUIRED_TEMPLATE_FILES = {
@@ -96,20 +116,25 @@ def run() -> int:
                 f"copyable validation workflow is missing required Python setup: {required}"
             )
 
-    canonical_source_invocation = (
-        "python template/.github/scripts/validate_skill_repository.py template"
-    )
-    legacy_source_invocation = "python .github/scripts/validate_skill_repository.py template"
-    for source_workflow_path in SOURCE_WORKFLOW_PATHS:
+    for source_workflow_path in DIRECT_SOURCE_WORKFLOW_PATHS:
         source_workflow = source_workflow_path.read_text(encoding="utf-8")
-        if legacy_source_invocation in source_workflow:
+        if LEGACY_DIRECT_PATTERN.search(source_workflow):
             failures.append(
                 "source workflow still executes the root projected Python validator: "
                 f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
             )
-        if canonical_source_invocation not in source_workflow:
+        if not CANONICAL_DIRECT_PATTERN.search(source_workflow):
             failures.append(
                 "source workflow does not execute the template-owned Python validator: "
+                f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
+            )
+
+    for source_workflow_path in TEMPLATE_WORKDIR_SOURCE_WORKFLOW_PATHS:
+        source_workflow = source_workflow_path.read_text(encoding="utf-8")
+        if not TEMPLATE_WORKDIR_PATTERN.search(source_workflow):
+            failures.append(
+                "source workflow does not execute the Python repository validator "
+                "from working-directory template: "
                 f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
             )
 
