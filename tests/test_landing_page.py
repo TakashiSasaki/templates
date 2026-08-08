@@ -80,8 +80,15 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-landing portal-landing--cover"', text)
         self.assertIn('class="portal-cover"', text)
         self.assertIn('href="overview/"', text)
-        for destination in ("skill/", "policy/", "webapp/", "repository-trees/"):
+        for destination in (
+            "skill/",
+            "policy/",
+            "webapp/",
+            "repository-trees/",
+            "files/",
+        ):
             self.assertIn(f'href="{destination}"', text)
+        self.assertIn("Browse source files", text)
         for label in ("Skill", "Policy", "Web application"):
             self.assertIn(
                 f'class="portal-domain-card__label">{label}</span>',

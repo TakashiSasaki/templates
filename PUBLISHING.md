@@ -8,7 +8,8 @@ branch histories in `TakashiSasaki/templates`.
 The `site` branch publishes one human-readable GitHub Pages portal that includes
 reviewed documentation from the `skill`, `policy`, and `webapp` branches without
 combining their Git histories or transferring ownership of their canonical
-content.
+content. The same Pages artifact may also expose a bounded source-oriented file
+browser for the exact build inputs under the rules below.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
@@ -31,6 +32,8 @@ The `site` branch owns:
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
 - generated repository inventories and bounded inline file previews;
+- the bounded static file-browser snapshots for `site`, `skill`, `policy`, and
+  `webapp` build inputs;
 - generated link, fragment, asset, canonical-URL, and provenance validation;
 - the sole repository workflow authorized to deploy GitHub Pages.
 
@@ -52,17 +55,23 @@ The following rules apply:
    as provider publication assets.
 3. Tests, workflows, scripts, generated output, working notes, and newly added
    files do not become cataloged documentation merely because they are tracked.
-4. Branch-wide copies and unrestricted glob-based publication are prohibited.
+4. Branch-wide copies and unrestricted glob-based publication are prohibited for
+   cataloged documentation and provider assets. The separate repository inventory,
+   inline-preview, and static file-browser surfaces may expose only the bounded
+   Git-object representations explicitly permitted below.
 5. Machine-readable contracts and schemas may be published as supporting
    assets, but the navigation should lead readers through explanatory Markdown.
 6. Catalog paths and asset traversal must reject parent traversal, unsafe path
    forms, `.git` components, and symbolic-link traversal.
-7. Repository inventory previews are a separate, bounded rendering surface and
-   must satisfy every constraint in the following section.
+7. Repository inventory previews and static file-browser pages are separate,
+   bounded rendering surfaces and must satisfy every constraint in the following
+   section.
 
 Adding a file to a provider branch does not publish it as a cataloged document or
 provider asset. Adding or changing a catalog entry is a public-interface change
-and requires review as such.
+and requires review as such. A tracked regular file can nevertheless become
+visible in the separate file-browser snapshot when it satisfies the bounded
+browser rules below; this does not make it a cataloged document or asset.
 
 ## Repository inventory
 
@@ -72,8 +81,8 @@ about the Git tree and is separate from the publication catalog boundary.
 
 A path appearing in the inventory does not make the file part of the Pages
 publication as a cataloged document or provider asset. The tree generator must
-not copy unlisted file contents; the separate inline-preview generator may emit
-only the bounded escaped representations defined below.
+not copy unlisted file contents; the separate inline-preview and file-browser
+generators may emit only the bounded escaped representations defined below.
 
 The inventory may provide:
 
@@ -113,6 +122,44 @@ declarations must be validated by the same assembler that validates canonical
 documentation. Generated Markdown, preview HTML, and final site HTML remain build
 artifacts and must not be committed.
 
+### Static file browser
+
+The static file browser is a source-oriented rendering surface at `/files/`. It
+covers the exact checkout used for the `site` implementation and the exact
+`skill`, `policy`, and `webapp` provider checkouts used by the same build. The
+human branch labels are navigation labels only; each browser page must display
+and render the corresponding full 40-character checked-out commit SHA.
+
+The browser must satisfy all of the following constraints:
+
+- directory and entry discovery is derived from `git ls-tree` metadata;
+- regular-file content is read from the exact Git blob object IDs named by the
+  tree, not from mutable working-tree paths;
+- symlinks and gitlinks are listed as metadata but are never followed;
+- only strict UTF-8 regular files without NUL bytes, bidirectional controls, or
+  other disallowed control characters are rendered as text;
+- each rendered text file is limited to 1 MiB, and candidate text content is
+  limited to 64 MiB per branch before publication;
+- every regular tracked file receives a local browser target; files outside the
+  text boundary receive a metadata/fallback page rather than active file content;
+- syntax highlighting is generated at build time with the pinned Pygments
+  dependency using the file name to select an appropriate lexer, with plain-text
+  fallback when no lexer matches;
+- source text is HTML-escaped before publication, and generated file pages use a
+  restrictive content security policy;
+- the tree and selected file remain visible in a split browser layout, while the
+  file is isolated in an iframe with the `sandbox` attribute and no permissions;
+- line numbers and line wrapping can be toggled locally without executing
+  repository-supplied code;
+- ordinary text viewing has no runtime GitHub API, raw-content, or CDN dependency;
+- an immutable full-SHA GitHub source link may remain available as an explicit
+  fallback and source-of-record link.
+
+The browser is generated only after the strict Zensical build has created the
+final site directory, so `zensical build --clean` cannot delete it. It must be
+generated before final site-link validation and before the Pages artifact is
+uploaded. Browser HTML is a build artifact and must not be committed.
+
 ## Human-readable information architecture
 
 The portal must provide a clear entry point for each major publication:
@@ -128,6 +175,13 @@ It must also provide stable generated inventory entry points:
 - `/repository-trees/policy/`;
 - `/repository-trees/webapp/`.
 
+The source-oriented browser has stable entry points:
+
+- `/files/` for browser selection;
+- `/files/site/` for the deployed site implementation snapshot;
+- `/files/skill/`, `/files/policy/`, and `/files/webapp/` for the reviewed
+  provider snapshots.
+
 Navigation is organized by reader task and conceptual hierarchy rather than by
 repository layout alone. Overview, adoption, operation, architecture, evidence,
 release, ADR, and migration material should be grouped under descriptive titles.
@@ -136,7 +190,10 @@ reachable from explanatory documents without dominating primary navigation.
 
 Generated destinations are stable public paths. Renaming a source file does not
 require a public URL change when the stable document ID and destination remain
-unchanged. A destination change must be reviewed as a compatibility change.
+unchanged. A destination change must be reviewed as a compatibility change. File
+browser content URLs are implementation details keyed by immutable branch,
+revision, and path identity; only the branch browser entry points above are
+stable public paths.
 
 ## Reproducibility and provenance
 
@@ -150,9 +207,10 @@ The build artifact contains `build-provenance.json` with:
 - the exact `site` commit;
 - the exact `skill`, `policy`, and `webapp` commits.
 
-Repository-tree links and preview URLs must use the corresponding checked-out
-provider commit. Workflow-call revision overrides therefore produce inventory
-and preview output for the overridden commit rather than the normal lock value.
+Repository-tree links, preview URLs, and file-browser pages must use the
+corresponding checked-out commit. Workflow-call revision overrides therefore
+produce inventory, preview, and browser output for the overridden commit rather
+than the normal lock value.
 
 The provenance file identifies deterministic source inputs. It is not a digital
 signature, software bill of materials, or artifact attestation.
@@ -174,8 +232,8 @@ A provider publication change uses this sequence:
    order, or generated destinations change.
 7. Build the integrated site against the exact locked commits.
 8. Require tests, repository-tree generation, inline-preview generation, strict
-   site generation, entry-point checks, provenance generation, and generated-link
-   validation to pass.
+   site generation, static file-browser generation, entry-point checks,
+   provenance generation, and generated-link validation to pass.
 9. Merge the `site` pull request. A push to `site` is the only deployment event.
 
 Provider and `site` changes remain separate pull requests because they have
@@ -220,8 +278,11 @@ verify that:
 - the `site` push workflow completes its build and deploy jobs successfully;
 - `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;
 - all four `/repository-trees/` entry points are reachable;
+- `/files/` and all four branch browser entry points are reachable;
 - preview links load the corresponding sandboxed frame without replacing source
   links;
+- file-browser text pages show line-number and wrapping controls and do not need
+  a runtime GitHub API or CDN request to render their text;
 - the deployed `/build-provenance.json` matches the reviewed lock file;
 - HTTP requests redirect to HTTPS and the deployed response uses the custom
   domain.
@@ -243,8 +304,14 @@ A publication update is complete only when all of the following hold:
 - inline previews are generated only from eligible bounded Git blobs and render
   escaped text in sandboxed frames;
 - binary, oversized, symlink, gitlink, and invalid-text entries retain GitHub-only
-  fallback behavior;
-- internal links, fragments, assets, preview targets, and canonical URLs validate;
+  fallback behavior in the inline-preview surface;
+- the static file browser covers `site`, `skill`, `policy`, and `webapp` at their
+  exact checked-out full SHAs and reads eligible content only from named Git blobs;
+- browser syntax highlighting is build-time only, text is escaped, line-number
+  and wrapping toggles work without repository code execution, and non-text or
+  oversized files receive fallback pages;
+- internal links, fragments, assets, preview targets, browser targets, and
+  canonical URLs validate;
 - provenance records exact full-SHA inputs;
 - no provider branch can deploy Pages;
 - a `site` push successfully deploys the reviewed artifact.
