@@ -11,5 +11,14 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41
         with:
-          command: check
+          command: render
           config: .agent-policy.yml
+      - name: Show generated review policy artifacts
+        shell: bash
+        run: |
+          echo '---BEGIN GENERATED REVIEW---'
+          cat .github/REVIEW_GUIDELINES.md
+          echo '---END GENERATED REVIEW---'
+          echo '---BEGIN GENERATED LOCK---'
+          cat .agent-policy.lock
+          echo '---END GENERATED LOCK---'
