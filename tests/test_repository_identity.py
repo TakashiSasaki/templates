@@ -57,7 +57,10 @@ def test_maintained_text_uses_only_current_repository_identity() -> None:
         except UnicodeDecodeError:
             continue
         checked += 1
-        identities = set(REPOSITORY_IDENTITY.findall(content))
+        identities = {
+            identity.removesuffix(".git")
+            for identity in REPOSITORY_IDENTITY.findall(content)
+        }
         assert identities <= {CURRENT_REPOSITORY}, path.relative_to(ROOT).as_posix()
     assert checked > 0
 
