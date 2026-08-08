@@ -3,7 +3,7 @@
   "documents": [
     {
       "id": "portal-home",
-      "source": "docs/index.md",
+      "source": "docs/landing.md",
       "optional": false,
       "home": true
     },

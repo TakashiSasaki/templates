@@ -193,7 +193,7 @@ class SkillTemplateTreeTests(unittest.TestCase):
                     "documents": [
                         {
                             "id": "portal-home",
-                            "source": "docs/index.md",
+                            "source": "docs/landing.md",
                             "optional": False,
                             "home": True,
                         }
@@ -201,6 +201,10 @@ class SkillTemplateTreeTests(unittest.TestCase):
                 },
             )
             (site_root / "docs" / "index.md").write_text(
+                "# Site documentation\n\n* [Landing](landing.md) - Portal landing.\n",
+                encoding="utf-8",
+            )
+            (site_root / "docs" / "landing.md").write_text(
                 "# Portal\n", encoding="utf-8"
             )
             write_json(
@@ -223,7 +227,14 @@ class SkillTemplateTreeTests(unittest.TestCase):
             )
             tree_root = site_root / "docs" / "repository-trees"
             tree_root.mkdir(parents=True)
-            (tree_root / "index.md").write_text("# Trees\n", encoding="utf-8")
+            (tree_root / "index.md").write_text(
+                "# Trees\n\n* [Overview](overview.md) - Generated overview.\n",
+                encoding="utf-8",
+            )
+            (tree_root / "overview.md").write_text(
+                "# Trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
+                encoding="utf-8",
+            )
             for publication in ("skill", "policy", "webapp"):
                 (tree_root / f"{publication}.md").write_text(
                     f"# {publication}\n", encoding="utf-8"

@@ -8,7 +8,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PORTAL_HOME = ROOT / "docs/index.md"
+PORTAL_HOME = ROOT / "docs/landing.md"
 PORTAL_OVERVIEW = ROOT / "docs/overview.md"
 README = ROOT / "README.md"
 PUBLISHING_POLICY = ROOT / "PUBLISHING.md"
