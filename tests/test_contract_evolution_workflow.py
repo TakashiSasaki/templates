@@ -11,23 +11,44 @@ EVOLUTION_GUIDE = ROOT / "docs/architecture/contract-evolution.md"
 
 
 class ContractEvolutionWorkflowTests(unittest.TestCase):
-    def test_ci_runs_both_evolution_validator_entry_points_in_the_venv(self) -> None:
+    def test_ci_runs_both_evolution_validator_entry_points_from_template(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn(
-            "run: .venv/bin/python scripts/validate_contract_evolution.py",
+            "working-directory: template\n        run: ../.venv/bin/python scripts/validate_contract_evolution.py",
             workflow,
         )
         self.assertIn(
-            "run: .venv/bin/python -m scripts.validate_contract_evolution",
+            "working-directory: template\n        run: ../.venv/bin/python -m scripts.validate_contract_evolution",
             workflow,
         )
         self.assertNotIn(
-            "run: python scripts/validate_contract_evolution.py", workflow
+            "run: .venv/bin/python scripts/validate_contract_evolution.py",
+            workflow,
         )
         self.assertNotIn(
-            "run: python -m scripts.validate_contract_evolution", workflow
+            "run: .venv/bin/python -m scripts.validate_contract_evolution",
+            workflow,
         )
+
+    def test_ci_uses_template_owned_dependency_and_validator_inputs(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        for required in (
+            "cache-dependency-path: template/requirements-dev.lock",
+            "--requirement template/requirements-dev.lock",
+            "run: .venv/bin/python template/scripts/verify_locked_environment.py",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, workflow)
+
+        for legacy in (
+            "cache-dependency-path: requirements-dev.lock",
+            "--requirement requirements-dev.lock",
+            "run: .venv/bin/python scripts/verify_locked_environment.py",
+        ):
+            with self.subTest(legacy=legacy):
+                self.assertNotIn(legacy, workflow)
 
     def test_local_guidance_documents_all_four_validator_entry_points(self) -> None:
         commands = (
