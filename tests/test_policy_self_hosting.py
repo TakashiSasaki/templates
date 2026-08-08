@@ -5,7 +5,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / ".agent-policy.yml"
 RELEASE_PATH = ROOT / "release/toolchain.json"
