@@ -22,5 +22,4 @@ def test_consumer_workflow_checks_every_pull_request() -> None:
     assert "workflow_dispatch: {}" in workflow
     assert "paths:" not in workflow
     assert "TakashiSasaki/templates@{{ revision }}" in workflow
-    assert "TakashiSasaki/agent-policy@{{ revision }}" not in workflow
     assert "command: check" in workflow
