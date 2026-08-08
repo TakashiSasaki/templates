@@ -38,6 +38,14 @@ The copied bytes, file modes, hidden entries, and relative paths are authoritati
 
 The destination becomes the Skill root. `SKILL.md` is directly under that destination and no `template/` wrapper remains.
 
+## Shared policy adoption boundary
+
+The copy operation does not pre-enroll the resulting Skill repository in the shared policy toolchain. Source-maintainer `.agent-policy.yml`, `.agent-policy.lock`, `.agent-policy/` state, `policy/` inputs, and the source `check-agent-policy` workflow remain maintainer-only and are prohibited from the closed `template/` inventory.
+
+`template/AGENTS.md` is intentionally different: it is a consumer-facing artifact-development contract describing how to develop and validate a concrete Skill. Its presence does not imply that the copied repository has adopted the source repository's shared-policy configuration.
+
+After copying, a concrete Skill repository may explicitly adopt shared repository policy through a reviewed immutable toolchain revision. That operation is separate from the byte-preserving template copy and must preserve the Skill requirements already established by the copied artifact and subsequent customization.
+
 ## Profile model
 
 The distribution is one profile-aware scaffold. It is not a set of mutually exclusive directories such as `templates/mcp-enabled/` or `templates/packaged-cli/`.
@@ -148,7 +156,7 @@ Clone, submodule, archive, and parent-owned vendoring equivalence apply to compl
 
 The `site` branch owns navigation, reader-facing titles, generated destinations, full-SHA source locking, assembly, provenance, repository-tree rendering, and GitHub Pages deployment. `skill` workflows call only the build-only compatibility workflow with contents-read permission.
 
-GitHub Pages deployment remains suspended until the unrelated `site` branch locks the final reviewed `skill` merge commit, publishes separate complete-source and copyable-template views, and passes strict integration validation. Deployment restoration is a separate reviewed `site` change.
+GitHub Pages deployment has already been restored on the unrelated `site` branch after the original Skill restructuring integration. Later Skill changes do not grant deployment authority to `skill` and do not require deployment to be suspended by default. Publishing newer Skill bytes requires a separate reviewed `site` change that updates the immutable Skill source lock and passes strict integration validation.
 
 ## Maintainer change rules
 
@@ -177,4 +185,4 @@ The restructuring is complete because:
 - publication IDs are stable and canonical consumer sources resolve below `template/`; and
 - a dedicated completion audit rejects regression to the former mixed root.
 
-Cross-branch publication is complete only after the final reviewed `skill` merge commit is integrated into `site` by full SHA and Pages deployment is restored by a separate `site` pull request.
+The original cross-branch publication condition was completed when `site` locked the reviewed restructuring revision, published separate complete-source and copyable-template views, passed strict integration validation, and restored Pages deployment in a separate reviewed change. Subsequent Skill revisions are published by updating the `site` source lock through the same full-SHA integration boundary.
