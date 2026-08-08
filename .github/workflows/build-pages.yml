@@ -189,6 +189,16 @@ jobs:
             --site-root build/site \
             --canonical-url "${PUBLIC_SITE_URL}"
 
+      - name: Generate static repository browser
+        run: |
+          python site-source/scripts/generate_repository_browser.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --output-root build/site \
+            --branch site=site-source \
+            --branch skill=skill-source \
+            --branch policy=policy-source \
+            --branch webapp=webapp-source
+
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'
@@ -254,6 +264,20 @@ jobs:
           for copyable in skill webapp; do
             grep --fixed-strings -- 'Copyable root:' \
               "build/site/repository-trees/${copyable}/template/index.html"
+          done
+          test -f build/site/files/index.html
+          for branch in site skill policy webapp; do
+            page="build/site/files/${branch}/index.html"
+            test -f "$page"
+            grep --fixed-strings -- 'repository-file-viewer' "$page"
+            test -n "$(
+              find \
+                "build/site/files/${branch}/content" \
+                -type f \
+                -name '*.html' \
+                -print \
+                -quit
+            )"
           done
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
