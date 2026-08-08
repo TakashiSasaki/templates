@@ -118,6 +118,10 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             encoding="utf-8",
         )
         (tree_root / "index.md").write_text(
+            "# Repository trees\n\n* [Overview](overview.md) - Generated overview.\n",
+            encoding="utf-8",
+        )
+        (tree_root / "overview.md").write_text(
             "# Repository trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
             encoding="utf-8",
         )
@@ -156,8 +160,8 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             skill_page = (
                 output_root / "docs/repository-trees/skill.md"
             ).read_text(encoding="utf-8")
-            index_page = (
-                output_root / "docs/repository-trees/index.md"
+            overview_page = (
+                output_root / "docs/repository-trees/overview.md"
             ).read_text(encoding="utf-8")
 
             self.assertIn(revisions["skill"], skill_page)
@@ -174,10 +178,10 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             self.assertNotIn("untracked-secret.txt", skill_page)
             self.assertIn('href="/templates/skill/"', skill_page)
             self.assertIn(">source</a>", skill_page)
-            self.assertIn("[Skill](skill.md)", index_page)
-            self.assertIn(revisions["policy"], index_page)
+            self.assertIn("[Skill](skill.md)", overview_page)
+            self.assertIn(revisions["policy"], overview_page)
             self.assertNotIn("GENERATED_REPOSITORY_TREE", skill_page)
-            self.assertNotIn("GENERATED_REPOSITORY_TREE_INDEX", index_page)
+            self.assertNotIn("GENERATED_REPOSITORY_TREE_INDEX", overview_page)
 
     def test_gitlink_entries_are_not_treated_as_files(self) -> None:
         object_id = b"1" * 40
@@ -214,7 +218,11 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
 class RepositoryTreePreparationTests(unittest.TestCase):
     def make_site_source(self, root: Path) -> None:
         (root / "docs/repository-trees").mkdir(parents=True)
-        (root / "docs/index.md").write_text("# Portal\n", encoding="utf-8")
+        (root / "docs/index.md").write_text(
+            "# Site documentation\n\n* [Landing](landing.md) - Portal landing.\n",
+            encoding="utf-8",
+        )
+        (root / "docs/landing.md").write_text("# Portal\n", encoding="utf-8")
         (root / "docs/publication-catalog.json").write_text(
             json.dumps(
                 {
@@ -222,7 +230,7 @@ class RepositoryTreePreparationTests(unittest.TestCase):
                     "documents": [
                         {
                             "id": "portal-home",
-                            "source": "docs/index.md",
+                            "source": "docs/landing.md",
                             "optional": False,
                             "home": True,
                         }
@@ -267,6 +275,10 @@ class RepositoryTreePreparationTests(unittest.TestCase):
             encoding="utf-8",
         )
         (root / "docs/repository-trees/index.md").write_text(
+            "# Repository trees\n\n* [Overview](overview.md) - Generated overview.\n",
+            encoding="utf-8",
+        )
+        (root / "docs/repository-trees/overview.md").write_text(
             "# Repository trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
             encoding="utf-8",
         )
@@ -384,6 +396,12 @@ class RepositoryTreePreparationTests(unittest.TestCase):
 class RepositoryTreeConfigurationTests(unittest.TestCase):
     def test_repository_tree_templates_are_present(self) -> None:
         self.assertTrue((TREE_TEMPLATES / "index.md").is_file())
+        overview = TREE_TEMPLATES / "overview.md"
+        self.assertTrue(overview.is_file())
+        self.assertIn(
+            "<!-- GENERATED_REPOSITORY_TREE_INDEX -->",
+            overview.read_text(encoding="utf-8"),
+        )
         for publication in ("skill", "policy", "webapp"):
             template = TREE_TEMPLATES / f"{publication}.md"
             self.assertTrue(template.is_file())
