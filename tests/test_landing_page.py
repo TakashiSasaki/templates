@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEX = ROOT / "docs" / "index.md"
+LANDING = ROOT / "docs" / "landing.md"
 OVERVIEW = ROOT / "docs" / "overview.md"
 STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
 COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
@@ -75,7 +75,7 @@ def validate_static_svg(path: Path) -> None:
 
 class LandingPageTests(unittest.TestCase):
     def test_graphical_cover_exposes_primary_destinations_and_overview(self) -> None:
-        text = INDEX.read_text(encoding="utf-8")
+        text = LANDING.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
         self.assertIn('class="portal-landing portal-landing--cover"', text)
         self.assertIn('class="portal-cover"', text)
@@ -108,7 +108,7 @@ class LandingPageTests(unittest.TestCase):
     def test_landing_pages_reference_only_declared_svg_artwork(self) -> None:
         text = "\n".join(
             (
-                INDEX.read_text(encoding="utf-8"),
+                LANDING.read_text(encoding="utf-8"),
                 OVERVIEW.read_text(encoding="utf-8"),
             )
         )
