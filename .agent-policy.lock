@@ -8,7 +8,7 @@ inputs:
   policy/repository/artifact-boundary.md:
     sha256: 505b69167e5f1178ec3288f052ec0e6d9d572e2886577af7747972b2c7349058
   policy/repository/distribution-integrity.md:
-    sha256: a6a5187b5dd6c1e0d3218a3f56de3591712ada9f8037b3c0b3a4e4a179844d37
+    sha256: 7f818c3e41012f169bf6d31f67812f45d90dd7a63e49db51914b539c4004a070
   policy/repository/profile-model.md:
     sha256: 3382697941673f448db5cd1cc0c57aa89a0043816ea82c4fec76871936ec7031
   policy/repository/publication-boundary.md:
@@ -21,4 +21,4 @@ outputs:
   .github/REVIEW_GUIDELINES.md:
     sha256: 6f63af80425d1ac430b7d3694fc1709ddb78e25831934e36a4b2a76902c73ede
   AGENTS.md:
-    sha256: 9600c0e174297a818f5a26b5115a2c49f792fb525ca408aa77ac731bda1a5407
+    sha256: 50e48edb57e3605d7833591b7807f2230e8eab1890384fd3bc58d55fc9c4caed
