@@ -60,8 +60,8 @@ def generate(
 
     docs_root = output_root / "docs" / "repository-trees"
     page = docs_root / "skill" / "template.md"
-    index = docs_root / "index.md"
-    if not page.is_file() or not index.is_file():
+    overview = docs_root / "overview.md"
+    if not page.is_file() or not overview.is_file():
         raise RepositoryTreeError(
             "assembled Skill template-tree templates are missing"
         )
@@ -98,7 +98,7 @@ def generate(
         f"{counts['symlinks']} | {counts['gitlinks']} | "
         f"{counts['published_documents']} |"
     )
-    replace_marker(index, SUMMARY_MARKER, summary)
+    replace_marker(overview, SUMMARY_MARKER, summary)
 
     return f"skill template: {counts['files']} files at {revision}"
 
