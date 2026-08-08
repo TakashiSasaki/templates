@@ -136,7 +136,7 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
 def test_candidate_verification_excludes_release_alignment() -> None:
     roadmap = normalized(ROADMAP)
 
-    assert "every gate whose evaluation point is `candidate commit`" in roadmap
+    assert "Every gate whose evaluation point is `candidate commit`" in roadmap
     assert "`release-alignment` gate is evaluated later across the completion sequence" in roadmap
     assert "it is not a candidate-local gate" in roadmap
     assert "without marking that sequence gate passed" in roadmap
