@@ -16,11 +16,23 @@ contexts:
         - policy/repository/reading-scope.md
         - policy/repository/validation.md
         - policy/repository/publication-boundary.md
+  review:
+    profiles:
+      - core
+      - security-baseline
+      - review
+    project_policy:
+      files: []
 outputs:
   agents:
     enabled: true
     path: AGENTS.md
     context: coding
     renderer: agents-md
+  review:
+    enabled: true
+    path: .github/REVIEW_GUIDELINES.md
+    context: review
+    renderer: github-review-json-v1
 skills:
   enabled: []
