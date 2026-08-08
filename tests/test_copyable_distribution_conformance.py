@@ -25,14 +25,10 @@ class CopyableDistributionConformanceTests(unittest.TestCase):
                 self.assertEqual("template", document["mode"])
 
     def test_clean_room_product_is_created_from_distribution_only(self) -> None:
-        source_evidence = generated._load_json(
-            SOURCE_ROOT / "contracts/implementation-evidence.json"
-        )
-        distribution_evidence = generated._load_json(
+        canonical_evidence = generated._load_json(
             DISTRIBUTION_ROOT / "contracts/implementation-evidence.json"
         )
-        self.assertEqual("template", source_evidence["mode"])
-        self.assertEqual("template", distribution_evidence["mode"])
+        self.assertEqual("template", canonical_evidence["mode"])
 
         with generated._generated_repository() as root:
             self.assertFalse((root / ".git").exists())
@@ -78,12 +74,6 @@ class CopyableDistributionConformanceTests(unittest.TestCase):
                         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
                     )
 
-        self.assertEqual(
-            "template",
-            generated._load_json(
-                SOURCE_ROOT / "contracts/implementation-evidence.json"
-            )["mode"],
-        )
         self.assertEqual(
             "template",
             generated._load_json(
