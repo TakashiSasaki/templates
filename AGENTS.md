@@ -135,7 +135,7 @@ _Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:polic
 
 ## Keep Webapp artifact contracts outside shared policy
 
-The `webapp` branch owns framework-neutral Web-application artifact contracts. `contracts/manifest.json`, the registered contract documents and schemas, migration history, implementation-evidence contract, release-evidence contract, release-bundle contract, and their validators remain authoritative for the Webapp artifact.
+The `webapp` branch owns framework-neutral Web-application artifact contracts. `template/contracts/manifest.json`, the registered contract documents and schemas below `template/`, migration history, implementation-evidence contract, release-evidence contract, release-bundle contract, and their canonical validators under `template/scripts/` remain authoritative for the Webapp artifact.
 
 Shared agent policy governs maintainer working behavior only. Do not copy Webapp artifact semantics into repository policy modules, and do not make policy rule IDs, profiles, generated policy artifacts, or the policy toolchain prerequisites for validating or using the Webapp contracts.
 
@@ -155,9 +155,11 @@ _Source: `policy/repository/history-boundary.md` in this repository; rule ID: `w
 
 ## Read authoritative Webapp contracts for affected domains
 
-Always read `README.md`, `TEMPLATE.md`, `docs/architecture/responsibility-boundaries.md`, and files directly named by the task.
+Always read `README.md`, `template/TEMPLATE.md`, `template/docs/architecture/responsibility-boundaries.md`, and files directly named by the task.
 
-For a contract-family change, read `contracts/manifest.json` and the corresponding architecture, schema, validator, migration, test, and evidence documents for that family. Treat those artifact documents as the normative authority for Webapp semantics; repository policy may reference them but must not silently replace them.
+For a contract-family change, read `template/contracts/manifest.json` and the corresponding architecture, schema, validator, migration, test, and evidence documents below `template/` for that family. Treat those artifact documents as the normative authority for Webapp semantics; repository policy may reference them but must not silently replace them.
+
+Read source-only topology, publication, distribution-boundary, and maintainer-policy documents outside `template/` when the task affects template maintenance or publication rather than the copied Webapp artifact itself.
 
 _Source: `policy/repository/reading-scope.md` in this repository; rule ID: `webapp-source.read-authoritative-webapp-contracts`; severity: `mandatory`._
 
@@ -166,22 +168,22 @@ _Source: `policy/repository/reading-scope.md` in this repository; rule ID: `weba
 
 Use the isolated Python and pip bootstrap procedure documented in `README.md` before executing repository validators.
 
-For changes that can affect Webapp contracts or validation, run both supported entry points for the applicable validators and run the standard-library test suite. The complete retained baseline includes:
+For changes that can affect the distribution boundary, run both source-only distribution validator entry points from the branch root. For changes that can affect Webapp contracts or validation, run both supported entry points for each applicable canonical validator from `template/`, then run the source-maintainer standard-library test suite. The complete retained baseline includes:
 
 ```sh
 python scripts/validate_distribution.py
 python -m scripts.validate_distribution
-python scripts/validate_contracts.py
-python -m scripts.validate_contracts
-python scripts/validate_contract_evolution.py
-python -m scripts.validate_contract_evolution
-python scripts/validate_implementation_evidence.py
-python -m scripts.validate_implementation_evidence
-python scripts/validate_release_evidence.py
-python -m scripts.validate_release_evidence
-python scripts/validate_release_bundle.py
-python -m scripts.validate_release_bundle
-python -m unittest discover -s tests -v
+(cd template && ../.venv/bin/python scripts/validate_contracts.py)
+(cd template && ../.venv/bin/python -m scripts.validate_contracts)
+(cd template && ../.venv/bin/python scripts/validate_contract_evolution.py)
+(cd template && ../.venv/bin/python -m scripts.validate_contract_evolution)
+(cd template && ../.venv/bin/python scripts/validate_implementation_evidence.py)
+(cd template && ../.venv/bin/python -m scripts.validate_implementation_evidence)
+(cd template && ../.venv/bin/python scripts/validate_release_evidence.py)
+(cd template && ../.venv/bin/python -m scripts.validate_release_evidence)
+(cd template && ../.venv/bin/python scripts/validate_release_bundle.py)
+(cd template && ../.venv/bin/python -m scripts.validate_release_bundle)
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 When validating product-mode release evidence or bundles, supply the exact immutable candidate revision required by the artifact contract. Do not substitute policy-toolchain validation for these repository-owned validators.
