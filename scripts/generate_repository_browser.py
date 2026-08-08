@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote_from_bytes
@@ -127,7 +126,8 @@ def collect_records(
     total = sum(len(contents[entry.object_id]) for entry in candidates)
     if total > MAX_TOTAL_TEXT_BYTES:
         raise RepositoryBrowserError(
-            f"{branch} text candidates exceed {MAX_TOTAL_TEXT_BYTES // (1024 * 1024)} MiB"
+            f"{branch} text candidates exceed "
+            f"{MAX_TOTAL_TEXT_BYTES // (1024 * 1024)} MiB"
         )
 
     records: dict[bytes, FileRecord] = {}
@@ -166,7 +166,8 @@ def branch_nav(active: str, prefix: str = "") -> str:
         href = f"{prefix}{branch}/"
         current = ' aria-current="page"' if branch == active else ""
         links.append(
-            f'<a class="branch-tab" href="{href}"{current}>{html.escape(branch)}</a>'
+            f'<a class="branch-tab" href="{href}"{current}>'
+            f"{html.escape(branch)}</a>"
         )
     return "\n".join(links)
 
@@ -181,11 +182,13 @@ def render_tree_entry(
     if entry.is_directory:
         values = [
             f"{indent}<details>",
-            f"{indent}  <summary><span class=\"tree-icon\">▸</span><code>{label}/</code></summary>",
+            f'{indent}  <summary><span class="tree-icon">▸</span>'
+            f"<code>{label}/</code></summary>",
             f"{indent}  <ul>",
         ]
         for child in sorted(
-            entry.children.values(), key=lambda item: (not item.is_directory, item.name)
+            entry.children.values(),
+            key=lambda item: (not item.is_directory, item.name),
         ):
             values.append(f"{indent}    <li>")
             values.extend(render_tree_entry(child, records, depth + 3))
@@ -197,7 +200,8 @@ def render_tree_entry(
     if kind != "file":
         suffix = html.escape(kind)
         return [
-            f'{indent}<span class="tree-disabled"><code>{label}</code> <small>{suffix}</small></span>'
+            f'{indent}<span class="tree-disabled"><code>{label}</code> '
+            f"<small>{suffix}</small></span>"
         ]
 
     record = records[entry.path]
@@ -205,10 +209,17 @@ def render_tree_entry(
         f"{display_bytes(entry.path)} — {human_size(record.size)}",
         quote=True,
     )
+    viewer = html.escape(record.viewer_url, quote=True)
+    source = html.escape(record.source_url, quote=True)
     state = "" if record.viewable else " tree-file--fallback"
     return [
-        f'{indent}<a class="tree-file{state}" href="{html.escape(record.viewer_url, quote=True)}" '
+        f'{indent}<span class="tree-file-row">'
+        f'<a class="tree-file{state}" href="{viewer}" '
         f'target="repository-file-viewer" title="{title}"><code>{label}</code></a>'
+        f'<a class="tree-source" href="{source}" target="_blank" rel="noopener" '
+        f'title="Open immutable GitHub source for {title}" '
+        f'aria-label="Open immutable GitHub source for {title}">↗</a>'
+        f"</span>"
     ]
 
 
@@ -220,7 +231,8 @@ def render_browser_page(
 ) -> str:
     items: list[str] = []
     for child in sorted(
-        tree.children.values(), key=lambda item: (not item.is_directory, item.name)
+        tree.children.values(),
+        key=lambda item: (not item.is_directory, item.name),
     ):
         items.append("      <li>")
         items.extend(render_tree_entry(child, records, 4))
@@ -230,7 +242,8 @@ def render_browser_page(
     escaped_revision = html.escape(revision, quote=False)
     placeholder = html.escape(
         "<!doctype html><html lang='en'><meta charset='utf-8'>"
-        "<style>body{font-family:system-ui,sans-serif;padding:1rem;color-scheme:light dark}</style>"
+        "<style>body{font-family:system-ui,sans-serif;padding:1rem;"
+        "color-scheme:light dark}</style>"
         "<p>Select a file from the tree.</p></html>",
         quote=True,
     )
@@ -263,9 +276,13 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
 .tree details[open] > summary .tree-icon {{ transform: rotate(90deg); }}
 .tree-icon {{ display: inline-block; width: 1rem; transition: transform .1s linear; }}
 .tree code {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .78rem; overflow-wrap: anywhere; }}
-.tree-file, .tree-disabled {{ display: block; padding: .18rem .35rem  .18rem 1.35rem; border-radius: .3rem; color: inherit; text-decoration: none; }}
+.tree-file-row {{ display: flex; align-items: center; min-width: 0; }}
+.tree-file, .tree-disabled {{ display: block; padding: .18rem .35rem .18rem 1.35rem; border-radius: .3rem; color: inherit; text-decoration: none; }}
+.tree-file {{ min-width: 0; flex: 1; }}
 .tree-file:hover {{ background: color-mix(in srgb, CanvasText 8%, transparent); }}
 .tree-file--fallback {{ opacity: .68; text-decoration: underline dotted; }}
+.tree-source {{ flex: none; padding: .1rem .35rem; border-radius: .3rem; color: inherit; opacity: .52; text-decoration: none; font-size: .72rem; }}
+.tree-source:hover {{ opacity: 1; background: color-mix(in srgb, CanvasText 8%, transparent); }}
 .tree-disabled {{ opacity: .55; }}
 .viewer {{ min-width: 0; min-height: 100vh; background: Canvas; }}
 .viewer iframe {{ display: block; width: 100%; height: 100vh; border: 0; background: Canvas; }}
@@ -320,7 +337,9 @@ def highlighted_lines(path: bytes, text: str) -> tuple[list[str], str]:
             if piece:
                 escaped = html.escape(piece, quote=False)
                 lines[-1].append(
-                    f'<span class="{css_class}">{escaped}</span>' if css_class else escaped
+                    f'<span class="{css_class}">{escaped}</span>'
+                    if css_class
+                    else escaped
                 )
             if index != len(pieces) - 1:
                 lines.append([])
@@ -338,24 +357,28 @@ def render_file_page(branch: str, revision: str, record: FileRecord) -> str:
     path_label = html.escape(display_bytes(record.path), quote=False)
     object_id = html.escape(record.object_id, quote=False)
     escaped_revision = html.escape(revision, quote=False)
-    source = html.escape(record.source_url, quote=True)
     if record.viewable and record.text is not None:
         lines, lexer_name = highlighted_lines(record.path, record.text)
         body_lines = []
         for number, fragment in enumerate(lines, start=1):
             body_lines.append(
                 f'<div class="source-line" id="L{number}">'
-                f'<a class="line-number" href="#L{number}" aria-label="Line {number}">{number}</a>'
+                f'<a class="line-number" href="#L{number}" '
+                f'aria-label="Line {number}">{number}</a>'
                 f'<code class="line-code">{fragment}</code></div>'
             )
         body = "\n".join(body_lines)
         detail = f"{html.escape(lexer_name)} · {human_size(record.size)}"
     else:
-        reason = html.escape(record.reason or "not available as text", quote=False)
+        reason = html.escape(
+            record.reason or "not available as text",
+            quote=False,
+        )
         body = (
             '<div class="unavailable"><h2>Text view unavailable</h2>'
-            f'<p>{reason}.</p><p><a href="{source}" target="_blank" rel="noopener">'
-            "Open the immutable GitHub source</a>.</p></div>"
+            f"<p>{reason}.</p>"
+            "<p>Use the source arrow beside the file name in the tree to open "
+            "the immutable GitHub object.</p></div>"
         )
         detail = human_size(record.size)
 
@@ -381,7 +404,7 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 .viewer-title strong {{ font: .84rem/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }}
 .viewer-title small {{ margin-top: .16rem; font-size: .7rem; opacity: .68; overflow-wrap: anywhere; }}
 .viewer-controls {{ display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }}
-.toggle-label, .source-link {{ border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: .35rem; padding: .28rem .5rem; font-size: .72rem; color: inherit; text-decoration: none; cursor: pointer; }}
+.toggle-label {{ border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: .35rem; padding: .28rem .5rem; font-size: .72rem; color: inherit; cursor: pointer; }}
 #show-lines:checked ~ .viewer-header label[for="show-lines"], #wrap-lines:checked ~ .viewer-header label[for="wrap-lines"] {{ background: color-mix(in srgb, CanvasText 10%, Canvas); font-weight: 700; }}
 .source {{ min-width: 100%; width: max-content; padding: .6rem 0 2rem; font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }}
 .source-line {{ display: grid; grid-template-columns: max-content minmax(0, 1fr); min-height: 1.55em; }}
@@ -392,7 +415,6 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 #wrap-lines:checked ~ main .source {{ width: 100%; }}
 #wrap-lines:checked ~ main .line-code {{ white-space: pre-wrap; overflow-wrap: anywhere; }}
 .unavailable {{ max-width: 48rem; margin: 3rem auto; padding: 0 1.25rem; }}
-.unavailable a {{ color: LinkText; }}
 {pygments_css()}
 </style>
 </head>
@@ -406,7 +428,6 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
   </div>
   <div class="viewer-controls">
 {controls}
-    <a class="source-link" href="{source}" target="_blank" rel="noopener">GitHub source</a>
   </div>
 </header>
 <main>
@@ -419,18 +440,26 @@ body {{ margin: 0; min-height: 100vh; background: Canvas; color: CanvasText; }}
 
 def prepare_browser_root(output_root: Path) -> Path:
     if output_root.is_symlink() or not output_root.is_dir():
-        raise RepositoryBrowserError("output root must be an existing regular directory")
+        raise RepositoryBrowserError(
+            "output root must be an existing regular directory"
+        )
     browser_root = output_root / BROWSER_ROOT
     if browser_root.exists() or browser_root.is_symlink():
-        raise RepositoryBrowserError(f"browser destination already exists: {browser_root}")
+        raise RepositoryBrowserError(
+            f"browser destination already exists: {browser_root}"
+        )
     browser_root.mkdir(parents=True)
-    (browser_root / MANAGED_MARKER).write_text(MANAGED_MARKER_CONTENT, encoding="utf-8")
+    (browser_root / MANAGED_MARKER).write_text(
+        MANAGED_MARKER_CONTENT,
+        encoding="utf-8",
+    )
     return browser_root
 
 
 def write_root_index(browser_root: Path) -> None:
     links = "".join(
-        f'<li><a href="{branch}/">{html.escape(branch)}</a></li>' for branch in BRANCH_ORDER
+        f'<li><a href="{branch}/">{html.escape(branch)}</a></li>'
+        for branch in BRANCH_ORDER
     )
     (browser_root / "index.html").write_text(
         f"""<!doctype html>
@@ -460,18 +489,27 @@ def generate_browser(
         root = branches[branch].resolve(strict=True)
         revision = checked_revision(root)
         if not FULL_SHA.fullmatch(revision):
-            raise RepositoryBrowserError(f"{branch} did not resolve to a full SHA")
-        tree, records = collect_records(branch, repository, revision, root)
+            raise RepositoryBrowserError(
+                f"{branch} did not resolve to a full SHA"
+            )
+        tree, records = collect_records(
+            branch,
+            repository,
+            revision,
+            root,
+        )
         branch_root = browser_root / branch
         content_root = branch_root / "content"
         content_root.mkdir(parents=True)
         branch_root.joinpath("index.html").write_text(
-            render_browser_page(branch, revision, tree, records), encoding="utf-8"
+            render_browser_page(branch, revision, tree, records),
+            encoding="utf-8",
         )
         for record in records.values():
             destination = branch_root / record.viewer_url
             destination.write_text(
-                render_file_page(branch, revision, record), encoding="utf-8"
+                render_file_page(branch, revision, record),
+                encoding="utf-8",
             )
         messages.append(
             f"{branch}: {sum(record.viewable for record in records.values())}/"
@@ -485,7 +523,9 @@ def parse_branch(value: str) -> tuple[str, Path]:
         raise argparse.ArgumentTypeError("branch must use name=path form")
     name, raw_path = value.split("=", 1)
     if name not in BRANCH_ORDER or not raw_path:
-        raise argparse.ArgumentTypeError("branch name must be site, skill, policy, or webapp")
+        raise argparse.ArgumentTypeError(
+            "branch name must be site, skill, policy, or webapp"
+        )
     return name, Path(raw_path)
 
 
@@ -493,7 +533,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--branch", action="append", type=parse_branch, required=True)
+    parser.add_argument(
+        "--branch",
+        action="append",
+        type=parse_branch,
+        required=True,
+    )
     args = parser.parse_args()
     branches: dict[str, Path] = {}
     for name, path in args.branch:
@@ -501,7 +546,11 @@ def main() -> int:
             parser.error(f"duplicate branch: {name}")
         branches[name] = path
     try:
-        messages = generate_browser(args.repository, args.output_root, branches)
+        messages = generate_browser(
+            args.repository,
+            args.output_root,
+            branches,
+        )
     except (
         RepositoryBrowserError,
         RepositoryTreeError,
