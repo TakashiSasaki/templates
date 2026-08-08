@@ -112,6 +112,8 @@ class RepositoryBrowserConfigurationTests(unittest.TestCase):
         self.assertIn("--branch policy=policy-source", workflow)
         self.assertIn("--branch webapp=webapp-source", workflow)
         self.assertIn("build/site/files/${branch}/index.html", workflow)
+        self.assertIn("browser_source_view", workflow)
+        self.assertIn("URLAttributeParser", workflow)
 
     def test_policy_and_dependencies_define_browser_boundary(self) -> None:
         policy = " ".join(POLICY.read_text(encoding="utf-8").split())
