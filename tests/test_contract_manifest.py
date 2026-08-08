@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1] / "template"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import validate_contracts  # noqa: E402
