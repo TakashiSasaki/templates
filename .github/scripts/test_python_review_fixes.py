@@ -8,12 +8,19 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+SCRIPT_ROOT = Path(__file__).resolve().parent
+REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
+sys.path.insert(0, str(TEMPLATE_SCRIPT_ROOT))
+
 from lib.profile_contracts import MarkdownDocument, ValuePolicy
 from validate_review_followup_contracts import _extract_path
 
 
-SCRIPT_ROOT = Path(__file__).resolve().parent
-PLACEHOLDER_VALIDATOR = SCRIPT_ROOT / "validate_selected_contract_scalar_placeholders.py"
+PLACEHOLDER_VALIDATOR = (
+    TEMPLATE_SCRIPT_ROOT / "validate_selected_contract_scalar_placeholders.py"
+)
 
 
 def _assert(condition: bool, message: str) -> None:

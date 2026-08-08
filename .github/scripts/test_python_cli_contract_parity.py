@@ -11,11 +11,13 @@ from pathlib import Path
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
+REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 VALIDATORS = {
     "Ruby exit-code": ["ruby", str(SCRIPT_ROOT / "validate-cli-exit-code-contract.rb")],
     "Python exit-code": [
         sys.executable,
-        str(SCRIPT_ROOT / "validate_cli_exit_code_contract.py"),
+        str(TEMPLATE_SCRIPT_ROOT / "validate_cli_exit_code_contract.py"),
     ],
     "Ruby structured-output": [
         "ruby",
@@ -23,7 +25,7 @@ VALIDATORS = {
     ],
     "Python structured-output": [
         sys.executable,
-        str(SCRIPT_ROOT / "validate_cli_structured_output_contract.py"),
+        str(TEMPLATE_SCRIPT_ROOT / "validate_cli_structured_output_contract.py"),
     ],
 }
 

@@ -11,19 +11,23 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from validate_review_followup_contracts import _is_executable_root_file
-
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
+sys.path.insert(0, str(TEMPLATE_SCRIPT_ROOT))
+
+from validate_review_followup_contracts import _is_executable_root_file
+
+
 VALIDATORS = {
     "profile": (
         ["ruby", str(SCRIPT_ROOT / "validate-profile-contracts.rb")],
-        [sys.executable, str(SCRIPT_ROOT / "validate_profile_contracts.py")],
+        [sys.executable, str(TEMPLATE_SCRIPT_ROOT / "validate_profile_contracts.py")],
     ),
     "repository": (
         ["ruby", str(SCRIPT_ROOT / "validate-skill-repository.rb")],
-        [sys.executable, str(SCRIPT_ROOT / "validate_skill_repository.py")],
+        [sys.executable, str(TEMPLATE_SCRIPT_ROOT / "validate_skill_repository.py")],
     ),
 }
 

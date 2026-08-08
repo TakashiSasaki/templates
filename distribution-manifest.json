@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source_root": "template",
   "destination_root": ".",
   "content_transformation_allowed": false,
@@ -26,106 +26,28 @@
     "src",
     "tests"
   ],
-  "mirrors": [
-    {
-      "source": ".github/scripts/lib/core_profile_interfaces.py",
-      "destination": ".github/scripts/lib/core_profile_interfaces.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/lib/core_profile_runtime.py",
-      "destination": ".github/scripts/lib/core_profile_runtime.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/lib/profile_contracts.py",
-      "destination": ".github/scripts/lib/profile_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_bundled_mcp_client_consistency.py",
-      "destination": ".github/scripts/validate_bundled_mcp_client_consistency.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_cli_exit_code_contract.py",
-      "destination": ".github/scripts/validate_cli_exit_code_contract.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_cli_structured_output_contract.py",
-      "destination": ".github/scripts/validate_cli_structured_output_contract.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_concrete_profile_consistency.py",
-      "destination": ".github/scripts/validate_concrete_profile_consistency.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_core_profile_contracts.py",
-      "destination": ".github/scripts/validate_core_profile_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_decomposed_interface_contracts.py",
-      "destination": ".github/scripts/validate_decomposed_interface_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_extended_profile_contracts.py",
-      "destination": ".github/scripts/validate_extended_profile_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_interface_routing_contract.py",
-      "destination": ".github/scripts/validate_interface_routing_contract.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_interface_runtime_consistency.py",
-      "destination": ".github/scripts/validate_interface_runtime_consistency.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_interface_summary_details.py",
-      "destination": ".github/scripts/validate_interface_summary_details.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_late_review_contracts.py",
-      "destination": ".github/scripts/validate_late_review_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_mcp_runtime_authority.py",
-      "destination": ".github/scripts/validate_mcp_runtime_authority.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_profile_contracts.py",
-      "destination": ".github/scripts/validate_profile_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_review_followup_contracts.py",
-      "destination": ".github/scripts/validate_review_followup_contracts.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
-      "destination": ".github/scripts/validate_selected_contract_scalar_placeholders.py",
-      "exclude": []
-    },
-    {
-      "source": ".github/scripts/validate_skill_repository.py",
-      "destination": ".github/scripts/validate_skill_repository.py",
-      "exclude": []
-    }
-  ],
-  "distribution_owned_files": [
+  "distribution_files": [
     ".editorconfig",
+    ".github/scripts/lib/core_profile_interfaces.py",
+    ".github/scripts/lib/core_profile_runtime.py",
+    ".github/scripts/lib/profile_contracts.py",
     ".github/scripts/test_template_baseline.py",
+    ".github/scripts/validate_bundled_mcp_client_consistency.py",
+    ".github/scripts/validate_cli_exit_code_contract.py",
+    ".github/scripts/validate_cli_structured_output_contract.py",
+    ".github/scripts/validate_concrete_profile_consistency.py",
+    ".github/scripts/validate_core_profile_contracts.py",
+    ".github/scripts/validate_decomposed_interface_contracts.py",
+    ".github/scripts/validate_extended_profile_contracts.py",
+    ".github/scripts/validate_interface_routing_contract.py",
+    ".github/scripts/validate_interface_runtime_consistency.py",
+    ".github/scripts/validate_interface_summary_details.py",
+    ".github/scripts/validate_late_review_contracts.py",
+    ".github/scripts/validate_mcp_runtime_authority.py",
+    ".github/scripts/validate_profile_contracts.py",
+    ".github/scripts/validate_review_followup_contracts.py",
+    ".github/scripts/validate_selected_contract_scalar_placeholders.py",
+    ".github/scripts/validate_skill_repository.py",
     ".github/workflows/validate-skill.yml",
     ".gitignore",
     "AGENTS.md",
