@@ -264,7 +264,6 @@ class ImplementationEvidenceTests(unittest.TestCase):
             errors,
         )
 
-
     def test_repository_root_symlink_is_rejected_before_loading(self) -> None:
         import tempfile
 
@@ -314,11 +313,20 @@ class ImplementationEvidenceTests(unittest.TestCase):
             ROOT / ".github/workflows/contract-validation.yml"
         ).read_text(encoding="utf-8")
 
+        self.assertIn("working-directory: template", workflow)
         self.assertIn(
-            "run: .venv/bin/python scripts/validate_implementation_evidence.py",
+            "run: ../.venv/bin/python scripts/validate_implementation_evidence.py",
             workflow,
         )
         self.assertIn(
+            "run: ../.venv/bin/python -m scripts.validate_implementation_evidence",
+            workflow,
+        )
+        self.assertNotIn(
+            "run: .venv/bin/python scripts/validate_implementation_evidence.py",
+            workflow,
+        )
+        self.assertNotIn(
             "run: .venv/bin/python -m scripts.validate_implementation_evidence",
             workflow,
         )

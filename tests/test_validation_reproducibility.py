@@ -218,10 +218,18 @@ class ValidationReproducibilityTests(unittest.TestCase):
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
             f"run: env {workflow_unsets} .venv/bin/python -m pip install "
-            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "--isolated --disable-pip-version-check --no-deps --requirement template/requirements-dev.lock",
             workflow,
         )
         self.assertIn(
+            "run: .venv/bin/python template/scripts/verify_locked_environment.py",
+            workflow,
+        )
+        self.assertNotIn(
+            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            workflow,
+        )
+        self.assertNotIn(
             "run: .venv/bin/python scripts/verify_locked_environment.py",
             workflow,
         )
@@ -265,13 +273,14 @@ class ValidationReproducibilityTests(unittest.TestCase):
     def test_workflow_installs_and_checks_only_the_locked_graph(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        self.assertIn("cache-dependency-path: requirements-dev.lock", workflow)
+        self.assertIn("cache-dependency-path: template/requirements-dev.lock", workflow)
         workflow_unsets = " ".join(f"-u {name}" for name in PIP_SANITIZED_INPUTS)
         self.assertIn(
             f"env {workflow_unsets} .venv/bin/python -m pip install "
-            "--isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
+            "--isolated --disable-pip-version-check --no-deps --requirement template/requirements-dev.lock",
             workflow,
         )
+        self.assertNotIn("cache-dependency-path: requirements-dev.lock", workflow)
         self.assertNotIn(
             "run: python -m pip install --disable-pip-version-check --no-deps --requirement requirements-dev.lock",
             workflow,
@@ -297,15 +306,21 @@ class ValidationReproducibilityTests(unittest.TestCase):
     ) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
+        self.assertIn("working-directory: template", workflow)
         self.assertIn(
-            "run: .venv/bin/python scripts/validate_contracts.py", workflow
+            "run: ../.venv/bin/python scripts/validate_contracts.py", workflow
         )
         self.assertIn(
-            "run: .venv/bin/python -m scripts.validate_contracts", workflow
+            "run: ../.venv/bin/python -m scripts.validate_contracts", workflow
         )
         self.assertIn(
             "run: .venv/bin/python -m unittest discover -s tests -v", workflow
         )
+        self.assertIn(
+            "run: ../.venv/bin/python -m unittest discover -s tests -v", workflow
+        )
+        self.assertNotIn("run: .venv/bin/python scripts/validate_contracts.py", workflow)
+        self.assertNotIn("run: .venv/bin/python -m scripts.validate_contracts", workflow)
         self.assertNotIn("run: python scripts/validate_contracts.py", workflow)
         self.assertNotIn("run: python -m scripts.validate_contracts", workflow)
         self.assertNotIn("run: python -m unittest discover -s tests -v", workflow)
