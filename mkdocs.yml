@@ -15,7 +15,7 @@ theme:
   favicon: assets/icons/favicon-32.png
 
 nav:
-  - ホーム: index.md
+  - ホーム: overview.md
   - 導入:
       - はじめに: getting-started.md
       - Managed repository operation: managed-operation.md

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FULL_SHA = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
 ACTIVE_BOOTSTRAP_DOCS = (
     "README.md",
-    "docs/index.md",
+    "docs/overview.md",
     "docs/getting-started.md",
     "docs/bootstrap.md",
     "docs/bootstrap-model.md",

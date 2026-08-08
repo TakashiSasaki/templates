@@ -3,7 +3,7 @@
   "documents": [
     {
       "id": "overview",
-      "source": "docs/index.md",
+      "source": "docs/overview.md",
       "optional": false,
       "home": true
     },
