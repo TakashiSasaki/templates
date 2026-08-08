@@ -3,7 +3,7 @@ on:
   pull_request: {}
   workflow_dispatch: {}
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: check-agent-policy-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -13,20 +13,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: agent/webapp-policy-agents-cutover
       - uses: TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41
         with:
-          command: render
+          command: check
           config: .agent-policy.yml
-      - name: Commit exact generated agent policy artifacts
-        shell: bash
-        run: |
-          git add AGENTS.md .agent-policy.lock
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m 'Generate Webapp agent policy artifacts'
-          git push origin HEAD:agent/webapp-policy-agents-cutover
