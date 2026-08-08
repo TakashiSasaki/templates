@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import scripts.generate_repository_browser as repository_browser
 from scripts.generate_repository_browser import (
     BRANCH_ORDER,
     MAX_TEXT_BYTES,
+    RepositoryBrowserError,
     decode_browser_text,
     generate_browser,
+    prepare_browser_root,
 )
 
 
@@ -18,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 POLICY = ROOT / "PUBLISHING.md"
 REQUIREMENTS = ROOT / "requirements.txt"
+BROWSER_SCRIPT = ROOT / "scripts" / "generate_repository_browser.py"
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -106,6 +112,114 @@ class RepositoryBrowserTests(unittest.TestCase):
         text, reason = decode_browser_text(b"x" * (MAX_TEXT_BYTES + 1))
         self.assertIsNone(text)
         self.assertIn("browser limit", reason or "")
+
+    def test_generation_rejects_out_of_order_branches(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "site"
+            output.mkdir()
+            branches = {
+                "skill": root,
+                "site": root,
+                "policy": root,
+                "webapp": root,
+            }
+            with self.assertRaisesRegex(
+                RepositoryBrowserError,
+                "branches must be supplied exactly",
+            ):
+                generate_browser("TakashiSasaki/templates", output, branches)
+            self.assertFalse((output / "files").exists())
+
+    def test_prepare_browser_root_fails_closed_when_destination_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            browser_root = output / "files"
+            browser_root.mkdir()
+            (browser_root / ".repository-browser-root").write_text(
+                "managed by scripts/generate_repository_browser.py\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                RepositoryBrowserError,
+                "browser destination already exists",
+            ):
+                prepare_browser_root(output)
+            self.assertTrue(browser_root.is_dir())
+
+    def test_total_candidate_budget_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = root / "repository"
+            output = root / "site"
+            output.mkdir()
+            self.make_repository(repository)
+            branches = {branch: repository for branch in BRANCH_ORDER}
+            with mock.patch.object(
+                repository_browser,
+                "MAX_TOTAL_TEXT_BYTES",
+                1,
+            ):
+                with self.assertRaisesRegex(
+                    RepositoryBrowserError,
+                    "text candidates exceed",
+                ):
+                    generate_browser("TakashiSasaki/templates", output, branches)
+
+    def test_cli_rejects_duplicate_and_out_of_order_branch_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            duplicate = subprocess.run(
+                [
+                    sys.executable,
+                    str(BROWSER_SCRIPT),
+                    "--repository",
+                    "TakashiSasaki/templates",
+                    "--output-root",
+                    str(output),
+                    "--branch",
+                    "site=unused",
+                    "--branch",
+                    "site=unused",
+                    "--branch",
+                    "skill=unused",
+                    "--branch",
+                    "policy=unused",
+                    "--branch",
+                    "webapp=unused",
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(duplicate.returncode, 2)
+            self.assertIn("duplicate branch: site", duplicate.stderr)
+
+            out_of_order = subprocess.run(
+                [
+                    sys.executable,
+                    str(BROWSER_SCRIPT),
+                    "--repository",
+                    "TakashiSasaki/templates",
+                    "--output-root",
+                    str(output),
+                    "--branch",
+                    "skill=unused",
+                    "--branch",
+                    "site=unused",
+                    "--branch",
+                    "policy=unused",
+                    "--branch",
+                    "webapp=unused",
+                ],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(out_of_order.returncode, 2)
+            self.assertIn("branches must be supplied exactly", out_of_order.stderr)
 
 
 class RepositoryBrowserConfigurationTests(unittest.TestCase):
