@@ -3,13 +3,13 @@
   "repository": "TakashiSasaki/templates",
   "publications": {
     "skill": {
-      "revision": "1ee1cfd6355131746a780ea46d165e5ae1cadf50"
+      "revision": "84137a615b361a1ad7a40717c08d9a7ad504d47e"
     },
     "policy": {
-      "revision": "d9b508004c54e24929b27d9c8813748ae820bf01"
+      "revision": "8724b429ec062ac21e0ade86b46e69378cc69c87"
     },
     "webapp": {
-      "revision": "1671c5b503377b87d157aeaa714bdf7c43797dc9"
+      "revision": "887df372a96d5bc8cd4c8196e4cde4a854c5aac8"
     }
   }
 }
