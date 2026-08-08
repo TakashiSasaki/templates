@@ -20,7 +20,7 @@ The `webapp` history provides:
 - isolated and locked validation-toolchain bootstrap;
 - standalone and module validator entry points;
 - clean-room generated-repository implementation conformance; and
-- current-head CI and Codex review discipline.
+- current-head CI and review discipline.
 
 PR #60 completed Phase 1 by proving that a copied template can become a product-mode repository, execute a reviewed fixture proof, pass the retained implementation validators, and fail deterministically when implementation evidence is incomplete or inconsistent.
 
@@ -133,8 +133,12 @@ The audit verifies:
 
 The audit found and closed two repository-level completion gaps: the absence of one durable Phase 4 evidence record and the remaining old `main` branch name in this roadmap after the live branch was renamed to `skill`. It found no missing framework-neutral contract or conformance capability.
 
+## Canonical downstream source maintenance
+
+Subsequent maintenance makes `template/` the sole canonical source tree for downstream-owned contracts, schemas, reusable validators, dependency inputs, migrations, tests, and guidance. Source-maintainer tooling consumes that tree directly. The change removes duplicate authority without changing the accepted downstream contract families or the direct-copy operation.
+
 ## Completion decision
 
 With Phase 4 merged after successful current-head CI and resolved review, the `webapp` branch is complete for its stated framework-neutral template scope. No identified gap requires another repository-authoritative, locally verifiable contract or conformance check.
 
-Further additions should be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`contract-completeness.md`](contract-completeness.md) rather than expanding the template speculatively.
+Further additions should be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`template/docs/architecture/contract-completeness.md`](../../template/docs/architecture/contract-completeness.md) rather than expanding the template speculatively.
