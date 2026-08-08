@@ -43,6 +43,12 @@ The distribution satisfies the following requirements:
 - a generated repository can replace example declarations, enter product mode, execute release evidence and bundle production, and retain only product-relevant validation; and
 - source CI validates the branch root and `template/` as separate roots.
 
+## Shared policy adoption boundary
+
+The copy operation does not pre-enroll the product repository in the source repository's shared policy toolchain. Source-maintainer `.agent-policy.yml`, `.agent-policy.lock`, `.agent-policy/` state, generated `AGENTS.md`, repository-local `policy/` inputs, and `check-agent-policy` workflow authority are prohibited from the closed `template/` inventory.
+
+The Web-application artifact contract does not require an agent-instruction entry point merely because the source branch consumes shared policy. After copying, a concrete product repository may explicitly adopt shared repository policy through a reviewed immutable toolchain revision. That adoption is a separate repository-maintenance operation and must preserve the Web-application contracts already established by the distribution and subsequent product customization.
+
 ## Implemented source layout
 
 The source layout uses one explicit copy boundary rather than requiring every source-only file to be nested under a directory named `maintainer`:
@@ -132,7 +138,7 @@ Assertions after each fixture verify that source and distribution evidence remai
 
 Stable document IDs and publication destinations are independent of source paths. Moving downstream canonical publication sources below `template/` therefore does not require changing their public identities or the `contracts` and `schemas` publication destinations.
 
-The `site` branch must lock one reviewed full commit SHA. It is updated only after the `webapp` distribution work is complete and its final merge SHA is known. Deployment authority is restored only in a separate reviewed `site` change after integrated build-only validation succeeds.
+GitHub Pages deployment is active on the unrelated `site` branch. The `webapp` branch has no deployment authority. Publishing newer Webapp bytes requires a separate reviewed `site` change that locks one reviewed Webapp full commit SHA, integrates the current publication catalog, and passes the site branch's strict validation and deployment boundary.
 
 ## Webapp completion criteria
 
@@ -150,4 +156,4 @@ The `webapp` migration is internally complete when:
 - all tests and validator entry points pass; and
 - the final reviewed merge commit is recorded for coordinated `site` integration.
 
-Repository-wide publication completion remains a later `site` responsibility: update the locked `webapp` full SHA, pass the integrated build while deployment is suspended, merge that compatibility change, and restore Pages deployment only through a separate reviewed pull request.
+Repository-wide publication completion remains a `site` responsibility: update the locked `webapp` full SHA, integrate the reviewed publication catalog, pass strict site validation, and deploy only through the `site` branch's existing publication authority.
