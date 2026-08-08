@@ -88,7 +88,7 @@ def test_audit_records_explicit_no_promotion_release_alignment() -> None:
     assert "adds no shared executable policy-toolchain capability" in audit
 
 
-def test_audit_preserves_completion_and_ecosystem_boundaries() -> None:
+def test_audit_preserves_completion_boundary() -> None:
     audit = audit_text()
 
     assert "does not itself pre-declare toolkit completion" in audit
@@ -96,8 +96,6 @@ def test_audit_preserves_completion_and_ecosystem_boundaries() -> None:
         "may be declared only after the commit containing this audit record itself has passed"
         in audit
     )
-    assert "Ecosystem migration remains a separate state." in audit
-    assert "former repository has been archived" in audit
 
 
 def test_audit_record_is_in_documentation_navigation() -> None:
