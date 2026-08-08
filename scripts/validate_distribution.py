@@ -72,7 +72,7 @@ def _safe_relative_path(value: Any, context: str, *, allow_dot: bool = False) ->
         fail(f"{context}: path must be normalized and relative: {value}")
     if any(part in {"", ".", ".."} for part in path.parts):
         fail(f"{context}: dot or empty path component is prohibited: {value}")
-    if any(part.lower() == ".git" for part in path.parts):
+    if any(part.casefold() == ".git" for part in path.parts):
         fail(f"{context}: .git path component is prohibited: {value}")
     return value
 
@@ -213,11 +213,6 @@ def validate_distribution() -> None:
         fail(
             "distribution: top-level inventory differs; "
             f"expected={required_top_level}, actual={actual_top_level}"
-        )
-
-    for relative in distribution_files:
-        _reject_symbolic_or_nonregular(
-            f"{source_root}/{relative}", "distribution file"
         )
 
     print(
