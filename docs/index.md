@@ -22,6 +22,9 @@
       <a class="portal-cover__button portal-cover__button--secondary" href="repository-trees/">
         Inspect repository trees <span aria-hidden="true">→</span>
       </a>
+      <a class="portal-cover__button portal-cover__button--secondary" href="files/">
+        Browse source files <span aria-hidden="true">→</span>
+      </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Independent histories</li>
