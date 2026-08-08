@@ -72,18 +72,27 @@ class RepositoryBrowserTests(unittest.TestCase):
                 self.assertIn('name="repository-file-viewer"', page)
                 self.assertIn('sandbox=""', page)
                 self.assertIn("tree-file--fallback", page)
+                self.assertIn('class="tree-source"', page)
+                self.assertIn('target="_blank" rel="noopener"', page)
                 self.assertNotIn("raw.githubusercontent.com", page)
 
             viewers = sorted((output / "files/site/content").glob("*.html"))
             self.assertEqual(len(viewers), 3)
-            combined = "\n".join(path.read_text(encoding="utf-8") for path in viewers)
+            combined = "\n".join(
+                path.read_text(encoding="utf-8") for path in viewers
+            )
             self.assertIn("Line numbers", combined)
             self.assertIn("Wrap lines", combined)
             self.assertIn('class="line-number"', combined)
             self.assertIn("return", combined)
-            self.assertIn("&lt;script&gt;alert('escaped')&lt;/script&gt;", combined)
+            self.assertIn(
+                "&lt;script&gt;alert('escaped')&lt;/script&gt;",
+                combined,
+            )
             self.assertNotIn("<script>alert('escaped')</script>", combined)
             self.assertIn("Text view unavailable", combined)
+            self.assertIn("source arrow beside the file name", combined)
+            self.assertNotIn('target="_blank"', combined)
             self.assertIn("Content-Security-Policy", combined)
 
     def test_text_boundary_rejects_invalid_or_unsafe_content(self) -> None:
