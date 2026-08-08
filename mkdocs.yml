@@ -42,7 +42,6 @@ nav:
       - ブートストラップモデル: bootstrap-model.md
       - 脅威モデル: threat-model.md
       - Architecture decisions:
-          - ADR-0001 Bootstrap history (superseded): adr/0001-unrelated-bootstrap-history.md
           - ADR-0002 Repository adoption: adr/0002-repository-adoption.md
           - ADR-0003 Application-neutral scope: adr/0003-application-neutral-policy-scope.md
           - ADR-0004 Integrated bootstrap skill: adr/0004-integrated-bootstrap-skill.md

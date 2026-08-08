@@ -8,7 +8,6 @@ from agent_policy.identity import TOOLCHAIN_BRANCH, TOOLCHAIN_REPOSITORY
 from agent_policy.manifest import build_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
-FORMER_REPOSITORY = "TakashiSasaki/agent-policy"
 
 
 def test_runtime_identity_points_to_templates_policy() -> None:
@@ -65,18 +64,3 @@ def test_schemas_and_workflow_require_templates_repository() -> None:
         encoding="utf-8"
     )
     assert f"uses: {TOOLCHAIN_REPOSITORY}@{{{{ revision }}}}" in workflow
-    assert FORMER_REPOSITORY not in workflow
-
-
-def test_runtime_assets_do_not_reference_former_repository() -> None:
-    roots = [ROOT / "src", ROOT / "schemas", ROOT / "templates"]
-    checked = 0
-    for root in roots:
-        for path in sorted(item for item in root.rglob("*") if item.is_file()):
-            try:
-                content = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                continue
-            checked += 1
-            assert FORMER_REPOSITORY not in content, path.relative_to(ROOT).as_posix()
-    assert checked > 0

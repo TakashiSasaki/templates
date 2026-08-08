@@ -69,9 +69,9 @@ The `policy` branch is an orphan history unrelated to the repository's `main`, `
 - the bootstrap trust seed is stored under `skills/bootstrap-agent-policy/`;
 - `release/toolchain.json` records the stable executable revision and contract versions;
 - product manifests, adoption state, locks, and generated workflow templates identify the executable repository as `TakashiSasaki/templates`;
-- the Python distribution and command retain the compatibility name `agent-policy`.
+- the Python distribution and command are named `agent-policy`.
 
-No separate bootstrap or adoption branch is required. Initialization and adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
+Initialization and adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
 
 ## Stable release promotion
 
@@ -83,10 +83,10 @@ The release verifier checks the stable descriptor, bootstrap manifest, configura
 
 Consumer repositories are not rewritten by promotion. Each consumer updates its manifest pin and regenerates its derived artifacts in a separate reviewed change.
 
-## Trust-anchor isolation without a separate history
+## Trust-anchor isolation
 
 The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records the same full toolchain commit SHA as the stable release descriptor and a closed route set. The pinned candidate precedes the promotion commit, preventing recursive self-reference.
 
 The orchestration script may apply initialization or adoption preparation and preview. It cannot finalize adoption because no finalize route is present in the manifest or script.
 
-A change to the stable release descriptor, bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change even though it shares the `policy` Git history.
+A change to the stable release descriptor, bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change.

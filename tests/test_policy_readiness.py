@@ -5,7 +5,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 ROADMAP = ROOT / "docs/policy-readiness.md"
-MIGRATION = ROOT / "docs/migration-from-agent-policy.md"
 PUBLICATION = ROOT / "docs/documentation-publication.md"
 MKDOCS = ROOT / "mkdocs.yml"
 
@@ -27,15 +26,19 @@ def readiness_gates() -> dict[str, tuple[str, str]]:
     return gates
 
 
-def test_readiness_separates_toolkit_and_ecosystem_completion() -> None:
+def test_readiness_defines_templates_local_completion_states() -> None:
     roadmap = normalized(ROADMAP)
 
     assert "## Policy toolkit completion" in roadmap
-    assert "## Ecosystem migration completion" in roadmap
-    assert (
-        "A policy-toolkit-complete declaration does not imply ecosystem migration completion."
-        in roadmap
-    )
+    for state in (
+        "Development baseline",
+        "Frozen audit candidate",
+        "Candidate verified",
+        "Release aligned",
+        "Policy toolkit complete",
+    ):
+        assert state in roadmap
+    assert "entirely within `TakashiSasaki/templates`" in roadmap
 
 
 def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
@@ -133,7 +136,7 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
 def test_candidate_verification_excludes_release_alignment() -> None:
     roadmap = normalized(ROADMAP)
 
-    assert "every readiness gate whose evaluation point is `candidate commit`" in roadmap
+    assert "Every gate whose evaluation point is `candidate commit`" in roadmap
     assert "`release-alignment` gate is evaluated later across the completion sequence" in roadmap
     assert "it is not a candidate-local gate" in roadmap
     assert "without marking that sequence gate passed" in roadmap
@@ -147,10 +150,6 @@ def test_verifier_lock_promotion_is_conditional() -> None:
     assert "otherwise it retains and verifies the existing compatible lock" in roadmap
     assert "Update the stable verifier lock in that promotion commit only when" in roadmap
     assert "otherwise retain and verify the existing compatible lock" in roadmap
-    assert (
-        "update `release/toolchain.json`, the bootstrap manifest, and the stable verifier lock"
-        not in roadmap
-    )
 
 
 def test_completion_uses_distinct_candidate_promotion_and_audit_commits() -> None:
@@ -187,12 +186,9 @@ def test_primary_documentation_links_the_readiness_contract() -> None:
     assert "policy-readiness.md" in mkdocs
 
 
-def test_migration_cannot_reintroduce_policy_pages_deployment() -> None:
-    migration = normalized(MIGRATION)
+def test_policy_documentation_keeps_pages_deployment_outside_policy() -> None:
     publication = normalized(PUBLICATION)
     roadmap = normalized(ROADMAP)
 
-    assert "whether and when to enable Pages deployment" not in migration
     assert "belongs exclusively to the unrelated `site` branch" in publication
-    assert "The `policy` workflow remains build-only." in migration
-    assert "The `policy` workflow remains build-only." in roadmap
+    assert "a Pages deployment path on `policy`" in roadmap

@@ -4,7 +4,7 @@ This orphan branch is the development source for application-type-independent co
 
 The toolkit compiles shared and repository-specific operating rules into reproducible agent instructions. It governs how coding and general-purpose agents investigate, change, validate, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories.
 
-The existing Python package and command remain named `agent-policy` for compatibility during repository migration.
+The Python package and command are named `agent-policy`.
 
 Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.
 
@@ -66,23 +66,23 @@ The lock fixes exact distribution version strings. It does not provide byte-for-
 
 The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. Its current deployment exclusion implements `repository-policy/documentation-boundary.md`: the `policy` workflow contains no GitHub Pages deployment route and has only `contents: read`, while Pages deployment belongs to the unrelated `site` branch. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
 
-## Branch and migration status
+## Branch status
 
-The authoritative development location is `TakashiSasaki/templates` branch `policy`. The branch was imported from `TakashiSasaki/agent-policy` while preserving the non-workflow source history; see `docs/migration-from-agent-policy.md` for the exact source revision and import boundary.
+The authoritative development location is `TakashiSasaki/templates` branch `policy`.
 
-Completed migration work includes:
+The maintained branch provides:
 
 - branch-appropriate policy CI;
 - the application-type-independent policy boundary;
-- The former built-in `web-application` profile and its application-architecture rules were removed;
-- executable toolchain identity migration to `TakashiSasaki/templates`;
-- consolidation of the bootstrap trust seed into `skills/bootstrap-agent-policy/`;
+- one canonical shared-policy authority model with explicit repository-local exceptions;
+- executable and generated toolchain identity rooted at `TakashiSasaki/templates`;
+- the integrated bootstrap trust seed under `skills/bootstrap-agent-policy/`;
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
-- a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job.
+- context-aware coding and review rendering, including the GitHub review JSON adapter;
+- a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job; and
+- the reviewed toolkit-completion contract and audit record in `docs/policy-readiness.md` and `docs/policy-readiness-audit.md`.
 
-Toolkit completion criteria and ecosystem migration completion are tracked separately in `docs/policy-readiness.md`. Core capabilities or successful individual workflows do not, by themselves, declare the toolkit complete; completion requires a cross-cutting audit of one exact candidate full SHA.
-
-Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `skill` and `site`; it does not add a deployment path to `policy`.
+Core capabilities or successful individual workflows do not, by themselves, declare the toolkit complete; completion requires the cross-cutting audit and release-alignment sequence defined by the readiness contract.
 
 ## Trust model
 
