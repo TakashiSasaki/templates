@@ -1,12 +1,13 @@
 schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: a60caac2509a500854e067b30c1be7386cb1887b
+  revision: 5de32547e68fa15e24ff3b8affadf12e9d730a41
 contexts:
   coding:
     profiles:
       - core
       - security-baseline
+      - pull-request
     project_policy:
       files:
         - policy/repository/artifact-boundary.md
@@ -17,7 +18,7 @@ contexts:
         - policy/repository/publication-boundary.md
 outputs:
   agents:
-    enabled: false
+    enabled: true
     path: AGENTS.md
     context: coding
     renderer: agents-md

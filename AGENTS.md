@@ -1,18 +1,143 @@
-# Repository instructions
+<!--
+agent-policy-generated: true
+configuration: .agent-policy.yml
+DO NOT EDIT DIRECTLY
+-->
 
-## Repository identity
+# Repository agent instructions
+
+These instructions were generated from shared policy profiles and repository-specific policy files.
+
+## Policy system
+
+- Semantic configuration: `.agent-policy.yml`
+- Pinned shared toolchain: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41`
+- Repository policy inputs:
+  - `policy/repository/artifact-boundary.md`
+  - `policy/repository/distribution-integrity.md`
+  - `policy/repository/profile-model.md`
+  - `policy/repository/reading-scope.md`
+  - `policy/repository/validation.md`
+  - `policy/repository/publication-boundary.md`
+
+Do not edit this generated file directly. Change `.agent-policy.yml` or its repository policy inputs, then regenerate with the pinned toolchain. Before editing repository files, inspect any repository-local skill catalog that exists and read the relevant generated or handwritten skills.
+
+
+## Define the change contract before editing
+
+Before editing, identify the requested outcome, the allowed change surface, the existing behavior and invariants that must be preserved, explicit non-goals, and the evidence required for acceptance. Treat unspecified behavior as preserved unless the requested change necessarily alters it; do not silently broaden the contract to resolve ambiguity or implementation difficulty.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/change-contract.md`; rule ID: `changes.define-contract`; severity: `mandatory`._
+
+
+## Preserve the agreed acceptance baseline
+
+Once implementation or audit begins against an agreed change contract, do not retroactively expand its scope, non-goals, completion criteria, required evidence, or stop condition. Rebaseline only with explicit authorization, and record the impact on completed work and prior evidence.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/acceptance-baseline.md`; rule ID: `changes.preserve-acceptance-baseline`; severity: `mandatory`._
+
+
+## Keep changes within the requested scope
+
+Do not modify files, behavior, dependencies, formatting, or architecture that are unrelated to the requested change. Inspect the final diff and remove incidental changes before reporting completion.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/change-scope.md`; rule ID: `changes.minimize-scope`; severity: `mandatory`._
+
+
+## Escalate material semantic ambiguity
+
+When an unresolved choice would materially affect observable behavior, data meaning, compatibility, architecture, risk, or scope, do not guess. Present the viable options, trade-offs, impact, and a recommendation, and obtain an explicit decision before making the dependent change.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/semantic-decision-gates.md`; rule ID: `decisions.escalate-semantic-ambiguity`; severity: `mandatory`._
+
+
+## Do not weaken existing tests
+
+Do not delete, skip, narrow, or relax an existing test merely to make a change pass. For a bug fix, add a regression test that fails before the fix and passes afterward whenever the failure can be reproduced deterministically.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/regression-safety.md`; rule ID: `regression.no-weaken-tests`; severity: `mandatory`._
+
+
+## Run the repository's required verification
+
+Use the verification command declared by the repository and add focused checks needed for the changed behavior or failure mode. Confirm that the executed checks cover the changed surface and the current revision; a check that is pending, skipped, not triggered, stale, blocked, or merely inspected is not a passing result. Report every required check that was not run or did not pass.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/testing.md`; rule ID: `testing.run-required-checks`; severity: `mandatory`._
+
+
+## Keep verification evidence bound to its layer
+
+Bind every verification result to the exact revision or artifact and to its evidence layer. Report repository-local checks, environment-dependent checks, remote CI, and independent audit separately; success in one layer does not prove success in another.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/evidence-layers.md`; rule ID: `verification.separate-evidence-layers`; severity: `mandatory`._
+
+
+## Keep derived artifacts synchronized
+
+When a change affects generated, mirrored, compiled, or otherwise derived artifacts, update them from their declared source of truth using the repository's documented process and verify that no stale or missing output remains. Do not hand-edit generated artifacts unless the repository explicitly designates that operation as authoritative.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/generated-artifacts.md`; rule ID: `consistency.synchronize-derived-artifacts`; severity: `mandatory`._
+
+
+## Preserve externally observable contracts
+
+Do not break public APIs, serialized data, configuration formats, command-line interfaces, or migration paths unless the requested change explicitly authorizes the incompatibility and documents its consequences.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/compatibility.md`; rule ID: `compatibility.preserve-contracts`; severity: `mandatory`._
+
+
+## Revalidate destructive actions against current state
+
+Immediately before deleting, overwriting, migrating, deploying, publishing, force-updating, or otherwise making an irreversible or externally visible change, re-read the target's current state and revalidate its identity, scope, version or revision, protections, and conflicting uses. Prefer dry-run, least-scope, and idempotent operations; do not authorize the action solely from stale observations made earlier in the task.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/destructive-actions.md`; rule ID: `safety.revalidate-destructive-actions`; severity: `mandatory`._
+
+
+## Limit rollback to changes owned by the operation
+
+For a multi-step mutation, complete preflight before the first write, revalidate the live state at the commit boundary, and track which paths the current operation created or changed. On failure, roll back only those owned changes; never delete or overwrite pre-existing or concurrently created state as cleanup unless explicitly authorized.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/transaction-ownership.md`; rule ID: `safety.limit-rollback-to-owned-changes`; severity: `mandatory`._
+
+
+## Report actual state and residual uncertainty
+
+Distinguish implemented, generated, executed, verified, and merely inferred results. State unresolved failures and unverified assumptions explicitly.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/core/truthful-reporting.md`; rule ID: `reporting.truthful-status`; severity: `mandatory`._
+
+
+## Do not expose or commit secrets
+
+Do not print, persist, or commit credentials, private keys, access tokens, session material, or unredacted sensitive configuration. Use established secret-management mechanisms.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/security/secrets.md`; rule ID: `security.no-secrets`; severity: `mandatory`._
+
+
+## Validate data at trust boundaries
+
+Validate untrusted input before it reaches privileged operations, persistence, command execution, or external requests. Preserve existing authentication and authorization checks.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/security/input-validation.md`; rule ID: `security.validate-boundaries`; severity: `mandatory`._
+
+
+## Verify merge readiness against the current target branch HEAD
+
+Before declaring a pull request merge-ready, fetch the current target branch full commit SHA and confirm that the proposed head is based on, or has been explicitly synchronized with, that target branch HEAD. If the target branch moves after validation or review evidence was collected, treat prior merge-readiness evidence as stale until the impact is re-evaluated. Do not claim target-branch freshness from cached, historical, or inferred branch metadata.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/pull-request/target-branch-head-freshness.md`; rule ID: `pull-request.verify-target-branch-head-freshness`; severity: `mandatory`._
+
+
+## Close review threads before merge
+
+Before merging a pull request, inspect the current review threads and submitted reviews for the exact proposed head. Resolve each actionable thread through a code or documentation change, or record an explicit disposition when no change is warranted. Do not merge while unresolved review threads remain unless an explicit repository policy defines a documented exception.
+
+_Source: `TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41:policy/pull-request/review-thread-closure.md`; rule ID: `pull-request.close-review-threads-before-merge`; severity: `mandatory`._
+
+
+## Preserve source, distribution, and concrete-Skill boundaries
 
 This branch is the source repository for a reusable Agent Skill template product. The repository root is not an installable Skill directory.
-
-The user-facing artifact is `template/`. Its contents are copied directly to a new Skill root:
-
-```sh
-cp -a template/. /path/to/new-skill/
-```
-
-The destination, not the source checkout, must contain `SKILL.md` directly at its root.
-
-## Artifact boundary
 
 Treat these as distinct artifacts:
 
@@ -20,63 +145,49 @@ Treat these as distinct artifacts:
 2. the copyable `template/` distribution; and
 3. a concrete Skill developed from that distribution.
 
-Consumer-facing Skill contracts, profile documentation, operational resource placeholders, and concrete-Skill instructions exist only under `template/`. Do not recreate root-level `SKILL.md`, runtime/interface contracts, or resource directories as alternate authorities.
+The user-facing artifact is `template/`, whose contents are copied directly to a new Skill root. Consumer-facing Skill contracts, profile documentation, operational resource placeholders, and concrete-Skill instructions belong under `template/`; do not recreate them at the branch root as alternate authorities.
 
-Source-only fixtures, negative cases, publication integration, review policy, migration audits, and canonical adoption tests remain outside `template/`. Concrete-Skill validators may be distributed only when they operate from the copied Skill root without requiring source-maintainer siblings.
+Source-only fixtures, negative cases, publication integration, source-maintainer review material, migration audits, and canonical adoption tests remain outside `template/`. Do not add source-only files to the distribution merely to make the trees look similar.
 
-`distribution-manifest.json` is authoritative for the exact copyable inventory. Validator implementations projected from `.github/scripts/` into `template/.github/scripts/` must retain identical bytes and Git-significant modes. All other template files are directly owned below `template/`.
+_Source: `policy/repository/artifact-boundary.md` in this repository; rule ID: `skill-source.preserve-artifact-boundaries`; severity: `mandatory`._
 
-## Profile invariants
 
-The distribution is one profile-aware scaffold, not a directory per profile.
+## Preserve the exact copyable distribution
 
-- `template-scaffold` is reserved for the uncustomized template.
-- `instruction-only` is the sole exclusive profile.
-- `knowledge-augmented`, `asset-driven`, `script-assisted`, `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service` are selectively composable.
-- A combination retains the union of its required contracts.
-- Do not impose a runtime, CLI, MCP, browser, service, or deployment layer on a Skill that does not need it.
+`distribution-manifest.json` is authoritative for the copyable inventory.
 
-Changes to profile semantics require synchronized updates to the template contracts, validators, positive fixtures, combined fixtures, negative fixtures, consumer documentation, distribution manifest where applicable, and publication material.
+Validator implementations projected from `.github/scripts/` into `template/.github/scripts/` must retain identical bytes and Git-significant modes. For a projected validator, change the source implementation and its distributed copy together, then run both source distribution validation and copied-Skill validation.
 
-## Reading order
+Keep `template/` closed and independently usable after copying. Reject undeclared copied files, missing declared files, projection byte or mode drift, prohibited symbolic links or Git links, path traversal or `.git` path components, maintainer-only leakage, automatic content transformation, and runtime or validation dependence on the source checkout.
 
-Always read:
+_Source: `policy/repository/distribution-integrity.md` in this repository; rule ID: `skill-source.preserve-distribution-integrity`; severity: `mandatory`._
 
-- this file;
-- `README.md`;
-- `docs/architecture/distribution-boundary.md`;
-- `docs/architecture/distribution-classification.json`;
-- files directly named by the task.
 
-Read additionally when applicable:
+## Preserve the profile-aware Skill scaffold
 
-- distribution inventory: `distribution-manifest.json` and `.github/scripts/validate-skill-distribution.rb`;
-- consumer contract changes: the corresponding files under `template/`;
-- profile changes: `template/docs/skill-profiles.md`, `template/docs/profile-contract-map.md`, and profile validators;
-- runtime or interface changes: the applicable template contracts and fixture implementations;
-- publication changes: `docs/publication-catalog.json` and `docs/publication-maintenance.md`;
-- site compatibility changes: `.github/workflows/pages.yml` and the unrelated `site` contract, without importing its history;
-- adoption or installation changes: `.github/scripts/test-copyable-template-consumption.rb` and its source-owned engines.
+The distribution is one profile-aware scaffold, not one directory per profile.
 
-Do not load advanced MCP, browser, or service material for unrelated changes.
+`template-scaffold` is reserved for the uncustomized template. `instruction-only` is the sole exclusive profile. `knowledge-augmented`, `asset-driven`, `script-assisted`, `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service` are selectively composable, and a combination retains the union of its required contracts.
 
-## Source versus distribution changes
+Do not impose a runtime, CLI, MCP, browser, service, or deployment layer on a Skill that does not need it.
 
-For a consumer-owned file, change the file below `template/` and keep it listed under `distribution_owned_files`. Do not add a root-level duplicate.
+Changes to profile semantics must keep the applicable template contracts, validators, positive and negative fixtures, combined fixtures, consumer documentation, distribution manifest, and publication material synchronized.
 
-For a projected validator:
+_Source: `policy/repository/profile-model.md` in this repository; rule ID: `skill-source.preserve-profile-model`; severity: `mandatory`._
 
-1. change the source implementation under `.github/scripts/`;
-2. update the corresponding file below `template/.github/scripts/` to identical bytes and mode;
-3. run distribution validation;
-4. run the copied Skill validator; and
-5. run profile-specific regression tests.
 
-For a source-only file, do not add it to `template/` merely to make the trees look similar.
+## Use repository-specific reading scope
 
-## Validation
+Always read `README.md`, `docs/architecture/distribution-boundary.md`, `docs/architecture/distribution-classification.json`, and files directly named by the task in addition to the generated repository instructions.
 
-At minimum, run:
+Read distribution inventory, profile contracts, runtime/interface contracts, publication metadata, site compatibility material, and adoption tests only when the task touches those boundaries. Do not load advanced MCP, browser, or service material for unrelated changes.
+
+_Source: `policy/repository/reading-scope.md` in this repository; rule ID: `skill-source.use-task-scoped-reading`; severity: `mandatory`._
+
+
+## Run the Skill source and distribution validation baseline
+
+For changes that can affect the source/distribution boundary, run at least:
 
 ```sh
 ruby .github/scripts/test-distribution-boundary.rb
@@ -87,42 +198,21 @@ python template/.github/scripts/test_template_baseline.py
 ruby .github/scripts/test-copyable-template-consumption.rb
 ```
 
-The Python validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git. Then run all tests proportionate to the affected profiles and source boundaries. Networked or executable profile changes require real fixture and negative-path evidence, not only Markdown checks.
+The Python validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git. Run additional profile-specific regression tests when the affected profile requires them. Networked or executable profile changes require real fixture and negative-path evidence, not only Markdown checks.
 
-The distribution must reject:
+_Source: `policy/repository/validation.md` in this repository; rule ID: `skill-source.run-distribution-validation`; severity: `mandatory`._
 
-- untracked or undeclared copied files;
-- missing declared files;
-- validator projection byte or mode drift;
-- symbolic links and Git links where prohibited;
-- path traversal or `.git` components;
-- maintainer-only leakage;
-- automatic content transformation;
-- profile reduction or accidental exclusivity changes; and
-- dependence on the source checkout at runtime or validation time.
 
-The source boundary must reject reintroduction of consumer-facing Skill files at the branch root.
-
-## Publication and branch boundaries
+## Preserve publication and unrelated-history boundaries
 
 `skill`, `site`, `policy`, and `webapp` have unrelated histories. Do not merge, rebase, or cherry-pick across them.
 
-The `skill` branch owns its publication catalog and stable document IDs. Public consumer documents resolve below `template/`. The `site` branch consumes a reviewed full commit SHA and owns navigation, assembly, provenance, repository-tree rendering, and deployment. Keep Pages compatibility build-only from provider branches.
+The `skill` branch owns its publication catalog and stable document IDs. Public consumer documents resolve below `template/`. The `site` branch consumes reviewed full commit SHAs and owns navigation, assembly, provenance, repository-tree rendering, and deployment.
 
-GitHub Pages deployment is suspended during this migration. Do not restore it from `skill`; restoration belongs to a separate reviewed `site` pull request after final integration.
+Keep Pages compatibility build-only from provider branches. GitHub Pages deployment remains suspended from `skill`; restoration belongs to a separate reviewed `site` pull request.
 
-## Completion criteria
+_Source: `policy/repository/publication-boundary.md` in this repository; rule ID: `skill-source.preserve-publication-branch-boundaries`; severity: `mandatory`._
 
-Before reporting a source change complete:
 
-1. confirm the source/distribution ownership of every changed path;
-2. preserve the profile model and contract ownership;
-3. keep `template/` closed and directly copyable;
-4. validate the complete distribution inventory and validator projections;
-5. validate `template/` as an independent Skill root;
-6. run affected fixture, adoption, installation, publication, and site-compatibility tests;
-7. confirm no secrets or environment-specific credentials are committed;
-8. confirm source-only files did not leak into the distribution;
-9. confirm consumer-facing Skill files did not reappear at the source root;
-10. confirm the PR is based on the current target-branch full SHA; and
-11. leave no unresolved review thread before merge.
+
+
