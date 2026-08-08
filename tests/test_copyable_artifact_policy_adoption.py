@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ADR = ROOT / "docs/adr/0006-copyable-artifact-policy-adoption.md"
 CATALOG = ROOT / "docs/publication-catalog.json"
