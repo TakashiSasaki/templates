@@ -6,6 +6,8 @@ The toolkit compiles shared and repository-specific operating rules into reprodu
 
 The existing Python package and command remain named `agent-policy` for compatibility during repository migration.
 
+Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.
+
 ## Commands
 
 ```bash
@@ -19,9 +21,11 @@ A product repository keeps a single semantic configuration entry point, `.agent-
 
 ## Bootstrap skill
 
+The repository-maintainer rule governing stable release identity and promotion mechanics is `repository-policy/release-trust.md`; the following describes the current bootstrap implementation of that rule.
+
 The onboarding trust seed is maintained at `skills/bootstrap-agent-policy/` in this branch. Its manifest pins one reviewed full commit SHA from `TakashiSasaki/templates`; it does not execute the mutable `policy` branch tip.
 
-`release/toolchain.json` records the stable toolchain pin and contract versions. The bootstrap manifest must carry exactly the same repository and revision. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
+`release/toolchain.json` records the stable toolchain pin and contract versions. The bootstrap manifest carries exactly the same repository and revision. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
 
 Install the bootstrap skill from a reviewed checkout:
 
@@ -33,6 +37,8 @@ python skills/bootstrap-agent-policy/scripts/install.py \
 The bootstrap script may inspect, initialize, or prepare and preview adoption. It deliberately exposes no adoption-finalization route.
 
 ## Development
+
+The canonical repository-maintainer requirement to run appropriate validation is `repository-policy/maintainer-validation.md`. The sequence below documents the current reproducible Policy CI baseline and its implementation-specific trust boundary; it is evidence and operational guidance rather than a second policy authority.
 
 The validated CI baseline is CPython 3.12.13 on `ubuntu-24.04`. Remove externally supplied Python and pip inputs before the first Python invocation, disable pip configuration files, create the virtual environment with an isolated bootstrap interpreter, and install only the reviewed lock graph:
 
@@ -54,11 +60,11 @@ agent-policy --help
 
 `requirements-ci.txt` records the reviewed direct test and build inputs. `requirements-ci.lock` records the complete dependency graph for the selected CI baseline. Both use arbitrary exact equality (`===`), so an unrequested local version such as `4.26.0+corp` does not satisfy a reviewed public version such as `4.26.0`. The local project is installed separately with dependency resolution and build isolation disabled. `scripts/verify_ci_environment.py` requires the installed distribution set to equal the lock plus the editable `takashisasaki-agent-policy` project, excluding only the virtual environment's bootstrap `pip`. It also requires the installed project's `direct_url.json` to identify this repository root with `dir_info.editable` set to true, so a same-name, same-version wheel cannot stand in for the checked-out source.
 
-The ordering is part of the trust boundary. Policy CI neutralizes `PYTHONHOME`, `PIP_PYTHON`, `PIP_CACHE_DIR`, `PIP_NO_CACHE_DIR`, `PIP_QUIET`, and `PIP_LOG` in the job environment before `actions/setup-python` performs its cache lookup, so the action cannot redirect the pre-venv Python or pip invocation, select an external cache path, disable the cache command, suppress the cache-path output it relies on, or redirect pip's verbose log output. Isolated mode is then used before environment creation so user-site packages, `PYTHONUSERBASE`, `sitecustomize`, `usercustomize`, and other Python environment inputs cannot affect `venv` bootstrap. The existing `.venv` is cleared so packages from an earlier lock cannot remain. Pip configuration and requirement, runtime-constraint, build-constraint, hash-enforcement, dry-run, source-format, binary-only artifact-selection, wheel-compatibility, upload-time, package-source, installation-destination, interpreter-override, cache-location, cache-disable, quiet, editable, dependency-group, installation-report, build-backend configuration, Requires-Python compatibility, log-path, and script-metadata inputs are removed so additional packages, build rules, external hash requirements, skipped installation, forced sdist builds, foreign compatibility tags, time-filtered artifacts, alternate indexes or archive locations, writes outside the isolated environment, an external interpreter, backend-specific build settings, bypassed Requires-Python checks, altered cache behavior, or redirected pip log output cannot be injected into the validation paths. The same pip inputs remain absent while the stable-release verifier creates and populates its independent probe environment. The installed-set and editable-source comparisons run before `pip check`, release verification, linting, tests, compilation, and command smoke testing.
+The ordering is part of the implemented CI trust boundary. Policy CI neutralizes `PYTHONHOME`, `PIP_PYTHON`, `PIP_CACHE_DIR`, `PIP_NO_CACHE_DIR`, `PIP_QUIET`, and `PIP_LOG` in the job environment before `actions/setup-python` performs its cache lookup, so the action cannot redirect the pre-venv Python or pip invocation, select an external cache path, disable the cache command, suppress the cache-path output it relies on, or redirect pip's verbose log output. Isolated mode is then used before environment creation so user-site packages, `PYTHONUSERBASE`, `sitecustomize`, `usercustomize`, and other Python environment inputs cannot affect `venv` bootstrap. The existing `.venv` is cleared so packages from an earlier lock cannot remain. Pip configuration and requirement, runtime-constraint, build-constraint, hash-enforcement, dry-run, source-format, binary-only artifact-selection, wheel-compatibility, upload-time, package-source, installation-destination, interpreter-override, cache-location, cache-disable, quiet, editable, dependency-group, installation-report, build-backend configuration, Requires-Python compatibility, log-path, and script-metadata inputs are removed so additional packages, build rules, external hash requirements, skipped installation, forced sdist builds, foreign compatibility tags, time-filtered artifacts, alternate indexes or archive locations, writes outside the isolated environment, an external interpreter, backend-specific build settings, bypassed Requires-Python checks, altered cache behavior, or redirected pip log output cannot be injected into the validation paths. The same pip inputs remain absent while the stable-release verifier creates and populates its independent probe environment. The installed-set and editable-source comparisons run before `pip check`, release verification, linting, tests, compilation, and command smoke testing.
 
-The lock fixes exact distribution version strings. It does not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Update dependency inputs and the lock only through a reviewed dependency-resolution change.
+The lock fixes exact distribution version strings. It does not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Dependency-input and lock changes are made through the repository's reviewed change process.
 
-The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. It contains no GitHub Pages deployment route and has only `contents: read`; Pages deployment belongs exclusively to the unrelated `site` branch. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
+The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. Its current deployment exclusion implements `repository-policy/documentation-boundary.md`: the `policy` workflow contains no GitHub Pages deployment route and has only `contents: read`, while Pages deployment belongs to the unrelated `site` branch. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
 
 ## Branch and migration status
 
@@ -76,10 +82,12 @@ Completed migration work includes:
 
 Toolkit completion criteria and ecosystem migration completion are tracked separately in `docs/policy-readiness.md`. Core capabilities or successful individual workflows do not, by themselves, declare the toolkit complete; completion requires a cross-cutting audit of one exact candidate full SHA.
 
-Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `skill` and `site`; it must not add a deployment path to `policy`.
+Consumer pin updates and deprecation and archival of the former repository remain separate follow-up changes. Publishing selected policy documentation through the repository site would require coordinated catalog and navigation work on `skill` and `site`; it does not add a deployment path to `policy`.
 
 ## Trust model
 
+Repository-maintainer trust-model operating requirements are canonical in `repository-policy/release-trust.md` and `repository-policy/toolchain-safety.md`; this section summarizes the current implementation and verification surface.
+
 Mutable branches are not used as executable toolchain references. The stable release descriptor, bootstrap metadata, product manifests, adoption state, generated lock files, and generated workflows identify the toolchain using a full Git commit SHA. `scripts/verify-release-state.py` checks the branch-local release contract, and Policy CI verifies that the stable revision is a strict ancestor of the reviewed `policy` source history.
 
-Bootstrap pin, release descriptor, route, script, or safety-constraint changes are reviewed as trust-anchor changes even though the bootstrap skill shares the `policy` history.
+Bootstrap pin, release descriptor, route, script, or safety-constraint changes are treated as trust-anchor changes by the maintained contract and review process.
