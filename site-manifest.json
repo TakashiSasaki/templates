@@ -268,12 +268,6 @@
           "title": "Architecture decisions",
           "children": [
             {
-              "title": "ADR-0001 Bootstrap history",
-              "publication": "policy",
-              "document": "adr-bootstrap-history",
-              "destination": "policy/adr/0001-unrelated-bootstrap-history.md"
-            },
-            {
               "title": "ADR-0002 Repository adoption",
               "publication": "policy",
               "document": "adr-repository-adoption",
