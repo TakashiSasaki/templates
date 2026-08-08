@@ -76,11 +76,13 @@ ruby .github/scripts/validate-skill-distribution.rb
 ruby .github/scripts/test-restructure-completion.rb
 ```
 
-Run the supported profile-aware validation entry point from the canonical downstream root:
+Run the supported profile-aware validation entry point:
 
 ```sh
 (cd template && python .github/scripts/validate_profile_contracts.py)
 ```
+
+This command runs from the canonical downstream root; the source checkout does not maintain a second Python implementation copy.
 
 Run complete repository validation against the copyable Skill root:
 
