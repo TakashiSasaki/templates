@@ -12,7 +12,7 @@ For changes that can affect the source/distribution boundary, run at least:
 ruby .github/scripts/test-distribution-boundary.rb
 ruby .github/scripts/test-skill-distribution.rb
 ruby .github/scripts/validate-skill-distribution.rb
-python .github/scripts/validate_skill_repository.py template
+python template/.github/scripts/validate_skill_repository.py template
 python template/.github/scripts/test_template_baseline.py
 ruby .github/scripts/test-copyable-template-consumption.rb
 ```

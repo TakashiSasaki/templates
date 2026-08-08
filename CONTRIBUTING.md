@@ -4,20 +4,21 @@
 
 The `skill` branch root is the source repository for the template product. It is not an installable Skill directory.
 
-The consumer-facing artifact is `template/`. Copy its contents into a new Skill root:
+The consumer-facing artifact and its sole canonical source tree are `template/`. Copy its contents into a new Skill root:
 
 ```sh
 mkdir -p /path/to/new-skill
 cp -a template/. /path/to/new-skill/
 ```
 
-Do not add `SKILL.md`, runtime/interface contracts, resource placeholders, or implementation directories back to the branch root. Consumer-facing Skill content is maintained under `template/` only.
+Do not add `SKILL.md`, runtime/interface contracts, resource placeholders, or downstream validator implementations back to the branch root. Consumer-facing Skill content is maintained under `template/` only.
 
 Before changing a path, classify it as:
 
-- source-only maintenance material;
-- distribution-owned content under `template/`; or
-- a validator projected byte-for-byte from `.github/scripts/` to `template/.github/scripts/`.
+- **source-only maintenance material**, outside `template/`; or
+- **distribution-owned content**, canonically maintained under `template/`.
+
+There is no source-to-template validator projection class. Source-maintainer tests and CI consume downstream validators directly from their canonical paths below `template/.github/scripts/`.
 
 Read `AGENTS.md`, `README.md`, `maintainer/README.md`, `docs/architecture/distribution-boundary.md`, and `distribution-manifest.json` before changing the artifact boundary.
 
@@ -38,20 +39,16 @@ Do not impose a runtime, package manager, CLI, MCP adapter, browser surface, ser
 For distribution-owned content:
 
 1. edit the canonical file under `template/`;
-2. keep the file listed under `distribution_owned_files` in `distribution-manifest.json`;
-3. ensure every required relative reference resolves within `template/`; and
-4. validate from the copied Skill root, not from the source root.
+2. keep the path listed under `distribution_files` in `distribution-manifest.json`;
+3. do not create a byte-identical implementation authority outside `template/`;
+4. ensure every required relative reference resolves within `template/`; and
+5. validate both the source checkout and a copied Skill root.
 
-For a projected validator:
-
-1. edit the source implementation under `.github/scripts/`;
-2. update its declared projection under `template/.github/scripts/` to identical bytes and mode;
-3. run distribution validation; and
-4. run the applicable positive and negative concrete-Skill tests.
+For a downstream validator, edit only its canonical implementation under `template/.github/scripts/`. Source-only parity and regression harnesses may import or invoke that file by path, but must not copy its implementation back into `.github/scripts/`.
 
 For source-only content, do not add a copy under `template/` merely to make the source and distribution trees look similar.
 
-`distribution-manifest.json` must reject missing files, undeclared files, symbolic links, maintainer-only leakage, path traversal, content transformation, top-level shape drift, and projected-validator byte or mode drift.
+`distribution-manifest.json` must reject missing files, undeclared files, symbolic links, maintainer-only leakage, path traversal, content transformation, top-level shape drift, and any reintroduction of alternate root authorities for distributed validators.
 
 ## Profile and interface changes
 
@@ -79,18 +76,17 @@ ruby .github/scripts/validate-skill-distribution.rb
 ruby .github/scripts/test-restructure-completion.rb
 ```
 
-Run the supported profile-aware validation entry point:
+Run the supported profile-aware validation entry point from the canonical downstream root:
 
 ```sh
-cd template
-ruby .github/scripts/validate-profile-contracts.rb
+(cd template && python .github/scripts/validate_profile_contracts.py)
 ```
 
 Run complete repository validation against the copyable Skill root:
 
 ```sh
-ruby .github/scripts/validate-skill-repository.rb template
-ruby template/.github/scripts/test-template-baseline.rb
+python template/.github/scripts/validate_skill_repository.py template
+python template/.github/scripts/test_template_baseline.py
 ```
 
 Run clean-room adoption and installation:
@@ -99,7 +95,7 @@ Run clean-room adoption and installation:
 ruby .github/scripts/test-copyable-template-consumption.rb
 ```
 
-The explicit-root validator resolves every contract and operational resource relative to the supplied Skill root rather than the caller's working directory. It clears inherited Git directory and index overrides before discovering the target context. A flattened archive uses a dedicated temporary empty index only for metadata checks and must not modify the target or a caller-owned alternate index.
+The explicit-root Python validator resolves every contract and operational resource relative to the supplied Skill root rather than the caller's working directory and runs without requiring a second source-side implementation copy.
 
 ## Fixture baseline
 
@@ -125,7 +121,7 @@ The `site`, `skill`, `policy`, and `webapp` histories remain unrelated. Do not m
 
 Describe:
 
-- whether each changed path is source-only, distribution-owned, or a projected validator;
+- whether each changed path is source-only or distribution-owned;
 - the selected profile tags and behavior affected;
 - the source-of-truth contracts changed;
 - runtime, dependency, security, permission, lifecycle, portability, or deployment impact;
