@@ -140,6 +140,7 @@
     "WEB_INTERFACE.md",
     "assets/README.md",
     "docs/architecture.md",
+    "docs/index.md",
     "docs/mcp-transports.md",
     "docs/profile-contract-map.md",
     "docs/runtime-selection.md",
@@ -168,6 +169,7 @@
     "distribution-manifest.json",
     "docs/architecture/distribution-boundary.md",
     "docs/architecture/distribution-classification.json",
+    "docs/architecture/index.md",
     "docs/publication-catalog.json",
     "docs/publication-maintenance.md",
     "policy"
