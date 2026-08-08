@@ -14,7 +14,10 @@ validators = [
   [
     "Python",
     {},
-    [ENV.fetch("PYTHON", "python"), File.expand_path("validate_mcp_runtime_authority.py", __dir__)]
+    [
+      ENV.fetch("PYTHON", "python"),
+      File.expand_path("../../template/.github/scripts/validate_mcp_runtime_authority.py", __dir__)
+    ]
   ]
 ].freeze
 label = "Runtime, SDK, revision, era boundary, and schema source of truth"
