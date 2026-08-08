@@ -162,6 +162,12 @@
       "source": "docs/adr/0005-single-policy-authority.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "adr-copyable-artifact-policy-adoption",
+      "source": "docs/adr/0006-copyable-artifact-policy-adoption.md",
+      "optional": false,
+      "home": false
     }
   ],
   "assets": [
