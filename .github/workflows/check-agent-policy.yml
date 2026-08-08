@@ -13,12 +13,12 @@ jobs:
         with:
           command: render
           config: .agent-policy.yml
-      - name: Show generated review policy artifacts
-        shell: bash
-        run: |
-          echo '---BEGIN GENERATED REVIEW---'
-          cat .github/REVIEW_GUIDELINES.md
-          echo '---END GENERATED REVIEW---'
-          echo '---BEGIN GENERATED LOCK---'
-          cat .agent-policy.lock
-          echo '---END GENERATED LOCK---'
+      - name: Upload generated policy artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: review-cutover-generated
+          path: |
+            .github/REVIEW_GUIDELINES.md
+            .agent-policy.lock
+          include-hidden-files: true
+          if-no-files-found: error
