@@ -8,22 +8,22 @@ order: 1030
 
 Use the isolated Python and pip bootstrap procedure documented in `README.md` before executing repository validators.
 
-For changes that can affect Webapp contracts or validation, run both supported entry points for the applicable validators and run the standard-library test suite. The complete retained baseline includes:
+For changes that can affect the distribution boundary, run both source-only distribution validator entry points from the branch root. For changes that can affect Webapp contracts or validation, run both supported entry points for each applicable canonical validator from `template/`, then run the source-maintainer standard-library test suite. The complete retained baseline includes:
 
 ```sh
 python scripts/validate_distribution.py
 python -m scripts.validate_distribution
-python scripts/validate_contracts.py
-python -m scripts.validate_contracts
-python scripts/validate_contract_evolution.py
-python -m scripts.validate_contract_evolution
-python scripts/validate_implementation_evidence.py
-python -m scripts.validate_implementation_evidence
-python scripts/validate_release_evidence.py
-python -m scripts.validate_release_evidence
-python scripts/validate_release_bundle.py
-python -m scripts.validate_release_bundle
-python -m unittest discover -s tests -v
+(cd template && ../.venv/bin/python scripts/validate_contracts.py)
+(cd template && ../.venv/bin/python -m scripts.validate_contracts)
+(cd template && ../.venv/bin/python scripts/validate_contract_evolution.py)
+(cd template && ../.venv/bin/python -m scripts.validate_contract_evolution)
+(cd template && ../.venv/bin/python scripts/validate_implementation_evidence.py)
+(cd template && ../.venv/bin/python -m scripts.validate_implementation_evidence)
+(cd template && ../.venv/bin/python scripts/validate_release_evidence.py)
+(cd template && ../.venv/bin/python -m scripts.validate_release_evidence)
+(cd template && ../.venv/bin/python scripts/validate_release_bundle.py)
+(cd template && ../.venv/bin/python -m scripts.validate_release_bundle)
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 When validating product-mode release evidence or bundles, supply the exact immutable candidate revision required by the artifact contract. Do not substitute policy-toolchain validation for these repository-owned validators.
