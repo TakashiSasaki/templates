@@ -47,6 +47,7 @@ nav:
           - ADR-0003 Application-neutral scope: adr/0003-application-neutral-policy-scope.md
           - ADR-0004 Integrated bootstrap skill: adr/0004-integrated-bootstrap-skill.md
           - ADR-0005 Single policy authority: adr/0005-single-policy-authority.md
+          - ADR-0006 Copyable artifact policy adoption: adr/0006-copyable-artifact-policy-adoption.md
 
 markdown_extensions:
   - admonition
