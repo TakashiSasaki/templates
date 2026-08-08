@@ -1,6 +1,0 @@
-{
-  "$schema": "../schemas/release-bundle.schema.json",
-  "schemaVersion": 1,
-  "mode": "template",
-  "artifacts": []
-}

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Validate the closed, byte-preserving Webapp template distribution."""
+"""Validate the closed canonical Webapp template distribution."""
 
 from __future__ import annotations
 
 import json
-import os
 import stat
 import subprocess
 import sys
@@ -20,15 +19,13 @@ _ALLOWED_MANIFEST_KEYS = {
     "destination_root",
     "content_transformation_allowed",
     "required_top_level_entries",
-    "mirrors",
-    "distribution_owned_files",
+    "distribution_files",
     "forbidden_distribution_paths",
 }
-_ALLOWED_MIRROR_KEYS = {"source", "destination", "exclude"}
 
 
 class DistributionValidationError(ValueError):
-    """Raised when the source-to-distribution boundary is invalid."""
+    """Raised when the canonical distribution boundary is invalid."""
 
 
 def fail(message: str) -> None:
@@ -125,18 +122,17 @@ def _reject_symbolic_or_nonregular(path_text: str, context: str) -> None:
         fail(f"{context}: tracked path is not a regular file: {path_text}")
 
 
-def _join(destination: str, relative: str) -> str:
-    if not relative:
-        return destination
-    return f"{destination}/{relative}"
+def _descendant(path: str, prefix: str) -> bool:
+    return path == prefix or path.startswith(f"{prefix}/")
 
 
 def validate_distribution() -> None:
     manifest = _load_manifest()
-    if manifest["schema_version"] != 1 or isinstance(
+    if manifest["schema_version"] != 2 or isinstance(
         manifest["schema_version"], bool
     ):
-        fail("distribution manifest: schema_version must be integer 1")
+        fail("distribution manifest: schema_version must be integer 2")
+
     source_root = _safe_relative_path(
         manifest["source_root"], "distribution manifest source_root"
     )
@@ -156,9 +152,9 @@ def validate_distribution() -> None:
         manifest["required_top_level_entries"],
         "distribution manifest required_top_level_entries",
     )
-    distribution_owned = _string_list(
-        manifest["distribution_owned_files"],
-        "distribution manifest distribution_owned_files",
+    distribution_files = _string_list(
+        manifest["distribution_files"],
+        "distribution manifest distribution_files",
     )
     forbidden = _string_list(
         manifest["forbidden_distribution_paths"],
@@ -174,85 +170,14 @@ def validate_distribution() -> None:
     }
     if not actual_distribution:
         fail("distribution: template contains no tracked files")
+
     for relative in sorted(actual_distribution):
         _safe_relative_path(relative, "distribution tracked file")
         _reject_symbolic_or_nonregular(
             f"{source_root}/{relative}", "distribution tracked file"
         )
 
-    mirrors = manifest["mirrors"]
-    if not isinstance(mirrors, list) or not mirrors:
-        fail("distribution manifest: mirrors must be a non-empty array")
-
-    expected: set[str] = set(distribution_owned)
-    byte_pairs: list[tuple[str, str]] = []
-    mirror_sources: set[str] = set()
-    mirror_destinations: set[str] = set()
-
-    for index, mirror in enumerate(mirrors):
-        context = f"distribution manifest mirrors[{index}]"
-        if not isinstance(mirror, dict):
-            fail(f"{context}: value must be an object")
-        unknown = set(mirror) - _ALLOWED_MIRROR_KEYS
-        missing = _ALLOWED_MIRROR_KEYS - set(mirror)
-        if unknown or missing:
-            fail(
-                f"{context}: invalid members; missing={sorted(missing)}, "
-                f"unsupported={sorted(unknown)}"
-            )
-        source = _safe_relative_path(mirror["source"], f"{context} source")
-        destination = _safe_relative_path(
-            mirror["destination"], f"{context} destination"
-        )
-        excludes = _string_list(mirror["exclude"], f"{context} exclude")
-        if source in mirror_sources:
-            fail(f"{context}: duplicate mirror source {source}")
-        if destination in mirror_destinations:
-            fail(f"{context}: duplicate mirror destination {destination}")
-        mirror_sources.add(source)
-        mirror_destinations.add(destination)
-
-        source_path = ROOT / source
-        if source_path.is_symlink():
-            fail(f"{context}: source may not be a symbolic link: {source}")
-        if source_path.is_file():
-            if excludes:
-                fail(f"{context}: a file mirror may not declare exclusions")
-            if source not in tracked:
-                fail(f"{context}: source file is not tracked: {source}")
-            relative_sources = [(source, "")]
-        elif source_path.is_dir():
-            prefix = f"{source}/"
-            source_members = sorted(
-                path for path in tracked if path.startswith(prefix)
-            )
-            if not source_members:
-                fail(f"{context}: source directory has no tracked files: {source}")
-            relative_sources = [
-                (path, path[len(prefix) :])
-                for path in source_members
-                if path[len(prefix) :] not in excludes
-            ]
-            available_relatives = {path[len(prefix) :] for path in source_members}
-            missing_excludes = sorted(set(excludes) - available_relatives)
-            if missing_excludes:
-                fail(f"{context}: exclusions are not tracked: {missing_excludes}")
-        else:
-            fail(f"{context}: source does not exist as a file or directory: {source}")
-
-        for source_file, relative in relative_sources:
-            _reject_symbolic_or_nonregular(source_file, context)
-            destination_file = _join(destination, relative)
-            _safe_relative_path(destination_file, f"{context} mapped destination")
-            if destination_file in expected:
-                fail(f"{context}: distribution destination collision: {destination_file}")
-            expected.add(destination_file)
-            byte_pairs.append((source_file, f"{source_root}/{destination_file}"))
-
-    overlap = sorted(set(distribution_owned) & set(forbidden))
-    if overlap:
-        fail(f"distribution manifest: owned and forbidden paths overlap: {overlap}")
-
+    expected = set(distribution_files)
     missing = sorted(expected - actual_distribution)
     undeclared = sorted(actual_distribution - expected)
     if missing:
@@ -260,35 +185,42 @@ def validate_distribution() -> None:
     if undeclared:
         fail(f"distribution: undeclared files are present: {undeclared}")
 
-    present_forbidden = sorted(set(forbidden) & actual_distribution)
+    overlapping = sorted(
+        path
+        for path in distribution_files
+        if any(_descendant(path, prefix) for prefix in forbidden)
+    )
+    if overlapping:
+        fail(
+            "distribution manifest: distribution and forbidden paths overlap: "
+            f"{overlapping}"
+        )
+
+    present_forbidden = sorted(
+        path
+        for path in actual_distribution
+        if any(_descendant(path, prefix) for prefix in forbidden)
+    )
     if present_forbidden:
         fail(f"distribution: maintainer-only paths are present: {present_forbidden}")
 
-    actual_top_level = sorted({PurePosixPath(path).parts[0] for path in actual_distribution})
+    actual_top_level = sorted(
+        {PurePosixPath(path).parts[0] for path in actual_distribution}
+    )
     if actual_top_level != required_top_level:
         fail(
             "distribution: top-level inventory differs; "
             f"expected={required_top_level}, actual={actual_top_level}"
         )
 
-    for owned in distribution_owned:
-        _reject_symbolic_or_nonregular(f"{source_root}/{owned}", "distribution-owned file")
-
-    for source_file, destination_file in byte_pairs:
-        try:
-            source_bytes = (ROOT / source_file).read_bytes()
-            destination_bytes = (ROOT / destination_file).read_bytes()
-        except OSError as error:
-            fail(f"distribution: cannot compare mirrored bytes: {error}")
-        if source_bytes != destination_bytes:
-            fail(
-                "distribution: mirrored bytes differ: "
-                f"{source_file} -> {destination_file}"
-            )
+    for relative in distribution_files:
+        _reject_symbolic_or_nonregular(
+            f"{source_root}/{relative}", "distribution file"
+        )
 
     print(
         "distribution validation passed: "
-        f"{len(actual_distribution)} files, {len(byte_pairs)} byte-preserving mirrors"
+        f"{len(actual_distribution)} canonical files"
     )
 
 
