@@ -118,10 +118,6 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             encoding="utf-8",
         )
         (tree_root / "index.md").write_text(
-            "# Repository trees\n\n* [Overview](overview.md) - Generated overview.\n",
-            encoding="utf-8",
-        )
-        (tree_root / "overview.md").write_text(
             "# Repository trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
             encoding="utf-8",
         )
@@ -160,8 +156,8 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             skill_page = (
                 output_root / "docs/repository-trees/skill.md"
             ).read_text(encoding="utf-8")
-            overview_page = (
-                output_root / "docs/repository-trees/overview.md"
+            index_page = (
+                output_root / "docs/repository-trees/index.md"
             ).read_text(encoding="utf-8")
 
             self.assertIn(revisions["skill"], skill_page)
@@ -178,10 +174,10 @@ class RepositoryTreeGenerationTests(unittest.TestCase):
             self.assertNotIn("untracked-secret.txt", skill_page)
             self.assertIn('href="/templates/skill/"', skill_page)
             self.assertIn(">source</a>", skill_page)
-            self.assertIn("[Skill](skill.md)", overview_page)
-            self.assertIn(revisions["policy"], overview_page)
+            self.assertIn("[Skill](skill.md)", index_page)
+            self.assertIn(revisions["policy"], index_page)
             self.assertNotIn("GENERATED_REPOSITORY_TREE", skill_page)
-            self.assertNotIn("GENERATED_REPOSITORY_TREE_INDEX", overview_page)
+            self.assertNotIn("GENERATED_REPOSITORY_TREE_INDEX", index_page)
 
     def test_gitlink_entries_are_not_treated_as_files(self) -> None:
         object_id = b"1" * 40
