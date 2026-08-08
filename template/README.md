@@ -21,6 +21,12 @@ This repository is a template for developing a portable Agent Skill. Its root is
 
 Do not retain `template-scaffold` after adding operational resources, executable implementation, runtime manifests, or public interfaces.
 
+## Repository policy is optional
+
+This copyable template is not pre-enrolled in the shared `agent-policy` toolchain. The included `AGENTS.md` describes how to develop and validate the Skill artifact; it is part of this template's artifact-development contract rather than inherited source-maintainer policy.
+
+After copying, the owner of the concrete Skill repository may adopt a shared repository-policy toolchain separately if that operating model is desired. Treat that as an explicit repository-maintenance decision: use a reviewed immutable toolchain revision, preserve the concrete Skill requirements already expressed by this template and its customization, and do not treat policy adoption as part of the copy operation itself.
+
 ## Profiles
 
 Profiles are selectable contract patterns, not maturity levels.
