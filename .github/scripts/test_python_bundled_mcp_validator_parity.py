@@ -14,13 +14,14 @@ from pathlib import Path
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 RUBY_COMMAND = [
     "ruby",
     str(SCRIPT_ROOT / "validate-bundled-mcp-client-consistency.rb"),
 ]
 PYTHON_COMMAND = [
     sys.executable,
-    str(SCRIPT_ROOT / "validate_bundled_mcp_client_consistency.py"),
+    str(TEMPLATE_SCRIPT_ROOT / "validate_bundled_mcp_client_consistency.py"),
 ]
 
 

@@ -154,11 +154,11 @@ _Source: `policy/repository/artifact-boundary.md` in this repository; rule ID: `
 
 ## Preserve the exact copyable distribution
 
-`distribution-manifest.json` is authoritative for the copyable inventory.
+`distribution-manifest.json` is authoritative for the closed copyable inventory below `template/`.
 
-Validator implementations projected from `.github/scripts/` into `template/.github/scripts/` must retain identical bytes and Git-significant modes. For a projected validator, change the source implementation and its distributed copy together, then run both source distribution validation and copied-Skill validation.
+Consumer-facing validator implementations are canonical only under `template/.github/scripts/`. Source-maintainer CI and regression tests may invoke or import those implementations directly from `template/`, but must not maintain alternate implementation copies at the branch root. Change a downstream validator at its canonical `template/` path, then run both source distribution validation and copied-Skill validation.
 
-Keep `template/` closed and independently usable after copying. Reject undeclared copied files, missing declared files, projection byte or mode drift, prohibited symbolic links or Git links, path traversal or `.git` path components, maintainer-only leakage, automatic content transformation, and runtime or validation dependence on the source checkout.
+Keep `template/` closed and independently usable after copying. Reject undeclared copied files, missing declared files, prohibited symbolic links or Git links, path traversal or `.git` path components, maintainer-only leakage, automatic content transformation, alternate root authorities for distributed validators, and runtime or validation dependence on the source checkout.
 
 Do not pre-enroll the copyable Skill in the shared policy toolchain merely because the source repository consumes it. Source-maintainer `.agent-policy.yml`, `.agent-policy.lock`, `.agent-policy/` state, `policy/` inputs, and `check-agent-policy` workflow authority remain outside `template/`. The distributed `AGENTS.md` is a Skill artifact-development contract, not an inherited projection of source-maintainer policy. A concrete Skill repository may adopt shared policy explicitly after copying as a separate repository-maintenance decision.
 
@@ -195,7 +195,7 @@ For changes that can affect the source/distribution boundary, run at least:
 ruby .github/scripts/test-distribution-boundary.rb
 ruby .github/scripts/test-skill-distribution.rb
 ruby .github/scripts/validate-skill-distribution.rb
-python .github/scripts/validate_skill_repository.py template
+python template/.github/scripts/validate_skill_repository.py template
 python template/.github/scripts/test_template_baseline.py
 ruby .github/scripts/test-copyable-template-consumption.rb
 ```

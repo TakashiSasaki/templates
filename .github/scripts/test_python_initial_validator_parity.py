@@ -12,6 +12,8 @@ from pathlib import Path
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
+REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 
 
 @dataclass(frozen=True)
@@ -198,7 +200,7 @@ def run() -> int:
         ],
         "Python placeholder": [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_selected_contract_scalar_placeholders.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_selected_contract_scalar_placeholders.py"),
         ],
     }
     placeholder_cases = [
@@ -276,7 +278,7 @@ def run() -> int:
         ],
         "Python review follow-up": [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_review_followup_contracts.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_review_followup_contracts.py"),
         ],
     }
     review_cases = [

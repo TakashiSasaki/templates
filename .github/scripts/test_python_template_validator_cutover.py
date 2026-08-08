@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit the copyable template's Python-only validator cutover."""
+"""Audit the canonical template-owned Python validator boundary."""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SOURCE_SCRIPTS = REPOSITORY_ROOT / ".github" / "scripts"
 TEMPLATE_SCRIPTS = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 MANIFEST_PATH = REPOSITORY_ROOT / "distribution-manifest.json"
 WORKFLOW_PATH = (
@@ -23,19 +26,18 @@ TEMPLATE_WORKDIR_SOURCE_WORKFLOW_PATHS = (
     REPOSITORY_ROOT / ".github" / "workflows" / "validate-extended-profile-contracts.yml",
 )
 
-CANONICAL_DIRECT_PATTERN = re.compile(
+DIRECT_CANONICAL_PATTERN = re.compile(
     r"python(?:\s+-\S+)*\s+"
     r"template/\.github/scripts/validate_skill_repository\.py"
     r"\s+template(?:\s|$)"
 )
-LEGACY_DIRECT_PATTERN = re.compile(
+DIRECT_LEGACY_PATTERN = re.compile(
     r"python(?:\s+-\S+)*\s+"
     r"\.github/scripts/validate_skill_repository\.py"
     r"\s+template(?:\s|$)"
 )
-TEMPLATE_WORKDIR_PATTERN = re.compile(
-    r"working-directory:\s*template\s*\n"
-    r"\s*run:\s*python(?:\s+-\S+)*\s+"
+WORKDIR_PATTERN = re.compile(
+    r"python(?:\s+-\S+)*\s+"
     r"\.github/scripts/validate_skill_repository\.py(?:\s|$)"
 )
 
@@ -63,8 +65,100 @@ REQUIRED_TEMPLATE_FILES = {
 }
 
 
+def _load_workflow(path: Path) -> dict[str, object]:
+    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"workflow is not a mapping: {path}")
+    return value
+
+
+def _steps(workflow: dict[str, object]) -> list[dict[str, object]]:
+    result: list[dict[str, object]] = []
+    jobs = workflow.get("jobs", {})
+    if not isinstance(jobs, dict):
+        return result
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        steps = job.get("steps", [])
+        if isinstance(steps, list):
+            result.extend(step for step in steps if isinstance(step, dict))
+    return result
+
+
+def _has_direct_canonical_invocation(workflow: dict[str, object]) -> bool:
+    return any(
+        isinstance(step.get("run"), str)
+        and DIRECT_CANONICAL_PATTERN.search(str(step["run"])) is not None
+        for step in _steps(workflow)
+    )
+
+
+def _has_legacy_direct_invocation(workflow: dict[str, object]) -> bool:
+    return any(
+        step.get("working-directory") != "template"
+        and isinstance(step.get("run"), str)
+        and DIRECT_LEGACY_PATTERN.search(str(step["run"])) is not None
+        for step in _steps(workflow)
+    )
+
+
+def _has_template_workdir_invocation(workflow: dict[str, object]) -> bool:
+    return any(
+        step.get("working-directory") == "template"
+        and isinstance(step.get("run"), str)
+        and WORKDIR_PATTERN.search(str(step["run"])) is not None
+        for step in _steps(workflow)
+    )
+
+
+def _test_workflow_matchers(failures: list[str]) -> None:
+    direct = {
+        "jobs": {
+            "test": {
+                "steps": [
+                    {
+                        "run": "python -I template/.github/scripts/validate_skill_repository.py template"
+                    }
+                ]
+            }
+        }
+    }
+    if not _has_direct_canonical_invocation(direct):
+        failures.append("workflow matcher rejected canonical invocation with Python flags")
+
+    legacy = {
+        "jobs": {
+            "test": {
+                "steps": [
+                    {"run": "python .github/scripts/validate_skill_repository.py template"}
+                ]
+            }
+        }
+    }
+    if not _has_legacy_direct_invocation(legacy):
+        failures.append("workflow matcher did not detect legacy root invocation")
+
+    workdir = {
+        "jobs": {
+            "test": {
+                "steps": [
+                    {
+                        "run": "python .github/scripts/validate_skill_repository.py",
+                        "shell": "bash",
+                        "working-directory": "template",
+                    }
+                ]
+            }
+        }
+    }
+    if not _has_template_workdir_invocation(workdir):
+        failures.append("workflow matcher depends on YAML key order for template working-directory")
+
+
 def run() -> int:
     failures: list[str] = []
+    _test_workflow_matchers(failures)
 
     ruby_files = sorted(
         path.relative_to(TEMPLATE_SCRIPTS).as_posix()
@@ -72,8 +166,7 @@ def run() -> int:
     )
     if ruby_files:
         failures.append(
-            "copyable template retained Ruby validation files: "
-            + ", ".join(ruby_files)
+            "copyable template retained Ruby validation files: " + ", ".join(ruby_files)
         )
 
     actual_files = {
@@ -88,15 +181,34 @@ def run() -> int:
             + ", ".join(missing_files)
         )
 
+    legacy_root_files = sorted(
+        relative
+        for relative in REQUIRED_TEMPLATE_FILES - {"test_template_baseline.py"}
+        if (SOURCE_SCRIPTS / relative).exists()
+    )
+    if legacy_root_files:
+        failures.append(
+            "source root retained alternate copies of template-owned Python validators: "
+            + ", ".join(legacy_root_files)
+        )
+
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    ruby_mirrors = [
-        mirror
-        for mirror in manifest.get("mirrors", [])
-        if str(mirror.get("source", "")).endswith(".rb")
-        or str(mirror.get("destination", "")).endswith(".rb")
-    ]
-    if ruby_mirrors:
-        failures.append("distribution manifest retained Ruby validator projections")
+    if manifest.get("schema_version") != 2:
+        failures.append("distribution manifest schema_version is not 2")
+    for legacy_key in ("mirrors", "distribution_owned_files"):
+        if legacy_key in manifest:
+            failures.append(f"distribution manifest retained legacy field: {legacy_key}")
+    distribution_files = set(manifest.get("distribution_files", []))
+    missing_from_inventory = sorted(
+        f".github/scripts/{relative}"
+        for relative in REQUIRED_TEMPLATE_FILES
+        if f".github/scripts/{relative}" not in distribution_files
+    )
+    if missing_from_inventory:
+        failures.append(
+            "canonical distribution inventory omits Python validator files: "
+            + ", ".join(missing_from_inventory)
+        )
 
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
     for forbidden in ("ruby/setup-ruby", "ruby .github/scripts/"):
@@ -117,21 +229,21 @@ def run() -> int:
             )
 
     for source_workflow_path in DIRECT_SOURCE_WORKFLOW_PATHS:
-        source_workflow = source_workflow_path.read_text(encoding="utf-8")
-        if LEGACY_DIRECT_PATTERN.search(source_workflow):
+        source_workflow = _load_workflow(source_workflow_path)
+        if _has_legacy_direct_invocation(source_workflow):
             failures.append(
-                "source workflow still executes the root projected Python validator: "
+                "source workflow still executes a root Python validator: "
                 f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
             )
-        if not CANONICAL_DIRECT_PATTERN.search(source_workflow):
+        if not _has_direct_canonical_invocation(source_workflow):
             failures.append(
                 "source workflow does not execute the template-owned Python validator: "
                 f"{source_workflow_path.relative_to(REPOSITORY_ROOT)}"
             )
 
     for source_workflow_path in TEMPLATE_WORKDIR_SOURCE_WORKFLOW_PATHS:
-        source_workflow = source_workflow_path.read_text(encoding="utf-8")
-        if not TEMPLATE_WORKDIR_PATTERN.search(source_workflow):
+        source_workflow = _load_workflow(source_workflow_path)
+        if not _has_template_workdir_invocation(source_workflow):
             failures.append(
                 "source workflow does not execute the Python repository validator "
                 "from working-directory template: "
@@ -143,7 +255,7 @@ def run() -> int:
             print(failure, file=sys.stderr)
         return 1
 
-    print("Python-only template validator cutover checks passed.")
+    print("Canonical template-owned Python validator boundary checks passed.")
     return 0
 
 
