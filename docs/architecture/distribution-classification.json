@@ -26,6 +26,7 @@
     "maintainer": [
       ".agent-policy.lock",
       ".agent-policy.yml",
+      "AGENTS.md",
       "distribution-manifest.json",
       "policy"
     ]
