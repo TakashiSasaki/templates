@@ -5,8 +5,9 @@ import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tests"))
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+DISTRIBUTION_ROOT = SOURCE_ROOT / "template"
+sys.path.insert(0, str(SOURCE_ROOT / "tests"))
 
 from test_generated_repository_conformance import (  # noqa: E402
     _generated_repository,
@@ -90,10 +91,10 @@ class GeneratedReleaseEvidenceConformanceTests(unittest.TestCase):
     def test_generated_product_release_evidence_passes_both_entry_points(
         self,
     ) -> None:
-        source_release = _load_json(
-            ROOT / "contracts/release-evidence.json"
+        canonical_release = _load_json(
+            DISTRIBUTION_ROOT / "contracts/release-evidence.json"
         )
-        self.assertEqual("template", source_release["mode"])
+        self.assertEqual("template", canonical_release["mode"])
 
         with _generated_repository() as root:
             _materialize_release_evidence(root)
@@ -125,7 +126,9 @@ class GeneratedReleaseEvidenceConformanceTests(unittest.TestCase):
 
         self.assertEqual(
             "template",
-            _load_json(ROOT / "contracts/release-evidence.json")["mode"],
+            _load_json(
+                DISTRIBUTION_ROOT / "contracts/release-evidence.json"
+            )["mode"],
         )
 
     def test_generated_release_rejects_revision_mismatch(self) -> None:
