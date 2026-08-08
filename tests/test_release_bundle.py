@@ -8,8 +8,9 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+ROOT = SOURCE_ROOT / "template"
+sys.path.insert(0, str(SOURCE_ROOT))
 
 from scripts import validate_contracts  # noqa: E402
 from scripts import validate_release_bundle  # noqa: E402
@@ -338,7 +339,7 @@ class ReleaseBundleTests(unittest.TestCase):
 
     def test_ci_runs_both_release_bundle_entry_points(self) -> None:
         workflow = (
-            ROOT / ".github/workflows/contract-validation.yml"
+            SOURCE_ROOT / ".github/workflows/contract-validation.yml"
         ).read_text(encoding="utf-8")
 
         self.assertIn("working-directory: template", workflow)
