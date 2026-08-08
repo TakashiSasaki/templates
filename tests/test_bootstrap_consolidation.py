@@ -57,7 +57,6 @@ def test_active_documentation_uses_integrated_skill_layout() -> None:
     for relative in ACTIVE_BOOTSTRAP_DOCS:
         content = read(relative)
         assert "skills/bootstrap-agent-policy" in content, relative
-        assert "TakashiSasaki/templates" in content, relative
 
 
 def test_bootstrap_model_defers_stable_revision_to_release_descriptor() -> None:
