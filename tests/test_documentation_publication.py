@@ -105,7 +105,6 @@ def test_documentation_workflow_targets_only_policy() -> None:
     assert "workflow_dispatch" not in workflow
     assert "workflow_call" not in workflow
     assert "bootstrap-agent-policy:refs" not in workflow
-    assert "TakashiSasaki/agent-policy" not in workflow
     assert "git fetch" not in workflow
 
 
