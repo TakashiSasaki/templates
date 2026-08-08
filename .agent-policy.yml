@@ -1,0 +1,46 @@
+schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: 5de32547e68fa15e24ff3b8affadf12e9d730a41
+contexts:
+  coding:
+    profiles:
+      - core
+      - security-baseline
+      - pull-request
+    project_policy:
+      files:
+        - repository-policy/authority-boundary.md
+        - repository-policy/history-boundary.md
+        - repository-policy/architecture-decisions.md
+        - repository-policy/release-trust.md
+        - repository-policy/toolchain-safety.md
+        - repository-policy/maintainer-validation.md
+        - repository-policy/documentation-boundary.md
+  review:
+    profiles:
+      - core
+      - security-baseline
+      - review
+    project_policy:
+      files:
+        - repository-policy/authority-boundary.md
+        - repository-policy/history-boundary.md
+        - repository-policy/architecture-decisions.md
+        - repository-policy/release-trust.md
+        - repository-policy/toolchain-safety.md
+        - repository-policy/maintainer-validation.md
+        - repository-policy/documentation-boundary.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: coding
+    renderer: agents-md
+  review:
+    enabled: true
+    path: .github/REVIEW_GUIDELINES.md
+    context: review
+    renderer: github-review-json-v1
+skills:
+  enabled: []
