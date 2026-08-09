@@ -16,6 +16,7 @@ EXTENSION_ID = re.compile(
     r"^[a-z0-9]+(?:\.[a-z0-9-]+)+/[a-z0-9][a-z0-9._-]*$"
 )
 REQUIRED_APPS_HEADINGS = (
+    "## Status and authority",
     "## Host capability and fallback",
     "## UI resource inventory",
     "## Tool-to-UI linkage",
@@ -73,12 +74,12 @@ def selected_extensions(runtime: MarkdownDocument, errors: list[str]) -> set[str
 
 
 def apps_implementation_present(root: Path) -> bool:
-    directory = root / "mcp" / "apps"
-    if directory.is_symlink():
+    path = root / "mcp" / "apps"
+    if path.is_file() or path.is_symlink():
         return True
-    if not directory.is_dir():
+    if not path.is_dir():
         return False
-    return any(path.is_file() or path.is_symlink() for path in directory.rglob("*"))
+    return any(candidate.is_file() or candidate.is_symlink() for candidate in path.rglob("*"))
 
 
 def run() -> int:
@@ -131,9 +132,7 @@ def run() -> int:
     extension_selection_valid = not errors
     apps_selected = MCP_APPS_EXTENSION in extensions
 
-    if not extension_selection_valid:
-        pass
-    elif apps_selected:
+    if extension_selection_valid and apps_selected:
         if not apps_contract.is_file() or apps_contract.is_symlink():
             errors.append(
                 "Selecting io.modelcontextprotocol/ui requires a regular MCP_APPS.md contract."
@@ -176,7 +175,7 @@ def run() -> int:
                 errors.append(
                     "MCP_APPS.md must document the boundary from the standalone browser-interface contract."
                 )
-    else:
+    elif extension_selection_valid:
         if apps_contract.exists() or apps_contract.is_symlink():
             errors.append(
                 "A concrete MCP Skill that does not select io.modelcontextprotocol/ui "
