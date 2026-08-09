@@ -57,7 +57,7 @@ export class HostBridgeSession {
     this.#callTool = callTool;
   }
 
-  receiveFromView(message) {
+  async receiveFromView(message) {
     if (!message || message.jsonrpc !== "2.0" || typeof message.method !== "string") {
       throw new Error("invalid JSON-RPC bridge message");
     }
@@ -128,7 +128,7 @@ export class HostBridgeSession {
       return {
         jsonrpc: "2.0",
         id: message.id,
-        result: this.#callTool({
+        result: await this.#callTool({
           name,
           arguments: message.params?.arguments ?? {},
         }),
@@ -142,11 +142,14 @@ export class HostBridgeSession {
     if (!this.#initialized) {
       throw new Error("Host must not send requests or notifications before View initialization completes");
     }
-    return {
+    const notification = {
       jsonrpc: "2.0",
       method,
-      params,
     };
+    if (params !== undefined) {
+      notification.params = params;
+    }
+    return notification;
   }
 
   get initialized() {
