@@ -155,6 +155,13 @@ def run() -> int:
             expected_success=True,
         ),
         dict(
+            name="individually backtick-wrapped MCP profile in multi-profile selection",
+            profiles="`mcp-enabled`, script-assisted",
+            extensions="io.modelcontextprotocol/ui",
+            apps_contract=VALID_APPS,
+            expected_success=True,
+        ),
+        dict(
             name="unselected Apps contract retained",
             profiles="mcp-enabled",
             extensions="NONE",
