@@ -46,10 +46,10 @@ async function connectClient({ apps }) {
   return client;
 }
 
-async function callTextStats(client) {
+async function callTextStats(client, text = "alpha beta\ngamma") {
   return client.callTool({
     name: "text_stats",
-    arguments: { text: "alpha beta\ngamma" },
+    arguments: { text },
   });
 }
 
@@ -144,6 +144,13 @@ test("core tool result remains meaningful when the Host does not advertise Apps"
     assert.equal(appResult.content[0]?.type, "text");
     assert.equal(coreResult.content[0]?.type, "text");
     assert.equal(appResult.content[0]?.text, coreResult.content[0]?.text);
+
+    const trailingNewline = await callTextStats(coreClient, "alpha\n");
+    assert.deepEqual(trailingNewline.structuredContent, {
+      bytes: 6,
+      lines: 1,
+      words: 1,
+    });
   } finally {
     await Promise.all([appsClient.close(), coreClient.close()]);
   }
