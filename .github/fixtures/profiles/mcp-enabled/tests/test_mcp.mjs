@@ -64,14 +64,14 @@ async function firstWireResponse(request, scriptPath = serverPath) {
   }
 }
 
-function unsupportedRevisionRequest(id) {
+function discoverRequest(id, protocolVersion) {
   return {
     jsonrpc: "2.0",
     id,
     method: "server/discover",
     params: {
       _meta: {
-        "io.modelcontextprotocol/protocolVersion": "2099-01-01",
+        "io.modelcontextprotocol/protocolVersion": protocolVersion,
         "io.modelcontextprotocol/clientCapabilities": {},
         "io.modelcontextprotocol/clientInfo": {
           name: "future-probe",
@@ -80,6 +80,10 @@ function unsupportedRevisionRequest(id) {
       },
     },
   };
+}
+
+function unsupportedRevisionRequest(id) {
+  return discoverRequest(id, "2099-01-01");
 }
 
 test("Modern client discovers the server, lists the tool, and calls it", async () => {
@@ -149,4 +153,17 @@ test("unsupported Modern revision receives UnsupportedProtocolVersionError", asy
   assert.equal(response.error?.code, -32022);
   assert.equal(response.error?.data?.requested, "2099-01-01");
   assert.deepEqual(response.error?.data?.supported, ["2026-07-28"]);
+});
+
+test("malformed non-string Modern protocol revisions are rejected", async () => {
+  const malformedVersions = [2026, null, {}];
+
+  for (const [index, protocolVersion] of malformedVersions.entries()) {
+    const response = await firstWireResponse(
+      discoverRequest(30 + index, protocolVersion),
+    );
+    assert.equal(response.result, undefined);
+    assert.ok(response.error, `expected an error for ${JSON.stringify(protocolVersion)}`);
+    assert.equal(typeof response.error.code, "number");
+  }
 });

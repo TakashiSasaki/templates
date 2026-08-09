@@ -80,6 +80,13 @@ expect_failure.call("canonical inventory omission", "undeclared files are presen
   File.write(path, JSON.pretty_generate(local_manifest) + "\n", encoding: "UTF-8")
 end
 
+expect_failure.call("unsorted canonical inventory", "distribution manifest distribution_files: paths must be sorted") do |root|
+  path = File.join(root, "distribution-manifest.json")
+  local_manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
+  local_manifest["distribution_files"] = local_manifest.fetch("distribution_files").reverse
+  File.write(path, JSON.pretty_generate(local_manifest) + "\n", encoding: "UTF-8")
+end
+
 expect_failure.call("undeclared distribution file", "undeclared files are present") do |root|
   File.write(File.join(root, "template", "UNDECLARED.txt"), "unexpected\n", encoding: "UTF-8")
 end
