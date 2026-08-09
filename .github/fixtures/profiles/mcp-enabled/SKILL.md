@@ -26,9 +26,9 @@ Use this skill when an MCP-capable agent host can register the bundled trusted s
 ## Public execution interfaces
 
 Stdio server registration command: `node mcp/server.mjs`
-Preferred agent route: see `INTERFACES.md`
-Detailed interface contract: `MCP_INTERFACE.md`
-Runtime and protocol authority: `RUNTIME.md`
+Preferred agent route: see INTERFACES.md
+Detailed interface contract: MCP_INTERFACE.md
+Runtime and protocol authority: RUNTIME.md
 
 ## Output requirements
 
