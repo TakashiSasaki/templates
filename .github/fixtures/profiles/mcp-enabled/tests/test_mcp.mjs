@@ -25,8 +25,8 @@ async function connectModernClient() {
   return client;
 }
 
-async function firstWireResponse(request) {
-  const child = spawn(process.execPath, [serverPath], {
+async function firstWireResponse(request, scriptPath = serverPath) {
+  const child = spawn(process.execPath, [scriptPath], {
     cwd: fixtureRoot,
     stdio: ["pipe", "pipe", "pipe"],
   });
@@ -48,6 +48,10 @@ async function firstWireResponse(request) {
       }
     });
     child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      clearTimeout(timer);
+      reject(new Error(`MCP server exited before responding: code=${code} signal=${signal}`));
+    });
   });
 
   child.stdin.end(`${JSON.stringify(request)}\n`);
@@ -58,6 +62,24 @@ async function firstWireResponse(request) {
     await Promise.race([once(child, "exit"), new Promise((resolve) => setTimeout(resolve, 1000))]);
     if (child.exitCode === null) child.kill("SIGKILL");
   }
+}
+
+function unsupportedRevisionRequest(id) {
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: "server/discover",
+    params: {
+      _meta: {
+        "io.modelcontextprotocol/protocolVersion": "2099-01-01",
+        "io.modelcontextprotocol/clientCapabilities": {},
+        "io.modelcontextprotocol/clientInfo": {
+          name: "future-probe",
+          version: "1.0.0",
+        },
+      },
+    },
+  };
 }
 
 test("Modern client discovers the server, lists the tool, and calls it", async () => {
@@ -95,6 +117,16 @@ test("Modern client discovers the server, lists the tool, and calls it", async (
   }
 });
 
+test("documented relative stdio command starts the MCP server", async () => {
+  const response = await firstWireResponse(
+    unsupportedRevisionRequest(20),
+    path.join("mcp", "server.mjs"),
+  );
+
+  assert.equal(response.error?.code, -32022);
+  assert.deepEqual(response.error?.data?.supported, ["2026-07-28"]);
+});
+
 test("Legacy initialize opening is rejected by the Modern-only server", async () => {
   const response = await firstWireResponse({
     jsonrpc: "2.0",
@@ -112,21 +144,7 @@ test("Legacy initialize opening is rejected by the Modern-only server", async ()
 });
 
 test("unsupported Modern revision receives UnsupportedProtocolVersionError", async () => {
-  const response = await firstWireResponse({
-    jsonrpc: "2.0",
-    id: 2,
-    method: "server/discover",
-    params: {
-      _meta: {
-        "io.modelcontextprotocol/protocolVersion": "2099-01-01",
-        "io.modelcontextprotocol/clientCapabilities": {},
-        "io.modelcontextprotocol/clientInfo": {
-          name: "future-probe",
-          version: "1.0.0",
-        },
-      },
-    },
-  });
+  const response = await firstWireResponse(unsupportedRevisionRequest(2));
 
   assert.equal(response.error?.code, -32022);
   assert.equal(response.error?.data?.requested, "2099-01-01");

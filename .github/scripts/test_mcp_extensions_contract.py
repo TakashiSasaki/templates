@@ -105,6 +105,7 @@ def run_case(
     apps_contract: str | None,
     app_file: bool = False,
     expected_success: bool,
+    stderr_must_not_contain: str | None = None,
 ) -> str | None:
     with tempfile.TemporaryDirectory(prefix="mcp-extension-contract-") as directory:
         root = Path(directory)
@@ -135,6 +136,14 @@ def run_case(
                 f"{name}: expected success={expected_success}, got {success}; "
                 f"stdout={completed.stdout.strip()!r}; stderr={completed.stderr.strip()!r}"
             )
+        if (
+            stderr_must_not_contain is not None
+            and stderr_must_not_contain in completed.stderr
+        ):
+            return (
+                f"{name}: stderr unexpectedly contained {stderr_must_not_contain!r}; "
+                f"stderr={completed.stderr.strip()!r}"
+            )
     return None
 
 
@@ -155,11 +164,26 @@ def run() -> int:
             expected_success=True,
         ),
         dict(
+            name="individually backtick-wrapped MCP profile in multi-profile selection",
+            profiles="`mcp-enabled`, script-assisted",
+            extensions="io.modelcontextprotocol/ui",
+            apps_contract=VALID_APPS,
+            expected_success=True,
+        ),
+        dict(
             name="unselected Apps contract retained",
             profiles="mcp-enabled",
             extensions="NONE",
             apps_contract=VALID_APPS,
             expected_success=False,
+        ),
+        dict(
+            name="unresolved extension selection does not imply Apps is unselected",
+            profiles="mcp-enabled",
+            extensions="TODO",
+            apps_contract=VALID_APPS,
+            expected_success=False,
+            stderr_must_not_contain="must remove MCP_APPS.md",
         ),
         dict(
             name="Apps selected but contract missing",
@@ -230,6 +254,14 @@ def run() -> int:
             profiles="script-assisted",
             extensions=None,
             apps_contract=VALID_APPS,
+            expected_success=False,
+        ),
+        dict(
+            name="non-MCP skill retains Apps implementation",
+            profiles="script-assisted",
+            extensions=None,
+            apps_contract=None,
+            app_file=True,
             expected_success=False,
         ),
     ]

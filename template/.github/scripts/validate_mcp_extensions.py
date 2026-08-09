@@ -94,7 +94,7 @@ def run() -> int:
         print("MCP extension validation not applicable to the template scaffold.")
         return 0
 
-    profiles = set(selection.profiles)
+    profiles = {normalize(profile) for profile in selection.profiles if normalize(profile)}
     apps_contract = root / "MCP_APPS.md"
     apps_files_present = apps_implementation_present(root)
 
@@ -128,9 +128,12 @@ def run() -> int:
     errors: list[str] = []
     runtime = MarkdownDocument.read(runtime_path)
     extensions = selected_extensions(runtime, errors)
+    extension_selection_valid = not errors
     apps_selected = MCP_APPS_EXTENSION in extensions
 
-    if apps_selected:
+    if not extension_selection_valid:
+        pass
+    elif apps_selected:
         if not apps_contract.is_file() or apps_contract.is_symlink():
             errors.append(
                 "Selecting io.modelcontextprotocol/ui requires a regular MCP_APPS.md contract."
