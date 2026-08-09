@@ -114,7 +114,8 @@ jobs:
 
       - name: Test MCP 2026-07-28 semantic gate
         shell: bash
-        run: ruby .github/scripts/validate-mcp-protocol-conformance.rb
+        working-directory: .github/fixtures/profiles/mcp-enabled
+        run: ruby ../../../scripts/validate-mcp-protocol-conformance.rb
 
       - name: Test browser-interface routing
         shell: bash
