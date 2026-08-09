@@ -203,7 +203,7 @@ def run() -> int:
                     "## stdio MCP server variant\n\nSupported: NO",
                 )
             },
-            expected={"core": True, "extended": False},
+            expected={"core": False, "extended": False},
         ),
         Case(
             name="browser multiple interaction models",
