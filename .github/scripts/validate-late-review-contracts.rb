@@ -1,42 +1,45 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "lib/profile_contracts"
+require_relative "lib/profile-contracts"
 
-include ProfileContracts
-
-begin
-  skill = SkillDocument.read("SKILL.md")
-  selection = ProfileSelection.load("SKILL.md", document: skill)
-rescue ParseError => e
-  warn e.message
-  exit 1
-end
-
+selection = ProfileSelection.load
 repository = RepositorySnapshot.new
-selected_profiles = selection.profiles
+selected_profiles = selection.profiles.to_set
 errors = []
 
-ignored_root_names = %w[
-  README.md SKILL.md AGENTS.md CONTRIBUTING.md RUNTIME.md INTERFACES.md CLI_INTERFACE.md
-  MCP_INTERFACE.md WEB_INTERFACE.md LICENSE LICENSE.md LICENSE.template COPYING COPYING.md
-  SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
-].freeze
-guidance_extensions = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf].freeze
+ignored_root_names = Set.new(%w[
+  README.md
+  SKILL.md
+  AGENTS.md
+  CONTRIBUTING.md
+  RUNTIME.md
+  INTERFACES.md
+  CLI_INTERFACE.md
+  MCP_INTERFACE.md
+  WEB_INTERFACE.md
+  LICENSE
+  LICENSE.md
+  LICENSE.template
+  COPYING
+  COPYING.md
+  SECURITY.md
+  CODE_OF_CONDUCT.md
+  CHANGELOG.md
+].map(&:downcase)).freeze
 
+guidance_extensions = Set.new(%w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf]).freeze
 root_implementation_files = repository.root_files.select do |path|
-  next false if path.start_with?(".")
-  next false if ignored_root_names.any? { |name| path.casecmp?(name) }
-  next false if guidance_extensions.include?(File.extname(path).downcase)
-
-  true
+  !path.start_with?(".") &&
+    !ignored_root_names.include?(path.downcase) &&
+    !guidance_extensions.include?(File.extname(path).downcase)
 end
 
 if selection.template_scaffold? && !root_implementation_files.empty?
   errors << "'template-scaffold' cannot be retained after adding language-neutral root implementation signals: #{root_implementation_files.sort.join(', ')}."
 elsif !selection.template_scaffold?
-  application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
-  if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
+  application_profiles = Set.new(%w[packaged-cli mcp-enabled browser-interface headless-service])
+  if !root_implementation_files.empty? && selected_profiles.disjoint?(application_profiles)
     errors << "Language-neutral root implementation files require an application or service profile: #{root_implementation_files.sort.join(', ')}."
   end
 end
@@ -45,7 +48,7 @@ if selection.selected?("mcp-enabled")
   runtime = repository.document("RUNTIME.md")
   if runtime
     protocol = runtime.section("## MCP protocol support")
-    revisions = runtime.table_value("Supported protocol revisions", section: protocol).to_s
+    revisions = runtime.table_value("Supported protocol revisions", section: protocol) || ""
 
     stdio = runtime.section("### stdio variant")
     if runtime.table_value("Supported", section: stdio) == "YES"
@@ -93,10 +96,9 @@ if selection.selected?("mcp-enabled")
     end
 
     if http_supported && revisions.include?("2026-07-28")
-      modern_table = http&.match(
-        /When `2026-07-28` is supported, also complete:\s*\n\n(.*?)(?=\nThe stdio and Streamable HTTP variants|\z)/m
-      )&.[](1)
-
+      # Modern transport row labels are unique within the Streamable HTTP
+      # section. Read them from that authoritative section directly rather
+      # than coupling validation to surrounding explanatory prose.
       [
         "POST request model",
         "`Accept: application/json, text/event-stream`",
@@ -108,12 +110,12 @@ if selection.selected?("mcp-enabled")
         "SSE-stream cancellation",
         "`Mcp-Session-Id`, GET, DELETE, and resumability"
       ].each do |item|
-        unless ValuePolicy.concrete?(runtime.table_value(item, section: modern_table))
+        unless ValuePolicy.concrete?(runtime.table_value(item, section: http))
           errors << "Protocol revision 2026-07-28 with Streamable HTTP requires a concrete modern transport value for '#{item}'."
         end
       end
 
-      fallback = runtime.table_value("Initialization-era fallback on the same endpoint", section: modern_table)
+      fallback = runtime.table_value("Initialization-era fallback on the same endpoint", section: http)
       unless ValuePolicy.resolved_allow_not_supported?(fallback)
         errors << "Protocol revision 2026-07-28 requires a resolved initialization-era fallback decision; NOT SUPPORTED is allowed, NONE is not."
       end
