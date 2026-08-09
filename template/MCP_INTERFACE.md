@@ -16,8 +16,8 @@ Change the status to `SELECTED` only after all supported variants are concrete, 
 
 ```text
 Runtime, SDK, revision, era boundary, and schema source of truth: RUNTIME.md
-Public negotiation and fallback behavior: TODO
-Public compatibility statement: TODO
+Public negotiation and fallback behavior: Modern per-request metadata; no automatic Legacy initialization fallback
+Public compatibility statement: MCP 2026-07-28 Modern only; MCP 2025-11-25 and earlier are NOT SUPPORTED
 ```
 
 Do not duplicate SDK version selections here. A selected contract must state that callers use Modern per-request metadata, that the server implements `server/discover`, that unsupported revisions produce `UnsupportedProtocolVersionError`, and that no automatic fallback to the Legacy initialization handshake occurs.
