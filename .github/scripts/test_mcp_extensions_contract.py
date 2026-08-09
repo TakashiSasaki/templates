@@ -148,6 +148,13 @@ def run() -> int:
             expected_success=True,
         ),
         dict(
+            name="backtick-wrapped MCP profile and Apps extension",
+            profiles="`mcp-enabled`",
+            extensions="`io.modelcontextprotocol/ui`",
+            apps_contract=VALID_APPS,
+            expected_success=True,
+        ),
+        dict(
             name="unselected Apps contract retained",
             profiles="mcp-enabled",
             extensions="NONE",
@@ -159,6 +166,26 @@ def run() -> int:
             profiles="mcp-enabled",
             extensions="io.modelcontextprotocol/ui",
             apps_contract=None,
+            expected_success=False,
+        ),
+        dict(
+            name="Apps selected with unselected contract status",
+            profiles="mcp-enabled",
+            extensions="io.modelcontextprotocol/ui",
+            apps_contract=VALID_APPS.replace(
+                "Selection status: SELECTED",
+                "Selection status: UNSELECTED",
+            ),
+            expected_success=False,
+        ),
+        dict(
+            name="Apps selected with missing required heading",
+            profiles="mcp-enabled",
+            extensions="io.modelcontextprotocol/ui",
+            apps_contract=VALID_APPS.replace(
+                "## Sandbox and browser security",
+                "## Sandbox details",
+            ),
             expected_success=False,
         ),
         dict(
