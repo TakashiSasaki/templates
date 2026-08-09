@@ -53,6 +53,26 @@ async function callTextStats(client, text = "alpha beta\ngamma") {
   });
 }
 
+function completeBridgeInitialization(bridge, id = 7) {
+  const response = bridge.receiveFromView({
+    jsonrpc: "2.0",
+    id,
+    method: "ui/initialize",
+    params: {
+      appCapabilities: {
+        availableDisplayModes: ["inline"],
+      },
+    },
+  });
+  assert.equal(response.id, id);
+  assert.equal(response.result.protocolVersion, APPS_REVISION);
+  bridge.receiveFromView({
+    jsonrpc: "2.0",
+    method: "ui/notifications/initialized",
+  });
+  return response;
+}
+
 test("Modern discovery advertises the MCP Apps extension settings", async () => {
   const client = await connectClient({ apps: true });
   try {
@@ -117,6 +137,9 @@ test("ui resource resolves with the Apps media type and restrictive metadata", a
     assert.match(content.text, /ui\/initialize/);
     assert.match(content.text, /ui\/notifications\/initialized/);
     assert.match(content.text, /ui\/notifications\/tool-result/);
+    assert.match(content.text, /event\.source !== window\.parent/);
+    assert.match(content.text, /initializeRequestId/);
+    assert.match(content.text, /message\.params\?\.structuredContent/);
     assert.deepEqual(content._meta?.ui?.csp, {
       connectDomains: [],
       resourceDomains: [],
@@ -156,6 +179,24 @@ test("core tool result remains meaningful when the Host does not advertise Apps"
   }
 });
 
+test("UI resource failure does not corrupt the core MCP result", async () => {
+  const client = await connectClient({ apps: true });
+  try {
+    await assert.rejects(
+      client.readResource({ uri: "ui://text-stats/missing" }),
+    );
+    const result = await callTextStats(client);
+    assert.deepEqual(result.structuredContent, {
+      bytes: 16,
+      lines: 2,
+      words: 3,
+    });
+    assert.equal(result.content[0]?.type, "text");
+  } finally {
+    await client.close();
+  }
+});
+
 test("Apps bridge initialization is independent of the removed core initialize handshake", () => {
   const bridge = new HostBridgeSession();
 
@@ -174,7 +215,7 @@ test("Apps bridge initialization is independent of the removed core initialize h
 
   const response = bridge.receiveFromView({
     jsonrpc: "2.0",
-    id: 7,
+    id: "init-7",
     method: "ui/initialize",
     params: {
       appCapabilities: {
@@ -182,7 +223,7 @@ test("Apps bridge initialization is independent of the removed core initialize h
       },
     },
   });
-  assert.equal(response.id, 7);
+  assert.equal(response.id, "init-7");
   assert.equal(response.result.protocolVersion, APPS_REVISION);
   assert.equal(response.result.hostInfo.name, "fixture-host");
   assert.equal(bridge.initialized, false);
@@ -211,4 +252,62 @@ test("Apps bridge initialization is independent of the removed core initialize h
     lines: 1,
     words: 1,
   });
+});
+
+test("initialized Apps bridge mediates same-server tools/call and rejects forbidden calls", () => {
+  const refresh = {
+    name: "refresh_stats",
+    _meta: { ui: { visibility: ["app"] } },
+  };
+  const modelOnly = {
+    name: "model_summary",
+    _meta: { ui: { visibility: ["model"] } },
+  };
+  const bridge = new HostBridgeSession({
+    tools: [refresh, modelOnly],
+    callTool: ({ name, arguments: args }) => ({
+      content: [{ type: "text", text: `${name}:${args.text}` }],
+      structuredContent: { refreshed: args.text },
+    }),
+  });
+  completeBridgeInitialization(bridge);
+
+  const allowed = bridge.receiveFromView({
+    jsonrpc: "2.0",
+    id: 8,
+    method: "tools/call",
+    params: {
+      name: "refresh_stats",
+      arguments: { text: "alpha" },
+    },
+  });
+  assert.equal(allowed.id, 8);
+  assert.deepEqual(allowed.result.structuredContent, { refreshed: "alpha" });
+
+  assert.throws(
+    () => bridge.receiveFromView({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "model_summary", arguments: { text: "alpha" } },
+    }),
+    /not app-visible/,
+  );
+
+  const crossServer = new HostBridgeSession({
+    sourceServer: "server-a",
+    targetServer: "server-b",
+    tools: [refresh],
+    callTool: () => ({ content: [] }),
+  });
+  completeBridgeInitialization(crossServer, 10);
+  assert.throws(
+    () => crossServer.receiveFromView({
+      jsonrpc: "2.0",
+      id: 11,
+      method: "tools/call",
+      params: { name: "refresh_stats", arguments: { text: "alpha" } },
+    }),
+    /cross-server/,
+  );
 });
