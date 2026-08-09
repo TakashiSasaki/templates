@@ -53,8 +53,8 @@ async function callTextStats(client, text = "alpha beta\ngamma") {
   });
 }
 
-function completeBridgeInitialization(bridge, id = 7) {
-  const response = bridge.receiveFromView({
+async function completeBridgeInitialization(bridge, id = 7) {
+  const response = await bridge.receiveFromView({
     jsonrpc: "2.0",
     id,
     method: "ui/initialize",
@@ -66,7 +66,7 @@ function completeBridgeInitialization(bridge, id = 7) {
   });
   assert.equal(response.id, id);
   assert.equal(response.result.protocolVersion, APPS_REVISION);
-  bridge.receiveFromView({
+  await bridge.receiveFromView({
     jsonrpc: "2.0",
     method: "ui/notifications/initialized",
   });
@@ -203,23 +203,23 @@ test("UI resource failure does not corrupt the core MCP result", async () => {
   }
 });
 
-test("Apps bridge initialization is independent of the removed core initialize handshake", () => {
+test("Apps bridge initialization is independent of the removed core initialize handshake", async () => {
   const bridge = new HostBridgeSession();
 
   assert.throws(
     () => bridge.notificationForView("ui/notifications/tool-result", {}),
     /before View initialization completes/,
   );
-  assert.throws(
-    () => bridge.receiveFromView({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+  await assert.rejects(
+    bridge.receiveFromView({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
     /first View message must be ui\/initialize/,
   );
-  assert.throws(
-    () => bridge.receiveFromView({ jsonrpc: "2.0", id: 1, method: "ui/initialize", params: {} }),
+  await assert.rejects(
+    bridge.receiveFromView({ jsonrpc: "2.0", id: 1, method: "ui/initialize", params: {} }),
     /appCapabilities/,
   );
 
-  const response = bridge.receiveFromView({
+  const response = await bridge.receiveFromView({
     jsonrpc: "2.0",
     id: "init-7",
     method: "ui/initialize",
@@ -240,7 +240,7 @@ test("Apps bridge initialization is independent of the removed core initialize h
   );
 
   assert.equal(
-    bridge.receiveFromView({
+    await bridge.receiveFromView({
       jsonrpc: "2.0",
       method: "ui/notifications/initialized",
     }),
@@ -258,9 +258,13 @@ test("Apps bridge initialization is independent of the removed core initialize h
     lines: 1,
     words: 1,
   });
+
+  const noParams = bridge.notificationForView("notifications/message");
+  assert.equal(noParams.method, "notifications/message");
+  assert.equal("params" in noParams, false);
 });
 
-test("initialized Apps bridge mediates same-server tools/call and rejects forbidden calls", () => {
+test("initialized Apps bridge awaits same-server tools/call and rejects forbidden calls", async () => {
   const refresh = {
     name: "refresh_stats",
     _meta: { ui: { visibility: ["app"] } },
@@ -271,14 +275,14 @@ test("initialized Apps bridge mediates same-server tools/call and rejects forbid
   };
   const bridge = new HostBridgeSession({
     tools: [refresh, modelOnly],
-    callTool: ({ name, arguments: args }) => ({
+    callTool: async ({ name, arguments: args }) => ({
       content: [{ type: "text", text: `${name}:${args.text}` }],
       structuredContent: { refreshed: args.text },
     }),
   });
-  completeBridgeInitialization(bridge);
+  await completeBridgeInitialization(bridge);
 
-  const allowed = bridge.receiveFromView({
+  const allowed = await bridge.receiveFromView({
     jsonrpc: "2.0",
     id: 8,
     method: "tools/call",
@@ -289,9 +293,10 @@ test("initialized Apps bridge mediates same-server tools/call and rejects forbid
   });
   assert.equal(allowed.id, 8);
   assert.deepEqual(allowed.result.structuredContent, { refreshed: "alpha" });
+  assert.equal(typeof allowed.result?.then, "undefined");
 
-  assert.throws(
-    () => bridge.receiveFromView({
+  await assert.rejects(
+    bridge.receiveFromView({
       jsonrpc: "2.0",
       id: 9,
       method: "tools/call",
@@ -304,11 +309,11 @@ test("initialized Apps bridge mediates same-server tools/call and rejects forbid
     sourceServer: "server-a",
     targetServer: "server-b",
     tools: [refresh],
-    callTool: () => ({ content: [] }),
+    callTool: async () => ({ content: [] }),
   });
-  completeBridgeInitialization(crossServer, 10);
-  assert.throws(
-    () => crossServer.receiveFromView({
+  await completeBridgeInitialization(crossServer, 10);
+  await assert.rejects(
+    crossServer.receiveFromView({
       jsonrpc: "2.0",
       id: 11,
       method: "tools/call",
