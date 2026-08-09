@@ -15,12 +15,15 @@
       const result = document.getElementById("result");
       let nextId = 1;
       let initialized = false;
+      const initializeRequestId = nextId++;
 
       window.addEventListener("message", (event) => {
+        if (event.source !== window.parent) return;
+
         const message = event.data;
         if (!message || message.jsonrpc !== "2.0") return;
 
-        if (message.id === 1 && message.result && !initialized) {
+        if (message.id === initializeRequestId && message.result && !initialized) {
           initialized = true;
           window.parent.postMessage({
             jsonrpc: "2.0",
@@ -30,13 +33,17 @@
         }
 
         if (message.method === "ui/notifications/tool-result") {
-          result.textContent = JSON.stringify(message.params.structuredContent ?? message.params, null, 2);
+          result.textContent = JSON.stringify(
+            message.params?.structuredContent ?? message.params ?? null,
+            null,
+            2
+          );
         }
       });
 
       window.parent.postMessage({
         jsonrpc: "2.0",
-        id: nextId++,
+        id: initializeRequestId,
         method: "ui/initialize",
         params: {
           appCapabilities: {
