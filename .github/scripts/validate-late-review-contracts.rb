@@ -95,7 +95,7 @@ if selection.selected?("mcp-enabled")
     if http_supported && revisions.include?("2026-07-28")
       [
         "POST request model",
-        "`Accept: application/json, text/event-stream`",
+        "Accept: application/json, text/event-stream",
         "`MCP-Protocol-Version` and request `_meta` consistency",
         "Required `Mcp-Method` and conditional `Mcp-Name` headers",
         "Header value encoding",
