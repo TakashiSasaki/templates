@@ -16,7 +16,7 @@ The official SDK supplies protocol-version and client-capability metadata on eve
 
 Supported: YES
 Launch command: `node mcp/server.mjs`
-Lifecycle owner: MCP host or the maintainer test client's `StdioClientTransport`
+Lifecycle owner: see RUNTIME.md
 
 The server uses the official TypeScript SDK `serveStdio` entry with `legacy: "reject"`. stdout is protocol-only, diagnostics go to stderr, and `server/discover` identifies the supported Modern revision before ordinary tool calls. The only tool, `text_stats`, is read-only and delegates to `src/text_stats.mjs`.
 
