@@ -63,6 +63,12 @@ def _modern_http_runtime(*, post_request_model: str = "one JSON-RPC message per 
 |---|---|
 | Supported protocol revisions | 2026-07-28 |
 
+### stdio variant
+
+| Item | Selected value |
+|---|---|
+| Supported | NO |
+
 ### Streamable HTTP variant
 
 | Item | Selected value |
