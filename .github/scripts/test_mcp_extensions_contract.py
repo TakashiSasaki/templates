@@ -11,13 +11,7 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-VALIDATOR = (
-    REPOSITORY_ROOT
-    / "template"
-    / ".github"
-    / "scripts"
-    / "validate_mcp_extensions.py"
-)
+VALIDATOR = REPOSITORY_ROOT / "template" / ".github" / "scripts" / "validate_mcp_extensions.py"
 
 VALID_APPS = """# MCP Apps extension contract
 
@@ -104,6 +98,7 @@ def run_case(
     extensions: str | None,
     apps_contract: str | None,
     app_file: bool = False,
+    app_path_file: bool = False,
     expected_success: bool,
     stderr_must_not_contain: str | None = None,
 ) -> str | None:
@@ -118,6 +113,10 @@ def run_case(
             implementation = root / "mcp" / "apps"
             implementation.mkdir(parents=True)
             (implementation / "view.html").write_text("<p>fixture</p>\n", encoding="utf-8")
+        if app_path_file:
+            implementation = root / "mcp" / "apps"
+            implementation.parent.mkdir(parents=True)
+            implementation.write_text("unexpected\n", encoding="utf-8")
 
         environment = os.environ.copy()
         environment.pop("RUBYOPT", None)
@@ -136,10 +135,7 @@ def run_case(
                 f"{name}: expected success={expected_success}, got {success}; "
                 f"stdout={completed.stdout.strip()!r}; stderr={completed.stderr.strip()!r}"
             )
-        if (
-            stderr_must_not_contain is not None
-            and stderr_must_not_contain in completed.stderr
-        ):
+        if stderr_must_not_contain and stderr_must_not_contain in completed.stderr:
             return (
                 f"{name}: stderr unexpectedly contained {stderr_must_not_contain!r}; "
                 f"stderr={completed.stderr.strip()!r}"
@@ -149,128 +145,32 @@ def run_case(
 
 def run() -> int:
     cases = [
-        dict(
-            name="mcp without extensions",
-            profiles="mcp-enabled",
-            extensions="NONE",
-            apps_contract=None,
-            expected_success=True,
-        ),
-        dict(
-            name="backtick-wrapped MCP profile and Apps extension",
-            profiles="`mcp-enabled`",
-            extensions="`io.modelcontextprotocol/ui`",
-            apps_contract=VALID_APPS,
-            expected_success=True,
-        ),
-        dict(
-            name="individually backtick-wrapped MCP profile in multi-profile selection",
-            profiles="`mcp-enabled`, script-assisted",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS,
-            expected_success=True,
-        ),
-        dict(
-            name="unselected Apps contract retained",
-            profiles="mcp-enabled",
-            extensions="NONE",
-            apps_contract=VALID_APPS,
-            expected_success=False,
-        ),
-        dict(
-            name="unresolved extension selection does not imply Apps is unselected",
-            profiles="mcp-enabled",
-            extensions="TODO",
-            apps_contract=VALID_APPS,
-            expected_success=False,
-            stderr_must_not_contain="must remove MCP_APPS.md",
-        ),
-        dict(
-            name="Apps selected but contract missing",
-            profiles="mcp-enabled",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=None,
-            expected_success=False,
-        ),
-        dict(
-            name="Apps selected with unselected contract status",
-            profiles="mcp-enabled",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS.replace(
-                "Selection status: SELECTED",
-                "Selection status: UNSELECTED",
-            ),
-            expected_success=False,
-        ),
-        dict(
-            name="Apps selected with missing required heading",
-            profiles="mcp-enabled",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS.replace(
-                "## Sandbox and browser security",
-                "## Sandbox details",
-            ),
-            expected_success=False,
-        ),
-        dict(
-            name="Apps selected without browser profile",
-            profiles="mcp-enabled",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS,
-            expected_success=True,
-        ),
-        dict(
-            name="Apps implementation retained with Apps selected",
-            profiles="mcp-enabled",
-            extensions="io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS,
-            app_file=True,
-            expected_success=True,
-        ),
-        dict(
-            name="Apps implementation retained without Apps selection",
-            profiles="mcp-enabled",
-            extensions="NONE",
-            apps_contract=None,
-            app_file=True,
-            expected_success=False,
-        ),
-        dict(
-            name="malformed extension identifier",
-            profiles="mcp-enabled",
-            extensions="mcp-apps",
-            apps_contract=None,
-            expected_success=False,
-        ),
-        dict(
-            name="NONE mixed with extension",
-            profiles="mcp-enabled",
-            extensions="NONE, io.modelcontextprotocol/ui",
-            apps_contract=VALID_APPS,
-            expected_success=False,
-        ),
-        dict(
-            name="non-MCP skill retains Apps contract",
-            profiles="script-assisted",
-            extensions=None,
-            apps_contract=VALID_APPS,
-            expected_success=False,
-        ),
-        dict(
-            name="non-MCP skill retains Apps implementation",
-            profiles="script-assisted",
-            extensions=None,
-            apps_contract=None,
-            app_file=True,
-            expected_success=False,
-        ),
+        dict(name="mcp without extensions", profiles="mcp-enabled", extensions="NONE", apps_contract=None, expected_success=True),
+        dict(name="backtick-wrapped MCP profile and Apps extension", profiles="`mcp-enabled`", extensions="`io.modelcontextprotocol/ui`", apps_contract=VALID_APPS, expected_success=True),
+        dict(name="individually backtick-wrapped MCP profile in multi-profile selection", profiles="`mcp-enabled`, script-assisted", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS, expected_success=True),
+        dict(name="unselected Apps contract retained", profiles="mcp-enabled", extensions="NONE", apps_contract=VALID_APPS, expected_success=False),
+        dict(name="unresolved extension selection does not imply Apps is unselected", profiles="mcp-enabled", extensions="TODO", apps_contract=VALID_APPS, expected_success=False, stderr_must_not_contain="must remove MCP_APPS.md"),
+        dict(name="Apps selected but contract missing", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=None, expected_success=False),
+        dict(name="Apps selected with missing status heading", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("## Status and authority", "## Authority"), expected_success=False),
+        dict(name="Apps selected with unselected contract status", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("Selection status: SELECTED", "Selection status: UNSELECTED"), expected_success=False),
+        dict(name="Apps selected with missing required heading", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("## Sandbox and browser security", "## Sandbox details"), expected_success=False),
+        dict(name="Apps selected with wrong specification revision", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("Extension specification revision: 2026-01-26", "Extension specification revision: 2025-01-01"), expected_success=False),
+        dict(name="Apps selected with invalid core authority pointer", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("Core MCP revision: see RUNTIME.md", "Core MCP revision: 2026-07-28"), expected_success=False),
+        dict(name="Apps selected with unresolved contract body", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS + "\nTODO\n", expected_success=False),
+        dict(name="Apps selected missing ui initialize lifecycle", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("ui/initialize", "View initialization"), expected_success=False),
+        dict(name="Apps selected missing Web interface boundary", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS.replace("WEB_INTERFACE.md", "standalone Web contract"), expected_success=False),
+        dict(name="Apps selected without browser profile", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS, expected_success=True),
+        dict(name="Apps implementation retained with Apps selected", profiles="mcp-enabled", extensions="io.modelcontextprotocol/ui", apps_contract=VALID_APPS, app_file=True, expected_success=True),
+        dict(name="Apps implementation retained without Apps selection", profiles="mcp-enabled", extensions="NONE", apps_contract=None, app_file=True, expected_success=False),
+        dict(name="regular mcp apps path retained without Apps selection", profiles="mcp-enabled", extensions="NONE", apps_contract=None, app_path_file=True, expected_success=False),
+        dict(name="malformed extension identifier", profiles="mcp-enabled", extensions="mcp-apps", apps_contract=None, expected_success=False),
+        dict(name="NONE mixed with extension", profiles="mcp-enabled", extensions="NONE, io.modelcontextprotocol/ui", apps_contract=VALID_APPS, expected_success=False),
+        dict(name="non-MCP skill retains Apps contract", profiles="script-assisted", extensions=None, apps_contract=VALID_APPS, expected_success=False),
+        dict(name="non-MCP skill retains Apps implementation", profiles="script-assisted", extensions=None, apps_contract=None, app_file=True, expected_success=False),
+        dict(name="non-MCP skill retains regular mcp apps path", profiles="script-assisted", extensions=None, apps_contract=None, app_path_file=True, expected_success=False),
     ]
 
-    failures = [
-        failure
-        for case in cases
-        if (failure := run_case(**case)) is not None
-    ]
+    failures = [failure for case in cases if (failure := run_case(**case)) is not None]
     if failures:
         for failure in failures:
             print(failure, file=sys.stderr)
