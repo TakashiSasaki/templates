@@ -13,6 +13,19 @@ MCP_APPS_REVISION = "2026-01-26"
 EXTENSION_ID = re.compile(
     r"^[a-z0-9]+(?:\.[a-z0-9-]+)+/[a-z0-9][a-z0-9._-]*$"
 )
+REQUIRED_APPS_HEADINGS = (
+    "## Host capability and fallback",
+    "## UI resource inventory",
+    "## Tool-to-UI linkage",
+    "## Tool visibility and invocation",
+    "## Result and presentation data",
+    "## View and Host bridge lifecycle",
+    "## Sandbox and browser security",
+    "## Failure and degradation behavior",
+    "## Standalone Web interface boundary",
+    "## Required tests",
+    "## Decision rationale",
+)
 
 
 def selected_profiles(skill_text: str) -> set[str]:
@@ -160,6 +173,11 @@ def run() -> int:
                     "MCP_APPS.md Core MCP revision must be the exact authority pointer "
                     "'see RUNTIME.md'."
                 )
+            for heading in REQUIRED_APPS_HEADINGS:
+                if not re.search(rf"^{re.escape(heading)}\s*$", apps, re.MULTILINE):
+                    errors.append(
+                        f"A selected MCP_APPS.md contract requires section {heading!r}."
+                    )
             if re.search(r"\b(?:TODO|UNSELECTED)\b", apps, re.IGNORECASE):
                 errors.append(
                     "A selected MCP_APPS.md contract must contain no unresolved TODO or UNSELECTED values."
