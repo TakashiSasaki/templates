@@ -1,45 +1,42 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative "lib/profile-contracts"
+require_relative "lib/profile_contracts"
 
-selection = ProfileSelection.load
+include ProfileContracts
+
+begin
+  skill = SkillDocument.read("SKILL.md")
+  selection = ProfileSelection.load("SKILL.md", document: skill)
+rescue ParseError => e
+  warn e.message
+  exit 1
+end
+
 repository = RepositorySnapshot.new
-selected_profiles = selection.profiles.to_set
+selected_profiles = selection.profiles
 errors = []
 
-ignored_root_names = Set.new(%w[
-  README.md
-  SKILL.md
-  AGENTS.md
-  CONTRIBUTING.md
-  RUNTIME.md
-  INTERFACES.md
-  CLI_INTERFACE.md
-  MCP_INTERFACE.md
-  WEB_INTERFACE.md
-  LICENSE
-  LICENSE.md
-  LICENSE.template
-  COPYING
-  COPYING.md
-  SECURITY.md
-  CODE_OF_CONDUCT.md
-  CHANGELOG.md
-].map(&:downcase)).freeze
+ignored_root_names = %w[
+  README.md SKILL.md AGENTS.md CONTRIBUTING.md RUNTIME.md INTERFACES.md CLI_INTERFACE.md
+  MCP_INTERFACE.md WEB_INTERFACE.md LICENSE LICENSE.md LICENSE.template COPYING COPYING.md
+  SECURITY.md CODE_OF_CONDUCT.md CHANGELOG.md
+].freeze
+guidance_extensions = %w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf].freeze
 
-guidance_extensions = Set.new(%w[.md .markdown .mdx .rst .adoc .asciidoc .txt .pdf]).freeze
 root_implementation_files = repository.root_files.select do |path|
-  !path.start_with?(".") &&
-    !ignored_root_names.include?(path.downcase) &&
-    !guidance_extensions.include?(File.extname(path).downcase)
+  next false if path.start_with?(".")
+  next false if ignored_root_names.any? { |name| path.casecmp?(name) }
+  next false if guidance_extensions.include?(File.extname(path).downcase)
+
+  true
 end
 
 if selection.template_scaffold? && !root_implementation_files.empty?
   errors << "'template-scaffold' cannot be retained after adding language-neutral root implementation signals: #{root_implementation_files.sort.join(', ')}."
 elsif !selection.template_scaffold?
-  application_profiles = Set.new(%w[packaged-cli mcp-enabled browser-interface headless-service])
-  if !root_implementation_files.empty? && selected_profiles.disjoint?(application_profiles)
+  application_profiles = %w[packaged-cli mcp-enabled browser-interface headless-service]
+  if !root_implementation_files.empty? && (selected_profiles & application_profiles).empty?
     errors << "Language-neutral root implementation files require an application or service profile: #{root_implementation_files.sort.join(', ')}."
   end
 end
@@ -48,7 +45,7 @@ if selection.selected?("mcp-enabled")
   runtime = repository.document("RUNTIME.md")
   if runtime
     protocol = runtime.section("## MCP protocol support")
-    revisions = runtime.table_value("Supported protocol revisions", section: protocol) || ""
+    revisions = runtime.table_value("Supported protocol revisions", section: protocol).to_s
 
     stdio = runtime.section("### stdio variant")
     if runtime.table_value("Supported", section: stdio) == "YES"
@@ -96,9 +93,6 @@ if selection.selected?("mcp-enabled")
     end
 
     if http_supported && revisions.include?("2026-07-28")
-      # Modern transport row labels are unique within the Streamable HTTP
-      # section. Read them from that authoritative section directly rather
-      # than coupling validation to surrounding explanatory prose.
       [
         "POST request model",
         "`Accept: application/json, text/event-stream`",
