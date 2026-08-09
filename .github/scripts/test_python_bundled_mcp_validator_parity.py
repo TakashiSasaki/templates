@@ -133,7 +133,7 @@ Selected profiles: instruction-only
             expected_success=False,
         ),
         Case(
-            name="unsupported client transport drift",
+            name="inactive bundled-client transport field",
             source=".github/fixtures/profiles/mcp-enabled",
             replacements={
                 "MCP_INTERFACE.md": (
@@ -141,10 +141,10 @@ Selected profiles: instruction-only
                     "Transport used: stdio",
                 )
             },
-            expected_success=False,
+            expected_success=True,
         ),
         Case(
-            name="required stdio variant disabled",
+            name="server transport independent of inactive bundled client",
             source=".github/fixtures/profiles/mcp-enabled",
             replacements={
                 "MCP_INTERFACE.md": (
@@ -152,10 +152,10 @@ Selected profiles: instruction-only
                     "## stdio MCP server variant\n\nSupported: NO",
                 )
             },
-            expected_success=False,
+            expected_success=True,
         ),
         Case(
-            name="task support mismatch",
+            name="inactive bundled-client extension field",
             source=".github/fixtures/profiles/mcp-enabled",
             replacements={
                 "MCP_INTERFACE.md": (
@@ -163,7 +163,7 @@ Selected profiles: instruction-only
                     "Task or extension support: bounded tasks",
                 )
             },
-            expected_success=False,
+            expected_success=True,
         ),
     ]
 
