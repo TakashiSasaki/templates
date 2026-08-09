@@ -6,6 +6,8 @@ import sys
 import unittest
 from pathlib import Path, PurePosixPath
 
+from scripts import validate_distribution
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSIFICATION = ROOT / "docs/architecture/distribution-classification.json"
@@ -47,13 +49,18 @@ class DistributionBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(actual, sorted(classified))
         self.assertEqual(["template"], classification["distribution"])
+        self.assertNotIn("contracts", classified)
+        self.assertNotIn("schemas", classified)
+        self.assertNotIn("requirements-dev.lock", classified)
+        self.assertNotIn("requirements-dev.txt", classified)
+        self.assertNotIn("TEMPLATE.md", classified)
         self.assertIn("AGENTS.md", classification["maintainer"])
         self.assertIn("distribution-manifest.json", classification["maintainer"])
 
     def test_copy_contract_is_literal_and_uses_safe_relative_roots(self) -> None:
         value = self.load_classification()
 
-        self.assertEqual(1, value["schemaVersion"])
+        self.assertEqual(2, value["schemaVersion"])
         self.assertEqual("template", value["targetDistributionRoot"])
         self.assertEqual(".", value["directCopyDestination"])
         self.assertIs(value["contentTransformationAllowed"], False)
@@ -82,6 +89,7 @@ class DistributionBoundaryTests(unittest.TestCase):
         combined = " ".join(rules).lower()
         for required_term in (
             "branch root",
+            "sole canonical downstream source tree",
             "product repository root",
             "escape template",
             "publication",
@@ -94,6 +102,9 @@ class DistributionBoundaryTests(unittest.TestCase):
         manifest = json.loads(DISTRIBUTION_MANIFEST.read_text(encoding="utf-8"))
         forbidden = set(manifest["forbidden_distribution_paths"])
 
+        self.assertEqual(2, manifest["schema_version"])
+        self.assertNotIn("mirrors", manifest)
+        self.assertNotIn("distribution_owned_files", manifest)
         self.assertTrue(
             {
                 ".agent-policy",
@@ -105,7 +116,18 @@ class DistributionBoundaryTests(unittest.TestCase):
             }.issubset(forbidden)
         )
         self.assertNotIn("AGENTS.md", manifest["required_top_level_entries"])
-        self.assertNotIn("AGENTS.md", manifest["distribution_owned_files"])
+        self.assertNotIn("AGENTS.md", manifest["distribution_files"])
+        self.assertIn("scripts/validate_contracts.py", manifest["distribution_files"])
+
+    def test_null_byte_in_manifest_path_is_rejected_as_validation_error(self) -> None:
+        with self.assertRaisesRegex(
+            validate_distribution.DistributionValidationError,
+            "null byte in path is prohibited",
+        ):
+            validate_distribution._safe_relative_path(
+                "contracts/routes.json\0suffix",
+                "test path",
+            )
 
     def test_distribution_validator_passes_both_entry_points(self) -> None:
         for command in (

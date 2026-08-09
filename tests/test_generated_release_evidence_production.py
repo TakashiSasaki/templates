@@ -7,8 +7,9 @@ import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tests"))
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+DISTRIBUTION_ROOT = SOURCE_ROOT / "template"
+sys.path.insert(0, str(SOURCE_ROOT / "tests"))
 
 from generated_release_evidence_producer_fixture import (  # noqa: E402
     _install_release_evidence_producer,
@@ -218,9 +219,12 @@ class GeneratedReleaseEvidenceProductionTests(unittest.TestCase):
 
         self.assertEqual(
             "template",
-            _load_json(ROOT / "contracts/release-evidence.json")["mode"],
+            _load_json(
+                DISTRIBUTION_ROOT / "contracts/release-evidence.json"
+            )["mode"],
         )
-        self.assertFalse((ROOT / "product").exists())
+        self.assertFalse((SOURCE_ROOT / "product").exists())
+        self.assertFalse((DISTRIBUTION_ROOT / "product").exists())
 
     def test_failed_reviewed_command_cannot_produce_approved_release(self) -> None:
         with _generated_repository() as root:

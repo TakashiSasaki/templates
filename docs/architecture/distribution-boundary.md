@@ -6,22 +6,22 @@ The `webapp` branch is the development source for a reusable Web-application rep
 
 The branch owns three distinct artifacts:
 
-1. **Template source artifact** — the complete `webapp` branch checkout used by template maintainers. It contains the copyable template, source-only tests and fixture producers, publication integration, audits, and distribution validation.
+1. **Template source artifact** — the complete `webapp` branch checkout used by template maintainers. It contains the copyable template, source-only tests and fixture producers, publication integration, audits, policy, and distribution validation.
 2. **Template distribution artifact** — the committed contents of `template/`, copied without content transformation to the root of a newly created product repository.
 3. **Product repository artifact** — a repository created from the distribution after product-specific contracts, implementation, evidence, commands, CI, release results, and deployment configuration are supplied.
 
-These artifact identities are not interchangeable. Template-source validation does not by itself prove that the downstream distribution is closed, and a product repository must not inherit source-maintainer concerns merely because they are present in the same branch history.
+These artifact identities are not interchangeable. `template/` is the sole canonical source tree for downstream-owned content. Source-maintainer tooling consumes that canonical tree directly; the source repository does not maintain byte-identical root projections of downstream canonical inputs.
 
 ## Required invariant
 
-Let `S` be the complete source artifact, `D` the template distribution, and `M` the maintainer-only source content. The implemented ownership boundary satisfies:
+Let `S` be the complete source artifact, `D` the canonical downstream artifact rooted at `template/`, and `M` the maintainer-only source content outside that tree. The implemented ownership boundary satisfies:
 
 ```text
 D is a proper subtree of S
-D intersection M = empty
+D intersection M = empty   (responsibility)
 ```
 
-The set notation describes ownership rather than Git object identity. Source-owned canonical inputs may have byte-identical projections inside `template/`, but every distributed path has one downstream purpose and no distributed file may require a maintainer-only sibling.
+The set notation describes responsibility, not Git blob identity. Two independently owned files may happen to contain identical bytes. For example, the source checkout and downstream repository may each need a `.gitignore`. Such coincidence does not create a mirror contract. What is prohibited is a second authoritative source path for the same downstream responsibility.
 
 ## Copy contract
 
@@ -41,7 +41,7 @@ The distribution satisfies the following requirements:
 - the copied validators, schemas, migrations, dependency lock, tests, documentation, and CI workflow execute from the copied repository root;
 - template-source publication catalogs, distribution tooling, source audits, clean-room fixture producers, and review-history regressions are absent;
 - a generated repository can replace example declarations, enter product mode, execute release evidence and bundle production, and retain only product-relevant validation; and
-- source CI validates the branch root and `template/` as separate roots.
+- source CI validates source-maintainer concerns and the canonical downstream tree as separate roots.
 
 ## Shared policy adoption boundary
 
@@ -51,26 +51,25 @@ The Web-application artifact contract does not require an agent-instruction entr
 
 ## Implemented source layout
 
-The source layout uses one explicit copy boundary rather than requiring every source-only file to be nested under a directory named `maintainer`:
+The source layout uses one explicit canonical copy boundary rather than duplicating downstream inputs at the branch root:
 
 ```text
 /
-├── .agent-policy.lock         # deterministic shared-policy lock
-├── .agent-policy.yml          # source-maintainer shared-policy configuration
-├── .github/workflows/         # source-maintainer CI
-├── AGENTS.md                  # generated source-maintainer agent instructions
-├── README.md                  # source-maintainer overview
-├── distribution-manifest.json # closed source-to-distribution definition
+├── .agent-policy.lock          # deterministic shared-policy lock
+├── .agent-policy.yml           # source-maintainer shared-policy configuration
+├── .github/workflows/          # source-maintainer CI
+├── .gitignore                  # source-checkout ignore policy
+├── AGENTS.md                   # generated source-maintainer agent instructions
+├── README.md                   # source-maintainer overview
+├── distribution-manifest.json  # closed canonical distribution inventory
 ├── policy/                     # repository-local maintainer policy
-├── contracts/                  # source-owned canonical contract inputs
-├── schemas/                    # source-owned canonical schema inputs
-├── scripts/                    # reusable validators plus source-only validators
+├── docs/                       # maintainer architecture, audits, publication interface
+├── scripts/                    # source-only distribution/publication tooling and import bridge
 ├── tests/                      # source-maintainer regression and clean-room suites
-├── docs/                       # source architecture and publication interface
-└── template/                   # directly copyable downstream repository root
+└── template/                   # sole canonical downstream repository source tree
 ```
 
-The physical rule is simple and testable: every path below `template/` is distributed; every source-only path is outside `template/`. The generated root `AGENTS.md` is maintainer-only policy output and is not projected into `template/`. A separate `maintainer/` directory would not strengthen the downstream copy boundary and would require widespread path rewrites without changing which bytes are distributed. Source ownership is therefore enforced by the closed manifest and validator instead of by one additional naming layer.
+Consumer contracts, schemas, reusable validators, dependency files, migrations, operational guidance, and downstream tests are authored only below `template/`. Source-maintainer tests and workflows reference those canonical paths directly. The root `scripts` package may expose an import bridge into `template/scripts`, but it does not contain duplicate validator implementations.
 
 The distribution tree contains:
 
@@ -89,48 +88,56 @@ template/
 └── requirements-dev.lock
 ```
 
-`distribution-manifest.json` closes this inventory. `scripts/validate_distribution.py` rejects missing entries, undeclared entries, unsafe paths, symbolic or non-regular tracked files, Git administration paths, destination collisions, maintainer-only residue, top-level inventory drift, and byte differences in mirrored files.
+`distribution-manifest.json` closes this inventory with schema version 2 and an explicit `distribution_files` list. `scripts/validate_distribution.py` rejects missing entries, undeclared entries, unsafe paths, symbolic or non-regular files, Git administration paths, forbidden maintainer residue, top-level inventory drift, and any mismatch between the declared canonical inventory and tracked files under `template/`.
 
-## Source-to-distribution projection
+## Canonical source and copy model
 
-The distribution uses two file classes.
+The previous root-to-`template/` mirror/projection model is retired. There is no source-to-distribution mirror mapping, no byte-parity authority check, and no requirement to edit equivalent files in two locations.
 
-**Mirrored files** are source-owned canonical inputs whose exact bytes are also required downstream. The manifest maps the source path to its distribution destination and the validator compares the bytes. Contracts, schemas, reusable validators, migrations, dependency definitions, and shared guidance use this class.
+Downstream content has one authoring location:
 
-**Distribution-owned files** exist only below `template/` because their meaning is specific to a generated repository. The downstream `README.md`, downstream contract-validation workflow, and distribution baseline tests use this class.
+```text
+template/ canonical downstream source
+        │
+        ├── consumed directly by source-maintainer validation
+        └── copied byte-for-byte to a new product repository root
+```
 
-The projection is committed rather than generated only during CI. This makes the copyable tree directly inspectable and usable at every reviewed commit. The byte-identity validator prevents the committed projection from drifting from its source-owned canonical inputs.
+Source-only tooling may inspect, validate, package, publish, or attest the canonical tree, but it must not synthesize an alternate authoritative copy of downstream inputs. Packaging that archives the exact `template/` bytes is transport, not a second generated distribution.
 
 ## Current-tree classification
 
 `docs/architecture/distribution-classification.json` classifies every source top-level entry as one of:
 
-- `distribution`: the complete entry is the downstream copy root;
-- `split`: the entry has source-owned material that is selectively projected into `template/`; or
+- `distribution`: the complete entry is the downstream canonical copy root;
+- `split`: the same conceptual area has separate source-maintainer and downstream responsibilities, with downstream authority only under `template/`; or
 - `maintainer`: the complete entry remains outside the distribution.
 
-The classification and `distribution-manifest.json` have different roles. The classification closes ownership of source top-level entries. The manifest closes every tracked file in the downstream distribution and every source-to-distribution mirror.
+The classification and `distribution-manifest.json` have different roles. The classification closes ownership of source top-level entries. The manifest closes every tracked file in the canonical downstream tree.
 
 The principal split points are:
 
-- `.github`: source CI remains at the branch root; downstream contract validation is distribution-owned;
-- `README.md`: the branch-root source overview and downstream repository overview are different files;
-- `docs`: downstream contract, migration, evidence, and adoption guidance is separated from source audits and publication integration;
-- `scripts`: reusable validators are separated from publication and distribution validators;
-- `tests`: downstream baseline validation is separated from source clean-room generation, producer fixtures, publication tests, and review regressions.
+- `.github`: source CI remains at the branch root; downstream contract validation is canonical under `template/.github`;
+- `.gitignore`: the branch root controls the source checkout, while `template/.gitignore` controls generated product repositories;
+- `README.md`: the branch-root maintainer overview and `template/README.md` downstream overview have distinct responsibilities;
+- `docs`: source audits and publication integration remain at root, while downstream contract, migration, evidence, and adoption guidance is canonical under `template/docs`;
+- `scripts`: source distribution/publication tooling remains at root, while reusable validators are canonical under `template/scripts`;
+- `tests`: source clean-room generation, producer fixtures, publication tests, and review regressions remain at root, while downstream baseline tests are canonical under `template/tests`.
 
-Root `AGENTS.md` is instead wholly `maintainer`: it is generated from the source-maintainer policy configuration and must not be copied into the Webapp product template.
+Root `AGENTS.md` is wholly `maintainer`: it is generated from the source-maintainer policy configuration and must not be copied into the Webapp product template.
 
 ## Conformance strategy
 
-Source CI validates two independent roots:
+Source CI validates two independent responsibility roots:
 
-1. the complete source checkout, including distribution closure and source-maintainer validation; and
+1. the complete source checkout for maintainer policy, distribution closure, publication integration, clean-room fixtures, and source regressions; and
 2. `template/`, executed as a repository root without access to source siblings.
 
-The shared generated-repository fixture copies `template/`, not the branch root. Implementation conformance, declarative release-evidence conformance, actual release-evidence production, and release-bundle production therefore begin from the same distribution bytes. Their generated repositories do not contain a nested template tree, distribution manifest, provider publication catalog, source-only validators, audits, or fixture tests.
+Reusable validator implementations are executed from `template/scripts` in both cases. Source-maintainer tests that exercise downstream contracts, schemas, dependency locks, or guidance use `template/` as their artifact root. Tests that inspect source workflows, policy, audits, or publication metadata use the branch root explicitly.
 
-Assertions after each fixture verify that source and distribution evidence remain in template mode and that no product directory leaks into either tree.
+The shared generated-repository fixture copies `template/`, not the branch root. Implementation conformance, declarative release-evidence conformance, actual release-evidence production, and release-bundle production therefore begin from the same canonical distribution bytes. Their generated repositories do not contain a nested template tree, distribution manifest, provider publication catalog, source-only validators, audits, or fixture tests.
+
+Assertions after each fixture verify that the canonical `template/` evidence remains in template mode and that no generated `product/` directory leaks back into either the source checkout or the canonical distribution tree.
 
 ## Publication boundary
 
@@ -145,14 +152,15 @@ GitHub Pages deployment is active on the unrelated `site` branch. The `webapp` b
 The `webapp` migration is internally complete when:
 
 - the branch root is unambiguously a template-development source tree;
+- `template/` is the sole canonical source tree for downstream-owned content;
 - `template/` can be copied directly to an empty repository root;
 - every copied reference and validator resolves within the copied tree;
 - no maintainer-only artifact is present in the copied tree;
-- the manifest closes every tracked distribution file;
-- mirrored files are byte-identical to their source-owned canonical inputs;
-- source CI validates source and distribution independently;
-- all generated-product stages begin from the distribution;
-- publication sources are updated without broadening the public allowlist;
+- the schema-v2 manifest closes every tracked distribution file;
+- no root path remains authoritative for a downstream contract, schema, reusable validator, dependency input, migration, or downstream guidance document;
+- source CI validates maintainer concerns and the canonical distribution independently;
+- all generated-product stages begin from the canonical distribution;
+- publication sources resolve from their intended source or canonical downstream paths without broadening the public allowlist;
 - all tests and validator entry points pass; and
 - the final reviewed merge commit is recorded for coordinated `site` integration.
 

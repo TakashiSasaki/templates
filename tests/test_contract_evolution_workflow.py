@@ -3,11 +3,12 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
-README = ROOT / "README.md"
-TOOLCHAIN_GUIDE = ROOT / "docs/architecture/validation-toolchain.md"
-EVOLUTION_GUIDE = ROOT / "docs/architecture/contract-evolution.md"
+SOURCE_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATE_ROOT = SOURCE_ROOT / "template"
+WORKFLOW = SOURCE_ROOT / ".github/workflows/contract-validation.yml"
+README = SOURCE_ROOT / "README.md"
+TOOLCHAIN_GUIDE = TEMPLATE_ROOT / "docs/architecture/validation-toolchain.md"
+EVOLUTION_GUIDE = TEMPLATE_ROOT / "docs/architecture/contract-evolution.md"
 
 
 class ContractEvolutionWorkflowTests(unittest.TestCase):
@@ -51,18 +52,26 @@ class ContractEvolutionWorkflowTests(unittest.TestCase):
                 self.assertNotIn(legacy, workflow)
 
     def test_local_guidance_documents_all_four_validator_entry_points(self) -> None:
-        commands = (
+        source_commands = (
+            "template/scripts/validate_contracts.py",
+            "scripts.validate_contracts",
+            "template/scripts/validate_contract_evolution.py",
+            "scripts.validate_contract_evolution",
+        )
+        downstream_commands = (
             "python scripts/validate_contracts.py",
             "python -m scripts.validate_contracts",
             "python scripts/validate_contract_evolution.py",
             "python -m scripts.validate_contract_evolution",
         )
 
-        for source_path in (README, TOOLCHAIN_GUIDE):
-            source = source_path.read_text(encoding="utf-8")
-            with self.subTest(source=source_path.name):
-                for command in commands:
-                    self.assertIn(command, source)
+        source = README.read_text(encoding="utf-8")
+        for command in source_commands:
+            self.assertIn(command, source)
+
+        downstream = TOOLCHAIN_GUIDE.read_text(encoding="utf-8")
+        for command in downstream_commands:
+            self.assertIn(command, downstream)
 
     def test_evolution_guide_defines_review_boundary(self) -> None:
         guide = EVOLUTION_GUIDE.read_text(encoding="utf-8")

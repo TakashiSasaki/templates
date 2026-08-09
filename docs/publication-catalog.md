@@ -5,17 +5,16 @@ and machine-readable reference assets that may be published through the
 repository documentation portal in `docs/publication-catalog.json`.
 
 The unrelated `site` branch consumes this catalog together with the `skill`
-and `policy` catalogs. Only `site` assembles GitHub Pages. Pages deployment is
-suspended while the source and copyable-template boundaries are being changed;
-`site` will be updated to the final reviewed `webapp` full commit SHA before a
-separate change restores deployment.
+and `policy` catalogs. Only `site` assembles and deploys GitHub Pages. After a
+reviewed `webapp` change is merged, `site` must be updated to the final full
+commit SHA before newer Webapp material can enter the integrated publication.
 
 ## Source and distribution publication
 
 The catalog deliberately publishes from two ownership roots:
 
-- downstream material is published from `template/`, the directory whose
-  contents may be copied directly to a new product repository root;
+- downstream material is published from `template/`, the sole canonical source
+  tree whose contents may be copied directly to a new product repository root;
 - source-maintainer architecture, audits, clean-room conformance explanation,
   and this publication contract remain outside `template/`.
 
@@ -25,8 +24,8 @@ copyable distribution. Conversely, publishing a document from `template/`
 does not transfer its canonical ownership to `site`.
 
 Stable document IDs and generated destinations are preserved when a canonical
-source moves below `template/`. For example, `webapp:overview` now resolves
-from `template/README.md`, while its integrated destination remains the Web
+source lives below `template/`. For example, `webapp:overview` resolves from
+`template/README.md`, while its integrated destination remains the Web
 application publication home. The contract and schema assets resolve from
 `template/contracts` and `template/schemas`, but retain `contracts` and
 `schemas` as their destinations within the `webapp` publication namespace.
@@ -36,7 +35,7 @@ application publication home. The contract and schema assets resolve from
 `webapp` owns:
 
 - stable document IDs within the `webapp` publication namespace;
-- canonical source paths across the source and distribution roots;
+- canonical source paths across the source and distribution responsibility roots;
 - source optionality;
 - the publication landing document;
 - explicit non-Markdown asset roots needed by the published documents; and
@@ -101,9 +100,10 @@ The validator rejects duplicate JSON members, unsupported fields, unsafe paths,
 symbolic-link traversal, duplicate IDs or destinations, invalid home
 declarations, and missing required documents or assets.
 
-The separate distribution validator proves that the copyable tree is closed and
-that mirrored contract, schema, validator, migration, dependency, and guidance
-bytes match their source-owned counterparts:
+The separate distribution validator proves that the schema-v2
+`distribution_files` inventory is a closed description of the canonical
+`template/` tree, rejects undeclared or missing files and maintainer-only
+residue, and does not depend on a second root copy or byte-parity mirror:
 
 ```sh
 python scripts/validate_distribution.py

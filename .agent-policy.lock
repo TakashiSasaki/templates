@@ -6,13 +6,13 @@ inputs:
   .agent-policy.yml:
     sha256: 868fe3da01f413f40739caa6563f8aca8cfc17418b0ab5b4367f7fb718382e84
   policy/repository/authority-boundary.md:
-    sha256: 019152d9bb9efdc1b0fc542b2ab13deb73db2f4ff53f0cc7b356c97822c7c904
+    sha256: c94b309edd79331f03b167a4a285b6ee6fca2007c5522cc9befcbc6476abbd84
   policy/repository/history-boundary.md:
     sha256: cbd99376f24764589cd3d3aef1e2ba520f7b9106a1de856a06a53733f0a03c7b
   policy/repository/maintainer-validation.md:
-    sha256: b1279defc109ff80eb32ded6ab10d4f02c307bcd59ee0f9f3653a52026738f6d
+    sha256: 52eae441b33aaa144e78cb6ff082e3830d3f5207bb122c8705fc33f4876c8e54
   policy/repository/reading-scope.md:
-    sha256: 97238f5a8f6aa079b6637b1c84dffd0904981e479ce6270593fbfd1e5858311d
+    sha256: 2efa3690f7b62808ebb1842715d72eb5c1c588ed533a0eed8c98317a33302b16
 outputs:
   AGENTS.md:
-    sha256: 3d648496adaae1b9adb02f92199999f4e71cdd45bb93a4fd19c933c84c557273
+    sha256: d9de3da1944fc60e7abd43356f90645520dd954c012caaf7ca9ff4ef87505659

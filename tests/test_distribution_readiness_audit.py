@@ -23,7 +23,11 @@ class DistributionReadinessAuditTests(unittest.TestCase):
         self.assertIs(classification["contentTransformationAllowed"], False)
         self.assertEqual(["template"], classification["topLevelClassification"]["distribution"])
         self.assertIn(
-            "dedicated maintainer directory is not required",
+            "downstream authority lives only under template",
+            classification["maintainerLayout"],
+        )
+        self.assertIn(
+            "source-maintainer paths remain outside template",
             classification["maintainerLayout"],
         )
         rules = " ".join(classification["requiredSeparationRules"])
@@ -35,11 +39,14 @@ class DistributionReadinessAuditTests(unittest.TestCase):
         boundary = BOUNDARY.read_text(encoding="utf-8")
 
         self.assertIn("## Implemented source layout", boundary)
-        self.assertIn("## Source-to-distribution projection", boundary)
-        self.assertIn("**Mirrored files**", boundary)
-        self.assertIn("**Distribution-owned files**", boundary)
+        self.assertIn("## Canonical source and copy model", boundary)
+        self.assertIn("sole canonical source tree", boundary)
+        self.assertIn("distribution_files", boundary)
         self.assertIn("cp -a template/.", boundary)
-        self.assertIn("A separate `maintainer/` directory would not strengthen", boundary)
+        self.assertIn("root `scripts` package may expose an import bridge", boundary)
+        self.assertNotIn("**Mirrored files**", boundary)
+        self.assertNotIn("byte-identity validator", boundary)
+        self.assertNotIn("source-owned canonical contract inputs", boundary)
         self.assertNotIn("future `template/` directory", boundary)
         self.assertNotIn("The future `template/` tree", boundary)
 

@@ -355,7 +355,9 @@ def _mutate_evidence(
 
 
 def _is_template_maintainer_source() -> bool:
-    evidence = _load_json(ROOT / "contracts/implementation-evidence.json")
+    evidence = _load_json(
+        DISTRIBUTION_ROOT / "contracts/implementation-evidence.json"
+    )
     return evidence.get("mode") == "template"
 
 
@@ -381,12 +383,10 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
         self.assertIn(diagnostic, result.stderr)
 
     def test_clean_room_generated_repository_is_product_conformant(self) -> None:
-        source_evidence = _load_json(ROOT / "contracts/implementation-evidence.json")
-        distributed_evidence = _load_json(
+        canonical_evidence = _load_json(
             DISTRIBUTION_ROOT / "contracts/implementation-evidence.json"
         )
-        self.assertEqual("template", source_evidence["mode"])
-        self.assertEqual("template", distributed_evidence["mode"])
+        self.assertEqual("template", canonical_evidence["mode"])
 
         with _generated_repository() as root:
             self.assertFalse((root / ".git").exists())
@@ -423,10 +423,6 @@ class GeneratedRepositoryConformanceTests(unittest.TestCase):
                         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
                     )
 
-        self.assertEqual(
-            "template",
-            _load_json(ROOT / "contracts/implementation-evidence.json")["mode"],
-        )
         self.assertEqual(
             "template",
             _load_json(
