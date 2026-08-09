@@ -1,6 +1,0 @@
-source "https://rubygems.org"
-
-gemspec
-
-gem "mcp", "1.0.0"
-gem "minitest", "5.27.0"
