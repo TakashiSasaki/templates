@@ -80,6 +80,16 @@ test("Modern client discovers the server, lists the tool, and calls it", async (
       words: 3,
     });
     assert.equal(result.isError, undefined);
+
+    const trailingNewline = await client.callTool({
+      name: "text_stats",
+      arguments: { text: "alpha\n" },
+    });
+    assert.deepEqual(trailingNewline.structuredContent, {
+      bytes: 6,
+      lines: 1,
+      words: 1,
+    });
   } finally {
     await client.close();
   }
