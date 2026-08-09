@@ -7,18 +7,18 @@ Selection status: SELECTED
 ## MCP protocol reference
 
 Runtime, SDK, revision, era boundary, and schema source of truth: RUNTIME.md
-Public negotiation and fallback behavior: The server is Modern-only. Clients discover `2026-07-28` through `server/discover` or send a `2026-07-28` request directly; unsupported revisions receive `UnsupportedProtocolVersionError`. There is no Legacy fallback.
-Public compatibility statement: Only MCP `2026-07-28` Modern behavior is supported. Initialization-based MCP revisions are intentionally unsupported because this fixture represents the unpublished template baseline.
+Public negotiation and fallback behavior: The server implements `server/discover`, serves only MCP `2026-07-28`, requires Modern per-request metadata, and returns `UnsupportedProtocolVersionError` for unsupported revisions. It never falls back to the Legacy initialization handshake.
+Public compatibility statement: Only MCP `2026-07-28` Modern behavior is supported. Revisions `2025-11-25` and earlier are intentionally unsupported because this fixture represents the unpublished template baseline.
 
-The official SDK supplies per-request protocol version and client-capability metadata on Modern calls. The server does not accept `initialize` as a compatibility path and does not require `notifications/initialized`.
+The official SDK supplies protocol-version and client-capability metadata on every Modern request. The server does not accept `initialize` as a compatibility path and does not require the Legacy initialized notification.
 
 ## stdio MCP server variant
 
 Supported: YES
 Launch command: `node mcp/server.mjs`
-Lifecycle owner: MCP host or the test client's `StdioClientTransport`
+Lifecycle owner: MCP host or the maintainer test client's `StdioClientTransport`
 
-The server uses the official TypeScript SDK's `serveStdio` entry with `legacy: "reject"`. stdout is protocol-only and diagnostics go to stderr. `server/discover` advertises the supported Modern revision before ordinary tool calls. The only tool, `text_stats`, is read-only and delegates to `src/text_stats.mjs`.
+The server uses the official TypeScript SDK `serveStdio` entry with `legacy: "reject"`. stdout is protocol-only, diagnostics go to stderr, and `server/discover` identifies the supported Modern revision before ordinary tool calls. The only tool, `text_stats`, is read-only and delegates to `src/text_stats.mjs`.
 
 ## Streamable HTTP MCP server variant
 
@@ -33,7 +33,7 @@ Revision-specific state model: NOT SUPPORTED; the fixture opens no HTTP MCP endp
 Authentication: NOT SUPPORTED
 Health/readiness check: NOT SUPPORTED
 
-The fixture deliberately makes no Streamable HTTP conformance claim. The template retains Modern Streamable HTTP contract guidance for concrete Skills that select it, but this representative executable evidence isolates core protocol behavior on stdio.
+This fixture makes no Streamable HTTP conformance claim. The template retains a conditional Modern Streamable HTTP contract for concrete Skills that select it.
 
 ## Bundled ad hoc MCP tool client
 
@@ -41,57 +41,57 @@ Supported: NO
 Scope: NOT SUPPORTED
 Command: NOT SUPPORTED
 Transport used: NOT SUPPORTED
-Negotiation and compatibility behavior: NOT SUPPORTED; `tests/test_mcp.mjs` uses the official client package only as maintainer evidence.
+Negotiation and compatibility behavior: NOT SUPPORTED; `tests/test_mcp.mjs` uses the official client package only as source-maintainer evidence.
 Invocation scope: NOT SUPPORTED
 Interaction modes: NOT SUPPORTED
 Task or extension support: NOT SUPPORTED
 
-There is no public bundled client in this fixture. Test-only client code must not be interpreted as a distributed Skill interface.
+No public client command, option surface, or serialization contract exists in this fixture. Test-only client code is evidence rather than a second distributed interface.
 
 ### Recommended command mapping
 
-The fixture defines no public client command mapping. Maintainer tests call the official SDK directly so the evidence cannot be mistaken for an invented MCP CLI method.
+No public command mapping applies because the bundled client is not supported. Maintainer tests call the official SDK directly and do not invent MCP methods.
 
 ### Recommended options
 
-No public client options are defined because the bundled client is not supported.
+No public client options apply because the bundled client is not supported.
 
 ### Tool inventory, schemas, and caching
 
-The Modern test client calls `tools/list` and requires exactly the `text_stats` tool. The tool input schema accepts one string field named `text`; the output schema describes non-negative integer `bytes`, `lines`, and `words` fields. The fixture does not claim pagination, cache-hint, or cross-request inventory caching behavior beyond what the SDK and selected core revision provide for this one-page inventory.
+The Modern maintainer client calls `tools/list` and requires exactly `text_stats`. The input schema accepts one string field named `text`; the output schema declares non-negative integer `bytes`, `lines`, and `words`. This one-page fixture claims no cross-request cache behavior.
 
 ### Lossless paginated tool-list output
 
-The fixture does not publish a client-side serialization contract. The maintainer test inspects the SDK result without flattening the tool names before checking the one-page inventory. A concrete Skill that adds a bundled client must preserve raw pages according to the template contract.
+The fixture publishes no client-side list serialization. Maintainer evidence inspects the SDK result directly. A concrete Skill that selects a bundled client must preserve raw result pages according to the template contract.
 
 ### Tool-call results and errors
 
-`text_stats` returns textual content plus `structuredContent`. The Modern wire representation is produced by the official SDK and therefore carries the revision-required result typing. The test checks the decoded structured result and distinguishes protocol negotiation failures from a successful tool result.
+`text_stats` returns textual content plus `structuredContent`. The official Modern codec supplies revision-required result typing. Tests distinguish protocol-version failures from a successful tool result and verify the structured fields exactly.
 
 ### Multiple calls and application state
 
-The operation is deterministic and has no hidden application state. Reusing one Modern stdio connection does not alter results. The fixture makes no protocol-session state claim because Modern MCP has no initialization session.
+The operation is deterministic and keeps no hidden application or protocol-session state. Reusing one Modern stdio connection does not change operation semantics.
 
 ### Selected modern multi-round-trip requests
 
-The `text_stats` operation never requires additional input after the initial call, so it does not return `input_required`. If a future operation needs additional client input, it must use the Modern MRTR result/retry model rather than a server-to-client request channel.
+The `text_stats` operation never requires additional input, so it never returns `input_required`. Any concrete operation that needs additional client input must use the Modern MRTR result/retry model defined by MCP `2026-07-28`.
 
 ### Selected initialization-era server-to-client requests
 
-NOT SUPPORTED. The fixture neither advertises nor implements Legacy elicitation, sampling, roots, or initialization-session callbacks. A Legacy `initialize` opening is a negative test and must receive the unsupported-protocol-version error identifying `2026-07-28` as supported.
+NOT SUPPORTED. The fixture advertises no Legacy elicitation, sampling, roots, or initialization-session request channel. A Legacy `initialize` opening is negative evidence and receives the unsupported-protocol-version error.
 
 ### Cancellation, tasks, and extensions
 
-The fixture advertises no Tasks extension or other optional extension. Closing the test client closes the stdio transport and child process. The bounded tool completes synchronously and does not detach work. Extension behavior will be added only through an independently versioned and capability-gated contract.
+The fixture advertises no Tasks or other optional extension. Closing the test client closes the stdio transport and owned child process. The bounded tool does not detach work. Optional extensions require an independently versioned, capability-gated contract before they can be claimed.
 
 ### Ownership and workspace policy
 
-The MCP host owns the trusted `node mcp/server.mjs` child process. The fixture exposes no arbitrary command launcher, workspace argument, filesystem write, network call, or deprecated Roots capability. Its only input is the explicit `text` tool argument.
+The MCP host owns the trusted `node mcp/server.mjs` child process. The fixture exposes no arbitrary command launcher, workspace argument, filesystem write, network call, or deprecated Roots capability. Its only domain input is the explicit `text` tool argument.
 
 ## Semantic-equivalence and test requirements
 
-`src/text_stats.mjs` is the single domain implementation. MCP tests prove Modern discovery, official-client connection, exact tool inventory, deterministic structured results, rejection of the `2025-11-25` Legacy initialization opening, and rejection of an unsupported future revision with error code `-32022`. The fixture's stdio path is the only public adapter, so no cross-transport equivalence is claimed.
+`src/text_stats.mjs` is the single domain implementation. Tests prove Modern discovery, official-client connection, exact tool inventory, deterministic structured results, rejection of a `2025-11-25` Legacy initialization opening, and rejection of an unsupported future revision with error code `-32022`. stdio is the only public adapter, so no cross-transport equivalence claim is made.
 
 ## Decision rationale
 
-Rationale: The fixture is deliberately small and Modern-only. It uses the official TypeScript SDK 2.0.0 serving API with explicit Legacy rejection so the executable evidence directly proves the initial template's `2026-07-28` baseline instead of carrying compatibility machinery that has never been published to users.
+Rationale: The fixture is deliberately small and Modern-only. It uses the official TypeScript MCP SDK 2.0.0 serving API with explicit Legacy rejection so executable evidence directly proves the initial template's `2026-07-28` baseline without retaining unpublished compatibility machinery.
