@@ -140,6 +140,12 @@ test("ui resource resolves with the Apps media type and restrictive metadata", a
     assert.match(content.text, /event\.source !== window\.parent/);
     assert.match(content.text, /initializeRequestId/);
     assert.match(content.text, /message\.params\?\.structuredContent/);
+    assert.match(content.text, /aria-live="polite"/);
+    assert.match(content.text, /aria-atomic="true"/);
+    assert.match(
+      content.text,
+      /message\.method === "ui\/notifications\/tool-result"[\s\S]*?if \(!initialized\) return;/,
+    );
     assert.deepEqual(content._meta?.ui?.csp, {
       connectDomains: [],
       resourceDomains: [],
