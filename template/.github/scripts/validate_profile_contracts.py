@@ -18,6 +18,7 @@ DIRECT_VALIDATORS = (
     "validate_cli_exit_code_contract.py",
     "validate_mcp_runtime_authority.py",
     "validate_mcp_protocol_conformance.py",
+    "validate_mcp_extensions.py",
     "validate_interface_runtime_consistency.py",
     "validate_bundled_mcp_client_consistency.py",
     "validate_interface_summary_details.py",
