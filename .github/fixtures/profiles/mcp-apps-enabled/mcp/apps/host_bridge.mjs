@@ -40,6 +40,22 @@ export function assertAppCallAllowed({ sourceServer, targetServer, tool }) {
 export class HostBridgeSession {
   #initializeResponseSent = false;
   #initialized = false;
+  #sourceServer;
+  #targetServer;
+  #tools;
+  #callTool;
+
+  constructor({
+    sourceServer = "fixture-server",
+    targetServer = "fixture-server",
+    tools = [],
+    callTool = null,
+  } = {}) {
+    this.#sourceServer = sourceServer;
+    this.#targetServer = targetServer;
+    this.#tools = tools;
+    this.#callTool = callTool;
+  }
 
   receiveFromView(message) {
     if (!message || message.jsonrpc !== "2.0" || typeof message.method !== "string") {
@@ -88,7 +104,38 @@ export class HostBridgeSession {
       return null;
     }
 
-    return null;
+    if (message.method === "tools/call") {
+      if (message.id === undefined) {
+        throw new Error("App tools/call must be a JSON-RPC request with an id");
+      }
+      const name = message.params?.name;
+      if (typeof name !== "string" || !name) {
+        throw new Error("App tools/call requires a tool name");
+      }
+      const tool = this.#tools.find((candidate) => candidate.name === name);
+      if (!tool) {
+        throw new Error(`unknown App tool ${name}`);
+      }
+      assertAppCallAllowed({
+        sourceServer: this.#sourceServer,
+        targetServer: this.#targetServer,
+        tool,
+      });
+      if (typeof this.#callTool !== "function") {
+        throw new Error("no App tool dispatcher is configured");
+      }
+
+      return {
+        jsonrpc: "2.0",
+        id: message.id,
+        result: this.#callTool({
+          name,
+          arguments: message.params?.arguments ?? {},
+        }),
+      };
+    }
+
+    throw new Error(`unsupported initialized View method ${message.method}`);
   }
 
   notificationForView(method, params) {
