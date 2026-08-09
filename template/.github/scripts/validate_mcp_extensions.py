@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+from lib.profile_contracts import MarkdownDocument, ParseError, ProfileSelection, ValuePolicy
+
 
 MCP_APPS_EXTENSION = "io.modelcontextprotocol/ui"
 MCP_APPS_REVISION = "2026-01-26"
@@ -28,39 +30,14 @@ REQUIRED_APPS_HEADINGS = (
 )
 
 
-def selected_profiles(skill_text: str) -> set[str]:
-    match = re.search(r"^Selected profiles:\s*(.+?)\s*$", skill_text, re.MULTILINE)
-    if not match:
-        return set()
-    return {item.strip() for item in match.group(1).split(",") if item.strip()}
-
-
-def table_value(markdown: str, label: str) -> str | None:
-    match = re.search(
-        rf"^\|\s*{re.escape(label)}\s*\|\s*(.*?)\s*\|\s*$",
-        markdown,
-        re.MULTILINE,
-    )
-    return match.group(1).strip() if match else None
-
-
-def scalar(markdown: str, label: str) -> str | None:
-    match = re.search(
-        rf"^{re.escape(label)}:\s*(.*?)\s*$",
-        markdown,
-        re.MULTILINE,
-    )
-    return match.group(1).strip() if match else None
-
-
-def normalize(value: str | None) -> str:
+def normalize(value: object | None) -> str:
     if value is None:
         return ""
-    return value.replace("`", "").strip()
+    return ValuePolicy.strip_backticks(value).strip()
 
 
-def selected_extensions(runtime: str, errors: list[str]) -> set[str]:
-    raw = normalize(table_value(runtime, "Optional MCP extensions"))
+def selected_extensions(runtime: MarkdownDocument, errors: list[str]) -> set[str]:
+    raw = normalize(runtime.table_value("Optional MCP extensions"))
     if not raw or re.search(r"\b(?:TODO|UNSELECTED)\b", raw, re.IGNORECASE):
         errors.append(
             "RUNTIME.md requires a concrete 'Optional MCP extensions' value for "
@@ -71,7 +48,11 @@ def selected_extensions(runtime: str, errors: list[str]) -> set[str]:
     if raw.upper() == "NONE":
         return set()
 
-    items = {item.strip() for item in raw.split(",") if item.strip()}
+    items = {
+        normalize(item)
+        for item in raw.split(",")
+        if normalize(item)
+    }
     if not items:
         errors.append(
             "RUNTIME.md Optional MCP extensions must be NONE or a comma-separated "
@@ -103,15 +84,17 @@ def apps_implementation_present(root: Path) -> bool:
 def run() -> int:
     root = Path.cwd()
     skill_path = root / "SKILL.md"
-    if not skill_path.is_file():
-        print("Missing SKILL.md.", file=sys.stderr)
+    try:
+        selection = ProfileSelection.load(skill_path)
+    except (ParseError, OSError) as exc:
+        print(exc, file=sys.stderr)
         return 1
 
-    profiles = selected_profiles(skill_path.read_text(encoding="utf-8"))
-    if "template-scaffold" in profiles:
+    if selection.template_scaffold():
         print("MCP extension validation not applicable to the template scaffold.")
         return 0
 
+    profiles = set(selection.profiles)
     apps_contract = root / "MCP_APPS.md"
     apps_files_present = apps_implementation_present(root)
 
@@ -143,7 +126,7 @@ def run() -> int:
         return 1
 
     errors: list[str] = []
-    runtime = runtime_path.read_text(encoding="utf-8")
+    runtime = MarkdownDocument.read(runtime_path)
     extensions = selected_extensions(runtime, errors)
     apps_selected = MCP_APPS_EXTENSION in extensions
 
@@ -153,40 +136,40 @@ def run() -> int:
                 "Selecting io.modelcontextprotocol/ui requires a regular MCP_APPS.md contract."
             )
         else:
-            apps = apps_contract.read_text(encoding="utf-8")
-            if normalize(scalar(apps, "Selection status")) != "SELECTED":
+            apps = MarkdownDocument.read(apps_contract)
+            if normalize(apps.field("Selection status")) != "SELECTED":
                 errors.append(
                     "Selected MCP Apps support requires 'Selection status: SELECTED' in MCP_APPS.md."
                 )
-            if normalize(scalar(apps, "Extension identifier")) != MCP_APPS_EXTENSION:
+            if normalize(apps.field("Extension identifier")) != MCP_APPS_EXTENSION:
                 errors.append(
                     "MCP_APPS.md must declare 'Extension identifier: "
                     f"{MCP_APPS_EXTENSION}'."
                 )
-            if normalize(scalar(apps, "Extension specification revision")) != MCP_APPS_REVISION:
+            if normalize(apps.field("Extension specification revision")) != MCP_APPS_REVISION:
                 errors.append(
                     "MCP_APPS.md must select exactly MCP Apps specification revision "
                     f"{MCP_APPS_REVISION}."
                 )
-            if normalize(scalar(apps, "Core MCP revision")) != "see RUNTIME.md":
+            if normalize(apps.field("Core MCP revision")) != "see RUNTIME.md":
                 errors.append(
                     "MCP_APPS.md Core MCP revision must be the exact authority pointer "
                     "'see RUNTIME.md'."
                 )
             for heading in REQUIRED_APPS_HEADINGS:
-                if not re.search(rf"^{re.escape(heading)}\s*$", apps, re.MULTILINE):
+                if apps.section(heading) is None:
                     errors.append(
                         f"A selected MCP_APPS.md contract requires section {heading!r}."
                     )
-            if re.search(r"\b(?:TODO|UNSELECTED)\b", apps, re.IGNORECASE):
+            if re.search(r"\b(?:TODO|UNSELECTED)\b", apps.text, re.IGNORECASE):
                 errors.append(
                     "A selected MCP_APPS.md contract must contain no unresolved TODO or UNSELECTED values."
                 )
-            if "ui/initialize" not in apps:
+            if "ui/initialize" not in apps.text:
                 errors.append(
                     "A selected MCP_APPS.md contract must distinguish the Apps ui/initialize bridge lifecycle."
                 )
-            if "WEB_INTERFACE.md" not in apps or "browser-interface" not in apps:
+            if "WEB_INTERFACE.md" not in apps.text or "browser-interface" not in apps.text:
                 errors.append(
                     "MCP_APPS.md must document the boundary from the standalone browser-interface contract."
                 )
