@@ -1,6 +1,8 @@
 # Optional human verification web interface
 
-Complete this file only when the concrete skill may provide a browser-facing page for verification, diagnostics, demonstration, or limited human operation. This interface is optional and is not part of MCP itself.
+Complete this file only when the concrete skill may provide a **standalone browser-facing page** for verification, diagnostics, demonstration, or limited human operation. This interface is optional and is not part of MCP itself.
+
+A Host-embedded MCP App View is not this interface. When `io.modelcontextprotocol/ui` is selected, Apps-specific `ui://` resources, View↔Host bridge behavior, sandboxing, CSP, permissions, and fallback belong in `MCP_APPS.md`. MCP Apps alone does not select `browser-interface` and does not require this file in a concrete Skill.
 
 ## Status and purpose
 
@@ -43,9 +45,9 @@ A separate port is not required. When `RUNTIME.md` selects a shared listener, on
 
 Path sharing does not merge security policies. The UI, its backend API, the MCP endpoint, and health endpoints remain separate logical interfaces even when they share a host and port.
 
-## Relationship to MCP
+## Relationship to MCP and MCP Apps
 
-Choose one interaction model:
+Choose one standalone-Web interaction model:
 
 ```text
 UI interaction model:
@@ -56,6 +58,10 @@ UI interaction model:
 ```
 
 For a page intended to verify MCP behavior, the action under test must traverse the actual MCP client, protocol, transport, and server adapter. Do not call the application layer directly and describe that result as MCP verification.
+
+MCP Apps follows a different execution model: a Host renders an App View in a sandbox and mediates its bridge calls. Do not model that Host-embedded View as an external Web URL, do not use this file as the Apps sandbox/permission contract, and do not infer `browser-interface` merely because the Apps implementation contains HTML, CSS, or JavaScript.
+
+If frontend code intentionally supports both standalone Web and MCP Apps modes, retain both `WEB_INTERFACE.md` and `MCP_APPS.md`. Define which routing, authentication, credential, CSP, Host capability, and lifecycle assumptions apply to each mode rather than treating one contract as an alias of the other.
 
 A backend-for-frontend that acts as an MCP client is normally safer than direct browser-to-MCP access. It can keep service credentials out of browser code, apply a narrower authorization policy, normalize diagnostics, and restrict which tools are exposed.
 
@@ -138,9 +144,10 @@ The Web UI may reuse:
 - the same lossless result and pagination representations;
 - the same schema rendering and validation utilities;
 - the same trusted operation policy and redaction rules;
-- the same trace and diagnostic model.
+- the same trace and diagnostic model;
+- frontend components also used by an MCP App, when their environment-specific adapters remain separate.
 
-It must not duplicate domain behavior or create a second, inconsistent tool registry.
+It must not duplicate domain behavior or create a second, inconsistent tool registry. Shared frontend code must not collapse the standalone-Web and MCP Apps trust boundaries.
 
 ## Required tests
 
@@ -158,10 +165,11 @@ When the Web UI is supported, test the applicable cases:
 - independent UI and MCP readiness checks;
 - UI failure without false MCP health results;
 - MCP failure displayed accurately by the UI;
-- production-disable or restricted-production policy.
+- production-disable or restricted-production policy;
+- separate contract behavior when the same frontend is also used as an MCP App.
 
 ## Decision rationale
 
-Explain why a human-facing page is or is not supported, why its default enablement is appropriate, how the deployment selections recorded in `RUNTIME.md` support the intended uses, and which security and lifecycle properties remain invariant across those deployments.
+Explain why a standalone human-facing page is or is not supported, why its default enablement is appropriate, how the deployment selections recorded in `RUNTIME.md` support the intended uses, and which security and lifecycle properties remain invariant across those deployments. If the Skill also supports MCP Apps, explain why a separate standalone browser surface is still needed rather than treating the App View as equivalent.
 
 TODO
