@@ -54,6 +54,56 @@ Selected profiles: {profile}
 {extra}"""
 
 
+def _modern_http_runtime(*, post_request_model: str = "one JSON-RPC message per POST") -> str:
+    return f"""# Runtime decision record
+
+## MCP protocol support
+
+| Item | Selected value |
+|---|---|
+| Supported protocol revisions | 2026-07-28 |
+
+### Streamable HTTP variant
+
+| Item | Selected value |
+|---|---|
+| Supported | YES |
+| Server entry point | server/http.mjs |
+| Endpoint path | /mcp |
+| Default bind address | 127.0.0.1 |
+| Port | 3000 |
+| Supported protocol eras | modern |
+| Revision-specific state model | request-scoped Modern state |
+| Concurrent-client policy | independent request contexts |
+| Authentication | bearer token |
+| Host-header validation | validate every request |
+| Origin validation granularity | validate every request |
+| Allowed origins and absent-Origin policy | allow https://example.test; reject other present origins |
+| Connection-reuse security tests | keep-alive requests with distinct origins |
+| Readiness check | GET /ready outside MCP endpoint |
+| Cancellation behavior | close request SSE to cancel that request |
+| Shutdown/restart policy | graceful drain then restart |
+| Non-loopback support | disabled by deployment policy |
+
+When Streamable HTTP is supported, complete every Modern requirement below:
+
+| Modern Streamable HTTP requirement | Selected behavior |
+|---|---|
+| POST request model | {post_request_model} |
+| `Accept: application/json, text/event-stream` | require both media types |
+| `MCP-Protocol-Version` and request `_meta` consistency | require exact agreement |
+| Required `Mcp-Method` and conditional `Mcp-Name` headers | require and validate before dispatch |
+| Header value encoding | use the selected specification encoding |
+| `x-mcp-header` validation and `Mcp-Param-*` emission | validate definitions before emission |
+| JSON and request-scoped SSE response handling | support JSON and request-scoped SSE |
+| SSE-stream cancellation | closing the stream cancels the request |
+| `Mcp-Session-Id`, GET, DELETE, and resumability | not used in Modern core |
+| Initialization-era fallback on the same endpoint | NOT SUPPORTED |
+
+The stdio and Streamable HTTP variants must preserve equivalent domain semantics.
+"""
+
+
 def _run(command: list[str], case: Case) -> tuple[int, str, str]:
     with tempfile.TemporaryDirectory(prefix="python-cutover-parity-") as directory:
         root = Path(directory)
@@ -150,6 +200,18 @@ def run() -> int:
                 )
             },
             expected={"concrete": False, "late-review": True},
+        ),
+        Case(
+            name="Modern Streamable HTTP table is parsed from the HTTP section",
+            profile="mcp-enabled",
+            files={"RUNTIME.md": _modern_http_runtime()},
+            expected={"concrete": True, "late-review": True},
+        ),
+        Case(
+            name="Modern Streamable HTTP rejects an unresolved required row",
+            profile="mcp-enabled",
+            files={"RUNTIME.md": _modern_http_runtime(post_request_model="TODO")},
+            expected={"concrete": True, "late-review": False},
         ),
     ]
 
