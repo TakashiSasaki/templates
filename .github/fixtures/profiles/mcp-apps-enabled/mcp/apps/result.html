@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Text statistics</title>
+</head>
+<body>
+  <main>
+    <h1>Text statistics</h1>
+    <pre id="result">Waiting for tool result…</pre>
+  </main>
+  <script>
+    (() => {
+      const result = document.getElementById("result");
+      let nextId = 1;
+      let initialized = false;
+
+      window.addEventListener("message", (event) => {
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+
+        if (message.id === 1 && message.result && !initialized) {
+          initialized = true;
+          window.parent.postMessage({
+            jsonrpc: "2.0",
+            method: "ui/notifications/initialized"
+          }, "*");
+          return;
+        }
+
+        if (message.method === "ui/notifications/tool-result") {
+          result.textContent = JSON.stringify(message.params.structuredContent ?? message.params, null, 2);
+        }
+      });
+
+      window.parent.postMessage({
+        jsonrpc: "2.0",
+        id: nextId++,
+        method: "ui/initialize",
+        params: {
+          appCapabilities: {
+            availableDisplayModes: ["inline"]
+          }
+        }
+      }, "*");
+    })();
+  </script>
+</body>
+</html>
