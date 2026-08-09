@@ -153,7 +153,7 @@ def run() -> int:
                 # than coupling validation to surrounding explanatory prose.
                 for item in (
                     "POST request model",
-                    "`Accept: application/json, text/event-stream`",
+                    "Accept: application/json, text/event-stream",
                     "`MCP-Protocol-Version` and request `_meta` consistency",
                     "Required `Mcp-Method` and conditional `Mcp-Name` headers",
                     "Header value encoding",
