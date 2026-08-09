@@ -288,6 +288,6 @@ Run the supported profile-aware validation entry point:
 python .github/scripts/validate_profile_contracts.py
 ```
 
-The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Extension-specific focused validators activate only from selected extension identifiers.
+The entry point runs both focused direct validators and shared-model rule validators against the decomposed contract files. It does not synthesize a monolithic interface document or load a compatibility adapter. Focused validators may retain bounded parser logic for their contract-specific checks, while the rule validators share `.github/scripts/lib/profile_contracts.py`. Extension-specific focused validators activate only from selected extension identifiers.
 
 The validation host requires Python 3.12 or newer, PyYAML 6.0.3, and Git.
