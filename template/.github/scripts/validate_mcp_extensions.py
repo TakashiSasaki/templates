@@ -94,7 +94,7 @@ def run() -> int:
         print("MCP extension validation not applicable to the template scaffold.")
         return 0
 
-    profiles = set(selection.profiles)
+    profiles = {normalize(profile) for profile in selection.profiles if normalize(profile)}
     apps_contract = root / "MCP_APPS.md"
     apps_files_present = apps_implementation_present(root)
 
