@@ -28,8 +28,8 @@ Use this skill when an MCP-capable agent Host can register the trusted bundled s
 
 Stdio server registration command: `node mcp/server.mjs`
 Preferred agent route: see INTERFACES.md
-Core MCP contract: MCP_INTERFACE.md
-MCP Apps contract: MCP_APPS.md
+Detailed interface contract: MCP_INTERFACE.md
+MCP Apps extension contract: MCP_APPS.md
 Runtime, core revision, and extension selection authority: RUNTIME.md
 
 ## Output requirements
