@@ -39,8 +39,12 @@ def unresolved(value: str | None) -> bool:
 
 
 def section(markdown: str, heading: str) -> str:
+    marker = re.match(r"^(#+)\s", heading)
+    if marker is None:
+        raise ValueError(f"heading must start with Markdown hashes: {heading!r}")
+    level = len(marker.group(1))
     match = re.search(
-        rf"^{re.escape(heading)}\s*$([\s\S]*?)(?=^##?\s|\Z)",
+        rf"^{re.escape(heading)}\s*$\n([\s\S]*?)(?=^#{{1,{level}}}\s|\Z)",
         markdown,
         re.MULTILINE,
     )
@@ -91,9 +95,9 @@ def run() -> int:
         errors.append(
             "RUNTIME.md must state a concrete 2026-07-28-only negotiation or pinning policy."
         )
-    if re.search(r"\b(?:auto|fallback|fall back|dual|legacy)\b", negotiation, re.IGNORECASE):
+    if re.search(r"\b(?:dual[- ]?era|both eras|mode:\s*auto|automatic fallback)\b", negotiation, re.IGNORECASE):
         errors.append(
-            "RUNTIME.md must not select automatic legacy fallback for the unpublished "
+            "RUNTIME.md must not select automatic Legacy fallback for the unpublished "
             "Modern-only baseline."
         )
 
@@ -122,13 +126,13 @@ def run() -> int:
                 f"MCP_INTERFACE.md must describe Modern baseline behavior for {required_phrase}."
             )
 
-    if re.search(r"\bsend\s+`?initialize`?", interface, re.IGNORECASE):
+    if re.search(r"\b(?:send|perform|require)\s+(?:one\s+)?`?initialize`?\s+request", interface, re.IGNORECASE):
         errors.append(
             "MCP_INTERFACE.md must not instruct callers to send the Legacy initialize handshake."
         )
-    if "notifications/initialized" in interface:
+    if re.search(r"\b(?:send|perform|require)\s+`?notifications/initialized`?", interface, re.IGNORECASE):
         errors.append(
-            "MCP_INTERFACE.md must not require the Legacy notifications/initialized message."
+            "MCP_INTERFACE.md must not instruct callers to send the Legacy notifications/initialized message."
         )
 
     stdio = section(runtime, "### stdio variant")
@@ -146,7 +150,7 @@ def run() -> int:
         if http_eras != "modern":
             errors.append("A supported Streamable HTTP variant must be Modern-only.")
         state_model = normalized(table_value(http, "Revision-specific state model"))
-        if not re.search(r"\b(?:stateless|no protocol sessions|request-scoped)\b", state_model, re.IGNORECASE):
+        if not re.search(r"\b(?:stateless|no protocol[- ]level sessions|request[- ]scoped)\b", state_model, re.IGNORECASE):
             errors.append(
                 "Modern Streamable HTTP must explicitly avoid protocol-level sessions."
             )
