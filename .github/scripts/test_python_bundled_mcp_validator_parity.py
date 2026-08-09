@@ -126,18 +126,18 @@ Selected profiles: instruction-only
             source=".github/fixtures/profiles/mcp-enabled",
             replacements={
                 "MCP_INTERFACE.md": (
-                    "## Bundled ad hoc MCP tool client\n\nSupported: YES",
                     "## Bundled ad hoc MCP tool client\n\nSupported: NO",
+                    "## Bundled ad hoc MCP tool client\n\nSupported: YES",
                 )
             },
             expected_success=False,
         ),
         Case(
-            name="transport mismatch",
+            name="unsupported client transport drift",
             source=".github/fixtures/profiles/mcp-enabled",
             replacements={
                 "MCP_INTERFACE.md": (
-                    "Transport used: both",
+                    "Transport used: NOT SUPPORTED",
                     "Transport used: stdio",
                 )
             },
