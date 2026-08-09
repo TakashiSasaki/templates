@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
@@ -149,17 +148,9 @@ def run() -> int:
                         )
 
             if http_supported and "2026-07-28" in revisions:
-                modern_table: str | None = None
-                if http is not None:
-                    match = re.search(
-                        r"When `2026-07-28` is supported, also complete:\s*\n\n"
-                        r"(.*?)(?=\nThe stdio and Streamable HTTP variants|\Z)",
-                        http,
-                        re.DOTALL,
-                    )
-                    if match:
-                        modern_table = match.group(1)
-
+                # Modern transport row labels are unique within the Streamable HTTP
+                # section. Read them from that authoritative section directly rather
+                # than coupling validation to surrounding explanatory prose.
                 for item in (
                     "POST request model",
                     "`Accept: application/json, text/event-stream`",
@@ -172,7 +163,7 @@ def run() -> int:
                     "`Mcp-Session-Id`, GET, DELETE, and resumability",
                 ):
                     if not ValuePolicy.concrete(
-                        runtime.table_value(item, section=modern_table)
+                        runtime.table_value(item, section=http)
                     ):
                         errors.append(
                             "Protocol revision 2026-07-28 with Streamable HTTP "
@@ -182,7 +173,7 @@ def run() -> int:
 
                 fallback = runtime.table_value(
                     "Initialization-era fallback on the same endpoint",
-                    section=modern_table,
+                    section=http,
                 )
                 if not ValuePolicy.resolved_allow_not_supported(fallback):
                     errors.append(
