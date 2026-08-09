@@ -7,6 +7,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+SCRIPT_ROOT = Path(__file__).resolve().parent
+REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
+sys.path.insert(0, str(TEMPLATE_SCRIPT_ROOT))
+
 from lib.profile_contracts import (
     MarkdownDocument,
     ParseError,

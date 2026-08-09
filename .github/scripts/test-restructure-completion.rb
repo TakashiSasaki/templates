@@ -50,6 +50,44 @@ forbidden_root_skill_paths.each do |relative|
   failures << "obsolete root Skill authority reintroduced: #{relative}" if path.exist? || path.symlink?
 end
 
+canonical_validator_relatives = %w[
+  lib/core_profile_interfaces.py
+  lib/core_profile_runtime.py
+  lib/profile_contracts.py
+  validate_bundled_mcp_client_consistency.py
+  validate_cli_exit_code_contract.py
+  validate_cli_structured_output_contract.py
+  validate_concrete_profile_consistency.py
+  validate_core_profile_contracts.py
+  validate_decomposed_interface_contracts.py
+  validate_extended_profile_contracts.py
+  validate_interface_routing_contract.py
+  validate_interface_runtime_consistency.py
+  validate_interface_summary_details.py
+  validate_late_review_contracts.py
+  validate_mcp_runtime_authority.py
+  validate_profile_contracts.py
+  validate_review_followup_contracts.py
+  validate_selected_contract_scalar_placeholders.py
+  validate_skill_repository.py
+].freeze
+canonical_validator_relatives.each do |relative|
+  canonical = ROOT.join("template/.github/scripts", relative)
+  legacy = ROOT.join(".github/scripts", relative)
+  failures << "canonical downstream validator is missing: #{relative}" unless canonical.file? && !canonical.symlink?
+  failures << "alternate root validator authority reintroduced: #{relative}" if legacy.exist? || legacy.symlink?
+end
+
+begin
+  manifest = JSON.parse(ROOT.join("distribution-manifest.json").read(encoding: "UTF-8"))
+  failures << "distribution manifest schema must remain canonical-inventory v2" unless manifest["schema_version"] == 2
+  failures << "distribution manifest must not regain mirrors" if manifest.key?("mirrors")
+  failures << "distribution manifest must not regain distribution_owned_files" if manifest.key?("distribution_owned_files")
+  failures << "distribution manifest must declare canonical distribution_files" unless manifest["distribution_files"].is_a?(Array)
+rescue JSON::ParserError, Errno::ENOENT => e
+  failures << "invalid distribution manifest: #{e.message}"
+end
+
 begin
   classification = JSON.parse(ROOT.join("docs/architecture/distribution-classification.json").read(encoding: "UTF-8"))
   top_level = classification.fetch("topLevelClassification")
@@ -111,7 +149,7 @@ end
 
 root_readme = ROOT.join("README.md").read(encoding: "UTF-8") rescue ""
 [
-  "The canonical user-facing artifact is `template/`",
+  "The canonical user-facing artifact and its canonical source tree are `template/`.",
   "cp -a template/. /path/to/new-skill/",
   "The branch root deliberately contains no `SKILL.md`"
 ].each do |snippet|
@@ -126,7 +164,7 @@ end
 boundary = ROOT.join("docs/architecture/distribution-boundary.md").read(encoding: "UTF-8") rescue ""
 [
   "The branch root is not an installable Skill directory.",
-  "The copyable distribution is `template/`.",
+  "The copyable distribution is `template/`, and `template/` is also the sole canonical source tree",
   "The structural separation is complete."
 ].each do |snippet|
   failures << "distribution boundary omits completion statement: #{snippet.inspect}" unless boundary.include?(snippet)

@@ -15,11 +15,9 @@ module SkillDistribution
     destination_root
     content_transformation_allowed
     required_top_level_entries
-    mirrors
-    distribution_owned_files
+    distribution_files
     forbidden_distribution_paths
   ]).freeze
-  MIRROR_KEYS = Set.new(%w[source destination exclude]).freeze
 
   module_function
 
@@ -90,17 +88,13 @@ module SkillDistribution
     path == prefix || path.start_with?("#{prefix}/")
   end
 
-  def mapped_destination(destination, relative)
-    relative.empty? ? destination : "#{destination}/#{relative}"
-  end
-
   def validate(root_path = Dir.pwd)
     root = Pathname.new(File.expand_path(root_path))
     fail!("source root is not a directory: #{root}") unless root.directory?
 
     manifest = load_manifest(root)
     schema_version = manifest["schema_version"]
-    fail!("distribution manifest: schema_version must be integer 1") unless schema_version == 1 && schema_version.is_a?(Integer)
+    fail!("distribution manifest: schema_version must be integer 2") unless schema_version == 2 && schema_version.is_a?(Integer)
 
     source_root = safe_relative_path(manifest["source_root"], "distribution manifest source_root")
     destination_root = safe_relative_path(manifest["destination_root"], "distribution manifest destination_root", allow_dot: true)
@@ -109,7 +103,7 @@ module SkillDistribution
     fail!("distribution manifest: content transformation must remain disabled") unless manifest["content_transformation_allowed"] == false
 
     required_top_level = sorted_path_list(manifest["required_top_level_entries"], "distribution manifest required_top_level_entries")
-    distribution_owned = sorted_path_list(manifest["distribution_owned_files"], "distribution manifest distribution_owned_files")
+    distribution_files = sorted_path_list(manifest["distribution_files"], "distribution manifest distribution_files")
     forbidden = sorted_path_list(manifest["forbidden_distribution_paths"], "distribution manifest forbidden_distribution_paths")
 
     tracked = tracked_entries(root)
@@ -130,62 +124,9 @@ module SkillDistribution
       fail!("distribution: tracked path is not a regular file: #{relative}") unless path.file?
     end
 
-    mirrors = manifest["mirrors"]
-    fail!("distribution manifest: mirrors must be a non-empty array") unless mirrors.is_a?(Array) && !mirrors.empty?
-
-    expected = distribution_owned.to_set
-    byte_pairs = []
-    mirror_sources = Set.new
-    mirror_destinations = Set.new
-
-    mirrors.each_with_index do |mirror, index|
-      context = "distribution manifest mirrors[#{index}]"
-      fail!("#{context}: value must be an object") unless mirror.is_a?(Hash)
-      unknown = mirror.keys.to_set - MIRROR_KEYS
-      missing = MIRROR_KEYS - mirror.keys.to_set
-      unless unknown.empty? && missing.empty?
-        fail!("#{context}: invalid members; missing=#{missing.to_a.sort.inspect}, unsupported=#{unknown.to_a.sort.inspect}")
-      end
-
-      source = safe_relative_path(mirror["source"], "#{context} source")
-      destination = safe_relative_path(mirror["destination"], "#{context} destination")
-      excludes = sorted_path_list(mirror["exclude"], "#{context} exclude")
-      fail!("#{context}: duplicate mirror source #{source}") unless mirror_sources.add?(source)
-      fail!("#{context}: duplicate mirror destination #{destination}") unless mirror_destinations.add?(destination)
-
-      source_path = root.join(source)
-      fail!("#{context}: source may not be a symbolic link: #{source}") if source_path.symlink?
-
-      members = []
-      if tracked.key?(source)
-        fail!("#{context}: a file mirror may not declare exclusions") unless excludes.empty?
-        members << [source, ""]
-      else
-        source_prefix = "#{source}/"
-        source_members = tracked.keys.select { |path| path.start_with?(source_prefix) }.sort
-        fail!("#{context}: source does not exist as a tracked file or directory: #{source}") if source_members.empty?
-        available = source_members.map { |path| path.delete_prefix(source_prefix) }.to_set
-        absent_excludes = excludes.reject { |path| available.include?(path) }
-        fail!("#{context}: exclusions are not tracked: #{absent_excludes.inspect}") unless absent_excludes.empty?
-        source_members.each do |path|
-          relative = path.delete_prefix(source_prefix)
-          members << [path, relative] unless excludes.include?(relative)
-        end
-      end
-
-      members.each do |source_file, relative|
-        source_mode = tracked.fetch(source_file)
-        fail!("#{context}: source symbolic links are prohibited: #{source_file}") if source_mode == "120000"
-        destination_file = mapped_destination(destination, relative)
-        safe_relative_path(destination_file, "#{context} mapped destination")
-        fail!("#{context}: distribution destination collision: #{destination_file}") if expected.include?(destination_file)
-        expected << destination_file
-        byte_pairs << [source_file, destination_file, source_mode]
-      end
-    end
-
-    overlap = distribution_owned.select { |path| forbidden.any? { |entry| descendant?(path, entry) } }
-    fail!("distribution manifest: owned and forbidden paths overlap: #{overlap.inspect}") unless overlap.empty?
+    expected = distribution_files.to_set
+    overlap = distribution_files.select { |path| forbidden.any? { |entry| descendant?(path, entry) } }
+    fail!("distribution manifest: distribution and forbidden paths overlap: #{overlap.inspect}") unless overlap.empty?
 
     missing = (expected - actual.keys.to_set).to_a.sort
     undeclared = (actual.keys.to_set - expected).to_a.sort
@@ -200,26 +141,14 @@ module SkillDistribution
       fail!("distribution: top-level inventory differs; expected=#{required_top_level.inspect}, actual=#{actual_top_level.inspect}")
     end
 
-    distribution_owned.each do |relative|
+    distribution_files.each do |relative|
       path = root.join(source_root, relative)
       mode = actual.fetch(relative)
-      fail!("distribution-owned file may not be a symbolic link: #{relative}") if mode == "120000" || path.symlink?
-      fail!("distribution-owned path is not a regular file: #{relative}") unless path.file?
+      fail!("distribution file may not be a symbolic link: #{relative}") if mode == "120000" || path.symlink?
+      fail!("distribution path is not a regular file: #{relative}") unless path.file?
     end
 
-    byte_pairs.each do |source_file, destination_file, source_mode|
-      destination_mode = actual.fetch(destination_file)
-      unless source_mode == destination_mode
-        fail!("distribution: mirrored mode differs: #{source_file} -> #{destination_file}")
-      end
-      source_bytes = root.join(source_file).binread
-      destination_bytes = root.join(source_root, destination_file).binread
-      unless source_bytes == destination_bytes
-        fail!("distribution: mirrored bytes differ: #{source_file} -> #{destination_file}")
-      end
-    end
-
-    puts "Skill template distribution is valid. #{actual.length} files; #{byte_pairs.length} byte-preserving mirrors."
+    puts "Skill template distribution is valid. #{actual.length} canonical files."
     true
   rescue Errno::ENOENT, Errno::EACCES => e
     fail!("distribution: cannot inspect required file: #{e.message}")

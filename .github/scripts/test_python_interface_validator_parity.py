@@ -14,19 +14,20 @@ from pathlib import Path
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 VALIDATORS = {
     "routing": (
         ["ruby", str(SCRIPT_ROOT / "validate-interface-routing-contract.rb")],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_interface_routing_contract.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_interface_routing_contract.py"),
         ],
     ),
     "decomposed": (
         ["ruby", str(SCRIPT_ROOT / "validate-decomposed-interface-contracts.rb")],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_decomposed_interface_contracts.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_decomposed_interface_contracts.py"),
         ],
     ),
 }

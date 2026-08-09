@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "purpose": "Classify every Skill top-level entry after completing the source and copyable-template separation.",
+  "purpose": "Classify every Skill top-level entry after completing the source and canonical copyable-template separation.",
   "targetDistributionRoot": "template",
   "directCopyDestination": ".",
   "contentTransformationAllowed": false,
@@ -54,6 +54,7 @@
     "Publication integration and source-only conformance infrastructure remain outside template.",
     "The profile model retains instruction-only as exclusive and combines other selected profiles by the union of required contracts.",
     "Clean-room concrete-Skill conformance starts from template rather than the complete branch root.",
-    "Template consumers prune unsupported optional contracts only after copying the closed distribution artifact."
+    "Template consumers prune unsupported optional contracts only after copying the closed distribution artifact.",
+    "Consumer-facing validator implementations are canonical only below template and source-maintainer tooling consumes those canonical files without maintaining root projections."
   ]
 }

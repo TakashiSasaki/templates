@@ -14,6 +14,7 @@ from pathlib import Path
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 VALIDATORS = {
     "runtime": (
         [
@@ -22,7 +23,7 @@ VALIDATORS = {
         ],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_interface_runtime_consistency.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_interface_runtime_consistency.py"),
         ],
     ),
     "summary": (
@@ -32,7 +33,7 @@ VALIDATORS = {
         ],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_interface_summary_details.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_interface_summary_details.py"),
         ],
     ),
 }

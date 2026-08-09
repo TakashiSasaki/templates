@@ -14,19 +14,20 @@ from pathlib import Path
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 VALIDATORS = {
     "core": (
         ["ruby", str(SCRIPT_ROOT / "validate-core-profile-contracts.rb")],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_core_profile_contracts.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_core_profile_contracts.py"),
         ],
     ),
     "extended": (
         ["ruby", str(SCRIPT_ROOT / "validate-extended-profile-contracts.rb")],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_extended_profile_contracts.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_extended_profile_contracts.py"),
         ],
     ),
 }

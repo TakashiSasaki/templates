@@ -24,8 +24,14 @@ missing_policy_exclusions = required_policy_exclusions - manifest.fetch("forbidd
 unless missing_policy_exclusions.empty?
   failures << "source-maintainer policy paths must remain forbidden from template/: #{missing_policy_exclusions.inspect}"
 end
-unless manifest.fetch("distribution_owned_files").include?("AGENTS.md")
-  failures << "template/AGENTS.md must remain an artifact-owned distribution file"
+unless manifest.fetch("distribution_files").include?("AGENTS.md")
+  failures << "template/AGENTS.md must remain a canonical distribution file"
+end
+if manifest.key?("mirrors") || manifest.key?("distribution_owned_files")
+  failures << "distribution manifest must not retain legacy mirror ownership fields"
+end
+unless manifest["schema_version"] == 2
+  failures << "distribution manifest schema_version must be 2"
 end
 
 run_validator = lambda do |root|
@@ -67,16 +73,11 @@ expect_failure.call("missing declared file", "declared files are missing") do |r
   File.delete(File.join(root, "template", "SKILL.md"))
 end
 
-expect_failure.call("mirrored validator drift", "mirrored bytes differ") do |root|
-  path = File.join(root, "template", ".github", "scripts", "validate_skill_repository.py")
-  File.open(path, "a", encoding: "UTF-8") { |file| file << "\n# DRIFT\n" }
-end
-
-expect_failure.call("owned inventory omission", "undeclared files are present") do |root|
+expect_failure.call("canonical inventory omission", "undeclared files are present") do |root|
   path = File.join(root, "distribution-manifest.json")
-  manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
-  manifest.fetch("distribution_owned_files").delete("RUNTIME.md")
-  File.write(path, JSON.pretty_generate(manifest) + "\n", encoding: "UTF-8")
+  local_manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
+  local_manifest.fetch("distribution_files").delete(".github/scripts/validate_skill_repository.py")
+  File.write(path, JSON.pretty_generate(local_manifest) + "\n", encoding: "UTF-8")
 end
 
 expect_failure.call("undeclared distribution file", "undeclared files are present") do |root|
@@ -89,9 +90,9 @@ end
 
 expect_failure.call("transformation enabled", "content transformation must remain disabled") do |root|
   path = File.join(root, "distribution-manifest.json")
-  manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
-  manifest["content_transformation_allowed"] = true
-  File.write(path, JSON.pretty_generate(manifest) + "\n", encoding: "UTF-8")
+  local_manifest = JSON.parse(File.read(path, encoding: "UTF-8"))
+  local_manifest["content_transformation_allowed"] = true
+  File.write(path, JSON.pretty_generate(local_manifest) + "\n", encoding: "UTF-8")
 end
 
 unless failures.empty?

@@ -2,11 +2,11 @@
 
 ## Decision
 
-The `skill` branch is the source repository for a reusable, language-neutral Agent Skill template product. The branch root is not an installable Skill directory. The copyable distribution is `template/`.
+The `skill` branch is the source repository for a reusable, language-neutral Agent Skill template product. The branch root is not an installable Skill directory. The copyable distribution is `template/`, and `template/` is also the sole canonical source tree for every downstream-distributed path.
 
 The branch owns three distinct artifacts:
 
-1. **Template source artifact** — the complete `skill` checkout used by template maintainers. It contains the copyable template, source-only validators, fixtures, publication integration, compatibility checks, audits, and maintenance documentation.
+1. **Template source artifact** — the complete `skill` checkout used by template maintainers. It contains the canonical copyable template plus source-only fixtures, publication integration, compatibility checks, audits, and maintenance documentation.
 2. **Template distribution artifact** — the contents of `template/`, copied without content transformation to the root of a new Skill repository or an installed Skill directory.
 3. **Concrete Skill artifact** — a Skill developed from the distribution after its identity, workflow, selected profiles, operational resources, implementation, tests, runtime decisions, interfaces, and license are completed.
 
@@ -21,9 +21,9 @@ S = D union M
 D intersection M = empty
 ```
 
-The notation describes responsibility, not Git object identity. Source documentation may describe both sets, but every distributed path has a downstream purpose and no distributed file requires a maintainer-only sibling.
+Here `D` is physically rooted at `template/`. Every distributed implementation authority is authored there exactly once. Source documentation may describe `D`, and source-maintainer tests may execute or import files from `D`, but maintainers do not keep byte-identical implementation projections outside `template/`.
 
-The source repository may project a bounded validator implementation into the distribution. Each projection is declared in `distribution-manifest.json` and must preserve path-relative behavior, bytes, and Git-significant mode. The source implementation remains maintainer-owned; the projected copy is usable from a concrete Skill root without the source checkout.
+This makes responsibility and repository paths agree: consumer-facing contracts, validators, profile guidance, workflows, and placeholders are distribution-owned; fixtures, publication integration, source audits, and distribution-conformance machinery are maintainer-owned.
 
 ## Copy contract
 
@@ -64,21 +64,21 @@ Artifact separation does not reduce supported profiles, convert them into a matu
 
 ```text
 /
-├── .github/                       # source CI, validators, fixtures, and review policy
+├── .github/                       # source CI, fixtures, parity/regression and distribution checks
 ├── README.md                      # template-product source overview
 ├── AGENTS.md                      # source-maintainer agent instructions
 ├── CONTRIBUTING.md                # source-maintainer contribution policy
 ├── CHANGELOG.md                   # template-product history
 ├── LICENSE                        # template-product source license
-├── distribution-manifest.json     # exact distribution inventory and projections
+├── distribution-manifest.json     # exact canonical template inventory
 ├── docs/                          # source architecture and publication interface
 ├── maintainer/                    # source-maintainer ownership documentation
-└── template/                      # directly copyable profile-aware Skill template
+└── template/                      # canonical directly copyable profile-aware Skill template
 ```
 
-The branch root deliberately has no `SKILL.md`, runtime contract, interface contract, operational resource directory, or concrete-Skill placeholder. Those authorities exist only under `template/`.
+The branch root deliberately has no `SKILL.md`, runtime contract, interface contract, operational resource directory, concrete-Skill placeholder, or alternate implementation copy of a downstream validator. Those authorities exist only under `template/`.
 
-GitHub-specific maintainer implementation stays under `.github/`. The `maintainer/` directory documents ownership and can hold future source-only utilities that do not belong to GitHub-specific integration. It is not necessary to relocate workflows or fixtures merely to make the source tree visually uniform.
+GitHub-specific maintainer implementation stays under `.github/`. Source-only parity and regression harnesses may load Python validator code directly from `template/.github/scripts/`; that dependency direction is intentional and does not make the harnesses part of the downstream artifact. The `maintainer/` directory documents ownership and can hold future source-only utilities that do not belong to GitHub-specific integration.
 
 ## Distribution layout
 
@@ -86,7 +86,7 @@ GitHub-specific maintainer implementation stays under `.github/`. The `maintaine
 template/
 ├── .editorconfig
 ├── .github/
-│   ├── scripts/                  # concrete-Skill validators and template baseline check
+│   ├── scripts/                  # canonical concrete-Skill validators and template baseline check
 │   └── workflows/                # bounded concrete-Skill validation workflow
 ├── .gitignore
 ├── README.md
@@ -113,16 +113,15 @@ Optional files remain optional for a completed Skill. Their presence in the uncu
 
 ## Distribution manifest
 
-`distribution-manifest.json` is the closed inventory for `template/`. It records:
+`distribution-manifest.json` is the closed canonical inventory for `template/`. It records:
 
 - the source root and direct-copy destination;
 - the prohibition on content transformation;
 - the required top-level entries;
-- bounded validator projections from source-maintainer implementations;
-- files directly owned by the distribution; and
+- every canonical distributed file; and
 - source-only paths prohibited from the distribution.
 
-Validation compares the tracked `template/` inventory with the manifest, rejects missing or undeclared files, rejects symbolic links, rejects source-only leakage, checks the top-level shape, and verifies bytes and modes for every projected validator.
+It does not map a second source path to a destination path and does not define mirror/projection ownership. Validation compares the tracked `template/` inventory directly with the canonical `distribution_files` list, rejects missing or undeclared files, rejects symbolic links, rejects source-only leakage, and checks the top-level shape.
 
 The manifest is source-maintainer material and is not copied into a concrete Skill.
 
@@ -134,7 +133,7 @@ The manifest is source-maintainer material and is not copied into a concrete Ski
 - `maintainer`: source-only material outside the copyable artifact; or
 - `split`: an unresolved mixed-ownership entry.
 
-The completed layout has `template` as the sole `distribution` entry and an empty `split` set. Introducing a new top-level path requires an explicit source/distribution decision. Reintroducing a root-level Skill contract or resource directory is prohibited even if the classification file is edited at the same time.
+The completed layout has `template` as the sole `distribution` entry and an empty `split` set. Introducing a new top-level path requires an explicit source/distribution decision. Reintroducing a root-level Skill contract, resource directory, or downstream validator implementation is prohibited even if the classification file is edited at the same time.
 
 ## Conformance strategy
 
@@ -146,6 +145,8 @@ Source CI validates three independent states:
 
 Canonical profile fixtures remain source-owned evidence. They are not consumer templates because many select concrete runtimes, contain complete example implementations, exercise deployment variants, or intentionally represent invalid combinations.
 
+Source-only parity and regression tests exercise the same Python validator implementations that downstream Skills receive. Because those implementations are loaded from `template/.github/scripts/`, behavior cannot drift through a separately maintained root copy.
+
 Clean-room consumption copies `template/.` into a path containing spaces and non-ASCII characters, verifies the complete copied tree, and runs adoption plus clone, submodule, and archive installation engines from that isolated copy. The canonical `template/` tree must remain unchanged.
 
 Clone, submodule, archive, and parent-owned vendoring equivalence apply to completed concrete Skills, not to the complete template source repository.
@@ -156,33 +157,34 @@ Clone, submodule, archive, and parent-owned vendoring equivalence apply to compl
 
 The `site` branch owns navigation, reader-facing titles, generated destinations, full-SHA source locking, assembly, provenance, repository-tree rendering, and GitHub Pages deployment. `skill` workflows call only the build-only compatibility workflow with contents-read permission.
 
-GitHub Pages deployment has already been restored on the unrelated `site` branch after the original Skill restructuring integration. Later Skill changes do not grant deployment authority to `skill` and do not require deployment to be suspended by default. Publishing newer Skill bytes requires a separate reviewed `site` change that updates the immutable Skill source lock and passes strict integration validation.
+GitHub Pages deployment authority remains on the unrelated `site` branch. Publishing newer Skill bytes requires a separate reviewed `site` change that updates the immutable Skill source lock and passes strict integration validation.
 
 ## Maintainer change rules
 
 Before editing a path, classify it as:
 
-- source-only;
-- distribution-owned; or
-- a projected validator.
+- **source-only**; or
+- **distribution-owned**.
 
-A distribution-owned file is edited only under `template/`. A projected validator is updated in both declared locations with identical bytes and mode. A source-only file is never copied into `template/` merely to make the two trees resemble one another.
+A distribution-owned file is edited only under `template/`. A source-only file is never copied into `template/` merely to make the two trees resemble one another. Maintainer tests that need downstream behavior invoke or import the canonical file from `template/` instead of introducing another implementation authority.
 
-Profile changes update the applicable template contracts, validators, positive fixtures, combined fixtures, negative fixtures, consumer documentation, and publication sources. Deployment or trust-boundary changes require proportionate executable evidence.
+Profile changes update the applicable template contracts, canonical validators, positive fixtures, combined fixtures, negative fixtures, consumer documentation, and publication sources. Deployment or trust-boundary changes require proportionate executable evidence.
 
 ## Completion criteria
 
 The restructuring is complete because:
 
 - the branch root is unambiguously the template-product source artifact;
+- `template/` is the sole canonical source tree of downstream-distributed content;
 - `template/` copies byte-for-byte to an empty Skill root;
 - `SKILL.md` is directly under the copied root;
 - every required copied reference resolves inside the copied tree;
 - all eight profile tags and their composition semantics are preserved;
 - no maintainer-only artifact is present in the copied tree;
+- no distributed validator implementation has a second root-level copy;
 - source CI validates source, distribution, and representative concrete Skills independently;
 - adoption and installation tests begin from a clean copy of `template/`;
 - publication IDs are stable and canonical consumer sources resolve below `template/`; and
-- a dedicated completion audit rejects regression to the former mixed root.
+- a dedicated completion audit rejects regression to the former mixed or mirrored root.
 
-The original cross-branch publication condition was completed when `site` locked the reviewed restructuring revision, published separate complete-source and copyable-template views, passed strict integration validation, and restored Pages deployment in a separate reviewed change. Subsequent Skill revisions are published by updating the `site` source lock through the same full-SHA integration boundary.
+The original cross-branch publication condition was completed when `site` locked a reviewed Skill revision and restored its Pages deployment. Subsequent Skill revisions are published by updating the `site` source lock through the same full-SHA integration boundary.

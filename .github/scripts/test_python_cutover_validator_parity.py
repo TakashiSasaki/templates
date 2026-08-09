@@ -12,17 +12,22 @@ from pathlib import Path
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
+REPOSITORY_ROOT = SCRIPT_ROOT.parents[1]
+TEMPLATE_SCRIPT_ROOT = REPOSITORY_ROOT / "template" / ".github" / "scripts"
 VALIDATORS = {
     "concrete": (
         ["ruby", str(SCRIPT_ROOT / "validate-concrete-profile-consistency.rb")],
         [
             sys.executable,
-            str(SCRIPT_ROOT / "validate_concrete_profile_consistency.py"),
+            str(TEMPLATE_SCRIPT_ROOT / "validate_concrete_profile_consistency.py"),
         ],
     ),
     "late-review": (
         ["ruby", str(SCRIPT_ROOT / "validate-late-review-contracts.rb")],
-        [sys.executable, str(SCRIPT_ROOT / "validate_late_review_contracts.py")],
+        [
+            sys.executable,
+            str(TEMPLATE_SCRIPT_ROOT / "validate_late_review_contracts.py"),
+        ],
     ),
 }
 
