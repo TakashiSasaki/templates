@@ -103,12 +103,12 @@ Complete this section only when `mcp-enabled` is selected. This unpublished temp
 
 | Item | Selected value |
 |---|---|
-| Supported protocol revisions | `2026-07-28` when selected |
-| Supported protocol eras | `modern` when selected |
+| Supported protocol revisions | `2026-07-28` |
+| Supported protocol eras | `modern` |
 | Default revision or negotiation mode | TODO: fixed or pinned `2026-07-28`; no Legacy fallback |
 | MCP SDK or protocol library | TODO |
 | SDK version | TODO |
-| Legacy compatibility policy | `NOT SUPPORTED` when selected |
+| Legacy compatibility policy | `NOT SUPPORTED` |
 | JSON Schema dialects | TODO; MUST support JSON Schema 2020-12 where the selected MCP surface requires it |
 | Optional MCP extensions | TODO or NONE; extension revisions are recorded separately when an extension contract is retained |
 | Deprecated feature policy | TODO; new implementations must not advertise deprecated MCP features by default |
