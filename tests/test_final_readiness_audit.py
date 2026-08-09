@@ -10,26 +10,21 @@ ROADMAP = ROOT / "docs/architecture/completion-roadmap.md"
 TOOLCHAIN = ROOT / "docs/architecture/validation-toolchain.md"
 WORKFLOW = ROOT / ".github/workflows/contract-validation.yml"
 
-SOURCE_VALIDATOR_COMMANDS = (
-    "run: .venv/bin/python scripts/validate_contracts.py",
-    "run: .venv/bin/python -m scripts.validate_contracts",
-    "run: .venv/bin/python scripts/validate_contract_evolution.py",
-    "run: .venv/bin/python -m scripts.validate_contract_evolution",
-    "run: .venv/bin/python scripts/validate_implementation_evidence.py",
-    "run: .venv/bin/python -m scripts.validate_implementation_evidence",
-    "run: .venv/bin/python scripts/validate_release_evidence.py",
-    "run: .venv/bin/python -m scripts.validate_release_evidence",
-    "run: .venv/bin/python scripts/validate_release_bundle.py",
-    "run: .venv/bin/python -m scripts.validate_release_bundle",
-)
-
-DISTRIBUTED_VALIDATOR_COMMANDS = tuple(
-    command.replace("run: .venv/bin/python", "run: ../.venv/bin/python")
-    for command in SOURCE_VALIDATOR_COMMANDS
+CANONICAL_VALIDATOR_COMMANDS = (
+    "run: ../.venv/bin/python scripts/validate_contracts.py",
+    "run: ../.venv/bin/python -m scripts.validate_contracts",
+    "run: ../.venv/bin/python scripts/validate_contract_evolution.py",
+    "run: ../.venv/bin/python -m scripts.validate_contract_evolution",
+    "run: ../.venv/bin/python scripts/validate_implementation_evidence.py",
+    "run: ../.venv/bin/python -m scripts.validate_implementation_evidence",
+    "run: ../.venv/bin/python scripts/validate_release_evidence.py",
+    "run: ../.venv/bin/python -m scripts.validate_release_evidence",
+    "run: ../.venv/bin/python scripts/validate_release_bundle.py",
+    "run: ../.venv/bin/python -m scripts.validate_release_bundle",
 )
 
 TOOLCHAIN_VALIDATOR_COMMANDS = tuple(
-    command.removeprefix("run: .venv/bin/") for command in SOURCE_VALIDATOR_COMMANDS
+    command.removeprefix("run: ../.venv/bin/") for command in CANONICAL_VALIDATOR_COMMANDS
 )
 
 AUDIT_CRITERIA = (
@@ -116,12 +111,27 @@ class FinalReadinessAuditTests(unittest.TestCase):
                 self.assertTrue(path.is_file(), f"missing audit evidence: {relative_path}")
                 self.assertFalse(path.is_symlink(), f"symbolic audit evidence: {relative_path}")
 
-    def test_ci_exercises_source_and_distributed_validator_entry_points_once(self) -> None:
+    def test_ci_exercises_each_canonical_validator_entry_point_once(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
-        for command in SOURCE_VALIDATOR_COMMANDS + DISTRIBUTED_VALIDATOR_COMMANDS:
+        for command in CANONICAL_VALIDATOR_COMMANDS:
             with self.subTest(command=command):
                 self.assertEqual(1, workflow.count(command))
+
+        for legacy_prefix in (
+            "run: .venv/bin/python scripts/validate_contracts.py",
+            "run: .venv/bin/python -m scripts.validate_contracts",
+            "run: .venv/bin/python scripts/validate_contract_evolution.py",
+            "run: .venv/bin/python -m scripts.validate_contract_evolution",
+            "run: .venv/bin/python scripts/validate_implementation_evidence.py",
+            "run: .venv/bin/python -m scripts.validate_implementation_evidence",
+            "run: .venv/bin/python scripts/validate_release_evidence.py",
+            "run: .venv/bin/python -m scripts.validate_release_evidence",
+            "run: .venv/bin/python scripts/validate_release_bundle.py",
+            "run: .venv/bin/python -m scripts.validate_release_bundle",
+        ):
+            with self.subTest(legacy_prefix=legacy_prefix):
+                self.assertNotIn(legacy_prefix, workflow)
 
         self.assertEqual(
             1,

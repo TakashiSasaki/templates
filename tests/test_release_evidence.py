@@ -446,11 +446,20 @@ class ReleaseEvidenceTests(unittest.TestCase):
             ROOT / ".github/workflows/contract-validation.yml"
         ).read_text(encoding="utf-8")
 
+        self.assertIn("working-directory: template", workflow)
         self.assertIn(
-            "run: .venv/bin/python scripts/validate_release_evidence.py",
+            "run: ../.venv/bin/python scripts/validate_release_evidence.py",
             workflow,
         )
         self.assertIn(
+            "run: ../.venv/bin/python -m scripts.validate_release_evidence",
+            workflow,
+        )
+        self.assertNotIn(
+            "run: .venv/bin/python scripts/validate_release_evidence.py",
+            workflow,
+        )
+        self.assertNotIn(
             "run: .venv/bin/python -m scripts.validate_release_evidence",
             workflow,
         )
