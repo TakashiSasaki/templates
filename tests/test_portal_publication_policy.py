@@ -51,10 +51,15 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         policy = " ".join(PUBLISHING_POLICY.read_text(encoding="utf-8").split())
         overview = " ".join(PORTAL_OVERVIEW.read_text(encoding="utf-8").split())
 
-        self.assertIn(
+        for requirement in (
             "- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;",
-            policy,
-        )
+            "- all four `/repository-trees/` entry points are reachable;",
+            "- `/files/` and all four branch browser entry points are reachable;",
+            "- `/guided/` and `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` are reachable;",
+            "- `/guided/graph.json` records the same reviewed provider full SHAs as the provider checkouts and deployed provenance;",
+        ):
+            with self.subTest(requirement=requirement):
+                self.assertIn(requirement, policy)
         self.assertIn(
             "under `/skill/`, `/policy/`, and `/webapp/`.",
             overview,
