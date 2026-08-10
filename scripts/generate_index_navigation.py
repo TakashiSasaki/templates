@@ -72,11 +72,15 @@ class ParsedIndex:
     links: tuple[ParsedLink, ...]
 
 
-def contains_disallowed_control(value: str) -> bool:
+def contains_disallowed_control(
+    value: str,
+    *,
+    allow_layout_whitespace: bool = True,
+) -> bool:
     for character in value:
         codepoint = ord(character)
         if (
-            (codepoint < 32 and character not in "\t\n\r")
+            (codepoint < 32 and (not allow_layout_whitespace or character not in "\t\n\r"))
             or codepoint == 127
             or character in BIDIRECTIONAL_CONTROLS
         ):
@@ -181,7 +185,7 @@ def decode_fragment(value: str, source: str, line: int) -> str | None:
         raise IndexNavigationError(
             f"link fragment contains a NUL byte in {source}:{line}: {value!r}"
         )
-    if contains_disallowed_control(decoded):
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link fragment contains a disallowed control character in {source}:{line}: {value!r}"
         )
