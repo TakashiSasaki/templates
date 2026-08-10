@@ -63,6 +63,7 @@ class ParsedLink:
 @dataclass(frozen=True)
 class ParsedIndex:
     title: str
+    sections: tuple[str, ...]
     links: tuple[ParsedLink, ...]
 
 
@@ -93,6 +94,7 @@ def decode_index_text(content: bytes, path: str) -> str:
 def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
+    sections: list[str] = []
     links: list[ParsedLink] = []
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
@@ -119,6 +121,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                         f"section precedes title in {path}:{line_number}"
                     )
                 section = value
+                sections.append(value)
             continue
         entry = LINK_ENTRY.fullmatch(line)
         if entry:
@@ -141,7 +144,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
         )
     if title is None:
         raise IndexNavigationError(f"index is missing a level-1 heading: {path}")
-    return ParsedIndex(title=title, links=tuple(links))
+    return ParsedIndex(
+        title=title,
+        sections=tuple(sections),
+        links=tuple(links),
+    )
 
 
 def decode_link_path(value: str, source: str, line: int) -> str:
@@ -232,14 +239,16 @@ def resolve_link(
 def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     revision = checked_revision(root)
     entries_list = read_entries(root)
-    entries = {
-        entry.path.decode("utf-8", errors="strict"): (
-            entry.kind,
-            entry.mode,
-            entry.object_id,
-        )
-        for entry in entries_list
-    }
+    entries: dict[str, tuple[str, str, str]] = {}
+    for entry in entries_list:
+        try:
+            path = entry.path.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise IndexNavigationError(
+                f"provider contains a non-UTF-8 repository path: {entry.path!r}"
+            ) from exc
+        entries[path] = (entry.kind, entry.mode, entry.object_id)
+
     root_entry = entries.get(ROOT_INDEX)
     if root_entry is None or root_entry[0] != "blob" or root_entry[1] != "100644":
         raise IndexNavigationError(
@@ -288,6 +297,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             {
                 "path": path,
                 "title": parsed_index.title,
+                "sections": list(parsed_index.sections),
                 "depth": depth,
                 "object_id": object_id,
             }
