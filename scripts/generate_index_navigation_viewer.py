@@ -8,7 +8,7 @@ import html
 import json
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 try:
     from scripts.generate_index_navigation import (
@@ -19,6 +19,7 @@ try:
     )
     from scripts.generate_repository_browser import viewer_relative_url
     from scripts.generate_repository_trees import (
+        FULL_SHA,
         REPOSITORY,
         checked_revision,
         github_url,
@@ -34,6 +35,7 @@ except ModuleNotFoundError:
     )
     from generate_repository_browser import viewer_relative_url
     from generate_repository_trees import (
+        FULL_SHA,
         REPOSITORY,
         checked_revision,
         github_url,
@@ -74,6 +76,16 @@ def load_graph(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_repository_path(value: str, label: str) -> None:
+    if not value or value.startswith("/") or "\\" in value or "\x00" in value:
+        raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
+    path = PurePosixPath(value)
+    if any(part in {"", ".", ".."} for part in path.parts):
+        raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
+    if path.as_posix() != value:
+        raise IndexNavigationViewerError(f"{label} is not a canonical repository-relative path")
+
+
 def validate_provider_graph(provider: dict[str, Any]) -> None:
     name = provider.get("name")
     revision = provider.get("revision")
@@ -83,7 +95,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
     diagnostics = provider.get("diagnostics")
     if not isinstance(name, str) or name not in PROVIDER_ORDER:
         raise IndexNavigationViewerError("provider name is invalid")
-    if not isinstance(revision, str) or len(revision) != 40:
+    if not isinstance(revision, str) or not FULL_SHA.fullmatch(revision):
         raise IndexNavigationViewerError(f"{name} revision is invalid")
     if root_index != ROOT_INDEX:
         raise IndexNavigationViewerError(f"{name} root index is invalid")
@@ -110,9 +122,10 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             or not isinstance(depth, int)
             or depth < 0
             or not isinstance(object_id, str)
-            or len(object_id) != 40
+            or not FULL_SHA.fullmatch(object_id)
         ):
             raise IndexNavigationViewerError(f"{name} index record is invalid")
+        validate_repository_path(path, f"{name} index path")
         if path in paths:
             raise IndexNavigationViewerError(f"{name} graph contains duplicate index path: {path}")
         paths.add(path)
@@ -137,9 +150,22 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             raise IndexNavigationViewerError(f"{name} edge section is invalid")
         if fragment is not None and not isinstance(fragment, str):
             raise IndexNavigationViewerError(f"{name} edge fragment is invalid")
-        if edge["kind"] == "index" and edge["target"] not in paths:
+
+        kind = edge["kind"]
+        target = edge["target"]
+        if kind == "external":
+            parsed = urlsplit(target)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise IndexNavigationViewerError(f"{name} external edge target is invalid")
+        else:
+            validate_repository_path(target, f"{name} edge target")
+        if kind == "fragment" and target != edge["source"]:
             raise IndexNavigationViewerError(
-                f"{name} index edge targets a non-rendered index: {edge['target']}"
+                f"{name} fragment edge must target its source index"
+            )
+        if kind == "index" and target not in paths:
+            raise IndexNavigationViewerError(
+                f"{name} index edge targets a non-rendered index: {target}"
             )
 
 
@@ -161,6 +187,7 @@ def encoded_path(parts: tuple[str, ...]) -> str:
 
 
 def index_page_path(provider: str, source_path: str) -> Path:
+    validate_repository_path(source_path, "index source path")
     if source_path == ROOT_INDEX:
         return GUIDED_ROOT / provider / "index.html"
     parent = PurePosixPath(source_path).parent
@@ -170,6 +197,7 @@ def index_page_path(provider: str, source_path: str) -> Path:
 
 
 def index_page_url(provider: str, source_path: str) -> str:
+    validate_repository_path(source_path, "index source path")
     if source_path == ROOT_INDEX:
         return f"/guided/{quote(provider, safe='')}/"
     parent = PurePosixPath(source_path).parent
