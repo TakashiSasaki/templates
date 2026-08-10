@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 import tempfile
@@ -12,6 +13,7 @@ from scripts.generate_index_navigation_viewer import (
     generate_viewer,
     index_page_path,
     load_graph,
+    validate_provider_graph,
 )
 from scripts.generate_repository_browser import viewer_relative_url
 
@@ -217,6 +219,44 @@ class IndexNavigationViewerTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(IndexNavigationViewerError, "ordered exactly"):
                 load_graph(graph_path)
+
+    def test_tampered_graph_rejects_unsafe_paths_and_noncanonical_shas(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _providers, _site_root, _output, graph = self.make_fixture(root)
+            original = graph["providers"][0]
+
+            tampered = copy.deepcopy(original)
+            tampered["revision"] = "A" * 40
+            with self.assertRaisesRegex(IndexNavigationViewerError, "revision is invalid"):
+                validate_provider_graph(tampered)
+
+            tampered = copy.deepcopy(original)
+            tampered["indexes"][0]["object_id"] = "g" * 40
+            with self.assertRaisesRegex(IndexNavigationViewerError, "index record is invalid"):
+                validate_provider_graph(tampered)
+
+            tampered = copy.deepcopy(original)
+            tampered["indexes"][1]["path"] = "docs/../escape/index.md"
+            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
+                validate_provider_graph(tampered)
+
+            tampered = copy.deepcopy(original)
+            file_edge = next(edge for edge in tampered["edges"] if edge["kind"] == "file")
+            file_edge["target"] = "../../escape.md"
+            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
+                validate_provider_graph(tampered)
+
+            tampered = copy.deepcopy(original)
+            external_edge = next(
+                edge for edge in tampered["edges"] if edge["kind"] == "external"
+            )
+            external_edge["target"] = "javascript:alert(1)"
+            with self.assertRaisesRegex(IndexNavigationViewerError, "external edge target is invalid"):
+                validate_provider_graph(tampered)
+
+            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
+                index_page_path("skill", "docs/../../escape/index.md")
 
 
 if __name__ == "__main__":
