@@ -180,6 +180,35 @@ jobs:
         shell: bash
         run: ruby .github/scripts/test-mcp-enabled-profile.rb
 
+  mcp-apps-enabled-profile-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up minimum supported Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Set up Node.js for MCP Apps fixture
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python for canonical Skill validators
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Python validator dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
+
+      - name: Test MCP Apps executable profile fixture
+        shell: bash
+        run: ruby .github/scripts/test-mcp-apps-enabled-profile.rb
+
   browser-interface-profile-fixture:
     runs-on: ubuntu-latest
     steps:
