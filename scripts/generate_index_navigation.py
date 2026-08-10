@@ -45,9 +45,10 @@ except ModuleNotFoundError:
 PROVIDER_ORDER = ("skill", "policy", "webapp")
 ROOT_INDEX = "docs/index.md"
 MAX_INDEX_BYTES = 256 * 1024
+REGULAR_FILE_MODES = frozenset({"100644", "100755"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
 LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[([^\]]+)\]\(([^)]+)\)[ \t]+[-—][ \t]+(.+?)\s*$"
+    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-—][ \t]+(.+?)\s*$"
 )
 
 
@@ -262,7 +263,7 @@ def resolve_link(
     kind, mode, _object_id = target_entry
     if kind == "tree":
         resolved_kind = "directory"
-    elif kind == "blob" and mode == "100644":
+    elif kind == "blob" and mode in REGULAR_FILE_MODES:
         resolved_kind = "index" if normalized.endswith("/index.md") else "file"
     else:
         raise IndexNavigationError(
@@ -289,7 +290,11 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
         entries[path] = (entry.kind, entry.mode, entry.object_id)
 
     root_entry = entries.get(ROOT_INDEX)
-    if root_entry is None or root_entry[0] != "blob" or root_entry[1] != "100644":
+    if (
+        root_entry is None
+        or root_entry[0] != "blob"
+        or root_entry[1] not in REGULAR_FILE_MODES
+    ):
         raise IndexNavigationError(
             f"{provider} root navigation index must be a regular file: {ROOT_INDEX}"
         )
@@ -297,7 +302,9 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     index_object_ids = {
         path: value[2]
         for path, value in entries.items()
-        if path.endswith("/index.md") and value[0] == "blob" and value[1] == "100644"
+        if path.endswith("/index.md")
+        and value[0] == "blob"
+        and value[1] in REGULAR_FILE_MODES
     }
     sizes = object_sizes(root, index_object_ids.values())
     oversized = [
@@ -370,6 +377,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
         adjacency.setdefault(str(edge["source"]), []).append(str(edge["target"]))
 
     cycle_edges: list[dict[str, str]] = []
+    cycle_pairs: set[tuple[str, str]] = set()
     visiting: set[str] = set()
     visited: set[str] = set()
 
@@ -379,7 +387,10 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
         visiting.add(node)
         for target in adjacency.get(node, []):
             if target in visiting:
-                cycle_edges.append({"source": node, "target": target})
+                pair = (node, target)
+                if pair not in cycle_pairs:
+                    cycle_pairs.add(pair)
+                    cycle_edges.append({"source": node, "target": target})
             elif target not in visited:
                 visit(target)
         visiting.remove(node)
@@ -391,7 +402,10 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
         "name": provider,
         "revision": revision,
         "root_index": ROOT_INDEX,
-        "indexes": sorted(indexes, key=lambda value: (int(value["depth"]), str(value["path"]))),
+        "indexes": sorted(
+            indexes,
+            key=lambda value: (int(value["depth"]), str(value["path"])),
+        ),
         "edges": edges,
         "diagnostics": {
             "index_count": len(indexes),
