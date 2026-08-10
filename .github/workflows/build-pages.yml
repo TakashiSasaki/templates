@@ -219,6 +219,12 @@ jobs:
             --provider policy=policy-source \
             --provider webapp=webapp-source
 
+      - name: Normalize guided canonical links and PWA metadata
+        run: |
+          python site-source/scripts/finalize_site_metadata.py \
+            --site-root build/site/guided \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'
@@ -340,12 +346,22 @@ jobs:
           test -f build/site/guided/graph.json
           grep --fixed-strings -- 'Index-guided document discovery' \
             build/site/guided/index.html
+          grep --fixed-strings -- \
+            '<link rel="manifest" href="/app.webmanifest">' \
+            build/site/guided/index.html
+          grep --fixed-strings -- \
+            '<meta name="theme-color" content="#3f51b5">' \
+            build/site/guided/index.html
           for provider in skill policy webapp; do
             page="build/site/guided/${provider}/index.html"
             revision="$(git -C "${provider}-source" rev-parse HEAD)"
             test -f "$page"
             grep --fixed-strings -- 'Index-guided navigation' "$page"
             grep --fixed-strings -- "$revision" "$page"
+            grep --fixed-strings -- \
+              '<link rel="manifest" href="/app.webmanifest">' "$page"
+            grep --fixed-strings -- \
+              '<meta name="theme-color" content="#3f51b5">' "$page"
           done
           python - <<'PY'
           import json
