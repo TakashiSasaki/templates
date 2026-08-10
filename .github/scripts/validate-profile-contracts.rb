@@ -13,6 +13,7 @@ DIRECT_VALIDATORS = %w[
   validate-cli-exit-code-contract.rb
   validate-mcp-runtime-authority.rb
   validate-mcp-protocol-conformance.rb
+  validate-mcp-extensions.rb
   validate-interface-runtime-consistency.rb
   validate-bundled-mcp-client-consistency.rb
   validate-interface-summary-details.rb

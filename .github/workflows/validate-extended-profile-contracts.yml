@@ -117,6 +117,10 @@ jobs:
         working-directory: .github/fixtures/profiles/mcp-enabled
         run: ruby ../../../scripts/validate-mcp-protocol-conformance.rb
 
+      - name: Test MCP extension selection and Apps activation
+        shell: bash
+        run: python .github/scripts/test_mcp_extensions_contract.py
+
       - name: Test browser-interface routing
         shell: bash
         run: ruby .github/scripts/test-browser-interface-routing.rb

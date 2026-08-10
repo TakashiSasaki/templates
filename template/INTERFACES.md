@@ -32,6 +32,8 @@ Allowed interface categories:
 - browser Web interface, only when `browser-interface` is selected and `WEB_INTERFACE.md` is retained;
 - NONE when no further fallback is permitted.
 
+MCP Apps is **not** an additional interface category or fallback route. It enriches an already-selected MCP route when the Host and server negotiate `io.modelcontextprotocol/ui`. Apps-specific behavior belongs in `MCP_APPS.md`; the agent still chose MCP as the execution route.
+
 Do not write “use whichever is appropriate” unless the routes are intentionally interchangeable and nondeterminism is acceptable.
 
 When both MCP transports are supported, state whether an agent should:
@@ -42,7 +44,7 @@ When both MCP transports are supported, state whether an agent should:
 
 Do not start a second network server merely because the configured endpoint is unavailable unless that fallback is explicitly documented.
 
-The optional browser Web interface is never an implicit agent fallback. It may appear in the preferred/fallback order only when `browser-interface` is selected and the browser-facing contract is retained.
+The optional browser Web interface is never an implicit agent fallback. It may appear in the preferred/fallback order only when `browser-interface` is selected and the browser-facing contract is retained. An MCP App View does not select `browser-interface` and must not be listed as a browser fallback solely because it renders HTML.
 
 ## Contract index
 
@@ -50,12 +52,13 @@ The optional browser Web interface is never an implicit agent fallback. It may a
 |---|---|---|
 | Private helper script | `SKILL.md` | No public-interface contract required |
 | `packaged-cli` | `CLI_INTERFACE.md` | Required only when `packaged-cli` is selected |
-| `mcp-enabled` | `MCP_INTERFACE.md` | Required only when `mcp-enabled` is selected |
-| `browser-interface` | `WEB_INTERFACE.md` | Required only when a browser-facing interface is selected |
+| `mcp-enabled` core protocol | `MCP_INTERFACE.md` | Required only when `mcp-enabled` is selected |
+| MCP Apps extension `io.modelcontextprotocol/ui` | `MCP_APPS.md` | Required only when that extension is selected in `RUNTIME.md` |
+| `browser-interface` | `WEB_INTERFACE.md` | Required only when a standalone browser-facing interface is selected |
 | Runtime, commands, packaging, deployment | `RUNTIME.md` | Required for application and service profiles; optional for substantial helper-runtime decisions |
 | Headless service public reachability | `RUNTIME.md` and referenced API/deployment material | Does not require `WEB_INTERFACE.md` unless a browser surface exists |
 
-The profile-specific file is the sole source of truth for its caller-visible behavior. Do not copy CLI command contracts into `MCP_INTERFACE.md`, MCP transport behavior into `CLI_INTERFACE.md`, or browser behavior into this routing document.
+The profile- or extension-specific file is the sole source of truth for its caller-visible behavior. Do not copy CLI command contracts into `MCP_INTERFACE.md`, MCP transport behavior into `CLI_INTERFACE.md`, Apps bridge behavior into `WEB_INTERFACE.md`, or browser behavior into this routing document.
 
 ## Cross-interface invariants
 
@@ -67,6 +70,8 @@ When several maintained interfaces expose the same operation under the same iden
 - an agent must be able to determine which route was used and how failures are classified;
 - adapters should share tested operation logic when complexity or multiple interfaces justify that architecture.
 
+An MCP App may change presentation and user interaction, but it must not silently change the underlying tool's authorization, side effects, or core fallback semantics.
+
 ## Availability and failure behavior
 
 ```text
@@ -75,7 +80,7 @@ Fallback activation conditions: TODO
 Failure classification exposed to callers: TODO
 ```
 
-Distinguish an unavailable interface from a negative domain result. Do not treat Web readiness as MCP readiness, a listening socket as successful protocol negotiation, or a CLI process exit as proof that its structured result is valid.
+Distinguish an unavailable interface from a negative domain result. Do not treat Web readiness as MCP readiness, a listening socket as successful protocol negotiation, an App View render as proof that its associated tool succeeded, or a CLI process exit as proof that its structured result is valid.
 
 ## Decision rationale
 
@@ -83,4 +88,4 @@ Distinguish an unavailable interface from a negative domain result. Do not treat
 Rationale: TODO
 ```
 
-Explain why the preferred interface and fallback order fit the skill, which routes are intentionally unavailable, and how the policy avoids unnecessary process or network startup.
+Explain why the preferred interface and fallback order fit the skill, which routes are intentionally unavailable, and how the policy avoids unnecessary process or network startup. When MCP Apps is selected, explain it in `MCP_APPS.md` rather than creating an additional route here.

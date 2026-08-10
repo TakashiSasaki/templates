@@ -50,6 +50,12 @@
       "home": false
     },
     {
+      "id": "mcp-apps-interface",
+      "source": "template/MCP_APPS.md",
+      "optional": true,
+      "home": false
+    },
+    {
       "id": "human-web-interface",
       "source": "template/WEB_INTERFACE.md",
       "optional": false,
@@ -70,6 +76,12 @@
     {
       "id": "mcp-transports",
       "source": "template/docs/mcp-transports.md",
+      "optional": true,
+      "home": false
+    },
+    {
+      "id": "mcp-apps-guidance",
+      "source": "template/docs/mcp-apps.md",
       "optional": true,
       "home": false
     }

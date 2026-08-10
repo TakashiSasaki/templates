@@ -35,6 +35,7 @@ forbidden_root_skill_paths = %w[
   INTERFACES.md
   CLI_INTERFACE.md
   MCP_INTERFACE.md
+  MCP_APPS.md
   WEB_INTERFACE.md
   LICENSE.template
   assets
@@ -65,6 +66,8 @@ canonical_validator_relatives = %w[
   validate_interface_runtime_consistency.py
   validate_interface_summary_details.py
   validate_late_review_contracts.py
+  validate_mcp_extensions.py
+  validate_mcp_protocol_conformance.py
   validate_mcp_runtime_authority.py
   validate_profile_contracts.py
   validate_review_followup_contracts.py
@@ -125,10 +128,12 @@ begin
     interface-routing
     packaged-cli-interface
     mcp-interface
+    mcp-apps-interface
     human-web-interface
     architecture
     runtime-selection
     mcp-transports
+    mcp-apps-guidance
   ]
   actual_ids = documents.map { |document| document.fetch("id") }
   failures << "stable publication document IDs changed" unless actual_ids == expected_ids
