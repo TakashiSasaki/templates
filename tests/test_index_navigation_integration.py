@@ -8,7 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 LANDING = ROOT / "docs/landing.md"
+OVERVIEW = ROOT / "docs/overview.md"
 POLICY = ROOT / "PUBLISHING.md"
+MAINTENANCE = ROOT / "MAINTENANCE.md"
+README = ROOT / "README.md"
 SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
@@ -55,12 +58,15 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
             2,
         )
 
-    def test_landing_exposes_guided_discovery_as_a_distinct_path(self) -> None:
+    def test_reader_surfaces_expose_guided_discovery_as_a_distinct_path(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
+        overview = OVERVIEW.read_text(encoding="utf-8")
         self.assertIn('href="guided/"', landing)
         self.assertIn("Browse by index.md", landing)
         self.assertIn('href="files/"', landing)
         self.assertIn('href="overview/"', landing)
+        self.assertIn('href="../guided/"', overview)
+        self.assertIn("Browse by index.md", overview)
 
     def test_publication_policy_defines_provider_owned_guided_boundary(self) -> None:
         policy = POLICY.read_text(encoding="utf-8")
@@ -74,6 +80,16 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
         self.assertIn("graph revision for a provider must equal the checked-out provider revision", normalized)
         self.assertIn("not a second catalog", normalized)
         self.assertIn("must not silently derive or replace its primary navigation", normalized)
+
+    def test_maintenance_and_readme_include_guided_build_contract(self) -> None:
+        maintenance = MAINTENANCE.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        for text in (maintenance, readme):
+            self.assertIn("scripts/generate_index_navigation.py", text)
+            self.assertIn("scripts/generate_index_navigation_viewer.py", text)
+            self.assertIn("--site-root build/site/guided", text)
+        self.assertIn("## Index-guided navigation generation", maintenance)
+        self.assertIn("/guided/", readme)
 
     def test_provider_lock_remains_an_independent_full_sha_dependency_lock(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))

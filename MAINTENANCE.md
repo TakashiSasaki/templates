@@ -4,20 +4,20 @@ This file applies only to the unrelated `site` branch.
 
 ## Branch responsibilities
 
-- `skill`, `policy`, and `webapp` own their canonical documentation and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, the bounded static repository browser, generated-site validation, build provenance, and the only Pages deployment workflow.
-- Generated Markdown, preview HTML, repository-browser HTML, and final site HTML are temporary build artifacts and must not be committed.
+- `skill`, `policy`, and `webapp` own their canonical documentation, their provider-owned `index.md` navigation, and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, the bounded static repository browser, the deterministic index-navigation graph and `/guided/` projection of the exact provider inputs, generated-site validation, build provenance, and the only Pages deployment workflow.
+- Generated Markdown, preview HTML, repository-browser HTML, guided-navigation JSON/HTML, and final site HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
 
 ## Change process
 
-1. Make canonical documentation and catalog changes on the provider branch that owns them.
+1. Make canonical documentation, provider-owned index navigation, and catalog changes on the provider branch that owns them.
 2. Merge the provider pull request and record its actual merge commit SHA.
 3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
 4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
-5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change.
-6. Require the integrated documentation build, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, static repository-browser generation, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
+5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change. Do not derive this reader-oriented manifest from provider `index.md` files.
+6. Require the integrated documentation build, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, static repository-browser generation, index-navigation graph generation, guided-viewer generation and metadata normalization, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -151,6 +151,18 @@ The browser derives paths from `git ls-tree`, reads regular-file content from ex
 
 The stable public entry points are `/files/` and `/files/<branch>/`. Hashed `content/*.html` paths are implementation details. The parent tree retains immutable full-SHA GitHub links, while browser rendering itself has no runtime GitHub API, raw-content, CDN, or client-side syntax-highlighting dependency.
 
+## Index-guided navigation generation
+
+`scripts/generate_index_navigation.py` runs after the static repository browser has been generated. For `skill`, `policy`, and `webapp`, it starts from the provider-owned `docs/index.md`, reads index content from exact committed Git blobs, recursively follows links that resolve to child `index.md` files, and writes the schema-versioned graph to `build/index-navigation.json`.
+
+The graph preserves provider heading order, link labels, descriptions, source lines, normalized fragments, and target classifications. Repository-relative links may contain `..` only when normalization remains inside the repository. Broken internal targets, unsafe schemes, URL queries, invalid UTF-8, control characters, non-regular linked indexes, duplicate section headings, and repository-root escapes fail the build. Cycles, maximum depth, and indexes reached from multiple distinct parent indexes remain diagnostics rather than publication-policy failures.
+
+`scripts/generate_index_navigation_viewer.py` consumes that graph without reparsing provider Markdown and writes `/guided/`, `/guided/<provider>/`, nested reachable index pages, and `/guided/graph.json`. The graph revision for each provider must equal the checked-out full SHA. Cataloged document links resolve to the existing reader publication, uncataloged text/file targets resolve to the same immutable `/files/` snapshot, and index-to-index links remain within `/guided/`. Provider labels and descriptions are HTML-escaped; the standalone pages execute no repository-supplied scripts.
+
+Guided pages are generated after the normal whole-site metadata pass, so `scripts/finalize_site_metadata.py` runs a second time with `--site-root build/site/guided`. This gives every guided HTML page the canonical/manifest/theme metadata contract without changing the deliberately standalone `/files/` surface.
+
+The stable guided entry points are `/guided/`, `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/`. The provider indexes remain the authority for guided semantics. `site-manifest.json` remains the separate reader-oriented publication information architecture and must not be silently regenerated from the guided graph.
+
 ## Assembly output boundary
 
 `scripts/assemble_publications.py` assembles the prepared site publication and all locked provider publications into one temporary Zensical project.
@@ -161,7 +173,7 @@ Asset traversal explicitly rejects file and directory symlinks before descending
 
 ## Generated link integrity
 
-The build validates links after Zensical generates final HTML and after the standalone repository browser is added. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages and landing-page links to `/files/`.
+The build validates links after Zensical generates final HTML, after the standalone repository browser is added, and after guided navigation is generated and normalized. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages, landing-page links to `/files/` and `/guided/`, and guided index-to-index fragment links.
 
 External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
 
@@ -182,7 +194,7 @@ The file excludes timestamps, workflow run IDs, and mutable refs. It identifies 
 
 The deployment workflow captures a timestamp with `TZ=Asia/Tokyo` before invoking the reusable build. The accepted format is exactly `YYYY-MM-DD HH:MM:SS JST`. An empty timestamp produces the stable footer text `Preview build (not deployed)`.
 
-`project.site_url` must remain `https://templates.moukaeritai.work/`. The configured domain is hosted at the root path, so generated same-origin links must not retain `/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page, including inline-preview pages, and rejects duplicate canonical links. For normal generated pages, the same pass also inserts or validates exactly one `/app.webmanifest` link and one `#3f51b5` theme-color element. Sandboxed inline-preview pages deliberately receive canonical metadata only. The build also scans generated HTML and XML for the retired GitHub project URL, the custom domain with the retired subpath, and root-relative `/templates/` attributes.
+`project.site_url` must remain `https://templates.moukaeritai.work/`. The configured domain is hosted at the root path, so generated same-origin links must not retain `/templates/`. `scripts/finalize_site_metadata.py` normalizes the canonical link in every generated HTML page present in its target tree and rejects duplicate canonical links. For normal generated pages, the same pass also inserts or validates exactly one `/app.webmanifest` link and one `#3f51b5` theme-color element. Sandboxed inline-preview pages deliberately receive canonical metadata only. The `/guided/` tree receives a dedicated post-generation normalization pass. The build also scans generated HTML and XML for the retired GitHub project URL, the custom domain with the retired subpath, and root-relative `/templates/` attributes.
 
 ## PWA shell maintenance
 
@@ -195,11 +207,11 @@ The installable shell is owned entirely by the `site` branch:
 
 Do not broadly precache generated documentation pages. Provider publications change independently and must remain network-first to avoid serving stale documentation after deployment. A cache-key change must increment `CACHE_NAME` so the activation handler can delete the previous shell cache.
 
-`tests/test_pwa_assets.py` owns the source-level PWA contract, including manifest shape, shared SVG safety, favicon and registration wiring, generated metadata insertion and preview exclusion, duplicate or conflicting metadata rejection, minimal cache scope, and the guaranteed `Response` fallback. The Pages build separately verifies that the manifest, icon, service worker, registration script, manifest link, and theme-color metadata exist in the generated artifact.
+`tests/test_pwa_assets.py` owns the source-level PWA contract, including manifest shape, shared SVG safety, favicon and registration wiring, generated metadata insertion and preview exclusion, duplicate or conflicting metadata rejection, minimal cache scope, and the guaranteed `Response` fallback. The Pages build separately verifies that the manifest, icon, service worker, registration script, manifest link, and theme-color metadata exist in the generated artifact, including the post-generated guided pages.
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, generates the bounded static repository browser, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, generates the bounded static repository browser, generates the immutable provider index-navigation graph and `/guided/` viewer, normalizes guided metadata, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`. The metadata, build, and deploy jobs each require:
 
@@ -227,7 +239,7 @@ Expected behavior:
 
 ## Dependency updates
 
-`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. Update them intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, the static repository browser, canonical URLs, provenance, and link-validation results before merging.
+`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. Update them intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, the static repository browser, the guided navigation surface, canonical URLs, provenance, and link-validation results before merging.
 
 ## Local validation
 
@@ -270,6 +282,9 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/finalize_site_metadata.py \
+  --site-root build/site \
+  --canonical-url https://templates.moukaeritai.work/
 python site/scripts/generate_repository_browser.py \
   --repository TakashiSasaki/templates \
   --output-root build/site \
@@ -277,6 +292,23 @@ python site/scripts/generate_repository_browser.py \
   --branch skill=sources/skill \
   --branch policy=sources/policy \
   --branch webapp=sources/webapp
+python site/scripts/generate_index_navigation.py \
+  --repository TakashiSasaki/templates \
+  --output build/index-navigation.json \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
+python site/scripts/generate_index_navigation_viewer.py \
+  --repository TakashiSasaki/templates \
+  --graph build/index-navigation.json \
+  --site-root site-publication \
+  --output-root build/site \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
+python site/scripts/finalize_site_metadata.py \
+  --site-root build/site/guided \
+  --canonical-url https://templates.moukaeritai.work/
 python site/scripts/write_publication_provenance.py \
   --output build/site/build-provenance.json \
   --repository TakashiSasaki/templates \
@@ -289,4 +321,4 @@ python site/scripts/validate_site_links.py \
   --config-file build/zensical.toml
 ```
 
-Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, and repository-browser snapshots always use the actual checked-out commits.
+Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, repository-browser snapshots, and guided-navigation graph/viewer output always use the actual checked-out commits.

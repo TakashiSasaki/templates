@@ -35,6 +35,9 @@ The `site` branch owns:
 - full-commit source locking in `publication-sources.json`;
 - generated repository-tree inventories and sandboxed text previews for the
   exact checked-out revisions;
+- the bounded static repository browser for immutable source inspection;
+- the deterministic index-navigation graph and `/guided/` projection of
+  provider-owned `index.md` navigation at the same locked revisions;
 - integrated assembly, strict site generation, link validation, provenance,
   and Pages deployment.
 
@@ -51,16 +54,25 @@ publications:
 - `/webapp/` for Web application templates, evidence, release, and migration
   guidance.
 
-It also provides `/repository-trees/` with complete tracked-path inventories for
-the three provider revisions. Cataloged Markdown files link to their Pages
-documentation. Eligible regular UTF-8 text files up to 256 KiB can be opened in
-a sandboxed inline frame, while every file retains an immutable GitHub source
-link at the exact rendered full commit SHA. Binary, oversized, symlink, gitlink,
-invalid-UTF-8, and control-character inputs remain GitHub-only.
+Three complementary discovery surfaces are available:
+
+- `/guided/` follows provider-owned `index.md` navigation from the exact locked
+  Skill, Policy, and Webapp revisions;
+- `/repository-trees/` presents complete tracked-path inventories for the three
+  provider revisions;
+- `/files/` provides the bounded static browser for immutable source snapshots.
+
+Cataloged Markdown files link to their Pages documentation. Eligible regular
+UTF-8 text files up to 256 KiB can be opened in a sandboxed inline frame, while
+every file retains an immutable GitHub source link at the exact rendered full
+commit SHA. Binary, oversized, symlink, gitlink, invalid-UTF-8, and
+control-character inputs remain GitHub-only.
 
 Primary navigation prioritizes explanatory Markdown. Explicitly published
 contracts, schemas, and other machine-readable assets remain supporting material
-reachable from their explanatory pages.
+reachable from their explanatory pages. The `/guided/` surface does not replace
+that reader-oriented navigation; it lets humans retrace the provider-owned
+progressive-disclosure path that agents can follow.
 
 ## Key files
 
@@ -76,17 +88,27 @@ reachable from their explanatory pages.
   immutable GitHub links from `git ls-tree`;
 - `scripts/generate_repository_file_previews.py`: reads exact Git blob objects,
   emits escaped static preview pages, and connects them to sandboxed iframes;
+- `scripts/generate_repository_browser.py`: generates the standalone immutable
+  `/files/` browser after the strict site build;
+- `scripts/generate_index_navigation.py`: parses provider-owned `index.md`
+  files from immutable Git blobs into a deterministic navigation graph;
+- `scripts/generate_index_navigation_viewer.py`: renders that graph as the
+  static `/guided/` human navigation surface without reparsing Markdown;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
 - `scripts/assemble_publications.py`: catalog validation and multi-source
   assembly;
+- `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
+  generated HTML, including the post-generated `/guided/` tree;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
 - `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
   to `site`.
 
 ## Local validation
 
-Check out the four unrelated branches into separate directories, then run:
+Check out the four unrelated branches into separate directories, with provider
+commits matching `publication-sources.json`, then run the same material stages as
+the Pages build:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
@@ -107,6 +129,16 @@ python site/scripts/generate_repository_trees.py \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
+python site/scripts/generate_skill_template_tree.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --skill-root sources/skill
+python site/scripts/generate_webapp_template_tree.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --webapp-root sources/webapp
 python site/scripts/generate_repository_file_previews.py \
   --repository TakashiSasaki/templates \
   --site-root site-publication \
@@ -115,15 +147,49 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/finalize_site_metadata.py \
+  --site-root build/site \
+  --canonical-url https://templates.moukaeritai.work/
+python site/scripts/generate_repository_browser.py \
+  --repository TakashiSasaki/templates \
+  --output-root build/site \
+  --branch site=site \
+  --branch skill=sources/skill \
+  --branch policy=sources/policy \
+  --branch webapp=sources/webapp
+python site/scripts/generate_index_navigation.py \
+  --repository TakashiSasaki/templates \
+  --output build/index-navigation.json \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
+python site/scripts/generate_index_navigation_viewer.py \
+  --repository TakashiSasaki/templates \
+  --graph build/index-navigation.json \
+  --site-root site-publication \
+  --output-root build/site \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
+python site/scripts/finalize_site_metadata.py \
+  --site-root build/site/guided \
+  --canonical-url https://templates.moukaeritai.work/
+python site/scripts/write_publication_provenance.py \
+  --output build/site/build-provenance.json \
+  --repository TakashiSasaki/templates \
+  --site-commit "$(git -C site rev-parse HEAD)" \
+  --publication-commit "skill=$(git -C sources/skill rev-parse HEAD)" \
+  --publication-commit "policy=$(git -C sources/policy rev-parse HEAD)" \
+  --publication-commit "webapp=$(git -C sources/webapp rev-parse HEAD)"
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
 ```
 
-The checked-out provider commits must match `publication-sources.json` unless a
-reviewed workflow-call override is deliberately being tested. Tree links and
-preview URLs are always generated from the actual checked-out commit, so
-override builds remain internally consistent.
+Use workflow-call revision overrides only for deliberate compatibility testing.
+Normal builds use the reviewed full-SHA lock file. Repository-tree links,
+preview URLs, repository-browser snapshots, and guided navigation all use the
+actual checked-out commits, so override builds remain internally consistent.
 
 ## Deployment boundary
 
