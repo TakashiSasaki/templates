@@ -251,6 +251,22 @@ def heading_anchor(value: str) -> str:
     return anchor
 
 
+def heading_anchors(values: list[str]) -> list[str]:
+    """Return stable unique anchors while preserving heading order."""
+    anchors: list[str] = []
+    used: set[str] = set()
+    for value in values:
+        base = heading_anchor(value)
+        candidate = base
+        suffix = 1
+        while candidate in used:
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+        used.add(candidate)
+        anchors.append(candidate)
+    return anchors
+
+
 def published_maps(
     site_root: Path,
     provider_roots: dict[str, Path],
@@ -460,13 +476,7 @@ def render_index_page(
         f'<span><a href="{html.escape(url, quote=True)}">{html.escape(title)}</a></span>'
         for title, url in breadcrumbs
     )
-    heading_ids = [heading_anchor(index["title"])] + [
-        heading_anchor(section) for section in index["sections"]
-    ]
-    if len(set(heading_ids)) != len(heading_ids):
-        raise IndexNavigationViewerError(
-            f"guided heading anchors collide in {source_path}"
-        )
+    heading_ids = heading_anchors([index["title"], *index["sections"]])
     edges = [edge for edge in provider["edges"] if edge["source"] == source_path]
     body_parts = [
         '<p class="eyebrow">Index-guided navigation</p>',
@@ -483,15 +493,19 @@ def render_index_page(
 
     unsectioned = [edge for edge in edges if edge.get("section") is None]
     if unsectioned:
-        body_parts.append('<section class="section"><h2>Links</h2><ul class="link-list">')
+        body_parts.append(
+            '<div class="section" aria-label="Links before the first provider section">'
+            '<p class="eyebrow">Links before the first provider section</p>'
+            '<ul class="link-list">'
+        )
         body_parts.extend(
             render_edge(repository, provider, edge, published) for edge in unsectioned
         )
-        body_parts.append("</ul></section>")
+        body_parts.append("</ul></div>")
 
-    for section in index["sections"]:
+    for section_number, section in enumerate(index["sections"], start=1):
         section_edges = [edge for edge in edges if edge.get("section") == section]
-        anchor = heading_anchor(section)
+        anchor = heading_ids[section_number]
         body_parts.append(
             f'<section class="section"><h2 id="{html.escape(anchor, quote=True)}">{html.escape(section)}</h2>'
         )
