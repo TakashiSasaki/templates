@@ -46,6 +46,7 @@ except ModuleNotFoundError:
 GUIDED_ROOT = Path("guided")
 MARKER = ".index-navigation-root"
 MARKER_CONTENT = "managed by scripts/generate_index_navigation_viewer.py\n"
+LINE_FRAGMENT = re.compile(r"L[1-9][0-9]*")
 
 
 class IndexNavigationViewerError(RuntimeError):
@@ -249,6 +250,7 @@ def edge_href(
     revision: str,
     edge: dict[str, Any],
     published: dict[str, str],
+    repository: str | None = None,
 ) -> tuple[str, str, bool]:
     kind = edge["kind"]
     target = edge["target"]
@@ -269,6 +271,13 @@ def edge_href(
                 "published document",
                 False,
             )
+        if fragment is not None and LINE_FRAGMENT.fullmatch(fragment) is None:
+            if repository is None:
+                raise IndexNavigationViewerError(
+                    "repository is required for a semantic source-file fragment"
+                )
+            source = github_url(repository, revision, "blob", target.encode("utf-8"))
+            return source + fragment_suffix(fragment), "immutable source", True
         relative = viewer_relative_url(provider, revision, target.encode("utf-8"))
         return (
             f"/files/{quote(provider, safe='')}/{relative}" + fragment_suffix(fragment),
@@ -336,7 +345,7 @@ def page_shell(title: str, body: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <title>{html.escape(title)} · templates guided navigation</title>
 <style>
 :root {{ color-scheme: light dark; font-family: system-ui, sans-serif; }}
@@ -379,7 +388,7 @@ def render_edge(
     published: dict[str, str],
 ) -> str:
     href, route_kind, external = edge_href(
-        provider["name"], provider["revision"], edge, published
+        provider["name"], provider["revision"], edge, published, repository
     )
     source = immutable_target_url(repository, provider["revision"], edge)
     attrs = ' target="_blank" rel="noopener"' if external else ""
