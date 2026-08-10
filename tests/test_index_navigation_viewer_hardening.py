@@ -36,12 +36,28 @@ def provider_graph() -> dict[str, object]:
     }
 
 
+def edge(target: str, *, kind: str = "external", fragment: str | None = None) -> dict[str, object]:
+    return {
+        "source": "docs/index.md",
+        "section": None,
+        "label": "Target",
+        "description": "Boundary test target.",
+        "line": 3,
+        "raw_target": target,
+        "kind": kind,
+        "target": target,
+        "fragment": fragment,
+    }
+
+
 class IndexNavigationViewerHardeningTests(unittest.TestCase):
-    def test_repository_paths_reject_git_components_and_colons(self) -> None:
+    def test_repository_paths_reject_reserved_and_noncanonical_forms(self) -> None:
         for path in (
             "docs/.git/index.md",
             "docs/.GIT/index.md",
             "docs/file:stream/index.md",
+            "/docs/index.md",
+            "docs\\index.md",
         ):
             with self.subTest(path=path):
                 with self.assertRaisesRegex(
@@ -72,28 +88,31 @@ class IndexNavigationViewerHardeningTests(unittest.TestCase):
         ):
             validate_provider_graph(graph)
 
-    def test_external_edges_reject_other_schemes_and_missing_hosts(self) -> None:
+    def test_fragment_controls_are_rejected_in_tampered_graphs(self) -> None:
+        for fragment in ("bad\nfragment", "bad\u202efragment"):
+            with self.subTest(fragment=fragment):
+                graph = provider_graph()
+                record = edge("docs/index.md", kind="fragment", fragment=fragment)
+                record["raw_target"] = f"#{fragment}"
+                graph["edges"] = [record]
+                with self.assertRaisesRegex(
+                    IndexNavigationViewerError,
+                    "edge fragment is invalid",
+                ):
+                    validate_provider_graph(graph)
+
+    def test_external_edges_reject_other_schemes_missing_hosts_and_invalid_ports(self) -> None:
         base = provider_graph()
         for target in (
             "file:///etc/passwd",
             "ftp://example.com/spec",
             "https:///local",
+            "https://example.com:bad/spec",
+            "https://example.com:70000/spec",
         ):
             with self.subTest(target=target):
                 graph = copy.deepcopy(base)
-                graph["edges"] = [
-                    {
-                        "source": "docs/index.md",
-                        "section": None,
-                        "label": "External",
-                        "description": "Invalid external target.",
-                        "line": 3,
-                        "raw_target": target,
-                        "kind": "external",
-                        "target": target,
-                        "fragment": None,
-                    }
-                ]
+                graph["edges"] = [edge(target)]
                 with self.assertRaisesRegex(
                     IndexNavigationViewerError,
                     "external edge target is invalid",
