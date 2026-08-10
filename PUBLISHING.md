@@ -186,6 +186,10 @@ The guided-navigation implementation must satisfy all of the following rules:
 - each provider traversal starts at that exact checkout's `docs/index.md`;
 - `index.md` content is read from exact Git blob object IDs named by the checked
   out revision rather than mutable working-tree content;
+- only `index.md` nodes reached from the explicit provider root participate in
+  guided navigation; size and content validation is performed when each node is
+  reached, so unrelated index-shaped files elsewhere in the repository do not
+  become guided inputs merely because of their name;
 - provider `index.md` files are interpreted only through the conservative
   reserved-index shape accepted by the navigation parser: headings and Markdown
   link entries with short descriptions; arbitrary provider Markdown or raw HTML
@@ -193,7 +197,8 @@ The guided-navigation implementation must satisfy all of the following rules:
 - provider-controlled titles, section names, labels, and descriptions are HTML
   escaped before they appear in generated HTML;
 - strict UTF-8, NUL/control-character, repository-root escape, unsafe URL scheme,
-  broken-link, symlink, and gitlink boundaries fail closed;
+  malformed-host-or-port, broken-link, symlink, and gitlink boundaries fail
+  closed;
 - a directory link is followed recursively only when it resolves to an
   `index.md` regular file in the same provider revision;
 - cycles, multiple navigation parents, and maximum index depth are recorded as
@@ -205,19 +210,24 @@ The guided-navigation implementation must satisfy all of the following rules:
   so graph semantics and human presentation cannot drift independently;
 - an index-to-index link opens the generated guided index page; a link to an
   already cataloged document opens the Site's existing stable documentation
-  destination; a link to another regular tracked file opens the corresponding
-  immutable `/files/` viewer; a directory without a followed index opens the
-  corresponding provider source-browser entry point; and an HTTP(S) external
-  link remains external;
+  destination; an uncataloged regular tracked file without a fragment, or with
+  a representable `L<number>` line fragment, opens the corresponding immutable
+  `/files/` viewer; an uncataloged regular tracked file with another semantic
+  fragment opens the exact full-SHA immutable GitHub source so the fragment is
+  not silently replaced by a nonexistent local anchor; a directory without a
+  followed index opens the corresponding provider source-browser entry point;
+  and an HTTP(S) external link remains external;
 - each guided page displays its provider, exact full SHA, source `index.md` path,
   and immutable GitHub source link;
 - the graph revision for a provider must equal the checked-out provider revision
   used for catalog assembly, repository trees, previews, and `/files/`; revision
   disagreement fails before guided output is accepted;
-- generated guided HTML uses a restrictive content security policy and does not
+- generated guided HTML uses a restrictive content security policy, permits the
+  same-origin PWA manifest injected by Site metadata normalization, and does not
   execute repository-supplied code;
 - ordinary guided browsing has no runtime GitHub API, raw-content, or CDN
-  dependency.
+  dependency except when a user explicitly follows an immutable full-SHA GitHub
+  source link used as the source of record or semantic-fragment fallback.
 
 The guided surface is generated after the static file browser because
 uncataloged guided targets may resolve to file-browser pages. Both surfaces must

@@ -5,10 +5,38 @@ import unittest
 from scripts.generate_index_navigation_viewer import (
     IndexNavigationViewerError,
     edge_href,
+    heading_anchor,
     index_page_path,
     page_shell,
     render_index_page,
+    render_landing,
+    validate_provider_graph,
 )
+
+
+def minimal_provider(**overrides: object) -> dict[str, object]:
+    provider: dict[str, object] = {
+        "name": "skill",
+        "revision": "a" * 40,
+        "root_index": "docs/index.md",
+        "indexes": [
+            {
+                "path": "docs/index.md",
+                "title": "Docs",
+                "sections": [],
+                "depth": 0,
+                "object_id": "b" * 40,
+            }
+        ],
+        "edges": [],
+        "diagnostics": {
+            "index_count": 1,
+            "edge_count": 0,
+            "max_index_depth": 0,
+        },
+    }
+    provider.update(overrides)
+    return provider
 
 
 class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
@@ -161,6 +189,46 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         rendered = page_shell("Docs", "<h1>Docs</h1>")
         self.assertIn("manifest-src 'self'", rendered)
         self.assertIn("default-src 'none'", rendered)
+
+    def test_symbol_only_heading_cannot_produce_an_anchor(self) -> None:
+        with self.assertRaisesRegex(
+            IndexNavigationViewerError,
+            "heading cannot produce a stable anchor",
+        ):
+            heading_anchor("!!!")
+
+    def test_provider_revision_and_object_ids_require_lowercase_full_shas(self) -> None:
+        for revision in ("A" * 40, "z" * 40, "a" * 39):
+            with self.subTest(revision=revision):
+                with self.assertRaisesRegex(IndexNavigationViewerError, "revision is invalid"):
+                    validate_provider_graph(minimal_provider(revision=revision))
+
+        provider = minimal_provider()
+        provider["indexes"][0]["object_id"] = "B" * 40
+        with self.assertRaisesRegex(IndexNavigationViewerError, "index record is invalid"):
+            validate_provider_graph(provider)
+
+    def test_landing_escapes_untrusted_diagnostic_values(self) -> None:
+        graph = {
+            "providers": [
+                minimal_provider(
+                    diagnostics={
+                        "index_count": "<script>alert(1)</script>",
+                        "edge_count": "<b>2</b>",
+                        "max_index_depth": "<img src=x>",
+                    }
+                )
+            ]
+        }
+
+        rendered = render_landing(graph)
+
+        self.assertNotIn("<script>alert(1)</script>", rendered)
+        self.assertNotIn("<b>2</b>", rendered)
+        self.assertNotIn("<img src=x>", rendered)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", rendered)
+        self.assertIn("&lt;b&gt;2&lt;/b&gt;", rendered)
+        self.assertIn("&lt;img src=x&gt;", rendered)
 
 
 if __name__ == "__main__":
