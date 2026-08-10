@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.generate_index_navigation_viewer import render_index_page
+from scripts.generate_index_navigation_viewer import (
+    IndexNavigationViewerError,
+    edge_href,
+    index_page_path,
+    render_index_page,
+)
 
 
 class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
@@ -87,6 +92,29 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         self.assertIn('<h2 id="links">Links</h2>', rendered)
         self.assertNotIn("<h2>Links</h2>", rendered)
         self.assertIn("Links before the first provider section", rendered)
+
+    def test_directory_edges_route_to_the_immutable_branch_browser(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {
+                "kind": "directory",
+                "target": "docs/examples",
+                "fragment": None,
+            },
+            {},
+        )
+
+        self.assertEqual(href, "/files/skill/")
+        self.assertEqual(route_kind, "repository directory")
+        self.assertFalse(external)
+
+    def test_non_index_source_path_is_rejected(self) -> None:
+        with self.assertRaisesRegex(
+            IndexNavigationViewerError,
+            "not an index source path",
+        ):
+            index_page_path("skill", "docs/overview.md")
 
 
 if __name__ == "__main__":
