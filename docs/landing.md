@@ -19,6 +19,9 @@
       <a class="portal-cover__button portal-cover__button--primary" href="overview/">
         Read portal overview <span aria-hidden="true">→</span>
       </a>
+      <a class="portal-cover__button portal-cover__button--secondary" href="guided/">
+        Browse by index.md <span aria-hidden="true">→</span>
+      </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="repository-trees/">
         Inspect repository trees <span aria-hidden="true">→</span>
       </a>
