@@ -37,10 +37,11 @@ class IndexNavigationViewerTests(unittest.TestCase):
         (root / "docs/index.md").write_text(
             f"# {provider.title()} documentation\n\n"
             "## Guided links\n\n"
-            "* [Architecture](architecture/) - Follow the nested index.\n"
-            "* [Overview](overview.md) - Open the cataloged document.\n"
-            "* [<script>notes</script>](../notes.txt) - Read <b>escaped</b> source metadata.\n"
-            "* [Specification](https://example.com/spec) - Open the external specification.\n",
+            "* [Jump to this section](#guided-links) - Exercise a same-index fragment.\n"
+            "* [Architecture](architecture/#details) - Follow the nested index and fragment.\n"
+            "* [Overview](overview.md#scope) - Open the cataloged document.\n"
+            "* [<script>notes</script>](../notes.txt#L1) - Read <b>escaped</b> source metadata.\n"
+            "* [Specification](https://example.com/spec#caf%C3%A9) - Open the external specification.\n",
             encoding="utf-8",
         )
         (root / "docs/architecture/index.md").write_text(
@@ -52,7 +53,7 @@ class IndexNavigationViewerTests(unittest.TestCase):
         (root / "docs/architecture/boundary.md").write_text(
             "# Boundary\n", encoding="utf-8"
         )
-        (root / "docs/overview.md").write_text("# Overview\n", encoding="utf-8")
+        (root / "docs/overview.md").write_text("# Overview\n\n## Scope\n", encoding="utf-8")
         (root / "notes.txt").write_text("notes\n", encoding="utf-8")
         (root / "docs/publication-catalog.json").write_text(
             json.dumps(
@@ -136,11 +137,15 @@ class IndexNavigationViewerTests(unittest.TestCase):
             page = (output / "guided/skill/index.html").read_text(encoding="utf-8")
             revision = graph["providers"][0]["revision"]
             self.assertIn(revision, page)
-            self.assertIn('href="/guided/skill/docs/architecture/"', page)
-            self.assertIn('href="/skill/"', page)
+            self.assertIn('id="skill-documentation"', page)
+            self.assertIn('id="guided-links"', page)
+            self.assertIn('href="#guided-links"', page)
+            self.assertIn('href="/guided/skill/docs/architecture/#details"', page)
+            self.assertIn('href="/skill/#scope"', page)
             notes_relative = viewer_relative_url("skill", revision, b"notes.txt")
-            self.assertIn(f'href="/files/skill/{notes_relative}"', page)
-            self.assertIn('href="https://example.com/spec"', page)
+            self.assertIn(f'href="/files/skill/{notes_relative}#L1"', page)
+            self.assertIn('href="https://example.com/spec#caf%C3%A9"', page)
+            self.assertNotIn("caf%25C3%25A9", page)
             self.assertIn('target="_blank" rel="noopener"', page)
             self.assertIn("&lt;script&gt;notes&lt;/script&gt;", page)
             self.assertIn("Read &lt;b&gt;escaped&lt;/b&gt; source metadata.", page)
@@ -149,10 +154,38 @@ class IndexNavigationViewerTests(unittest.TestCase):
             self.assertIn("index line", page)
             self.assertIn("immutable source", page)
 
+            nested = (
+                output / "guided/skill/docs/architecture/index.html"
+            ).read_text(encoding="utf-8")
+            self.assertIn('id="details"', nested)
+
             saved_graph = json.loads(
                 (output / "guided/graph.json").read_text(encoding="utf-8")
             )
             self.assertEqual(saved_graph, graph)
+            external = next(
+                edge
+                for edge in saved_graph["providers"][0]["edges"]
+                if edge["label"] == "Specification"
+            )
+            self.assertEqual(external["target"], "https://example.com/spec")
+            self.assertEqual(external["fragment"], "café")
+
+    def test_duplicate_section_names_in_tampered_graph_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = self.make_fixture(root)
+            graph["providers"][0]["indexes"][0]["sections"] = [
+                "Guided links",
+                "Guided links",
+            ]
+            with self.assertRaisesRegex(
+                IndexNavigationViewerError, "duplicate section headings"
+            ):
+                generate_viewer(
+                    "TakashiSasaki/templates", graph, site_root, output, providers
+                )
+            self.assertFalse((output / "guided").exists())
 
     def test_revision_mismatch_fails_before_creating_guided_output(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
