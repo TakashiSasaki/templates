@@ -6,6 +6,7 @@ from scripts.generate_index_navigation_viewer import (
     IndexNavigationViewerError,
     edge_href,
     index_page_path,
+    page_shell,
     render_index_page,
 )
 
@@ -115,6 +116,51 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
             "not an index source path",
         ):
             index_page_path("skill", "docs/overview.md")
+
+    def test_source_file_line_fragment_stays_on_local_file_viewer(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {
+                "kind": "file",
+                "target": "docs/notes.md",
+                "fragment": "L20",
+            },
+            {},
+            "TakashiSasaki/templates",
+        )
+
+        self.assertTrue(href.startswith("/files/skill/content/"))
+        self.assertTrue(href.endswith("#L20"))
+        self.assertEqual(route_kind, "source file")
+        self.assertFalse(external)
+
+    def test_source_file_semantic_fragment_uses_immutable_source(self) -> None:
+        href, route_kind, external = edge_href(
+            "skill",
+            "a" * 40,
+            {
+                "kind": "file",
+                "target": "docs/notes.md",
+                "fragment": "usage",
+            },
+            {},
+            "TakashiSasaki/templates",
+        )
+
+        self.assertEqual(
+            href,
+            "https://github.com/TakashiSasaki/templates/blob/"
+            + ("a" * 40)
+            + "/docs/notes.md#usage",
+        )
+        self.assertEqual(route_kind, "immutable source")
+        self.assertTrue(external)
+
+    def test_guided_csp_allows_same_origin_manifest(self) -> None:
+        rendered = page_shell("Docs", "<h1>Docs</h1>")
+        self.assertIn("manifest-src 'self'", rendered)
+        self.assertIn("default-src 'none'", rendered)
 
 
 if __name__ == "__main__":
