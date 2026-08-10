@@ -115,10 +115,44 @@ class IndexNavigationTests(unittest.TestCase):
             )
             self.assertEqual(root_index["title"], "Provider documentation")
 
+    def test_executable_git_blobs_are_regular_navigation_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            run_git(repository, "update-index", "--chmod=+x", "docs/index.md")
+            run_git(repository, "update-index", "--chmod=+x", "docs/overview.md")
+            run_git(repository, "commit", "--quiet", "--message", "executable regular files")
+
+            graph = collect_provider_graph("skill", repository)
+            root = next(index for index in graph["indexes"] if index["path"] == "docs/index.md")
+            overview = next(edge for edge in graph["edges"] if edge["label"] == "Overview")
+            self.assertEqual(root["title"], "Provider documentation")
+            self.assertEqual(overview["kind"], "file")
+            self.assertEqual(overview["target"], "docs/overview.md")
+
     def test_cycle_is_reported_without_rejecting_valid_navigation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "provider"
             self.make_repository(repository, cycle=True)
+            graph = collect_provider_graph("skill", repository)
+            self.assertEqual(
+                graph["diagnostics"]["cycle_edges"],
+                [{"source": "docs/architecture/index.md", "target": "docs/index.md"}],
+            )
+
+    def test_duplicate_cycle_links_produce_one_diagnostic_edge(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            (repository / "docs/architecture/index.md").write_text(
+                "# Architecture\n\n"
+                "## Design\n\n"
+                "* [Back to root](../) - First cyclic route.\n"
+                "* [Back to root again](../) - Duplicate cyclic route.\n",
+                encoding="utf-8",
+            )
+            run_git(repository, "add", "docs/architecture/index.md")
+            run_git(repository, "commit", "--quiet", "--message", "duplicate cycle route")
             graph = collect_provider_graph("skill", repository)
             self.assertEqual(
                 graph["diagnostics"]["cycle_edges"],
@@ -184,6 +218,21 @@ class IndexNavigationTests(unittest.TestCase):
             with self.assertRaisesRegex(IndexNavigationError, "unsupported external link"):
                 collect_provider_graph("skill", repository)
 
+    def test_link_target_may_contain_balanced_parentheses(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            self.commit_root_index(
+                repository,
+                "# Docs\n\n"
+                "* [Spec](https://example.com/spec_(v1)) - Parentheses are valid target text.\n",
+                "parenthesized URL",
+            )
+            graph = collect_provider_graph("skill", repository)
+            edge = graph["edges"][0]
+            self.assertEqual(edge["kind"], "external")
+            self.assertEqual(edge["target"], "https://example.com/spec_(v1)")
+
     def test_external_queries_fail_and_fragments_are_normalized(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "provider"
@@ -207,6 +256,19 @@ class IndexNavigationTests(unittest.TestCase):
                 "# Docs\n\n"
                 "* [Search](https://example.com/spec?q=test) - Queries are not accepted.\n",
                 "external query",
+            )
+            with self.assertRaisesRegex(IndexNavigationError, "must not contain a query"):
+                collect_provider_graph("skill", repository)
+
+    def test_repository_queries_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            self.commit_root_index(
+                repository,
+                "# Docs\n\n"
+                "* [Overview](overview.md?view=compact) - Queries are not accepted.\n",
+                "repository query",
             )
             with self.assertRaisesRegex(IndexNavigationError, "must not contain a query"):
                 collect_provider_graph("skill", repository)
