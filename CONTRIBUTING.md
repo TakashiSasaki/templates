@@ -63,7 +63,7 @@ Use the consumer documents under `template/` as the sources of truth:
 - MCP caller behavior: `template/MCP_INTERFACE.md`;
 - browser-visible behavior: `template/WEB_INTERFACE.md`.
 
-Profile changes require synchronized contract templates, validators, positive fixtures, combined fixtures, negative fixtures, consumer documentation, and publication sources. Keep adapters thin only when multiple interfaces actually exist. Keep lifecycle ownership outside domain operations and caller protocols.
+Profile changes require synchronized contract templates, validators, positive fixtures, negative fixtures, consumer documentation, and publication sources. Add a combined fixture only when it proves an interaction that independent profile fixtures and contract validation cannot establish. Keep adapters thin only when multiple interfaces actually exist. Keep lifecycle ownership outside domain operations and caller protocols.
 
 ## Validation
 
@@ -101,13 +101,13 @@ The explicit-root Python validator resolves every contract and operational resou
 
 ## Fixture baseline
 
-Reduced fixtures under `.github/fixtures/profiles/` cover instruction, knowledge, assets, private helpers, optional runtime records, packaged CLI, MCP, browser, headless service, combined resource profiles, combined CLI/MCP behavior, systemd service management, and intentionally unsupported combinations.
+Reduced fixtures under `.github/fixtures/profiles/` cover instruction, knowledge, assets, private helpers, optional runtime records, packaged CLI, a representative MCP `2026-07-28` Modern implementation, browser behavior, headless service behavior, combined resource profiles, and intentionally unsupported combinations.
 
-The executable application fixtures select concrete runtimes only to establish their specific claims. They do not make Ruby, one package manager, one transport, or one deployment topology mandatory for the language-neutral template.
+The executable application fixtures select concrete runtimes only to establish their specific claims. They do not make one language, package manager, MCP transport, or deployment topology mandatory for the language-neutral template. The representative MCP fixture is intentionally Modern stdio-only; Streamable HTTP remains a conditional template capability rather than an unproven fixture claim.
 
 The clean-room harness copies `template/.` into a path containing spaces and Japanese characters, verifies the copied inventory and modes, injects source-owned regression engines only into that temporary test copy, and exercises instruction-only, script-assisted, clone, submodule, flattened archive, vendoring, non-mutating consumption, and path safety. The canonical `template/` tree must remain unchanged.
 
-This fixture matrix is the stable baseline for the current profile model. A new protocol era, transport, trust boundary, deployment topology, persistence layer, service manager, distribution service, or release mechanism requires an explicit contract and proportionate executable evidence.
+This fixture matrix is the stable baseline for the current profile model. A new protocol revision, transport, trust boundary, deployment topology, persistence layer, service manager, distribution service, or release mechanism requires an explicit contract and proportionate executable evidence.
 
 ## Documentation publication compatibility
 

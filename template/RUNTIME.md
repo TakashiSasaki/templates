@@ -99,22 +99,24 @@ Complete only when `mcp-enabled` is selected. Public behavior and compatibility 
 
 ## MCP protocol support
 
-Complete this section only when `mcp-enabled` is selected. Verify the current official MCP specification and selected SDK before completing it. `MCP_INTERFACE.md` defines caller-visible negotiation, fallback, result, interaction, and compatibility behavior without duplicating these exact selections.
+Complete this section only when `mcp-enabled` is selected. This unpublished template uses **MCP `2026-07-28` as its only core protocol baseline**. Do not select an earlier revision, a dual-era mode, or automatic fallback to initialization-based protocol revisions. Verify the current official MCP specification and the selected SDK before completing the record.
 
 | Item | Selected value |
 |---|---|
-| Supported protocol revisions | TODO |
-| Supported protocol eras | modern / initialization-era / both: TODO |
-| Default revision or negotiation mode | TODO: automatic negotiation / fixed revision / other |
+| Supported protocol revisions | `2026-07-28` |
+| Supported protocol eras | `modern` |
+| Default revision or negotiation mode | TODO: fixed or pinned `2026-07-28`; no Legacy fallback |
 | MCP SDK or protocol library | TODO |
 | SDK version | TODO |
-| Legacy compatibility policy | TODO |
-| JSON Schema dialects | TODO; MUST include 2020-12 when required by the selected revision |
-| Optional MCP extensions | TODO or NONE |
-| Deprecated feature policy | TODO |
-| Negotiation and compatibility tests | TODO |
+| Legacy compatibility policy | `NOT SUPPORTED` |
+| JSON Schema dialects | TODO; MUST support JSON Schema 2020-12 where the selected MCP surface requires it |
+| Optional MCP extensions | TODO or NONE; extension revisions are recorded separately when an extension contract is retained |
+| Deprecated feature policy | TODO; new implementations must not advertise deprecated MCP features by default |
+| Negotiation and compatibility tests | TODO; MUST prove Modern-only discovery, revision rejection, and every claimed transport |
 
-Protocol lifecycle, cancellation, interaction, subscriptions, logging, and task behavior differ between revisions. Prefer an SDK-supported negotiation path over handwritten probing. Tests must cover every revision and fallback the concrete skill claims.
+The initial template baseline intentionally has no compatibility promise for MCP revisions `2025-11-25` and earlier. A concrete skill must not reintroduce the Legacy `initialize` / `notifications/initialized` lifecycle, protocol-level HTTP sessions, or automatic era fallback without first changing this template contract and its conformance validator.
+
+For Modern requests, the selected implementation must follow the official `2026-07-28` per-request metadata model. Servers implement `server/discover`; clients may use it before ordinary calls, and an unsupported requested revision is answered with `UnsupportedProtocolVersionError`. Capabilities and optional extensions are request-scoped rather than established by an initialization session.
 
 ## MCP variants
 
@@ -128,13 +130,13 @@ Use standard MCP transport names. Do not describe a raw socket protocol as “TC
 | Server entry point | TODO or NOT SUPPORTED |
 | Lifecycle owner | MCP host / bundled tool client / other: TODO |
 | Invocation scope | one operation / multiple sequential operations: TODO |
-| Protocol negotiation/discovery | TODO |
-| Request metadata behavior | TODO |
+| Protocol negotiation/discovery | TODO; when supported use `server/discover` and `2026-07-28` Modern semantics without Legacy fallback |
+| Request metadata behavior | TODO; describe per-request protocol version, client capabilities, and applicable identity metadata |
 | Startup cost policy | TODO |
 | Cancellation behavior | TODO |
 | Child-process shutdown and escalation | TODO |
 
-When supported, stdout is protocol-only, diagnostics use stderr, the launcher is trusted and bounded, and shutdown escalation is deterministic.
+When supported, stdout is protocol-only, diagnostics use stderr, the launcher is trusted and bounded, and shutdown escalation is deterministic. A Modern-only stdio implementation must reject Legacy openings rather than silently entering an initialization session.
 
 ### Streamable HTTP variant
 
@@ -145,8 +147,8 @@ When supported, stdout is protocol-only, diagnostics use stderr, the launcher is
 | Endpoint path | TODO, normally `/mcp` |
 | Default bind address | TODO, normally `127.0.0.1` or `::1` for local-only use |
 | Port | TODO: fixed, configurable, dynamically assigned, shared listener, or deployment-selected |
-| Supported protocol eras | modern / initialization-era / both: TODO |
-| Revision-specific state model | TODO; do not infer from transport alone |
+| Supported protocol eras | TODO: `modern` when supported |
+| Revision-specific state model | TODO; Modern `2026-07-28` has no protocol-level sessions and request state is request-scoped or application-owned |
 | Concurrent-client policy | TODO |
 | Authentication | TODO |
 | Host-header validation | TODO: every HTTP request before dispatch |
@@ -160,22 +162,24 @@ When supported, stdout is protocol-only, diagnostics use stderr, the launcher is
 
 Host, Origin, authentication, authorization, size-limit, and protocol-header decisions are request-scoped. A valid first request must not authorize later requests on the same keep-alive or multiplexed connection. Every present disallowed Origin must produce HTTP 403 for that request.
 
-When `2026-07-28` is supported, also complete:
+When Streamable HTTP is supported, complete every Modern requirement below:
 
 | Modern Streamable HTTP requirement | Selected behavior |
 |---|---|
-| POST request model | TODO |
+| POST request model | TODO: one JSON-RPC client message per new POST |
 | `Accept: application/json, text/event-stream` | TODO |
 | `MCP-Protocol-Version` and request `_meta` consistency | TODO |
 | Required `Mcp-Method` and conditional `Mcp-Name` headers | TODO |
 | Header value encoding | TODO |
-| `x-mcp-header` validation and `Mcp-Param-*` emission | TODO |
+| `x-mcp-header` validation and `Mcp-Param-*` emission | TODO or NOT APPLICABLE when the implementation is server-only and never acts as an HTTP MCP client |
 | JSON and request-scoped SSE response handling | TODO |
-| SSE-stream cancellation | TODO |
-| `Mcp-Session-Id`, GET, DELETE, and resumability | TODO: NOT USED in modern mode |
-| Initialization-era fallback on the same endpoint | TODO or NOT SUPPORTED |
+| SSE-stream cancellation | TODO: closing the response stream cancels that request and no further messages are sent |
+| `Mcp-Session-Id`, GET, DELETE, and resumability | TODO: `NOT USED` in the Modern baseline |
+| Initialization-era fallback on the same endpoint | `NOT SUPPORTED` when selected |
 
-The stdio and Streamable HTTP variants must expose equivalent domain operations under the same revision, identity, authorization, configuration, and workspace policy unless a documented protocol limitation prevents parity.
+The Modern MCP endpoint accepts POST; it does not expose the old standalone GET stream or protocol-session DELETE semantics. Resumable SSE via `Last-Event-ID` is not supported. Long-lived change notifications, when selected, use `subscriptions/listen` rather than a general GET stream.
+
+The stdio and Streamable HTTP variants must expose equivalent domain operations under the same revision, identity, authorization, configuration, and workspace policy unless a documented transport limitation prevents parity.
 
 ### Bundled ad hoc MCP tool client
 
@@ -188,7 +192,7 @@ Complete this section only when the skill bundles a command that discovers or in
 | Stable public command | TODO or NOT SUPPORTED |
 | Bundled helper command | TODO or NOT SUPPORTED |
 | Supported transports | stdio / Streamable HTTP / both: TODO |
-| Negotiation and compatibility behavior | TODO |
+| Negotiation and compatibility behavior | TODO; pin or otherwise require Modern `2026-07-28` with no Legacy fallback |
 | Invocation scope | one tool call / multiple sequential tool calls: TODO |
 | Interaction modes | non-interactive / interactive / response file: TODO |
 | Server-information command | TODO or NOT SUPPORTED |
@@ -203,11 +207,11 @@ Complete this section only when the skill bundles a command that discovers or in
 | Lossless call-result mode | TODO |
 | Other presentation output modes | TODO |
 | Modern MRTR policy | TODO or NOT SUPPORTED |
-| Initialization-era elicitation policy | TODO or NOT SUPPORTED |
+| Initialization-era elicitation policy | `NOT SUPPORTED` when selected |
 | Non-interactive policy | TODO |
 | Timeout and cancellation policy | TODO |
 | Task or extension support | TODO or NOT SUPPORTED |
-| Roots/workspace policy | TODO: distinguish MCP roots from skill-specific workspace configuration |
+| Roots/workspace policy | TODO: do not adopt deprecated Roots for new implementations; distinguish skill workspace configuration from MCP capabilities |
 | Exit-code mapping | TODO; keep consistent with `MCP_INTERFACE.md` and `CLI_INTERFACE.md` when both apply |
 
 The bundled launcher must not expose arbitrary shell commands or caller-selected JSON-RPC request IDs. Preserve every raw `tools/list` page and complete tool-call result in lossless modes; flattened views are derived presentations.
@@ -283,6 +287,6 @@ Network-server configuration should normally permit explicit bind address, port,
 
 ## Decision rationale
 
-Explain why the selected runtime, package manager, commands, public-interface support, protocol revisions, transport variants, distribution, and deployment choices fit this skill better than credible alternatives. Address only activated profiles, but include how adapters share implementation and tests when several interfaces expose the same operations.
+Explain why the selected runtime, package manager, commands, public-interface support, MCP transport variants, distribution, and deployment choices fit this skill better than credible alternatives. For MCP-enabled skills, explain the choice of an SDK that explicitly supports the `2026-07-28` Modern protocol and how tests prove the Modern-only posture. Address only activated profiles, but include how adapters share implementation and tests when several interfaces expose the same operations.
 
 TODO

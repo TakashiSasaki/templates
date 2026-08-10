@@ -93,13 +93,9 @@ if selection.selected?("mcp-enabled")
     end
 
     if http_supported && revisions.include?("2026-07-28")
-      modern_table = http&.match(
-        /When `2026-07-28` is supported, also complete:\s*\n\n(.*?)(?=\nThe stdio and Streamable HTTP variants|\z)/m
-      )&.[](1)
-
       [
         "POST request model",
-        "`Accept: application/json, text/event-stream`",
+        "Accept: application/json, text/event-stream",
         "`MCP-Protocol-Version` and request `_meta` consistency",
         "Required `Mcp-Method` and conditional `Mcp-Name` headers",
         "Header value encoding",
@@ -108,12 +104,12 @@ if selection.selected?("mcp-enabled")
         "SSE-stream cancellation",
         "`Mcp-Session-Id`, GET, DELETE, and resumability"
       ].each do |item|
-        unless ValuePolicy.concrete?(runtime.table_value(item, section: modern_table))
+        unless ValuePolicy.concrete?(runtime.table_value(item, section: http))
           errors << "Protocol revision 2026-07-28 with Streamable HTTP requires a concrete modern transport value for '#{item}'."
         end
       end
 
-      fallback = runtime.table_value("Initialization-era fallback on the same endpoint", section: modern_table)
+      fallback = runtime.table_value("Initialization-era fallback on the same endpoint", section: http)
       unless ValuePolicy.resolved_allow_not_supported?(fallback)
         errors << "Protocol revision 2026-07-28 requires a resolved initialization-era fallback decision; NOT SUPPORTED is allowed, NONE is not."
       end

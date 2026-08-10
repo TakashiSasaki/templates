@@ -153,28 +153,6 @@ def run() -> int:
             },
             expected={"runtime": False, "summary": True},
         ),
-        Case(
-            name="MCP endpoint path mismatch",
-            source=".github/fixtures/profiles/mcp-enabled",
-            replacements={
-                "MCP_INTERFACE.md": (
-                    "Endpoint URL: see RUNTIME.md",
-                    "Endpoint URL: http://127.0.0.1:4570/wrong",
-                )
-            },
-            expected={"runtime": True, "summary": False},
-        ),
-        Case(
-            name="MCP invalid endpoint URI",
-            source=".github/fixtures/profiles/mcp-enabled",
-            replacements={
-                "MCP_INTERFACE.md": (
-                    "Endpoint URL: see RUNTIME.md",
-                    "Endpoint URL: http://[invalid",
-                )
-            },
-            expected={"runtime": True, "summary": False},
-        ),
     ]
 
     failures: list[str] = []

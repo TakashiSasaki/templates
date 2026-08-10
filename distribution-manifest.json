@@ -43,6 +43,7 @@
     ".github/scripts/validate_interface_runtime_consistency.py",
     ".github/scripts/validate_interface_summary_details.py",
     ".github/scripts/validate_late_review_contracts.py",
+    ".github/scripts/validate_mcp_protocol_conformance.py",
     ".github/scripts/validate_mcp_runtime_authority.py",
     ".github/scripts/validate_profile_contracts.py",
     ".github/scripts/validate_review_followup_contracts.py",
