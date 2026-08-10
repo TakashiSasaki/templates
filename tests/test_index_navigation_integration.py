@@ -13,19 +13,23 @@ SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
 class IndexNavigationIntegrationTests(unittest.TestCase):
-    def test_pages_build_orders_browser_graph_viewer_and_link_validation(self) -> None:
+    def test_pages_build_orders_browser_graph_viewer_metadata_and_link_validation(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         static_build = workflow.index("- name: Build the static site")
         browser = workflow.index("- name: Generate static repository browser")
         graph = workflow.index("- name: Generate index navigation graph")
         viewer = workflow.index("- name: Generate index-guided navigation viewer")
+        guided_metadata = workflow.index(
+            "- name: Normalize guided canonical links and PWA metadata"
+        )
         entry_points = workflow.index("- name: Verify the Pages entry point")
         link_validation = workflow.index("- name: Validate generated site links")
 
         self.assertLess(static_build, browser)
         self.assertLess(browser, graph)
         self.assertLess(graph, viewer)
-        self.assertLess(viewer, entry_points)
+        self.assertLess(viewer, guided_metadata)
+        self.assertLess(guided_metadata, entry_points)
         self.assertLess(entry_points, link_validation)
 
         for provider in ("skill", "policy", "webapp"):
@@ -39,8 +43,17 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
             )
         self.assertIn("--output build/index-navigation.json", workflow)
         self.assertIn("--graph build/index-navigation.json", workflow)
+        self.assertIn("--site-root build/site/guided", workflow)
         self.assertIn("build/site/guided/graph.json", workflow)
         self.assertIn("missing guided index page", workflow)
+        self.assertGreaterEqual(
+            workflow.count('<link rel="manifest" href="/app.webmanifest">'),
+            2,
+        )
+        self.assertGreaterEqual(
+            workflow.count('<meta name="theme-color" content="#3f51b5">'),
+            2,
+        )
 
     def test_landing_exposes_guided_discovery_as_a_distinct_path(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
