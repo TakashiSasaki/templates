@@ -15,24 +15,28 @@ from urllib.parse import unquote_to_bytes, urlsplit, urlunsplit
 try:
     from scripts.generate_repository_file_previews import (
         BIDIRECTIONAL_CONTROLS,
+        RepositoryFilePreviewError,
         object_contents,
         object_sizes,
     )
     from scripts.generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
+        RepositoryTreeError,
         checked_revision,
         read_entries,
     )
 except ModuleNotFoundError:
     from generate_repository_file_previews import (
         BIDIRECTIONAL_CONTROLS,
+        RepositoryFilePreviewError,
         object_contents,
         object_sizes,
     )
     from generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
+        RepositoryTreeError,
         checked_revision,
         read_entries,
     )
@@ -457,16 +461,16 @@ def main() -> int:
         providers = parse_providers(args.provider)
         graph = generate_graph(args.repository, providers)
         write_graph(args.output, graph)
-    except IndexNavigationError as exc:
+        for provider in graph["providers"]:
+            diagnostics = provider["diagnostics"]
+            print(
+                f"{provider['name']} index navigation: "
+                f"{diagnostics['index_count']} indexes, "
+                f"{diagnostics['edge_count']} links, "
+                f"depth {diagnostics['max_index_depth']} @ {provider['revision']}"
+            )
+    except (IndexNavigationError, RepositoryTreeError, RepositoryFilePreviewError) as exc:
         parser.error(str(exc))
-    for provider in graph["providers"]:
-        diagnostics = provider["diagnostics"]
-        print(
-            f"{provider['name']} index navigation: "
-            f"{diagnostics['index_count']} indexes, "
-            f"{diagnostics['edge_count']} links, "
-            f"depth {diagnostics['max_index_depth']} @ {provider['revision']}"
-        )
     return 0
 
 
