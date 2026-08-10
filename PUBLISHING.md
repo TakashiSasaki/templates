@@ -9,7 +9,8 @@ The `site` branch publishes one human-readable GitHub Pages portal that includes
 reviewed documentation from the `skill`, `policy`, and `webapp` branches without
 combining their Git histories or transferring ownership of their canonical
 content. The same Pages artifact may also expose a bounded source-oriented file
-browser for the exact build inputs under the rules below.
+browser for the exact build inputs and a bounded index-guided navigation surface
+that projects provider-owned `index.md` structure under the rules below.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
@@ -23,17 +24,24 @@ Provider branches (`skill`, `policy`, and `webapp`) own:
 - stable document IDs and canonical source paths;
 - whether a cataloged document or asset is required or optional;
 - one required publication home document;
+- provider-owned `index.md` files and the semantic navigation paths expressed by
+  their headings, link order, link labels, link destinations, and short
+  descriptions;
 - provider-local validation of catalog and documentation changes.
 
 The `site` branch owns:
 
 - the global portal home and reader-oriented information architecture;
-- cross-publication titles, hierarchy, ordering, and generated destinations;
+- cross-publication titles, hierarchy, ordering, and generated destinations for
+  cataloged documentation;
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
 - generated repository inventories and bounded inline file previews;
 - the bounded static file-browser snapshots for `site`, `skill`, `policy`, and
   `webapp` build inputs;
+- the deterministic index-navigation graph and human-readable projection of the
+  exact reviewed `skill`, `policy`, and `webapp` provider inputs without
+  redefining their provider-owned navigation semantics;
 - generated link, fragment, asset, canonical-URL, and provenance validation;
 - the sole repository workflow authorized to deploy GitHub Pages.
 
@@ -57,21 +65,25 @@ The following rules apply:
    files do not become cataloged documentation merely because they are tracked.
 4. Branch-wide copies and unrestricted glob-based publication are prohibited for
    cataloged documentation and provider assets. The separate repository inventory,
-   inline-preview, and static file-browser surfaces may expose only the bounded
-   Git-object representations explicitly permitted below.
+   inline-preview, static file-browser, and index-guided navigation surfaces may
+   expose only the bounded Git-object representations or navigation metadata
+   explicitly permitted below.
 5. Machine-readable contracts and schemas may be published as supporting
    assets, but the navigation should lead readers through explanatory Markdown.
 6. Catalog paths and asset traversal must reject parent traversal, unsafe path
    forms, `.git` components, and symbolic-link traversal.
-7. Repository inventory previews and static file-browser pages are separate,
-   bounded rendering surfaces and must satisfy every constraint in the following
-   section.
+7. Repository inventory previews, static file-browser pages, and index-guided
+   navigation pages are separate bounded rendering surfaces and must satisfy
+   every applicable constraint in the following sections.
 
 Adding a file to a provider branch does not publish it as a cataloged document or
 provider asset. Adding or changing a catalog entry is a public-interface change
 and requires review as such. A tracked regular file can nevertheless become
 visible in the separate file-browser snapshot when it satisfies the bounded
 browser rules below; this does not make it a cataloged document or asset.
+Likewise, a path referenced by a provider-owned `index.md` may be represented as
+navigation metadata or linked to the file browser without becoming a cataloged
+documentation page.
 
 ## Repository inventory
 
@@ -160,6 +172,59 @@ final site directory, so `zensical build --clean` cannot delete it. It must be
 generated before final site-link validation and before the Pages artifact is
 uploaded. Browser HTML is a build artifact and must not be committed.
 
+### Index-guided navigation
+
+The index-guided navigation surface at `/guided/` exists so that a human reader
+can follow and evaluate the same provider-owned progressive-disclosure path that
+an AI agent can use before falling back to search or unrestricted source
+browsing. It is a projection of navigation metadata, not a second catalog and
+not a replacement for the Site-authored reader navigation.
+
+The guided-navigation implementation must satisfy all of the following rules:
+
+- the only top-level providers are `skill`, `policy`, and `webapp`;
+- each provider traversal starts at that exact checkout's `docs/index.md`;
+- `index.md` content is read from exact Git blob object IDs named by the checked
+  out revision rather than mutable working-tree content;
+- provider `index.md` files are interpreted only through the conservative
+  reserved-index shape accepted by the navigation parser: headings and Markdown
+  link entries with short descriptions; arbitrary provider Markdown or raw HTML
+  is not rendered as guided-navigation content;
+- provider-controlled titles, section names, labels, and descriptions are HTML
+  escaped before they appear in generated HTML;
+- strict UTF-8, NUL/control-character, repository-root escape, unsafe URL scheme,
+  broken-link, symlink, and gitlink boundaries fail closed;
+- a directory link is followed recursively only when it resolves to an
+  `index.md` regular file in the same provider revision;
+- cycles, multiple navigation parents, and maximum index depth are recorded as
+  diagnostics so the information architecture can be evaluated without
+  inventing an unvalidated policy limit;
+- the schema-versioned machine-readable graph is published at
+  `/guided/graph.json` and records the exact provider full SHA for every provider;
+- the human viewer consumes that graph rather than reparsing provider Markdown,
+  so graph semantics and human presentation cannot drift independently;
+- an index-to-index link opens the generated guided index page; a link to an
+  already cataloged document opens the Site's existing stable documentation
+  destination; a link to another regular tracked file opens the corresponding
+  immutable `/files/` viewer; a directory without a followed index opens the
+  corresponding provider source-browser entry point; and an HTTP(S) external
+  link remains external;
+- each guided page displays its provider, exact full SHA, source `index.md` path,
+  and immutable GitHub source link;
+- the graph revision for a provider must equal the checked-out provider revision
+  used for catalog assembly, repository trees, previews, and `/files/`; revision
+  disagreement fails before guided output is accepted;
+- generated guided HTML uses a restrictive content security policy and does not
+  execute repository-supplied code;
+- ordinary guided browsing has no runtime GitHub API, raw-content, or CDN
+  dependency.
+
+The guided surface is generated after the static file browser because
+uncataloged guided targets may resolve to file-browser pages. Both surfaces must
+be generated before final site-link validation and before the Pages artifact is
+uploaded. Guided HTML and graph JSON are build artifacts and must not be
+committed.
+
 ## Human-readable information architecture
 
 The portal must provide a clear entry point for each major publication:
@@ -182,18 +247,33 @@ The source-oriented browser has stable entry points:
 - `/files/skill/`, `/files/policy/`, and `/files/webapp/` for the reviewed
   provider snapshots.
 
-Navigation is organized by reader task and conceptual hierarchy rather than by
-repository layout alone. Overview, adoption, operation, architecture, evidence,
-release, ADR, and migration material should be grouped under descriptive titles.
-Raw contracts, schemas, and other machine-readable files should remain
-reachable from explanatory documents without dominating primary navigation.
+The index-guided surface has stable entry points:
+
+- `/guided/` for choosing a provider-owned navigation path;
+- `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` for the reviewed
+  provider navigation roots;
+- `/guided/graph.json` for the schema-versioned machine-readable representation
+  used by the human viewer.
+
+The Site-authored navigation and provider-owned guided navigation are
+complementary. Site navigation is organized by reader task and conceptual
+hierarchy, while the guided surface intentionally preserves provider-owned index
+order, grouping, labels, and descriptions. The Site must not silently derive or
+replace its primary navigation from arbitrary Markdown parsing merely because a
+guided graph exists.
+
+Overview, adoption, operation, architecture, evidence, release, ADR, and
+migration material should be grouped under descriptive titles in Site-authored
+navigation. Raw contracts, schemas, and other machine-readable files should
+remain reachable from explanatory documents without dominating primary
+navigation.
 
 Generated destinations are stable public paths. Renaming a source file does not
 require a public URL change when the stable document ID and destination remain
 unchanged. A destination change must be reviewed as a compatibility change. File
-browser content URLs are implementation details keyed by immutable branch,
-revision, and path identity; only the branch browser entry points above are
-stable public paths.
+browser content URLs and nested guided-index URLs are implementation details
+keyed by immutable provider revision and source-path identity; only the branch
+browser and guided provider entry points above are stable public paths.
 
 ## Reproducibility and provenance
 
@@ -207,10 +287,11 @@ The build artifact contains `build-provenance.json` with:
 - the exact `site` commit;
 - the exact `skill`, `policy`, and `webapp` commits.
 
-Repository-tree links, preview URLs, and file-browser pages must use the
-corresponding checked-out commit. Workflow-call revision overrides therefore
-produce inventory, preview, and browser output for the overridden commit rather
-than the normal lock value.
+Repository-tree links, preview URLs, file-browser pages, the index-navigation
+graph, and guided-navigation pages must use the corresponding checked-out
+commit. Workflow-call revision overrides therefore produce inventory, preview,
+browser, graph, and guided output for the overridden commit rather than the
+normal lock value.
 
 The provenance file identifies deterministic source inputs. It is not a digital
 signature, software bill of materials, or artifact attestation.
@@ -232,8 +313,9 @@ A provider publication change uses this sequence:
    order, or generated destinations change.
 7. Build the integrated site against the exact locked commits.
 8. Require tests, repository-tree generation, inline-preview generation, strict
-   site generation, static file-browser generation, entry-point checks,
-   provenance generation, and generated-link validation to pass.
+   site generation, static file-browser generation, index-navigation graph and
+   guided-viewer generation, entry-point checks, provenance generation, and
+   generated-link validation to pass.
 9. Merge the `site` pull request. A push to `site` is the only deployment event.
 
 Provider and `site` changes remain separate pull requests because they have
@@ -279,10 +361,16 @@ verify that:
 - `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;
 - all four `/repository-trees/` entry points are reachable;
 - `/files/` and all four branch browser entry points are reachable;
+- `/guided/` and `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` are
+  reachable;
+- `/guided/graph.json` records the same reviewed provider full SHAs as the
+  provider checkouts and deployed provenance;
 - preview links load the corresponding sandboxed frame without replacing source
   links;
 - file-browser text pages show line-number and wrapping controls and do not need
   a runtime GitHub API or CDN request to render their text;
+- guided pages preserve provider-owned link labels and descriptions without
+  executing provider-supplied markup or code;
 - the deployed `/build-provenance.json` matches the reviewed lock file;
 - HTTP requests redirect to HTTPS and the deployed response uses the custom
   domain.
@@ -310,8 +398,16 @@ A publication update is complete only when all of the following hold:
 - browser syntax highlighting is build-time only, text is escaped, line-number
   and wrapping toggles work without repository code execution, and non-text or
   oversized files receive fallback pages;
-- internal links, fragments, assets, preview targets, browser targets, and
-  canonical URLs validate;
+- each provider guided root is generated from its exact checked-out
+  `docs/index.md`, and every reachable index node represented in
+  `/guided/graph.json` has a corresponding human viewer page;
+- the guided graph and viewer use the same full-SHA provider snapshots as
+  publication assembly and `/files/`, preserve provider-owned navigation
+  metadata, escape provider text, and fail closed on invalid navigation targets;
+- graph diagnostics record cycles, multiple-parent indexes, and maximum depth
+  without converting those observations into unsupported policy limits;
+- internal links, fragments, assets, preview targets, browser targets, guided
+  targets, and canonical URLs validate;
 - provenance records exact full-SHA inputs;
 - no provider branch can deploy Pages;
 - a `site` push successfully deploys the reviewed artifact.
