@@ -48,7 +48,7 @@ MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
 LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-—][ \t]+(.+?)\s*$"
+    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)\s*$"
 )
 
 
@@ -72,6 +72,18 @@ class ParsedIndex:
     links: tuple[ParsedLink, ...]
 
 
+def contains_disallowed_control(value: str) -> bool:
+    for character in value:
+        codepoint = ord(character)
+        if (
+            (codepoint < 32 and character not in "\t\n\r")
+            or codepoint == 127
+            or character in BIDIRECTIONAL_CONTROLS
+        ):
+            return True
+    return False
+
+
 def decode_index_text(content: bytes, path: str) -> str:
     if len(content) > MAX_INDEX_BYTES:
         raise IndexNavigationError(
@@ -83,16 +95,10 @@ def decode_index_text(content: bytes, path: str) -> str:
         text = content.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise IndexNavigationError(f"index is not strict UTF-8: {path}") from exc
-    for character in text:
-        value = ord(character)
-        if (
-            (value < 32 and character not in "\t\n\r")
-            or value == 127
-            or character in BIDIRECTIONAL_CONTROLS
-        ):
-            raise IndexNavigationError(
-                f"index contains a disallowed control character: {path}"
-            )
+    if contains_disallowed_control(text):
+        raise IndexNavigationError(
+            f"index contains a disallowed control character: {path}"
+        )
     return text
 
 
@@ -175,10 +181,14 @@ def decode_fragment(value: str, source: str, line: int) -> str | None:
         raise IndexNavigationError(
             f"link fragment contains a NUL byte in {source}:{line}: {value!r}"
         )
+    if contains_disallowed_control(decoded):
+        raise IndexNavigationError(
+            f"link fragment contains a disallowed control character in {source}:{line}: {value!r}"
+        )
     return decoded
 
 
-def decode_link_path(value: str, source: str, line: int) -> str:
+def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
     try:
         decoded = unquote_to_bytes(value).decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -189,12 +199,27 @@ def decode_link_path(value: str, source: str, line: int) -> str:
         raise IndexNavigationError(
             f"unsafe repository-relative link in {source}:{line}: {value!r}"
         )
+    trailing_slash = decoded.endswith("/")
     normalized = posixpath.normpath(posixpath.join(posixpath.dirname(source), decoded))
     if normalized in {"", ".", ".."} or normalized.startswith("../"):
         raise IndexNavigationError(
             f"link escapes repository root in {source}:{line}: {value!r}"
         )
-    return normalized
+    return normalized, trailing_slash
+
+
+def validate_external_location(parsed: object, source: str, line: int, target: str) -> None:
+    try:
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if not hostname:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
 
 
 def resolve_link(
@@ -215,6 +240,7 @@ def resolve_link(
             raise IndexNavigationError(
                 f"unsupported external link in {source}:{link.line}: {target!r}"
             )
+        validate_external_location(parsed, source, link.line, target)
         if parsed.query:
             raise IndexNavigationError(
                 f"external link must not contain a query in {source}:{link.line}: {target!r}"
@@ -242,9 +268,13 @@ def resolve_link(
             "fragment": fragment,
         }
 
-    normalized = decode_link_path(parsed.path, source, link.line)
+    normalized, trailing_slash = decode_link_path(parsed.path, source, link.line)
     target_entry = entries.get(normalized)
-    if target_entry is None and parsed.path.endswith("/"):
+    if trailing_slash and target_entry is not None and target_entry[0] == "blob":
+        raise IndexNavigationError(
+            f"slash-terminated repository link targets a regular file in {source}:{link.line}: {target!r}"
+        )
+    if target_entry is None and trailing_slash:
         candidate = normalized.rstrip("/") + "/index.md"
         if candidate in entries:
             normalized = candidate
@@ -276,6 +306,57 @@ def resolve_link(
     }
 
 
+def load_reachable_index(
+    root: Path,
+    path: str,
+    entry: tuple[str, str, str] | None,
+) -> tuple[str, ParsedIndex]:
+    if entry is None or entry[0] != "blob" or entry[1] not in REGULAR_FILE_MODES:
+        raise IndexNavigationError(f"linked index.md is not a regular file: {path}")
+    object_id = entry[2]
+    size = object_sizes(root, [object_id])[object_id]
+    if size > MAX_INDEX_BYTES:
+        raise IndexNavigationError(
+            f"index exceeds {MAX_INDEX_BYTES // 1024} KiB limit: {path}"
+        )
+    content = object_contents(root, [object_id])[object_id]
+    return object_id, parse_index(decode_index_text(content, path), path)
+
+
+def find_cycle_edges(
+    adjacency: dict[str, list[str]],
+    root: str,
+) -> list[dict[str, str]]:
+    cycle_edges: list[dict[str, str]] = []
+    cycle_pairs: set[tuple[str, str]] = set()
+    visiting: set[str] = {root}
+    visited: set[str] = set()
+    stack: list[tuple[str, int]] = [(root, 0)]
+
+    while stack:
+        node, next_index = stack[-1]
+        targets = adjacency.get(node, [])
+        if next_index >= len(targets):
+            stack.pop()
+            visiting.discard(node)
+            visited.add(node)
+            continue
+        target = targets[next_index]
+        stack[-1] = (node, next_index + 1)
+        if target in visiting:
+            pair = (node, target)
+            if pair not in cycle_pairs:
+                cycle_pairs.add(pair)
+                cycle_edges.append({"source": node, "target": target})
+            continue
+        if target in visited:
+            continue
+        visiting.add(target)
+        stack.append((target, 0))
+
+    return cycle_edges
+
+
 def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     revision = checked_revision(root)
     entries_list = read_entries(root)
@@ -299,25 +380,6 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             f"{provider} root navigation index must be a regular file: {ROOT_INDEX}"
         )
 
-    index_object_ids = {
-        path: value[2]
-        for path, value in entries.items()
-        if path.endswith("/index.md")
-        and value[0] == "blob"
-        and value[1] in REGULAR_FILE_MODES
-    }
-    sizes = object_sizes(root, index_object_ids.values())
-    oversized = [
-        path
-        for path, object_id in index_object_ids.items()
-        if sizes[object_id] > MAX_INDEX_BYTES
-    ]
-    if oversized:
-        raise IndexNavigationError(
-            f"provider contains oversized index.md: {', '.join(sorted(oversized))}"
-        )
-    contents = object_contents(root, index_object_ids.values())
-
     queue: deque[tuple[str, int]] = deque([(ROOT_INDEX, 0)])
     seen: set[str] = set()
     queued: set[str] = {ROOT_INDEX}
@@ -332,13 +394,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
         if path in seen:
             continue
         seen.add(path)
-        object_id = index_object_ids.get(path)
-        if object_id is None:
-            raise IndexNavigationError(f"linked index.md is not a regular file: {path}")
-        parsed_index = parse_index(
-            decode_index_text(contents[object_id], path),
-            path,
-        )
+        object_id, parsed_index = load_reachable_index(root, path, entries.get(path))
         indexes.append(
             {
                 "path": path,
@@ -371,32 +427,12 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
                     queue.append((target_path, depths[target_path]))
                     queued.add(target_path)
 
-    index_edges = [edge for edge in edges if edge["kind"] == "index"]
     adjacency: dict[str, list[str]] = {}
-    for edge in index_edges:
-        adjacency.setdefault(str(edge["source"]), []).append(str(edge["target"]))
+    for edge in edges:
+        if edge["kind"] == "index":
+            adjacency.setdefault(str(edge["source"]), []).append(str(edge["target"]))
 
-    cycle_edges: list[dict[str, str]] = []
-    cycle_pairs: set[tuple[str, str]] = set()
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def visit(node: str) -> None:
-        if node in visited:
-            return
-        visiting.add(node)
-        for target in adjacency.get(node, []):
-            if target in visiting:
-                pair = (node, target)
-                if pair not in cycle_pairs:
-                    cycle_pairs.add(pair)
-                    cycle_edges.append({"source": node, "target": target})
-            elif target not in visited:
-                visit(target)
-        visiting.remove(node)
-        visited.add(node)
-
-    visit(ROOT_INDEX)
+    cycle_edges = find_cycle_edges(adjacency, ROOT_INDEX)
     max_depth = max((int(index["depth"]) for index in indexes), default=0)
     return {
         "name": provider,
