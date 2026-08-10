@@ -78,10 +78,19 @@ def load_graph(path: Path) -> dict[str, Any]:
 
 
 def validate_repository_path(value: str, label: str) -> None:
-    if not value or value.startswith("/") or "\\" in value or "\x00" in value:
+    if (
+        not value
+        or value.startswith("/")
+        or "\\" in value
+        or ":" in value
+        or "\x00" in value
+    ):
         raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
     path = PurePosixPath(value)
-    if any(part in {"", ".", ".."} for part in path.parts):
+    if any(
+        part in {"", ".", ".."} or part.casefold() == ".git"
+        for part in path.parts
+    ):
         raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
     if path.as_posix() != value:
         raise IndexNavigationViewerError(f"{label} is not a canonical repository-relative path")
