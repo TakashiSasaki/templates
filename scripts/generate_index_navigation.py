@@ -10,7 +10,7 @@ import re
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote_to_bytes, urlsplit
+from urllib.parse import unquote_to_bytes, urlsplit, urlunsplit
 
 try:
     from scripts.generate_repository_file_previews import (
@@ -95,6 +95,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
     sections: list[str] = []
+    section_names: set[str] = set()
     links: list[ParsedLink] = []
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
@@ -120,6 +121,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                     raise IndexNavigationError(
                         f"section precedes title in {path}:{line_number}"
                     )
+                if value in section_names:
+                    raise IndexNavigationError(
+                        f"duplicate section heading in {path}:{line_number}: {value!r}"
+                    )
+                section_names.add(value)
                 section = value
                 sections.append(value)
             continue
@@ -151,6 +157,22 @@ def parse_index(text: str, path: str) -> ParsedIndex:
     )
 
 
+def decode_fragment(value: str, source: str, line: int) -> str | None:
+    if not value:
+        return None
+    try:
+        decoded = unquote_to_bytes(value).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IndexNavigationError(
+            f"link fragment is not UTF-8 in {source}:{line}: {value!r}"
+        ) from exc
+    if "\x00" in decoded:
+        raise IndexNavigationError(
+            f"link fragment contains a NUL byte in {source}:{line}: {value!r}"
+        )
+    return decoded
+
+
 def decode_link_path(value: str, source: str, line: int) -> str:
     try:
         decoded = unquote_to_bytes(value).decode("utf-8")
@@ -176,30 +198,43 @@ def resolve_link(
     entries: dict[str, tuple[str, str, str]],
 ) -> dict[str, object]:
     target = link.raw_target
-    parsed = urlsplit(target)
+    try:
+        parsed = urlsplit(target)
+    except ValueError as exc:
+        raise IndexNavigationError(
+            f"malformed link target in {source}:{link.line}: {target!r}"
+        ) from exc
+    fragment = decode_fragment(parsed.fragment, source, link.line)
     if parsed.scheme or parsed.netloc:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise IndexNavigationError(
                 f"unsupported external link in {source}:{link.line}: {target!r}"
             )
+        if parsed.query:
+            raise IndexNavigationError(
+                f"external link must not contain a query in {source}:{link.line}: {target!r}"
+            )
+        external_target = urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, "", "")
+        )
         return {
             "kind": "external",
-            "target": target,
-            "fragment": parsed.fragment or None,
+            "target": external_target,
+            "fragment": fragment,
         }
     if parsed.query:
         raise IndexNavigationError(
             f"repository link must not contain a query in {source}:{link.line}: {target!r}"
         )
     if not parsed.path:
-        if not parsed.fragment:
+        if fragment is None:
             raise IndexNavigationError(
                 f"empty link target in {source}:{link.line}"
             )
         return {
             "kind": "fragment",
             "target": source,
-            "fragment": parsed.fragment,
+            "fragment": fragment,
         }
 
     normalized = decode_link_path(parsed.path, source, link.line)
@@ -232,7 +267,7 @@ def resolve_link(
     return {
         "kind": resolved_kind,
         "target": normalized,
-        "fragment": parsed.fragment or None,
+        "fragment": fragment,
     }
 
 
@@ -278,7 +313,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     indexes: list[dict[str, object]] = []
     edges: list[dict[str, object]] = []
     depths: dict[str, int] = {ROOT_INDEX: 0}
-    incoming: dict[str, int] = {}
+    incoming_sources: dict[str, set[str]] = {}
 
     while queue:
         path, depth = queue.popleft()
@@ -316,7 +351,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             edges.append(edge)
             if resolved["kind"] == "index":
                 target_path = str(resolved["target"])
-                incoming[target_path] = incoming.get(target_path, 0) + 1
+                incoming_sources.setdefault(target_path, set()).add(path)
                 candidate_depth = depth + 1
                 previous = depths.get(target_path)
                 if previous is None or candidate_depth < previous:
@@ -360,7 +395,7 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             "max_index_depth": max_depth,
             "cycle_edges": cycle_edges,
             "multiple_parent_indexes": sorted(
-                path for path, count in incoming.items() if count > 1
+                path for path, sources in incoming_sources.items() if len(sources) > 1
             ),
         },
     }
