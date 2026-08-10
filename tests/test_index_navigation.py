@@ -151,7 +151,7 @@ class IndexNavigationTests(unittest.TestCase):
             repository = Path(temporary) / "provider"
             self.make_repository(repository)
             (repository / "docs/index.md").write_text(
-                "# Docs\n\n* [Unsafe](javascript:alert(1)) - Must fail.\n",
+                "# Docs\n\n* [Unsafe](javascript:alert) - Must fail.\n",
                 encoding="utf-8",
             )
             run_git(repository, "add", "docs/index.md")
@@ -182,7 +182,11 @@ class IndexNavigationTests(unittest.TestCase):
             with self.assertRaisesRegex(IndexNavigationError, "providers must be supplied"):
                 generate_graph(
                     "TakashiSasaki/templates",
-                    {"policy": repositories["policy"], "skill": repositories["skill"], "webapp": repositories["webapp"]},
+                    {
+                        "policy": repositories["policy"],
+                        "skill": repositories["skill"],
+                        "webapp": repositories["webapp"],
+                    },
                 )
 
     def test_cli_provider_parser_rejects_duplicates_and_wrong_order(self) -> None:
