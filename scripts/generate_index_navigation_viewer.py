@@ -543,13 +543,16 @@ def render_landing(graph: dict[str, Any]) -> str:
     cards = []
     for provider in graph["providers"]:
         diagnostics = provider["diagnostics"]
+        index_count = html.escape(str(diagnostics.get("index_count", 0)))
+        edge_count = html.escape(str(diagnostics.get("edge_count", 0)))
+        max_depth = html.escape(str(diagnostics.get("max_index_depth", 0)))
         cards.append(
             '<section class="provider-card">'
             f'<h2><a href="/guided/{quote(provider["name"], safe="")}/">{html.escape(provider["name"])}</a></h2>'
             f'<p><code>{html.escape(provider["revision"])}</code></p>'
-            f'<p>{diagnostics.get("index_count", 0)} reachable indexes · '
-            f'{diagnostics.get("edge_count", 0)} links · '
-            f'maximum index depth {diagnostics.get("max_index_depth", 0)}</p>'
+            f'<p>{index_count} reachable indexes · '
+            f'{edge_count} links · '
+            f'maximum index depth {max_depth}</p>'
             f'<p><a href="/files/{quote(provider["name"], safe="")}/">Browse the same repository snapshot</a></p>'
             "</section>"
         )
