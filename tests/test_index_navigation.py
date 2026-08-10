@@ -71,6 +71,11 @@ class IndexNavigationTests(unittest.TestCase):
         run_git(root, "add", ".")
         run_git(root, "commit", "--quiet", "--message", "fixture")
 
+    def commit_root_index(self, repository: Path, text: str, message: str) -> None:
+        (repository / "docs/index.md").write_text(text, encoding="utf-8")
+        run_git(repository, "add", "docs/index.md")
+        run_git(repository, "commit", "--quiet", "--message", message)
+
     def test_collects_recursive_indexes_and_classifies_links(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "provider"
@@ -120,6 +125,22 @@ class IndexNavigationTests(unittest.TestCase):
                 [{"source": "docs/architecture/index.md", "target": "docs/index.md"}],
             )
 
+    def test_multiple_parent_diagnostic_counts_distinct_source_indexes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            self.commit_root_index(
+                repository,
+                "# Provider documentation\n\n"
+                "## First route\n\n"
+                "* [Architecture](architecture/) - First link from the root.\n\n"
+                "## Second route\n\n"
+                "* [Architecture again](architecture/) - Second link from the same root.\n",
+                "duplicate edge from same parent",
+            )
+            graph = collect_provider_graph("skill", repository)
+            self.assertEqual(graph["diagnostics"]["multiple_parent_indexes"], [])
+
     def test_repository_escape_and_broken_links_fail_closed(self) -> None:
         parsed = parse_index(
             "# Docs\n\n* [Escape](../../outside.md) - Must fail.\n",
@@ -134,29 +155,60 @@ class IndexNavigationTests(unittest.TestCase):
             with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
                 repository = Path(temporary) / "provider"
                 self.make_repository(repository)
-                (repository / "docs/index.md").write_text(
+                self.commit_root_index(
+                    repository,
                     f"# Docs\n\n* [Bad]({target}) - Invalid target.\n",
-                    encoding="utf-8",
+                    "bad link",
                 )
-                run_git(repository, "add", "docs/index.md")
-                run_git(repository, "commit", "--quiet", "--message", "bad link")
                 with self.assertRaisesRegex(IndexNavigationError, message):
                     collect_provider_graph("skill", repository)
 
-    def test_index_shape_rejects_prose_and_unsafe_external_scheme(self) -> None:
+    def test_index_shape_rejects_prose_duplicate_sections_and_unsafe_external_scheme(self) -> None:
         with self.assertRaisesRegex(IndexNavigationError, "unsupported index.md content"):
             parse_index("# Docs\n\nFree-form prose.\n", "docs/index.md")
+        with self.assertRaisesRegex(IndexNavigationError, "duplicate section heading"):
+            parse_index(
+                "# Docs\n\n## Examples\n\n* [One](one.md) - First.\n\n"
+                "## Examples\n\n* [Two](two.md) - Second.\n",
+                "docs/index.md",
+            )
 
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "provider"
             self.make_repository(repository)
-            (repository / "docs/index.md").write_text(
+            self.commit_root_index(
+                repository,
                 "# Docs\n\n* [Unsafe](javascript:alert) - Must fail.\n",
-                encoding="utf-8",
+                "unsafe scheme",
             )
-            run_git(repository, "add", "docs/index.md")
-            run_git(repository, "commit", "--quiet", "--message", "unsafe scheme")
             with self.assertRaisesRegex(IndexNavigationError, "unsupported external link"):
+                collect_provider_graph("skill", repository)
+
+    def test_external_queries_fail_and_fragments_are_normalized(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            self.commit_root_index(
+                repository,
+                "# Docs\n\n"
+                "* [Spec](https://example.com/spec#caf%C3%A9) - Encoded fragment.\n",
+                "encoded external fragment",
+            )
+            graph = collect_provider_graph("skill", repository)
+            edge = graph["edges"][0]
+            self.assertEqual(edge["target"], "https://example.com/spec")
+            self.assertEqual(edge["fragment"], "café")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "provider"
+            self.make_repository(repository)
+            self.commit_root_index(
+                repository,
+                "# Docs\n\n"
+                "* [Search](https://example.com/spec?q=test) - Queries are not accepted.\n",
+                "external query",
+            )
+            with self.assertRaisesRegex(IndexNavigationError, "must not contain a query"):
                 collect_provider_graph("skill", repository)
 
     def test_generate_graph_requires_exact_provider_order_and_writes_json(self) -> None:
