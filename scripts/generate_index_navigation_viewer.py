@@ -16,6 +16,7 @@ try:
         PROVIDER_ORDER,
         ROOT_INDEX,
         IndexNavigationError,
+        contains_disallowed_control,
         parse_providers,
     )
     from scripts.generate_repository_browser import viewer_relative_url
@@ -32,6 +33,7 @@ except ModuleNotFoundError:
         PROVIDER_ORDER,
         ROOT_INDEX,
         IndexNavigationError,
+        contains_disallowed_control,
         parse_providers,
     )
     from generate_repository_browser import viewer_relative_url
@@ -48,6 +50,7 @@ except ModuleNotFoundError:
 GUIDED_ROOT = Path("guided")
 MARKER = ".index-navigation-root"
 MARKER_CONTENT = "managed by scripts/generate_index_navigation_viewer.py\n"
+LINE_FRAGMENT = re.compile(r"L[1-9][0-9]*")
 
 
 class IndexNavigationViewerError(RuntimeError):
@@ -170,7 +173,10 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             raise IndexNavigationViewerError(f"{name} edge section is invalid")
         if section is not None and section not in index_by_path[source]["sections"]:
             raise IndexNavigationViewerError(f"{name} edge section is not declared by its index")
-        if fragment is not None and not isinstance(fragment, str):
+        if fragment is not None and (
+            not isinstance(fragment, str)
+            or contains_disallowed_control(fragment, allow_layout_whitespace=False)
+        ):
             raise IndexNavigationViewerError(f"{name} edge fragment is invalid")
 
         kind = edge["kind"]
@@ -178,6 +184,8 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         if kind == "external":
             try:
                 parsed = urlsplit(target)
+                hostname = parsed.hostname
+                parsed.port
             except ValueError as exc:
                 raise IndexNavigationViewerError(
                     f"{name} external edge target is invalid"
@@ -185,6 +193,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             if (
                 parsed.scheme not in {"http", "https"}
                 or not parsed.netloc
+                or not hostname
                 or parsed.query
                 or parsed.fragment
             ):
@@ -297,6 +306,7 @@ def edge_href(
     revision: str,
     edge: dict[str, Any],
     published: dict[str, str],
+    repository: str | None = None,
 ) -> tuple[str, str, bool]:
     kind = edge["kind"]
     target = edge["target"]
@@ -317,6 +327,13 @@ def edge_href(
                 "published document",
                 False,
             )
+        if fragment is not None and LINE_FRAGMENT.fullmatch(fragment) is None:
+            if repository is None:
+                raise IndexNavigationViewerError(
+                    "repository is required for a semantic source-file fragment"
+                )
+            source = github_url(repository, revision, "blob", target.encode("utf-8"))
+            return source + fragment_suffix(fragment), "immutable source", True
         relative = viewer_relative_url(provider, revision, target.encode("utf-8"))
         return (
             f"/files/{quote(provider, safe='')}/{relative}" + fragment_suffix(fragment),
@@ -384,7 +401,7 @@ def page_shell(title: str, body: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <title>{html.escape(title)} · templates guided navigation</title>
 <style>
 :root {{ color-scheme: light dark; font-family: system-ui, sans-serif; }}
@@ -427,7 +444,7 @@ def render_edge(
     published: dict[str, str],
 ) -> str:
     href, route_kind, external = edge_href(
-        provider["name"], provider["revision"], edge, published
+        provider["name"], provider["revision"], edge, published, repository
     )
     source = immutable_target_url(repository, provider["revision"], edge)
     attrs = ' target="_blank" rel="noopener"' if external else ""
