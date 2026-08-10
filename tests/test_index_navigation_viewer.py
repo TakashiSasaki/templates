@@ -134,6 +134,14 @@ class IndexNavigationViewerTests(unittest.TestCase):
                 Path("guided/skill/index.html"),
             )
 
+            landing = (output / "guided/index.html").read_text(encoding="utf-8")
+            for provider in PROVIDER_ORDER:
+                self.assertIn(
+                    f'<h2><a href="/guided/{provider}/">{provider}</a></h2>',
+                    landing,
+                )
+            self.assertNotIn("<section class=\"provider-card\">2>", landing)
+
             page = (output / "guided/skill/index.html").read_text(encoding="utf-8")
             revision = graph["providers"][0]["revision"]
             self.assertIn(revision, page)
