@@ -249,6 +249,7 @@ def parse_reserved_link_entry(
         )
 
     depth = 1
+    escaped_outer_terminator = False
     index = bracket + 1
     while index < len(line):
         character = line[index]
@@ -257,6 +258,13 @@ def parse_reserved_link_entry(
             and index + 1 < len(line)
             and line[index + 1] in MARKDOWN_ESCAPABLE
         ):
+            if (
+                depth == 1
+                and line[index + 1] == "]"
+                and index + 2 < len(line)
+                and line[index + 2] == "("
+            ):
+                escaped_outer_terminator = True
             index += 2
             continue
         if character == "`":
@@ -272,6 +280,10 @@ def parse_reserved_link_entry(
         index += 1
 
     if depth:
+        if escaped_outer_terminator:
+            raise IndexNavigationError(
+                f"escaped link-label terminator in {path}:{line_number}"
+            )
         return None
     label_source = line[bracket + 1 : index]
     suffix = LINK_ENTRY_SUFFIX.fullmatch(line[index + 1 :])
