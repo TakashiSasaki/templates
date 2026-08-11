@@ -41,14 +41,23 @@ class LatestIndexNavigationReviewRoundLTests(unittest.TestCase):
                     )
 
     def test_unmatched_backticks_remain_literal_text(self) -> None:
-        parsed = navigation.parse_index(
-            "# API `draft\n\n* [Guide `draft](overview.md) - Read `draft.\n",
+        heading = navigation.parse_index(
+            "# API `draft\n",
             "docs/index.md",
         )
+        self.assertEqual(heading.title, "API `draft")
 
-        self.assertEqual(parsed.title, "API `draft")
-        self.assertEqual(parsed.links[0].label, "Guide `draft")
-        self.assertEqual(parsed.links[0].description, "Read `draft.")
+        label = navigation.parse_index(
+            "# Docs\n\n* [Guide `draft](overview.md) - Read it.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(label.links[0].label, "Guide `draft")
+
+        description = navigation.parse_index(
+            "# Docs\n\n* [Guide](overview.md) - Read `draft.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(description.links[0].description, "Read `draft.")
 
     def test_actual_code_spans_still_fail_closed(self) -> None:
         for text, expected in (
