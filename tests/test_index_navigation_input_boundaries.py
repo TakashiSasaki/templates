@@ -42,6 +42,17 @@ class IndexNavigationInputBoundaryTests(unittest.TestCase):
                 "docs/index.md",
             )
 
+    def test_atx_headings_accept_one_to_three_leading_ascii_spaces(self) -> None:
+        for spaces in range(1, 4):
+            with self.subTest(spaces=spaces):
+                parsed = navigation.parse_index(
+                    f"{' ' * spaces}# Docs\n{' ' * spaces}## Guides\n",
+                    "docs/index.md",
+                )
+                self.assertEqual(parsed.title, "Docs")
+                self.assertEqual(parsed.sections[0].title, "Guides")
+                self.assertEqual(parsed.sections[0].level, 2)
+
     def test_cli_formats_graph_and_tree_failures_as_parser_errors(self) -> None:
         argv = [
             "generate_index_navigation.py",
