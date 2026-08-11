@@ -52,7 +52,7 @@ COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
 LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
+    r"^[*-][ \t]+\[((?:\\.|[^\]])+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
 
 
@@ -208,7 +208,12 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
                 )
-            label = label_source.strip(" \t")
+            label = decode_commonmark_inline_text(label_source.strip(" \t")).strip(" \t")
+            if contains_disallowed_control(label, allow_layout_whitespace=False):
+                raise IndexNavigationError(
+                    f"link label contains a disallowed control character in "
+                    f"{path}:{line_number}"
+                )
             raw_target = entry.group(2).strip(" \t")
             destination_backslashes = len(raw_target) - len(raw_target.rstrip("\\"))
             if destination_backslashes % 2:
@@ -374,6 +379,33 @@ def decode_commonmark_character_references(value: str) -> str:
     return COMMONMARK_CHARACTER_REFERENCE.sub(replace, value)
 
 
+def decode_commonmark_inline_text(value: str) -> str:
+    """Decode CommonMark backslash escapes and exact character references once."""
+    decoded_parts: list[str] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            decoded_parts.append(value[index + 1])
+            index += 2
+            continue
+        if character == "&":
+            reference = COMMONMARK_CHARACTER_REFERENCE.match(value, index)
+            if reference is not None:
+                decoded_reference = decode_commonmark_character_reference(reference.group(0))
+                if decoded_reference is not None:
+                    decoded_parts.append(decoded_reference)
+                    index = reference.end()
+                    continue
+        decoded_parts.append(character)
+        index += 1
+    return "".join(decoded_parts)
+
+
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
     """Apply CommonMark destination delimiters, escapes, and references before URI parsing."""
     destination, pointy = unwrap_pointy_destination(value, source, line)
@@ -385,30 +417,7 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             )
         validate_bare_destination_parentheses(destination, source, line)
 
-    decoded_parts: list[str] = []
-    index = 0
-    while index < len(destination):
-        character = destination[index]
-        if (
-            character == "\\"
-            and index + 1 < len(destination)
-            and destination[index + 1] in MARKDOWN_ESCAPABLE
-        ):
-            decoded_parts.append(destination[index + 1])
-            index += 2
-            continue
-        if character == "&":
-            reference = COMMONMARK_CHARACTER_REFERENCE.match(destination, index)
-            if reference is not None:
-                decoded_reference = decode_commonmark_character_reference(reference.group(0))
-                if decoded_reference is not None:
-                    decoded_parts.append(decoded_reference)
-                    index = reference.end()
-                    continue
-        decoded_parts.append(character)
-        index += 1
-
-    decoded = "".join(decoded_parts)
+    decoded = decode_commonmark_inline_text(destination)
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
@@ -478,6 +487,44 @@ def contains_forbidden_domain_codepoint(value: str) -> bool:
     )
 
 
+def decode_external_hostname(
+    hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> str:
+    """Percent-decode a special-scheme host before browser-style validation."""
+    index = 0
+    while index < len(hostname):
+        if hostname[index] != "%":
+            index += 1
+            continue
+        if (
+            index + 2 >= len(hostname)
+            or hostname[index + 1] not in string.hexdigits
+            or hostname[index + 2] not in string.hexdigits
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        index += 3
+    try:
+        decoded = unquote_to_bytes(hostname).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if (
+        not decoded
+        or any(character.isspace() for character in decoded)
+        or contains_disallowed_control(decoded, allow_layout_whitespace=False)
+    ):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+    return decoded
+
+
 def validate_external_location(
     parsed: SplitResult,
     source: str,
@@ -495,14 +542,7 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
-    if (
-        "%" in hostname
-        or any(character.isspace() for character in hostname)
-        or contains_disallowed_control(hostname, allow_layout_whitespace=False)
-    ):
-        raise IndexNavigationError(
-            f"malformed external link in {source}:{line}: {target!r}"
-        )
+    hostname = decode_external_hostname(hostname, source, line, target)
 
     try:
         ipaddress.ip_address(hostname)
