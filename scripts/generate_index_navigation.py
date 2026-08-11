@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import posixpath
 import re
@@ -24,7 +25,8 @@ try:
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        read_entries,
+        git,
+        parse_ls_tree,
     )
 except ModuleNotFoundError:
     from generate_repository_file_previews import (
@@ -38,7 +40,8 @@ except ModuleNotFoundError:
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        read_entries,
+        git,
+        parse_ls_tree,
     )
 
 
@@ -47,6 +50,8 @@ ROOT_INDEX = "docs/index.md"
 MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
+CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
+HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
 LINK_ENTRY = re.compile(
     r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)\s*$"
 )
@@ -66,9 +71,15 @@ class ParsedLink:
 
 
 @dataclass(frozen=True)
+class ParsedSection:
+    title: str
+    level: int
+
+
+@dataclass(frozen=True)
 class ParsedIndex:
     title: str
-    sections: tuple[str, ...]
+    sections: tuple[ParsedSection, ...]
     links: tuple[ParsedLink, ...]
 
 
@@ -106,24 +117,34 @@ def decode_index_text(content: bytes, path: str) -> str:
     return text
 
 
+def normalize_heading_value(value: str) -> str:
+    """Remove Markdown's optional closing ATX marker from a heading value."""
+    return CLOSING_ATX.sub("", value).strip()
+
+
 def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
-    sections: list[str] = []
+    sections: list[ParsedSection] = []
     section_names: set[str] = set()
     links: list[ParsedLink] = []
+
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
-        line = raw_line.strip()
-        if not line:
+        if not raw_line.strip():
             continue
+        leading = raw_line[: len(raw_line) - len(raw_line.lstrip(" \t"))]
+        if "\t" in leading or len(leading) >= 4:
+            raise IndexNavigationError(
+                f"indented code-block content is not allowed in {path}:{line_number}"
+            )
+
+        line = raw_line.strip()
         heading = HEADING.fullmatch(line)
         if heading:
             level = len(heading.group(1))
-            value = heading.group(2).strip()
+            value = normalize_heading_value(heading.group(2))
             if not value:
-                raise IndexNavigationError(
-                    f"empty heading in {path}:{line_number}"
-                )
+                raise IndexNavigationError(f"empty heading in {path}:{line_number}")
             if level == 1:
                 if title is not None:
                     raise IndexNavigationError(
@@ -142,8 +163,9 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                     )
                 section_names.add(value)
                 section = value
-                sections.append(value)
+                sections.append(ParsedSection(title=value, level=level))
             continue
+
         entry = LINK_ENTRY.fullmatch(line)
         if entry:
             if title is None:
@@ -160,9 +182,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 )
             )
             continue
+
         raise IndexNavigationError(
             f"unsupported index.md content in {path}:{line_number}: {raw_line!r}"
         )
+
     if title is None:
         raise IndexNavigationError(f"index is missing a level-1 heading: {path}")
     return ParsedIndex(
@@ -187,7 +211,8 @@ def decode_fragment(value: str, source: str, line: int) -> str | None:
         )
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
-            f"link fragment contains a disallowed control character in {source}:{line}: {value!r}"
+            f"link fragment contains a disallowed control character in "
+            f"{source}:{line}: {value!r}"
         )
     return decoded
 
@@ -205,15 +230,18 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
         )
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
-            f"link path contains a disallowed control character in {source}:{line}: {value!r}"
+            f"link path contains a disallowed control character in "
+            f"{source}:{line}: {value!r}"
         )
-    trailing_slash = decoded.endswith("/")
+
+    final_component = decoded.rsplit("/", maxsplit=1)[-1]
+    directory_marker = decoded.endswith("/") or final_component in {".", ".."}
     normalized = posixpath.normpath(posixpath.join(posixpath.dirname(source), decoded))
-    if normalized in {"", ".", ".."} or normalized.startswith("../"):
+    if normalized == ".." or normalized.startswith("../"):
         raise IndexNavigationError(
             f"link escapes repository root in {source}:{line}: {value!r}"
         )
-    return normalized, trailing_slash
+    return normalized, directory_marker
 
 
 def validate_external_location(
@@ -233,6 +261,35 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
+    if (
+        "%" in hostname
+        or any(character.isspace() for character in hostname)
+        or contains_disallowed_control(hostname, allow_layout_whitespace=False)
+    ):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+
+    try:
+        ipaddress.ip_address(hostname)
+        return
+    except ValueError:
+        pass
+
+    try:
+        ascii_hostname = hostname.encode("idna").decode("ascii").rstrip(".")
+    except UnicodeError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if (
+        not ascii_hostname
+        or len(ascii_hostname) > 253
+        or any(not HOST_LABEL.fullmatch(label) for label in ascii_hostname.split("."))
+    ):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
 
 
 def resolve_link(
@@ -248,6 +305,7 @@ def resolve_link(
             f"malformed link target in {source}:{link.line}: {target!r}"
         ) from exc
     fragment = decode_fragment(parsed.fragment, source, link.line)
+
     if parsed.scheme or parsed.netloc:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise IndexNavigationError(
@@ -256,19 +314,20 @@ def resolve_link(
         validate_external_location(parsed, source, link.line, target)
         if parsed.query:
             raise IndexNavigationError(
-                f"external link must not contain a query in {source}:{link.line}: {target!r}"
+                f"external link must not contain a query in "
+                f"{source}:{link.line}: {target!r}"
             )
-        external_target = urlunsplit(
-            (parsed.scheme, parsed.netloc, parsed.path, "", "")
-        )
+        external_target = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
         return {
             "kind": "external",
             "target": external_target,
             "fragment": fragment,
         }
+
     if parsed.query:
         raise IndexNavigationError(
-            f"repository link must not contain a query in {source}:{link.line}: {target!r}"
+            f"repository link must not contain a query in "
+            f"{source}:{link.line}: {target!r}"
         )
     if not parsed.path:
         if fragment is None:
@@ -281,14 +340,29 @@ def resolve_link(
             "fragment": fragment,
         }
 
-    normalized, trailing_slash = decode_link_path(parsed.path, source, link.line)
-    target_entry = entries.get(normalized)
-    if trailing_slash and target_entry is not None and target_entry[0] == "blob":
+    normalized, directory_marker = decode_link_path(parsed.path, source, link.line)
+
+    if normalized == ".":
+        target_entry = None
+        candidate = "index.md"
+        if candidate in entries:
+            normalized = candidate
+            target_entry = entries[candidate]
+    else:
+        target_entry = entries.get(normalized)
+
+    if directory_marker and target_entry is not None and target_entry[0] == "blob":
         raise IndexNavigationError(
-            f"slash-terminated repository link targets a regular file in {source}:{link.line}: {target!r}"
+            f"slash-terminated repository link targets a regular file in "
+            f"{source}:{link.line}: {target!r}"
         )
-    if target_entry is None and trailing_slash:
-        candidate = normalized.rstrip("/") + "/index.md"
+
+    if target_entry is None and directory_marker:
+        candidate = (
+            "index.md"
+            if normalized == "."
+            else normalized.rstrip("/") + "/index.md"
+        )
         if candidate in entries:
             normalized = candidate
             target_entry = entries[candidate]
@@ -314,7 +388,8 @@ def resolve_link(
         )
     else:
         raise IndexNavigationError(
-            f"link target is not a regular file or directory in {source}:{link.line}: {normalized}"
+            f"link target is not a regular file or directory in "
+            f"{source}:{link.line}: {normalized}"
         )
     return {
         "kind": resolved_kind,
@@ -374,17 +449,22 @@ def find_cycle_edges(
     return cycle_edges
 
 
+def read_entries_at_revision(root: Path, revision: str):
+    """Read the provider tree at the exact SHA already recorded for provenance."""
+    return parse_ls_tree(
+        git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", revision)
+    )
+
+
 def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     revision = checked_revision(root)
-    entries_list = read_entries(root)
+    entries_list = read_entries_at_revision(root, revision)
     entries: dict[str, tuple[str, str, str]] = {}
     for entry in entries_list:
         try:
             path = entry.path.decode("utf-8", errors="strict")
-        except UnicodeDecodeError as exc:
-            raise IndexNavigationError(
-                f"provider contains a non-UTF-8 repository path: {entry.path!r}"
-            ) from exc
+        except UnicodeDecodeError:
+            continue
         entries[path] = (entry.kind, entry.mode, entry.object_id)
 
     root_entry = entries.get(ROOT_INDEX)
@@ -416,7 +496,10 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
             {
                 "path": path,
                 "title": parsed_index.title,
-                "sections": list(parsed_index.sections),
+                "sections": [
+                    {"title": section.title, "level": section.level}
+                    for section in parsed_index.sections
+                ],
                 "depth": depth,
                 "object_id": object_id,
             }
