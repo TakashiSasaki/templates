@@ -44,6 +44,7 @@ MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
 MARKDOWN_ESCAPABLE = frozenset(string.punctuation)
 NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
+CONTEXTUAL_JOINERS = frozenset({"\u200c", "\u200d"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
 FORBIDDEN_DOMAIN_CHARACTERS = frozenset("#/:<>?@[\\]^|%")
@@ -52,7 +53,7 @@ COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
 LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[((?:\\.|[^\]])+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
+    r"^[*-][ \t]+\[((?:\\.|[^\[\]])+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
 
 
@@ -120,12 +121,60 @@ def decode_index_text(content: bytes, path: str) -> str:
     return text
 
 
+def decode_commonmark_character_reference(reference: str) -> str | None:
+    """Decode an exact CommonMark character reference token, if valid."""
+    if reference.startswith("&#"):
+        return html.unescape(reference)
+    name = reference[1:]
+    if name not in html.entities.html5:
+        return None
+    return html.entities.html5[name]
+
+
+def decode_commonmark_character_references(value: str) -> str:
+    """Decode only exact semicolon-terminated references accepted by CommonMark."""
+
+    def replace(match: re.Match[str]) -> str:
+        decoded = decode_commonmark_character_reference(match.group(0))
+        return match.group(0) if decoded is None else decoded
+
+    return COMMONMARK_CHARACTER_REFERENCE.sub(replace, value)
+
+
+def decode_commonmark_inline_text(value: str) -> str:
+    """Decode CommonMark backslash escapes and exact character references once."""
+    decoded_parts: list[str] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            decoded_parts.append(value[index + 1])
+            index += 2
+            continue
+        if character == "&":
+            reference = COMMONMARK_CHARACTER_REFERENCE.match(value, index)
+            if reference is not None:
+                decoded_reference = decode_commonmark_character_reference(reference.group(0))
+                if decoded_reference is not None:
+                    decoded_parts.append(decoded_reference)
+                    index = reference.end()
+                    continue
+        decoded_parts.append(character)
+        index += 1
+    return "".join(decoded_parts)
+
+
 def normalize_heading_value(value: str) -> str:
-    """Remove Markdown's optional closing ATX marker from a heading value."""
+    """Normalize the human-rendered CommonMark text of an ATX heading."""
     trimmed = value.strip(" \t")
     if trimmed and all(character == "#" for character in trimmed):
         return ""
-    return CLOSING_ATX.sub("", value).strip(" \t")
+    without_closing_marker = CLOSING_ATX.sub("", value).strip(" \t")
+    return decode_commonmark_inline_text(without_closing_marker).strip(" \t")
 
 
 def list_marker_indent_columns(line: str) -> int:
@@ -169,6 +218,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
             value = normalize_heading_value(heading.group(2))
             if not value:
                 raise IndexNavigationError(f"empty heading in {path}:{line_number}")
+            if contains_disallowed_control(value, allow_layout_whitespace=False):
+                raise IndexNavigationError(
+                    f"heading contains a disallowed control character in "
+                    f"{path}:{line_number}"
+                )
             if level == 1:
                 if title is not None:
                     raise IndexNavigationError(
@@ -360,52 +414,6 @@ def unwrap_pointy_destination(value: str, source: str, line: int) -> tuple[str, 
     return inner, True
 
 
-def decode_commonmark_character_reference(reference: str) -> str | None:
-    """Decode an exact CommonMark character reference token, if valid."""
-    if reference.startswith("&#"):
-        return html.unescape(reference)
-    name = reference[1:]
-    if name not in html.entities.html5:
-        return None
-    return html.entities.html5[name]
-
-
-def decode_commonmark_character_references(value: str) -> str:
-    """Decode only exact semicolon-terminated references accepted by CommonMark."""
-    def replace(match: re.Match[str]) -> str:
-        decoded = decode_commonmark_character_reference(match.group(0))
-        return match.group(0) if decoded is None else decoded
-
-    return COMMONMARK_CHARACTER_REFERENCE.sub(replace, value)
-
-
-def decode_commonmark_inline_text(value: str) -> str:
-    """Decode CommonMark backslash escapes and exact character references once."""
-    decoded_parts: list[str] = []
-    index = 0
-    while index < len(value):
-        character = value[index]
-        if (
-            character == "\\"
-            and index + 1 < len(value)
-            and value[index + 1] in MARKDOWN_ESCAPABLE
-        ):
-            decoded_parts.append(value[index + 1])
-            index += 2
-            continue
-        if character == "&":
-            reference = COMMONMARK_CHARACTER_REFERENCE.match(value, index)
-            if reference is not None:
-                decoded_reference = decode_commonmark_character_reference(reference.group(0))
-                if decoded_reference is not None:
-                    decoded_parts.append(decoded_reference)
-                    index = reference.end()
-                    continue
-        decoded_parts.append(character)
-        index += 1
-    return "".join(decoded_parts)
-
-
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
     """Apply CommonMark destination delimiters, escapes, and references before URI parsing."""
     destination, pointy = unwrap_pointy_destination(value, source, line)
@@ -516,6 +524,8 @@ def decode_external_hostname(
         ) from exc
     if (
         not decoded
+        or "%" in decoded
+        or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
         or any(character.isspace() for character in decoded)
         or contains_disallowed_control(decoded, allow_layout_whitespace=False)
     ):
