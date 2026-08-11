@@ -53,6 +53,23 @@ IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
 COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
+COMMONMARK_URI_AUTOLINK = re.compile(
+    r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\x00-\x20<>]*>"
+)
+COMMONMARK_EMAIL_AUTOLINK = re.compile(
+    r"<[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*>"
+)
+COMMONMARK_HTML_OPEN_TAG = re.compile(
+    r"<[A-Za-z][A-Za-z0-9-]*"
+    r"(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:[ \t]*=[ \t]*(?:[^ \t\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*"
+    r"[ \t]*/?>"
+)
+COMMONMARK_HTML_CLOSING_TAG = re.compile(
+    r"</[A-Za-z][A-Za-z0-9-]*[ \t]*>"
+)
 DESCRIPTION_SUFFIX = re.compile(r"^[ \t]+[-–—][ \t]+(.+?)[ \t]*$")
 EXTERNAL_PATH_SAFE = "/%:@!$&'()*+,;=-._~"
 
@@ -225,6 +242,67 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
             index += 2
             continue
         if value.startswith(sequence, index):
+            return True
+        index += 1
+    return False
+
+
+def contains_commonmark_autolink(value: str) -> bool:
+    """Return whether source text contains an unescaped URI or email autolink."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "<":
+            index += 1
+            continue
+        uri = COMMONMARK_URI_AUTOLINK.match(value, index)
+        if uri is not None:
+            return True
+        email = COMMONMARK_EMAIL_AUTOLINK.match(value, index)
+        if email is not None:
+            return True
+        index += 1
+    return False
+
+
+def contains_commonmark_raw_html(value: str) -> bool:
+    """Return whether source text contains an unescaped CommonMark raw HTML construct."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "<":
+            index += 1
+            continue
+        if value.startswith("<!--", index) and value.find("-->", index + 4) >= 0:
+            return True
+        if value.startswith("<?", index) and value.find("?>", index + 2) >= 0:
+            return True
+        if value.startswith("<![CDATA[", index) and value.find("]]>", index + 9) >= 0:
+            return True
+        if (
+            value.startswith("<!", index)
+            and index + 2 < len(value)
+            and value[index + 2].isalpha()
+            and value.find(">", index + 3) >= 0
+        ):
+            return True
+        if COMMONMARK_HTML_OPEN_TAG.match(value, index) is not None:
+            return True
+        if COMMONMARK_HTML_CLOSING_TAG.match(value, index) is not None:
             return True
         index += 1
     return False
@@ -480,6 +558,14 @@ def parse_reserved_link_entry(
         raise IndexNavigationError(
             f"unsupported emphasis in link label in {path}:{line_number}"
         )
+    if contains_commonmark_autolink(label_source):
+        raise IndexNavigationError(
+            f"unsupported autolink in link label in {path}:{line_number}"
+        )
+    if contains_commonmark_raw_html(label_source):
+        raise IndexNavigationError(
+            f"unsupported raw HTML in link label in {path}:{line_number}"
+        )
     suffix = parse_reserved_link_suffix(line[index + 1 :])
     if suffix is None:
         return None
@@ -504,6 +590,14 @@ def normalize_link_description(value: str, path: str, line_number: int) -> str:
     if contains_unescaped_sequence(value, "]("):
         raise IndexNavigationError(
             f"unsupported inline link in link description in {path}:{line_number}"
+        )
+    if contains_commonmark_autolink(value):
+        raise IndexNavigationError(
+            f"unsupported autolink in link description in {path}:{line_number}"
+        )
+    if contains_commonmark_raw_html(value):
+        raise IndexNavigationError(
+            f"unsupported raw HTML in link description in {path}:{line_number}"
         )
     decoded = decode_commonmark_inline_text(value.strip(" \t")).strip(" \t")
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
@@ -547,6 +641,14 @@ def parse_index(text: str, path: str) -> ParsedIndex:
             if contains_unescaped_sequence(heading_source, "]("):
                 raise IndexNavigationError(
                     f"unsupported inline link in heading in {path}:{line_number}"
+                )
+            if contains_commonmark_autolink(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported autolink in heading in {path}:{line_number}"
+                )
+            if contains_commonmark_raw_html(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported raw HTML in heading in {path}:{line_number}"
                 )
             value = normalize_heading_value(heading_source)
             if not value:
@@ -905,6 +1007,8 @@ def validate_external_location(
     line: int,
     target: str,
 ) -> None:
+    host_port = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+    bracketed_host = host_port.startswith("[")
     try:
         hostname = parsed.hostname
         parsed.port
@@ -919,10 +1023,18 @@ def validate_external_location(
     hostname = decode_external_hostname(hostname, source, line, target)
 
     try:
-        ipaddress.ip_address(hostname)
-        return
+        address = ipaddress.ip_address(hostname)
     except ValueError:
-        pass
+        if bracketed_host:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+    else:
+        if bracketed_host and not isinstance(address, ipaddress.IPv6Address):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        return
     if validate_browser_ipv4_candidate(hostname, source, line, target):
         return
 
