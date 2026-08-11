@@ -250,9 +250,10 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
     return False
 
 
-def contains_commonmark_code_span(value: str) -> bool:
-    """Return whether source text contains an unescaped CommonMark code span."""
-    unmatched_run_lengths: set[int] = set()
+def commonmark_code_span_closers(value: str) -> dict[int, int]:
+    """Map each unescaped backtick run to the end of its next equal-length run."""
+    previous_by_length: dict[int, int] = {}
+    closers: dict[int, int] = {}
     index = 0
     while index < len(value):
         character = value[index]
@@ -270,10 +271,16 @@ def contains_commonmark_code_span(value: str) -> bool:
         while index < len(value) and value[index] == "`":
             index += 1
         run_length = index - start
-        if run_length in unmatched_run_lengths:
-            return True
-        unmatched_run_lengths.add(run_length)
-    return False
+        previous = previous_by_length.get(run_length)
+        if previous is not None:
+            closers[previous] = index
+        previous_by_length[run_length] = start
+    return closers
+
+
+def contains_commonmark_code_span(value: str) -> bool:
+    """Return whether source text contains an unescaped CommonMark code span."""
+    return bool(commonmark_code_span_closers(value))
 
 
 def contains_commonmark_autolink(value: str) -> bool:
@@ -303,6 +310,10 @@ def contains_commonmark_autolink(value: str) -> bool:
 
 def contains_commonmark_raw_html(value: str) -> bool:
     """Return whether source text contains an unescaped CommonMark raw HTML construct."""
+    comment_close = value.rfind("-->")
+    processing_close = value.rfind("?>")
+    cdata_close = value.rfind("]]>")
+    declaration_close = value.rfind(">")
     index = 0
     while index < len(value):
         character = value[index]
@@ -316,18 +327,18 @@ def contains_commonmark_raw_html(value: str) -> bool:
         if character != "<":
             index += 1
             continue
-        if value.startswith("<!--", index) and value.find("-->", index + 4) >= 0:
+        if value.startswith("<!--", index) and comment_close >= index + 4:
             return True
-        if value.startswith("<?", index) and value.find("?>", index + 2) >= 0:
+        if value.startswith("<?", index) and processing_close >= index + 2:
             return True
-        if value.startswith("<![CDATA[", index) and value.find("]]>", index + 9) >= 0:
+        if value.startswith("<![CDATA[", index) and cdata_close >= index + 9:
             return True
         if (
             value.startswith("<!", index)
             and index + 2 < len(value)
             and value[index + 2].isascii()
             and value[index + 2].isalpha()
-            and value.find(">", index + 3) >= 0
+            and declaration_close >= index + 3
         ):
             return True
         if COMMONMARK_HTML_OPEN_TAG.match(value, index) is not None:
@@ -559,7 +570,9 @@ def parse_reserved_link_entry(
 
     depth = 1
     escaped_outer_terminator = False
-    index = bracket + 1
+    label_offset = bracket + 1
+    code_span_closers = commonmark_code_span_closers(line[label_offset:])
+    index = label_offset
     while index < len(line):
         character = line[index]
         if (
@@ -576,6 +589,11 @@ def parse_reserved_link_entry(
                 escaped_outer_terminator = True
             index += 2
             continue
+        if character == "`":
+            code_span_end = code_span_closers.get(index - label_offset)
+            if code_span_end is not None:
+                index = label_offset + code_span_end
+                continue
         if character == "[":
             depth += 1
         elif character == "]":
