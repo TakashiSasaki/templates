@@ -57,10 +57,8 @@ def edge(
 
 
 class IndexNavigationViewerHardeningTests(unittest.TestCase):
-    def test_repository_paths_reject_reserved_and_noncanonical_forms(self) -> None:
+    def test_repository_paths_reject_noncanonical_forms(self) -> None:
         for path in (
-            "docs/.git/index.md",
-            "docs/.GIT/index.md",
             "/docs/index.md",
             "docs\\index.md",
         ):
@@ -71,8 +69,13 @@ class IndexNavigationViewerHardeningTests(unittest.TestCase):
                 ):
                     validate_repository_path(path, "test path")
 
-    def test_repository_paths_allow_producer_valid_colons(self) -> None:
-        validate_repository_path("docs/file:stream/index.md", "test path")
+    def test_repository_paths_preserve_producer_valid_names(self) -> None:
+        for path in (
+            "docs/file:stream/index.md",
+            "docs/.git/index.md",
+        ):
+            with self.subTest(path=path):
+                validate_repository_path(path, "test path")
 
     def test_fragment_edge_must_target_its_source_index(self) -> None:
         graph = provider_graph()
