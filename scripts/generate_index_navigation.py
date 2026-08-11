@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import html.entities
+import idna
 import ipaddress
 import json
 import os
@@ -297,6 +298,7 @@ def contains_commonmark_raw_html(value: str) -> bool:
         if (
             value.startswith("<!", index)
             and index + 2 < len(value)
+            and value[index + 2].isascii()
             and value[index + 2].isalpha()
             and value.find(">", index + 3) >= 0
         ):
@@ -462,8 +464,6 @@ def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
             return None
 
     raw_target = value[destination_start:destination_end]
-    if not raw_target:
-        return None
 
     if outer_close is None:
         separator_start = cursor
@@ -1015,6 +1015,49 @@ def validate_ascii_punycode_labels(
             )
 
 
+def canonicalize_whatwg_domain(
+    hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> str:
+    """Map a non-ASCII special-scheme domain with WHATWG-compatible UTS #46 rules."""
+    if hostname.isascii():
+        return hostname.lower().rstrip(".")
+    try:
+        mapped = idna.uts46_remap(
+            hostname,
+            std3_rules=False,
+            transitional=False,
+        ).rstrip(".")
+    except idna.IDNAError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if not mapped:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+
+    ascii_labels: list[str] = []
+    for label in mapped.split("."):
+        if not label:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        if label.isascii():
+            ascii_labels.append(label.lower())
+            continue
+        try:
+            payload = label.encode("punycode").decode("ascii").lower()
+        except UnicodeError as exc:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            ) from exc
+        ascii_labels.append("xn--" + payload)
+    return ".".join(ascii_labels)
+
+
 def validate_external_location(
     parsed: SplitResult,
     source: str,
@@ -1052,12 +1095,7 @@ def validate_external_location(
     if validate_browser_ipv4_candidate(hostname, source, line, target):
         return
 
-    try:
-        ascii_hostname = hostname.encode("idna").decode("ascii").rstrip(".")
-    except UnicodeError as exc:
-        raise IndexNavigationError(
-            f"malformed external link in {source}:{line}: {target!r}"
-        ) from exc
+    ascii_hostname = canonicalize_whatwg_domain(hostname, source, line, target)
     if validate_browser_ipv4_candidate(ascii_hostname, source, line, target):
         return
     validate_ascii_punycode_labels(ascii_hostname, source, line, target)
@@ -1118,10 +1156,6 @@ def resolve_link(
             f"{source}:{link.line}: {raw_target!r}"
         )
     if not parsed.path:
-        if fragment is None and not fragment_delimiter_present:
-            raise IndexNavigationError(
-                f"empty link target in {source}:{link.line}"
-            )
         return {
             "kind": "fragment",
             "target": source,
