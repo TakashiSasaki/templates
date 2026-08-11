@@ -341,15 +341,7 @@ def resolve_link(
         }
 
     normalized, directory_marker = decode_link_path(parsed.path, source, link.line)
-
-    if normalized == ".":
-        target_entry = None
-        candidate = "index.md"
-        if candidate in entries:
-            normalized = candidate
-            target_entry = entries[candidate]
-    else:
-        target_entry = entries.get(normalized)
+    target_entry = entries.get(normalized)
 
     if directory_marker and target_entry is not None and target_entry[0] == "blob":
         raise IndexNavigationError(
