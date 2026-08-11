@@ -164,6 +164,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
 
     paths: set[str] = set()
     index_by_path: dict[str, dict[str, Any]] = {}
+    section_titles_by_path: dict[str, set[str]] = {}
     for index in indexes:
         if not isinstance(index, dict):
             raise IndexNavigationViewerError(f"{name} index record must be an object")
@@ -199,6 +200,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             )
         paths.add(path)
         index_by_path[path] = index
+        section_titles_by_path[path] = set(section_titles)
 
     if ROOT_INDEX not in paths:
         raise IndexNavigationViewerError(f"{name} graph does not contain its root index")
@@ -225,10 +227,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         fragment = edge.get("fragment")
         if section is not None and not isinstance(section, str):
             raise IndexNavigationViewerError(f"{name} edge section is invalid")
-        section_titles = [
-            _section_title(value) for value in index_by_path[source]["sections"]
-        ]
-        if section is not None and section not in section_titles:
+        if section is not None and section not in section_titles_by_path[source]:
             raise IndexNavigationViewerError(
                 f"{name} edge section is not declared by its index"
             )
@@ -480,24 +479,49 @@ def immutable_target_url(repository: str, revision: str, edge: dict[str, Any]) -
     return github_url(repository, revision, git_kind, target.encode("utf-8"))
 
 
-def canonical_parent_map(provider: dict[str, Any]) -> dict[str, tuple[str, str]]:
-    depths = {index["path"]: index["depth"] for index in provider["indexes"]}
+def provider_render_indexes(
+    provider: dict[str, Any],
+) -> tuple[
+    dict[str, dict[str, Any]],
+    dict[str, tuple[str, str]],
+    dict[str, list[dict[str, Any]]],
+]:
+    indexes = {index["path"]: index for index in provider["indexes"]}
+    depths = {path: index["depth"] for path, index in indexes.items()}
     parents: dict[str, tuple[str, str]] = {}
+    edges_by_source: dict[str, list[dict[str, Any]]] = {
+        path: [] for path in indexes
+    }
     for edge in provider["edges"]:
+        source = edge["source"]
+        edges_by_source[source].append(edge)
         if edge["kind"] != "index":
             continue
-        source = edge["source"]
         target = edge["target"]
         if target in parents:
             continue
         if depths.get(target) == depths.get(source, -1) + 1:
             parents[target] = (source, edge["label"])
+    return indexes, parents, edges_by_source
+
+
+def canonical_parent_map(provider: dict[str, Any]) -> dict[str, tuple[str, str]]:
+    _indexes, parents, _edges_by_source = provider_render_indexes(provider)
     return parents
 
 
-def breadcrumb_chain(provider: dict[str, Any], current: str) -> list[tuple[str, str]]:
-    indexes = {index["path"]: index for index in provider["indexes"]}
-    parents = canonical_parent_map(provider)
+def breadcrumb_chain(
+    provider: dict[str, Any],
+    current: str,
+    indexes: dict[str, dict[str, Any]] | None = None,
+    parents: dict[str, tuple[str, str]] | None = None,
+) -> list[tuple[str, str]]:
+    if indexes is None or parents is None:
+        built_indexes, built_parents, _edges_by_source = provider_render_indexes(provider)
+        if indexes is None:
+            indexes = built_indexes
+        if parents is None:
+            parents = built_parents
     chain: list[str] = [current]
     seen = {current}
     while chain[-1] != ROOT_INDEX:
@@ -602,6 +626,9 @@ def render_index_page(
     provider: dict[str, Any],
     index: dict[str, Any],
     published: dict[str, str],
+    edges: list[dict[str, Any]] | None = None,
+    indexes: dict[str, dict[str, Any]] | None = None,
+    parents: dict[str, tuple[str, str]] | None = None,
 ) -> str:
     source_path = index["path"]
     source = github_url(
@@ -610,14 +637,15 @@ def render_index_page(
         "blob",
         source_path.encode("utf-8"),
     )
-    breadcrumbs = breadcrumb_chain(provider, source_path)
+    breadcrumbs = breadcrumb_chain(provider, source_path, indexes, parents)
     breadcrumb_html = "".join(
         f'<span><a href="{html.escape(url, quote=True)}">{html.escape(title)}</a></span>'
         for title, url in breadcrumbs
     )
     section_titles = [_section_title(section) for section in index["sections"]]
     heading_ids = heading_anchors([index["title"], *section_titles])
-    edges = [edge for edge in provider["edges"] if edge["source"] == source_path]
+    if edges is None:
+        edges = [edge for edge in provider["edges"] if edge["source"] == source_path]
     body_parts = [
         '<p class="eyebrow">Index-guided navigation</p>',
         f'<h1 id="{html.escape(heading_ids[0], quote=True)}">{html.escape(index["title"])}</h1>',
@@ -755,12 +783,22 @@ def generate_viewer(
     messages: list[str] = []
     for provider in graph["providers"]:
         name = provider["name"]
+        indexes, parents, edges_by_source = provider_render_indexes(provider)
         for index in provider["indexes"]:
-            relative = index_page_path(name, index["path"])
+            source_path = index["path"]
+            relative = index_page_path(name, source_path)
             rendered.append(
                 (
                     relative,
-                    render_index_page(repository, provider, index, published[name]),
+                    render_index_page(
+                        repository,
+                        provider,
+                        index,
+                        published[name],
+                        edges_by_source[source_path],
+                        indexes,
+                        parents,
+                    ),
                 )
             )
         messages.append(
