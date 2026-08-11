@@ -5,6 +5,19 @@ from scripts import generate_index_navigation as navigation
 from scripts.generate_index_navigation import IndexNavigationError
 
 
+class CountingFindString(str):
+    find_calls: int
+
+    def __new__(cls, value: str):
+        instance = super().__new__(cls, value)
+        instance.find_calls = 0
+        return instance
+
+    def find(self, *args, **kwargs):
+        self.find_calls += 1
+        return super().find(*args, **kwargs)
+
+
 class LatestIndexNavigationReviewRoundMTests(unittest.TestCase):
     def test_code_span_bracket_does_not_terminate_reserved_link_label(self) -> None:
         with self.assertRaisesRegex(IndexNavigationError, "unsupported index.md content"):
@@ -28,6 +41,12 @@ class LatestIndexNavigationReviewRoundMTests(unittest.TestCase):
         )
 
         self.assertEqual(parsed.links[0].raw_target, destination)
+
+    def test_unterminated_raw_html_opener_scan_does_not_rescan_each_suffix(self) -> None:
+        source = CountingFindString("<!--x" * 2_000)
+
+        self.assertFalse(navigation.contains_commonmark_raw_html(source))
+        self.assertLessEqual(source.find_calls, 4)
 
     def test_unterminated_raw_html_opener_scan_is_bounded(self) -> None:
         source = "<!--x" * 40_000
