@@ -110,6 +110,9 @@ class MarkdownUrlReviewTests(unittest.TestCase):
             "https://256.1.1.1/path",
             "https://4294967296/path",
             "https://２５６.１.１.１/path",
+            "https://example.1/path",
+            "https://foo.256/path",
+            "https://example.0x1/path",
         ):
             with self.subTest(target=target):
                 with self.assertRaisesRegex(IndexNavigationError, "malformed external link"):
@@ -120,10 +123,16 @@ class MarkdownUrlReviewTests(unittest.TestCase):
             "https://127.0.0.1/path",
             "https://2130706433/path",
             "https://１２７.０.０.１/path",
+            "https://0x/path",
         ):
             with self.subTest(target=target):
                 resolved = self.resolve(target)
                 self.assertEqual(resolved["kind"], "external")
+
+    def test_numeric_nonfinal_domain_label_remains_accepted(self) -> None:
+        resolved = self.resolve("https://1.example.com/path")
+        self.assertEqual(resolved["kind"], "external")
+        self.assertEqual(resolved["target"], "https://1.example.com/path")
 
     def test_empty_query_delimiters_are_rejected(self) -> None:
         entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
