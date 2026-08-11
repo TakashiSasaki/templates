@@ -52,9 +52,7 @@ IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
 COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
-LINK_ENTRY_SUFFIX = re.compile(
-    r"^\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
-)
+DESCRIPTION_SUFFIX = re.compile(r"^[ \t]+[-–—][ \t]+(.+?)[ \t]*$")
 
 
 class IndexNavigationError(RuntimeError):
@@ -230,6 +228,65 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
     return False
 
 
+def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
+    """Parse a reserved link destination and its trailing description."""
+    if not value.startswith("("):
+        return None
+
+    destination_start = 1
+    if destination_start < len(value) and value[destination_start] == "<":
+        index = destination_start + 1
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character == ">":
+                destination_end = index + 1
+                outer_close = destination_end
+                if outer_close >= len(value) or value[outer_close] != ")":
+                    return None
+                break
+            index += 1
+        else:
+            return None
+    else:
+        depth = 0
+        index = destination_start
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                if depth == 0:
+                    outer_close = index
+                    destination_end = index
+                    break
+                depth -= 1
+            index += 1
+        else:
+            return None
+
+    raw_target = value[destination_start:destination_end]
+    if not raw_target:
+        return None
+    description = DESCRIPTION_SUFFIX.fullmatch(value[outer_close + 1 :])
+    if description is None:
+        return None
+    return raw_target, description.group(1)
+
+
 def parse_reserved_link_entry(
     line: str,
     path: str,
@@ -271,6 +328,10 @@ def parse_reserved_link_entry(
             raise IndexNavigationError(
                 f"unsupported inline code span in link label in {path}:{line_number}"
             )
+        if character in "*_":
+            raise IndexNavigationError(
+                f"unsupported emphasis in link label in {path}:{line_number}"
+            )
         if character == "[":
             depth += 1
         elif character == "]":
@@ -286,14 +347,15 @@ def parse_reserved_link_entry(
             )
         return None
     label_source = line[bracket + 1 : index]
-    suffix = LINK_ENTRY_SUFFIX.fullmatch(line[index + 1 :])
+    suffix = parse_reserved_link_suffix(line[index + 1 :])
     if suffix is None:
         return None
     if contains_unescaped_sequence(label_source, "]("):
         raise IndexNavigationError(
             f"nested inline link in link label in {path}:{line_number}"
         )
-    return label_source, suffix.group(1), suffix.group(2)
+    raw_target, description = suffix
+    return label_source, raw_target, description
 
 
 def parse_index(text: str, path: str) -> ParsedIndex:
@@ -317,11 +379,19 @@ def parse_index(text: str, path: str) -> ParsedIndex:
         heading = HEADING.fullmatch(line)
         if heading:
             level = len(heading.group(1))
-            if contains_unescaped_character(heading.group(2), "`"):
+            heading_source = heading.group(2)
+            if contains_unescaped_character(heading_source, "`"):
                 raise IndexNavigationError(
                     f"unsupported inline code span in heading in {path}:{line_number}"
                 )
-            value = normalize_heading_value(heading.group(2))
+            if any(
+                contains_unescaped_character(heading_source, marker)
+                for marker in "*_"
+            ):
+                raise IndexNavigationError(
+                    f"unsupported emphasis in heading in {path}:{line_number}"
+                )
+            value = normalize_heading_value(heading_source)
             if not value:
                 raise IndexNavigationError(f"empty heading in {path}:{line_number}")
             if contains_disallowed_control(value, allow_layout_whitespace=False):
