@@ -13,10 +13,11 @@ import posixpath
 import re
 import string
 import subprocess
+import unicodedata
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import SplitResult, unquote_to_bytes, urlsplit, urlunsplit
+from urllib.parse import SplitResult, quote, unquote_to_bytes, urlsplit, urlunsplit
 
 try:
     from scripts.generate_repository_file_previews import BIDIRECTIONAL_CONTROLS
@@ -53,6 +54,7 @@ COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
 DESCRIPTION_SUFFIX = re.compile(r"^[ \t]+[-–—][ \t]+(.+?)[ \t]*$")
+EXTERNAL_PATH_SAFE = "/%:@!$&'()*+,;=-._~"
 
 
 class IndexNavigationError(RuntimeError):
@@ -228,14 +230,102 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
     return False
 
 
+def is_commonmark_whitespace(character: str | None) -> bool:
+    """Return CommonMark's Unicode-whitespace classification for one character."""
+    if character is None:
+        return True
+    return character in "\t\n\f\r" or unicodedata.category(character) == "Zs"
+
+
+def is_commonmark_punctuation(character: str | None) -> bool:
+    """Return CommonMark's Unicode punctuation/symbol classification."""
+    if character is None:
+        return False
+    return unicodedata.category(character)[:1] in {"P", "S"}
+
+
+def contains_commonmark_emphasis(value: str) -> bool:
+    """Return whether unescaped delimiter runs can form emphasis or strong emphasis."""
+    runs: list[tuple[str, int, bool, bool]] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character not in "*_":
+            index += 1
+            continue
+
+        start = index
+        while index < len(value) and value[index] == character:
+            index += 1
+        run_length = index - start
+        previous = value[start - 1] if start else None
+        following = value[index] if index < len(value) else None
+        previous_whitespace = is_commonmark_whitespace(previous)
+        following_whitespace = is_commonmark_whitespace(following)
+        previous_punctuation = is_commonmark_punctuation(previous)
+        following_punctuation = is_commonmark_punctuation(following)
+        left_flanking = (
+            not following_whitespace
+            and (
+                not following_punctuation
+                or previous_whitespace
+                or previous_punctuation
+            )
+        )
+        right_flanking = (
+            not previous_whitespace
+            and (
+                not previous_punctuation
+                or following_whitespace
+                or following_punctuation
+            )
+        )
+        if character == "*":
+            can_open = left_flanking
+            can_close = right_flanking
+        else:
+            can_open = left_flanking and (
+                not right_flanking or previous_punctuation
+            )
+            can_close = right_flanking and (
+                not left_flanking or following_punctuation
+            )
+        runs.append((character, run_length, can_open, can_close))
+
+    for opener_index, (marker, opener_length, can_open, opener_can_close) in enumerate(runs):
+        if not can_open:
+            continue
+        for closer_marker, closer_length, closer_can_open, can_close in runs[opener_index + 1 :]:
+            if closer_marker != marker or not can_close:
+                continue
+            if opener_can_close or closer_can_open:
+                if (
+                    (opener_length + closer_length) % 3 == 0
+                    and not (opener_length % 3 == 0 and closer_length % 3 == 0)
+                ):
+                    continue
+            return True
+    return False
+
+
 def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
-    """Parse a reserved link destination and its trailing description."""
+    """Parse a reserved link destination, optional title, and trailing description."""
     if not value.startswith("("):
         return None
 
     destination_start = 1
-    if destination_start < len(value) and value[destination_start] == "<":
-        index = destination_start + 1
+    cursor = destination_start
+    outer_close: int | None = None
+
+    if cursor < len(value) and value[cursor] == "<":
+        index = cursor + 1
         while index < len(value):
             character = value[index]
             if (
@@ -247,16 +337,14 @@ def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
                 continue
             if character == ">":
                 destination_end = index + 1
-                outer_close = destination_end
-                if outer_close >= len(value) or value[outer_close] != ")":
-                    return None
+                cursor = destination_end
                 break
             index += 1
         else:
             return None
     else:
         depth = 0
-        index = destination_start
+        index = cursor
         while index < len(value):
             character = value[index]
             if (
@@ -266,12 +354,19 @@ def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
             ):
                 index += 2
                 continue
+            if character in " \t":
+                if depth:
+                    return None
+                destination_end = index
+                cursor = index
+                break
             if character == "(":
                 depth += 1
             elif character == ")":
                 if depth == 0:
-                    outer_close = index
                     destination_end = index
+                    outer_close = index
+                    cursor = index
                     break
                 depth -= 1
             index += 1
@@ -281,6 +376,43 @@ def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
     raw_target = value[destination_start:destination_end]
     if not raw_target:
         return None
+
+    if outer_close is None:
+        while cursor < len(value) and value[cursor] in " \t":
+            cursor += 1
+        if cursor >= len(value):
+            return None
+        if value[cursor] == ")":
+            outer_close = cursor
+        else:
+            opener = value[cursor]
+            closer = {"\"": "\"", "'": "'", "(": ")"}.get(opener)
+            if closer is None:
+                return None
+            cursor += 1
+            while cursor < len(value):
+                character = value[cursor]
+                if (
+                    character == "\\"
+                    and cursor + 1 < len(value)
+                    and value[cursor + 1] in MARKDOWN_ESCAPABLE
+                ):
+                    cursor += 2
+                    continue
+                if opener == "(" and character == "(":
+                    return None
+                if character == closer:
+                    cursor += 1
+                    break
+                cursor += 1
+            else:
+                return None
+            while cursor < len(value) and value[cursor] in " \t":
+                cursor += 1
+            if cursor >= len(value) or value[cursor] != ")":
+                return None
+            outer_close = cursor
+
     description = DESCRIPTION_SUFFIX.fullmatch(value[outer_close + 1 :])
     if description is None:
         return None
@@ -329,10 +461,6 @@ def parse_reserved_link_entry(
             raise IndexNavigationError(
                 f"unsupported inline code span in link label in {path}:{line_number}"
             )
-        if character in "*_":
-            raise IndexNavigationError(
-                f"unsupported emphasis in link label in {path}:{line_number}"
-            )
         if character == "[":
             depth += 1
         elif character == "]":
@@ -348,6 +476,10 @@ def parse_reserved_link_entry(
             )
         return None
     label_source = line[bracket + 1 : index]
+    if contains_commonmark_emphasis(label_source):
+        raise IndexNavigationError(
+            f"unsupported emphasis in link label in {path}:{line_number}"
+        )
     suffix = parse_reserved_link_suffix(line[index + 1 :])
     if suffix is None:
         return None
@@ -365,7 +497,7 @@ def normalize_link_description(value: str, path: str, line_number: int) -> str:
         raise IndexNavigationError(
             f"unsupported inline code span in link description in {path}:{line_number}"
         )
-    if any(contains_unescaped_character(value, marker) for marker in "*_"):
+    if contains_commonmark_emphasis(value):
         raise IndexNavigationError(
             f"unsupported emphasis in link description in {path}:{line_number}"
         )
@@ -408,10 +540,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"unsupported inline code span in heading in {path}:{line_number}"
                 )
-            if any(
-                contains_unescaped_character(heading_source, marker)
-                for marker in "*_"
-            ):
+            if contains_commonmark_emphasis(heading_source):
                 raise IndexNavigationError(
                     f"unsupported emphasis in heading in {path}:{line_number}"
                 )
@@ -737,6 +866,39 @@ def decode_external_hostname(
     return decoded
 
 
+def validate_ascii_punycode_labels(
+    ascii_hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> None:
+    """Reject malformed existing A-labels before accepting an ASCII domain."""
+    for label in ascii_hostname.split("."):
+        if not label.lower().startswith("xn--"):
+            continue
+        payload = label[4:]
+        if not payload:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        try:
+            decoded = payload.encode("ascii").decode("punycode")
+            canonical_payload = decoded.encode("punycode").decode("ascii")
+        except UnicodeError as exc:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            ) from exc
+        if (
+            not decoded
+            or canonical_payload.lower() != payload.lower()
+            or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
+            or contains_disallowed_control(decoded, allow_layout_whitespace=False)
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+
+
 def validate_external_location(
     parsed: SplitResult,
     source: str,
@@ -772,6 +934,7 @@ def validate_external_location(
         ) from exc
     if validate_browser_ipv4_candidate(ascii_hostname, source, line, target):
         return
+    validate_ascii_punycode_labels(ascii_hostname, source, line, target)
     if not ascii_hostname or contains_forbidden_domain_codepoint(ascii_hostname):
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
@@ -812,7 +975,7 @@ def resolve_link(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
             )
-        external_path = parsed.path.replace("\\", "%5C")
+        external_path = quote(parsed.path, safe=EXTERNAL_PATH_SAFE)
         external_target = urlunsplit((parsed.scheme, parsed.netloc, external_path, "", ""))
         return {
             "kind": "external",
