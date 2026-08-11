@@ -52,8 +52,8 @@ IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
 COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
-LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[((?:\\.|[^\[\]])+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
+LINK_ENTRY_SUFFIX = re.compile(
+    r"^\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
 
 
@@ -194,6 +194,96 @@ def list_marker_indent_columns(line: str) -> int:
     return column - start_column
 
 
+def contains_unescaped_character(value: str, needle: str) -> bool:
+    """Return whether a punctuation character occurs outside a backslash escape."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == needle:
+            return True
+        index += 1
+    return False
+
+
+def contains_unescaped_sequence(value: str, sequence: str) -> bool:
+    """Return whether a punctuation sequence begins outside a backslash escape."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if value.startswith(sequence, index):
+            return True
+        index += 1
+    return False
+
+
+def parse_reserved_link_entry(
+    line: str,
+    path: str,
+    line_number: int,
+) -> tuple[str, str, str] | None:
+    """Parse the reserved link-entry shape with escape-aware balanced label brackets."""
+    if not line or line[0] not in "*-":
+        return None
+    bracket = line.find("[", 1)
+    if bracket < 0:
+        return None
+    marker_indent = list_marker_indent_columns(line)
+    if not 1 <= marker_indent <= 4:
+        raise IndexNavigationError(
+            f"list marker indentation must be 1 to 4 columns in "
+            f"{path}:{line_number}"
+        )
+
+    depth = 1
+    index = bracket + 1
+    while index < len(line):
+        character = line[index]
+        if (
+            character == "\\"
+            and index + 1 < len(line)
+            and line[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == "`":
+            raise IndexNavigationError(
+                f"unsupported inline code span in link label in {path}:{line_number}"
+            )
+        if character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+
+    if depth:
+        return None
+    label_source = line[bracket + 1 : index]
+    suffix = LINK_ENTRY_SUFFIX.fullmatch(line[index + 1 :])
+    if suffix is None:
+        return None
+    if contains_unescaped_sequence(label_source, "]("):
+        raise IndexNavigationError(
+            f"nested inline link in link label in {path}:{line_number}"
+        )
+    return label_source, suffix.group(1), suffix.group(2)
+
+
 def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
@@ -215,6 +305,10 @@ def parse_index(text: str, path: str) -> ParsedIndex:
         heading = HEADING.fullmatch(line)
         if heading:
             level = len(heading.group(1))
+            if contains_unescaped_character(heading.group(2), "`"):
+                raise IndexNavigationError(
+                    f"unsupported inline code span in heading in {path}:{line_number}"
+                )
             value = normalize_heading_value(heading.group(2))
             if not value:
                 raise IndexNavigationError(f"empty heading in {path}:{line_number}")
@@ -244,20 +338,9 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 sections.append(ParsedSection(title=value, level=level))
             continue
 
-        entry = LINK_ENTRY.fullmatch(line)
-        if entry:
-            marker_indent = list_marker_indent_columns(line)
-            if not 1 <= marker_indent <= 4:
-                raise IndexNavigationError(
-                    f"list marker indentation must be 1 to 4 columns in "
-                    f"{path}:{line_number}"
-                )
-            label_source = entry.group(1)
-            trailing_backslashes = len(label_source) - len(label_source.rstrip("\\"))
-            if trailing_backslashes % 2:
-                raise IndexNavigationError(
-                    f"escaped link-label terminator in {path}:{line_number}"
-                )
+        entry = parse_reserved_link_entry(line, path, line_number)
+        if entry is not None:
+            label_source, raw_target_source, description_source = entry
             if title is None:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
@@ -268,13 +351,13 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                     f"link label contains a disallowed control character in "
                     f"{path}:{line_number}"
                 )
-            raw_target = entry.group(2).strip(" \t")
+            raw_target = raw_target_source.strip(" \t")
             destination_backslashes = len(raw_target) - len(raw_target.rstrip("\\"))
             if destination_backslashes % 2:
                 raise IndexNavigationError(
                     f"escaped link-destination terminator in {path}:{line_number}"
                 )
-            description = entry.group(3).strip(" \t")
+            description = description_source.strip(" \t")
             if not label:
                 raise IndexNavigationError(
                     f"link label is empty in {path}:{line_number}"
