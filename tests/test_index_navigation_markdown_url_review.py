@@ -29,18 +29,17 @@ class MarkdownUrlReviewTests(unittest.TestCase):
                 self.assertEqual(resolved["target"], "docs/overview.md")
 
     def test_only_semicolon_terminated_commonmark_entities_are_decoded(self) -> None:
-        entries = {
-            "docs/overview&copy.md": ("blob", "100644", "a" * 40),
-            "docs/overview&#65.md": ("blob", "100644", "b" * 40),
-            "docs/overview©.md": ("blob", "100644", "c" * 40),
-        }
         for target in ("overview&copy.md", "overview&#65.md"):
             with self.subTest(target=target):
-                resolved = self.resolve(target, entries)
-                self.assertEqual(resolved["target"], f"docs/{target}")
+                self.assertEqual(
+                    navigation.decode_markdown_destination(target, "docs/index.md", 2),
+                    target,
+                )
         self.assertEqual(
-            self.resolve("overview&copy;.md", entries)["target"],
-            "docs/overview©.md",
+            navigation.decode_markdown_destination(
+                "overview&copy;.md", "docs/index.md", 2
+            ),
+            "overview©.md",
         )
 
     def test_unbalanced_bare_destination_parentheses_are_rejected(self) -> None:
