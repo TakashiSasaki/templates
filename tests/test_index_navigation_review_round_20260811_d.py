@@ -53,6 +53,13 @@ class LatestIndexNavigationReviewRoundDTests(unittest.TestCase):
                 "docs/index.md",
             )
 
+    def test_escaped_outer_label_terminator_keeps_specific_diagnostic(self) -> None:
+        with self.assertRaisesRegex(IndexNavigationError, "escaped link-label terminator"):
+            parse_index(
+                "# Docs\n\n* [Guide\\](overview.md) - Read it.\n",
+                "docs/index.md",
+            )
+
     def test_unbalanced_link_label_openers_still_fail_closed(self) -> None:
         with self.assertRaisesRegex(IndexNavigationError, "unsupported index.md content"):
             parse_index(
