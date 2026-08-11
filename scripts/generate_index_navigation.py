@@ -71,6 +71,7 @@ COMMONMARK_HTML_CLOSING_TAG = re.compile(
     r"</[A-Za-z][A-Za-z0-9-]*[ \t]*>"
 )
 DESCRIPTION_SUFFIX = re.compile(r"^[ \t]+[-–—][ \t]+(.+?)[ \t]*$")
+EXTERNAL_AUTHORITY_SAFE = "%:@[]!$&'()*+,;=-._~"
 EXTERNAL_PATH_SAFE = "/%:@!$&'()*+,;=-._~"
 
 
@@ -465,13 +466,17 @@ def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
         return None
 
     if outer_close is None:
+        separator_start = cursor
         while cursor < len(value) and value[cursor] in " \t":
             cursor += 1
+        title_separated = cursor > separator_start
         if cursor >= len(value):
             return None
         if value[cursor] == ")":
             outer_close = cursor
         else:
+            if not title_separated:
+                return None
             opener = value[cursor]
             closer = {"\"": "\"", "'": "'", "(": ")"}.get(opener)
             if closer is None:
@@ -1096,7 +1101,7 @@ def resolve_link(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
             )
-        external_netloc = parsed.netloc.replace("\\", "%5C")
+        external_netloc = quote(parsed.netloc, safe=EXTERNAL_AUTHORITY_SAFE)
         external_path = quote(parsed.path, safe=EXTERNAL_PATH_SAFE)
         external_target = urlunsplit(
             (parsed.scheme, external_netloc, external_path, "", "")
