@@ -28,6 +28,44 @@ class MarkdownUrlReviewTests(unittest.TestCase):
                 self.assertEqual(resolved["kind"], "file")
                 self.assertEqual(resolved["target"], "docs/overview.md")
 
+    def test_pointy_destination_is_unwrapped_before_resolution(self) -> None:
+        entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
+        parsed = navigation.parse_index(
+            "# Docs\n* [Overview](<overview.md>) - Read it.\n",
+            "docs/index.md",
+        )
+        resolved = navigation.resolve_link("docs/index.md", parsed.links[0], entries)
+        self.assertEqual(resolved["kind"], "file")
+        self.assertEqual(resolved["target"], "docs/overview.md")
+
+    def test_pointy_destination_can_contain_spaces_and_parentheses(self) -> None:
+        entries = {
+            "docs/my file.md": ("blob", "100644", "a" * 40),
+            "docs/foo(bar.md": ("blob", "100644", "b" * 40),
+        }
+        for target, expected in (
+            ("<my file.md>", "docs/my file.md"),
+            ("<foo(bar.md>", "docs/foo(bar.md"),
+        ):
+            with self.subTest(target=target):
+                resolved = self.resolve(target, entries)
+                self.assertEqual(resolved["kind"], "file")
+                self.assertEqual(resolved["target"], expected)
+
+    def test_malformed_pointy_destinations_are_rejected(self) -> None:
+        for target in (
+            "<overview.md",
+            r"<foo\>",
+            "<foo>bar>",
+            "<<foo>>",
+        ):
+            with self.subTest(target=target):
+                with self.assertRaisesRegex(
+                    IndexNavigationError,
+                    "malformed pointy link destination",
+                ):
+                    navigation.decode_markdown_destination(target, "docs/index.md", 2)
+
     def test_only_semicolon_terminated_commonmark_entities_are_decoded(self) -> None:
         for target in ("overview&copy.md", "overview&#65.md"):
             with self.subTest(target=target):
