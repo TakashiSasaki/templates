@@ -17,6 +17,7 @@ try:
         ROOT_INDEX,
         IndexNavigationError,
         contains_disallowed_control,
+        immutable_git,
         parse_providers,
     )
     from scripts.generate_repository_browser import viewer_relative_url
@@ -26,7 +27,7 @@ try:
         RepositoryTreeError,
         checked_revision,
         github_url,
-        published_sources,
+        manifest_destinations,
         published_url,
     )
 except ModuleNotFoundError:
@@ -35,6 +36,7 @@ except ModuleNotFoundError:
         ROOT_INDEX,
         IndexNavigationError,
         contains_disallowed_control,
+        immutable_git,
         parse_providers,
     )
     from generate_repository_browser import viewer_relative_url
@@ -44,7 +46,7 @@ except ModuleNotFoundError:
         RepositoryTreeError,
         checked_revision,
         github_url,
-        published_sources,
+        manifest_destinations,
         published_url,
     )
 
@@ -346,24 +348,58 @@ def heading_anchors(values: list[str]) -> list[str]:
 def published_maps(
     site_root: Path,
     provider_roots: dict[str, Path],
+    revisions: dict[str, str],
 ) -> dict[str, dict[str, str]]:
+    try:
+        destinations = manifest_destinations(site_root)
+    except RepositoryTreeError as exc:
+        raise IndexNavigationViewerError(
+            f"unable to resolve site manifest destinations: {exc}"
+        ) from exc
+
     result: dict[str, dict[str, str]] = {}
     for provider in PROVIDER_ORDER:
+        revision = revisions.get(provider)
+        if revision is None or not FULL_SHA.fullmatch(revision):
+            raise IndexNavigationViewerError(f"{provider} revision is invalid")
         try:
-            mapping = published_sources(provider, provider_roots[provider], site_root)
-        except RepositoryTreeError as exc:
+            raw_catalog = immutable_git(
+                provider_roots[provider],
+                "show",
+                f"{revision}:docs/publication-catalog.json",
+            )
+            catalog = json.loads(raw_catalog.decode("utf-8", errors="strict"))
+        except (IndexNavigationError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise IndexNavigationViewerError(
-                f"unable to resolve published sources for {provider}: {exc}"
+                f"unable to read immutable {provider} publication catalog: {exc}"
             ) from exc
+        if not isinstance(catalog, dict):
+            raise IndexNavigationViewerError(
+                f"{provider} publication catalog must be an object"
+            )
+        documents = catalog.get("documents")
+        if not isinstance(documents, list):
+            raise IndexNavigationViewerError(
+                f"{provider} publication catalog documents must be an array"
+            )
         decoded: dict[str, str] = {}
-        for source, destination in mapping.items():
-            try:
-                path = source.decode("utf-8", errors="strict")
-            except UnicodeDecodeError as exc:
+        for index, document in enumerate(documents):
+            if not isinstance(document, dict):
                 raise IndexNavigationViewerError(
-                    f"{provider} publication catalog contains a non-UTF-8 source path"
-                ) from exc
-            decoded[path] = destination
+                    f"{provider} publication catalog document {index} must be an object"
+                )
+            document_id = document.get("id")
+            source = document.get("source")
+            if not isinstance(document_id, str) or not isinstance(source, str):
+                raise IndexNavigationViewerError(
+                    f"{provider} publication catalog document {index} is invalid"
+                )
+            destination = destinations.get((provider, document_id))
+            if destination is None:
+                raise IndexNavigationViewerError(
+                    f"site manifest does not map {provider}:{document_id}"
+                )
+            decoded[source] = destination
         result[provider] = decoded
     return result
 
@@ -658,22 +694,28 @@ def render_landing(graph: dict[str, Any]) -> str:
 
 
 def validate_render_destinations(destinations: list[Path]) -> None:
-    unique: set[Path] = set()
-    for destination in destinations:
-        if destination in unique:
+    ordered = sorted(
+        ((destination.parts, destination) for destination in destinations),
+        key=lambda item: item[0],
+    )
+    previous_parts: tuple[str, ...] | None = None
+    previous_destination: Path | None = None
+    for parts, destination in ordered:
+        if previous_parts == parts:
             raise IndexNavigationViewerError(
                 f"duplicate guided-navigation destination: {destination}"
             )
-        unique.add(destination)
-    for destination in unique:
-        for other in unique:
-            if destination == other:
-                continue
-            if destination in other.parents:
-                raise IndexNavigationViewerError(
-                    "guided-navigation destinations have a file/directory collision: "
-                    f"{destination} and {other}"
-                )
+        if (
+            previous_parts is not None
+            and len(previous_parts) < len(parts)
+            and parts[: len(previous_parts)] == previous_parts
+        ):
+            raise IndexNavigationViewerError(
+                "guided-navigation destinations have a file/directory collision: "
+                f"{previous_destination} and {destination}"
+            )
+        previous_parts = parts
+        previous_destination = destination
 
 
 def generate_viewer(
@@ -696,15 +738,18 @@ def generate_viewer(
     if output_root.is_symlink() or not output_root.is_dir():
         raise IndexNavigationViewerError("output root must be an existing directory")
 
+    revisions: dict[str, str] = {}
     for provider in graph["providers"]:
         validate_provider_graph(provider)
-        actual = checked_revision(provider_roots[provider["name"]])
+        name = provider["name"]
+        actual = checked_revision(provider_roots[name])
         if actual != provider["revision"]:
             raise IndexNavigationViewerError(
-                f"{provider['name']} graph revision {provider['revision']} does not match checkout {actual}"
+                f"{name} graph revision {provider['revision']} does not match checkout {actual}"
             )
+        revisions[name] = provider["revision"]
 
-    published = published_maps(site_root, provider_roots)
+    published = published_maps(site_root, provider_roots, revisions)
     landing = render_landing(graph)
     rendered: list[tuple[Path, str]] = []
     messages: list[str] = []

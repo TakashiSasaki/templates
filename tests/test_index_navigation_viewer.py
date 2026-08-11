@@ -12,6 +12,7 @@ from scripts.generate_index_navigation_viewer import (
     generate_viewer,
     index_page_path,
     load_graph,
+    validate_render_destinations,
 )
 
 
@@ -24,6 +25,31 @@ def run_git(root: Path, *args: str) -> str:
         text=True,
     )
     return process.stdout.strip()
+
+
+class CountingDestination:
+    parent_reads = 0
+
+    def __init__(self, *parts: str) -> None:
+        self._parts = parts
+
+    @property
+    def parts(self) -> tuple[str, ...]:
+        return self._parts
+
+    @property
+    def parents(self) -> tuple[()]:
+        type(self).parent_reads += 1
+        return ()
+
+    def __hash__(self) -> int:
+        return hash(self._parts)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, CountingDestination) and self._parts == other._parts
+
+    def __str__(self) -> str:
+        return "/".join(self._parts)
 
 
 class IndexNavigationViewerTests(unittest.TestCase):
@@ -179,6 +205,53 @@ class IndexNavigationViewerTests(unittest.TestCase):
             )
             self.assertEqual(external["target"], "https://example.com/spec")
             self.assertEqual(external["fragment"], "café")
+
+    def test_publication_catalog_is_read_from_locked_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = self.make_fixture(root)
+            skill = providers["skill"]
+            (skill / "docs/publication-catalog.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "documents": [
+                            {
+                                "id": "overview",
+                                "source": "notes.txt",
+                                "optional": False,
+                                "home": True,
+                            }
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            generate_viewer(
+                "TakashiSasaki/templates", graph, site_root, output, providers
+            )
+
+            page = (output / "guided/skill/index.html").read_text(encoding="utf-8")
+            self.assertIn('href="/skill/#scope"', page)
+            revision = graph["providers"][0]["revision"]
+            self.assertNotIn(
+                f'href="https://github.com/TakashiSasaki/templates/blob/{revision}/docs/overview.md#scope"',
+                page,
+            )
+
+    def test_destination_collision_validation_does_not_scan_all_parent_pairs(self) -> None:
+        CountingDestination.parent_reads = 0
+        destinations = [
+            CountingDestination("guided", "skill", f"section-{index}", "index.html")
+            for index in range(200)
+        ]
+
+        validate_render_destinations(destinations)  # type: ignore[arg-type]
+
+        self.assertLessEqual(CountingDestination.parent_reads, len(destinations) * 2)
 
     def test_duplicate_section_names_in_tampered_graph_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
