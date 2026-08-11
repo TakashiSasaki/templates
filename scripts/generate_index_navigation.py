@@ -124,7 +124,7 @@ def decode_index_text(content: bytes, path: str) -> str:
     if b"\0" in content:
         raise IndexNavigationError(f"index contains a NUL byte: {path}")
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise IndexNavigationError(f"index is not strict UTF-8: {path}") from exc
     if contains_disallowed_control(text):
@@ -324,7 +324,8 @@ def is_commonmark_punctuation(character: str | None) -> bool:
 
 def contains_commonmark_emphasis(value: str) -> bool:
     """Return whether unescaped delimiter runs can form emphasis or strong emphasis."""
-    runs: list[tuple[str, int, bool, bool]] = []
+    opener_masks = {"*": 0, "_": 0}
+    non_closing_opener_masks = {"*": 0, "_": 0}
     index = 0
     while index < len(value):
         character = value[index]
@@ -375,21 +376,29 @@ def contains_commonmark_emphasis(value: str) -> bool:
             can_close = right_flanking and (
                 not left_flanking or following_punctuation
             )
-        runs.append((character, run_length, can_open, can_close))
 
-    for opener_index, (marker, opener_length, can_open, opener_can_close) in enumerate(runs):
-        if not can_open:
-            continue
-        for closer_marker, closer_length, closer_can_open, can_close in runs[opener_index + 1 :]:
-            if closer_marker != marker or not can_close:
-                continue
-            if opener_can_close or closer_can_open:
+        residue = run_length % 3
+        if can_close:
+            opener_mask = opener_masks[character]
+            if opener_mask:
+                if residue == 0:
+                    return True
+                incompatible_residue = (3 - residue) % 3
+                compatible_mask = opener_mask & ~(1 << incompatible_residue)
+                if compatible_mask:
+                    return True
                 if (
-                    (opener_length + closer_length) % 3 == 0
-                    and not (opener_length % 3 == 0 and closer_length % 3 == 0)
+                    not can_open
+                    and non_closing_opener_masks[character]
+                    & (1 << incompatible_residue)
                 ):
-                    continue
-            return True
+                    return True
+
+        if can_open:
+            opener_masks[character] |= 1 << residue
+            if not can_close:
+                non_closing_opener_masks[character] |= 1 << residue
+
     return False
 
 
@@ -1087,8 +1096,11 @@ def resolve_link(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
             )
+        external_netloc = parsed.netloc.replace("\\", "%5C")
         external_path = quote(parsed.path, safe=EXTERNAL_PATH_SAFE)
-        external_target = urlunsplit((parsed.scheme, parsed.netloc, external_path, "", ""))
+        external_target = urlunsplit(
+            (parsed.scheme, external_netloc, external_path, "", "")
+        )
         return {
             "kind": "external",
             "target": external_target,
