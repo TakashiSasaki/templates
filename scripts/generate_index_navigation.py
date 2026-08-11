@@ -46,7 +46,7 @@ NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
 HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
-IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[0-9]+)\Z")
+IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
 COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
@@ -357,10 +357,21 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
 
 def parse_ipv4_number(value: str) -> int:
     if value.lower().startswith("0x"):
-        return int(value[2:], 16)
+        return int(value[2:] or "0", 16)
     if len(value) > 1 and value.startswith("0"):
         return int(value[1:] or "0", 8)
     return int(value, 10)
+
+
+def ipv4_ends_in_number(hostname: str) -> bool:
+    """Apply the WHATWG ends-in-a-number check to an ASCII host."""
+    candidate = hostname.rstrip(".")
+    if not candidate:
+        return False
+    last = candidate.rsplit(".", maxsplit=1)[-1]
+    if last.isascii() and last.isdigit():
+        return True
+    return re.fullmatch(r"0[xX][0-9A-Fa-f]*", last) is not None
 
 
 def validate_browser_ipv4_candidate(
@@ -369,13 +380,15 @@ def validate_browser_ipv4_candidate(
     line: int,
     target: str,
 ) -> bool:
-    """Validate WHATWG-style numeric IPv4 forms; return False for ordinary DNS names."""
+    """Validate WHATWG-style IPv4 candidates; return False for ordinary DNS names."""
     candidate = hostname.rstrip(".")
-    if not candidate:
+    if not candidate or not ipv4_ends_in_number(candidate):
         return False
     parts = candidate.split(".")
     if not all(IPV4_NUMBER.fullmatch(part) for part in parts):
-        return False
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
     try:
         numbers = [parse_ipv4_number(part) for part in parts]
     except ValueError as exc:
