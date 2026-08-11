@@ -175,12 +175,12 @@ def normalize_heading_value(value: str) -> str:
     return decode_commonmark_inline_text(without_closing_marker).strip(" \t")
 
 
-def list_marker_indent_columns(line: str) -> int:
+def list_marker_indent_columns(line: str, leading_columns: int = 0) -> int:
     """Return CommonMark indentation columns between a bullet marker and link text."""
     bracket = line.find("[", 1)
     if bracket < 0:
         return 0
-    column = 1
+    column = leading_columns + 1
     start_column = column
     for character in line[1:bracket]:
         if character == " ":
@@ -291,6 +291,7 @@ def parse_reserved_link_entry(
     line: str,
     path: str,
     line_number: int,
+    leading_columns: int = 0,
 ) -> tuple[str, str, str] | None:
     """Parse the reserved link-entry shape with escape-aware balanced label brackets."""
     if not line or line[0] not in "*-":
@@ -298,7 +299,7 @@ def parse_reserved_link_entry(
     bracket = line.find("[", 1)
     if bracket < 0:
         return None
-    marker_indent = list_marker_indent_columns(line)
+    marker_indent = list_marker_indent_columns(line, leading_columns)
     if not 1 <= marker_indent <= 4:
         raise IndexNavigationError(
             f"list marker indentation must be 1 to 4 columns in "
@@ -358,6 +359,29 @@ def parse_reserved_link_entry(
     return label_source, raw_target, description
 
 
+def normalize_link_description(value: str, path: str, line_number: int) -> str:
+    """Normalize plain inline description text while failing closed on richer Markdown."""
+    if contains_unescaped_character(value, "`"):
+        raise IndexNavigationError(
+            f"unsupported inline code span in link description in {path}:{line_number}"
+        )
+    if any(contains_unescaped_character(value, marker) for marker in "*_"):
+        raise IndexNavigationError(
+            f"unsupported emphasis in link description in {path}:{line_number}"
+        )
+    if contains_unescaped_sequence(value, "]("):
+        raise IndexNavigationError(
+            f"unsupported inline link in link description in {path}:{line_number}"
+        )
+    decoded = decode_commonmark_inline_text(value.strip(" \t")).strip(" \t")
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
+        raise IndexNavigationError(
+            f"link description contains a disallowed control character in "
+            f"{path}:{line_number}"
+        )
+    return decoded
+
+
 def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
@@ -391,6 +415,10 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"unsupported emphasis in heading in {path}:{line_number}"
                 )
+            if contains_unescaped_sequence(heading_source, "]("):
+                raise IndexNavigationError(
+                    f"unsupported inline link in heading in {path}:{line_number}"
+                )
             value = normalize_heading_value(heading_source)
             if not value:
                 raise IndexNavigationError(f"empty heading in {path}:{line_number}")
@@ -420,7 +448,12 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 sections.append(ParsedSection(title=value, level=level))
             continue
 
-        entry = parse_reserved_link_entry(line, path, line_number)
+        entry = parse_reserved_link_entry(
+            line,
+            path,
+            line_number,
+            leading_columns=len(leading),
+        )
         if entry is not None:
             label_source, raw_target_source, description_source = entry
             if title is None:
@@ -439,7 +472,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"escaped link-destination terminator in {path}:{line_number}"
                 )
-            description = description_source.strip(" \t")
+            description = normalize_link_description(
+                description_source,
+                path,
+                line_number,
+            )
             if not label:
                 raise IndexNavigationError(
                     f"link label is empty in {path}:{line_number}"
@@ -775,7 +812,8 @@ def resolve_link(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
             )
-        external_target = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+        external_path = parsed.path.replace("\\", "%5C")
+        external_target = urlunsplit((parsed.scheme, parsed.netloc, external_path, "", ""))
         return {
             "kind": "external",
             "target": external_target,
