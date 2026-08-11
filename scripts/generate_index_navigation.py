@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import html.entities
 import ipaddress
 import json
 import os
@@ -127,6 +128,23 @@ def normalize_heading_value(value: str) -> str:
     return CLOSING_ATX.sub("", value).strip(" \t")
 
 
+def list_marker_indent_columns(line: str) -> int:
+    """Return CommonMark indentation columns between a bullet marker and link text."""
+    bracket = line.find("[", 1)
+    if bracket < 0:
+        return 0
+    column = 1
+    start_column = column
+    for character in line[1:bracket]:
+        if character == " ":
+            column += 1
+        elif character == "\t":
+            column += 4 - (column % 4)
+        else:
+            return 0
+    return column - start_column
+
+
 def parse_index(text: str, path: str) -> ParsedIndex:
     title: str | None = None
     section: str | None = None
@@ -174,6 +192,12 @@ def parse_index(text: str, path: str) -> ParsedIndex:
 
         entry = LINK_ENTRY.fullmatch(line)
         if entry:
+            marker_indent = list_marker_indent_columns(line)
+            if not 1 <= marker_indent <= 4:
+                raise IndexNavigationError(
+                    f"list marker indentation must be 1 to 4 columns in "
+                    f"{path}:{line_number}"
+                )
             label_source = entry.group(1)
             trailing_backslashes = len(label_source) - len(label_source.rstrip("\\"))
             if trailing_backslashes % 2:
@@ -186,6 +210,11 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 )
             label = label_source.strip(" \t")
             raw_target = entry.group(2).strip(" \t")
+            destination_backslashes = len(raw_target) - len(raw_target.rstrip("\\"))
+            if destination_backslashes % 2:
+                raise IndexNavigationError(
+                    f"escaped link-destination terminator in {path}:{line_number}"
+                )
             description = entry.group(3).strip(" \t")
             if not label:
                 raise IndexNavigationError(
@@ -326,12 +355,23 @@ def unwrap_pointy_destination(value: str, source: str, line: int) -> tuple[str, 
     return inner, True
 
 
+def decode_commonmark_character_reference(reference: str) -> str | None:
+    """Decode an exact CommonMark character reference token, if valid."""
+    if reference.startswith("&#"):
+        return html.unescape(reference)
+    name = reference[1:]
+    if name not in html.entities.html5:
+        return None
+    return html.entities.html5[name]
+
+
 def decode_commonmark_character_references(value: str) -> str:
-    """Decode only semicolon-terminated references accepted by CommonMark."""
-    return COMMONMARK_CHARACTER_REFERENCE.sub(
-        lambda match: html.unescape(match.group(0)),
-        value,
-    )
+    """Decode only exact semicolon-terminated references accepted by CommonMark."""
+    def replace(match: re.Match[str]) -> str:
+        decoded = decode_commonmark_character_reference(match.group(0))
+        return match.group(0) if decoded is None else decoded
+
+    return COMMONMARK_CHARACTER_REFERENCE.sub(replace, value)
 
 
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
@@ -360,9 +400,11 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
         if character == "&":
             reference = COMMONMARK_CHARACTER_REFERENCE.match(destination, index)
             if reference is not None:
-                decoded_parts.append(html.unescape(reference.group(0)))
-                index = reference.end()
-                continue
+                decoded_reference = decode_commonmark_character_reference(reference.group(0))
+                if decoded_reference is not None:
+                    decoded_parts.append(decoded_reference)
+                    index = reference.end()
+                    continue
         decoded_parts.append(character)
         index += 1
 
@@ -505,6 +547,7 @@ def resolve_link(
             f"malformed link target in {source}:{link.line}: {raw_target!r}"
         ) from exc
     fragment = decode_fragment(parsed.fragment, source, link.line)
+    resolved_fragment = "" if fragment is None and fragment_delimiter_present else fragment
 
     if parsed.scheme or parsed.netloc:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -521,7 +564,7 @@ def resolve_link(
         return {
             "kind": "external",
             "target": external_target,
-            "fragment": fragment,
+            "fragment": resolved_fragment,
         }
 
     if query_delimiter_present:
@@ -537,7 +580,7 @@ def resolve_link(
         return {
             "kind": "fragment",
             "target": source,
-            "fragment": "" if fragment is None else fragment,
+            "fragment": resolved_fragment,
         }
 
     normalized, directory_marker = decode_link_path(parsed.path, source, link.line)
@@ -558,6 +601,8 @@ def resolve_link(
         if candidate in entries:
             normalized = candidate
             target_entry = entries[candidate]
+        elif normalized == ".":
+            target_entry = ("tree", "040000", "")
     elif target_entry is not None and target_entry[0] == "tree":
         candidate = normalized.rstrip("/") + "/index.md"
         if candidate in entries:
@@ -586,7 +631,7 @@ def resolve_link(
     return {
         "kind": resolved_kind,
         "target": normalized,
-        "fragment": fragment,
+        "fragment": resolved_fragment,
     }
 
 
