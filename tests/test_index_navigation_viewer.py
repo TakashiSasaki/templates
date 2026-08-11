@@ -65,7 +65,7 @@ class IndexNavigationViewerTests(unittest.TestCase):
             "* [Jump to this section](#guided-links) - Exercise a same-index fragment.\n"
             "* [Architecture](architecture/#details) - Follow the nested index and fragment.\n"
             "* [Overview](overview.md#scope) - Open the cataloged document.\n"
-            "* [<script>notes</script>](../notes.txt#L1) - Read <b>escaped</b> source metadata.\n"
+            "* [&lt;script&gt;notes&lt;/script&gt;](../notes.txt#L1) - Read &lt;b&gt;escaped&lt;/b&gt; source metadata.\n"
             "* [Specification](https://example.com/spec#caf%C3%A9) - Open the external specification.\n",
             encoding="utf-8",
         )
