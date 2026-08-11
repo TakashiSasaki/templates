@@ -18,12 +18,7 @@ from pathlib import Path
 from urllib.parse import SplitResult, unquote_to_bytes, urlsplit, urlunsplit
 
 try:
-    from scripts.generate_repository_file_previews import (
-        BIDIRECTIONAL_CONTROLS,
-        RepositoryFilePreviewError,
-        object_contents,
-        object_sizes,
-    )
+    from scripts.generate_repository_file_previews import BIDIRECTIONAL_CONTROLS
     from scripts.generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
@@ -32,12 +27,7 @@ try:
         parse_ls_tree,
     )
 except ModuleNotFoundError:
-    from generate_repository_file_previews import (
-        BIDIRECTIONAL_CONTROLS,
-        RepositoryFilePreviewError,
-        object_contents,
-        object_sizes,
-    )
+    from generate_repository_file_previews import BIDIRECTIONAL_CONTROLS
     from generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
@@ -799,11 +789,16 @@ def generate_graph(repository: str, providers: dict[str, Path]) -> dict[str, obj
 def write_graph(output: Path, graph: dict[str, object]) -> None:
     if output.is_symlink():
         raise IndexNavigationError("output must not be a symlink")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise IndexNavigationError(
+            f"unable to write navigation graph output {output}: {exc}"
+        ) from exc
 
 
 def main() -> int:
@@ -824,7 +819,7 @@ def main() -> int:
                 f"{diagnostics['edge_count']} links, "
                 f"depth {diagnostics['max_index_depth']} @ {provider['revision']}"
             )
-    except (IndexNavigationError, RepositoryTreeError, RepositoryFilePreviewError) as exc:
+    except (IndexNavigationError, RepositoryTreeError) as exc:
         parser.error(str(exc))
     return 0
 
