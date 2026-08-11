@@ -7,9 +7,11 @@ import argparse
 import html
 import ipaddress
 import json
+import os
 import posixpath
 import re
 import string
+import subprocess
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +29,6 @@ try:
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        git,
         parse_ls_tree,
     )
 except ModuleNotFoundError:
@@ -42,7 +43,6 @@ except ModuleNotFoundError:
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        git,
         parse_ls_tree,
     )
 
@@ -57,6 +57,9 @@ HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
 HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
 IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[0-9]+)\Z")
+COMMONMARK_CHARACTER_REFERENCE = re.compile(
+    r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
+)
 LINK_ENTRY = re.compile(
     r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
@@ -261,8 +264,46 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
     return normalized, directory_marker
 
 
+def validate_bare_destination_parentheses(value: str, source: str, line: int) -> None:
+    """Require literal bare-destination parentheses to be balanced."""
+    depth = 0
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            if depth == 0:
+                raise IndexNavigationError(
+                    f"unbalanced link destination parentheses in "
+                    f"{source}:{line}: {value!r}"
+                )
+            depth -= 1
+        index += 1
+    if depth:
+        raise IndexNavigationError(
+            f"unbalanced link destination parentheses in {source}:{line}: {value!r}"
+        )
+
+
+def decode_commonmark_character_references(value: str) -> str:
+    """Decode only semicolon-terminated references accepted by CommonMark."""
+    return COMMONMARK_CHARACTER_REFERENCE.sub(
+        lambda match: html.unescape(match.group(0)),
+        value,
+    )
+
+
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
     """Apply CommonMark destination escapes before URI parsing."""
+    validate_bare_destination_parentheses(value, source, line)
     decoded_parts: list[str] = []
     index = 0
     while index < len(value):
@@ -277,7 +318,7 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             continue
         decoded_parts.append(character)
         index += 1
-    decoded = html.unescape("".join(decoded_parts))
+    decoded = decode_commonmark_character_references("".join(decoded_parts))
     if contains_disallowed_control(decoded, allow_layout_whitespace=False) or any(
         character.isspace() for character in decoded
     ):
@@ -366,6 +407,8 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         ) from exc
+    if validate_browser_ipv4_candidate(ascii_hostname, source, line, target):
+        return
     if (
         not ascii_hostname
         or len(ascii_hostname) > 253
@@ -391,6 +434,7 @@ def resolve_link(
         )
     target = decode_markdown_destination(raw_target, source, link.line)
     fragment_delimiter_present = "#" in target
+    query_delimiter_present = "?" in target.split("#", maxsplit=1)[0]
     try:
         parsed = urlsplit(target)
     except ValueError as exc:
@@ -405,7 +449,7 @@ def resolve_link(
                 f"unsupported external link in {source}:{link.line}: {raw_target!r}"
             )
         validate_external_location(parsed, source, link.line, target)
-        if parsed.query:
+        if query_delimiter_present:
             raise IndexNavigationError(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
@@ -417,7 +461,7 @@ def resolve_link(
             "fragment": fragment,
         }
 
-    if parsed.query:
+    if query_delimiter_present:
         raise IndexNavigationError(
             f"repository link must not contain a query in "
             f"{source}:{link.line}: {raw_target!r}"
@@ -483,6 +527,46 @@ def resolve_link(
     }
 
 
+def immutable_git(root: Path, *args: str) -> bytes:
+    """Inspect exact Git objects with replacement refs disabled."""
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    try:
+        process = subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=environment,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = ""
+        if isinstance(exc, subprocess.CalledProcessError):
+            detail = exc.stderr.decode("utf-8", errors="replace").strip()
+        suffix = f": {detail}" if detail else ""
+        raise IndexNavigationError(
+            f"unable to inspect immutable Git objects in {root}{suffix}"
+        ) from exc
+    return process.stdout
+
+
+def immutable_object_size(root: Path, object_id: str) -> int:
+    raw = immutable_git(root, "cat-file", "-s", object_id)
+    try:
+        size = int(raw.decode("ascii", errors="strict").strip())
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise IndexNavigationError(
+            f"git cat-file returned an invalid size for immutable blob {object_id}"
+        ) from exc
+    if size < 0:
+        raise IndexNavigationError(f"immutable blob has an invalid size: {object_id}")
+    return size
+
+
+def immutable_object_content(root: Path, object_id: str) -> bytes:
+    return immutable_git(root, "cat-file", "blob", object_id)
+
+
 def load_reachable_index(
     root: Path,
     path: str,
@@ -491,12 +575,12 @@ def load_reachable_index(
     if entry is None or entry[0] != "blob" or entry[1] not in REGULAR_FILE_MODES:
         raise IndexNavigationError(f"linked index.md is not a regular file: {path}")
     object_id = entry[2]
-    size = object_sizes(root, [object_id])[object_id]
+    size = immutable_object_size(root, object_id)
     if size > MAX_INDEX_BYTES:
         raise IndexNavigationError(
             f"index exceeds {MAX_INDEX_BYTES // 1024} KiB limit: {path}"
         )
-    content = object_contents(root, [object_id])[object_id]
+    content = immutable_object_content(root, object_id)
     return object_id, parse_index(decode_index_text(content, path), path)
 
 
@@ -537,7 +621,7 @@ def find_cycle_edges(
 def read_entries_at_revision(root: Path, revision: str):
     """Read the provider tree at the exact SHA already recorded for provenance."""
     return parse_ls_tree(
-        git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", revision)
+        immutable_git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", revision)
     )
 
 
