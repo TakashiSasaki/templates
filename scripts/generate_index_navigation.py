@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import html
 import ipaddress
 import json
 import posixpath
 import re
+import string
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,9 +51,12 @@ PROVIDER_ORDER = ("skill", "policy", "webapp")
 ROOT_INDEX = "docs/index.md"
 MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
+MARKDOWN_ESCAPABLE = frozenset(string.punctuation)
+NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
 HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
+IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[0-9]+)\Z")
 LINK_ENTRY = re.compile(
     r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
@@ -114,6 +119,10 @@ def decode_index_text(content: bytes, path: str) -> str:
         raise IndexNavigationError(
             f"index contains a disallowed control character: {path}"
         )
+    if any(separator in text for separator in NON_MARKDOWN_LINE_SEPARATORS):
+        raise IndexNavigationError(
+            f"index contains a non-Markdown line separator: {path}"
+        )
     return text
 
 
@@ -128,8 +137,9 @@ def parse_index(text: str, path: str) -> ParsedIndex:
     sections: list[ParsedSection] = []
     section_names: set[str] = set()
     links: list[ParsedLink] = []
+    normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+    for line_number, raw_line in enumerate(normalized_text.split("\n"), start=1):
         if not raw_line.strip(" \t"):
             continue
         leading = raw_line[: len(raw_line) - len(raw_line.lstrip(" \t"))]
@@ -251,6 +261,71 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
     return normalized, directory_marker
 
 
+def decode_markdown_destination(value: str, source: str, line: int) -> str:
+    """Apply CommonMark destination escapes before URI parsing."""
+    decoded_parts: list[str] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            decoded_parts.append(value[index + 1])
+            index += 2
+            continue
+        decoded_parts.append(character)
+        index += 1
+    decoded = html.unescape("".join(decoded_parts))
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False) or any(
+        character.isspace() for character in decoded
+    ):
+        raise IndexNavigationError(
+            f"link target contains invalid whitespace or controls in "
+            f"{source}:{line}: {value!r}"
+        )
+    return decoded
+
+
+def parse_ipv4_number(value: str) -> int:
+    if value.lower().startswith("0x"):
+        return int(value[2:], 16)
+    if len(value) > 1 and value.startswith("0"):
+        return int(value[1:] or "0", 8)
+    return int(value, 10)
+
+
+def validate_browser_ipv4_candidate(
+    hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> bool:
+    """Validate WHATWG-style numeric IPv4 forms; return False for ordinary DNS names."""
+    candidate = hostname.rstrip(".")
+    if not candidate:
+        return False
+    parts = candidate.split(".")
+    if not all(IPV4_NUMBER.fullmatch(part) for part in parts):
+        return False
+    try:
+        numbers = [parse_ipv4_number(part) for part in parts]
+    except ValueError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if (
+        len(numbers) > 4
+        or any(number > 255 for number in numbers[:-1])
+        or numbers[-1] >= 256 ** (5 - len(numbers))
+    ):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+    return True
+
+
 def validate_external_location(
     parsed: SplitResult,
     source: str,
@@ -282,6 +357,8 @@ def validate_external_location(
         return
     except ValueError:
         pass
+    if validate_browser_ipv4_candidate(hostname, source, line, target):
+        return
 
     try:
         ascii_hostname = hostname.encode("idna").decode("ascii").rstrip(".")
@@ -304,33 +381,34 @@ def resolve_link(
     link: ParsedLink,
     entries: dict[str, tuple[str, str, str]],
 ) -> dict[str, object]:
-    target = link.raw_target
-    if contains_disallowed_control(target, allow_layout_whitespace=False) or any(
-        character.isspace() for character in target
+    raw_target = link.raw_target
+    if contains_disallowed_control(raw_target, allow_layout_whitespace=False) or any(
+        character.isspace() for character in raw_target
     ):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
-            f"{source}:{link.line}: {target!r}"
+            f"{source}:{link.line}: {raw_target!r}"
         )
+    target = decode_markdown_destination(raw_target, source, link.line)
     fragment_delimiter_present = "#" in target
     try:
         parsed = urlsplit(target)
     except ValueError as exc:
         raise IndexNavigationError(
-            f"malformed link target in {source}:{link.line}: {target!r}"
+            f"malformed link target in {source}:{link.line}: {raw_target!r}"
         ) from exc
     fragment = decode_fragment(parsed.fragment, source, link.line)
 
     if parsed.scheme or parsed.netloc:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise IndexNavigationError(
-                f"unsupported external link in {source}:{link.line}: {target!r}"
+                f"unsupported external link in {source}:{link.line}: {raw_target!r}"
             )
         validate_external_location(parsed, source, link.line, target)
         if parsed.query:
             raise IndexNavigationError(
                 f"external link must not contain a query in "
-                f"{source}:{link.line}: {target!r}"
+                f"{source}:{link.line}: {raw_target!r}"
             )
         external_target = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
         return {
@@ -342,7 +420,7 @@ def resolve_link(
     if parsed.query:
         raise IndexNavigationError(
             f"repository link must not contain a query in "
-            f"{source}:{link.line}: {target!r}"
+            f"{source}:{link.line}: {raw_target!r}"
         )
     if not parsed.path:
         if fragment is None and not fragment_delimiter_present:
@@ -361,7 +439,7 @@ def resolve_link(
     if directory_marker and target_entry is not None and target_entry[0] == "blob":
         raise IndexNavigationError(
             f"slash-terminated repository link targets a regular file in "
-            f"{source}:{link.line}: {target!r}"
+            f"{source}:{link.line}: {raw_target!r}"
         )
 
     if target_entry is None and directory_marker:
@@ -381,7 +459,7 @@ def resolve_link(
 
     if target_entry is None:
         raise IndexNavigationError(
-            f"broken repository link in {source}:{link.line}: {target!r} -> {normalized}"
+            f"broken repository link in {source}:{link.line}: {raw_target!r} -> {normalized}"
         )
 
     kind, mode, _object_id = target_entry
