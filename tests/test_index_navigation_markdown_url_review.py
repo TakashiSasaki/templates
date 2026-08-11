@@ -28,6 +28,22 @@ class MarkdownUrlReviewTests(unittest.TestCase):
                 self.assertEqual(resolved["kind"], "file")
                 self.assertEqual(resolved["target"], "docs/overview.md")
 
+    def test_link_entry_regex_handles_internal_parentheses(self) -> None:
+        parsed = navigation.parse_index(
+            "# Docs\n* [Reference](https://example.com/foo(bar)baz) - Read it.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(
+            parsed.links[0].raw_target,
+            "https://example.com/foo(bar)baz",
+        )
+        resolved = navigation.resolve_link("docs/index.md", parsed.links[0], {})
+        self.assertEqual(resolved["kind"], "external")
+        self.assertEqual(
+            resolved["target"],
+            "https://example.com/foo(bar)baz",
+        )
+
     def test_pointy_destination_is_unwrapped_before_resolution(self) -> None:
         entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
         parsed = navigation.parse_index(
