@@ -87,10 +87,11 @@ class LatestIndexNavigationReviewTests(unittest.TestCase):
             self.assertEqual(edge["target"], "index.md")
 
     def test_external_hosts_reject_whitespace_and_percent_encoding(self) -> None:
-        for target in (
-            "https://exa mple.com/path",
-            "https://exa%20mple.com/path",
-        ):
+        cases = (
+            ("https://exa mple.com/path", "invalid whitespace or controls"),
+            ("https://exa%20mple.com/path", "malformed external link"),
+        )
+        for target, expected in cases:
             with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
                 repository = Path(temporary) / "provider"
                 make_repository(repository)
@@ -99,7 +100,7 @@ class LatestIndexNavigationReviewTests(unittest.TestCase):
                     f"# Docs\n\n* [Bad]({target}) - Invalid hostname.\n",
                     "bad host",
                 )
-                with self.assertRaisesRegex(IndexNavigationError, "malformed external link"):
+                with self.assertRaisesRegex(IndexNavigationError, expected):
                     navigation.collect_provider_graph("skill", repository)
 
     def test_non_utf8_unreachable_repository_path_is_ignored(self) -> None:
