@@ -49,11 +49,11 @@ PROVIDER_ORDER = ("skill", "policy", "webapp")
 ROOT_INDEX = "docs/index.md"
 MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
-HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
+HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
 HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
 LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)\s*$"
+    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
 )
 
 
@@ -92,7 +92,7 @@ def contains_disallowed_control(
         codepoint = ord(character)
         if (
             (codepoint < 32 and (not allow_layout_whitespace or character not in "\t\n\r"))
-            or codepoint == 127
+            or 0x7F <= codepoint <= 0x9F
             or character in BIDIRECTIONAL_CONTROLS
         ):
             return True
@@ -119,7 +119,7 @@ def decode_index_text(content: bytes, path: str) -> str:
 
 def normalize_heading_value(value: str) -> str:
     """Remove Markdown's optional closing ATX marker from a heading value."""
-    return CLOSING_ATX.sub("", value).strip()
+    return CLOSING_ATX.sub("", value).strip(" \t")
 
 
 def parse_index(text: str, path: str) -> ParsedIndex:
@@ -130,7 +130,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
     links: list[ParsedLink] = []
 
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
-        if not raw_line.strip():
+        if not raw_line.strip(" \t"):
             continue
         leading = raw_line[: len(raw_line) - len(raw_line.lstrip(" \t"))]
         if "\t" in leading or len(leading) >= 4:
@@ -138,7 +138,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 f"indented code-block content is not allowed in {path}:{line_number}"
             )
 
-        line = raw_line.strip()
+        line = raw_line.strip(" \t")
         heading = HEADING.fullmatch(line)
         if heading:
             level = len(heading.group(1))
@@ -172,11 +172,18 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
                 )
+            label = entry.group(1).strip(" \t")
+            raw_target = entry.group(2).strip(" \t")
+            description = entry.group(3).strip(" \t")
+            if not label:
+                raise IndexNavigationError(
+                    f"link label is empty in {path}:{line_number}"
+                )
             links.append(
                 ParsedLink(
-                    label=entry.group(1).strip(),
-                    raw_target=entry.group(2).strip(),
-                    description=entry.group(3).strip(),
+                    label=label,
+                    raw_target=raw_target,
+                    description=description,
                     section=section,
                     line=line_number,
                 )
@@ -298,6 +305,14 @@ def resolve_link(
     entries: dict[str, tuple[str, str, str]],
 ) -> dict[str, object]:
     target = link.raw_target
+    if contains_disallowed_control(target, allow_layout_whitespace=False) or any(
+        character.isspace() for character in target
+    ):
+        raise IndexNavigationError(
+            f"link target contains invalid whitespace or controls in "
+            f"{source}:{link.line}: {target!r}"
+        )
+    fragment_delimiter_present = "#" in target
     try:
         parsed = urlsplit(target)
     except ValueError as exc:
@@ -330,14 +345,14 @@ def resolve_link(
             f"{source}:{link.line}: {target!r}"
         )
     if not parsed.path:
-        if fragment is None:
+        if fragment is None and not fragment_delimiter_present:
             raise IndexNavigationError(
                 f"empty link target in {source}:{link.line}"
             )
         return {
             "kind": "fragment",
             "target": source,
-            "fragment": fragment,
+            "fragment": "" if fragment is None else fragment,
         }
 
     normalized, directory_marker = decode_link_path(parsed.path, source, link.line)
@@ -553,6 +568,8 @@ def parse_providers(values: list[str]) -> dict[str, Path]:
         if "=" not in value:
             raise IndexNavigationError("provider must use NAME=PATH syntax")
         name, raw_path = value.split("=", maxsplit=1)
+        if not raw_path:
+            raise IndexNavigationError(f"provider path must not be empty: {name}")
         if name in providers:
             raise IndexNavigationError(f"duplicate provider: {name}")
         providers[name] = Path(raw_path)
