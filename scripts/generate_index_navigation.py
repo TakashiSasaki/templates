@@ -10,7 +10,7 @@ import re
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote_to_bytes, urlsplit, urlunsplit
+from urllib.parse import SplitResult, unquote_to_bytes, urlsplit, urlunsplit
 
 try:
     from scripts.generate_repository_file_previews import (
@@ -203,6 +203,10 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
         raise IndexNavigationError(
             f"unsafe repository-relative link in {source}:{line}: {value!r}"
         )
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
+        raise IndexNavigationError(
+            f"link path contains a disallowed control character in {source}:{line}: {value!r}"
+        )
     trailing_slash = decoded.endswith("/")
     normalized = posixpath.normpath(posixpath.join(posixpath.dirname(source), decoded))
     if normalized in {"", ".", ".."} or normalized.startswith("../"):
@@ -212,7 +216,12 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
     return normalized, trailing_slash
 
 
-def validate_external_location(parsed: object, source: str, line: int, target: str) -> None:
+def validate_external_location(
+    parsed: SplitResult,
+    source: str,
+    line: int,
+    target: str,
+) -> None:
     try:
         hostname = parsed.hostname
         parsed.port
@@ -298,7 +307,11 @@ def resolve_link(
     if kind == "tree":
         resolved_kind = "directory"
     elif kind == "blob" and mode in REGULAR_FILE_MODES:
-        resolved_kind = "index" if normalized.endswith("/index.md") else "file"
+        resolved_kind = (
+            "index"
+            if normalized == "index.md" or normalized.endswith("/index.md")
+            else "file"
+        )
     else:
         raise IndexNavigationError(
             f"link target is not a regular file or directory in {source}:{link.line}: {normalized}"

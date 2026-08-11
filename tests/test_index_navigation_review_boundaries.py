@@ -65,6 +65,22 @@ class IndexNavigationReviewBoundaryTests(unittest.TestCase):
                 ):
                     collect_provider_graph("skill", repository)
 
+    def test_percent_decoded_path_controls_fail_closed(self) -> None:
+        for target in ("overview%07.md", "overview%E2%80%AE.md"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
+                repository = Path(temporary) / "provider"
+                make_repository(repository)
+                commit_root(
+                    repository,
+                    f"# Docs\n\n* [Bad]({target}) - Invalid decoded path.\n",
+                    "invalid decoded path",
+                )
+                with self.assertRaisesRegex(
+                    IndexNavigationError,
+                    "link path contains a disallowed control character",
+                ):
+                    collect_provider_graph("skill", repository)
+
     def test_external_urls_reject_invalid_ports(self) -> None:
         for target in (
             "https://example.com:bad/path",
@@ -96,6 +112,21 @@ class IndexNavigationReviewBoundaryTests(unittest.TestCase):
                     "slash-terminated repository link targets a regular file",
                 ):
                     collect_provider_graph("skill", repository)
+
+    def test_root_level_index_md_is_classified_as_index(self) -> None:
+        link = ParsedLink(
+            label="Repository index",
+            raw_target="../index.md",
+            description="Follow a root-level index.",
+            section=None,
+            line=3,
+        )
+        entries = {"index.md": ("blob", "100644", "a" * 40)}
+
+        resolved = resolve_link("docs/index.md", link, entries)
+
+        self.assertEqual(resolved["kind"], "index")
+        self.assertEqual(resolved["target"], "index.md")
 
     def test_unreachable_oversized_index_does_not_block_graph(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
