@@ -40,6 +40,10 @@ def make_provider(root: Path, provider: str) -> None:
         encoding="utf-8",
     )
     (root / "docs/examples").mkdir()
+    (root / "docs/examples/README.md").write_text(
+        "# Examples\n\n## Usage\n",
+        encoding="utf-8",
+    )
     (root / "docs/overview.md").write_text("# Overview\n", encoding="utf-8")
     (root / "docs/publication-catalog.json").write_text(
         json.dumps(
