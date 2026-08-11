@@ -7,61 +7,144 @@ from scripts.generate_index_navigation import IndexNavigationError, ParsedLink
 
 
 class MarkdownUrlReviewTests(unittest.TestCase):
+    def resolve(self, target: str, entries=None):
+        return navigation.resolve_link(
+            "docs/index.md",
+            ParsedLink(
+                label="Target",
+                raw_target=target,
+                description="Review boundary.",
+                section=None,
+                line=2,
+            ),
+            {} if entries is None else entries,
+        )
+
     def test_markdown_destination_escapes_are_normalized_before_resolution(self) -> None:
         entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
         for target in (r"overview\.md", "overview&#46;md"):
             with self.subTest(target=target):
-                resolved = navigation.resolve_link(
-                    "docs/index.md",
-                    ParsedLink(
-                        label="Overview",
-                        raw_target=target,
-                        description="Read it.",
-                        section=None,
-                        line=2,
-                    ),
-                    entries,
-                )
+                resolved = self.resolve(target, entries)
                 self.assertEqual(resolved["kind"], "file")
                 self.assertEqual(resolved["target"], "docs/overview.md")
+
+    def test_link_entry_regex_handles_internal_parentheses(self) -> None:
+        parsed = navigation.parse_index(
+            "# Docs\n* [Reference](https://example.com/foo(bar)baz) - Read it.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(
+            parsed.links[0].raw_target,
+            "https://example.com/foo(bar)baz",
+        )
+        resolved = navigation.resolve_link("docs/index.md", parsed.links[0], {})
+        self.assertEqual(resolved["kind"], "external")
+        self.assertEqual(
+            resolved["target"],
+            "https://example.com/foo(bar)baz",
+        )
+
+    def test_pointy_destination_is_unwrapped_before_resolution(self) -> None:
+        entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
+        parsed = navigation.parse_index(
+            "# Docs\n* [Overview](<overview.md>) - Read it.\n",
+            "docs/index.md",
+        )
+        resolved = navigation.resolve_link("docs/index.md", parsed.links[0], entries)
+        self.assertEqual(resolved["kind"], "file")
+        self.assertEqual(resolved["target"], "docs/overview.md")
+
+    def test_pointy_destination_can_contain_spaces_and_parentheses(self) -> None:
+        entries = {
+            "docs/my file.md": ("blob", "100644", "a" * 40),
+            "docs/foo(bar.md": ("blob", "100644", "b" * 40),
+        }
+        for target, expected in (
+            ("<my file.md>", "docs/my file.md"),
+            ("<foo(bar.md>", "docs/foo(bar.md"),
+        ):
+            with self.subTest(target=target):
+                resolved = self.resolve(target, entries)
+                self.assertEqual(resolved["kind"], "file")
+                self.assertEqual(resolved["target"], expected)
+
+    def test_malformed_pointy_destinations_are_rejected(self) -> None:
+        for target in (
+            "<overview.md",
+            r"<foo\>",
+            "<foo>bar>",
+            "<<foo>>",
+        ):
+            with self.subTest(target=target):
+                with self.assertRaisesRegex(
+                    IndexNavigationError,
+                    "malformed pointy link destination",
+                ):
+                    navigation.decode_markdown_destination(target, "docs/index.md", 2)
+
+    def test_only_semicolon_terminated_commonmark_entities_are_decoded(self) -> None:
+        for target in ("overview&copy.md", "overview&#65.md"):
+            with self.subTest(target=target):
+                self.assertEqual(
+                    navigation.decode_markdown_destination(target, "docs/index.md", 2),
+                    target,
+                )
+        self.assertEqual(
+            navigation.decode_markdown_destination(
+                "overview&copy;.md", "docs/index.md", 2
+            ),
+            "overview©.md",
+        )
+
+    def test_unbalanced_bare_destination_parentheses_are_rejected(self) -> None:
+        entries = {"docs/foo(bar.md": ("blob", "100644", "a" * 40)}
+        with self.assertRaisesRegex(IndexNavigationError, "unbalanced link destination"):
+            self.resolve("foo(bar.md", entries)
+
+        balanced_entries = {"docs/foo(bar).md": ("blob", "100644", "b" * 40)}
+        resolved = self.resolve("foo(bar).md", balanced_entries)
+        self.assertEqual(resolved["target"], "docs/foo(bar).md")
 
     def test_invalid_numeric_ipv4_hosts_are_rejected(self) -> None:
         for target in (
             "https://256.1.1.1/path",
             "https://4294967296/path",
+            "https://２５６.１.１.１/path",
+            "https://example.1/path",
+            "https://foo.256/path",
+            "https://example.0x1/path",
         ):
             with self.subTest(target=target):
                 with self.assertRaisesRegex(IndexNavigationError, "malformed external link"):
-                    navigation.resolve_link(
-                        "docs/index.md",
-                        ParsedLink(
-                            label="External",
-                            raw_target=target,
-                            description="Invalid numeric host.",
-                            section=None,
-                            line=2,
-                        ),
-                        {},
-                    )
+                    self.resolve(target)
 
     def test_valid_browser_numeric_ipv4_forms_remain_accepted(self) -> None:
         for target in (
             "https://127.0.0.1/path",
             "https://2130706433/path",
+            "https://１２７.０.０.１/path",
+            "https://0x/path",
         ):
             with self.subTest(target=target):
-                resolved = navigation.resolve_link(
-                    "docs/index.md",
-                    ParsedLink(
-                        label="External",
-                        raw_target=target,
-                        description="Valid numeric host.",
-                        section=None,
-                        line=2,
-                    ),
-                    {},
-                )
+                resolved = self.resolve(target)
                 self.assertEqual(resolved["kind"], "external")
+
+    def test_numeric_nonfinal_domain_label_remains_accepted(self) -> None:
+        resolved = self.resolve("https://1.example.com/path")
+        self.assertEqual(resolved["kind"], "external")
+        self.assertEqual(resolved["target"], "https://1.example.com/path")
+
+    def test_empty_query_delimiters_are_rejected(self) -> None:
+        entries = {"docs/overview.md": ("blob", "100644", "a" * 40)}
+        for target in (
+            "overview.md?",
+            "overview.md?#section",
+            "https://example.com/spec?",
+            "https://example.com/spec?#section",
+        ):
+            with self.subTest(target=target):
+                with self.assertRaisesRegex(IndexNavigationError, "must not contain a query"):
+                    self.resolve(target, entries)
 
     def test_unicode_line_separators_are_rejected_before_markdown_parsing(self) -> None:
         for separator in ("\u2028", "\u2029"):

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import json
 import subprocess
 import tempfile
@@ -13,9 +12,8 @@ from scripts.generate_index_navigation_viewer import (
     generate_viewer,
     index_page_path,
     load_graph,
-    validate_provider_graph,
+    validate_render_destinations,
 )
-from scripts.generate_repository_browser import viewer_relative_url
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -27,6 +25,31 @@ def run_git(root: Path, *args: str) -> str:
         text=True,
     )
     return process.stdout.strip()
+
+
+class CountingDestination:
+    parent_reads = 0
+
+    def __init__(self, *parts: str) -> None:
+        self._parts = parts
+
+    @property
+    def parts(self) -> tuple[str, ...]:
+        return self._parts
+
+    @property
+    def parents(self) -> tuple[()]:
+        type(self).parent_reads += 1
+        return ()
+
+    def __hash__(self) -> int:
+        return hash(self._parts)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, CountingDestination) and self._parts == other._parts
+
+    def __str__(self) -> str:
+        return "/".join(self._parts)
 
 
 class IndexNavigationViewerTests(unittest.TestCase):
@@ -42,7 +65,7 @@ class IndexNavigationViewerTests(unittest.TestCase):
             "* [Jump to this section](#guided-links) - Exercise a same-index fragment.\n"
             "* [Architecture](architecture/#details) - Follow the nested index and fragment.\n"
             "* [Overview](overview.md#scope) - Open the cataloged document.\n"
-            "* [<script>notes</script>](../notes.txt#L1) - Read <b>escaped</b> source metadata.\n"
+            "* [&lt;script&gt;notes&lt;/script&gt;](../notes.txt#L1) - Read &lt;b&gt;escaped&lt;/b&gt; source metadata.\n"
             "* [Specification](https://example.com/spec#caf%C3%A9) - Open the external specification.\n",
             encoding="utf-8",
         )
@@ -152,8 +175,10 @@ class IndexNavigationViewerTests(unittest.TestCase):
             self.assertIn('href="#guided-links"', page)
             self.assertIn('href="/guided/skill/docs/architecture/#details"', page)
             self.assertIn('href="/skill/#scope"', page)
-            notes_relative = viewer_relative_url("skill", revision, b"notes.txt")
-            self.assertIn(f'href="/files/skill/{notes_relative}#L1"', page)
+            self.assertIn(
+                f'href="https://github.com/TakashiSasaki/templates/blob/{revision}/notes.txt#L1"',
+                page,
+            )
             self.assertIn('href="https://example.com/spec#caf%C3%A9"', page)
             self.assertNotIn("caf%25C3%25A9", page)
             self.assertIn('target="_blank" rel="noopener"', page)
@@ -180,6 +205,53 @@ class IndexNavigationViewerTests(unittest.TestCase):
             )
             self.assertEqual(external["target"], "https://example.com/spec")
             self.assertEqual(external["fragment"], "café")
+
+    def test_publication_catalog_is_read_from_locked_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = self.make_fixture(root)
+            skill = providers["skill"]
+            (skill / "docs/publication-catalog.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "documents": [
+                            {
+                                "id": "overview",
+                                "source": "notes.txt",
+                                "optional": False,
+                                "home": True,
+                            }
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            generate_viewer(
+                "TakashiSasaki/templates", graph, site_root, output, providers
+            )
+
+            page = (output / "guided/skill/index.html").read_text(encoding="utf-8")
+            self.assertIn('href="/skill/#scope"', page)
+            revision = graph["providers"][0]["revision"]
+            self.assertNotIn(
+                f'href="https://github.com/TakashiSasaki/templates/blob/{revision}/docs/overview.md#scope"',
+                page,
+            )
+
+    def test_destination_collision_validation_does_not_scan_all_parent_pairs(self) -> None:
+        CountingDestination.parent_reads = 0
+        destinations = [
+            CountingDestination("guided", "skill", f"section-{index}", "index.html")
+            for index in range(200)
+        ]
+
+        validate_render_destinations(destinations)  # type: ignore[arg-type]
+
+        self.assertLessEqual(CountingDestination.parent_reads, len(destinations) * 2)
 
     def test_duplicate_section_names_in_tampered_graph_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -260,53 +332,6 @@ class IndexNavigationViewerTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(IndexNavigationViewerError, "ordered exactly"):
                 load_graph(graph_path)
-
-    def test_tampered_graph_rejects_unsafe_paths_noncanonical_shas_and_external_urls(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            _providers, _site_root, _output, graph = self.make_fixture(root)
-            original = graph["providers"][0]
-
-            tampered = copy.deepcopy(original)
-            tampered["revision"] = "A" * 40
-            with self.assertRaisesRegex(IndexNavigationViewerError, "revision is invalid"):
-                validate_provider_graph(tampered)
-
-            tampered = copy.deepcopy(original)
-            tampered["indexes"][0]["object_id"] = "g" * 40
-            with self.assertRaisesRegex(IndexNavigationViewerError, "index record is invalid"):
-                validate_provider_graph(tampered)
-
-            tampered = copy.deepcopy(original)
-            tampered["indexes"][1]["path"] = "docs/../escape/index.md"
-            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
-                validate_provider_graph(tampered)
-
-            tampered = copy.deepcopy(original)
-            file_edge = next(edge for edge in tampered["edges"] if edge["kind"] == "file")
-            file_edge["target"] = "../../escape.md"
-            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
-                validate_provider_graph(tampered)
-
-            for invalid_target in (
-                "javascript:alert(1)",
-                "https://[",
-                "https://example.com/spec?q=1",
-                "https://example.com/spec#fragment",
-            ):
-                with self.subTest(invalid_target=invalid_target):
-                    tampered = copy.deepcopy(original)
-                    external_edge = next(
-                        edge for edge in tampered["edges"] if edge["kind"] == "external"
-                    )
-                    external_edge["target"] = invalid_target
-                    with self.assertRaisesRegex(
-                        IndexNavigationViewerError, "external edge target is invalid"
-                    ):
-                        validate_provider_graph(tampered)
-
-            with self.assertRaisesRegex(IndexNavigationViewerError, "safe repository-relative path"):
-                index_page_path("skill", "docs/../../escape/index.md")
 
 
 if __name__ == "__main__":

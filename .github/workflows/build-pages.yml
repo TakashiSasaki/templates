@@ -377,6 +377,8 @@ jobs:
                   source = index["path"]
                   if source == "docs/index.md":
                       page = root / "guided" / name / "index.html"
+                  elif source == "index.md":
+                      page = root / "guided" / "_repository-root" / name / "index.html"
                   else:
                       page = root / "guided" / name / Path(PurePosixPath(source).parent.as_posix()) / "index.html"
                   if not page.is_file():

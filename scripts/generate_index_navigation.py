@@ -5,44 +5,37 @@ from __future__ import annotations
 
 import argparse
 import html
+import html.entities
+import idna
 import ipaddress
 import json
+import os
 import posixpath
 import re
 import string
+import subprocess
+import unicodedata
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import SplitResult, unquote_to_bytes, urlsplit, urlunsplit
+from urllib.parse import SplitResult, quote, unquote_to_bytes, urlsplit, urlunsplit
 
 try:
-    from scripts.generate_repository_file_previews import (
-        BIDIRECTIONAL_CONTROLS,
-        RepositoryFilePreviewError,
-        object_contents,
-        object_sizes,
-    )
+    from scripts.generate_repository_file_previews import BIDIRECTIONAL_CONTROLS
     from scripts.generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        git,
         parse_ls_tree,
     )
 except ModuleNotFoundError:
-    from generate_repository_file_previews import (
-        BIDIRECTIONAL_CONTROLS,
-        RepositoryFilePreviewError,
-        object_contents,
-        object_sizes,
-    )
+    from generate_repository_file_previews import BIDIRECTIONAL_CONTROLS
     from generate_repository_trees import (
         FULL_SHA,
         REPOSITORY,
         RepositoryTreeError,
         checked_revision,
-        git,
         parse_ls_tree,
     )
 
@@ -53,13 +46,34 @@ MAX_INDEX_BYTES = 256 * 1024
 REGULAR_FILE_MODES = frozenset({"100644", "100755"})
 MARKDOWN_ESCAPABLE = frozenset(string.punctuation)
 NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
+CONTEXTUAL_JOINERS = frozenset({"\u200c", "\u200d"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
-HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
-IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]+|0[0-7]*|[0-9]+)\Z")
-LINK_ENTRY = re.compile(
-    r"^[*-][ \t]+\[([^\]]+)\]\((.+?)\)[ \t]+[-–—][ \t]+(.+?)[ \t]*$"
+FORBIDDEN_DOMAIN_CHARACTERS = frozenset("#/:<>?@[\\]^|%")
+IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
+COMMONMARK_CHARACTER_REFERENCE = re.compile(
+    r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
 )
+COMMONMARK_URI_AUTOLINK = re.compile(
+    r"<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\x00-\x20<>]*>"
+)
+COMMONMARK_EMAIL_AUTOLINK = re.compile(
+    r"<[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*>"
+)
+COMMONMARK_HTML_OPEN_TAG = re.compile(
+    r"<[A-Za-z][A-Za-z0-9-]*"
+    r"(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*"
+    r"(?:[ \t]*=[ \t]*(?:[^ \t\"'=<>`]+|'[^']*'|\"[^\"]*\"))?)*"
+    r"[ \t]*/?>"
+)
+COMMONMARK_HTML_CLOSING_TAG = re.compile(
+    r"</[A-Za-z][A-Za-z0-9-]*[ \t]*>"
+)
+DESCRIPTION_SUFFIX = re.compile(r"^[ \t]+[-–—][ \t]+(.+?)[ \t]*$")
+EXTERNAL_AUTHORITY_SAFE = "%:@[]!$&'()*+,;=-._~"
+EXTERNAL_PATH_SAFE = "/%:@!$&'()*+,;=-._~"
 
 
 class IndexNavigationError(RuntimeError):
@@ -99,6 +113,7 @@ def contains_disallowed_control(
             (codepoint < 32 and (not allow_layout_whitespace or character not in "\t\n\r"))
             or 0x7F <= codepoint <= 0x9F
             or character in BIDIRECTIONAL_CONTROLS
+            or character in NON_MARKDOWN_LINE_SEPARATORS
         ):
             return True
     return False
@@ -112,23 +127,544 @@ def decode_index_text(content: bytes, path: str) -> str:
     if b"\0" in content:
         raise IndexNavigationError(f"index contains a NUL byte: {path}")
     try:
-        text = content.decode("utf-8")
+        text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise IndexNavigationError(f"index is not strict UTF-8: {path}") from exc
-    if contains_disallowed_control(text):
-        raise IndexNavigationError(
-            f"index contains a disallowed control character: {path}"
-        )
     if any(separator in text for separator in NON_MARKDOWN_LINE_SEPARATORS):
         raise IndexNavigationError(
             f"index contains a non-Markdown line separator: {path}"
         )
+    if contains_disallowed_control(text):
+        raise IndexNavigationError(
+            f"index contains a disallowed control character: {path}"
+        )
     return text
 
 
+def decode_commonmark_character_reference(reference: str) -> str | None:
+    """Decode an exact CommonMark character reference token, if valid."""
+    if reference.startswith("&#"):
+        return html.unescape(reference)
+    name = reference[1:]
+    if name not in html.entities.html5:
+        return None
+    return html.entities.html5[name]
+
+
+def decode_commonmark_character_references(value: str) -> str:
+    """Decode only exact semicolon-terminated references accepted by CommonMark."""
+
+    def replace(match: re.Match[str]) -> str:
+        decoded = decode_commonmark_character_reference(match.group(0))
+        return match.group(0) if decoded is None else decoded
+
+    return COMMONMARK_CHARACTER_REFERENCE.sub(replace, value)
+
+
+def decode_commonmark_inline_text(value: str) -> str:
+    """Decode CommonMark backslash escapes and exact character references once."""
+    decoded_parts: list[str] = []
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            decoded_parts.append(value[index + 1])
+            index += 2
+            continue
+        if character == "&":
+            reference = COMMONMARK_CHARACTER_REFERENCE.match(value, index)
+            if reference is not None:
+                decoded_reference = decode_commonmark_character_reference(reference.group(0))
+                if decoded_reference is not None:
+                    decoded_parts.append(decoded_reference)
+                    index = reference.end()
+                    continue
+        decoded_parts.append(character)
+        index += 1
+    return "".join(decoded_parts)
+
+
 def normalize_heading_value(value: str) -> str:
-    """Remove Markdown's optional closing ATX marker from a heading value."""
-    return CLOSING_ATX.sub("", value).strip(" \t")
+    """Normalize the human-rendered CommonMark text of an ATX heading."""
+    trimmed = value.strip(" \t")
+    if trimmed and all(character == "#" for character in trimmed):
+        return ""
+    without_closing_marker = CLOSING_ATX.sub("", value).strip(" \t")
+    return decode_commonmark_inline_text(without_closing_marker).strip(" \t")
+
+
+def list_marker_indent_columns(line: str, leading_columns: int = 0) -> int:
+    """Return CommonMark indentation columns between a bullet marker and link text."""
+    bracket = line.find("[", 1)
+    if bracket < 0:
+        return 0
+    column = leading_columns + 1
+    start_column = column
+    for character in line[1:bracket]:
+        if character == " ":
+            column += 1
+        elif character == "\t":
+            column += 4 - (column % 4)
+        else:
+            return 0
+    return column - start_column
+
+
+def contains_unescaped_character(value: str, needle: str) -> bool:
+    """Return whether a punctuation character occurs outside a backslash escape."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == needle:
+            return True
+        index += 1
+    return False
+
+
+def contains_unescaped_sequence(value: str, sequence: str) -> bool:
+    """Return whether a punctuation sequence begins outside a backslash escape."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if value.startswith(sequence, index):
+            return True
+        index += 1
+    return False
+
+
+def commonmark_code_span_closers(value: str) -> dict[int, int]:
+    """Map each unescaped backtick run to the end of its next equal-length run."""
+    previous_by_length: dict[int, int] = {}
+    closers: dict[int, int] = {}
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "`":
+            index += 1
+            continue
+        start = index
+        while index < len(value) and value[index] == "`":
+            index += 1
+        run_length = index - start
+        previous = previous_by_length.get(run_length)
+        if previous is not None:
+            closers[previous] = index
+        previous_by_length[run_length] = start
+    return closers
+
+
+def contains_commonmark_code_span(value: str) -> bool:
+    """Return whether source text contains an unescaped CommonMark code span."""
+    return bool(commonmark_code_span_closers(value))
+
+
+def contains_commonmark_autolink(value: str) -> bool:
+    """Return whether source text contains an unescaped URI or email autolink."""
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "<":
+            index += 1
+            continue
+        uri = COMMONMARK_URI_AUTOLINK.match(value, index)
+        if uri is not None:
+            return True
+        email = COMMONMARK_EMAIL_AUTOLINK.match(value, index)
+        if email is not None:
+            return True
+        index += 1
+    return False
+
+
+def contains_commonmark_raw_html(value: str) -> bool:
+    """Return whether source text contains an unescaped CommonMark raw HTML construct."""
+    comment_close = value.rfind("-->")
+    processing_close = value.rfind("?>")
+    cdata_close = value.rfind("]]>")
+    declaration_close = value.rfind(">")
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "<":
+            index += 1
+            continue
+        if value.startswith("<!--", index) and comment_close >= index + 4:
+            return True
+        if value.startswith("<?", index) and processing_close >= index + 2:
+            return True
+        if value.startswith("<![CDATA[", index) and cdata_close >= index + 9:
+            return True
+        if (
+            value.startswith("<!", index)
+            and index + 2 < len(value)
+            and value[index + 2].isascii()
+            and value[index + 2].isalpha()
+            and declaration_close >= index + 3
+        ):
+            return True
+        if COMMONMARK_HTML_OPEN_TAG.match(value, index) is not None:
+            return True
+        if COMMONMARK_HTML_CLOSING_TAG.match(value, index) is not None:
+            return True
+        index += 1
+    return False
+
+
+def is_commonmark_whitespace(character: str | None) -> bool:
+    """Return CommonMark's Unicode-whitespace classification for one character."""
+    if character is None:
+        return True
+    return character in "\t\n\f\r" or unicodedata.category(character) == "Zs"
+
+
+def is_commonmark_punctuation(character: str | None) -> bool:
+    """Return CommonMark's Unicode punctuation/symbol classification."""
+    if character is None:
+        return False
+    return unicodedata.category(character)[:1] in {"P", "S"}
+
+
+def contains_commonmark_emphasis(value: str) -> bool:
+    """Return whether unescaped delimiter runs can form emphasis or strong emphasis."""
+    opener_masks = {"*": 0, "_": 0}
+    non_closing_opener_masks = {"*": 0, "_": 0}
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character not in "*_":
+            index += 1
+            continue
+
+        start = index
+        while index < len(value) and value[index] == character:
+            index += 1
+        run_length = index - start
+        previous = value[start - 1] if start else None
+        following = value[index] if index < len(value) else None
+        previous_whitespace = is_commonmark_whitespace(previous)
+        following_whitespace = is_commonmark_whitespace(following)
+        previous_punctuation = is_commonmark_punctuation(previous)
+        following_punctuation = is_commonmark_punctuation(following)
+        left_flanking = (
+            not following_whitespace
+            and (
+                not following_punctuation
+                or previous_whitespace
+                or previous_punctuation
+            )
+        )
+        right_flanking = (
+            not previous_whitespace
+            and (
+                not previous_punctuation
+                or following_whitespace
+                or following_punctuation
+            )
+        )
+        if character == "*":
+            can_open = left_flanking
+            can_close = right_flanking
+        else:
+            can_open = left_flanking and (
+                not right_flanking or previous_punctuation
+            )
+            can_close = right_flanking and (
+                not left_flanking or following_punctuation
+            )
+
+        residue = run_length % 3
+        if can_close:
+            opener_mask = opener_masks[character]
+            if opener_mask:
+                if residue == 0:
+                    return True
+                incompatible_residue = (3 - residue) % 3
+                compatible_mask = opener_mask & ~(1 << incompatible_residue)
+                if compatible_mask:
+                    return True
+                if (
+                    not can_open
+                    and non_closing_opener_masks[character]
+                    & (1 << incompatible_residue)
+                ):
+                    return True
+
+        if can_open:
+            opener_masks[character] |= 1 << residue
+            if not can_close:
+                non_closing_opener_masks[character] |= 1 << residue
+
+    return False
+
+
+def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
+    """Parse a reserved link destination, optional title, and trailing description."""
+    if not value.startswith("("):
+        return None
+
+    destination_start = 1
+    cursor = destination_start
+    outer_close: int | None = None
+
+    if cursor < len(value) and value[cursor] == "<":
+        index = cursor + 1
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character == ">":
+                destination_end = index + 1
+                cursor = destination_end
+                break
+            index += 1
+        else:
+            return None
+    else:
+        depth = 0
+        index = cursor
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character in " \t":
+                if depth:
+                    return None
+                destination_end = index
+                cursor = index
+                break
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                if depth == 0:
+                    destination_end = index
+                    outer_close = index
+                    cursor = index
+                    break
+                depth -= 1
+            index += 1
+        else:
+            return None
+
+    raw_target = value[destination_start:destination_end]
+
+    if outer_close is None:
+        separator_start = cursor
+        while cursor < len(value) and value[cursor] in " \t":
+            cursor += 1
+        title_separated = cursor > separator_start
+        if cursor >= len(value):
+            return None
+        if value[cursor] == ")":
+            outer_close = cursor
+        else:
+            if not title_separated:
+                return None
+            opener = value[cursor]
+            closer = {"\"": "\"", "'": "'", "(": ")"}.get(opener)
+            if closer is None:
+                return None
+            cursor += 1
+            while cursor < len(value):
+                character = value[cursor]
+                if (
+                    character == "\\"
+                    and cursor + 1 < len(value)
+                    and value[cursor + 1] in MARKDOWN_ESCAPABLE
+                ):
+                    cursor += 2
+                    continue
+                if opener == "(" and character == "(":
+                    return None
+                if character == closer:
+                    cursor += 1
+                    break
+                cursor += 1
+            else:
+                return None
+            while cursor < len(value) and value[cursor] in " \t":
+                cursor += 1
+            if cursor >= len(value) or value[cursor] != ")":
+                return None
+            outer_close = cursor
+
+    description = DESCRIPTION_SUFFIX.fullmatch(value[outer_close + 1 :])
+    if description is None:
+        return None
+    return raw_target, description.group(1)
+
+
+def parse_reserved_link_entry(
+    line: str,
+    path: str,
+    line_number: int,
+    leading_columns: int = 0,
+) -> tuple[str, str, str] | None:
+    """Parse the reserved link-entry shape with escape-aware balanced label brackets."""
+    if not line or line[0] not in "*-":
+        return None
+    bracket = line.find("[", 1)
+    if bracket < 0:
+        return None
+    marker_indent = list_marker_indent_columns(line, leading_columns)
+    if not 1 <= marker_indent <= 4:
+        raise IndexNavigationError(
+            f"list marker indentation must be 1 to 4 columns in "
+            f"{path}:{line_number}"
+        )
+
+    depth = 1
+    escaped_outer_terminator = False
+    label_offset = bracket + 1
+    code_span_closers = commonmark_code_span_closers(line[label_offset:])
+    index = label_offset
+    while index < len(line):
+        character = line[index]
+        if (
+            character == "\\"
+            and index + 1 < len(line)
+            and line[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            if (
+                depth == 1
+                and line[index + 1] == "]"
+                and index + 2 < len(line)
+                and line[index + 2] == "("
+            ):
+                escaped_outer_terminator = True
+            index += 2
+            continue
+        if character == "`":
+            code_span_end = code_span_closers.get(index - label_offset)
+            if code_span_end is not None:
+                index = label_offset + code_span_end
+                continue
+        if character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+
+    if depth:
+        if escaped_outer_terminator:
+            raise IndexNavigationError(
+                f"escaped link-label terminator in {path}:{line_number}"
+            )
+        return None
+    label_source = line[bracket + 1 : index]
+    if contains_commonmark_code_span(label_source):
+        raise IndexNavigationError(
+            f"unsupported inline code span in link label in {path}:{line_number}"
+        )
+    if contains_commonmark_emphasis(label_source):
+        raise IndexNavigationError(
+            f"unsupported emphasis in link label in {path}:{line_number}"
+        )
+    if contains_commonmark_autolink(label_source):
+        raise IndexNavigationError(
+            f"unsupported autolink in link label in {path}:{line_number}"
+        )
+    if contains_commonmark_raw_html(label_source):
+        raise IndexNavigationError(
+            f"unsupported raw HTML in link label in {path}:{line_number}"
+        )
+    suffix = parse_reserved_link_suffix(line[index + 1 :])
+    if suffix is None:
+        return None
+    if contains_unescaped_sequence(label_source, "]("):
+        raise IndexNavigationError(
+            f"nested inline link in link label in {path}:{line_number}"
+        )
+    raw_target, description = suffix
+    return label_source, raw_target, description
+
+
+def normalize_link_description(value: str, path: str, line_number: int) -> str:
+    """Normalize plain inline description text while failing closed on richer Markdown."""
+    if contains_commonmark_code_span(value):
+        raise IndexNavigationError(
+            f"unsupported inline code span in link description in {path}:{line_number}"
+        )
+    if contains_commonmark_emphasis(value):
+        raise IndexNavigationError(
+            f"unsupported emphasis in link description in {path}:{line_number}"
+        )
+    if contains_unescaped_sequence(value, "]("):
+        raise IndexNavigationError(
+            f"unsupported inline link in link description in {path}:{line_number}"
+        )
+    if contains_commonmark_autolink(value):
+        raise IndexNavigationError(
+            f"unsupported autolink in link description in {path}:{line_number}"
+        )
+    if contains_commonmark_raw_html(value):
+        raise IndexNavigationError(
+            f"unsupported raw HTML in link description in {path}:{line_number}"
+        )
+    decoded = decode_commonmark_inline_text(value.strip(" \t")).strip(" \t")
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
+        raise IndexNavigationError(
+            f"link description contains a disallowed control character in "
+            f"{path}:{line_number}"
+        )
+    return decoded
 
 
 def parse_index(text: str, path: str) -> ParsedIndex:
@@ -152,9 +688,35 @@ def parse_index(text: str, path: str) -> ParsedIndex:
         heading = HEADING.fullmatch(line)
         if heading:
             level = len(heading.group(1))
-            value = normalize_heading_value(heading.group(2))
+            heading_source = heading.group(2)
+            if contains_commonmark_code_span(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported inline code span in heading in {path}:{line_number}"
+                )
+            if contains_commonmark_emphasis(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported emphasis in heading in {path}:{line_number}"
+                )
+            if contains_unescaped_sequence(heading_source, "]("):
+                raise IndexNavigationError(
+                    f"unsupported inline link in heading in {path}:{line_number}"
+                )
+            if contains_commonmark_autolink(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported autolink in heading in {path}:{line_number}"
+                )
+            if contains_commonmark_raw_html(heading_source):
+                raise IndexNavigationError(
+                    f"unsupported raw HTML in heading in {path}:{line_number}"
+                )
+            value = normalize_heading_value(heading_source)
             if not value:
                 raise IndexNavigationError(f"empty heading in {path}:{line_number}")
+            if contains_disallowed_control(value, allow_layout_whitespace=False):
+                raise IndexNavigationError(
+                    f"heading contains a disallowed control character in "
+                    f"{path}:{line_number}"
+                )
             if level == 1:
                 if title is not None:
                     raise IndexNavigationError(
@@ -176,15 +738,35 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 sections.append(ParsedSection(title=value, level=level))
             continue
 
-        entry = LINK_ENTRY.fullmatch(line)
-        if entry:
+        entry = parse_reserved_link_entry(
+            line,
+            path,
+            line_number,
+            leading_columns=len(leading),
+        )
+        if entry is not None:
+            label_source, raw_target_source, description_source = entry
             if title is None:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
                 )
-            label = entry.group(1).strip(" \t")
-            raw_target = entry.group(2).strip(" \t")
-            description = entry.group(3).strip(" \t")
+            label = decode_commonmark_inline_text(label_source.strip(" \t")).strip(" \t")
+            if contains_disallowed_control(label, allow_layout_whitespace=False):
+                raise IndexNavigationError(
+                    f"link label contains a disallowed control character in "
+                    f"{path}:{line_number}"
+                )
+            raw_target = raw_target_source.strip(" \t")
+            destination_backslashes = len(raw_target) - len(raw_target.rstrip("\\"))
+            if destination_backslashes % 2:
+                raise IndexNavigationError(
+                    f"escaped link-destination terminator in {path}:{line_number}"
+                )
+            description = normalize_link_description(
+                description_source,
+                path,
+                line_number,
+            )
             if not label:
                 raise IndexNavigationError(
                     f"link label is empty in {path}:{line_number}"
@@ -261,9 +843,9 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
     return normalized, directory_marker
 
 
-def decode_markdown_destination(value: str, source: str, line: int) -> str:
-    """Apply CommonMark destination escapes before URI parsing."""
-    decoded_parts: list[str] = []
+def validate_bare_destination_parentheses(value: str, source: str, line: int) -> None:
+    """Require literal bare-destination parentheses to be balanced."""
+    depth = 0
     index = 0
     while index < len(value):
         character = value[index]
@@ -272,15 +854,71 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             and index + 1 < len(value)
             and value[index + 1] in MARKDOWN_ESCAPABLE
         ):
-            decoded_parts.append(value[index + 1])
             index += 2
             continue
-        decoded_parts.append(character)
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            if depth == 0:
+                raise IndexNavigationError(
+                    f"unbalanced link destination parentheses in "
+                    f"{source}:{line}: {value!r}"
+                )
+            depth -= 1
         index += 1
-    decoded = html.unescape("".join(decoded_parts))
-    if contains_disallowed_control(decoded, allow_layout_whitespace=False) or any(
-        character.isspace() for character in decoded
-    ):
+    if depth:
+        raise IndexNavigationError(
+            f"unbalanced link destination parentheses in {source}:{line}: {value!r}"
+        )
+
+
+def unwrap_pointy_destination(value: str, source: str, line: int) -> tuple[str, bool]:
+    """Return CommonMark pointy destination content and whether pointy syntax was used."""
+    if not value.startswith("<"):
+        return value, False
+    if len(value) < 2 or not value.endswith(">"):
+        raise IndexNavigationError(
+            f"malformed pointy link destination in {source}:{line}: {value!r}"
+        )
+
+    inner = value[1:-1]
+    trailing_backslashes = len(inner) - len(inner.rstrip("\\"))
+    if trailing_backslashes % 2:
+        raise IndexNavigationError(
+            f"malformed pointy link destination in {source}:{line}: {value!r}"
+        )
+
+    index = 0
+    while index < len(inner):
+        character = inner[index]
+        if (
+            character == "\\"
+            and index + 1 < len(inner)
+            and inner[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character in "<>":
+            raise IndexNavigationError(
+                f"malformed pointy link destination in {source}:{line}: {value!r}"
+            )
+        index += 1
+    return inner, True
+
+
+def decode_markdown_destination(value: str, source: str, line: int) -> str:
+    """Apply CommonMark destination delimiters, escapes, and references before URI parsing."""
+    destination, pointy = unwrap_pointy_destination(value, source, line)
+    if not pointy:
+        if any(character == " " or ord(character) < 32 for character in destination):
+            raise IndexNavigationError(
+                f"link target contains invalid whitespace or controls in "
+                f"{source}:{line}: {value!r}"
+            )
+        validate_bare_destination_parentheses(destination, source, line)
+
+    decoded = decode_commonmark_inline_text(destination)
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
             f"{source}:{line}: {value!r}"
@@ -290,10 +928,21 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
 
 def parse_ipv4_number(value: str) -> int:
     if value.lower().startswith("0x"):
-        return int(value[2:], 16)
+        return int(value[2:] or "0", 16)
     if len(value) > 1 and value.startswith("0"):
         return int(value[1:] or "0", 8)
     return int(value, 10)
+
+
+def ipv4_ends_in_number(hostname: str) -> bool:
+    """Apply the WHATWG ends-in-a-number check to an ASCII host."""
+    candidate = hostname.rstrip(".")
+    if not candidate:
+        return False
+    last = candidate.rsplit(".", maxsplit=1)[-1]
+    if last.isascii() and last.isdigit():
+        return True
+    return re.fullmatch(r"0[xX][0-9A-Fa-f]*", last) is not None
 
 
 def validate_browser_ipv4_candidate(
@@ -302,13 +951,15 @@ def validate_browser_ipv4_candidate(
     line: int,
     target: str,
 ) -> bool:
-    """Validate WHATWG-style numeric IPv4 forms; return False for ordinary DNS names."""
+    """Validate WHATWG-style IPv4 candidates; return False for ordinary domains."""
     candidate = hostname.rstrip(".")
-    if not candidate:
+    if not candidate or not ipv4_ends_in_number(candidate):
         return False
     parts = candidate.split(".")
     if not all(IPV4_NUMBER.fullmatch(part) for part in parts):
-        return False
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
     try:
         numbers = [parse_ipv4_number(part) for part in parts]
     except ValueError as exc:
@@ -326,12 +977,173 @@ def validate_browser_ipv4_candidate(
     return True
 
 
+def contains_forbidden_domain_codepoint(value: str) -> bool:
+    """Return whether an ASCII domain contains a WHATWG-forbidden domain code point."""
+    return any(
+        ord(character) <= 0x20
+        or ord(character) == 0x7F
+        or character in FORBIDDEN_DOMAIN_CHARACTERS
+        for character in value
+    )
+
+
+def decode_external_hostname(
+    hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> str:
+    """Percent-decode a special-scheme host before browser-style validation."""
+    index = 0
+    while index < len(hostname):
+        if hostname[index] != "%":
+            index += 1
+            continue
+        if (
+            index + 2 >= len(hostname)
+            or hostname[index + 1] not in string.hexdigits
+            or hostname[index + 2] not in string.hexdigits
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        index += 3
+    try:
+        decoded = unquote_to_bytes(hostname).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if (
+        not decoded
+        or "%" in decoded
+        or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
+        or any(character.isspace() for character in decoded)
+        or contains_disallowed_control(decoded, allow_layout_whitespace=False)
+    ):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+    return decoded
+
+
+def validate_ascii_punycode_labels(
+    ascii_hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> None:
+    """Reject malformed existing A-labels before accepting an ASCII domain."""
+    for label in ascii_hostname.split("."):
+        if not label.lower().startswith("xn--"):
+            continue
+        payload = label[4:]
+        if not payload:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        try:
+            decoded = payload.encode("ascii").decode("punycode")
+            canonical_payload = decoded.encode("punycode").decode("ascii")
+        except UnicodeError as exc:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            ) from exc
+        if (
+            not decoded
+            or canonical_payload.lower() != payload.lower()
+            or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
+            or contains_disallowed_control(decoded, allow_layout_whitespace=False)
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+
+
+def validate_whatwg_unicode_labels(
+    mapped: str,
+    source: str,
+    line: int,
+    target: str,
+) -> list[str]:
+    """Apply UTS #46 validity criteria not enforced by mapping alone."""
+    labels = mapped.split(".")
+    if any(not label for label in labels):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+    bidi_domain = any(
+        unicodedata.bidirectional(character) in {"R", "AL", "AN"}
+        for character in mapped
+        if character != "."
+    )
+    for label in labels:
+        if (
+            unicodedata.normalize("NFC", label) != label
+            or unicodedata.category(label[0]).startswith("M")
+            or any(joiner in label for joiner in CONTEXTUAL_JOINERS)
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        if bidi_domain:
+            try:
+                idna.check_bidi(label, check_ltr=True)
+            except idna.IDNAError as exc:
+                raise IndexNavigationError(
+                    f"malformed external link in {source}:{line}: {target!r}"
+                ) from exc
+    return labels
+
+
+def canonicalize_whatwg_domain(
+    hostname: str,
+    source: str,
+    line: int,
+    target: str,
+) -> str:
+    """Map a non-ASCII special-scheme domain with WHATWG-compatible UTS #46 rules."""
+    if hostname.isascii():
+        return hostname.lower().rstrip(".")
+    try:
+        mapped = idna.uts46_remap(
+            hostname,
+            std3_rules=False,
+            transitional=False,
+        ).rstrip(".")
+    except idna.IDNAError as exc:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        ) from exc
+    if not mapped:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+
+    labels = validate_whatwg_unicode_labels(mapped, source, line, target)
+    ascii_labels: list[str] = []
+    for label in labels:
+        if label.isascii():
+            ascii_labels.append(label.lower())
+            continue
+        try:
+            payload = label.encode("punycode").decode("ascii").lower()
+        except UnicodeError as exc:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            ) from exc
+        ascii_labels.append("xn--" + payload)
+    return ".".join(ascii_labels)
+
+
 def validate_external_location(
     parsed: SplitResult,
     source: str,
     line: int,
     target: str,
 ) -> None:
+    host_port = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+    bracketed_host = host_port.startswith("[")
     try:
         hostname = parsed.hostname
         parsed.port
@@ -343,34 +1155,29 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
-    if (
-        "%" in hostname
-        or any(character.isspace() for character in hostname)
-        or contains_disallowed_control(hostname, allow_layout_whitespace=False)
-    ):
-        raise IndexNavigationError(
-            f"malformed external link in {source}:{line}: {target!r}"
-        )
+    hostname = decode_external_hostname(hostname, source, line, target)
 
     try:
-        ipaddress.ip_address(hostname)
-        return
+        address = ipaddress.ip_address(hostname)
     except ValueError:
-        pass
+        if bracketed_host:
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+    else:
+        if bracketed_host and not isinstance(address, ipaddress.IPv6Address):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        return
     if validate_browser_ipv4_candidate(hostname, source, line, target):
         return
 
-    try:
-        ascii_hostname = hostname.encode("idna").decode("ascii").rstrip(".")
-    except UnicodeError as exc:
-        raise IndexNavigationError(
-            f"malformed external link in {source}:{line}: {target!r}"
-        ) from exc
-    if (
-        not ascii_hostname
-        or len(ascii_hostname) > 253
-        or any(not HOST_LABEL.fullmatch(label) for label in ascii_hostname.split("."))
-    ):
+    ascii_hostname = canonicalize_whatwg_domain(hostname, source, line, target)
+    if validate_browser_ipv4_candidate(ascii_hostname, source, line, target):
+        return
+    validate_ascii_punycode_labels(ascii_hostname, source, line, target)
+    if not ascii_hostname or contains_forbidden_domain_codepoint(ascii_hostname):
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
@@ -382,15 +1189,14 @@ def resolve_link(
     entries: dict[str, tuple[str, str, str]],
 ) -> dict[str, object]:
     raw_target = link.raw_target
-    if contains_disallowed_control(raw_target, allow_layout_whitespace=False) or any(
-        character.isspace() for character in raw_target
-    ):
+    if contains_disallowed_control(raw_target, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
             f"{source}:{link.line}: {raw_target!r}"
         )
     target = decode_markdown_destination(raw_target, source, link.line)
     fragment_delimiter_present = "#" in target
+    query_delimiter_present = "?" in target.split("#", maxsplit=1)[0]
     try:
         parsed = urlsplit(target)
     except ValueError as exc:
@@ -398,6 +1204,7 @@ def resolve_link(
             f"malformed link target in {source}:{link.line}: {raw_target!r}"
         ) from exc
     fragment = decode_fragment(parsed.fragment, source, link.line)
+    resolved_fragment = "" if fragment is None and fragment_delimiter_present else fragment
 
     if parsed.scheme or parsed.netloc:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -405,32 +1212,32 @@ def resolve_link(
                 f"unsupported external link in {source}:{link.line}: {raw_target!r}"
             )
         validate_external_location(parsed, source, link.line, target)
-        if parsed.query:
+        if query_delimiter_present:
             raise IndexNavigationError(
                 f"external link must not contain a query in "
                 f"{source}:{link.line}: {raw_target!r}"
             )
-        external_target = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+        external_netloc = quote(parsed.netloc, safe=EXTERNAL_AUTHORITY_SAFE)
+        external_path = quote(parsed.path, safe=EXTERNAL_PATH_SAFE)
+        external_target = urlunsplit(
+            (parsed.scheme, external_netloc, external_path, "", "")
+        )
         return {
             "kind": "external",
             "target": external_target,
-            "fragment": fragment,
+            "fragment": resolved_fragment,
         }
 
-    if parsed.query:
+    if query_delimiter_present:
         raise IndexNavigationError(
             f"repository link must not contain a query in "
             f"{source}:{link.line}: {raw_target!r}"
         )
     if not parsed.path:
-        if fragment is None and not fragment_delimiter_present:
-            raise IndexNavigationError(
-                f"empty link target in {source}:{link.line}"
-            )
         return {
             "kind": "fragment",
             "target": source,
-            "fragment": "" if fragment is None else fragment,
+            "fragment": resolved_fragment,
         }
 
     normalized, directory_marker = decode_link_path(parsed.path, source, link.line)
@@ -451,6 +1258,8 @@ def resolve_link(
         if candidate in entries:
             normalized = candidate
             target_entry = entries[candidate]
+        elif normalized == ".":
+            target_entry = ("tree", "040000", "")
     elif target_entry is not None and target_entry[0] == "tree":
         candidate = normalized.rstrip("/") + "/index.md"
         if candidate in entries:
@@ -479,8 +1288,48 @@ def resolve_link(
     return {
         "kind": resolved_kind,
         "target": normalized,
-        "fragment": fragment,
+        "fragment": resolved_fragment,
     }
+
+
+def immutable_git(root: Path, *args: str) -> bytes:
+    """Inspect exact Git objects with replacement refs disabled."""
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    try:
+        process = subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=environment,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = ""
+        if isinstance(exc, subprocess.CalledProcessError):
+            detail = exc.stderr.decode("utf-8", errors="replace").strip()
+        suffix = f": {detail}" if detail else ""
+        raise IndexNavigationError(
+            f"unable to inspect immutable Git objects in {root}{suffix}"
+        ) from exc
+    return process.stdout
+
+
+def immutable_object_size(root: Path, object_id: str) -> int:
+    raw = immutable_git(root, "cat-file", "-s", object_id)
+    try:
+        size = int(raw.decode("ascii", errors="strict").strip())
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise IndexNavigationError(
+            f"git cat-file returned an invalid size for immutable blob {object_id}"
+        ) from exc
+    if size < 0:
+        raise IndexNavigationError(f"immutable blob has an invalid size: {object_id}")
+    return size
+
+
+def immutable_object_content(root: Path, object_id: str) -> bytes:
+    return immutable_git(root, "cat-file", "blob", object_id)
 
 
 def load_reachable_index(
@@ -491,12 +1340,12 @@ def load_reachable_index(
     if entry is None or entry[0] != "blob" or entry[1] not in REGULAR_FILE_MODES:
         raise IndexNavigationError(f"linked index.md is not a regular file: {path}")
     object_id = entry[2]
-    size = object_sizes(root, [object_id])[object_id]
+    size = immutable_object_size(root, object_id)
     if size > MAX_INDEX_BYTES:
         raise IndexNavigationError(
             f"index exceeds {MAX_INDEX_BYTES // 1024} KiB limit: {path}"
         )
-    content = object_contents(root, [object_id])[object_id]
+    content = immutable_object_content(root, object_id)
     return object_id, parse_index(decode_index_text(content, path), path)
 
 
@@ -537,7 +1386,7 @@ def find_cycle_edges(
 def read_entries_at_revision(root: Path, revision: str):
     """Read the provider tree at the exact SHA already recorded for provenance."""
     return parse_ls_tree(
-        git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", revision)
+        immutable_git(root, "ls-tree", "--full-tree", "-r", "-t", "-z", revision)
     )
 
 
@@ -681,11 +1530,16 @@ def generate_graph(repository: str, providers: dict[str, Path]) -> dict[str, obj
 def write_graph(output: Path, graph: dict[str, object]) -> None:
     if output.is_symlink():
         raise IndexNavigationError("output must not be a symlink")
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise IndexNavigationError(
+            f"unable to write navigation graph output {output}: {exc}"
+        ) from exc
 
 
 def main() -> int:
@@ -706,7 +1560,7 @@ def main() -> int:
                 f"{diagnostics['edge_count']} links, "
                 f"depth {diagnostics['max_index_depth']} @ {provider['revision']}"
             )
-    except (IndexNavigationError, RepositoryTreeError, RepositoryFilePreviewError) as exc:
+    except (IndexNavigationError, RepositoryTreeError) as exc:
         parser.error(str(exc))
     return 0
 
