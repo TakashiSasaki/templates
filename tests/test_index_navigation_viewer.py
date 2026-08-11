@@ -52,6 +52,17 @@ class CountingDestination:
         return "/".join(self._parts)
 
 
+class CountingEdges(list[dict[str, object]]):
+    def __init__(self, values: list[dict[str, object]]) -> None:
+        super().__init__(values)
+        self.yield_count = 0
+
+    def __iter__(self):
+        for value in super().__iter__():
+            self.yield_count += 1
+            yield value
+
+
 class IndexNavigationViewerTests(unittest.TestCase):
     def make_provider(self, root: Path, provider: str) -> None:
         root.mkdir()
@@ -252,6 +263,53 @@ class IndexNavigationViewerTests(unittest.TestCase):
         validate_render_destinations(destinations)  # type: ignore[arg-type]
 
         self.assertLessEqual(CountingDestination.parent_reads, len(destinations) * 2)
+
+    def test_provider_rendering_does_not_rescan_all_edges_per_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = self.make_fixture(root)
+            provider = graph["providers"][0]
+            root_index = provider["indexes"][0]
+            child_count = 80
+            children = [
+                {
+                    "path": f"docs/scale-{index}/index.md",
+                    "title": f"Scale {index}",
+                    "sections": [],
+                    "depth": 1,
+                    "object_id": "c" * 40,
+                }
+                for index in range(child_count)
+            ]
+            provider["indexes"] = [root_index, *children]
+            counting_edges = CountingEdges(
+                [
+                    {
+                        "source": "docs/index.md",
+                        "section": None,
+                        "label": f"Scale {index}",
+                        "description": "Synthetic scaling edge.",
+                        "line": index + 3,
+                        "raw_target": f"scale-{index}/",
+                        "kind": "index",
+                        "target": f"docs/scale-{index}/index.md",
+                        "fragment": None,
+                    }
+                    for index in range(child_count)
+                ]
+            )
+            provider["edges"] = counting_edges
+            provider["diagnostics"] = {
+                "index_count": child_count + 1,
+                "edge_count": child_count,
+                "max_index_depth": 1,
+            }
+
+            generate_viewer(
+                "TakashiSasaki/templates", graph, site_root, output, providers
+            )
+
+            self.assertLessEqual(counting_edges.yield_count, child_count * 8)
 
     def test_duplicate_section_names_in_tampered_graph_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
