@@ -11,6 +11,7 @@ from scripts.generate_index_navigation_viewer import (
     render_index_page,
     render_landing,
     validate_provider_graph,
+    validate_repository_path,
 )
 
 
@@ -145,7 +146,7 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         ):
             index_page_path("skill", "docs/overview.md")
 
-    def test_source_file_line_fragment_stays_on_local_file_viewer(self) -> None:
+    def test_source_file_line_fragment_uses_immutable_source(self) -> None:
         href, route_kind, external = edge_href(
             "skill",
             "a" * 40,
@@ -158,10 +159,14 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
             "TakashiSasaki/templates",
         )
 
-        self.assertTrue(href.startswith("/files/skill/content/"))
-        self.assertTrue(href.endswith("#L20"))
-        self.assertEqual(route_kind, "source file")
-        self.assertFalse(external)
+        self.assertEqual(
+            href,
+            "https://github.com/TakashiSasaki/templates/blob/"
+            + ("a" * 40)
+            + "/docs/notes.md#L20",
+        )
+        self.assertEqual(route_kind, "immutable source")
+        self.assertTrue(external)
 
     def test_source_file_semantic_fragment_uses_immutable_source(self) -> None:
         href, route_kind, external = edge_href(
@@ -196,6 +201,12 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
             "heading cannot produce a stable anchor",
         ):
             heading_anchor("!!!")
+
+    def test_unicode_heading_anchor_uses_lower_not_casefold(self) -> None:
+        self.assertEqual(heading_anchor("Straße"), "straße")
+
+    def test_repository_colons_are_not_treated_as_traversal(self) -> None:
+        validate_repository_path("docs/spec:v2.md", "file path")
 
     def test_provider_revision_and_object_ids_require_lowercase_full_shas(self) -> None:
         for revision in ("A" * 40, "z" * 40, "a" * 39):

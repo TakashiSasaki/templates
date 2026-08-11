@@ -102,18 +102,22 @@ def make_fixture(root: Path):
 
 
 class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
-    def test_root_level_index_gets_noncolliding_guided_route(self) -> None:
+    def test_root_level_index_gets_reserved_guided_route(self) -> None:
         self.assertEqual(
             viewer.index_page_path("skill", "docs/index.md"),
             Path("guided/skill/index.html"),
         )
         self.assertEqual(
             viewer.index_page_path("skill", "index.md"),
-            Path("guided/skill/repository-root/index.html"),
+            Path("guided/_repository-root/skill/index.html"),
         )
         self.assertEqual(
             viewer.index_page_url("skill", "index.md"),
-            "/guided/skill/repository-root/",
+            "/guided/_repository-root/skill/",
+        )
+        self.assertNotEqual(
+            viewer.index_page_path("skill", "index.md"),
+            viewer.index_page_path("skill", "repository-root/index.md"),
         )
 
     def test_directory_fragment_uses_immutable_tree_url(self) -> None:
@@ -144,6 +148,23 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
             self.assertIn('<h2 id="guides">Guides</h2>', page)
             self.assertIn('<h3 id="advanced">Advanced</h3>', page)
 
+    def test_inline_markdown_heading_is_rejected_before_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = make_fixture(root)
+            graph["providers"][0]["indexes"][0]["sections"][0] = {
+                "title": "[Guides](guide.md)",
+                "level": 2,
+            }
+            with self.assertRaisesRegex(
+                viewer.IndexNavigationViewerError,
+                "plain heading text",
+            ):
+                viewer.generate_viewer(
+                    "TakashiSasaki/templates", graph, site_root, output, providers
+                )
+            self.assertFalse((output / "guided").exists())
+
     def test_render_failures_happen_before_guided_output_is_created(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -152,6 +173,38 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 viewer.IndexNavigationViewerError,
                 "heading cannot produce a stable anchor",
+            ):
+                viewer.generate_viewer(
+                    "TakashiSasaki/templates", graph, site_root, output, providers
+                )
+            self.assertFalse((output / "guided").exists())
+
+    def test_output_file_directory_collisions_are_rejected_before_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            providers, site_root, output, graph = make_fixture(root)
+            skill = graph["providers"][0]
+            skill["indexes"].extend(
+                [
+                    {
+                        "path": "docs/a/index.md",
+                        "title": "A",
+                        "sections": [],
+                        "depth": 1,
+                        "object_id": "1" * 40,
+                    },
+                    {
+                        "path": "docs/a/index.html/index.md",
+                        "title": "Nested A",
+                        "sections": [],
+                        "depth": 2,
+                        "object_id": "2" * 40,
+                    },
+                ]
+            )
+            with self.assertRaisesRegex(
+                viewer.IndexNavigationViewerError,
+                "file/directory collision",
             ):
                 viewer.generate_viewer(
                     "TakashiSasaki/templates", graph, site_root, output, providers
