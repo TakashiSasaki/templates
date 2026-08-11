@@ -293,6 +293,40 @@ def validate_bare_destination_parentheses(value: str, source: str, line: int) ->
         )
 
 
+def unwrap_pointy_destination(value: str, source: str, line: int) -> tuple[str, bool]:
+    """Return CommonMark pointy destination content and whether pointy syntax was used."""
+    if not value.startswith("<"):
+        return value, False
+    if len(value) < 2 or not value.endswith(">"):
+        raise IndexNavigationError(
+            f"malformed pointy link destination in {source}:{line}: {value!r}"
+        )
+
+    inner = value[1:-1]
+    trailing_backslashes = len(inner) - len(inner.rstrip("\\"))
+    if trailing_backslashes % 2:
+        raise IndexNavigationError(
+            f"malformed pointy link destination in {source}:{line}: {value!r}"
+        )
+
+    index = 0
+    while index < len(inner):
+        character = inner[index]
+        if (
+            character == "\\"
+            and index + 1 < len(inner)
+            and inner[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character in "<>":
+            raise IndexNavigationError(
+                f"malformed pointy link destination in {source}:{line}: {value!r}"
+            )
+        index += 1
+    return inner, True
+
+
 def decode_commonmark_character_references(value: str) -> str:
     """Decode only semicolon-terminated references accepted by CommonMark."""
     return COMMONMARK_CHARACTER_REFERENCE.sub(
@@ -302,25 +336,27 @@ def decode_commonmark_character_references(value: str) -> str:
 
 
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
-    """Apply CommonMark destination escapes before URI parsing."""
-    validate_bare_destination_parentheses(value, source, line)
+    """Apply CommonMark destination delimiters and escapes before URI parsing."""
+    destination, pointy = unwrap_pointy_destination(value, source, line)
+    if not pointy:
+        validate_bare_destination_parentheses(destination, source, line)
     decoded_parts: list[str] = []
     index = 0
-    while index < len(value):
-        character = value[index]
+    while index < len(destination):
+        character = destination[index]
         if (
             character == "\\"
-            and index + 1 < len(value)
-            and value[index + 1] in MARKDOWN_ESCAPABLE
+            and index + 1 < len(destination)
+            and destination[index + 1] in MARKDOWN_ESCAPABLE
         ):
-            decoded_parts.append(value[index + 1])
+            decoded_parts.append(destination[index + 1])
             index += 2
             continue
         decoded_parts.append(character)
         index += 1
     decoded = decode_commonmark_character_references("".join(decoded_parts))
-    if contains_disallowed_control(decoded, allow_layout_whitespace=False) or any(
-        character.isspace() for character in decoded
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False) or (
+        not pointy and any(character.isspace() for character in decoded)
     ):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
@@ -425,9 +461,7 @@ def resolve_link(
     entries: dict[str, tuple[str, str, str]],
 ) -> dict[str, object]:
     raw_target = link.raw_target
-    if contains_disallowed_control(raw_target, allow_layout_whitespace=False) or any(
-        character.isspace() for character in raw_target
-    ):
+    if contains_disallowed_control(raw_target, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
             f"{source}:{link.line}: {raw_target!r}"
