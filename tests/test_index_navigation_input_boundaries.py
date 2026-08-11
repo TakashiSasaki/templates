@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from scripts import generate_index_navigation as navigation
-from scripts.generate_repository_file_previews import RepositoryFilePreviewError
 from scripts.generate_repository_trees import RepositoryTreeError
 
 
@@ -42,7 +42,7 @@ class IndexNavigationInputBoundaryTests(unittest.TestCase):
                 "docs/index.md",
             )
 
-    def test_cli_formats_imported_helper_failures_as_parser_errors(self) -> None:
+    def test_cli_formats_graph_and_tree_failures_as_parser_errors(self) -> None:
         argv = [
             "generate_index_navigation.py",
             "--repository",
@@ -57,8 +57,8 @@ class IndexNavigationInputBoundaryTests(unittest.TestCase):
             "webapp=webapp",
         ]
         for error in (
+            navigation.IndexNavigationError("graph generation failed"),
             RepositoryTreeError("tree inspection failed"),
-            RepositoryFilePreviewError("blob inspection failed"),
         ):
             with self.subTest(error=type(error).__name__):
                 stderr = io.StringIO()
@@ -71,6 +71,15 @@ class IndexNavigationInputBoundaryTests(unittest.TestCase):
                         navigation.main()
                 self.assertEqual(raised.exception.code, 2)
                 self.assertIn(str(error), stderr.getvalue())
+
+    def test_write_graph_formats_os_errors_as_navigation_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            with self.assertRaisesRegex(
+                navigation.IndexNavigationError,
+                "unable to write navigation graph output",
+            ):
+                navigation.write_graph(output, {"schema_version": 1})
 
 
 if __name__ == "__main__":
