@@ -113,6 +113,7 @@ def contains_disallowed_control(
             (codepoint < 32 and (not allow_layout_whitespace or character not in "\t\n\r"))
             or 0x7F <= codepoint <= 0x9F
             or character in BIDIRECTIONAL_CONTROLS
+            or character in NON_MARKDOWN_LINE_SEPARATORS
         ):
             return True
     return False
@@ -129,13 +130,13 @@ def decode_index_text(content: bytes, path: str) -> str:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise IndexNavigationError(f"index is not strict UTF-8: {path}") from exc
-    if contains_disallowed_control(text):
-        raise IndexNavigationError(
-            f"index contains a disallowed control character: {path}"
-        )
     if any(separator in text for separator in NON_MARKDOWN_LINE_SEPARATORS):
         raise IndexNavigationError(
             f"index contains a non-Markdown line separator: {path}"
+        )
+    if contains_disallowed_control(text):
+        raise IndexNavigationError(
+            f"index contains a disallowed control character: {path}"
         )
     return text
 
@@ -246,6 +247,32 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
         if value.startswith(sequence, index):
             return True
         index += 1
+    return False
+
+
+def contains_commonmark_code_span(value: str) -> bool:
+    """Return whether source text contains an unescaped CommonMark code span."""
+    unmatched_run_lengths: set[int] = set()
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character != "`":
+            index += 1
+            continue
+        start = index
+        while index < len(value) and value[index] == "`":
+            index += 1
+        run_length = index - start
+        if run_length in unmatched_run_lengths:
+            return True
+        unmatched_run_lengths.add(run_length)
     return False
 
 
@@ -549,10 +576,6 @@ def parse_reserved_link_entry(
                 escaped_outer_terminator = True
             index += 2
             continue
-        if character == "`":
-            raise IndexNavigationError(
-                f"unsupported inline code span in link label in {path}:{line_number}"
-            )
         if character == "[":
             depth += 1
         elif character == "]":
@@ -568,6 +591,10 @@ def parse_reserved_link_entry(
             )
         return None
     label_source = line[bracket + 1 : index]
+    if contains_commonmark_code_span(label_source):
+        raise IndexNavigationError(
+            f"unsupported inline code span in link label in {path}:{line_number}"
+        )
     if contains_commonmark_emphasis(label_source):
         raise IndexNavigationError(
             f"unsupported emphasis in link label in {path}:{line_number}"
@@ -593,7 +620,7 @@ def parse_reserved_link_entry(
 
 def normalize_link_description(value: str, path: str, line_number: int) -> str:
     """Normalize plain inline description text while failing closed on richer Markdown."""
-    if contains_unescaped_character(value, "`"):
+    if contains_commonmark_code_span(value):
         raise IndexNavigationError(
             f"unsupported inline code span in link description in {path}:{line_number}"
         )
@@ -644,7 +671,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
         if heading:
             level = len(heading.group(1))
             heading_source = heading.group(2)
-            if contains_unescaped_character(heading_source, "`"):
+            if contains_commonmark_code_span(heading_source):
                 raise IndexNavigationError(
                     f"unsupported inline code span in heading in {path}:{line_number}"
                 )
@@ -1015,6 +1042,42 @@ def validate_ascii_punycode_labels(
             )
 
 
+def validate_whatwg_unicode_labels(
+    mapped: str,
+    source: str,
+    line: int,
+    target: str,
+) -> list[str]:
+    """Apply UTS #46 validity criteria not enforced by mapping alone."""
+    labels = mapped.split(".")
+    if any(not label for label in labels):
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
+    bidi_domain = any(
+        unicodedata.bidirectional(character) in {"R", "AL", "AN"}
+        for character in mapped
+        if character != "."
+    )
+    for label in labels:
+        if (
+            unicodedata.normalize("NFC", label) != label
+            or unicodedata.category(label[0]).startswith("M")
+            or any(joiner in label for joiner in CONTEXTUAL_JOINERS)
+        ):
+            raise IndexNavigationError(
+                f"malformed external link in {source}:{line}: {target!r}"
+            )
+        if bidi_domain:
+            try:
+                idna.check_bidi(label, check_ltr=True)
+            except idna.IDNAError as exc:
+                raise IndexNavigationError(
+                    f"malformed external link in {source}:{line}: {target!r}"
+                ) from exc
+    return labels
+
+
 def canonicalize_whatwg_domain(
     hostname: str,
     source: str,
@@ -1039,12 +1102,9 @@ def canonicalize_whatwg_domain(
             f"malformed external link in {source}:{line}: {target!r}"
         )
 
+    labels = validate_whatwg_unicode_labels(mapped, source, line, target)
     ascii_labels: list[str] = []
-    for label in mapped.split("."):
-        if not label:
-            raise IndexNavigationError(
-                f"malformed external link in {source}:{line}: {target!r}"
-            )
+    for label in labels:
         if label.isascii():
             ascii_labels.append(label.lower())
             continue
