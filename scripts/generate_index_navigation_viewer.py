@@ -50,9 +50,14 @@ except ModuleNotFoundError:
 
 
 GUIDED_ROOT = Path("guided")
+ROOT_INDEX_NAMESPACE = "_repository-root"
 MARKER = ".index-navigation-root"
 MARKER_CONTENT = "managed by scripts/generate_index_navigation_viewer.py\n"
-LINE_FRAGMENT = re.compile(r"L[1-9][0-9]*")
+INLINE_HEADING_LINK = re.compile(r"!?\[[^\]]*\]\([^)]*\)")
+INLINE_HEADING_HTML = re.compile(r"<[^>]+>")
+INLINE_HEADING_ENTITY = re.compile(
+    r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
+)
 
 
 class IndexNavigationViewerError(RuntimeError):
@@ -86,19 +91,10 @@ def load_graph(path: Path) -> dict[str, Any]:
 
 
 def validate_repository_path(value: str, label: str) -> None:
-    if (
-        not value
-        or value.startswith("/")
-        or "\\" in value
-        or ":" in value
-        or "\x00" in value
-    ):
+    if not value or value.startswith("/") or "\\" in value or "\x00" in value:
         raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
     path = PurePosixPath(value)
-    if any(
-        part in {"", ".", ".."} or part.casefold() == ".git"
-        for part in path.parts
-    ):
+    if any(part in {"", ".", ".."} for part in path.parts):
         raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
     if path.as_posix() != value:
         raise IndexNavigationViewerError(
@@ -108,6 +104,17 @@ def validate_repository_path(value: str, label: str) -> None:
 
 def is_index_source_path(value: str) -> bool:
     return value == "index.md" or value.endswith("/index.md")
+
+
+def validate_plain_heading(value: str, label: str) -> None:
+    if (
+        INLINE_HEADING_LINK.search(value)
+        or INLINE_HEADING_HTML.search(value)
+        or INLINE_HEADING_ENTITY.search(value)
+    ):
+        raise IndexNavigationViewerError(
+            f"{label} must use plain heading text without inline Markdown or HTML"
+        )
 
 
 def _section_title(section: Any) -> str:
@@ -176,7 +183,10 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         ):
             raise IndexNavigationViewerError(f"{name} index record is invalid")
         validate_repository_path(path, f"{name} index path")
+        validate_plain_heading(title, f"{name} index title")
         section_titles = [_section_title(section) for section in sections]
+        for section_title in section_titles:
+            validate_plain_heading(section_title, f"{name} section heading")
         if len(set(section_titles)) != len(section_titles):
             raise IndexNavigationViewerError(
                 f"{name} index contains duplicate section headings: {path}"
@@ -285,7 +295,7 @@ def index_page_path(provider: str, source_path: str) -> Path:
     if source_path == ROOT_INDEX:
         return GUIDED_ROOT / provider / "index.html"
     if source_path == "index.md":
-        return GUIDED_ROOT / provider / "repository-root" / "index.html"
+        return GUIDED_ROOT / ROOT_INDEX_NAMESPACE / provider / "index.html"
     parent = PurePosixPath(source_path).parent
     return GUIDED_ROOT / provider / Path(parent.as_posix()) / "index.html"
 
@@ -297,7 +307,7 @@ def index_page_url(provider: str, source_path: str) -> str:
     if source_path == ROOT_INDEX:
         return f"/guided/{quote(provider, safe='')}/"
     if source_path == "index.md":
-        return f"/guided/{quote(provider, safe='')}/repository-root/"
+        return f"/guided/{ROOT_INDEX_NAMESPACE}/{quote(provider, safe='')}/"
     parent = PurePosixPath(source_path).parent
     suffix = encoded_path(tuple(parent.parts))
     return f"/guided/{quote(provider, safe='')}/{suffix}/"
@@ -308,7 +318,7 @@ def fragment_suffix(fragment: str | None) -> str:
 
 
 def heading_anchor(value: str) -> str:
-    anchor = value.strip().casefold()
+    anchor = value.strip().lower()
     anchor = re.sub(r"[^\w\s-]", "", anchor, flags=re.UNICODE)
     anchor = re.sub(r"\s+", "-", anchor, flags=re.UNICODE).strip("-")
     if not anchor:
@@ -401,10 +411,10 @@ def edge_href(
                 "published document",
                 False,
             )
-        if fragment is not None and LINE_FRAGMENT.fullmatch(fragment) is None:
+        if fragment is not None:
             if repository is None:
                 raise IndexNavigationViewerError(
-                    "repository is required for a semantic source-file fragment"
+                    "repository is required for a source-file fragment"
                 )
             source = github_url(
                 repository, revision, "blob", target.encode("utf-8")
@@ -412,8 +422,7 @@ def edge_href(
             return source + fragment_suffix(fragment), "immutable source", True
         relative = viewer_relative_url(provider, revision, target.encode("utf-8"))
         return (
-            f"/files/{quote(provider, safe='')}/{relative}"
-            + fragment_suffix(fragment),
+            f"/files/{quote(provider, safe='')}/{relative}",
             "source file",
             False,
         )
@@ -648,6 +657,25 @@ def render_landing(graph: dict[str, Any]) -> str:
     return page_shell("Index-guided document discovery", body)
 
 
+def validate_render_destinations(destinations: list[Path]) -> None:
+    unique: set[Path] = set()
+    for destination in destinations:
+        if destination in unique:
+            raise IndexNavigationViewerError(
+                f"duplicate guided-navigation destination: {destination}"
+            )
+        unique.add(destination)
+    for destination in unique:
+        for other in unique:
+            if destination == other:
+                continue
+            if destination in other.parents:
+                raise IndexNavigationViewerError(
+                    "guided-navigation destinations have a file/directory collision: "
+                    f"{destination} and {other}"
+                )
+
+
 def generate_viewer(
     repository: str,
     graph: dict[str, Any],
@@ -679,17 +707,11 @@ def generate_viewer(
     published = published_maps(site_root, provider_roots)
     landing = render_landing(graph)
     rendered: list[tuple[Path, str]] = []
-    destinations: set[Path] = set()
     messages: list[str] = []
     for provider in graph["providers"]:
         name = provider["name"]
         for index in provider["indexes"]:
             relative = index_page_path(name, index["path"])
-            if relative in destinations:
-                raise IndexNavigationViewerError(
-                    f"duplicate guided-navigation destination: {relative}"
-                )
-            destinations.add(relative)
             rendered.append(
                 (
                     relative,
@@ -700,6 +722,8 @@ def generate_viewer(
             f"generated guided navigation for {name} @ {provider['revision']} "
             f"({len(provider['indexes'])} index pages)"
         )
+
+    validate_render_destinations([relative for relative, _content in rendered])
 
     guided = prepare_guided_root(output_root)
     (guided / "graph.json").write_text(
