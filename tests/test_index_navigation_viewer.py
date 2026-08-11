@@ -13,7 +13,6 @@ from scripts.generate_index_navigation_viewer import (
     index_page_path,
     load_graph,
 )
-from scripts.generate_repository_browser import viewer_relative_url
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -150,8 +149,10 @@ class IndexNavigationViewerTests(unittest.TestCase):
             self.assertIn('href="#guided-links"', page)
             self.assertIn('href="/guided/skill/docs/architecture/#details"', page)
             self.assertIn('href="/skill/#scope"', page)
-            notes_relative = viewer_relative_url("skill", revision, b"notes.txt")
-            self.assertIn(f'href="/files/skill/{notes_relative}#L1"', page)
+            self.assertIn(
+                f'href="https://github.com/TakashiSasaki/templates/blob/{revision}/notes.txt#L1"',
+                page,
+            )
             self.assertIn('href="https://example.com/spec#caf%C3%A9"', page)
             self.assertNotIn("caf%25C3%25A9", page)
             self.assertIn('target="_blank" rel="noopener"', page)
