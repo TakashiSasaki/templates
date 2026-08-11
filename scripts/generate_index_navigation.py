@@ -45,7 +45,7 @@ MARKDOWN_ESCAPABLE = frozenset(string.punctuation)
 NON_MARKDOWN_LINE_SEPARATORS = frozenset({"\u2028", "\u2029"})
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 CLOSING_ATX = re.compile(r"[ \t]+#+[ \t]*$")
-HOST_LABEL = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z")
+FORBIDDEN_DOMAIN_CHARACTERS = frozenset("#/:<>?@[\\]^|%")
 IPV4_NUMBER = re.compile(r"\A(?:0[xX][0-9A-Fa-f]*|0[0-7]*|[0-9]+)\Z")
 COMMONMARK_CHARACTER_REFERENCE = re.compile(
     r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
@@ -121,6 +121,9 @@ def decode_index_text(content: bytes, path: str) -> str:
 
 def normalize_heading_value(value: str) -> str:
     """Remove Markdown's optional closing ATX marker from a heading value."""
+    trimmed = value.strip(" \t")
+    if trimmed and all(character == "#" for character in trimmed):
+        return ""
     return CLOSING_ATX.sub("", value).strip(" \t")
 
 
@@ -171,11 +174,17 @@ def parse_index(text: str, path: str) -> ParsedIndex:
 
         entry = LINK_ENTRY.fullmatch(line)
         if entry:
+            label_source = entry.group(1)
+            trailing_backslashes = len(label_source) - len(label_source.rstrip("\\"))
+            if trailing_backslashes % 2:
+                raise IndexNavigationError(
+                    f"escaped link-label terminator in {path}:{line_number}"
+                )
             if title is None:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
                 )
-            label = entry.group(1).strip(" \t")
+            label = label_source.strip(" \t")
             raw_target = entry.group(2).strip(" \t")
             description = entry.group(3).strip(" \t")
             if not label:
@@ -326,10 +335,16 @@ def decode_commonmark_character_references(value: str) -> str:
 
 
 def decode_markdown_destination(value: str, source: str, line: int) -> str:
-    """Apply CommonMark destination delimiters and escapes before URI parsing."""
+    """Apply CommonMark destination delimiters, escapes, and references before URI parsing."""
     destination, pointy = unwrap_pointy_destination(value, source, line)
     if not pointy:
+        if any(character == " " or ord(character) < 32 for character in destination):
+            raise IndexNavigationError(
+                f"link target contains invalid whitespace or controls in "
+                f"{source}:{line}: {value!r}"
+            )
         validate_bare_destination_parentheses(destination, source, line)
+
     decoded_parts: list[str] = []
     index = 0
     while index < len(destination):
@@ -342,12 +357,17 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             decoded_parts.append(destination[index + 1])
             index += 2
             continue
+        if character == "&":
+            reference = COMMONMARK_CHARACTER_REFERENCE.match(destination, index)
+            if reference is not None:
+                decoded_parts.append(html.unescape(reference.group(0)))
+                index = reference.end()
+                continue
         decoded_parts.append(character)
         index += 1
-    decoded = decode_commonmark_character_references("".join(decoded_parts))
-    if contains_disallowed_control(decoded, allow_layout_whitespace=False) or (
-        not pointy and any(character.isspace() for character in decoded)
-    ):
+
+    decoded = "".join(decoded_parts)
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link target contains invalid whitespace or controls in "
             f"{source}:{line}: {value!r}"
@@ -380,7 +400,7 @@ def validate_browser_ipv4_candidate(
     line: int,
     target: str,
 ) -> bool:
-    """Validate WHATWG-style IPv4 candidates; return False for ordinary DNS names."""
+    """Validate WHATWG-style IPv4 candidates; return False for ordinary domains."""
     candidate = hostname.rstrip(".")
     if not candidate or not ipv4_ends_in_number(candidate):
         return False
@@ -404,6 +424,16 @@ def validate_browser_ipv4_candidate(
             f"malformed external link in {source}:{line}: {target!r}"
         )
     return True
+
+
+def contains_forbidden_domain_codepoint(value: str) -> bool:
+    """Return whether an ASCII domain contains a WHATWG-forbidden domain code point."""
+    return any(
+        ord(character) <= 0x20
+        or ord(character) == 0x7F
+        or character in FORBIDDEN_DOMAIN_CHARACTERS
+        for character in value
+    )
 
 
 def validate_external_location(
@@ -448,11 +478,7 @@ def validate_external_location(
         ) from exc
     if validate_browser_ipv4_candidate(ascii_hostname, source, line, target):
         return
-    if (
-        not ascii_hostname
-        or len(ascii_hostname) > 253
-        or any(not HOST_LABEL.fullmatch(label) for label in ascii_hostname.split("."))
-    ):
+    if not ascii_hostname or contains_forbidden_domain_codepoint(ascii_hostname):
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
