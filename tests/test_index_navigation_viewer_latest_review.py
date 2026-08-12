@@ -152,11 +152,15 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _providers, _site_root, _output, graph = make_fixture(root)
-            graph["providers"][0]["indexes"][0]["sections"][0] = {
+            provider = graph["providers"][0]
+            provider["indexes"][0]["sections"][0] = {
                 "title": "[Guides](guide.md)",
                 "level": 2,
             }
-            viewer.validate_provider_graph(graph["providers"][0])
+            for edge in provider["edges"]:
+                if edge.get("section") == "Guides":
+                    edge["section"] = "[Guides](guide.md)"
+            viewer.validate_provider_graph(provider)
 
     def test_render_failures_happen_before_guided_output_is_created(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
