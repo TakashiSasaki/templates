@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+import json
+import unittest
+from pathlib import Path
+
+from scripts.generate_index_navigation import (
+    IndexNavigationError,
+    generate_graph,
+    normalize_link_description,
+    parse_index,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_LOCK = ROOT / "publication-sources.json"
+REPOSITORY = "TakashiSasaki/templates"
+PROVIDER_ORDER = ("skill", "policy", "webapp")
+
+
+class InlineCodeDescriptionTests(unittest.TestCase):
+    def test_code_spans_are_rendered_as_literal_description_text(self) -> None:
+        parsed = parse_index(
+            "# Root\n\n"
+            "* [Document](document.md) - Defines the copyable `template/` boundary and `agent-policy` command.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(
+            parsed.links[0].description,
+            "Defines the copyable template/ boundary and agent-policy command.",
+        )
+
+    def test_markdown_like_text_inside_code_spans_remains_literal(self) -> None:
+        description = normalize_link_description(
+            "Literal `*not emphasis* [x](y) <https://example.invalid> <b>` text",
+            "docs/index.md",
+            3,
+        )
+        self.assertEqual(
+            description,
+            "Literal *not emphasis* [x](y) <https://example.invalid> <b> text",
+        )
+
+    def test_backslash_escapes_and_entities_are_not_decoded_inside_code_spans(self) -> None:
+        description = normalize_link_description(
+            r"Outside \* &amp; and code `\* &amp;`",
+            "docs/index.md",
+            3,
+        )
+        self.assertEqual(description, r"Outside * & and code \* &amp;")
+
+    def test_richer_markdown_outside_code_spans_still_fails_closed(self) -> None:
+        descriptions = (
+            "Outside *emphasis* and `code`",
+            "Outside [link](target.md) and `code`",
+            "Outside <https://example.invalid> and `code`",
+            "Outside <b>raw</b> and `code`",
+        )
+        for description in descriptions:
+            with self.subTest(description=description):
+                with self.assertRaises(IndexNavigationError):
+                    normalize_link_description(description, "docs/index.md", 3)
+
+
+class LockedProviderGraphTests(unittest.TestCase):
+    def test_locked_provider_revisions_generate_graph_end_to_end(self) -> None:
+        providers = {
+            name: ROOT.parent / f"{name}-source"
+            for name in PROVIDER_ORDER
+        }
+        missing = [name for name, path in providers.items() if not path.is_dir()]
+        if missing:
+            self.skipTest(
+                "locked provider checkouts are not available outside the Pages CI layout: "
+                + ", ".join(missing)
+            )
+
+        lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
+        graph = generate_graph(REPOSITORY, providers)
+        by_name = {provider["name"]: provider for provider in graph["providers"]}
+
+        self.assertEqual(tuple(by_name), PROVIDER_ORDER)
+        for name in PROVIDER_ORDER:
+            with self.subTest(provider=name):
+                provider = by_name[name]
+                self.assertEqual(
+                    provider["revision"],
+                    lock["publications"][name]["revision"],
+                )
+                self.assertEqual(provider["root_index"], "docs/index.md")
+                self.assertTrue(provider["indexes"])
+                self.assertTrue(provider["edges"])
+                self.assertIn(
+                    "docs/index.md",
+                    {index["path"] for index in provider["indexes"]},
+                )
+
+
+if __name__ == "__main__":
+    unittest.main()
