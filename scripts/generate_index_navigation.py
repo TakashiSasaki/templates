@@ -8,6 +8,8 @@ provider ``index.md`` files, then re-exports the implementation API unchanged.
 
 from __future__ import annotations
 
+from bisect import bisect_right
+
 try:
     from scripts import generate_index_navigation_base as _base
 except ModuleNotFoundError:
@@ -35,40 +37,54 @@ def _is_escaped_backtick_opener(value: str, start: int) -> bool:
     return backslashes % 2 == 1
 
 
-def commonmark_code_span_closers(value: str) -> dict[int, int]:
-    """Map code-span openers to closers without producing overlapping spans.
-
-    CommonMark chooses a backtick opener and then the next raw run of exactly the
-    same length. Runs of another length inside that open span are literal code
-    content and cannot become independent openers.
-    """
-    closers: dict[int, int] = {}
+def _backtick_runs(value: str) -> list[tuple[int, int]]:
+    """Collect raw backtick runs in one forward pass."""
+    runs: list[tuple[int, int]] = []
     index = 0
     while index < len(value):
         if value[index] != "`":
             index += 1
             continue
-
-        opener = index
-        run_length = _backtick_run_length(value, opener)
+        start = index
+        run_length = _backtick_run_length(value, start)
+        runs.append((start, run_length))
         index += run_length
+    return runs
+
+
+def commonmark_code_span_closers(value: str) -> dict[int, int]:
+    """Map sequential CommonMark code-span openers to closers efficiently.
+
+    Backtick runs are indexed once. For each eligible opener, CommonMark uses the
+    next raw run of exactly the same length; runs of other lengths inside that span
+    are literal content and are skipped as independent openers. This preserves the
+    non-overlapping semantics without rescanning the remaining suffix per opener.
+    """
+    runs = _backtick_runs(value)
+    by_length: dict[int, list[int]] = {}
+    run_index_by_start: dict[int, int] = {}
+    for run_index, (start, run_length) in enumerate(runs):
+        by_length.setdefault(run_length, []).append(start)
+        run_index_by_start[start] = run_index
+
+    closers: dict[int, int] = {}
+    run_index = 0
+    while run_index < len(runs):
+        opener, run_length = runs[run_index]
         if _is_escaped_backtick_opener(value, opener):
+            run_index += 1
             continue
 
-        cursor = index
-        while cursor < len(value):
-            if value[cursor] != "`":
-                cursor += 1
-                continue
-            candidate_length = _backtick_run_length(value, cursor)
-            candidate_end = cursor + candidate_length
-            if candidate_length == run_length:
-                closers[opener] = candidate_end
-                index = candidate_end
-                break
-            cursor = candidate_end
-        else:
-            index = opener + run_length
+        same_length_starts = by_length[run_length]
+        candidate_offset = bisect_right(same_length_starts, opener)
+        if candidate_offset >= len(same_length_starts):
+            run_index += 1
+            continue
+
+        closer = same_length_starts[candidate_offset]
+        closer_end = closer + run_length
+        closers[opener] = closer_end
+        run_index = run_index_by_start[closer] + 1
 
     return closers
 
@@ -137,7 +153,7 @@ def contains_commonmark_inline_link(value: str) -> bool:
         ):
             index += 2
             continue
-        if character == "`" and bracket_depth == 0:
+        if character == "`":
             code_span_end = code_span_closers.get(index)
             if code_span_end is not None:
                 index = code_span_end
