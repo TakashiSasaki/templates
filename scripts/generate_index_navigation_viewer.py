@@ -109,10 +109,12 @@ def is_index_source_path(value: str) -> bool:
     return value == "index.md" or value.endswith("/index.md")
 
 
-def validate_normalized_heading(value: str, label: str) -> None:
-    """Validate graph heading text after the producer has parsed CommonMark syntax."""
+def validate_plain_heading(value: str, label: str) -> None:
+    """Validate producer-normalized heading text without reinterpreting Markdown syntax."""
     if contains_disallowed_control(value, allow_layout_whitespace=False):
-        raise IndexNavigationViewerError(f"{label} contains a disallowed control character")
+        raise IndexNavigationViewerError(
+            f"{label} contains a disallowed control character"
+        )
 
 
 def _section_title(section: Any) -> str:
@@ -182,10 +184,10 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         ):
             raise IndexNavigationViewerError(f"{name} index record is invalid")
         validate_repository_path(path, f"{name} index path")
-        validate_normalized_heading(title, f"{name} index title")
+        validate_plain_heading(title, f"{name} index title")
         section_titles = [_section_title(section) for section in sections]
         for section_title in section_titles:
-            validate_normalized_heading(section_title, f"{name} section heading")
+            validate_plain_heading(section_title, f"{name} section heading")
         if len(set(section_titles)) != len(section_titles):
             raise IndexNavigationViewerError(
                 f"{name} index contains duplicate section headings: {path}"
@@ -237,7 +239,9 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         if kind == "external":
             try:
                 parsed = urlsplit(target)
-            except ValueError as exc:
+                parsed.port
+                validate_external_location(parsed, source, edge["line"], target)
+            except (ValueError, IndexNavigationError) as exc:
                 raise IndexNavigationViewerError(
                     f"{name} external edge target is invalid"
                 ) from exc
@@ -250,13 +254,6 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
                 raise IndexNavigationViewerError(
                     f"{name} external edge target is invalid"
                 )
-            try:
-                parsed.port
-                validate_external_location(parsed, source, edge["line"], target)
-            except (ValueError, IndexNavigationError) as exc:
-                raise IndexNavigationViewerError(
-                    f"{name} external edge target is invalid"
-                ) from exc
         elif not (kind == "directory" and target == "."):
             validate_repository_path(target, f"{name} edge target")
 
@@ -319,7 +316,7 @@ def fragment_suffix(fragment: str | None) -> str:
 def heading_anchor(value: str) -> str:
     anchor = value.strip().lower()
     anchor = re.sub(r"[^\w\s-]", "", anchor, flags=re.UNICODE)
-    anchor = re.sub(r"\s", "-", anchor, flags=re.UNICODE).strip("-")
+    anchor = re.sub(r"\s+", "-", anchor, flags=re.UNICODE).strip("-")
     if not anchor:
         raise IndexNavigationViewerError(
             f"heading cannot produce a stable anchor: {value!r}"
