@@ -905,7 +905,12 @@ def main() -> int:
             args.output_root,
             providers,
         )
-    except (IndexNavigationError, IndexNavigationViewerError, RepositoryTreeError) as exc:
+    except (
+        IndexNavigationError,
+        IndexNavigationViewerError,
+        RepositoryTreeError,
+        OSError,
+    ) as exc:
         parser.error(str(exc))
     for message in messages:
         print(message)
