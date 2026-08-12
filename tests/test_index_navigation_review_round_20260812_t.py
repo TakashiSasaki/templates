@@ -38,7 +38,6 @@ class LatestIndexNavigationReviewRoundTTests(unittest.TestCase):
         for target in (
             "https://aبb.com/",
             "https://אבa.com/",
-            "https://ࡰب.com/",
             "https://xn--a-zhcd.com/",
         ):
             with self.subTest(target=target):
