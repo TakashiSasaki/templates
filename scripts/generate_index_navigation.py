@@ -441,6 +441,7 @@ def contains_commonmark_inline_link(value: str) -> bool:
     parenthesis_closers = commonmark_parenthesis_closers(value)
     close_positions = unescaped_closing_parentheses(value)
     last_close = max(close_positions, default=-1)
+    last_layout_whitespace = max(value.rfind(" "), value.rfind("\t"))
     bracket_depth = 0
     index = 0
     while index < len(value):
@@ -469,12 +470,13 @@ def contains_commonmark_inline_link(value: str) -> bool:
                 )
                 # A bare candidate without a balanced raw close cannot complete
                 # unless destination/title whitespace changes how parentheses are
-                # interpreted. Incomplete literal suffixes therefore never rescan
-                # the entire remaining string for every `](` occurrence.
+                # interpreted. These precomputed bounds keep incomplete literal
+                # suffixes from being scanned once per `](` occurrence.
                 if not pointy and candidate_open not in parenthesis_closers:
-                    candidate_suffix = value[candidate_open + 1 :]
-                    has_layout_whitespace = " " in candidate_suffix or "\t" in candidate_suffix
-                    if not has_layout_whitespace or last_close <= candidate_open:
+                    if (
+                        last_layout_whitespace <= candidate_open
+                        or last_close <= candidate_open
+                    ):
                         index += 1
                         continue
                 if pointy and last_close <= candidate_open:
