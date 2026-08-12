@@ -8,6 +8,7 @@ import html
 import json
 import re
 import shutil
+import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlsplit
@@ -276,7 +277,14 @@ def prepare_guided_root(output_root: Path) -> Path:
             "guided-navigation destination already exists; refusing to overwrite"
         )
     guided.mkdir()
-    (guided / MARKER).write_text(MARKER_CONTENT, encoding="utf-8")
+    try:
+        (guided / MARKER).write_text(MARKER_CONTENT, encoding="utf-8")
+    except Exception:
+        # This invocation owns `guided` only after the successful mkdir above.
+        # Clean marker failures here because the caller cannot receive the path
+        # when this function raises before returning it.
+        shutil.rmtree(guided, ignore_errors=True)
+        raise
     return guided
 
 
@@ -314,7 +322,7 @@ def fragment_suffix(fragment: str | None) -> str:
 
 
 def heading_anchor(value: str) -> str:
-    anchor = value.strip().lower()
+    anchor = unicodedata.normalize("NFC", value).strip().lower()
     anchor = re.sub(r"[^\w\s-]", "", anchor, flags=re.UNICODE)
     anchor = re.sub(r"[-\s]+", "-", anchor, flags=re.UNICODE).strip("-")
     if not anchor:
@@ -656,6 +664,16 @@ def render_index_page(
     heading_ids = heading_anchors([index["title"], *section_titles])
     if edges is None:
         edges = [edge for edge in provider["edges"] if edge["source"] == source_path]
+
+    unsectioned: list[dict[str, Any]] = []
+    edges_by_section: dict[str, list[dict[str, Any]]] = {}
+    for edge in edges:
+        edge_section = edge.get("section")
+        if edge_section is None:
+            unsectioned.append(edge)
+        else:
+            edges_by_section.setdefault(edge_section, []).append(edge)
+
     body_parts = [
         '<p class="eyebrow">Index-guided navigation</p>',
         f'<h1 id="{html.escape(heading_ids[0], quote=True)}">{html.escape(index["title"])}</h1>',
@@ -669,7 +687,6 @@ def render_index_page(
         "</div>",
     ]
 
-    unsectioned = [edge for edge in edges if edge.get("section") is None]
     if unsectioned:
         body_parts.append(
             '<div class="section" aria-label="Links before the first provider section">'
@@ -684,7 +701,7 @@ def render_index_page(
     for section_number, section in enumerate(index["sections"], start=1):
         title = _section_title(section)
         level = _section_level(section)
-        section_edges = [edge for edge in edges if edge.get("section") == title]
+        section_edges = edges_by_section.get(title, [])
         anchor = heading_ids[section_number]
         body_parts.append(
             f'<section class="section"><h{level} id="{html.escape(anchor, quote=True)}">{html.escape(title)}</h{level}>'
@@ -848,7 +865,7 @@ def generate_viewer(
     for provider in graph["providers"]:
         verify_index_objects(provider, provider_roots[provider["name"]])
 
-    guided = output_root / GUIDED_ROOT
+    guided: Path | None = None
     try:
         guided = prepare_guided_root(output_root)
         (guided / "graph.json").write_text(
@@ -861,7 +878,11 @@ def generate_viewer(
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8")
     except Exception:
-        shutil.rmtree(guided, ignore_errors=True)
+        if guided is not None:
+            # Only remove a destination returned by prepare_guided_root(), which
+            # proves this invocation created and owns it. Marker failures are
+            # cleaned inside prepare_guided_root() itself.
+            shutil.rmtree(guided, ignore_errors=True)
         raise
     return messages
 
