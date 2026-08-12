@@ -251,30 +251,36 @@ def contains_unescaped_sequence(value: str, sequence: str) -> bool:
 
 
 def commonmark_code_span_closers(value: str) -> dict[int, int]:
-    """Map each unescaped backtick run to the end of its next equal-length run."""
-    previous_by_length: dict[int, int] = {}
+    """Map unescaped opener runs to the next equal-length raw backtick run."""
+    pending_by_length: dict[int, int] = {}
     closers: dict[int, int] = {}
     index = 0
     while index < len(value):
-        character = value[index]
-        if (
-            character == "\\"
-            and index + 1 < len(value)
-            and value[index + 1] in MARKDOWN_ESCAPABLE
-        ):
-            index += 2
-            continue
-        if character != "`":
+        if value[index] != "`":
             index += 1
             continue
+
         start = index
         while index < len(value) and value[index] == "`":
             index += 1
         run_length = index - start
-        previous = previous_by_length.get(run_length)
-        if previous is not None:
-            closers[previous] = index
-        previous_by_length[run_length] = start
+
+        opener = pending_by_length.get(run_length)
+        if opener is not None:
+            # Once a code span is open, backslash escapes no longer apply; even
+            # a run immediately preceded by a backslash can close the span.
+            closers[opener] = index
+            del pending_by_length[run_length]
+            continue
+
+        backslashes = 0
+        cursor = start - 1
+        while cursor >= 0 and value[cursor] == "\\":
+            backslashes += 1
+            cursor -= 1
+        if backslashes % 2 == 0:
+            pending_by_length[run_length] = start
+
     return closers
 
 
