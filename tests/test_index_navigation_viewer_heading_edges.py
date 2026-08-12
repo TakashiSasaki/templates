@@ -61,10 +61,10 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
                     "label": "Second Architecture heading",
                     "description": "Jump to the disambiguated section anchor.",
                     "line": 3,
-                    "raw_target": "#architecture-1",
+                    "raw_target": "#architecture_1",
                     "kind": "fragment",
                     "target": "docs/index.md",
-                    "fragment": "architecture-1",
+                    "fragment": "architecture_1",
                 }
             ],
             "diagnostics": {},
@@ -78,9 +78,9 @@ class IndexNavigationViewerHeadingEdgeTests(unittest.TestCase):
         )
 
         self.assertIn('<h1 id="architecture">Architecture</h1>', rendered)
-        self.assertIn('<h2 id="architecture-1">Architecture</h2>', rendered)
+        self.assertIn('<h2 id="architecture_1">Architecture</h2>', rendered)
         self.assertIn('<h2 id="links">Links</h2>', rendered)
-        self.assertIn('href="#architecture-1"', rendered)
+        self.assertIn('href="#architecture_1"', rendered)
 
     def test_unsectioned_links_do_not_invent_a_provider_h2(self) -> None:
         index = {
