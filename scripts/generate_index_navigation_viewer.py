@@ -380,13 +380,7 @@ def heading_anchors(values: list[str]) -> list[str]:
                 candidate = f"{root}_{suffix}"
             next_suffix[root] = suffix + 1
         used.add(candidate)
-        match = IDCOUNT_RE.match(candidate)
-        if match:
-            root = match.group(1)
-            next_suffix[root] = max(
-                next_suffix.get(root, 1), int(match.group(2)) + 1
-            )
-        else:
+        if IDCOUNT_RE.match(candidate) is None:
             next_suffix.setdefault(candidate, 1)
         anchors.append(candidate)
     return anchors
