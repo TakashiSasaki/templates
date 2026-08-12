@@ -42,7 +42,9 @@ class LatestIndexNavigationReviewRound20260813ATests(unittest.TestCase):
             return original(candidate)
 
         with patch.object(navigation._base, "parse_commonmark_inline_destination", counted):
-            self.assertTrue(navigation.contains_commonmark_inline_link("[x](target.md)"))
+            self.assertTrue(
+                navigation.contains_commonmark_inline_link("[x](<target.md>)")
+            )
 
         self.assertGreater(calls, 0)
 
