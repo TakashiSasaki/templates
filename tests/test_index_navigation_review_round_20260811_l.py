@@ -59,21 +59,24 @@ class LatestIndexNavigationReviewRoundLTests(unittest.TestCase):
         )
         self.assertEqual(description.links[0].description, "Read `draft.")
 
-    def test_actual_code_spans_still_fail_closed(self) -> None:
+    def test_code_spans_remain_closed_in_headings_and_labels(self) -> None:
         for text, expected in (
             ("# API `draft`\n", "unsupported inline code span in heading"),
             (
                 "# Docs\n\n* [Guide `draft`](overview.md) - Read it.\n",
                 "unsupported inline code span in link label",
             ),
-            (
-                "# Docs\n\n* [Guide](overview.md) - Read `draft`.\n",
-                "unsupported inline code span in link description",
-            ),
         ):
             with self.subTest(text=text):
                 with self.assertRaisesRegex(IndexNavigationError, expected):
                     navigation.parse_index(text, "docs/index.md")
+
+    def test_code_spans_are_allowed_in_link_descriptions(self) -> None:
+        parsed = navigation.parse_index(
+            "# Docs\n\n* [Guide](overview.md) - Read `draft`.\n",
+            "docs/index.md",
+        )
+        self.assertEqual(parsed.links[0].description, "Read draft.")
 
     def test_unicode_domain_validity_rejects_combining_and_bidi_failures(self) -> None:
         for raw_target in (
