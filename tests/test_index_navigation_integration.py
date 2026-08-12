@@ -61,7 +61,7 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
     def test_reader_surfaces_expose_guided_discovery_as_a_distinct_path(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
         overview = OVERVIEW.read_text(encoding="utf-8")
-        self.assertIn('href="guided/"', landing)
+        self.assertIn('href="/guided/"', landing)
         self.assertIn("Browse by index.md", landing)
         self.assertIn('href="files/"', landing)
         self.assertIn('href="overview/"', landing)
