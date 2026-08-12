@@ -312,6 +312,42 @@ def commonmark_parenthesis_closers(value: str) -> dict[int, int]:
     return closers
 
 
+def commonmark_parenthesis_depths(value: str) -> list[int]:
+    """Return escape-aware raw parenthesis depth before each source position."""
+    depths = [0] * (len(value) + 1)
+    depth = 0
+    index = 0
+    while index < len(value):
+        depths[index] = depth
+        if (
+            value[index] == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            depths[index + 1] = depth
+            index += 2
+            depths[index] = depth
+            continue
+        if value[index] == "(":
+            depth += 1
+        elif value[index] == ")" and depth:
+            depth -= 1
+        index += 1
+        depths[index] = depth
+    return depths
+
+
+def next_layout_whitespace_positions(value: str) -> list[int]:
+    """Return the next raw CommonMark layout-whitespace position at each offset."""
+    positions = [len(value)] * (len(value) + 1)
+    next_position = len(value)
+    for index in range(len(value) - 1, -1, -1):
+        if value[index] in " \t":
+            next_position = index
+        positions[index] = next_position
+    return positions
+
+
 def unescaped_closing_parentheses(value: str) -> set[int]:
     """Return unescaped closing-parenthesis positions in one forward pass."""
     positions: set[int] = set()
@@ -439,6 +475,8 @@ def contains_commonmark_inline_link(value: str) -> bool:
     """Return whether source text contains a complete inline link/image."""
     code_span_closers = commonmark_code_span_closers(value)
     parenthesis_closers = commonmark_parenthesis_closers(value)
+    parenthesis_depths = commonmark_parenthesis_depths(value)
+    next_layout_whitespace = next_layout_whitespace_positions(value)
     close_positions = unescaped_closing_parentheses(value)
     last_close = max(close_positions, default=-1)
     last_layout_whitespace = max(value.rfind(" "), value.rfind("\t"))
@@ -468,11 +506,16 @@ def contains_commonmark_inline_link(value: str) -> bool:
                     candidate_open + 1 < len(value)
                     and value[candidate_open + 1] == "<"
                 )
-                # A bare candidate without a balanced raw close cannot complete
-                # unless destination/title whitespace changes how parentheses are
-                # interpreted. These precomputed bounds keep incomplete literal
-                # suffixes from being scanned once per `](` occurrence.
-                if not pointy and candidate_open not in parenthesis_closers:
+                outer_close = parenthesis_closers.get(candidate_open)
+                if not pointy and outer_close is not None:
+                    whitespace = next_layout_whitespace[candidate_open + 1]
+                    if whitespace >= outer_close:
+                        return True
+                    base_depth = parenthesis_depths[candidate_open + 1]
+                    if parenthesis_depths[whitespace] > base_depth:
+                        index += 1
+                        continue
+                if not pointy and outer_close is None:
                     if (
                         last_layout_whitespace <= candidate_open
                         or last_close <= candidate_open
@@ -777,7 +820,12 @@ def normalize_link_description(value: str, path: str, line_number: int) -> str:
             f"link description contains a disallowed control character in "
             f"{path}:{line_number}"
         )
-    return decoded.strip(" \t")
+    normalized = decoded.strip(" \t")
+    if not normalized:
+        raise IndexNavigationError(
+            f"empty link description in {path}:{line_number}"
+        )
+    return normalized
 
 
 def parse_index(text: str, path: str) -> ParsedIndex:
@@ -1038,16 +1086,12 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             f"{source}:{line}: {value!r}"
         )
     if pointy:
-        # CommonMark URI normalization percent-encodes literal spaces in pointy
-        # destinations. Do this before urlsplit(), which otherwise strips leading
-        # ASCII spaces and can change a repository-relative target into another
-        # path or an apparent external URL.
         return decoded.replace(" ", "%20")
     return decoded
 
 
 def encode_special_url_userinfo_brackets(value: str) -> str:
-    """Percent-encode raw userinfo brackets before Python interprets them as IPv6."""
+    """Percent-encode raw brackets and Unicode code points in HTTP(S) userinfo."""
     scheme_separator = value.find("://")
     if scheme_separator < 0 or value[:scheme_separator].lower() not in {"http", "https"}:
         return value
@@ -1061,7 +1105,13 @@ def encode_special_url_userinfo_brackets(value: str) -> str:
     at = authority.rfind("@")
     if at < 0:
         return value
-    userinfo = authority[:at].replace("[", "%5B").replace("]", "%5D")
+    encoded_userinfo: list[str] = []
+    for character in authority[:at]:
+        if character in "[]" or ord(character) > 0x7F:
+            encoded_userinfo.append(quote(character, safe=""))
+        else:
+            encoded_userinfo.append(character)
+    userinfo = "".join(encoded_userinfo)
     return value[:authority_start] + userinfo + authority[at:] + value[authority_end:]
 
 
@@ -1253,11 +1303,11 @@ def validate_whatwg_unicode_labels(
     semantic_end = len(labels)
     while semantic_end and not labels[semantic_end - 1]:
         semantic_end -= 1
-    if semantic_end == 0 or any(not label for label in labels[:semantic_end]):
+    semantic_labels = [label for label in labels[:semantic_end] if label]
+    if not semantic_labels:
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
-    semantic_labels = labels[:semantic_end]
     bidi_domain = any(
         unicodedata.bidirectional(character) in {"R", "AL", "AN"}
         for label in semantic_labels
