@@ -1,0 +1,54 @@
+name: Temporary PR 162 review fix
+
+on:
+  push:
+    branches:
+      - agent/site-index-navigation-viewer
+    paths:
+      - .github/workflows/tmp-review-fix-162.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/site-index-navigation-viewer
+          fetch-depth: 0
+      - name: Propagate current PR 161 base
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin agent/site-index-navigation-graph
+          git merge --no-edit origin/agent/site-index-navigation-graph
+      - name: Apply duplicate-anchor review fix and regression tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('scripts/generate_index_navigation_viewer.py')
+          source = source_path.read_text(encoding='utf-8')
+          old = '''        used.add(candidate)\n        match = IDCOUNT_RE.match(candidate)\n        if match:\n            root = match.group(1)\n            next_suffix[root] = max(\n                next_suffix.get(root, 1), int(match.group(2)) + 1\n            )\n        else:\n            next_suffix.setdefault(candidate, 1)\n        anchors.append(candidate)\n'''
+          new = '''        used.add(candidate)\n        if IDCOUNT_RE.match(candidate) is None:\n            next_suffix.setdefault(candidate, 1)\n        anchors.append(candidate)\n'''
+          assert old in source
+          source_path.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          test_path = Path('tests/test_index_navigation_viewer_review_round_20260812_h.py')
+          test_path.write_text('''import unittest\n\nfrom scripts.generate_index_navigation_viewer import heading_anchors\n\n\nclass LatestIndexNavigationViewerReviewRoundHTests(unittest.TestCase):\n    def test_higher_explicit_suffix_does_not_skip_first_free_suffix(self) -> None:\n        self.assertEqual(\n            heading_anchors(["A", "A_2", "A"]),\n            ["a", "a_2", "a_1"],\n        )\n\n    def test_duplicate_explicit_suffix_still_increments_from_that_suffix(self) -> None:\n        self.assertEqual(\n            heading_anchors(["A_2", "A_2"]),\n            ["a_2", "a_3"],\n        )\n\n    def test_existing_low_suffixes_are_still_skipped(self) -> None:\n        self.assertEqual(\n            heading_anchors(["A", "A", "A_3", "A"]),\n            ["a", "a_1", "a_3", "a_2"],\n        )\n\n\nif __name__ == "__main__":\n    unittest.main()\n''', encoding='utf-8')
+          PY
+      - name: Run focused tests
+        run: python -m unittest tests/test_index_navigation_viewer_review_round_20260812_h.py
+      - name: Run viewer test suite
+        run: python -m unittest discover -s tests -p 'test_index_navigation_viewer*.py'
+      - name: Commit production change and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-review-fix-162.yml
+          git add scripts/generate_index_navigation_viewer.py tests/test_index_navigation_viewer_review_round_20260812_h.py .github/workflows/tmp-review-fix-162.yml
+          git commit -m "Fix first-free duplicate navigation anchors"
+          git push origin HEAD:agent/site-index-navigation-viewer
