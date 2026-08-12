@@ -12,6 +12,7 @@
     </p>
     <div class="portal-actions">
       <a class="portal-button portal-button--primary" href="../">Return to the visual entry page</a>
+      <a class="portal-button portal-button--secondary" href="../guided/">Browse by index.md</a>
       <a class="portal-button portal-button--secondary" href="../repository-trees/">Inspect repository trees</a>
     </div>
     <div class="portal-signals" aria-label="Publication properties">

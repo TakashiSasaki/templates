@@ -199,6 +199,32 @@ jobs:
             --branch policy=policy-source \
             --branch webapp=webapp-source
 
+      - name: Generate index navigation graph
+        run: |
+          python site-source/scripts/generate_index_navigation.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --output build/index-navigation.json \
+            --provider skill=skill-source \
+            --provider policy=policy-source \
+            --provider webapp=webapp-source
+
+      - name: Generate index-guided navigation viewer
+        run: |
+          python site-source/scripts/generate_index_navigation_viewer.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --graph build/index-navigation.json \
+            --site-root site-publication \
+            --output-root build/site \
+            --provider skill=skill-source \
+            --provider policy=policy-source \
+            --provider webapp=webapp-source
+
+      - name: Normalize guided canonical links and PWA metadata
+        run: |
+          python site-source/scripts/finalize_site_metadata.py \
+            --site-root build/site/guided \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'
@@ -248,7 +274,12 @@ jobs:
                   and relative.parts[0] == "files"
                   and relative.parts[2] == "content"
               )
-              if browser_source_view:
+              guided_view = (
+                  path.suffix.lower() == ".html"
+                  and bool(relative.parts)
+                  and relative.parts[0] == "guided"
+              )
+              if browser_source_view or guided_view:
                   parser = URLAttributeParser()
                   parser.feed(text)
                   if any(retired_target(target) for target in parser.targets):
@@ -316,6 +347,48 @@ jobs:
                 -quit
             )"
           done
+          test -f build/site/guided/index.html
+          test -f build/site/guided/graph.json
+          grep --fixed-strings -- 'Index-guided document discovery' \
+            build/site/guided/index.html
+          grep --fixed-strings -- \
+            '<link rel="manifest" href="/app.webmanifest">' \
+            build/site/guided/index.html
+          grep --fixed-strings -- \
+            '<meta name="theme-color" content="#3f51b5">' \
+            build/site/guided/index.html
+          for provider in skill policy webapp; do
+            page="build/site/guided/${provider}/index.html"
+            revision="$(git -C "${provider}-source" rev-parse HEAD)"
+            test -f "$page"
+            grep --fixed-strings -- 'Index-guided navigation' "$page"
+            grep --fixed-strings -- "$revision" "$page"
+            grep --fixed-strings -- \
+              '<link rel="manifest" href="/app.webmanifest">' "$page"
+            grep --fixed-strings -- \
+              '<meta name="theme-color" content="#3f51b5">' "$page"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path, PurePosixPath
+
+          root = Path("build/site")
+          graph = json.loads((root / "guided/graph.json").read_text(encoding="utf-8"))
+          if graph.get("schema_version") != 1:
+              raise SystemExit("guided graph schema version mismatch")
+          for provider in graph.get("providers", []):
+              name = provider["name"]
+              for index in provider["indexes"]:
+                  source = index["path"]
+                  if source == "docs/index.md":
+                      page = root / "guided" / name / "index.html"
+                  elif source == "index.md":
+                      page = root / "guided" / "_repository-root" / name / "index.html"
+                  else:
+                      page = root / "guided" / name / Path(PurePosixPath(source).parent.as_posix()) / "index.html"
+                  if not page.is_file():
+                      raise SystemExit(f"missing guided index page: {page}")
+          PY
           grep --fixed-strings -- \
             "${{ steps.site_metadata.outputs.notice }}" \
             build/site/index.html

@@ -84,10 +84,12 @@ class LandingPageTests(unittest.TestCase):
             "skill/",
             "policy/",
             "webapp/",
+            "guided/",
             "repository-trees/",
             "files/",
         ):
             self.assertIn(f'href="{destination}"', text)
+        self.assertIn("Browse by index.md", text)
         self.assertIn("Browse source files", text)
         for label in ("Skill", "Policy", "Web application"):
             self.assertIn(
