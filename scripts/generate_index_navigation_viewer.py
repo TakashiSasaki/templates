@@ -14,13 +14,12 @@ from urllib.parse import quote, urlsplit
 try:
     from scripts.generate_index_navigation import (
         PROVIDER_ORDER,
-        REGULAR_FILE_MODES,
         ROOT_INDEX,
         IndexNavigationError,
+        collect_provider_graph,
         contains_disallowed_control,
         immutable_git,
         parse_providers,
-        read_entries_at_revision,
         validate_external_location,
     )
     from scripts.generate_repository_browser import viewer_relative_url
@@ -36,13 +35,12 @@ try:
 except ModuleNotFoundError:
     from generate_index_navigation import (
         PROVIDER_ORDER,
-        REGULAR_FILE_MODES,
         ROOT_INDEX,
         IndexNavigationError,
+        collect_provider_graph,
         contains_disallowed_control,
         immutable_git,
         parse_providers,
-        read_entries_at_revision,
         validate_external_location,
     )
     from generate_repository_browser import viewer_relative_url
@@ -61,6 +59,7 @@ GUIDED_ROOT = Path("guided")
 ROOT_INDEX_NAMESPACE = "_repository-root"
 MARKER = ".index-navigation-root"
 MARKER_CONTENT = "managed by scripts/generate_index_navigation_viewer.py\n"
+IDCOUNT_RE = re.compile(r"^(.*)_([0-9]+)$")
 
 
 class IndexNavigationViewerError(RuntimeError):
@@ -328,12 +327,13 @@ def heading_anchors(values: list[str]) -> list[str]:
     anchors: list[str] = []
     used: set[str] = set()
     for value in values:
-        base = heading_anchor(value)
-        candidate = base
-        suffix = 1
+        candidate = heading_anchor(value)
         while candidate in used:
-            candidate = f"{base}-{suffix}"
-            suffix += 1
+            match = IDCOUNT_RE.match(candidate)
+            if match:
+                candidate = f"{match.group(1)}_{int(match.group(2)) + 1}"
+            else:
+                candidate = f"{candidate}_1"
         used.add(candidate)
         anchors.append(candidate)
     return anchors
@@ -756,34 +756,31 @@ def validate_render_destinations(destinations: list[Path]) -> None:
 
 
 def verify_index_objects(provider: dict[str, Any], provider_root: Path) -> None:
-    """Verify every graph index path/blob pair against the exact locked revision."""
+    """Verify the supplied provider graph is exactly derived from the locked revision."""
     try:
-        entries = read_entries_at_revision(provider_root, provider["revision"])
+        expected = collect_provider_graph(provider["name"], provider_root)
     except IndexNavigationError as exc:
         raise IndexNavigationViewerError(
-            f"unable to inspect immutable {provider['name']} index objects: {exc}"
+            f"unable to regenerate immutable {provider['name']} graph: {exc}"
         ) from exc
 
-    by_path = {}
-    for entry in entries:
-        try:
-            path = entry.path.decode("utf-8", errors="strict")
-        except UnicodeDecodeError:
-            continue
-        by_path[path] = entry
-
+    expected_indexes = {
+        index["path"]: index
+        for index in expected["indexes"]
+        if isinstance(index, dict) and isinstance(index.get("path"), str)
+    }
     for index in provider["indexes"]:
-        entry = by_path.get(index["path"])
-        if (
-            entry is None
-            or entry.kind != "blob"
-            or entry.mode not in REGULAR_FILE_MODES
-            or entry.object_id != index["object_id"]
-        ):
+        expected_index = expected_indexes.get(index["path"])
+        if expected_index is None or expected_index.get("object_id") != index["object_id"]:
             raise IndexNavigationViewerError(
                 f"{provider['name']} index object does not match locked revision: "
                 f"{index['path']}"
             )
+
+    if expected != provider:
+        raise IndexNavigationViewerError(
+            f"{provider['name']} graph content does not match locked revision"
+        )
 
 
 def generate_viewer(
