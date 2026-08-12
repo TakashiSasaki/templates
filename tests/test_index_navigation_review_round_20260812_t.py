@@ -7,11 +7,9 @@ from scripts.generate_index_navigation import IndexNavigationError
 
 class LatestIndexNavigationReviewRoundTTests(unittest.TestCase):
     def test_browser_valid_arabic_extended_b_in_ltr_labels_is_accepted(self) -> None:
-        for hostname in (
-            "a\u0870b.com",
-            "a\u088eb.com",
-        ):
-            with self.subTest(hostname=hostname):
+        for codepoint in range(0x0870, 0x088F):
+            hostname = f"a{chr(codepoint)}b.com"
+            with self.subTest(codepoint=f"U+{codepoint:04X}"):
                 canonical = navigation.canonicalize_whatwg_domain(
                     hostname,
                     "docs/index.md",
