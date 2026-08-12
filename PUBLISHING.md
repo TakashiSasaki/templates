@@ -210,13 +210,13 @@ The guided-navigation implementation must satisfy all of the following rules:
   so graph semantics and human presentation cannot drift independently;
 - an index-to-index link opens the generated guided index page; a link to an
   already cataloged document opens the Site's existing stable documentation
-  destination; an uncataloged regular tracked file without a fragment, or with
-  a representable `L<number>` line fragment, opens the corresponding immutable
-  `/files/` viewer; an uncataloged regular tracked file with another semantic
-  fragment opens the exact full-SHA immutable GitHub source so the fragment is
-  not silently replaced by a nonexistent local anchor; a directory without a
-  followed index opens the corresponding provider source-browser entry point;
-  and an HTTP(S) external link remains external;
+  destination; an uncataloged regular tracked file without a fragment opens the
+  corresponding immutable `/files/` viewer; an uncataloged regular tracked file
+  with any fragment opens the exact full-SHA immutable GitHub source so a
+  semantic or line fragment is not silently attached to a local fallback page
+  that may not expose a matching anchor; a directory without a followed index
+  opens the corresponding provider source-browser entry point; and an HTTP(S)
+  external link remains external;
 - each guided page displays its provider, exact full SHA, source `index.md` path,
   and immutable GitHub source link;
 - the graph revision for a provider must equal the checked-out provider revision
@@ -281,8 +281,10 @@ navigation.
 Generated destinations are stable public paths. Renaming a source file does not
 require a public URL change when the stable document ID and destination remain
 unchanged. A destination change must be reviewed as a compatibility change. File
-browser content URLs and nested guided-index URLs are implementation details
-keyed by immutable provider revision and source-path identity; only the branch
+browser content URLs are implementation details keyed by immutable provider
+revision and source-path identity. Nested guided-index URLs identify the current
+reviewed provider/path projection; the exact provider revision is recorded in
+the guided page and graph rather than encoded in that nested URL. Only the branch
 browser and guided provider entry points above are stable public paths.
 
 ## Reproducibility and provenance
