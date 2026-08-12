@@ -7,6 +7,7 @@ import argparse
 import html
 import json
 import re
+import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlsplit
@@ -315,7 +316,7 @@ def fragment_suffix(fragment: str | None) -> str:
 def heading_anchor(value: str) -> str:
     anchor = value.strip().lower()
     anchor = re.sub(r"[^\w\s-]", "", anchor, flags=re.UNICODE)
-    anchor = re.sub(r"\s+", "-", anchor, flags=re.UNICODE).strip("-")
+    anchor = re.sub(r"[-\s]+", "-", anchor, flags=re.UNICODE).strip("-")
     if not anchor:
         raise IndexNavigationViewerError(
             f"heading cannot produce a stable anchor: {value!r}"
@@ -848,15 +849,19 @@ def generate_viewer(
         verify_index_objects(provider, provider_roots[provider["name"]])
 
     guided = prepare_guided_root(output_root)
-    (guided / "graph.json").write_text(
-        json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    (guided / "index.html").write_text(landing, encoding="utf-8")
-    for relative, content in rendered:
-        destination = output_root / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(content, encoding="utf-8")
+    try:
+        (guided / "graph.json").write_text(
+            json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (guided / "index.html").write_text(landing, encoding="utf-8")
+        for relative, content in rendered:
+            destination = output_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(content, encoding="utf-8")
+    except Exception:
+        shutil.rmtree(guided, ignore_errors=True)
+        raise
     return messages
 
 
