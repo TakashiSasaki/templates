@@ -1194,14 +1194,6 @@ def contextual_joiners_are_valid(label: str) -> bool:
     return True
 
 
-def browser_compatible_bidi_label(label: str) -> str:
-    """Normalize the Unicode 14 Arabic Extended-B bidi compatibility used by browsers."""
-    return "".join(
-        "a" if 0x0870 <= ord(character) <= 0x088E else character
-        for character in label
-    )
-
-
 def decode_external_hostname(
     hostname: str,
     source: str,
@@ -1293,7 +1285,7 @@ def validate_ascii_punycode_labels(
     if bidi_domain:
         for label in decoded_alabels:
             try:
-                idna.check_bidi(browser_compatible_bidi_label(label), check_ltr=True)
+                idna.check_bidi(label, check_ltr=True)
             except idna.IDNAError as exc:
                 raise IndexNavigationError(
                     f"malformed external link in {source}:{line}: {target!r}"
@@ -1332,7 +1324,7 @@ def validate_whatwg_unicode_labels(
             )
         if bidi_domain:
             try:
-                idna.check_bidi(browser_compatible_bidi_label(label), check_ltr=True)
+                idna.check_bidi(label, check_ltr=True)
             except idna.IDNAError as exc:
                 raise IndexNavigationError(
                     f"malformed external link in {source}:{line}: {target!r}"
