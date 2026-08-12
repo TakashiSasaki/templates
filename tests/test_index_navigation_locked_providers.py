@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 import unittest
 from pathlib import Path
 
 from scripts.generate_index_navigation import (
     IndexNavigationError,
+    checked_revision,
     generate_graph,
     normalize_link_description,
     parse_index,
@@ -13,7 +13,6 @@ from scripts.generate_index_navigation import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_LOCK = ROOT / "publication-sources.json"
 REPOSITORY = "TakashiSasaki/templates"
 PROVIDER_ORDER = ("skill", "policy", "webapp")
 
@@ -61,9 +60,29 @@ class InlineCodeDescriptionTests(unittest.TestCase):
                 with self.assertRaises(IndexNavigationError):
                     normalize_link_description(description, "docs/index.md", 3)
 
+    def test_code_span_matching_is_sequential_and_non_overlapping(self) -> None:
+        with self.assertRaisesRegex(IndexNavigationError, "unsupported emphasis"):
+            normalize_link_description(
+                "`safe `` code` *emphasis* ``",
+                "docs/index.md",
+                3,
+            )
+
+    def test_richer_constructs_cannot_be_hidden_by_later_backticks(self) -> None:
+        descriptions = (
+            "[x](foo`bar) tail`",
+            "<https://x/`y> tail`",
+            '<a title="`y"> tail`',
+            "*em`phasis* tail`",
+        )
+        for description in descriptions:
+            with self.subTest(description=description):
+                with self.assertRaises(IndexNavigationError):
+                    normalize_link_description(description, "docs/index.md", 3)
+
 
 class LockedProviderGraphTests(unittest.TestCase):
-    def test_locked_provider_revisions_generate_graph_end_to_end(self) -> None:
+    def test_checked_out_provider_revisions_generate_graph_end_to_end(self) -> None:
         providers = {
             name: ROOT.parent / f"{name}-source"
             for name in PROVIDER_ORDER
@@ -71,11 +90,10 @@ class LockedProviderGraphTests(unittest.TestCase):
         missing = [name for name, path in providers.items() if not path.is_dir()]
         if missing:
             self.skipTest(
-                "locked provider checkouts are not available outside the Pages CI layout: "
+                "provider checkouts are not available outside the Pages CI layout: "
                 + ", ".join(missing)
             )
 
-        lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         graph = generate_graph(REPOSITORY, providers)
         by_name = {provider["name"]: provider for provider in graph["providers"]}
 
@@ -83,10 +101,7 @@ class LockedProviderGraphTests(unittest.TestCase):
         for name in PROVIDER_ORDER:
             with self.subTest(provider=name):
                 provider = by_name[name]
-                self.assertEqual(
-                    provider["revision"],
-                    lock["publications"][name]["revision"],
-                )
+                self.assertEqual(provider["revision"], checked_revision(providers[name]))
                 self.assertEqual(provider["root_index"], "docs/index.md")
                 self.assertTrue(provider["indexes"])
                 self.assertTrue(provider["edges"])
