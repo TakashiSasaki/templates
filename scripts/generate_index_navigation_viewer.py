@@ -848,8 +848,9 @@ def generate_viewer(
     for provider in graph["providers"]:
         verify_index_objects(provider, provider_roots[provider["name"]])
 
-    guided = prepare_guided_root(output_root)
+    guided = output_root / GUIDED_ROOT
     try:
+        guided = prepare_guided_root(output_root)
         (guided / "graph.json").write_text(
             json.dumps(graph, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
