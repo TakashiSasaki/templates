@@ -194,7 +194,12 @@ def normalize_heading_value(value: str) -> str:
     if trimmed and all(character == "#" for character in trimmed):
         return ""
     without_closing_marker = CLOSING_ATX.sub("", value).strip(" \t")
-    return decode_commonmark_inline_text(without_closing_marker).strip(" \t")
+    decoded = decode_commonmark_inline_text(without_closing_marker)
+    # Preserve a decoded boundary control until the caller can reject it with a
+    # heading-specific diagnostic instead of silently trimming it away.
+    if contains_disallowed_control(decoded, allow_layout_whitespace=False):
+        return decoded
+    return decoded.strip(" \t")
 
 
 def list_marker_indent_columns(line: str, leading_columns: int = 0) -> int:
@@ -289,6 +294,35 @@ def contains_commonmark_code_span(value: str) -> bool:
     return bool(commonmark_code_span_closers(value))
 
 
+def contains_commonmark_inline_link(value: str) -> bool:
+    """Return whether source text contains a balanced inline link/image opener."""
+    code_span_closers = commonmark_code_span_closers(value)
+    bracket_depth = 0
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == "`":
+            code_span_end = code_span_closers.get(index)
+            if code_span_end is not None:
+                index = code_span_end
+                continue
+        if character == "[":
+            bracket_depth += 1
+        elif character == "]" and bracket_depth:
+            bracket_depth -= 1
+            if value.startswith("(", index + 1):
+                return True
+        index += 1
+    return False
+
+
 def contains_commonmark_autolink(value: str) -> bool:
     """Return whether source text contains an unescaped URI or email autolink."""
     index = 0
@@ -333,6 +367,8 @@ def contains_commonmark_raw_html(value: str) -> bool:
         if character != "<":
             index += 1
             continue
+        if value.startswith(("<!-->", "<!--->"), index):
+            return True
         if value.startswith("<!--", index) and comment_close >= index + 4:
             return True
         if value.startswith("<?", index) and processing_close >= index + 2:
@@ -634,7 +670,7 @@ def parse_reserved_link_entry(
     suffix = parse_reserved_link_suffix(line[index + 1 :])
     if suffix is None:
         return None
-    if contains_unescaped_sequence(label_source, "]("):
+    if contains_commonmark_inline_link(label_source):
         raise IndexNavigationError(
             f"nested inline link in link label in {path}:{line_number}"
         )
@@ -652,7 +688,7 @@ def normalize_link_description(value: str, path: str, line_number: int) -> str:
         raise IndexNavigationError(
             f"unsupported emphasis in link description in {path}:{line_number}"
         )
-    if contains_unescaped_sequence(value, "]("):
+    if contains_commonmark_inline_link(value):
         raise IndexNavigationError(
             f"unsupported inline link in link description in {path}:{line_number}"
         )
@@ -664,13 +700,13 @@ def normalize_link_description(value: str, path: str, line_number: int) -> str:
         raise IndexNavigationError(
             f"unsupported raw HTML in link description in {path}:{line_number}"
         )
-    decoded = decode_commonmark_inline_text(value.strip(" \t")).strip(" \t")
+    decoded = decode_commonmark_inline_text(value.strip(" \t"))
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link description contains a disallowed control character in "
             f"{path}:{line_number}"
         )
-    return decoded
+    return decoded.strip(" \t")
 
 
 def parse_index(text: str, path: str) -> ParsedIndex:
@@ -703,7 +739,7 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"unsupported emphasis in heading in {path}:{line_number}"
                 )
-            if contains_unescaped_sequence(heading_source, "]("):
+            if contains_commonmark_inline_link(heading_source):
                 raise IndexNavigationError(
                     f"unsupported inline link in heading in {path}:{line_number}"
                 )
@@ -756,12 +792,13 @@ def parse_index(text: str, path: str) -> ParsedIndex:
                 raise IndexNavigationError(
                     f"link precedes title in {path}:{line_number}"
                 )
-            label = decode_commonmark_inline_text(label_source.strip(" \t")).strip(" \t")
+            label = decode_commonmark_inline_text(label_source.strip(" \t"))
             if contains_disallowed_control(label, allow_layout_whitespace=False):
                 raise IndexNavigationError(
                     f"link label contains a disallowed control character in "
                     f"{path}:{line_number}"
                 )
+            label = label.strip(" \t")
             raw_target = raw_target_source.strip(" \t")
             destination_backslashes = len(raw_target) - len(raw_target.rstrip("\\"))
             if destination_backslashes % 2:
@@ -993,6 +1030,19 @@ def contains_forbidden_domain_codepoint(value: str) -> bool:
     )
 
 
+def contextual_joiners_are_valid(label: str) -> bool:
+    """Validate IDNA ContextJ only where a label actually contains a joiner."""
+    for position, character in enumerate(label):
+        if character not in CONTEXTUAL_JOINERS:
+            continue
+        try:
+            if not idna.valid_contextj(label, position):
+                return False
+        except idna.IDNAError:
+            return False
+    return True
+
+
 def decode_external_hostname(
     hostname: str,
     source: str,
@@ -1023,7 +1073,6 @@ def decode_external_hostname(
     if (
         not decoded
         or "%" in decoded
-        or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
         or any(character.isspace() for character in decoded)
         or contains_disallowed_control(decoded, allow_layout_whitespace=False)
     ):
@@ -1058,7 +1107,7 @@ def validate_ascii_punycode_labels(
         if (
             not decoded
             or canonical_payload.lower() != payload.lower()
-            or any(joiner in decoded for joiner in CONTEXTUAL_JOINERS)
+            or not contextual_joiners_are_valid(decoded)
             or contains_disallowed_control(decoded, allow_layout_whitespace=False)
         ):
             raise IndexNavigationError(
@@ -1087,7 +1136,7 @@ def validate_whatwg_unicode_labels(
         if (
             unicodedata.normalize("NFC", label) != label
             or unicodedata.category(label[0]).startswith("M")
-            or any(joiner in label for joiner in CONTEXTUAL_JOINERS)
+            or not contextual_joiners_are_valid(label)
         ):
             raise IndexNavigationError(
                 f"malformed external link in {source}:{line}: {target!r}"
