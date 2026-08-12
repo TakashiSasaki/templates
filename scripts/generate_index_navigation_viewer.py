@@ -14,11 +14,14 @@ from urllib.parse import quote, urlsplit
 try:
     from scripts.generate_index_navigation import (
         PROVIDER_ORDER,
+        REGULAR_FILE_MODES,
         ROOT_INDEX,
         IndexNavigationError,
         contains_disallowed_control,
         immutable_git,
         parse_providers,
+        read_entries_at_revision,
+        validate_external_location,
     )
     from scripts.generate_repository_browser import viewer_relative_url
     from scripts.generate_repository_trees import (
@@ -33,11 +36,14 @@ try:
 except ModuleNotFoundError:
     from generate_index_navigation import (
         PROVIDER_ORDER,
+        REGULAR_FILE_MODES,
         ROOT_INDEX,
         IndexNavigationError,
         contains_disallowed_control,
         immutable_git,
         parse_providers,
+        read_entries_at_revision,
+        validate_external_location,
     )
     from generate_repository_browser import viewer_relative_url
     from generate_repository_trees import (
@@ -55,11 +61,6 @@ GUIDED_ROOT = Path("guided")
 ROOT_INDEX_NAMESPACE = "_repository-root"
 MARKER = ".index-navigation-root"
 MARKER_CONTENT = "managed by scripts/generate_index_navigation_viewer.py\n"
-INLINE_HEADING_LINK = re.compile(r"!?\[[^\]]*\]\([^)]*\)")
-INLINE_HEADING_HTML = re.compile(r"<[^>]+>")
-INLINE_HEADING_ENTITY = re.compile(
-    r"&(?:#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});"
-)
 
 
 class IndexNavigationViewerError(RuntimeError):
@@ -109,13 +110,10 @@ def is_index_source_path(value: str) -> bool:
 
 
 def validate_plain_heading(value: str, label: str) -> None:
-    if (
-        INLINE_HEADING_LINK.search(value)
-        or INLINE_HEADING_HTML.search(value)
-        or INLINE_HEADING_ENTITY.search(value)
-    ):
+    """Validate producer-normalized heading text without reinterpreting Markdown syntax."""
+    if contains_disallowed_control(value, allow_layout_whitespace=False):
         raise IndexNavigationViewerError(
-            f"{label} must use plain heading text without inline Markdown or HTML"
+            f"{label} contains a disallowed control character"
         )
 
 
@@ -241,25 +239,22 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         if kind == "external":
             try:
                 parsed = urlsplit(target)
-                hostname = parsed.hostname
                 parsed.port
-            except ValueError as exc:
+                validate_external_location(parsed, source, edge["line"], target)
+            except (ValueError, IndexNavigationError) as exc:
                 raise IndexNavigationViewerError(
                     f"{name} external edge target is invalid"
                 ) from exc
             if (
                 parsed.scheme not in {"http", "https"}
                 or not parsed.netloc
-                or not hostname
-                or "%" in hostname
-                or any(character.isspace() for character in hostname)
                 or parsed.query
                 or parsed.fragment
             ):
                 raise IndexNavigationViewerError(
                     f"{name} external edge target is invalid"
                 )
-        else:
+        elif not (kind == "directory" and target == "."):
             validate_repository_path(target, f"{name} edge target")
 
         if kind == "fragment" and target != source:
@@ -403,6 +398,12 @@ def published_maps(
     return result
 
 
+def immutable_edge_path(kind: str, target: str) -> bytes:
+    if kind == "directory" and target == ".":
+        return b""
+    return target.encode("utf-8")
+
+
 def edge_href(
     provider: str,
     revision: str,
@@ -435,7 +436,10 @@ def edge_href(
                 "repository is required for a directory fragment"
             )
         source = github_url(
-            repository, revision, "tree", target.encode("utf-8")
+            repository,
+            revision,
+            "tree",
+            immutable_edge_path(kind, target),
         )
         return source + fragment_suffix(fragment), "immutable directory", True
     if kind == "file":
@@ -476,7 +480,12 @@ def immutable_target_url(repository: str, revision: str, edge: dict[str, Any]) -
         git_kind = "tree"
     else:
         git_kind = "blob"
-    return github_url(repository, revision, git_kind, target.encode("utf-8"))
+    return github_url(
+        repository,
+        revision,
+        git_kind,
+        immutable_edge_path(kind, target),
+    )
 
 
 def provider_render_indexes(
@@ -746,6 +755,37 @@ def validate_render_destinations(destinations: list[Path]) -> None:
         previous_destination = destination
 
 
+def verify_index_objects(provider: dict[str, Any], provider_root: Path) -> None:
+    """Verify every graph index path/blob pair against the exact locked revision."""
+    try:
+        entries = read_entries_at_revision(provider_root, provider["revision"])
+    except IndexNavigationError as exc:
+        raise IndexNavigationViewerError(
+            f"unable to inspect immutable {provider['name']} index objects: {exc}"
+        ) from exc
+
+    by_path = {}
+    for entry in entries:
+        try:
+            path = entry.path.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            continue
+        by_path[path] = entry
+
+    for index in provider["indexes"]:
+        entry = by_path.get(index["path"])
+        if (
+            entry is None
+            or entry.kind != "blob"
+            or entry.mode not in REGULAR_FILE_MODES
+            or entry.object_id != index["object_id"]
+        ):
+            raise IndexNavigationViewerError(
+                f"{provider['name']} index object does not match locked revision: "
+                f"{index['path']}"
+            )
+
+
 def generate_viewer(
     repository: str,
     graph: dict[str, Any],
@@ -807,6 +847,8 @@ def generate_viewer(
         )
 
     validate_render_destinations([relative for relative, _content in rendered])
+    for provider in graph["providers"]:
+        verify_index_objects(provider, provider_roots[provider["name"]])
 
     guided = prepare_guided_root(output_root)
     (guided / "graph.json").write_text(
