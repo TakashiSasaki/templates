@@ -55,9 +55,9 @@ class LatestIndexNavigationReviewRoundRTests(unittest.TestCase):
             ),
         ]
         with (
-            patch.object(navigation, "checked_revision", return_value="f" * 40),
+            patch.object(navigation._base, "checked_revision", return_value="f" * 40),
             patch.object(
-                navigation,
+                navigation._base,
                 "read_entries_at_revision",
                 return_value=duplicate_entries,
             ),
