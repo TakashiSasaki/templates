@@ -274,7 +274,12 @@ jobs:
                   and relative.parts[0] == "files"
                   and relative.parts[2] == "content"
               )
-              if browser_source_view:
+              guided_view = (
+                  path.suffix.lower() == ".html"
+                  and bool(relative.parts)
+                  and relative.parts[0] == "guided"
+              )
+              if browser_source_view or guided_view:
                   parser = URLAttributeParser()
                   parser.feed(text)
                   if any(retired_target(target) for target in parser.targets):
