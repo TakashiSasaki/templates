@@ -274,7 +274,7 @@ def contains_commonmark_raw_html(value: str) -> bool:
 
 
 def contains_commonmark_emphasis(value: str) -> bool:
-    """Detect emphasis outside code, without letting later code hide an opener."""
+    """Detect emphasis outside code while preserving opener state across code."""
     code_span_closers = commonmark_code_span_closers(value)
     opener_masks = {"*": 0, "_": 0}
     non_closing_opener_masks = {"*": 0, "_": 0}
@@ -288,7 +288,7 @@ def contains_commonmark_emphasis(value: str) -> bool:
         ):
             index += 2
             continue
-        if character == "`" and not any(opener_masks.values()):
+        if character == "`":
             code_span_end = code_span_closers.get(index)
             if code_span_end is not None:
                 index = code_span_end
