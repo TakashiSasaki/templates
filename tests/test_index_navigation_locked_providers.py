@@ -73,12 +73,21 @@ class InlineCodeDescriptionTests(unittest.TestCase):
             "[x](foo`bar) tail`",
             "<https://x/`y> tail`",
             '<a title="`y"> tail`',
-            "*em`phasis* tail`",
         )
         for description in descriptions:
             with self.subTest(description=description):
                 with self.assertRaises(IndexNavigationError):
                     normalize_link_description(description, "docs/index.md", 3)
+
+    def test_code_span_precedence_keeps_apparent_emphasis_closer_literal(self) -> None:
+        self.assertEqual(
+            normalize_link_description(
+                "*em`phasis* tail`",
+                "docs/index.md",
+                3,
+            ),
+            "*emphasis* tail",
+        )
 
 
 class LockedProviderGraphTests(unittest.TestCase):
