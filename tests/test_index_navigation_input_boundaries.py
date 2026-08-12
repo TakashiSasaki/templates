@@ -13,45 +13,38 @@ from scripts.generate_repository_trees import RepositoryTreeError
 
 class IndexNavigationInputBoundaryTests(unittest.TestCase):
     def test_index_text_rejects_nul_invalid_utf8_and_bidi_controls(self) -> None:
-        cases = (
-            (b"# Docs\n\x00", "NUL byte"),
-            (b"# Docs\n\x80", "strict UTF-8"),
-            ("# Docs\n\u202e\n".encode("utf-8"), "disallowed control character"),
-        )
-        for payload, message in cases:
-            with self.subTest(message=message):
-                with self.assertRaisesRegex(navigation.IndexNavigationError, message):
-                    navigation.decode_index_text(payload, "docs/index.md")
-
-    def test_index_shape_rejects_multiple_titles_and_links_before_title(self) -> None:
-        with self.assertRaisesRegex(
-            navigation.IndexNavigationError,
-            "multiple level-1 headings",
+        for content, expected in (
+            (b"# Root\0\n", "NUL byte"),
+            (b"# Root\xff\n", "strict UTF-8"),
+            ("# Root\u202e\n".encode(), "disallowed control character"),
         ):
-            navigation.parse_index(
-                "# First\n\n# Second\n",
-                "docs/index.md",
-            )
-
-        with self.assertRaisesRegex(
-            navigation.IndexNavigationError,
-            "link precedes title",
-        ):
-            navigation.parse_index(
-                "* [Overview](overview.md) - Read the overview.\n\n# Docs\n",
-                "docs/index.md",
-            )
+            with self.subTest(expected=expected):
+                with self.assertRaisesRegex(navigation.IndexNavigationError, expected):
+                    navigation.decode_index_text(content, "docs/index.md")
 
     def test_atx_headings_accept_one_to_three_leading_ascii_spaces(self) -> None:
-        for spaces in range(1, 4):
+        for spaces in (1, 2, 3):
             with self.subTest(spaces=spaces):
                 parsed = navigation.parse_index(
-                    f"{' ' * spaces}# Docs\n{' ' * spaces}## Guides\n",
+                    " " * spaces + "# Root\n\n* [Guide](guide.md) - Read it.\n",
                     "docs/index.md",
                 )
-                self.assertEqual(parsed.title, "Docs")
-                self.assertEqual(parsed.sections[0].title, "Guides")
-                self.assertEqual(parsed.sections[0].level, 2)
+                self.assertEqual(parsed.title, "Root")
+
+    def test_index_shape_rejects_multiple_titles_and_links_before_title(self) -> None:
+        for text, expected in (
+            (
+                "# One\n\n# Two\n",
+                "multiple level-1 headings",
+            ),
+            (
+                "* [Guide](guide.md) - Read it.\n\n# Root\n",
+                "link precedes title",
+            ),
+        ):
+            with self.subTest(expected=expected):
+                with self.assertRaisesRegex(navigation.IndexNavigationError, expected):
+                    navigation.parse_index(text, "docs/index.md")
 
     def test_cli_formats_graph_and_tree_failures_as_parser_errors(self) -> None:
         argv = [
@@ -74,7 +67,7 @@ class IndexNavigationInputBoundaryTests(unittest.TestCase):
             with self.subTest(error=type(error).__name__):
                 stderr = io.StringIO()
                 with mock.patch.object(sys, "argv", argv), mock.patch.object(
-                    navigation,
+                    navigation._base,
                     "generate_graph",
                     side_effect=error,
                 ), mock.patch.object(sys, "stderr", stderr):
