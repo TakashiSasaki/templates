@@ -1,0 +1,31 @@
+name: Temporary propagate PR 161 into PR 162
+
+on:
+  push:
+    branches:
+      - agent/site-index-navigation-viewer
+    paths:
+      - .github/workflows/tmp-propagate-pr161-into-162.yml
+
+permissions:
+  contents: write
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/site-index-navigation-viewer
+          fetch-depth: 0
+      - name: Merge current PR 161 head
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin agent/site-index-navigation-graph
+          git merge --no-edit origin/agent/site-index-navigation-graph
+          rm .github/workflows/tmp-propagate-pr161-into-162.yml
+          git add .github/workflows/tmp-propagate-pr161-into-162.yml
+          git commit --amend --no-edit
+          git push origin HEAD:agent/site-index-navigation-viewer
