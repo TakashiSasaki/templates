@@ -84,7 +84,7 @@ class LandingPageTests(unittest.TestCase):
             "skill/",
             "policy/",
             "webapp/",
-            "guided/",
+            "/guided/",
             "repository-trees/",
             "files/",
         ):
