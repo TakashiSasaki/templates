@@ -294,8 +294,111 @@ def contains_commonmark_code_span(value: str) -> bool:
     return bool(commonmark_code_span_closers(value))
 
 
+def parse_commonmark_inline_destination(value: str) -> tuple[str, int] | None:
+    """Parse a complete CommonMark inline destination/title beginning with `(`."""
+    if not value.startswith("("):
+        return None
+
+    destination_start = 1
+    cursor = destination_start
+    outer_close: int | None = None
+
+    if cursor < len(value) and value[cursor] == "<":
+        index = cursor + 1
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character == ">":
+                destination_end = index + 1
+                cursor = destination_end
+                break
+            index += 1
+        else:
+            return None
+    else:
+        depth = 0
+        index = cursor
+        while index < len(value):
+            character = value[index]
+            if (
+                character == "\\"
+                and index + 1 < len(value)
+                and value[index + 1] in MARKDOWN_ESCAPABLE
+            ):
+                index += 2
+                continue
+            if character in " \t":
+                if depth:
+                    return None
+                destination_end = index
+                cursor = index
+                break
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                if depth == 0:
+                    destination_end = index
+                    outer_close = index
+                    cursor = index
+                    break
+                depth -= 1
+            index += 1
+        else:
+            return None
+
+    raw_target = value[destination_start:destination_end]
+
+    if outer_close is None:
+        separator_start = cursor
+        while cursor < len(value) and value[cursor] in " \t":
+            cursor += 1
+        title_separated = cursor > separator_start
+        if cursor >= len(value):
+            return None
+        if value[cursor] == ")":
+            outer_close = cursor
+        else:
+            if not title_separated:
+                return None
+            opener = value[cursor]
+            closer = {"\"": "\"", "'": "'", "(": ")"}.get(opener)
+            if closer is None:
+                return None
+            cursor += 1
+            while cursor < len(value):
+                character = value[cursor]
+                if (
+                    character == "\\"
+                    and cursor + 1 < len(value)
+                    and value[cursor + 1] in MARKDOWN_ESCAPABLE
+                ):
+                    cursor += 2
+                    continue
+                if opener == "(" and character == "(":
+                    return None
+                if character == closer:
+                    cursor += 1
+                    break
+                cursor += 1
+            else:
+                return None
+            while cursor < len(value) and value[cursor] in " \t":
+                cursor += 1
+            if cursor >= len(value) or value[cursor] != ")":
+                return None
+            outer_close = cursor
+
+    return raw_target, outer_close
+
+
 def contains_commonmark_inline_link(value: str) -> bool:
-    """Return whether source text contains a balanced inline link/image opener."""
+    """Return whether source text contains a complete inline link/image."""
     code_span_closers = commonmark_code_span_closers(value)
     bracket_depth = 0
     index = 0
@@ -317,7 +420,10 @@ def contains_commonmark_inline_link(value: str) -> bool:
             bracket_depth += 1
         elif character == "]" and bracket_depth:
             bracket_depth -= 1
-            if value.startswith("(", index + 1):
+            if (
+                value.startswith("(", index + 1)
+                and parse_commonmark_inline_destination(value[index + 1 :]) is not None
+            ):
                 return True
         index += 1
     return False
@@ -487,104 +593,10 @@ def contains_commonmark_emphasis(value: str) -> bool:
 
 def parse_reserved_link_suffix(value: str) -> tuple[str, str] | None:
     """Parse a reserved link destination, optional title, and trailing description."""
-    if not value.startswith("("):
+    parsed_destination = parse_commonmark_inline_destination(value)
+    if parsed_destination is None:
         return None
-
-    destination_start = 1
-    cursor = destination_start
-    outer_close: int | None = None
-
-    if cursor < len(value) and value[cursor] == "<":
-        index = cursor + 1
-        while index < len(value):
-            character = value[index]
-            if (
-                character == "\\"
-                and index + 1 < len(value)
-                and value[index + 1] in MARKDOWN_ESCAPABLE
-            ):
-                index += 2
-                continue
-            if character == ">":
-                destination_end = index + 1
-                cursor = destination_end
-                break
-            index += 1
-        else:
-            return None
-    else:
-        depth = 0
-        index = cursor
-        while index < len(value):
-            character = value[index]
-            if (
-                character == "\\"
-                and index + 1 < len(value)
-                and value[index + 1] in MARKDOWN_ESCAPABLE
-            ):
-                index += 2
-                continue
-            if character in " \t":
-                if depth:
-                    return None
-                destination_end = index
-                cursor = index
-                break
-            if character == "(":
-                depth += 1
-            elif character == ")":
-                if depth == 0:
-                    destination_end = index
-                    outer_close = index
-                    cursor = index
-                    break
-                depth -= 1
-            index += 1
-        else:
-            return None
-
-    raw_target = value[destination_start:destination_end]
-
-    if outer_close is None:
-        separator_start = cursor
-        while cursor < len(value) and value[cursor] in " \t":
-            cursor += 1
-        title_separated = cursor > separator_start
-        if cursor >= len(value):
-            return None
-        if value[cursor] == ")":
-            outer_close = cursor
-        else:
-            if not title_separated:
-                return None
-            opener = value[cursor]
-            closer = {"\"": "\"", "'": "'", "(": ")"}.get(opener)
-            if closer is None:
-                return None
-            cursor += 1
-            while cursor < len(value):
-                character = value[cursor]
-                if (
-                    character == "\\"
-                    and cursor + 1 < len(value)
-                    and value[cursor + 1] in MARKDOWN_ESCAPABLE
-                ):
-                    cursor += 2
-                    continue
-                if opener == "(" and character == "(":
-                    return None
-                if character == closer:
-                    cursor += 1
-                    break
-                cursor += 1
-            else:
-                return None
-            while cursor < len(value) and value[cursor] in " \t":
-                cursor += 1
-            if cursor >= len(value) or value[cursor] != ")":
-                return None
-            outer_close = cursor
-
+    raw_target, outer_close = parsed_destination
     description = DESCRIPTION_SUFFIX.fullmatch(value[outer_close + 1 :])
     if description is None:
         return None
@@ -977,9 +989,14 @@ def parse_ipv4_number(value: str) -> int:
     return int(value, 10)
 
 
+def remove_optional_terminal_empty_part(hostname: str) -> str:
+    """Remove at most one terminal dot for WHATWG ends-in-a-number/IPv4 parsing."""
+    return hostname[:-1] if hostname.endswith(".") else hostname
+
+
 def ipv4_ends_in_number(hostname: str) -> bool:
     """Apply the WHATWG ends-in-a-number check to an ASCII host."""
-    candidate = hostname.rstrip(".")
+    candidate = remove_optional_terminal_empty_part(hostname)
     if not candidate:
         return False
     last = candidate.rsplit(".", maxsplit=1)[-1]
@@ -995,8 +1012,8 @@ def validate_browser_ipv4_candidate(
     target: str,
 ) -> bool:
     """Validate WHATWG-style IPv4 candidates; return False for ordinary domains."""
-    candidate = hostname.rstrip(".")
-    if not candidate or not ipv4_ends_in_number(candidate):
+    candidate = remove_optional_terminal_empty_part(hostname)
+    if not candidate or not ipv4_ends_in_number(hostname):
         return False
     parts = candidate.split(".")
     if not all(IPV4_NUMBER.fullmatch(part) for part in parts):
@@ -1088,7 +1105,8 @@ def validate_ascii_punycode_labels(
     line: int,
     target: str,
 ) -> None:
-    """Reject malformed existing A-labels before accepting an ASCII domain."""
+    """Reject malformed or Unicode-invalid existing A-labels."""
+    decoded_alabels: list[str] = []
     for label in ascii_hostname.split("."):
         if not label.lower().startswith("xn--"):
             continue
@@ -1107,12 +1125,29 @@ def validate_ascii_punycode_labels(
         if (
             not decoded
             or canonical_payload.lower() != payload.lower()
+            or unicodedata.normalize("NFC", decoded) != decoded
+            or unicodedata.category(decoded[0]).startswith("M")
             or not contextual_joiners_are_valid(decoded)
             or contains_disallowed_control(decoded, allow_layout_whitespace=False)
         ):
             raise IndexNavigationError(
                 f"malformed external link in {source}:{line}: {target!r}"
             )
+        decoded_alabels.append(decoded)
+
+    bidi_domain = any(
+        unicodedata.bidirectional(character) in {"R", "AL", "AN"}
+        for label in decoded_alabels
+        for character in label
+    )
+    if bidi_domain:
+        for label in decoded_alabels:
+            try:
+                idna.check_bidi(label, check_ltr=True)
+            except idna.IDNAError as exc:
+                raise IndexNavigationError(
+                    f"malformed external link in {source}:{line}: {target!r}"
+                ) from exc
 
 
 def validate_whatwg_unicode_labels(
@@ -1159,7 +1194,10 @@ def canonicalize_whatwg_domain(
 ) -> str:
     """Map a non-ASCII special-scheme domain with WHATWG-compatible UTS #46 rules."""
     if hostname.isascii():
-        return hostname.lower().rstrip(".")
+        # Preserve the exact dot structure. The WHATWG numeric-host algorithms
+        # remove at most one terminal empty part; multiple terminal dots keep an
+        # otherwise numeric-looking label in ordinary-domain territory.
+        return hostname.lower()
     try:
         mapped = idna.uts46_remap(
             hostname,
