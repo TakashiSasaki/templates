@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.generate_index_navigation import PROVIDER_ORDER, generate_graph
 from scripts.generate_index_navigation_viewer import (
@@ -305,9 +306,13 @@ class IndexNavigationViewerTests(unittest.TestCase):
                 "max_index_depth": 1,
             }
 
-            generate_viewer(
-                "TakashiSasaki/templates", graph, site_root, output, providers
-            )
+            with mock.patch(
+                "scripts.generate_index_navigation_viewer.verify_index_objects",
+                create=True,
+            ):
+                generate_viewer(
+                    "TakashiSasaki/templates", graph, site_root, output, providers
+                )
 
             self.assertLessEqual(counting_edges.yield_count, child_count * 8)
 
