@@ -290,6 +290,50 @@ def contains_commonmark_code_span(value: str) -> bool:
     return bool(commonmark_code_span_closers(value))
 
 
+def commonmark_code_span_run_length(value: str, opener: int) -> int:
+    """Return the backtick-run length for a known CommonMark code-span opener."""
+    end = opener
+    while end < len(value) and value[end] == "`":
+        end += 1
+    return end - opener
+
+
+def mask_commonmark_code_span_contents(value: str) -> str:
+    """Mask code-span contents so richer Markdown checks ignore literal code text."""
+    masked = list(value)
+    for opener, end in sorted(commonmark_code_span_closers(value).items()):
+        run_length = commonmark_code_span_run_length(value, opener)
+        for index in range(opener + run_length, end - run_length):
+            masked[index] = "x"
+    return "".join(masked)
+
+
+def decode_commonmark_inline_text_with_code_spans(value: str) -> str:
+    """Render plain inline text while preserving CommonMark code-span literal semantics."""
+    closers = commonmark_code_span_closers(value)
+    decoded_parts: list[str] = []
+    cursor = 0
+    index = 0
+    while index < len(value):
+        code_span_end = closers.get(index)
+        if code_span_end is None:
+            index += 1
+            continue
+
+        decoded_parts.append(decode_commonmark_inline_text(value[cursor:index]))
+        run_length = commonmark_code_span_run_length(value, index)
+        code = value[index + run_length : code_span_end - run_length]
+        code = code.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+        if code.startswith(" ") and code.endswith(" ") and code.strip(" "):
+            code = code[1:-1]
+        decoded_parts.append(code)
+        cursor = code_span_end
+        index = code_span_end
+
+    decoded_parts.append(decode_commonmark_inline_text(value[cursor:]))
+    return "".join(decoded_parts)
+
+
 def commonmark_parenthesis_closers(value: str) -> dict[int, int]:
     """Map balanced unescaped opening parentheses to their raw closing positions."""
     stack: list[int] = []
@@ -793,28 +837,25 @@ def parse_reserved_link_entry(
 
 
 def normalize_link_description(value: str, path: str, line_number: int) -> str:
-    """Normalize plain inline description text while failing closed on richer Markdown."""
-    if contains_commonmark_code_span(value):
-        raise IndexNavigationError(
-            f"unsupported inline code span in link description in {path}:{line_number}"
-        )
-    if contains_commonmark_emphasis(value):
+    """Normalize plain description text plus literal code spans, rejecting richer Markdown."""
+    validation_source = mask_commonmark_code_span_contents(value)
+    if contains_commonmark_emphasis(validation_source):
         raise IndexNavigationError(
             f"unsupported emphasis in link description in {path}:{line_number}"
         )
-    if contains_commonmark_inline_link(value):
+    if contains_commonmark_inline_link(validation_source):
         raise IndexNavigationError(
             f"unsupported inline link in link description in {path}:{line_number}"
         )
-    if contains_commonmark_autolink(value):
+    if contains_commonmark_autolink(validation_source):
         raise IndexNavigationError(
             f"unsupported autolink in link description in {path}:{line_number}"
         )
-    if contains_commonmark_raw_html(value):
+    if contains_commonmark_raw_html(validation_source):
         raise IndexNavigationError(
             f"unsupported raw HTML in link description in {path}:{line_number}"
         )
-    decoded = decode_commonmark_inline_text(value.strip(" \t"))
+    decoded = decode_commonmark_inline_text_with_code_spans(value.strip(" \t"))
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
             f"link description contains a disallowed control character in "
@@ -991,8 +1032,7 @@ def decode_link_path(value: str, source: str, line: int) -> tuple[str, bool]:
         )
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         raise IndexNavigationError(
-            f"link path contains a disallowed control character in "
-            f"{source}:{line}: {value!r}"
+            f"link path contains a disallowed control character in {source}:{line}: {value!r}"
         )
 
     final_component = decoded.rsplit("/", maxsplit=1)[-1]
