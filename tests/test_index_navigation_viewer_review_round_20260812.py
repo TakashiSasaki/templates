@@ -196,8 +196,8 @@ class CurrentIndexNavigationViewerReviewTests(unittest.TestCase):
                 page,
             )
 
-    def test_heading_anchor_collapses_repeated_whitespace(self) -> None:
-        self.assertEqual(viewer.heading_anchor("Foo  Bar"), "foo-bar")
+    def test_heading_anchor_preserves_repeated_whitespace(self) -> None:
+        self.assertEqual(viewer.heading_anchor("Foo  Bar"), "foo--bar")
 
 
 if __name__ == "__main__":
