@@ -68,6 +68,11 @@ class IndexNavigationViewerError(RuntimeError):
     """Raised when a guided-navigation viewer cannot be rendered safely."""
 
 
+def contains_non_scalar(value: str) -> bool:
+    """Return whether a Python string contains a Unicode surrogate code point."""
+    return any(0xD800 <= ord(character) <= 0xDFFF for character in value)
+
+
 def load_graph(path: Path) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise IndexNavigationViewerError(f"graph must be a regular file: {path}")
@@ -75,11 +80,16 @@ def load_graph(path: Path) -> dict[str, Any]:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise IndexNavigationViewerError(f"unable to read index graph {path}: {exc}") from exc
-    if not isinstance(value, dict) or value.get("schema_version") != 1:
+    schema_version = value.get("schema_version") if isinstance(value, dict) else None
+    if type(schema_version) is not int or schema_version != 1:
         raise IndexNavigationViewerError("index graph must use schema_version 1")
     repository = value.get("repository")
     providers = value.get("providers")
-    if not isinstance(repository, str) or not REPOSITORY.fullmatch(repository):
+    if (
+        not isinstance(repository, str)
+        or contains_non_scalar(repository)
+        or not REPOSITORY.fullmatch(repository)
+    ):
         raise IndexNavigationViewerError("index graph repository is invalid")
     if not isinstance(providers, list):
         raise IndexNavigationViewerError("index graph providers must be an array")
@@ -95,7 +105,13 @@ def load_graph(path: Path) -> dict[str, Any]:
 
 
 def validate_repository_path(value: str, label: str) -> None:
-    if not value or value.startswith("/") or "\\" in value or "\x00" in value:
+    if (
+        not value
+        or contains_non_scalar(value)
+        or value.startswith("/")
+        or "\\" in value
+        or "\x00" in value
+    ):
         raise IndexNavigationViewerError(f"{label} is not a safe repository-relative path")
     path = PurePosixPath(value)
     if any(part in {"", ".", ".."} for part in path.parts):
@@ -112,24 +128,26 @@ def is_index_source_path(value: str) -> bool:
 
 def validate_plain_heading(value: str, label: str) -> None:
     """Validate producer-normalized heading text without reinterpreting Markdown syntax."""
-    if contains_disallowed_control(value, allow_layout_whitespace=False):
+    if contains_non_scalar(value) or contains_disallowed_control(
+        value, allow_layout_whitespace=False
+    ):
         raise IndexNavigationViewerError(
-            f"{label} contains a disallowed control character"
+            f"{label} contains an invalid Unicode/control character"
         )
 
 
 def _section_title(section: Any) -> str:
     if isinstance(section, str):
-        if not section:
+        if not section or contains_non_scalar(section):
             raise IndexNavigationViewerError("index section title is invalid")
         return section
     if not isinstance(section, dict):
         raise IndexNavigationViewerError("index section must be a string or object")
     title = section.get("title")
     level = section.get("level")
-    if not isinstance(title, str) or not title:
+    if not isinstance(title, str) or not title or contains_non_scalar(title):
         raise IndexNavigationViewerError("index section title is invalid")
-    if not isinstance(level, int) or level < 2 or level > 6:
+    if type(level) is not int or level < 2 or level > 6:
         raise IndexNavigationViewerError("index section level is invalid")
     return title
 
@@ -138,7 +156,7 @@ def _section_level(section: Any) -> int:
     if isinstance(section, str):
         return 2
     level = section.get("level") if isinstance(section, dict) else None
-    if not isinstance(level, int) or level < 2 or level > 6:
+    if type(level) is not int or level < 2 or level > 6:
         raise IndexNavigationViewerError("index section level is invalid")
     return level
 
@@ -160,6 +178,10 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         raise IndexNavigationViewerError(f"{name} indexes must be a non-empty array")
     if not isinstance(edges, list) or not isinstance(diagnostics, dict):
         raise IndexNavigationViewerError(f"{name} graph shape is invalid")
+    for field in ("index_count", "edge_count", "max_index_depth"):
+        numeric = diagnostics.get(field)
+        if type(numeric) is not int or numeric < 0:
+            raise IndexNavigationViewerError(f"{name} diagnostics are invalid")
 
     paths: set[str] = set()
     index_by_path: dict[str, dict[str, Any]] = {}
@@ -177,8 +199,9 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             or not is_index_source_path(path)
             or not isinstance(title, str)
             or not title
+            or contains_non_scalar(title)
             or not isinstance(sections, list)
-            or not isinstance(depth, int)
+            or type(depth) is not int
             or depth < 0
             or not isinstance(object_id, str)
             or not FULL_SHA.fullmatch(object_id)
@@ -214,17 +237,21 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
         kind = edge.get("kind")
         if kind not in allowed_kinds:
             raise IndexNavigationViewerError(f"{name} edge kind is invalid")
+        text_fields = ("label", "description", "raw_target", "target")
         if not all(
             isinstance(edge.get(field), str)
-            for field in ("label", "description", "raw_target", "target")
+            and not contains_non_scalar(edge[field])
+            for field in text_fields
         ):
             raise IndexNavigationViewerError(f"{name} edge text fields are invalid")
-        if not isinstance(edge.get("line"), int) or edge["line"] < 1:
+        if type(edge.get("line")) is not int or edge["line"] < 1:
             raise IndexNavigationViewerError(f"{name} edge line is invalid")
 
         section = edge.get("section")
         fragment = edge.get("fragment")
-        if section is not None and not isinstance(section, str):
+        if section is not None and (
+            not isinstance(section, str) or contains_non_scalar(section)
+        ):
             raise IndexNavigationViewerError(f"{name} edge section is invalid")
         if section is not None and section not in section_titles_by_path[source]:
             raise IndexNavigationViewerError(
@@ -232,6 +259,7 @@ def validate_provider_graph(provider: dict[str, Any]) -> None:
             )
         if fragment is not None and (
             not isinstance(fragment, str)
+            or contains_non_scalar(fragment)
             or contains_disallowed_control(fragment, allow_layout_whitespace=False)
         ):
             raise IndexNavigationViewerError(f"{name} edge fragment is invalid")
@@ -280,9 +308,6 @@ def prepare_guided_root(output_root: Path) -> Path:
     try:
         (guided / MARKER).write_text(MARKER_CONTENT, encoding="utf-8")
     except BaseException:
-        # This invocation owns `guided` only after the successful mkdir above.
-        # Clean marker failures here because the caller cannot receive the path
-        # when this function raises before returning it.
         shutil.rmtree(guided, ignore_errors=True)
         raise
     return guided
@@ -335,15 +360,34 @@ def heading_anchor(value: str) -> str:
 def heading_anchors(values: list[str]) -> list[str]:
     anchors: list[str] = []
     used: set[str] = set()
+    next_suffix: dict[str, int] = {}
     for value in values:
         candidate = heading_anchor(value)
-        while candidate in used:
+        if candidate in used:
             match = IDCOUNT_RE.match(candidate)
             if match:
-                candidate = f"{match.group(1)}_{int(match.group(2)) + 1}"
+                root = match.group(1)
+                suffix = max(
+                    int(match.group(2)) + 1,
+                    next_suffix.get(root, int(match.group(2)) + 1),
+                )
             else:
-                candidate = f"{candidate}_1"
+                root = candidate
+                suffix = next_suffix.get(root, 1)
+            candidate = f"{root}_{suffix}"
+            while candidate in used:
+                suffix += 1
+                candidate = f"{root}_{suffix}"
+            next_suffix[root] = suffix + 1
         used.add(candidate)
+        match = IDCOUNT_RE.match(candidate)
+        if match:
+            root = match.group(1)
+            next_suffix[root] = max(
+                next_suffix.get(root, 1), int(match.group(2)) + 1
+            )
+        else:
+            next_suffix.setdefault(candidate, 1)
         anchors.append(candidate)
     return anchors
 
@@ -879,9 +923,6 @@ def generate_viewer(
             destination.write_text(content, encoding="utf-8")
     except BaseException:
         if guided is not None:
-            # Only remove a destination returned by prepare_guided_root(), which
-            # proves this invocation created and owns it. Marker failures are
-            # cleaned inside prepare_guided_root() itself.
             shutil.rmtree(guided, ignore_errors=True)
         raise
     return messages
