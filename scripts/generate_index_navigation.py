@@ -1233,6 +1233,14 @@ def decode_external_hostname(
     return decoded
 
 
+def whatwg_bidi_compatibility_label(label: str) -> str:
+    """Adapt browser-compatible Arabic Extended-B letters for Bidi validation only."""
+    return "".join(
+        "a" if 0x0870 <= ord(character) < 0x088F else character
+        for character in label
+    )
+
+
 def validate_ascii_punycode_labels(
     ascii_hostname: str,
     source: str,
@@ -1277,13 +1285,16 @@ def validate_ascii_punycode_labels(
             )
         decoded_alabels.append(decoded)
 
+    bidi_labels = [
+        whatwg_bidi_compatibility_label(label) for label in decoded_alabels
+    ]
     bidi_domain = any(
         unicodedata.bidirectional(character) in {"R", "AL", "AN"}
-        for label in decoded_alabels
+        for label in bidi_labels
         for character in label
     )
     if bidi_domain:
-        for label in decoded_alabels:
+        for label in bidi_labels:
             try:
                 idna.check_bidi(label, check_ltr=True)
             except idna.IDNAError as exc:
@@ -1308,12 +1319,15 @@ def validate_whatwg_unicode_labels(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
+    bidi_labels = [
+        whatwg_bidi_compatibility_label(label) for label in semantic_labels
+    ]
     bidi_domain = any(
         unicodedata.bidirectional(character) in {"R", "AL", "AN"}
-        for label in semantic_labels
+        for label in bidi_labels
         for character in label
     )
-    for label in semantic_labels:
+    for label, bidi_label in zip(semantic_labels, bidi_labels, strict=True):
         if (
             unicodedata.normalize("NFC", label) != label
             or unicodedata.category(label[0]).startswith("M")
@@ -1324,7 +1338,7 @@ def validate_whatwg_unicode_labels(
             )
         if bidi_domain:
             try:
-                idna.check_bidi(label, check_ltr=True)
+                idna.check_bidi(bidi_label, check_ltr=True)
             except idna.IDNAError as exc:
                 raise IndexNavigationError(
                     f"malformed external link in {source}:{line}: {target!r}"
