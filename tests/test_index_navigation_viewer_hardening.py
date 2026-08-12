@@ -33,7 +33,13 @@ def provider_graph() -> dict[str, object]:
             },
         ],
         "edges": [],
-        "diagnostics": {},
+        "diagnostics": {
+            "index_count": 2,
+            "edge_count": 0,
+            "max_index_depth": 1,
+            "cycle_edges": [],
+            "multiple_parent_indexes": [],
+        },
     }
 
 
