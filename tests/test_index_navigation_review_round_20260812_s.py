@@ -9,7 +9,7 @@ class LatestIndexNavigationReviewRoundSTests(unittest.TestCase):
     def test_balanced_incomplete_inline_candidates_do_not_rescan_suffixes(self) -> None:
         count = 1024
         value = "[a]((" * count + " " + ")" * (2 * count)
-        original = navigation.parse_commonmark_inline_destination
+        original = navigation._base.parse_commonmark_inline_destination
         calls = 0
 
         def counted(candidate: str):
@@ -17,7 +17,7 @@ class LatestIndexNavigationReviewRoundSTests(unittest.TestCase):
             calls += 1
             return original(candidate)
 
-        with patch.object(navigation, "parse_commonmark_inline_destination", counted):
+        with patch.object(navigation._base, "parse_commonmark_inline_destination", counted):
             self.assertFalse(navigation.contains_commonmark_inline_link(value))
 
         self.assertLessEqual(calls, 2)
