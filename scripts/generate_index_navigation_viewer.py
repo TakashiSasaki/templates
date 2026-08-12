@@ -279,7 +279,7 @@ def prepare_guided_root(output_root: Path) -> Path:
     guided.mkdir()
     try:
         (guided / MARKER).write_text(MARKER_CONTENT, encoding="utf-8")
-    except Exception:
+    except BaseException:
         # This invocation owns `guided` only after the successful mkdir above.
         # Clean marker failures here because the caller cannot receive the path
         # when this function raises before returning it.
@@ -877,7 +877,7 @@ def generate_viewer(
             destination = output_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8")
-    except Exception:
+    except BaseException:
         if guided is not None:
             # Only remove a destination returned by prepare_guided_root(), which
             # proves this invocation created and owns it. Marker failures are
