@@ -26,7 +26,7 @@ class CurrentIndexNavigationIntegrationReviewTests(unittest.TestCase):
     def test_nested_guided_urls_are_current_projection_not_immutable_identity(self) -> None:
         policy = " ".join(POLICY.read_text(encoding="utf-8").split())
         self.assertIn(
-            "nested guided-index URLs identify the current reviewed provider/path projection",
+            "Nested guided-index URLs identify the current reviewed provider/path projection",
             policy,
         )
         self.assertIn(
