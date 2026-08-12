@@ -8,8 +8,15 @@ provider ``index.md`` files, then re-exports the implementation API unchanged.
 
 from __future__ import annotations
 
-from scripts import generate_index_navigation_base as _base
-from scripts.generate_index_navigation_base import *  # noqa: F401,F403
+try:
+    from scripts import generate_index_navigation_base as _base
+except ModuleNotFoundError:
+    import generate_index_navigation_base as _base
+
+# Re-export the preserved implementation without relying on package import mode.
+for _name in dir(_base):
+    if not _name.startswith("_"):
+        globals()[_name] = getattr(_base, _name)
 
 
 def _backtick_run_length(value: str, start: int) -> int:
