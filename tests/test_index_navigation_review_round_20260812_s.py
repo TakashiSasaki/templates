@@ -8,7 +8,7 @@ from scripts.generate_index_navigation import IndexNavigationError
 class LatestIndexNavigationReviewRoundSTests(unittest.TestCase):
     def test_balanced_incomplete_inline_candidates_do_not_rescan_suffixes(self) -> None:
         count = 1024
-        value = "[a]( (" * count + " " + ")" * (2 * count)
+        value = "[a]((" * count + " " + ")" * (2 * count)
         original = navigation.parse_commonmark_inline_destination
         calls = 0
 
