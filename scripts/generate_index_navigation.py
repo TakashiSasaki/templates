@@ -290,6 +290,46 @@ def contains_commonmark_code_span(value: str) -> bool:
     return bool(commonmark_code_span_closers(value))
 
 
+def commonmark_parenthesis_closers(value: str) -> dict[int, int]:
+    """Map balanced unescaped opening parentheses to their raw closing positions."""
+    stack: list[int] = []
+    closers: dict[int, int] = {}
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if (
+            character == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if character == "(":
+            stack.append(index)
+        elif character == ")" and stack:
+            closers[stack.pop()] = index
+        index += 1
+    return closers
+
+
+def unescaped_closing_parentheses(value: str) -> set[int]:
+    """Return unescaped closing-parenthesis positions in one forward pass."""
+    positions: set[int] = set()
+    index = 0
+    while index < len(value):
+        if (
+            value[index] == "\\"
+            and index + 1 < len(value)
+            and value[index + 1] in MARKDOWN_ESCAPABLE
+        ):
+            index += 2
+            continue
+        if value[index] == ")":
+            positions.add(index)
+        index += 1
+    return positions
+
+
 def parse_commonmark_inline_destination(value: str) -> tuple[str, int] | None:
     """Parse a complete CommonMark inline destination/title beginning with `(`."""
     if not value.startswith("("):
@@ -310,6 +350,8 @@ def parse_commonmark_inline_destination(value: str) -> tuple[str, int] | None:
             ):
                 index += 2
                 continue
+            if character == "<":
+                return None
             if character == ">":
                 destination_end = index + 1
                 cursor = destination_end
@@ -396,6 +438,10 @@ def parse_commonmark_inline_destination(value: str) -> tuple[str, int] | None:
 def contains_commonmark_inline_link(value: str) -> bool:
     """Return whether source text contains a complete inline link/image."""
     code_span_closers = commonmark_code_span_closers(value)
+    parenthesis_closers = commonmark_parenthesis_closers(value)
+    close_positions = unescaped_closing_parentheses(value)
+    last_close = max(close_positions, default=-1)
+    last_layout_whitespace = max(value.rfind(" "), value.rfind("\t"))
     bracket_depth = 0
     index = 0
     while index < len(value):
@@ -416,11 +462,28 @@ def contains_commonmark_inline_link(value: str) -> bool:
             bracket_depth += 1
         elif character == "]" and bracket_depth:
             bracket_depth -= 1
-            if (
-                value.startswith("(", index + 1)
-                and parse_commonmark_inline_destination(value[index + 1 :]) is not None
-            ):
-                return True
+            candidate_open = index + 1
+            if value.startswith("(", candidate_open):
+                pointy = (
+                    candidate_open + 1 < len(value)
+                    and value[candidate_open + 1] == "<"
+                )
+                # A bare candidate without a balanced raw close cannot complete
+                # unless destination/title whitespace changes how parentheses are
+                # interpreted. These precomputed bounds keep incomplete literal
+                # suffixes from being scanned once per `](` occurrence.
+                if not pointy and candidate_open not in parenthesis_closers:
+                    if (
+                        last_layout_whitespace <= candidate_open
+                        or last_close <= candidate_open
+                    ):
+                        index += 1
+                        continue
+                if pointy and last_close <= candidate_open:
+                    index += 1
+                    continue
+                if parse_commonmark_inline_destination(value[candidate_open:]) is not None:
+                    return True
         index += 1
     return False
 
@@ -983,6 +1046,25 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
     return decoded
 
 
+def encode_special_url_userinfo_brackets(value: str) -> str:
+    """Percent-encode raw userinfo brackets before Python interprets them as IPv6."""
+    scheme_separator = value.find("://")
+    if scheme_separator < 0 or value[:scheme_separator].lower() not in {"http", "https"}:
+        return value
+    authority_start = scheme_separator + 3
+    authority_end = len(value)
+    for delimiter in "/?#":
+        position = value.find(delimiter, authority_start)
+        if position >= 0:
+            authority_end = min(authority_end, position)
+    authority = value[authority_start:authority_end]
+    at = authority.rfind("@")
+    if at < 0:
+        return value
+    userinfo = authority[:at].replace("[", "%5B").replace("]", "%5D")
+    return value[:authority_start] + userinfo + authority[at:] + value[authority_end:]
+
+
 def parse_ipv4_number(value: str) -> int:
     if value.lower().startswith("0x"):
         return int(value[2:] or "0", 16)
@@ -1068,7 +1150,7 @@ def decode_external_hostname(
     line: int,
     target: str,
 ) -> str:
-    """Percent-decode a special-scheme host before browser-style validation."""
+    """Percent-decode a special-scheme domain before browser-style validation."""
     index = 0
     while index < len(hostname):
         if hostname[index] != "%":
@@ -1259,6 +1341,10 @@ def validate_external_location(
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
+    if bracketed_host and "%" in hostname:
+        raise IndexNavigationError(
+            f"malformed external link in {source}:{line}: {target!r}"
+        )
     hostname = decode_external_hostname(hostname, source, line, target)
 
     try:
@@ -1299,10 +1385,11 @@ def resolve_link(
             f"{source}:{link.line}: {raw_target!r}"
         )
     target = decode_markdown_destination(raw_target, source, link.line)
+    parse_target = encode_special_url_userinfo_brackets(target)
     fragment_delimiter_present = "#" in target
     query_delimiter_present = "?" in target.split("#", maxsplit=1)[0]
     try:
-        parsed = urlsplit(target)
+        parsed = urlsplit(parse_target)
     except ValueError as exc:
         raise IndexNavigationError(
             f"malformed link target in {source}:{link.line}: {raw_target!r}"
@@ -1498,7 +1585,14 @@ def collect_provider_graph(provider: str, root: Path) -> dict[str, object]:
     revision = checked_revision(root)
     entries_list = read_entries_at_revision(root, revision)
     entries: dict[str, tuple[str, str, str]] = {}
+    seen_raw_paths: set[bytes] = set()
     for entry in entries_list:
+        if entry.path in seen_raw_paths:
+            raise IndexNavigationError(
+                f"{provider} provider tree contains duplicate Git tree path: "
+                f"{entry.path!r}"
+            )
+        seen_raw_paths.add(entry.path)
         try:
             path = entry.path.decode("utf-8", errors="strict")
         except UnicodeDecodeError:
