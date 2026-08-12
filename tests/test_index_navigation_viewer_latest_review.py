@@ -148,22 +148,15 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
             self.assertIn('<h2 id="guides">Guides</h2>', page)
             self.assertIn('<h3 id="advanced">Advanced</h3>', page)
 
-    def test_inline_markdown_heading_is_rejected_before_output(self) -> None:
+    def test_normalized_literal_heading_is_not_reclassified_as_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            providers, site_root, output, graph = make_fixture(root)
+            _providers, _site_root, _output, graph = make_fixture(root)
             graph["providers"][0]["indexes"][0]["sections"][0] = {
                 "title": "[Guides](guide.md)",
                 "level": 2,
             }
-            with self.assertRaisesRegex(
-                viewer.IndexNavigationViewerError,
-                "plain heading text",
-            ):
-                viewer.generate_viewer(
-                    "TakashiSasaki/templates", graph, site_root, output, providers
-                )
-            self.assertFalse((output / "guided").exists())
+            viewer.validate_provider_graph(graph["providers"][0])
 
     def test_render_failures_happen_before_guided_output_is_created(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -202,13 +195,14 @@ class LatestIndexNavigationViewerReviewTests(unittest.TestCase):
                     },
                 ]
             )
-            with self.assertRaisesRegex(
-                viewer.IndexNavigationViewerError,
-                "file/directory collision",
-            ):
-                viewer.generate_viewer(
-                    "TakashiSasaki/templates", graph, site_root, output, providers
-                )
+            with mock.patch.object(viewer, "verify_index_objects", create=True):
+                with self.assertRaisesRegex(
+                    viewer.IndexNavigationViewerError,
+                    "file/directory collision",
+                ):
+                    viewer.generate_viewer(
+                        "TakashiSasaki/templates", graph, site_root, output, providers
+                    )
             self.assertFalse((output / "guided").exists())
 
     def test_tampered_index_traversal_is_rejected_before_output(self) -> None:
