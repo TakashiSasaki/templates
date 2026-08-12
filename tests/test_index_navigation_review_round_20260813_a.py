@@ -48,6 +48,23 @@ class LatestIndexNavigationReviewRound20260813ATests(unittest.TestCase):
 
         self.assertGreater(calls, 0)
 
+    def test_code_span_after_unmatched_emphasis_opener_remains_literal(self) -> None:
+        for source, expected in (
+            ("*draft `*`", "*draft *"),
+            ("_draft `_`", "_draft _"),
+        ):
+            with self.subTest(source=source):
+                self.assertFalse(navigation.contains_commonmark_emphasis(source))
+                self.assertEqual(
+                    navigation.normalize_link_description(source, "docs/index.md", 2),
+                    expected,
+                )
+
+    def test_emphasis_closer_after_code_span_is_still_detected(self) -> None:
+        for source in ("*draft `*` text*", "_draft `_` text_"):
+            with self.subTest(source=source):
+                self.assertTrue(navigation.contains_commonmark_emphasis(source))
+
 
 if __name__ == "__main__":
     unittest.main()
