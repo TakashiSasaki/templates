@@ -195,8 +195,6 @@ def normalize_heading_value(value: str) -> str:
         return ""
     without_closing_marker = CLOSING_ATX.sub("", value).strip(" \t")
     decoded = decode_commonmark_inline_text(without_closing_marker)
-    # Preserve a decoded boundary control until the caller can reject it with a
-    # heading-specific diagnostic instead of silently trimming it away.
     if contains_disallowed_control(decoded, allow_layout_whitespace=False):
         return decoded
     return decoded.strip(" \t")
@@ -272,8 +270,6 @@ def commonmark_code_span_closers(value: str) -> dict[int, int]:
 
         opener = pending_by_length.get(run_length)
         if opener is not None:
-            # Once a code span is open, backslash escapes no longer apply; even
-            # a run immediately preceded by a backslash can close the span.
             closers[opener] = index
             del pending_by_length[run_length]
             continue
@@ -978,6 +974,12 @@ def decode_markdown_destination(value: str, source: str, line: int) -> str:
             f"link target contains invalid whitespace or controls in "
             f"{source}:{line}: {value!r}"
         )
+    if pointy:
+        # CommonMark URI normalization percent-encodes literal spaces in pointy
+        # destinations. Do this before urlsplit(), which otherwise strips leading
+        # ASCII spaces and can change a repository-relative target into another
+        # path or an apparent external URL.
+        return decoded.replace(" ", "%20")
     return decoded
 
 
@@ -1118,13 +1120,21 @@ def validate_ascii_punycode_labels(
         try:
             decoded = payload.encode("ascii").decode("punycode")
             canonical_payload = decoded.encode("punycode").decode("ascii")
-        except UnicodeError as exc:
+            mapped_decoded = idna.uts46_remap(
+                decoded,
+                std3_rules=False,
+                transitional=False,
+            )
+            mapped_payload = mapped_decoded.encode("punycode").decode("ascii")
+        except (UnicodeError, idna.IDNAError) as exc:
             raise IndexNavigationError(
                 f"malformed external link in {source}:{line}: {target!r}"
             ) from exc
         if (
             not decoded
             or canonical_payload.lower() != payload.lower()
+            or mapped_decoded != decoded
+            or mapped_payload.lower() != payload.lower()
             or unicodedata.normalize("NFC", decoded) != decoded
             or unicodedata.category(decoded[0]).startswith("M")
             or not contextual_joiners_are_valid(decoded)
@@ -1158,16 +1168,20 @@ def validate_whatwg_unicode_labels(
 ) -> list[str]:
     """Apply UTS #46 validity criteria not enforced by mapping alone."""
     labels = mapped.split(".")
-    if any(not label for label in labels):
+    semantic_end = len(labels)
+    while semantic_end and not labels[semantic_end - 1]:
+        semantic_end -= 1
+    if semantic_end == 0 or any(not label for label in labels[:semantic_end]):
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
         )
+    semantic_labels = labels[:semantic_end]
     bidi_domain = any(
         unicodedata.bidirectional(character) in {"R", "AL", "AN"}
-        for character in mapped
-        if character != "."
+        for label in semantic_labels
+        for character in label
     )
-    for label in labels:
+    for label in semantic_labels:
         if (
             unicodedata.normalize("NFC", label) != label
             or unicodedata.category(label[0]).startswith("M")
@@ -1194,16 +1208,13 @@ def canonicalize_whatwg_domain(
 ) -> str:
     """Map a non-ASCII special-scheme domain with WHATWG-compatible UTS #46 rules."""
     if hostname.isascii():
-        # Preserve the exact dot structure. The WHATWG numeric-host algorithms
-        # remove at most one terminal empty part; multiple terminal dots keep an
-        # otherwise numeric-looking label in ordinary-domain territory.
         return hostname.lower()
     try:
         mapped = idna.uts46_remap(
             hostname,
             std3_rules=False,
             transitional=False,
-        ).rstrip(".")
+        )
     except idna.IDNAError as exc:
         raise IndexNavigationError(
             f"malformed external link in {source}:{line}: {target!r}"
