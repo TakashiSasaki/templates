@@ -273,7 +273,7 @@ def allow_guided_copy_script(source: str, path: Path) -> str:
     if not script_directives:
         directives.append("script-src 'self'")
     updated_policy = "; ".join(directives)
-    escaped_policy = html.escape(updated_policy, quote=True)
+    escaped_policy = html.escape(updated_policy, quote=True).replace("&#x27;", "'")
     replacement = match.group("prefix") + escaped_policy + match.group("suffix")
     return source[: match.start()] + replacement + source[match.end() :]
 
