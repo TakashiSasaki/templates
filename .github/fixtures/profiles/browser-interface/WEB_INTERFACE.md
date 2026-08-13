@@ -37,7 +37,7 @@ UI interaction model:
 - UI uses a non-MCP application API: YES
 - mixed model: NO
 
-The page verifies the shared deterministic `TextStatsWeb.analyze` application behavior. It makes no claim to verify MCP negotiation, transport, discovery, readiness, or tool invocation.
+The page verifies the shared deterministic `analyze` application behavior from `src/text_stats.py`. It makes no claim to verify MCP negotiation, transport, discovery, readiness, or tool invocation.
 
 ## UI capabilities
 
@@ -82,7 +82,7 @@ The readiness endpoint does not execute the text-statistics operation and does n
 
 ## Shared implementation
 
-The Web adapter calls `TextStatsWeb.analyze` from `src/text_stats.rb`. The browser page does not contain a second counting implementation or tool registry. The API adds the versioned browser response envelope and enforces routing, origin, input, size, and redaction policy before calling the shared operation.
+The Web adapter calls `analyze` from `src/text_stats.py`. The browser page does not contain a second counting implementation or tool registry. The API adds the versioned browser response envelope and enforces routing, origin, input, size, and redaction policy before calling the shared operation.
 
 ## Required tests
 
