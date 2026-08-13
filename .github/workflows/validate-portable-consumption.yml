@@ -23,11 +23,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up minimum supported Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.1"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -46,19 +41,19 @@ jobs:
         run: python template/.github/scripts/validate_skill_repository.py template
 
       - name: Test reduced profile layouts
-        run: ruby .github/scripts/test-minimal-profile-layouts.rb
+        run: python .github/scripts/test_minimal_profile_layouts.py
 
       - name: Test clean-room template adoption and installation
-        run: ruby .github/scripts/test-copyable-template-consumption.rb
+        run: python .github/scripts/test_copyable_template_consumption.py
 
       - name: Test concrete skill completion hygiene
-        run: ruby .github/scripts/test-concrete-skill-completion.rb
+        run: python .github/scripts/test_concrete_skill_completion.py
 
       - name: Test parent-owned archive vendoring
-        run: ruby .github/scripts/test-parent-owned-vendoring.rb
+        run: python .github/scripts/test_parent_owned_vendoring.py
 
       - name: Test non-mutating skill consumption
-        run: ruby .github/scripts/test-non-mutating-consumption.rb
+        run: python .github/scripts/test_non_mutating_consumption.py
 
       - name: Test core consumption under space and Unicode paths
-        run: ruby .github/scripts/test-path-safe-consumption.rb
+        run: python .github/scripts/test_path_safe_consumption.py
