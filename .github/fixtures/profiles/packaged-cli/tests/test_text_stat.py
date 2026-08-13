@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -84,6 +86,20 @@ class TextStatTests(unittest.TestCase):
         raw = "a\u00a0b c".encode("utf-8")
         self.assertEqual(2, analyze(raw, raw.decode("utf-8"))["words"])
 
+    def test_option_terminator_allows_dash_prefixed_input(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="text-stat-dash-input") as temporary:
+            directory = Path(temporary)
+            (directory / "-input.txt").write_bytes(b"one two\n")
+            previous = Path.cwd()
+            try:
+                os.chdir(directory)
+                status, out, err = self.invoke(["--", "-input.txt"])
+            finally:
+                os.chdir(previous)
+        self.assertEqual(0, status)
+        self.assertEqual("bytes: 8\nlines: 1\nwords: 2\n", out.getvalue())
+        self.assertEqual("", err.getvalue())
+
     def test_invalid_option(self) -> None:
         status, out, err = self.invoke(["--unknown"])
         self.assertEqual(2, status)
@@ -122,6 +138,12 @@ class TextStatTests(unittest.TestCase):
 
     def test_diagnostic_failure_maps_to_output_io_status(self) -> None:
         err = BrokenTextIO(fail_write=True)
+        status, out, _ = self.invoke(["--unknown"], stderr=err)
+        self.assertEqual(5, status)
+        self.assertEqual("", out.getvalue())
+
+    def test_diagnostic_flush_failure_maps_to_output_io_status(self) -> None:
+        err = BrokenTextIO(fail_flush=True)
         status, out, _ = self.invoke(["--unknown"], stderr=err)
         self.assertEqual(5, status)
         self.assertEqual("", out.getvalue())
