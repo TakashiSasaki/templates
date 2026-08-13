@@ -366,6 +366,24 @@ def main() -> int:
                         f"stderr={output_stderr!r}"
                     )
 
+        symlink_manifest = temporary_root / "symlink-manifest"
+        copy_fixture(symlink_manifest)
+        external_manifest = temporary_root / "outside-pyproject.toml"
+        manifest_path = symlink_manifest / "pyproject.toml"
+        external_manifest.write_bytes(manifest_path.read_bytes())
+        manifest_path.unlink()
+        manifest_path.symlink_to(external_manifest)
+        initialize_git(symlink_manifest)
+        symlink_result = validate(symlink_manifest)
+        symlink_stderr = text(symlink_result)[1]
+        if symlink_result.returncode == 0:
+            failures.append("packaged-cli: symlinked pyproject.toml unexpectedly validates")
+        elif "regular non-symlink file" not in symlink_stderr:
+            failures.append(
+                "packaged-cli: symlinked pyproject.toml lacks the pre-read rejection diagnostic: "
+                f"{symlink_stderr!r}"
+            )
+
         expect_negative_validation(
             root=temporary_root,
             name="missing-cli-contract",
