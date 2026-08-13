@@ -86,6 +86,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "overview/index.md",
         )
         self.assertEqual(indexed[("skill", "overview")], "skill/index.md")
+        self.assertEqual(
+            indexed[("skill", "mcp-apps-interface")],
+            "skill/MCP_APPS.md",
+        )
+        self.assertEqual(
+            indexed[("skill", "mcp-apps-guidance")],
+            "skill/docs/mcp-apps.md",
+        )
         self.assertEqual(indexed[("policy", "overview")], "policy/index.md")
         self.assertEqual(indexed[("webapp", "overview")], "webapp/index.md")
 
