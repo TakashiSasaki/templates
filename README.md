@@ -60,11 +60,13 @@ python template/.github/scripts/validate_skill_repository.py template
 python template/.github/scripts/test_template_baseline.py
 ```
 
-Validate adoption and installation from a source-independent copy:
+Validate adoption and installation from a source-independent copy with the authoritative Python harness:
 
 ```sh
-ruby .github/scripts/test-copyable-template-consumption.rb
+python .github/scripts/test_copyable_template_consumption.py
 ```
+
+The historical `ruby .github/scripts/test-copyable-template-consumption.rb` command remains only as a temporary compatibility shim for generated repository policy during the migration and delegates directly to the Python harness above.
 
 The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, clone, submodule, archive, parent-owned vendoring, non-mutating consumption, and space/Unicode path behavior. Source-only parity and regression tests exercise the Python validators from their canonical locations below `template/.github/scripts/`.
 
