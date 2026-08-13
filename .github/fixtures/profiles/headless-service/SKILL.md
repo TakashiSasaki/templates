@@ -15,12 +15,12 @@ Use this skill when a local process needs a stable authenticated HTTP endpoint f
 
 ## Workflow
 
-1. From the skill root, install dependencies with `bundle install`.
+1. Confirm CPython 3.12 or newer is available; the service has no third-party runtime dependency.
 2. Create an external Bearer token file containing 32 to 128 visible ASCII characters and restrict it to the owning user, for example mode `0600`.
-3. Start the service with `TEXT_STATS_SERVICE_TOKEN_FILE=/path/to/token bundle exec ruby service/server.rb`.
-4. Check readiness with `bundle exec ruby service/server.rb --health` and liveness with `bundle exec ruby service/server.rb --live`.
+3. Start the service with `TEXT_STATS_SERVICE_TOKEN_FILE=/path/to/token python service/server.py`.
+4. Check readiness with `python service/server.py --health` and liveness with `python service/server.py --live`.
 5. Send authenticated JSON requests to `POST http://127.0.0.1:4568/v1/text-stats` with exactly one string field named `text`.
-6. Stop the process with `bundle exec ruby service/server.rb --stop`.
+6. Stop the process with `python service/server.py --stop`.
 
 The complete endpoint, security, request-limit, health, lifecycle, environment, and deployment authority is `RUNTIME.md`.
 
@@ -30,7 +30,7 @@ A successful API response must contain integer `contractVersion`, Boolean `ok`, 
 
 ## Validation
 
-Run `bundle exec ruby tests/test_service_server.rb` and the repository validator. Confirm token-file protection, authentication and authorization, loopback and Host restrictions, rejection of browser Origin requests, deterministic results, bounded request bodies and concurrency, readiness/liveness separation, port-collision failure, and identity-verified shutdown.
+Run `python tests/test_service_server.py` and the repository validator. Confirm token-file protection, authentication and authorization, loopback and Host restrictions, rejection of browser Origin requests, deterministic results, bounded request bodies and concurrency, readiness/liveness separation, port-collision failure, restrictive-umask PID creation, atomic PID publication, and identity-verified shutdown.
 
 ## Safety and approval
 
