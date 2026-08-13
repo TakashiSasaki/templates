@@ -47,6 +47,9 @@ jobs:
       - name: Test canonical profile and interface mutations
         run: python .github/scripts/test_contract_regressions.py
 
+      - name: Test direct Python CLI contract matrices
+        run: python .github/scripts/test_cli_contract_regressions.py
+
       - name: Test MCP extension selection and Apps activation
         run: python .github/scripts/test_mcp_extensions_contract.py
 
