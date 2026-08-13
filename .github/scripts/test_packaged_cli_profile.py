@@ -132,6 +132,28 @@ def compile_without_writing(target: Path, relative: str) -> str | None:
     return None
 
 
+def expect_negative_validation(
+    *,
+    root: Path,
+    name: str,
+    remove_path: str,
+    diagnostics: tuple[str, ...],
+    failures: list[str],
+) -> None:
+    broken = root / name
+    copy_fixture(broken)
+    (broken / remove_path).unlink()
+    initialize_git(broken)
+    result = validate(broken)
+    stderr = text(result)[1]
+    if result.returncode == 0:
+        failures.append(f"packaged-cli: missing {remove_path} unexpectedly validates")
+    elif not any(diagnostic in stderr for diagnostic in diagnostics):
+        failures.append(
+            f"packaged-cli: missing {remove_path} lacks an actionable diagnostic: {stderr!r}"
+        )
+
+
 def main() -> int:
     failures: list[str] = []
     inventory = sorted(
@@ -162,7 +184,8 @@ def main() -> int:
         failures.append("packaged-cli: build-tool lock must contain the exact reviewed pins")
 
     with tempfile.TemporaryDirectory(prefix="packaged-cli-profile") as temporary:
-        target = Path(temporary) / "fixture"
+        temporary_root = Path(temporary)
+        target = temporary_root / "fixture"
         copy_fixture(target)
         initialize_git(target)
         require_success("complete repository validation", validate(target), failures)
@@ -343,25 +366,30 @@ def main() -> int:
                         f"stderr={output_stderr!r}"
                     )
 
-        broken = Path(temporary) / "broken"
-        copy_fixture(broken)
-        (broken / "CLI_INTERFACE.md").unlink()
-        initialize_git(broken)
-        broken_validation = validate(broken)
-        broken_stderr = text(broken_validation)[1]
-        actionable_cli_boundary = (
-            "CLI_INTERFACE.md" in broken_stderr
-            or "Detailed caller behavior:" in broken_stderr
-            or "route 'installed human CLI command'" in broken_stderr
-            or "route 'stable in-place CLI launcher'" in broken_stderr
+        expect_negative_validation(
+            root=temporary_root,
+            name="missing-cli-contract",
+            remove_path="CLI_INTERFACE.md",
+            diagnostics=(
+                "CLI_INTERFACE.md",
+                "Detailed caller behavior:",
+                "route 'installed human CLI command'",
+                "route 'stable in-place CLI launcher'",
+            ),
+            failures=failures,
         )
-        if broken_validation.returncode == 0:
-            failures.append("packaged-cli: missing CLI_INTERFACE.md unexpectedly validates")
-        elif not actionable_cli_boundary:
-            failures.append(
-                "packaged-cli: missing CLI_INTERFACE.md lacks an actionable CLI-contract diagnostic: "
-                f"{broken_stderr!r}"
-            )
+        expect_negative_validation(
+            root=temporary_root,
+            name="missing-cli-implementation",
+            remove_path="src/text_stat/cli.py",
+            diagnostics=(
+                "src/text_stat/cli.py",
+                "Source layout",
+                "installed human CLI command",
+                "stable in-place CLI launcher",
+            ),
+            failures=failures,
+        )
 
     if failures:
         for failure in failures:
