@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -77,10 +78,7 @@ def main() -> int:
         abort("skill workflow incorrectly claims a scheduled run")
     if "\n  workflow_dispatch:\n" not in trigger_block:
         abort("skill workflow lacks manual drift-check dispatch")
-    if any(
-        line.startswith("  deploy:") or line.startswith("    deploy:")
-        for line in compatibility.splitlines()
-    ):
+    if re.search(r"^\s+deploy:", compatibility, re.MULTILINE):
         abort("compatibility workflow still passes a deploy input")
     if "id-token: write" in compatibility:
         abort("compatibility workflow retains OIDC write permission")
