@@ -41,6 +41,7 @@ def base_env(*, port: int, pid_file: Path, enabled: bool = True) -> dict[str, st
         env.pop(key, None)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["TEXT_STATS_WEB_BIND"] = "127.0.0.1"
     env["TEXT_STATS_WEB_PORT"] = str(port)
     env["TEXT_STATS_WEB_PID_FILE"] = str(pid_file)
@@ -145,9 +146,6 @@ def discover_ready_port(process: subprocess.Popen, deadline: float = 4.0) -> int
 
 def start_server(root: Path) -> tuple[subprocess.Popen, int, Path, dict[str, str]]:
     pid_file = root / "web.pid"
-    # Exercise the documented port-zero behavior directly and let the kernel
-    # choose the listener.  The active port is discovered from readiness output,
-    # eliminating the check-then-bind race in a pre-reserved free-port helper.
     env = base_env(port=0, pid_file=pid_file)
     process = subprocess.Popen(
         [sys.executable, str(SERVER)],
@@ -387,6 +385,50 @@ class BrowserServerTests(unittest.TestCase):
         ).encode("ascii")
         response = raw_request(self.port, negative_chunk)
         self.assertIn(b" 400 ", response)
+        self.assertIn(b"Connection: close", response)
+
+    def test_explicit_request_framing_is_required_and_ambiguous_framing_closes(self) -> None:
+        origin = f"http://127.0.0.1:{self.port}"
+        base_headers = (
+            f"POST /api/text-stats HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{self.port}\r\n"
+            f"Origin: {origin}\r\n"
+            "Content-Type: application/json\r\n"
+        )
+
+        no_framing = (
+            base_headers
+            + "Connection: keep-alive\r\n\r\n"
+            + '{"text":"unframed"}'
+        ).encode("ascii")
+        response = raw_request(self.port, no_framing)
+        self.assertIn(b" 411 ", response)
+        self.assertIn(b"Connection: close", response)
+
+        dual_framing = (
+            base_headers
+            + "Content-Length: 0\r\n"
+            + "Transfer-Encoding: chunked\r\n"
+            + "Connection: keep-alive\r\n\r\n"
+            + "0\r\n\r\n"
+        ).encode("ascii")
+        response = raw_request(self.port, dual_framing)
+        self.assertIn(b" 400 ", response)
+        self.assertIn(b"Connection: close", response)
+
+        duplicate_length = (
+            base_headers
+            + "Content-Length: 0\r\n"
+            + "Content-Length: 1\r\n"
+            + "Connection: keep-alive\r\n\r\n"
+            + "x"
+        ).encode("ascii")
+        response = raw_request(self.port, duplicate_length)
+        self.assertIn(b" 400 ", response)
+        self.assertIn(b"Connection: close", response)
+
+        health, _, _ = http_request(self.port, "GET", "/healthz")
+        self.assertEqual(200, health)
 
     def test_health_command_and_kernel_allocated_port_record(self) -> None:
         self.assertGreater(self.port, 0)
