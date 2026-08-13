@@ -127,6 +127,16 @@ def main() -> int:
             None,
         ),
         (
+            "packaged CLI rejects an invalid entry-point module path",
+            "packaged-cli",
+            lambda directory: replace_required(
+                directory / "pyproject.toml",
+                'text-stat = "text_stat.cli:main"',
+                'text-stat = "invalid-module-name:main"',
+            ),
+            "invalid module path",
+        ),
+        (
             "packaged CLI rejects an unresolved selected scalar",
             "packaged-cli",
             lambda directory: replace_required(
