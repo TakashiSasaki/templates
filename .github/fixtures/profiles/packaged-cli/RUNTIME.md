@@ -28,6 +28,7 @@ Run commands from the fixture root.
 | Install development dependencies | `python -m pip install --disable-pip-version-check --no-input --requirement requirements-build.lock` |
 | Run in place | `python bin/text-stat INPUT` |
 | Agent launcher | `python bin/text-stat` |
+| Human CLI | `text-stat` |
 | Test | `python tests/test_text_stat.py` |
 | Lint/static analysis | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
 | Format check | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
@@ -67,12 +68,6 @@ text-stat --version
 ```
 
 The activation commands affect only the current shell session. The repository-local fallback `python bin/text-stat` and the installed `text-stat` command delegate to the same `text_stat.cli` implementation.
-
-### Packaged CLI commands
-
-| Purpose | Exact command |
-|---|---|
-| Human CLI | `text-stat` |
 
 ## Environment and configuration
 
