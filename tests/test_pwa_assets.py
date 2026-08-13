@@ -131,17 +131,42 @@ class PwaAssetTests(unittest.TestCase):
         self.assertNotIn('caches.match("/")', worker)
         for event in ("install", "activate", "fetch"):
             self.assertIn(f'self.addEventListener("{event}"', worker)
-        self.assertIn('key.startsWith("templates-portal-shell-")', worker)
-        self.assertIn("caches.delete(key)", worker)
-        self.assertIn("self.clients.claim()", worker)
         self.assertIn('event.request.mode === "navigate"', worker)
         self.assertIn(
             "fetch(event.request).catch(() => offlineResponse())",
             worker,
         )
         self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
+
+    def test_service_worker_static_asset_cache_ignores_query_string(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
+        self.assertIn("caches.open(CACHE_NAME)", worker)
+        self.assertIn(
+            "cache.match(event.request, { ignoreSearch: true })",
+            worker,
+        )
+
+    def test_service_worker_activation_cache_cleanup_filter(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'key.startsWith("templates-portal-shell-") && key !== CACHE_NAME',
+            worker,
+        )
+        self.assertIn("caches.delete(key)", worker)
+        self.assertIn("self.clients.claim()", worker)
+
+    def test_service_worker_offline_response_contract(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
         self.assertIn("function offlineResponse()", worker)
         self.assertIn("status: 503", worker)
+        self.assertIn('statusText: "Service Unavailable"', worker)
+        self.assertIn(
+            'headers: { "Content-Type": "text/plain; charset=utf-8" }',
+            worker,
+        )
 
 
 if __name__ == "__main__":
