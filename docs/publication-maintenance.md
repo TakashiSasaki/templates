@@ -103,9 +103,7 @@ python3.12 .github/scripts/test_publication_catalog.py
 python3.12 .github/scripts/test_publication_schema_version.py
 python3.12 .github/scripts/test_publication_catalog_root_resolution.py
 python3.12 .github/scripts/validate_publication_catalog.py
-ruby .github/scripts/test-restructure-completion.rb
+python3.12 .github/scripts/test_restructure_completion.py
 ```
 
-The remaining Ruby command is part of the broader repository-validator migration tracked in `docs/ruby-to-python-migration.md`; publication-catalog validation itself requires only Python 3.12 and the standard library.
-
-A Skill pull request that changes `README.md`, `docs/**`, `template/**`, or `.github/workflows/pages.yml` also runs the build-only site compatibility workflow. Publication work is not complete until the corresponding locked-SHA site integration passes.
+All publication and restructuring checks above are Python-only. A Skill pull request that changes `README.md`, `docs/**`, `template/**`, or `.github/workflows/pages.yml` also runs the build-only site compatibility workflow. Publication work is not complete until the corresponding locked-SHA site integration passes.

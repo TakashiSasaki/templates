@@ -33,7 +33,7 @@ The consumer-facing contracts, profile definitions, resource placeholders, valid
 
 - `template/`: the complete copyable Skill-development template and the sole canonical source of downstream-distributed content;
 - `distribution-manifest.json`: the exact closed inventory of files canonically owned by `template/`;
-- `.github/scripts/`: source-only distribution checks, canonical fixtures, clean-room adoption tests, publication checks, parity/regression harnesses, and other maintainer tooling;
+- `.github/scripts/`: source-only distribution checks, canonical fixtures, clean-room adoption tests, publication checks, direct regression harnesses, and other maintainer tooling;
 - `.github/fixtures/`: positive, combined-profile, deployment-variant, and negative concrete-Skill evidence;
 - `.github/workflows/`: source-repository CI and build-only documentation compatibility checks;
 - `docs/architecture/`: template-product architecture and distribution-boundary records;
@@ -48,9 +48,9 @@ The branch root deliberately contains no `SKILL.md`, runtime contract, interface
 Run the source boundary and copyable-distribution checks:
 
 ```sh
-ruby .github/scripts/test-distribution-boundary.rb
-ruby .github/scripts/test-skill-distribution.rb
-ruby .github/scripts/validate-skill-distribution.rb
+python .github/scripts/test_distribution_boundary.py
+python .github/scripts/test_skill_distribution.py
+python .github/scripts/validate_skill_distribution.py
 ```
 
 Validate the uncustomized copyable Skill root independently with Python 3.12, PyYAML 6.0.3, and Git:
@@ -66,9 +66,7 @@ Validate adoption and installation from a source-independent copy with the autho
 python .github/scripts/test_copyable_template_consumption.py
 ```
 
-The historical `ruby .github/scripts/test-copyable-template-consumption.rb` command remains only as a temporary compatibility shim for generated repository policy during the migration and delegates directly to the Python harness above.
-
-The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, clone, submodule, archive, parent-owned vendoring, non-mutating consumption, and space/Unicode path behavior. Source-only parity and regression tests exercise the Python validators from their canonical locations below `template/.github/scripts/`.
+The complete source CI additionally validates all supported profile contracts, concrete fixtures, negative fixtures, clone, submodule, archive, parent-owned vendoring, non-mutating consumption, and space/Unicode path behavior. Source-only direct regression tests exercise the Python validators from their canonical locations below `template/.github/scripts/`.
 
 ## Publication and deployment
 
