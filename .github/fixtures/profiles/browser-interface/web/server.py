@@ -35,12 +35,62 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
 }
-STATIC_FILES = {
-    "/": ("public/index.html", "text/html; charset=utf-8"),
-    "/app.js": ("public/app.js", "text/javascript; charset=utf-8"),
-    "/app.css": ("public/app.css", "text/css; charset=utf-8"),
+HTML = b"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Text statistics verification</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main>
+    <h1>Text statistics verification</h1>
+    <p>This loopback-only page computes byte, line, and word counts without retaining the submitted text.</p>
+    <form id="stats-form">
+      <label for="text">Text</label>
+      <textarea id="text" name="text" required></textarea>
+      <button type="submit">Compute</button>
+    </form>
+    <pre id="result" aria-live="polite"></pre>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
+"""
+JAVASCRIPT = b'''"use strict";
+const form = document.getElementById("stats-form");
+const result = document.getElementById("result");
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  result.textContent = "Working...";
+  try {
+    const response = await fetch("/api/text-stats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: document.getElementById("text").value })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Request failed");
+    result.textContent = JSON.stringify(payload.result, null, 2);
+  } catch (error) {
+    result.textContent = `Error: ${error.message}`;
+  }
+});
+'''
+CSS = b""":root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0; padding: 2rem; }
+main { max-width: 48rem; margin: 0 auto; }
+textarea { box-sizing: border-box; display: block; min-height: 12rem; width: 100%; margin: 0.5rem 0 1rem; }
+button { padding: 0.5rem 1rem; }
+pre { min-height: 5rem; padding: 1rem; border: 1px solid currentColor; overflow: auto; }
+"""
+STATIC_RESPONSES = {
+    "/": (HTML, "text/html; charset=utf-8"),
+    "/app.js": (JAVASCRIPT, "text/javascript; charset=utf-8"),
+    "/app.css": (CSS, "text/css; charset=utf-8"),
 }
-KNOWN_PATHS = {*STATIC_FILES, "/healthz", "/api/text-stats"}
+KNOWN_PATHS = {*STATIC_RESPONSES, "/healthz", "/api/text-stats"}
 
 
 class ConfigurationError(RuntimeError):
@@ -94,9 +144,8 @@ class BrowserHandler(BaseHTTPRequestHandler):
         status = 500
         try:
             request_origin = self._authorize_host()
-            if method == "GET" and self.path in STATIC_FILES:
-                relative, content_type = STATIC_FILES[self.path]
-                body = (ROOT / relative).read_bytes()
+            if method == "GET" and self.path in STATIC_RESPONSES:
+                body, content_type = STATIC_RESPONSES[self.path]
                 status = 200
                 self._respond(status, content_type, body)
             elif method == "GET" and self.path == "/healthz":
@@ -129,7 +178,7 @@ class BrowserHandler(BaseHTTPRequestHandler):
             )
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True
-        except Exception as exc:  # fail closed at the request boundary
+        except Exception as exc:
             print(
                 f"web request failed: {type(exc).__name__}: {exc}",
                 file=self.diagnostic,
@@ -224,8 +273,6 @@ class BrowserHandler(BaseHTTPRequestHandler):
                 size = int(token, 16)
             except ValueError as exc:
                 raise RequestError(400, "invalid chunked request body") from exc
-            if size < 0:
-                raise RequestError(400, "invalid chunked request body")
             if size == 0:
                 while True:
                     trailer = self.rfile.readline(4097)
@@ -238,8 +285,7 @@ class BrowserHandler(BaseHTTPRequestHandler):
             chunk = self.rfile.read(size)
             if len(chunk) != size:
                 raise RequestError(400, "incomplete chunked request body")
-            terminator = self.rfile.read(2)
-            if terminator != b"\r\n":
+            if self.rfile.read(2) != b"\r\n":
                 raise RequestError(400, "invalid chunked request body")
             body.extend(chunk)
 
@@ -276,9 +322,8 @@ class BrowserHandler(BaseHTTPRequestHandler):
         for name, value in (extra_headers or {}).items():
             self.send_header(name, value)
         self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
-            self.wfile.flush()
+        self.wfile.write(body)
+        self.wfile.flush()
 
 
 def _parse_authority(value: str) -> tuple[str, int] | None:
@@ -296,8 +341,7 @@ def _parse_authority(value: str) -> tuple[str, int] | None:
             or parsed.fragment
         ):
             return None
-        port = parsed.port if parsed.port is not None else 80
-        return parsed.hostname.lower(), port
+        return parsed.hostname.lower(), parsed.port if parsed.port is not None else 80
     except ValueError:
         return None
 
@@ -317,8 +361,7 @@ def _parse_origin(value: str) -> tuple[str, int] | None:
             or parsed.fragment
         ):
             return None
-        port = parsed.port if parsed.port is not None else 80
-        return parsed.hostname.lower(), port
+        return parsed.hostname.lower(), parsed.port if parsed.port is not None else 80
     except ValueError:
         return None
 
@@ -402,10 +445,11 @@ def configuration(environment: dict[str, str]) -> dict[str, object]:
     if not 0 <= port <= 65535:
         raise ConfigurationError("TEXT_STATS_WEB_PORT must be between 0 and 65535")
     raw_pid = environment.get("TEXT_STATS_WEB_PID_FILE", DEFAULT_PID_FILE)
-    path = Path(raw_pid)
-    if not path.is_absolute():
-        path = Path.cwd() / path
-    return {"bind": bind, "port": port, "pid_file": path.resolve(strict=False)}
+    return {
+        "bind": bind,
+        "port": port,
+        "pid_file": Path(os.path.abspath(raw_pid)),
+    }
 
 
 def health(config: dict[str, object]) -> int:
@@ -518,10 +562,7 @@ def start(config: dict[str, object], environment: dict[str, str]) -> int:
 
 
 def parse_arguments(argv: list[str]) -> str:
-    parser = argparse.ArgumentParser(
-        prog="python web/server.py",
-        add_help=True,
-    )
+    parser = argparse.ArgumentParser(prog="python web/server.py", add_help=True)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--health", action="store_true")
     group.add_argument("--stop", action="store_true")
