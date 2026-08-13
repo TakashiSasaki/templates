@@ -29,8 +29,8 @@ Run every command from the skill root.
 | Run in place | `python scripts/normalize.py INPUT OUTPUT` |
 | Agent launcher | `python scripts/normalize.py INPUT OUTPUT` |
 | Test | `python tests/test_normalize.py` |
-| Lint/static analysis | `python -m py_compile scripts/normalize.py` |
-| Format check | `python -m py_compile scripts/normalize.py` |
+| Lint/static analysis | `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` |
+| Format check | `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` |
 | Build/package | NOT APPLICABLE |
 
 ## Distribution
