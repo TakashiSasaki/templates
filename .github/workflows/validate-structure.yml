@@ -64,6 +64,10 @@ jobs:
         shell: bash
         run: python .github/scripts/validate_publication_catalog.py
 
+      - name: Reject Ruby tooling regression
+        shell: bash
+        run: python .github/scripts/test_no_ruby.py
+
       - name: Reject committed secret assignments
         shell: bash
         run: |
