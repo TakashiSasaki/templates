@@ -1,5 +1,5 @@
-const CACHE_NAME = "templates-portal-shell-v1";
-const APP_SHELL = ["/", "/app.webmanifest", "/icon.svg"];
+const CACHE_NAME = "templates-portal-shell-v2";
+const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"];
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -10,7 +10,7 @@ function offlineResponse() {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
@@ -40,16 +40,17 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cached = await caches.match("/");
-        return cached || offlineResponse();
-      })
-    );
+    event.respondWith(fetch(event.request).catch(() => offlineResponse()));
     return;
   }
 
-  if (APP_SHELL.includes(url.pathname)) {
-    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  if (STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches
+        .open(CACHE_NAME)
+        .then((cache) => cache.match(event.request, { ignoreSearch: true }))
+        .then((cached) => cached || fetch(event.request))
+        .catch(() => offlineResponse())
+    );
   }
 });
