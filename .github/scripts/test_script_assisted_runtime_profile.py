@@ -25,6 +25,7 @@ def run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
     env.pop("GIT_DIR", None)
     env.pop("GIT_WORK_TREE", None)
     env.pop("GIT_INDEX_FILE", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     return subprocess.run(
         command,
         cwd=cwd,
@@ -46,6 +47,27 @@ def run_validator(directory: Path) -> subprocess.CompletedProcess[str]:
         if result.returncode != 0:
             raise RuntimeError(f"{' '.join(command)} failed: {result.stderr}")
     return run([sys.executable, str(VALIDATOR), str(directory)], cwd=directory)
+
+
+def validate_without_reindex(directory: Path) -> subprocess.CompletedProcess[str]:
+    return run([sys.executable, str(VALIDATOR), str(directory)], cwd=directory)
+
+
+def source_snapshot(directory: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(directory).as_posix(): path.read_bytes()
+        for path in sorted(directory.rglob("*"))
+        if path.is_file() and path.relative_to(directory).parts[0] != ".git"
+    }
+
+
+def compile_without_writing(path: Path, relative: str) -> str | None:
+    try:
+        source = path.read_text(encoding="utf-8")
+        compile(source, relative, "exec", dont_inherit=True)
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        return str(exc)
+    return None
 
 
 def main() -> int:
@@ -99,14 +121,13 @@ def main() -> int:
                 f"to pass; diagnostics={validation.stderr.strip()!r}"
             )
 
+        before_commands = source_snapshot(directory)
         for relative in ("scripts/normalize.py", "tests/test_normalize.py"):
-            syntax = run(
-                [sys.executable, "-m", "py_compile", relative], cwd=directory
-            )
-            if syntax.returncode != 0 or syntax.stdout or syntax.stderr:
+            diagnostic = compile_without_writing(directory / relative, relative)
+            if diagnostic is not None:
                 failures.append(
                     f"script-assisted-runtime syntax {relative}: expected success; "
-                    f"stdout={syntax.stdout!r}, stderr={syntax.stderr!r}"
+                    f"diagnostic={diagnostic!r}"
                 )
 
         fixture_test = run([sys.executable, "tests/test_normalize.py"], cwd=directory)
@@ -119,6 +140,23 @@ def main() -> int:
                 "script-assisted-runtime test command: expected executable validation success; "
                 f"status={fixture_test.returncode!r}, stdout={fixture_test.stdout!r}, "
                 f"stderr={fixture_test.stderr!r}"
+            )
+
+        after_commands = source_snapshot(directory)
+        if after_commands != before_commands:
+            failures.append(
+                "script-assisted-runtime: syntax/test commands mutated the concrete Skill fixture"
+            )
+        post_validation = validate_without_reindex(directory)
+        if not (
+            post_validation.returncode == 0
+            and post_validation.stderr == ""
+            and "Agent Skill repository structure and profile contracts are valid."
+            in post_validation.stdout
+        ):
+            failures.append(
+                "script-assisted-runtime: fixture became invalid after syntax/test commands; "
+                f"status={post_validation.returncode!r}, stderr={post_validation.stderr!r}"
             )
 
         input_path = directory / "input.txt"
