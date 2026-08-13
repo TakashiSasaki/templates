@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools==75.8.0", "wheel==0.45.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "text-stat"
+version = "1.0.0"
+description = "Deterministic text statistics CLI fixture"
+requires-python = ">=3.12"
+authors = [{name = "TakashiSasaki/templates maintainers"}]
+license = {text = "MIT"}
+dependencies = []
+
+[project.scripts]
+text-stat = "text_stat.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
