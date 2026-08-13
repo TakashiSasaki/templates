@@ -303,19 +303,27 @@ def main() -> int:
                         f"stderr={output_stderr!r}"
                     )
 
-        # The profile validator owns contract presence rather than internal module closure.
-        # Prove that removing the required caller contract fails with an actionable diagnostic.
+        # The validator may reject the missing caller contract at either the direct
+        # file-presence check or the earlier INTERFACES.md caller-contract index.
         broken = Path(temporary) / "broken"
         copy_fixture(broken)
         (broken / "CLI_INTERFACE.md").unlink()
         initialize_git(broken)
         broken_validation = validate(broken)
         broken_stderr = text(broken_validation)[1]
+        actionable_cli_boundary = (
+            "packaged-cli" in broken_stderr
+            and (
+                "CLI_INTERFACE.md" in broken_stderr
+                or "Detailed caller behavior:" in broken_stderr
+            )
+        )
         if broken_validation.returncode == 0:
             failures.append("packaged-cli: missing CLI_INTERFACE.md unexpectedly validates")
-        elif "CLI_INTERFACE.md" not in broken_stderr:
+        elif not actionable_cli_boundary:
             failures.append(
-                f"packaged-cli: missing CLI_INTERFACE.md lacks an actionable diagnostic: {broken_stderr!r}"
+                "packaged-cli: missing CLI_INTERFACE.md lacks an actionable CLI-contract diagnostic: "
+                f"{broken_stderr!r}"
             )
 
     if failures:
