@@ -80,9 +80,7 @@ def venv_python(root: Path) -> Path:
 
 
 def installed_command(root: Path) -> Path:
-    if os.name == "nt":
-        return root / "Scripts/text-stat.exe"
-    return root / "bin/text-stat"
+    return root / ("Scripts/text-stat.exe" if os.name == "nt" else "bin/text-stat")
 
 
 def copy_fixture(target: Path) -> None:
@@ -130,8 +128,7 @@ def main() -> int:
     init_text = (FIXTURE / "src/text_stat/__init__.py").read_text(encoding="utf-8")
     if version != "1.0.0" or 'VERSION = "1.0.0"' not in init_text:
         failures.append("packaged-cli: pyproject version and text_stat.VERSION must both be 1.0.0")
-    scripts = pyproject.get("project", {}).get("scripts", {})
-    if scripts.get("text-stat") != "text_stat.cli:main":
+    if pyproject.get("project", {}).get("scripts", {}).get("text-stat") != "text_stat.cli:main":
         failures.append("packaged-cli: pyproject must expose text-stat = text_stat.cli:main")
     if pyproject.get("project", {}).get("dependencies") != []:
         failures.append("packaged-cli: runtime dependency list must remain empty")
@@ -147,9 +144,7 @@ def main() -> int:
         target = Path(temporary) / "fixture"
         copy_fixture(target)
         initialize_git(target)
-
-        validation = validate(target)
-        require_success("complete repository validation", validation, failures)
+        require_success("complete repository validation", validate(target), failures)
 
         syntax = run(
             [
@@ -164,12 +159,14 @@ def main() -> int:
             cwd=target,
         )
         require_success("Python syntax validation", syntax, failures)
-
-        unit = run([sys.executable, "tests/test_text_stat.py"], cwd=target)
-        require_success("packaged CLI unit tests", unit, failures)
+        require_success(
+            "packaged CLI unit tests",
+            run([sys.executable, "tests/test_text_stat.py"], cwd=target),
+            failures,
+        )
 
         input_path = target / "input.txt"
-        input_path.write_bytes("one two\n".encode("utf-8"))
+        input_path.write_bytes(b"one two\n")
         inplace = run(
             [sys.executable, "bin/text-stat", "--output", "json", "input.txt"],
             cwd=target,
@@ -194,67 +191,82 @@ def main() -> int:
             failures.append("additive result field compatibility regression failed")
 
         build_env = target / ".build-venv"
-        create_build_env = run([sys.executable, "-m", "venv", str(build_env)], cwd=target)
-        require_success("create build environment", create_build_env, failures)
+        require_success(
+            "create build environment",
+            run([sys.executable, "-m", "venv", str(build_env)], cwd=target),
+            failures,
+        )
         build_python = venv_python(build_env)
         if build_python.is_file():
-            install_build = run(
-                [
-                    str(build_python),
-                    "-m",
-                    "pip",
-                    "install",
-                    "--disable-pip-version-check",
-                    "--no-input",
-                    "--requirement",
-                    "requirements-build.lock",
-                ],
-                cwd=target,
+            require_success(
+                "install pinned build tools",
+                run(
+                    [
+                        str(build_python),
+                        "-m",
+                        "pip",
+                        "install",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--requirement",
+                        "requirements-build.lock",
+                    ],
+                    cwd=target,
+                ),
+                failures,
             )
-            require_success("install pinned build tools", install_build, failures)
-            wheel_build = run(
-                [
-                    str(build_python),
-                    "-m",
-                    "pip",
-                    "wheel",
-                    "--disable-pip-version-check",
-                    "--no-input",
-                    "--no-deps",
-                    "--no-build-isolation",
-                    "--wheel-dir",
-                    "dist",
-                    ".",
-                ],
-                cwd=target,
+            require_success(
+                "build wheel",
+                run(
+                    [
+                        str(build_python),
+                        "-m",
+                        "pip",
+                        "wheel",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--no-deps",
+                        "--no-build-isolation",
+                        "--wheel-dir",
+                        "dist",
+                        ".",
+                    ],
+                    cwd=target,
+                ),
+                failures,
             )
-            require_success("build wheel", wheel_build, failures)
 
         wheel_files = list((target / "dist").glob("text_stat-1.0.0-*.whl")) if (target / "dist").is_dir() else []
         if len(wheel_files) != 1:
             failures.append(f"packaged-cli: expected exactly one 1.0.0 wheel, got {wheel_files!r}")
 
         install_env = target / ".local/venv"
-        create_install_env = run([sys.executable, "-m", "venv", str(install_env)], cwd=target)
-        require_success("create local install environment", create_install_env, failures)
+        require_success(
+            "create local install environment",
+            run([sys.executable, "-m", "venv", str(install_env)], cwd=target),
+            failures,
+        )
         install_python = venv_python(install_env)
         if install_python.is_file() and wheel_files:
-            install = run(
-                [
-                    str(install_python),
-                    "-m",
-                    "pip",
-                    "install",
-                    "--disable-pip-version-check",
-                    "--no-input",
-                    "--no-index",
-                    "--find-links",
-                    "dist",
-                    "text-stat==1.0.0",
-                ],
-                cwd=target,
+            require_success(
+                "offline local wheel installation",
+                run(
+                    [
+                        str(install_python),
+                        "-m",
+                        "pip",
+                        "install",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--no-index",
+                        "--find-links",
+                        "dist",
+                        "text-stat==1.0.0",
+                    ],
+                    cwd=target,
+                ),
+                failures,
             )
-            require_success("offline local wheel installation", install, failures)
 
         command = installed_command(install_env)
         if not command.is_file():
@@ -268,9 +280,7 @@ def main() -> int:
                     f"installed version mismatch: stdout={version_stdout!r}, stderr={version_stderr!r}"
                 )
 
-            installed_json = run(
-                [str(command), "--output", "json", "input.txt"], cwd=target
-            )
+            installed_json = run([str(command), "--output", "json", "input.txt"], cwd=target)
             require_success("installed structured output", installed_json, failures)
             installed_stdout, installed_stderr = text(installed_json)
             if installed_stdout != inplace_stdout or installed_stderr != inplace_stderr:
@@ -285,9 +295,7 @@ def main() -> int:
 
             if os.name != "nt" and Path("/dev/full").exists():
                 with open("/dev/full", "wb", buffering=0) as full:
-                    output_failure = run(
-                        [str(command), "input.txt"], cwd=target, stdout=full
-                    )
+                    output_failure = run([str(command), "input.txt"], cwd=target, stdout=full)
                 if output_failure.returncode != 5:
                     _, output_stderr = text(output_failure)
                     failures.append(
@@ -295,15 +303,20 @@ def main() -> int:
                         f"stderr={output_stderr!r}"
                     )
 
+        # The profile validator owns contract presence rather than internal module closure.
+        # Prove that removing the required caller contract fails with an actionable diagnostic.
         broken = Path(temporary) / "broken"
         copy_fixture(broken)
-        (broken / "src/text_stat/cli.py").unlink()
+        (broken / "CLI_INTERFACE.md").unlink()
         initialize_git(broken)
         broken_validation = validate(broken)
+        broken_stderr = text(broken_validation)[1]
         if broken_validation.returncode == 0:
-            failures.append("packaged-cli: missing implementation unexpectedly validates")
-        elif not text(broken_validation)[1].strip():
-            failures.append("packaged-cli: missing implementation lacks an actionable diagnostic")
+            failures.append("packaged-cli: missing CLI_INTERFACE.md unexpectedly validates")
+        elif "CLI_INTERFACE.md" not in broken_stderr:
+            failures.append(
+                f"packaged-cli: missing CLI_INTERFACE.md lacks an actionable diagnostic: {broken_stderr!r}"
+            )
 
     if failures:
         for failure in failures:
