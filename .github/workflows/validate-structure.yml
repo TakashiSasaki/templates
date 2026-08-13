@@ -14,11 +14,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up minimum supported Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.1"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -30,15 +25,15 @@ jobs:
 
       - name: Test Skill source and distribution boundary
         shell: bash
-        run: ruby .github/scripts/test-distribution-boundary.rb
+        run: python .github/scripts/test_distribution_boundary.py
 
       - name: Test copyable Skill distribution
         shell: bash
-        run: ruby .github/scripts/test-skill-distribution.rb
+        run: python .github/scripts/test_skill_distribution.py
 
       - name: Validate copyable Skill distribution
         shell: bash
-        run: ruby .github/scripts/validate-skill-distribution.rb
+        run: python .github/scripts/validate_skill_distribution.py
 
       - name: Validate copyable Skill root
         shell: bash
@@ -52,11 +47,11 @@ jobs:
 
       - name: Audit restructuring completion
         shell: bash
-        run: ruby .github/scripts/test-restructure-completion.rb
+        run: python .github/scripts/test_restructure_completion.py
 
       - name: Test GitHub Pages deployment boundary
         shell: bash
-        run: ruby .github/scripts/test-pages-deployment-boundary.rb
+        run: python .github/scripts/test_pages_deployment_boundary.py
 
       - name: Test documentation publication catalog validation
         shell: bash
