@@ -1,0 +1,421 @@
+#!/usr/bin/env python3
+"""End-to-end regression harness for the packaged CLI fixture."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+FIXTURE = ROOT / ".github/fixtures/profiles/packaged-cli"
+VALIDATOR = ROOT / "template/.github/scripts/validate_skill_repository.py"
+EXPECTED_FILES = sorted(
+    [
+        "CLI_INTERFACE.md",
+        "INTERFACES.md",
+        "RUNTIME.md",
+        "SKILL.md",
+        "bin/text-stat",
+        "pyproject.toml",
+        "requirements-build.lock",
+        "src/text_stat/__init__.py",
+        "src/text_stat/cli.py",
+        "tests/test_text_stat.py",
+    ]
+)
+
+
+def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    for key in ("PYTHONPATH", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
+        env.pop(key, None)
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    if extra:
+        env.update(extra)
+    return env
+
+
+def run(
+    command: list[str],
+    *,
+    cwd: Path,
+    extra_env: dict[str, str] | None = None,
+    stdin: bytes | None = None,
+    stdout=None,
+) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        env=clean_env(extra_env),
+        input=stdin,
+        stdout=stdout if stdout is not None else subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def text(result: subprocess.CompletedProcess) -> tuple[str, str]:
+    stdout = result.stdout.decode("utf-8", "replace") if isinstance(result.stdout, bytes) else ""
+    stderr = result.stderr.decode("utf-8", "replace") if isinstance(result.stderr, bytes) else ""
+    return stdout, stderr
+
+
+def require_success(label: str, result: subprocess.CompletedProcess, failures: list[str]) -> None:
+    if result.returncode != 0:
+        stdout, stderr = text(result)
+        failures.append(
+            f"{label}: status={result.returncode!r}, stdout={stdout!r}, stderr={stderr!r}"
+        )
+
+
+def venv_python(root: Path) -> Path:
+    return root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+def installed_command(root: Path) -> Path:
+    return root / ("Scripts/text-stat.exe" if os.name == "nt" else "bin/text-stat")
+
+
+def is_python_cache(path: Path) -> bool:
+    relative = path.relative_to(FIXTURE)
+    return "__pycache__" in relative.parts or path.suffix in {".pyc", ".pyo"}
+
+
+def copy_fixture(target: Path) -> None:
+    shutil.copytree(
+        FIXTURE,
+        target,
+        dirs_exist_ok=True,
+        symlinks=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
+
+
+def initialize_git(target: Path) -> None:
+    for command in (["git", "init", "--quiet"], ["git", "add", "."]):
+        completed = run(command, cwd=target)
+        if completed.returncode != 0:
+            _, stderr = text(completed)
+            raise RuntimeError(f"{' '.join(command)} failed: {stderr}")
+
+
+def validate(target: Path) -> subprocess.CompletedProcess:
+    return run([sys.executable, str(VALIDATOR), str(target)], cwd=target)
+
+
+def required_json_fields(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("contractVersion") != "1" or payload.get("ok") is not True:
+        return False
+    result = payload.get("result")
+    return (
+        isinstance(result, dict)
+        and all(type(result.get(key)) is int for key in ("bytes", "lines", "words"))
+    )
+
+
+def compile_without_writing(target: Path, relative: str) -> str | None:
+    try:
+        source = (target / relative).read_text(encoding="utf-8")
+        compile(source, relative, "exec", dont_inherit=True)
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        return str(exc)
+    return None
+
+
+def expect_negative_validation(
+    *,
+    root: Path,
+    name: str,
+    remove_path: str,
+    diagnostics: tuple[str, ...],
+    failures: list[str],
+) -> None:
+    broken = root / name
+    copy_fixture(broken)
+    (broken / remove_path).unlink()
+    initialize_git(broken)
+    result = validate(broken)
+    stderr = text(result)[1]
+    if result.returncode == 0:
+        failures.append(f"packaged-cli: missing {remove_path} unexpectedly validates")
+    elif not any(diagnostic in stderr for diagnostic in diagnostics):
+        failures.append(
+            f"packaged-cli: missing {remove_path} lacks an actionable diagnostic: {stderr!r}"
+        )
+
+
+def main() -> int:
+    failures: list[str] = []
+    inventory = sorted(
+        path.relative_to(FIXTURE).as_posix()
+        for path in FIXTURE.rglob("*")
+        if not path.is_dir() and not is_python_cache(path)
+    )
+    if inventory != EXPECTED_FILES:
+        failures.append(
+            f"packaged-cli: expected reduced layout {EXPECTED_FILES!r}, got {inventory!r}"
+        )
+
+    pyproject = tomllib.loads((FIXTURE / "pyproject.toml").read_text(encoding="utf-8"))
+    version = pyproject.get("project", {}).get("version")
+    init_text = (FIXTURE / "src/text_stat/__init__.py").read_text(encoding="utf-8")
+    if version != "1.0.0" or 'VERSION = "1.0.0"' not in init_text:
+        failures.append("packaged-cli: pyproject version and text_stat.VERSION must both be 1.0.0")
+    if pyproject.get("project", {}).get("scripts", {}).get("text-stat") != "text_stat.cli:main":
+        failures.append("packaged-cli: pyproject must expose text-stat = text_stat.cli:main")
+    if pyproject.get("project", {}).get("dependencies") != []:
+        failures.append("packaged-cli: runtime dependency list must remain empty")
+    lock_lines = [
+        line.strip()
+        for line in (FIXTURE / "requirements-build.lock").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    if lock_lines != ["setuptools==75.8.0", "wheel==0.45.1"]:
+        failures.append("packaged-cli: build-tool lock must contain the exact reviewed pins")
+
+    with tempfile.TemporaryDirectory(prefix="packaged-cli-profile") as temporary:
+        temporary_root = Path(temporary)
+        target = temporary_root / "fixture"
+        copy_fixture(target)
+        initialize_git(target)
+        require_success("complete repository validation", validate(target), failures)
+
+        for relative in (
+            "bin/text-stat",
+            "src/text_stat/__init__.py",
+            "src/text_stat/cli.py",
+            "tests/test_text_stat.py",
+        ):
+            diagnostic = compile_without_writing(target, relative)
+            if diagnostic is not None:
+                failures.append(
+                    f"Python syntax validation {relative}: diagnostic={diagnostic!r}"
+                )
+        require_success(
+            "packaged CLI unit tests",
+            run([sys.executable, "tests/test_text_stat.py"], cwd=target),
+            failures,
+        )
+        require_success(
+            "post-test repository validation",
+            validate(target),
+            failures,
+        )
+
+        input_path = target / "input.txt"
+        input_path.write_bytes(b"one two\n")
+        dash_input = target / "-input.txt"
+        dash_input.write_bytes(b"one two\n")
+        dash_run = run([sys.executable, "bin/text-stat", "--", "-input.txt"], cwd=target)
+        require_success("dash-prefixed input after option terminator", dash_run, failures)
+        dash_stdout, dash_stderr = text(dash_run)
+        if dash_stdout != "bytes: 8\nlines: 1\nwords: 2\n" or dash_stderr:
+            failures.append(
+                f"dash-prefixed input semantics mismatch: stdout={dash_stdout!r}, stderr={dash_stderr!r}"
+            )
+
+        inplace = run(
+            [sys.executable, "bin/text-stat", "--output", "json", "input.txt"],
+            cwd=target,
+        )
+        require_success("in-place structured output", inplace, failures)
+        inplace_stdout, inplace_stderr = text(inplace)
+        if inplace.returncode == 0:
+            try:
+                inplace_payload = json.loads(inplace_stdout)
+            except json.JSONDecodeError as exc:
+                failures.append(f"in-place JSON is invalid: {exc}")
+                inplace_payload = None
+            if not required_json_fields(inplace_payload):
+                failures.append("in-place JSON omits required contract fields")
+            if inplace_stderr:
+                failures.append(f"in-place JSON emitted stderr: {inplace_stderr!r}")
+
+        additive = json.loads(inplace_stdout) if inplace.returncode == 0 else {}
+        if isinstance(additive.get("result"), dict):
+            additive["result"]["futureField"] = "ignored"
+        if not required_json_fields(additive):
+            failures.append("additive result field compatibility regression failed")
+
+        build_env = target / ".build-venv"
+        require_success(
+            "create build environment",
+            run([sys.executable, "-m", "venv", str(build_env)], cwd=target),
+            failures,
+        )
+        build_python = venv_python(build_env)
+        if build_python.is_file():
+            require_success(
+                "install pinned build tools",
+                run(
+                    [
+                        str(build_python),
+                        "-m",
+                        "pip",
+                        "install",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--requirement",
+                        "requirements-build.lock",
+                    ],
+                    cwd=target,
+                ),
+                failures,
+            )
+            require_success(
+                "build wheel",
+                run(
+                    [
+                        str(build_python),
+                        "-m",
+                        "pip",
+                        "wheel",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--no-deps",
+                        "--no-build-isolation",
+                        "--wheel-dir",
+                        "dist",
+                        ".",
+                    ],
+                    cwd=target,
+                ),
+                failures,
+            )
+
+        wheel_files = list((target / "dist").glob("text_stat-1.0.0-*.whl")) if (target / "dist").is_dir() else []
+        if len(wheel_files) != 1:
+            failures.append(f"packaged-cli: expected exactly one 1.0.0 wheel, got {wheel_files!r}")
+
+        install_env = target / ".local/venv"
+        require_success(
+            "create local install environment",
+            run([sys.executable, "-m", "venv", str(install_env)], cwd=target),
+            failures,
+        )
+        install_python = venv_python(install_env)
+        if install_python.is_file() and wheel_files:
+            require_success(
+                "offline local wheel installation",
+                run(
+                    [
+                        str(install_python),
+                        "-m",
+                        "pip",
+                        "install",
+                        "--disable-pip-version-check",
+                        "--no-input",
+                        "--no-index",
+                        "--find-links",
+                        "dist",
+                        "text-stat==1.0.0",
+                    ],
+                    cwd=target,
+                ),
+                failures,
+            )
+
+        command = installed_command(install_env)
+        if not command.is_file():
+            failures.append(f"packaged-cli: installed text-stat command is missing: {command}")
+        else:
+            version_run = run([str(command), "--version"], cwd=target)
+            require_success("installed version command", version_run, failures)
+            version_stdout, version_stderr = text(version_run)
+            if version_stdout != "1.0.0\n" or version_stderr:
+                failures.append(
+                    f"installed version mismatch: stdout={version_stdout!r}, stderr={version_stderr!r}"
+                )
+
+            installed_json = run([str(command), "--output", "json", "input.txt"], cwd=target)
+            require_success("installed structured output", installed_json, failures)
+            installed_stdout, installed_stderr = text(installed_json)
+            if installed_stdout != inplace_stdout or installed_stderr != inplace_stderr:
+                failures.append("installed and in-place structured output differ")
+
+            installed_dash = run([str(command), "--", "-input.txt"], cwd=target)
+            require_success("installed dash-prefixed input", installed_dash, failures)
+            installed_dash_stdout, installed_dash_stderr = text(installed_dash)
+            if installed_dash_stdout != dash_stdout or installed_dash_stderr != dash_stderr:
+                failures.append("installed and in-place dash-prefixed input behavior differ")
+
+            invalid = target / "invalid.bin"
+            invalid.write_bytes(b"\xff")
+            invalid_run = run([str(command), str(invalid)], cwd=target)
+            _, invalid_stderr = text(invalid_run)
+            if invalid_run.returncode != 2 or "input is not valid UTF-8" not in invalid_stderr:
+                failures.append("installed command does not preserve invalid-UTF-8 exit semantics")
+
+            if os.name != "nt" and Path("/dev/full").exists():
+                with open("/dev/full", "wb", buffering=0) as full:
+                    output_failure = run([str(command), "input.txt"], cwd=target, stdout=full)
+                if output_failure.returncode != 5:
+                    _, output_stderr = text(output_failure)
+                    failures.append(
+                        f"installed output failure must return 5; status={output_failure.returncode!r}, "
+                        f"stderr={output_stderr!r}"
+                    )
+
+        symlink_manifest = temporary_root / "symlink-manifest"
+        copy_fixture(symlink_manifest)
+        external_manifest = temporary_root / "outside-pyproject.toml"
+        manifest_path = symlink_manifest / "pyproject.toml"
+        external_manifest.write_bytes(manifest_path.read_bytes())
+        manifest_path.unlink()
+        manifest_path.symlink_to(external_manifest)
+        initialize_git(symlink_manifest)
+        symlink_result = validate(symlink_manifest)
+        symlink_stderr = text(symlink_result)[1]
+        if symlink_result.returncode == 0:
+            failures.append("packaged-cli: symlinked pyproject.toml unexpectedly validates")
+        elif "regular non-symlink file" not in symlink_stderr:
+            failures.append(
+                "packaged-cli: symlinked pyproject.toml lacks the pre-read rejection diagnostic: "
+                f"{symlink_stderr!r}"
+            )
+
+        expect_negative_validation(
+            root=temporary_root,
+            name="missing-cli-contract",
+            remove_path="CLI_INTERFACE.md",
+            diagnostics=(
+                "CLI_INTERFACE.md",
+                "Detailed caller behavior:",
+                "route 'installed human CLI command'",
+                "route 'stable in-place CLI launcher'",
+            ),
+            failures=failures,
+        )
+        expect_negative_validation(
+            root=temporary_root,
+            name="missing-cli-implementation",
+            remove_path="src/text_stat/cli.py",
+            diagnostics=(
+                "src/text_stat/cli.py",
+                "Source layout",
+                "installed human CLI command",
+                "stable in-place CLI launcher",
+            ),
+            failures=failures,
+        )
+
+    if failures:
+        for failure in failures:
+            print(failure, file=sys.stderr)
+        return 1
+    print("Packaged CLI profile fixture tests passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

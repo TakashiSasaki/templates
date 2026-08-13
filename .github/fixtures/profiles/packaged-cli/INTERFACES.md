@@ -19,13 +19,13 @@ Fallback 2: NONE
 
 ## Cross-interface invariants
 
-The installed command and in-place launcher invoke the same `TextStat::CLI` implementation and therefore use identical inputs, output fields, diagnostics, exit codes, and read-only behavior.
+The installed console script and in-place launcher invoke the same `text_stat.cli` implementation and therefore use identical inputs, output fields, diagnostics, exit codes, and read-only behavior.
 
 ## Availability and failure behavior
 
-Unavailable preferred interface behavior: Use the in-place Ruby launcher only from a trusted repository checkout.
-Fallback activation conditions: Activate the fallback when the installed `text-stat` executable is absent and CRuby 3.1 or newer is available.
-Failure classification exposed to callers: Exit code 2 denotes invalid invocation or input, exit code 3 denotes an input read failure, and exit code 5 denotes an output write or flush failure.
+Unavailable preferred interface behavior: Use the in-place Python launcher only from a trusted repository checkout.
+Fallback activation conditions: Activate the fallback when the installed `text-stat` executable is absent and CPython 3.12 or newer is available.
+Failure classification exposed to callers: Exit code 2 denotes invalid invocation or input, exit code 3 denotes an input read failure, and exit code 5 denotes an output or diagnostic write/flush failure.
 
 ## Decision rationale
 

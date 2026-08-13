@@ -3,8 +3,84 @@
 from __future__ import annotations
 
 import re
+import tomllib
 
 from .profile_contracts import ProfileSelection, RepositorySnapshot, ValuePolicy
+
+
+def _validate_python_packaged_cli_entry_point(
+    *,
+    runtime,
+    primary: str | None,
+    commands: str | None,
+    repository: RepositorySnapshot,
+    errors: list[str],
+) -> None:
+    """Require a pyproject console script to resolve to a retained module file.
+
+    This closes a gap where the runtime/packaging contracts could remain
+    syntactically complete while the module named by ``[project.scripts]`` was
+    absent. Both src-layout and flat-layout Python packages are accepted.
+    """
+
+    manifest = runtime.table_value("Project manifest", section=primary)
+    runtime_name = runtime.table_value("Runtime", section=primary)
+    human_cli = runtime.table_value("Human CLI", section=commands)
+    if manifest != "pyproject.toml" or runtime_name != "CPython":
+        return
+
+    if not repository.file(manifest):
+        errors.append(
+            "Selected Python packaged CLI requires the declared project manifest "
+            f"to exist: {manifest}"
+        )
+        return
+    if repository.symlink(manifest):
+        errors.append(
+            "Selected Python packaged CLI requires the declared project manifest "
+            f"to be a regular non-symlink file: {manifest}"
+        )
+        return
+
+    try:
+        payload = tomllib.loads((repository.root / manifest).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        errors.append(
+            f"Selected Python packaged CLI requires a readable valid {manifest}: {exc}"
+        )
+        return
+
+    project = payload.get("project")
+    scripts = project.get("scripts") if isinstance(project, dict) else None
+    target = scripts.get(human_cli) if isinstance(scripts, dict) and human_cli else None
+    if not isinstance(target, str) or not target.strip():
+        errors.append(
+            "Selected Python packaged CLI requires [project.scripts] to map the "
+            f"declared Human CLI {human_cli!r} to an entry point."
+        )
+        return
+
+    module_name = target.split(":", 1)[0].strip()
+    if not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", module_name):
+        errors.append(
+            "Selected Python packaged CLI has an invalid module path in its "
+            f"[project.scripts] entry point: {target!r}"
+        )
+        return
+
+    module_path = module_name.replace(".", "/")
+    candidates = (
+        f"src/{module_path}.py",
+        f"src/{module_path}/__init__.py",
+        f"{module_path}.py",
+        f"{module_path}/__init__.py",
+    )
+    if not any(repository.file(candidate) for candidate in candidates):
+        errors.append(
+            "Selected Python packaged CLI entry point "
+            f"{target!r} declares missing implementation module {module_name!r}; "
+            f"expected one of: {', '.join(candidates)}"
+        )
 
 
 def validate_runtime_contracts(
@@ -21,9 +97,7 @@ def validate_runtime_contracts(
         "browser-interface",
         "headless-service",
     }
-    runtime_selected = bool(
-        set(selected_profiles) & runtime_allowed_profiles
-    )
+    runtime_selected = bool(set(selected_profiles) & runtime_allowed_profiles)
     runtime = repository.document("RUNTIME.md")
 
     if runtime_selected and runtime is not None:
@@ -45,9 +119,7 @@ def validate_runtime_contracts(
             "Source layout",
             "Supported operating systems",
         ):
-            if not ValuePolicy.resolved(
-                runtime.table_value(item, section=primary)
-            ):
+            if not ValuePolicy.resolved(runtime.table_value(item, section=primary)):
                 errors.append(
                     f"RUNTIME.md requires a concrete '{item}' value for selected "
                     "runtime-backed profiles."
@@ -62,9 +134,7 @@ def validate_runtime_contracts(
             "Format check",
             "Build/package",
         ):
-            if not ValuePolicy.resolved(
-                runtime.table_value(item, section=commands)
-            ):
+            if not ValuePolicy.resolved(runtime.table_value(item, section=commands)):
                 errors.append(
                     f"RUNTIME.md requires a resolved '{item}' command for selected "
                     "runtime-backed profiles."
@@ -72,18 +142,14 @@ def validate_runtime_contracts(
 
         distribution = runtime.section("## Distribution")
         for item in ("Skill distribution", "Version source of truth"):
-            if not ValuePolicy.resolved(
-                runtime.table_value(item, section=distribution)
-            ):
+            if not ValuePolicy.resolved(runtime.table_value(item, section=distribution)):
                 errors.append(
                     f"RUNTIME.md requires a concrete '{item}' value for selected "
                     "runtime-backed profiles."
                 )
 
         environment = runtime.section("## Environment and configuration")
-        if environment is None or re.search(
-            r"\bTODO\b", environment, re.IGNORECASE
-        ):
+        if environment is None or re.search(r"\bTODO\b", environment, re.IGNORECASE):
             errors.append(
                 "RUNTIME.md must replace the environment/configuration "
                 "placeholder with concrete variables or an explicit NONE record."
@@ -101,9 +167,7 @@ def validate_runtime_contracts(
             )
 
         if selection.selected("packaged-cli"):
-            if not ValuePolicy.concrete(
-                runtime.table_value("Human CLI", section=commands)
-            ):
+            if not ValuePolicy.concrete(runtime.table_value("Human CLI", section=commands)):
                 errors.append(
                     "Selected profile 'packaged-cli' requires a concrete "
                     "'Human CLI' command in RUNTIME.md."
@@ -115,6 +179,13 @@ def validate_runtime_contracts(
                     "Selected profile 'packaged-cli' requires a resolved "
                     "'CLI distribution' value in RUNTIME.md."
                 )
+            _validate_python_packaged_cli_entry_point(
+                runtime=runtime,
+                primary=primary,
+                commands=commands,
+                repository=repository,
+                errors=errors,
+            )
 
         if selection.selected("browser-interface"):
             for item in (
@@ -122,9 +193,7 @@ def validate_runtime_contracts(
                 "Stop human verification Web UI",
                 "Check human verification Web UI readiness",
             ):
-                if not ValuePolicy.concrete(
-                    runtime.table_value(item, section=commands)
-                ):
+                if not ValuePolicy.concrete(runtime.table_value(item, section=commands)):
                     errors.append(
                         "Selected profile 'browser-interface' requires a concrete "
                         f"'{item}' command in RUNTIME.md."
@@ -152,17 +221,14 @@ def validate_runtime_contracts(
                         "Selected profile 'browser-interface' requires a concrete "
                         f"'{item}' value in the RUNTIME.md Web deployment section."
                     )
-            if runtime.table_value(
-                "Supported", section=web_deployment
-            ) != "YES":
+            if runtime.table_value("Supported", section=web_deployment) != "YES":
                 errors.append(
                     "Selected profile 'browser-interface' requires "
                     "'Supported: YES' in the RUNTIME.md Web deployment section."
                 )
             if not ValuePolicy.resolved(
                 runtime.table_value(
-                    "Human Web interface distribution",
-                    section=distribution,
+                    "Human Web interface distribution", section=distribution
                 )
             ):
                 errors.append(
@@ -176,9 +242,7 @@ def validate_runtime_contracts(
                 "Stop headless service",
                 "Check headless service readiness",
             ):
-                if not ValuePolicy.concrete(
-                    runtime.table_value(item, section=commands)
-                ):
+                if not ValuePolicy.concrete(runtime.table_value(item, section=commands)):
                     errors.append(
                         "Selected profile 'headless-service' requires a concrete "
                         f"'{item}' command in RUNTIME.md."
@@ -205,9 +269,7 @@ def validate_runtime_contracts(
                 "Deployment topology",
                 "Security and deployment smoke tests",
             ):
-                if not ValuePolicy.resolved(
-                    runtime.table_value(item, section=service)
-                ):
+                if not ValuePolicy.resolved(runtime.table_value(item, section=service)):
                     errors.append(
                         "Selected profile 'headless-service' requires a concrete "
                         f"'{item}' value in the RUNTIME.md service section."
@@ -218,9 +280,7 @@ def validate_runtime_contracts(
                     "'Supported: YES' in the RUNTIME.md service section."
                 )
             if not ValuePolicy.resolved(
-                runtime.table_value(
-                    "Service integration", section=distribution
-                )
+                runtime.table_value("Service integration", section=distribution)
             ):
                 errors.append(
                     "Selected profile 'headless-service' requires a resolved "
@@ -251,27 +311,19 @@ def validate_runtime_contracts(
 
             variant_sections = {
                 "stdio": runtime.section("### stdio variant"),
-                "Streamable HTTP": runtime.section(
-                    "### Streamable HTTP variant"
-                ),
-                "bundled client": runtime.section(
-                    "### Bundled ad hoc MCP tool client"
-                ),
+                "Streamable HTTP": runtime.section("### Streamable HTTP variant"),
+                "bundled client": runtime.section("### Bundled ad hoc MCP tool client"),
             }
             variant_support: dict[str, str | None] = {}
             for variant, content in variant_sections.items():
-                support = runtime.table_value(
-                    "Supported", section=content
-                )
+                support = runtime.table_value("Supported", section=content)
                 variant_support[variant] = support
                 if support not in {"YES", "NO"}:
                     errors.append(
                         "Selected profile 'mcp-enabled' requires "
                         f"'{variant}' Supported to be YES or NO in RUNTIME.md."
                     )
-                if content is None or re.search(
-                    r"\bTODO\b", content, re.IGNORECASE
-                ):
+                if content is None or re.search(r"\bTODO\b", content, re.IGNORECASE):
                     errors.append(
                         "Selected profile 'mcp-enabled' must resolve all retained "
                         f"'{variant}' RUNTIME.md fields using concrete or "
@@ -286,9 +338,7 @@ def validate_runtime_contracts(
                     "supported MCP server transport in RUNTIME.md."
                 )
             if not ValuePolicy.resolved(
-                runtime.table_value(
-                    "MCP distribution", section=distribution
-                )
+                runtime.table_value("MCP distribution", section=distribution)
             ):
                 errors.append(
                     "Selected profile 'mcp-enabled' requires a resolved "
