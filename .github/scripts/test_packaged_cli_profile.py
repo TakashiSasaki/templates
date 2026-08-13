@@ -37,6 +37,7 @@ def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
         env.pop(key, None)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     if extra:
         env.update(extra)
     return env
@@ -83,8 +84,19 @@ def installed_command(root: Path) -> Path:
     return root / ("Scripts/text-stat.exe" if os.name == "nt" else "bin/text-stat")
 
 
+def is_python_cache(path: Path) -> bool:
+    relative = path.relative_to(FIXTURE)
+    return "__pycache__" in relative.parts or path.suffix in {".pyc", ".pyo"}
+
+
 def copy_fixture(target: Path) -> None:
-    shutil.copytree(FIXTURE, target, dirs_exist_ok=True, symlinks=True)
+    shutil.copytree(
+        FIXTURE,
+        target,
+        dirs_exist_ok=True,
+        symlinks=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
 
 
 def initialize_git(target: Path) -> None:
@@ -111,12 +123,21 @@ def required_json_fields(payload: object) -> bool:
     )
 
 
+def compile_without_writing(target: Path, relative: str) -> str | None:
+    try:
+        source = (target / relative).read_text(encoding="utf-8")
+        compile(source, relative, "exec", dont_inherit=True)
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        return str(exc)
+    return None
+
+
 def main() -> int:
     failures: list[str] = []
     inventory = sorted(
         path.relative_to(FIXTURE).as_posix()
         for path in FIXTURE.rglob("*")
-        if not path.is_dir()
+        if not path.is_dir() and not is_python_cache(path)
     )
     if inventory != EXPECTED_FILES:
         failures.append(
@@ -146,27 +167,40 @@ def main() -> int:
         initialize_git(target)
         require_success("complete repository validation", validate(target), failures)
 
-        syntax = run(
-            [
-                sys.executable,
-                "-m",
-                "py_compile",
-                "bin/text-stat",
-                "src/text_stat/__init__.py",
-                "src/text_stat/cli.py",
-                "tests/test_text_stat.py",
-            ],
-            cwd=target,
-        )
-        require_success("Python syntax validation", syntax, failures)
+        for relative in (
+            "bin/text-stat",
+            "src/text_stat/__init__.py",
+            "src/text_stat/cli.py",
+            "tests/test_text_stat.py",
+        ):
+            diagnostic = compile_without_writing(target, relative)
+            if diagnostic is not None:
+                failures.append(
+                    f"Python syntax validation {relative}: diagnostic={diagnostic!r}"
+                )
         require_success(
             "packaged CLI unit tests",
             run([sys.executable, "tests/test_text_stat.py"], cwd=target),
             failures,
         )
+        require_success(
+            "post-test repository validation",
+            validate(target),
+            failures,
+        )
 
         input_path = target / "input.txt"
         input_path.write_bytes(b"one two\n")
+        dash_input = target / "-input.txt"
+        dash_input.write_bytes(b"one two\n")
+        dash_run = run([sys.executable, "bin/text-stat", "--", "-input.txt"], cwd=target)
+        require_success("dash-prefixed input after option terminator", dash_run, failures)
+        dash_stdout, dash_stderr = text(dash_run)
+        if dash_stdout != "bytes: 8\nlines: 1\nwords: 2\n" or dash_stderr:
+            failures.append(
+                f"dash-prefixed input semantics mismatch: stdout={dash_stdout!r}, stderr={dash_stderr!r}"
+            )
+
         inplace = run(
             [sys.executable, "bin/text-stat", "--output", "json", "input.txt"],
             cwd=target,
@@ -285,6 +319,12 @@ def main() -> int:
             installed_stdout, installed_stderr = text(installed_json)
             if installed_stdout != inplace_stdout or installed_stderr != inplace_stderr:
                 failures.append("installed and in-place structured output differ")
+
+            installed_dash = run([str(command), "--", "-input.txt"], cwd=target)
+            require_success("installed dash-prefixed input", installed_dash, failures)
+            installed_dash_stdout, installed_dash_stderr = text(installed_dash)
+            if installed_dash_stdout != dash_stdout or installed_dash_stderr != dash_stderr:
+                failures.append("installed and in-place dash-prefixed input behavior differ")
 
             invalid = target / "invalid.bin"
             invalid.write_bytes(b"\xff")
