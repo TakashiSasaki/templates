@@ -24,7 +24,9 @@ SMOKES = {
 
 def snapshot_record(path: Path) -> tuple[Any, ...]:
     info = path.lstat()
-    mode = stat.S_IMODE(info.st_mode) | (info.st_mode & (stat.S_ISUID | stat.S_ISGID | stat.S_ISVTX))
+    mode = stat.S_IMODE(info.st_mode) | (
+        info.st_mode & (stat.S_ISUID | stat.S_ISGID | stat.S_ISVTX)
+    )
     if stat.S_ISDIR(info.st_mode):
         kind = "directory"
     elif stat.S_ISREG(info.st_mode):
@@ -64,6 +66,8 @@ def run(
     env = os.environ.copy()
     env.update(environment)
     env.pop("PYTHONPATH", None)
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         command,
         cwd=cwd,
