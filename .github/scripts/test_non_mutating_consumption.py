@@ -17,20 +17,28 @@ FIXTURE = SOURCE_ROOT / ".github/fixtures/profiles/script-assisted"
 COMBINED_FIXTURE = SOURCE_ROOT / ".github/fixtures/profiles/combined-resources"
 VALIDATOR = SOURCE_ROOT / "template/.github/scripts/validate_skill_repository.py"
 FAILURES: list[str] = []
+GIT_CONTEXT_KEYS = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE")
 
 
-def clean_env() -> dict[str, str]:
+def command_env(*, preserve_git_context: bool = False) -> dict[str, str]:
     env = os.environ.copy()
-    for key in ("PYTHONPATH", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
-        env.pop(key, None)
+    env.pop("PYTHONPATH", None)
+    if not preserve_git_context:
+        for key in GIT_CONTEXT_KEYS:
+            env.pop(key, None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     return env
 
 
-def capture(*command: str, cwd: Path) -> subprocess.CompletedProcess[str]:
+def capture(
+    *command: str,
+    cwd: Path,
+    preserve_git_context: bool = False,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         list(command),
         cwd=cwd,
-        env=clean_env(),
+        env=command_env(preserve_git_context=preserve_git_context),
         text=True,
         encoding="utf-8",
         capture_output=True,
@@ -155,16 +163,22 @@ def expect_only_declared_output(
 
 
 def validate(target: Path, outside: Path) -> subprocess.CompletedProcess[str]:
+    # Validation deliberately runs outside any caller-owned Git context.  The
+    # validator manages its own temporary index when appropriate.
     return capture(sys.executable, str(VALIDATOR), str(target), cwd=outside)
 
 
 def run_helper(target: Path, input_path: Path, output_path: Path) -> subprocess.CompletedProcess[str]:
+    # Unlike validator/Git setup calls, helper execution must inherit the
+    # caller's GIT_* variables so the path-safe harness can prove that the
+    # helper neither consumes nor mutates a poisoned caller-owned Git context.
     return capture(
         sys.executable,
         "scripts/normalize.py",
         str(input_path),
         str(output_path),
         cwd=target,
+        preserve_git_context=True,
     )
 
 
