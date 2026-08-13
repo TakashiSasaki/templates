@@ -1,1 +1,452 @@
-{"schema_version":2,"home":{"publication":"site","document":"portal-home"},"navigation":[{"title":"Documentation portal","publication":"site","document":"portal-home","destination":"index.md"},{"title":"Portal overview","publication":"site","document":"portal-overview","destination":"overview/index.md"},{"title":"Skill","children":[{"title":"Overview","publication":"skill","document":"overview","destination":"skill/index.md"},{"title":"Getting started","children":[{"title":"Skill contract","publication":"skill","document":"skill-contract","destination":"skill/SKILL.md"},{"title":"Skill profiles","publication":"skill","document":"skill-profiles","destination":"skill/docs/skill-profiles.md"},{"title":"Profile contract map","publication":"skill","document":"profile-contract-map","destination":"skill/docs/profile-contract-map.md"}]},{"title":"Core contracts","children":[{"title":"Runtime decision record","publication":"skill","document":"runtime-decision-record","destination":"skill/RUNTIME.md"},{"title":"Interface routing","publication":"skill","document":"interface-routing","destination":"skill/INTERFACES.md"}]},{"title":"Caller interfaces","children":[{"title":"Packaged CLI interface","publication":"skill","document":"packaged-cli-interface","destination":"skill/CLI_INTERFACE.md"},{"title":"MCP interface","publication":"skill","document":"mcp-interface","destination":"skill/MCP_INTERFACE.md"},{"title":"MCP Apps interface","publication":"skill","document":"mcp-apps-interface","destination":"skill/MCP_APPS.md"},{"title":"Human Web interface","publication":"skill","document":"human-web-interface","destination":"skill/WEB_INTERFACE.md"}]},{"title":"Design guidance","children":[{"title":"Architecture","publication":"skill","document":"architecture","destination":"skill/docs/architecture.md"},{"title":"Runtime selection","publication":"skill","document":"runtime-selection","destination":"skill/docs/runtime-selection.md"},{"title":"MCP transports","publication":"skill","document":"mcp-transports","destination":"skill/docs/mcp-transports.md"},{"title":"MCP Apps guidance","publication":"skill","document":"mcp-apps-guidance","destination":"skill/docs/mcp-apps.md"}]}]},{"title":"Policy","children":[{"title":"Overview","publication":"policy","document":"overview","destination":"policy/index.md"},{"title":"Introduction","children":[{"title":"Getting started","publication":"policy","document":"getting-started","destination":"policy/getting-started.md"},{"title":"Managed repository operation","publication":"policy","document":"managed-operation","destination":"policy/managed-operation.md"},{"title":"CLI","publication":"policy","document":"cli","destination":"policy/cli.md"},{"title":"Bootstrap skill","publication":"policy","document":"bootstrap","destination":"policy/bootstrap.md"},{"title":"Repository adoption","publication":"policy","document":"adoption","destination":"policy/adoption.md"},{"title":"Toolchain release lifecycle","publication":"policy","document":"release-lifecycle","destination":"policy/release-lifecycle.md"},{"title":"Policy completion roadmap","publication":"policy","document":"policy-readiness","destination":"policy/policy-readiness.md"},{"title":"Documentation publication","publication":"policy","document":"documentation-publication","destination":"policy/documentation-publication.md"},{"title":"Publication catalog","publication":"policy","document":"publication-catalog","destination":"policy/publication-catalog.md"},{"title":"PWA usage","publication":"policy","document":"pwa","destination":"policy/pwa.md"}]},{"title":"Agent environments","children":[{"title":"Google AI Studio Build mode","publication":"policy","document":"google-ai-studio","destination":"policy/agent-environments/google-ai-studio.md"}]},{"title":"Design","children":[{"title":"Repository structure","publication":"policy","document":"repository-structure","destination":"policy/repository-structure.md"},{"title":"Architecture","publication":"policy","document":"architecture","destination":"policy/architecture.md"},{"title":"Configuration","publication":"policy","document":"configuration","destination":"policy/configuration.md"},{"title":"Policy authoring","publication":"policy","document":"policy-authoring","destination":"policy/policy-authoring.md"},{"title":"Policy authority inventory","publication":"policy","document":"policy-authority-inventory","destination":"policy/policy-authority-inventory.md"},{"title":"Shared review policy","publication":"policy","document":"review-policy","destination":"policy/review-policy.md"},{"title":"External artifact intake","publication":"policy","document":"external-artifact-intake","destination":"policy/external-artifact-intake.md"},{"title":"Regression prevention","publication":"policy","document":"regression-prevention","destination":"policy/regression-prevention.md"},{"title":"Bootstrap model","publication":"policy","document":"bootstrap-model","destination":"policy/bootstrap-model.md"},{"title":"Threat model","publication":"policy","document":"threat-model","destination":"policy/threat-model.md"}]},{"title":"Architecture decisions","children":[{"title":"Overview","publication":"policy","document":"adr-index","destination":"policy/adr/index.md"},{"title":"ADR-0002 Repository adoption","publication":"policy","document":"adr-repository-adoption","destination":"policy/adr/0002-repository-adoption.md"},{"title":"ADR-0003 Application-neutral scope","publication":"policy","document":"adr-application-neutral-scope","destination":"policy/adr/0003-application-neutral-policy-scope.md"},{"title":"ADR-0004 Integrated bootstrap skill","publication":"policy","document":"adr-integrated-bootstrap-skill","destination":"policy/adr/0004-integrated-bootstrap-skill.md"},{"title":"ADR-0005 Single policy authority","publication":"policy","document":"adr-single-policy-authority","destination":"policy/adr/0005-single-policy-authority.md"},{"title":"ADR-0006 Copyable artifact policy adoption","publication":"policy","document":"adr-copyable-artifact-policy-adoption","destination":"policy/adr/0006-copyable-artifact-policy-adoption.md"}]}]},{"title":"Web application","children":[{"title":"Overview","publication":"webapp","document":"overview","destination":"webapp/index.md"},{"title":"Template contract","publication":"webapp","document":"template","destination":"webapp/TEMPLATE.md"},{"title":"Operationalization","publication":"webapp","document":"operationalization","destination":"webapp/docs/operationalization.md"},{"title":"Publication catalog","publication":"webapp","document":"publication-catalog","destination":"webapp/docs/publication-catalog.md"},{"title":"Architecture","children":[{"title":"Completion roadmap","publication":"webapp","document":"completion-roadmap","destination":"webapp/docs/architecture/completion-roadmap.md"},{"title":"Contract completeness","publication":"webapp","document":"contract-completeness","destination":"webapp/docs/architecture/contract-completeness.md"},{"title":"Contract evolution","publication":"webapp","document":"contract-evolution","destination":"webapp/docs/architecture/contract-evolution.md"},{"title":"Distribution boundary","publication":"webapp","document":"distribution-boundary","destination":"webapp/docs/architecture/distribution-boundary.md"},{"title":"Distribution readiness audit","publication":"webapp","document":"distribution-readiness-audit","destination":"webapp/docs/architecture/distribution-readiness-audit.md"},{"title":"Final readiness audit","publication":"webapp","document":"final-readiness-audit","destination":"webapp/docs/architecture/final-readiness-audit.md"},{"title":"Generated repository conformance","publication":"webapp","document":"generated-repository-conformance","destination":"webapp/docs/architecture/generated-repository-conformance.md"},{"title":"Implementation evidence","publication":"webapp","document":"implementation-evidence","destination":"webapp/docs/architecture/implementation-evidence.md"},{"title":"Release bundle","publication":"webapp","document":"release-bundle","destination":"webapp/docs/architecture/release-bundle.md"},{"title":"Release evidence","publication":"webapp","document":"release-evidence","destination":"webapp/docs/architecture/release-evidence.md"},{"title":"Responsibility boundaries","publication":"webapp","document":"responsibility-boundaries","destination":"webapp/docs/architecture/responsibility-boundaries.md"},{"title":"Validation toolchain","publication":"webapp","document":"validation-toolchain","destination":"webapp/docs/architecture/validation-toolchain.md"}]},{"title":"Migrations","children":[{"title":"Contract manifest v1 to v2","publication":"webapp","document":"contract-manifest-migration","destination":"webapp/docs/migrations/contract-manifest-v1-to-v2.md"},{"title":"Routes v1 to v2","publication":"webapp","document":"routes-migration","destination":"webapp/docs/migrations/routes-v1-to-v2.md"},{"title":"UI states v1 to v2","publication":"webapp","document":"ui-states-migration","destination":"webapp/docs/migrations/ui-states-v1-to-v2.md"}]}]}]}
+{
+  "schema_version": 2,
+  "home": {
+    "publication": "site",
+    "document": "portal-home"
+  },
+  "navigation": [
+    {
+      "title": "Documentation portal",
+      "publication": "site",
+      "document": "portal-home",
+      "destination": "index.md"
+    },
+    {
+      "title": "Portal overview",
+      "publication": "site",
+      "document": "portal-overview",
+      "destination": "overview/index.md"
+    },
+    {
+      "title": "Skill",
+      "children": [
+        {
+          "title": "Overview",
+          "publication": "skill",
+          "document": "overview",
+          "destination": "skill/index.md"
+        },
+        {
+          "title": "Getting started",
+          "children": [
+            {
+              "title": "Skill contract",
+              "publication": "skill",
+              "document": "skill-contract",
+              "destination": "skill/SKILL.md"
+            },
+            {
+              "title": "Skill profiles",
+              "publication": "skill",
+              "document": "skill-profiles",
+              "destination": "skill/docs/skill-profiles.md"
+            },
+            {
+              "title": "Profile contract map",
+              "publication": "skill",
+              "document": "profile-contract-map",
+              "destination": "skill/docs/profile-contract-map.md"
+            }
+          ]
+        },
+        {
+          "title": "Core contracts",
+          "children": [
+            {
+              "title": "Runtime decision record",
+              "publication": "skill",
+              "document": "runtime-decision-record",
+              "destination": "skill/RUNTIME.md"
+            },
+            {
+              "title": "Interface routing",
+              "publication": "skill",
+              "document": "interface-routing",
+              "destination": "skill/INTERFACES.md"
+            }
+          ]
+        },
+        {
+          "title": "Caller interfaces",
+          "children": [
+            {
+              "title": "Packaged CLI interface",
+              "publication": "skill",
+              "document": "packaged-cli-interface",
+              "destination": "skill/CLI_INTERFACE.md"
+            },
+            {
+              "title": "MCP interface",
+              "publication": "skill",
+              "document": "mcp-interface",
+              "destination": "skill/MCP_INTERFACE.md"
+            },
+            {
+              "title": "MCP Apps interface",
+              "publication": "skill",
+              "document": "mcp-apps-interface",
+              "destination": "skill/MCP_APPS.md"
+            },
+            {
+              "title": "Human Web interface",
+              "publication": "skill",
+              "document": "human-web-interface",
+              "destination": "skill/WEB_INTERFACE.md"
+            }
+          ]
+        },
+        {
+          "title": "Design guidance",
+          "children": [
+            {
+              "title": "Architecture",
+              "publication": "skill",
+              "document": "architecture",
+              "destination": "skill/docs/architecture.md"
+            },
+            {
+              "title": "Runtime selection",
+              "publication": "skill",
+              "document": "runtime-selection",
+              "destination": "skill/docs/runtime-selection.md"
+            },
+            {
+              "title": "MCP transports",
+              "publication": "skill",
+              "document": "mcp-transports",
+              "destination": "skill/docs/mcp-transports.md"
+            },
+            {
+              "title": "MCP Apps guidance",
+              "publication": "skill",
+              "document": "mcp-apps-guidance",
+              "destination": "skill/docs/mcp-apps.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Policy",
+      "children": [
+        {
+          "title": "Overview",
+          "publication": "policy",
+          "document": "overview",
+          "destination": "policy/index.md"
+        },
+        {
+          "title": "Introduction",
+          "children": [
+            {
+              "title": "Getting started",
+              "publication": "policy",
+              "document": "getting-started",
+              "destination": "policy/getting-started.md"
+            },
+            {
+              "title": "Managed repository operation",
+              "publication": "policy",
+              "document": "managed-operation",
+              "destination": "policy/managed-operation.md"
+            },
+            {
+              "title": "CLI",
+              "publication": "policy",
+              "document": "cli",
+              "destination": "policy/cli.md"
+            },
+            {
+              "title": "Bootstrap skill",
+              "publication": "policy",
+              "document": "bootstrap",
+              "destination": "policy/bootstrap.md"
+            },
+            {
+              "title": "Repository adoption",
+              "publication": "policy",
+              "document": "adoption",
+              "destination": "policy/adoption.md"
+            },
+            {
+              "title": "Toolchain release lifecycle",
+              "publication": "policy",
+              "document": "release-lifecycle",
+              "destination": "policy/release-lifecycle.md"
+            },
+            {
+              "title": "Policy completion roadmap",
+              "publication": "policy",
+              "document": "policy-readiness",
+              "destination": "policy/policy-readiness.md"
+            },
+            {
+              "title": "Documentation publication",
+              "publication": "policy",
+              "document": "documentation-publication",
+              "destination": "policy/documentation-publication.md"
+            },
+            {
+              "title": "Publication catalog",
+              "publication": "policy",
+              "document": "publication-catalog",
+              "destination": "policy/publication-catalog.md"
+            },
+            {
+              "title": "PWA usage",
+              "publication": "policy",
+              "document": "pwa",
+              "destination": "policy/pwa.md"
+            }
+          ]
+        },
+        {
+          "title": "Agent environments",
+          "children": [
+            {
+              "title": "Google AI Studio Build mode",
+              "publication": "policy",
+              "document": "google-ai-studio",
+              "destination": "policy/agent-environments/google-ai-studio.md"
+            }
+          ]
+        },
+        {
+          "title": "Design",
+          "children": [
+            {
+              "title": "Repository structure",
+              "publication": "policy",
+              "document": "repository-structure",
+              "destination": "policy/repository-structure.md"
+            },
+            {
+              "title": "Architecture",
+              "publication": "policy",
+              "document": "architecture",
+              "destination": "policy/architecture.md"
+            },
+            {
+              "title": "Configuration",
+              "publication": "policy",
+              "document": "configuration",
+              "destination": "policy/configuration.md"
+            },
+            {
+              "title": "Policy authoring",
+              "publication": "policy",
+              "document": "policy-authoring",
+              "destination": "policy/policy-authoring.md"
+            },
+            {
+              "title": "Policy authority inventory",
+              "publication": "policy",
+              "document": "policy-authority-inventory",
+              "destination": "policy/policy-authority-inventory.md"
+            },
+            {
+              "title": "Shared review policy",
+              "publication": "policy",
+              "document": "review-policy",
+              "destination": "policy/review-policy.md"
+            },
+            {
+              "title": "External artifact intake",
+              "publication": "policy",
+              "document": "external-artifact-intake",
+              "destination": "policy/external-artifact-intake.md"
+            },
+            {
+              "title": "Regression prevention",
+              "publication": "policy",
+              "document": "regression-prevention",
+              "destination": "policy/regression-prevention.md"
+            },
+            {
+              "title": "Bootstrap model",
+              "publication": "policy",
+              "document": "bootstrap-model",
+              "destination": "policy/bootstrap-model.md"
+            },
+            {
+              "title": "Threat model",
+              "publication": "policy",
+              "document": "threat-model",
+              "destination": "policy/threat-model.md"
+            }
+          ]
+        },
+        {
+          "title": "Architecture decisions",
+          "children": [
+            {
+              "title": "Overview",
+              "publication": "policy",
+              "document": "adr-index",
+              "destination": "policy/adr/index.md"
+            },
+            {
+              "title": "ADR-0002 Repository adoption",
+              "publication": "policy",
+              "document": "adr-repository-adoption",
+              "destination": "policy/adr/0002-repository-adoption.md"
+            },
+            {
+              "title": "ADR-0003 Application-neutral scope",
+              "publication": "policy",
+              "document": "adr-application-neutral-scope",
+              "destination": "policy/adr/0003-application-neutral-policy-scope.md"
+            },
+            {
+              "title": "ADR-0004 Integrated bootstrap skill",
+              "publication": "policy",
+              "document": "adr-integrated-bootstrap-skill",
+              "destination": "policy/adr/0004-integrated-bootstrap-skill.md"
+            },
+            {
+              "title": "ADR-0005 Single policy authority",
+              "publication": "policy",
+              "document": "adr-single-policy-authority",
+              "destination": "policy/adr/0005-single-policy-authority.md"
+            },
+            {
+              "title": "ADR-0006 Copyable artifact policy adoption",
+              "publication": "policy",
+              "document": "adr-copyable-artifact-policy-adoption",
+              "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Web application",
+      "children": [
+        {
+          "title": "Overview",
+          "publication": "webapp",
+          "document": "overview",
+          "destination": "webapp/index.md"
+        },
+        {
+          "title": "Template contract",
+          "publication": "webapp",
+          "document": "template",
+          "destination": "webapp/TEMPLATE.md"
+        },
+        {
+          "title": "Operationalization",
+          "publication": "webapp",
+          "document": "operationalization",
+          "destination": "webapp/docs/operationalization.md"
+        },
+        {
+          "title": "Publication catalog",
+          "publication": "webapp",
+          "document": "publication-catalog",
+          "destination": "webapp/docs/publication-catalog.md"
+        },
+        {
+          "title": "Architecture",
+          "children": [
+            {
+              "title": "Completion roadmap",
+              "publication": "webapp",
+              "document": "completion-roadmap",
+              "destination": "webapp/docs/architecture/completion-roadmap.md"
+            },
+            {
+              "title": "Contract completeness",
+              "publication": "webapp",
+              "document": "contract-completeness",
+              "destination": "webapp/docs/architecture/contract-completeness.md"
+            },
+            {
+              "title": "Contract evolution",
+              "publication": "webapp",
+              "document": "contract-evolution",
+              "destination": "webapp/docs/architecture/contract-evolution.md"
+            },
+            {
+              "title": "Distribution boundary",
+              "publication": "webapp",
+              "document": "distribution-boundary",
+              "destination": "webapp/docs/architecture/distribution-boundary.md"
+            },
+            {
+              "title": "Distribution readiness audit",
+              "publication": "webapp",
+              "document": "distribution-readiness-audit",
+              "destination": "webapp/docs/architecture/distribution-readiness-audit.md"
+            },
+            {
+              "title": "Final readiness audit",
+              "publication": "webapp",
+              "document": "final-readiness-audit",
+              "destination": "webapp/docs/architecture/final-readiness-audit.md"
+            },
+            {
+              "title": "Generated repository conformance",
+              "publication": "webapp",
+              "document": "generated-repository-conformance",
+              "destination": "webapp/docs/architecture/generated-repository-conformance.md"
+            },
+            {
+              "title": "Implementation evidence",
+              "publication": "webapp",
+              "document": "implementation-evidence",
+              "destination": "webapp/docs/architecture/implementation-evidence.md"
+            },
+            {
+              "title": "Release bundle",
+              "publication": "webapp",
+              "document": "release-bundle",
+              "destination": "webapp/docs/architecture/release-bundle.md"
+            },
+            {
+              "title": "Release evidence",
+              "publication": "webapp",
+              "document": "release-evidence",
+              "destination": "webapp/docs/architecture/release-evidence.md"
+            },
+            {
+              "title": "Responsibility boundaries",
+              "publication": "webapp",
+              "document": "responsibility-boundaries",
+              "destination": "webapp/docs/architecture/responsibility-boundaries.md"
+            },
+            {
+              "title": "Validation toolchain",
+              "publication": "webapp",
+              "document": "validation-toolchain",
+              "destination": "webapp/docs/architecture/validation-toolchain.md"
+            }
+          ]
+        },
+        {
+          "title": "Migrations",
+          "children": [
+            {
+              "title": "Contract manifest v1 to v2",
+              "publication": "webapp",
+              "document": "contract-manifest-migration",
+              "destination": "webapp/docs/migrations/contract-manifest-v1-to-v2.md"
+            },
+            {
+              "title": "Routes v1 to v2",
+              "publication": "webapp",
+              "document": "routes-migration",
+              "destination": "webapp/docs/migrations/routes-v1-to-v2.md"
+            },
+            {
+              "title": "UI states v1 to v2",
+              "publication": "webapp",
+              "document": "ui-states-migration",
+              "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
