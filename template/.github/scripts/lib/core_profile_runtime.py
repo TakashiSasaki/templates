@@ -3,8 +3,78 @@
 from __future__ import annotations
 
 import re
+import tomllib
 
 from .profile_contracts import ProfileSelection, RepositorySnapshot, ValuePolicy
+
+
+def _validate_python_packaged_cli_entry_point(
+    *,
+    runtime,
+    primary: str | None,
+    commands: str | None,
+    repository: RepositorySnapshot,
+    errors: list[str],
+) -> None:
+    """Require a pyproject console script to resolve to a retained module file.
+
+    This closes a gap where the runtime/packaging contracts could remain
+    syntactically complete while the module named by ``[project.scripts]`` was
+    absent.  Both src-layout and flat-layout Python packages are accepted.
+    """
+
+    manifest = runtime.table_value("Project manifest", section=primary)
+    runtime_name = runtime.table_value("Runtime", section=primary)
+    human_cli = runtime.table_value("Human CLI", section=commands)
+    if manifest != "pyproject.toml" or runtime_name != "CPython":
+        return
+
+    if not repository.file(manifest):
+        errors.append(
+            "Selected Python packaged CLI requires the declared project manifest "
+            f"to exist: {manifest}"
+        )
+        return
+
+    try:
+        payload = tomllib.loads((repository.root / manifest).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        errors.append(
+            f"Selected Python packaged CLI requires a readable valid {manifest}: {exc}"
+        )
+        return
+
+    project = payload.get("project")
+    scripts = project.get("scripts") if isinstance(project, dict) else None
+    target = scripts.get(human_cli) if isinstance(scripts, dict) and human_cli else None
+    if not isinstance(target, str) or not target.strip():
+        errors.append(
+            "Selected Python packaged CLI requires [project.scripts] to map the "
+            f"declared Human CLI {human_cli!r} to an entry point."
+        )
+        return
+
+    module_name = target.split(":", 1)[0].strip()
+    if not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", module_name):
+        errors.append(
+            "Selected Python packaged CLI has an invalid module path in its "
+            f"[project.scripts] entry point: {target!r}"
+        )
+        return
+
+    module_path = module_name.replace(".", "/")
+    candidates = (
+        f"src/{module_path}.py",
+        f"src/{module_path}/__init__.py",
+        f"{module_path}.py",
+        f"{module_path}/__init__.py",
+    )
+    if not any(repository.file(candidate) for candidate in candidates):
+        errors.append(
+            "Selected Python packaged CLI entry point "
+            f"{target!r} declares missing implementation module {module_name!r}; "
+            f"expected one of: {', '.join(candidates)}"
+        )
 
 
 def validate_runtime_contracts(
@@ -115,6 +185,13 @@ def validate_runtime_contracts(
                     "Selected profile 'packaged-cli' requires a resolved "
                     "'CLI distribution' value in RUNTIME.md."
                 )
+            _validate_python_packaged_cli_entry_point(
+                runtime=runtime,
+                primary=primary,
+                commands=commands,
+                repository=repository,
+                errors=errors,
+            )
 
         if selection.selected("browser-interface"):
             for item in (
