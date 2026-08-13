@@ -82,6 +82,12 @@
               "destination": "skill/MCP_INTERFACE.md"
             },
             {
+              "title": "MCP Apps interface",
+              "publication": "skill",
+              "document": "mcp-apps-interface",
+              "destination": "skill/MCP_APPS.md"
+            },
+            {
               "title": "Human Web interface",
               "publication": "skill",
               "document": "human-web-interface",
@@ -109,6 +115,12 @@
               "publication": "skill",
               "document": "mcp-transports",
               "destination": "skill/docs/mcp-transports.md"
+            },
+            {
+              "title": "MCP Apps guidance",
+              "publication": "skill",
+              "document": "mcp-apps-guidance",
+              "destination": "skill/docs/mcp-apps.md"
             }
           ]
         }

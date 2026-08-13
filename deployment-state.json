@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "active",
   "reason": "skill template restructuring and site integration completed; later reviewed source revisions publish through the same site-only boundary",
-  "locked_skill_revision": "19eb4c2d4515d6110546cda34f1e268921138377",
+  "locked_skill_revision": "80a59fef777f4c8ff123171c8bb88fbb9c84dd89",
   "completed_conditions": [
     "the skill branch exposes the canonical copyable profile-aware template at template/ and passes its complete validation suite",
     "site locks the current reviewed skill full commit SHA",
