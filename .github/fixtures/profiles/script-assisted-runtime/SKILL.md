@@ -47,7 +47,7 @@ Return the output path and whether normalization changed the text. The output mu
 
 ## Validation
 
-From the skill root, run `python -m py_compile scripts/normalize.py` and `python tests/test_normalize.py`. The executable test confirms deterministic LF output, input immutability, same-file and hard-link alias rejection, and bounded invalid-UTF-8 failure.
+From the skill root, run `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` and `python tests/test_normalize.py`. The syntax check is intentionally non-writing so validation does not create undeclared `__pycache__` resources. The executable test confirms deterministic LF output, input immutability, same-file and hard-link alias rejection, and bounded invalid-UTF-8 failure.
 
 ## Safety and approval
 
