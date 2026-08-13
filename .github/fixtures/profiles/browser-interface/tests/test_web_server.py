@@ -6,7 +6,6 @@ from __future__ import annotations
 import http.client
 import json
 import os
-import signal
 import socket
 import stat
 import subprocess
@@ -91,6 +90,13 @@ def http_request(
     return status, headers, raw
 
 
+def raw_request(port: int, request: bytes) -> bytes:
+    with socket.create_connection(("127.0.0.1", port), timeout=2.0) as sock:
+        sock.sendall(request)
+        sock.settimeout(2.0)
+        return sock.recv(4096)
+
+
 def wait_ready(port: int, process: subprocess.Popen, deadline: float = 4.0) -> None:
     end = time.monotonic() + deadline
     last_error: Exception | None = None
@@ -153,15 +159,18 @@ class BrowserServerTests(unittest.TestCase):
         terminate(cls.process)
         cls.temporary.cleanup()
 
+    def assert_security_headers(self, headers: dict[str, str]) -> None:
+        for name, expected in SECURITY_HEADERS.items():
+            self.assertEqual(expected, headers.get(name), name)
+        self.assertIn("default-src 'none'", headers.get("content-security-policy", ""))
+        self.assertNotIn("access-control-allow-origin", headers)
+
     def test_static_routes_security_and_host_policy(self) -> None:
         for path in ("/", "/app.js", "/app.css", "/healthz"):
             status, headers, body = http_request(self.port, "GET", path)
             self.assertEqual(200, status, path)
             self.assertTrue(body)
-            for name, expected in SECURITY_HEADERS.items():
-                self.assertEqual(expected, headers.get(name), (path, name))
-            self.assertIn("default-src 'none'", headers.get("content-security-policy", ""))
-            self.assertNotIn("access-control-allow-origin", headers)
+            self.assert_security_headers(headers)
 
         status, _, payload = http_request(self.port, "GET", "/missing")
         self.assertEqual(404, status)
@@ -169,10 +178,29 @@ class BrowserServerTests(unittest.TestCase):
         status, headers, _ = http_request(self.port, "POST", "/healthz")
         self.assertEqual(405, status)
         self.assertEqual("GET", headers.get("allow"))
+        self.assert_security_headers(headers)
         status, _, _ = http_request(
             self.port, "GET", "/healthz", host=f"example.test:{self.port}"
         )
         self.assertEqual(403, status)
+        status, _, _ = http_request(
+            self.port, "GET", "/healthz", host=f"127.0.0.1:{self.port}/"
+        )
+        self.assertEqual(403, status)
+
+    def test_every_method_uses_hardened_dispatch(self) -> None:
+        status, headers, _ = http_request(self.port, "OPTIONS", "/healthz")
+        self.assertEqual(405, status)
+        self.assertEqual("GET", headers.get("allow"))
+        self.assert_security_headers(headers)
+        status, headers, _ = http_request(
+            self.port,
+            "PATCH",
+            "/healthz",
+            host=f"example.test:{self.port}",
+        )
+        self.assertEqual(403, status)
+        self.assert_security_headers(headers)
 
     def test_same_origin_api_and_redaction(self) -> None:
         body = json.dumps({"text": "one two\n"}).encode()
@@ -217,6 +245,15 @@ class BrowserServerTests(unittest.TestCase):
             self.port,
             "POST",
             "/api/text-stats",
+            origin=f"http://127.0.0.1:{self.port}/",
+            body=body,
+            content_type="application/json",
+        )
+        self.assertEqual(403, status)
+        status, _, _ = http_request(
+            self.port,
+            "POST",
+            "/api/text-stats",
             body=body,
             content_type="application/json",
         )
@@ -245,7 +282,7 @@ class BrowserServerTests(unittest.TestCase):
             health, _, _ = http_request(self.port, "GET", "/healthz")
             self.assertEqual(200, health)
 
-    def test_content_length_and_chunked_limits_close_oversize_connections(self) -> None:
+    def test_body_limits_precede_origin_rejection_and_close_oversize_connections(self) -> None:
         origin = f"http://127.0.0.1:{self.port}"
         too_large = b"x" * (65536 + 1)
         status, headers, _ = http_request(
@@ -258,21 +295,40 @@ class BrowserServerTests(unittest.TestCase):
         )
         self.assertEqual(413, status)
         self.assertEqual("close", headers.get("connection"))
+        status, headers, _ = http_request(
+            self.port,
+            "POST",
+            "/api/text-stats",
+            body=too_large,
+            content_type="application/json",
+        )
+        self.assertEqual(413, status)
+        self.assertEqual("close", headers.get("connection"))
 
-        with socket.create_connection(("127.0.0.1", self.port), timeout=2.0) as sock:
-            request = (
-                f"POST /api/text-stats HTTP/1.1\r\n"
-                f"Host: 127.0.0.1:{self.port}\r\n"
-                f"Origin: {origin}\r\n"
-                "Content-Type: application/json\r\n"
-                "Transfer-Encoding: chunked\r\n"
-                "Connection: keep-alive\r\n\r\n"
-                "10001\r\n"
-            ).encode("ascii")
-            sock.sendall(request)
-            response = sock.recv(4096)
+        request = (
+            f"POST /api/text-stats HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{self.port}\r\n"
+            f"Origin: {origin}\r\n"
+            "Content-Type: application/json\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Connection: keep-alive\r\n\r\n"
+            "10001\r\n"
+        ).encode("ascii")
+        response = raw_request(self.port, request)
         self.assertIn(b" 413 ", response)
         self.assertIn(b"Connection: close", response)
+
+        negative_chunk = (
+            f"POST /api/text-stats HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{self.port}\r\n"
+            f"Origin: {origin}\r\n"
+            "Content-Type: application/json\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Connection: close\r\n\r\n"
+            "-1\r\n"
+        ).encode("ascii")
+        response = raw_request(self.port, negative_chunk)
+        self.assertIn(b" 400 ", response)
 
     def test_health_command_and_pid_record(self) -> None:
         result = command(["--health"], cwd=ROOT, env=self.env)

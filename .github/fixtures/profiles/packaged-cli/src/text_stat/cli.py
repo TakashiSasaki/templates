@@ -87,13 +87,18 @@ def run(
     output = "human"
     operands: list[str] = []
     index = 0
+    options_enabled = True
     while index < len(argv):
         token = argv[index]
-        if token == "--version":
+        if options_enabled and token == "--":
+            options_enabled = False
+            index += 1
+            continue
+        if options_enabled and token == "--version":
             return _write(stdout, stderr, VERSION + "\n")
-        if token in {"-h", "--help"}:
+        if options_enabled and token in {"-h", "--help"}:
             return _write(stdout, stderr, _help_text())
-        if token == "--output":
+        if options_enabled and token == "--output":
             if index + 1 >= len(argv):
                 return _error(stderr, "missing argument: --output", 2)
             output = argv[index + 1]
@@ -101,13 +106,13 @@ def run(
                 return _error(stderr, f"invalid argument: --output {output}", 2)
             index += 2
             continue
-        if token.startswith("--output="):
+        if options_enabled and token.startswith("--output="):
             output = token.split("=", 1)[1]
             if output not in {"human", "json"}:
                 return _error(stderr, f"invalid argument: --output={output}", 2)
             index += 1
             continue
-        if token.startswith("-") and token != "-":
+        if options_enabled and token.startswith("-") and token != "-":
             return _error(stderr, f"invalid option: {token}", 2)
         operands.append(token)
         index += 1
