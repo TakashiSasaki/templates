@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+VERSION = "1.0.0"
 CONTRACT_VERSION = "1"
 ASCII_NON_WHITESPACE = re.compile(r"[^ \t\r\n\f\v]+")
 
