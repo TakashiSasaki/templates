@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -23,17 +24,33 @@ def analyze(raw: bytes, text: str) -> dict[str, int]:
     }
 
 
+def _quarantine_failed_stream(stream: TextIO) -> None:
+    try:
+        descriptor = stream.fileno()
+    except (AttributeError, OSError, ValueError):
+        return
+    try:
+        null_descriptor = os.open(os.devnull, os.O_WRONLY)
+        try:
+            os.dup2(null_descriptor, descriptor)
+        finally:
+            os.close(null_descriptor)
+    except OSError:
+        pass
+
+
 def _write(stdout: TextIO, stderr: TextIO, text: str) -> int:
     try:
         stdout.write(text)
         stdout.flush()
         return 0
     except (OSError, ValueError) as exc:
+        _quarantine_failed_stream(stdout)
         try:
             stderr.write(f"unable to write output: {exc}\n")
             stderr.flush()
         except (OSError, ValueError):
-            pass
+            _quarantine_failed_stream(stderr)
         return 5
 
 
@@ -43,6 +60,7 @@ def _error(stderr: TextIO, message: str, status: int) -> int:
         stderr.flush()
         return status
     except (OSError, ValueError):
+        _quarantine_failed_stream(stderr)
         return 5
 
 
@@ -80,21 +98,13 @@ def run(
                 return _error(stderr, "missing argument: --output", 2)
             output = argv[index + 1]
             if output not in {"human", "json"}:
-                return _error(
-                    stderr,
-                    f"invalid argument: --output {output}",
-                    2,
-                )
+                return _error(stderr, f"invalid argument: --output {output}", 2)
             index += 2
             continue
         if token.startswith("--output="):
             output = token.split("=", 1)[1]
             if output not in {"human", "json"}:
-                return _error(
-                    stderr,
-                    f"invalid argument: --output={output}",
-                    2,
-                )
+                return _error(stderr, f"invalid argument: --output={output}", 2)
             index += 1
             continue
         if token.startswith("-") and token != "-":
@@ -106,10 +116,7 @@ def run(
         return _error(stderr, "exactly one INPUT path or - is required", 2)
 
     try:
-        if operands[0] == "-":
-            raw = stdin.read()
-        else:
-            raw = Path(operands[0]).read_bytes()
+        raw = stdin.read() if operands[0] == "-" else Path(operands[0]).read_bytes()
     except (OSError, ValueError) as exc:
         return _error(stderr, f"unable to read input: {exc}", 3)
 
@@ -121,11 +128,7 @@ def run(
     result = analyze(raw, text)
     if output == "json":
         payload = json.dumps(
-            {
-                "contractVersion": CONTRACT_VERSION,
-                "ok": True,
-                "result": result,
-            },
+            {"contractVersion": CONTRACT_VERSION, "ok": True, "result": result},
             ensure_ascii=False,
             separators=(",", ":"),
         )
