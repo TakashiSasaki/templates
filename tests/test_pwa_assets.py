@@ -131,6 +131,9 @@ class PwaAssetTests(unittest.TestCase):
         self.assertNotIn('caches.match("/")', worker)
         for event in ("install", "activate", "fetch"):
             self.assertIn(f'self.addEventListener("{event}"', worker)
+        self.assertIn('key.startsWith("templates-portal-shell-")', worker)
+        self.assertIn("caches.delete(key)", worker)
+        self.assertIn("self.clients.claim()", worker)
         self.assertIn('event.request.mode === "navigate"', worker)
         self.assertIn(
             "fetch(event.request).catch(() => offlineResponse())",
