@@ -119,16 +119,25 @@ class PwaAssetTests(unittest.TestCase):
                         Path("index.html"),
                     )
 
-    def test_service_worker_limits_cache_to_the_root_shell(self) -> None:
+    def test_service_worker_keeps_documents_out_of_static_cache(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
-        self.assertIn('const APP_SHELL = ["/", "/app.webmanifest", "/icon.svg"]', worker)
+        self.assertIn('const CACHE_NAME = "templates-portal-shell-v2"', worker)
+        self.assertIn(
+            'const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"]',
+            worker,
+        )
+        self.assertNotIn("const APP_SHELL", worker)
+        self.assertNotIn('caches.match("/")', worker)
         for event in ("install", "activate", "fetch"):
             self.assertIn(f'self.addEventListener("{event}"', worker)
         self.assertIn('event.request.mode === "navigate"', worker)
-        self.assertIn('caches.match("/")', worker)
+        self.assertIn(
+            "fetch(event.request).catch(() => offlineResponse())",
+            worker,
+        )
+        self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
         self.assertIn("function offlineResponse()", worker)
-        self.assertIn("return cached || offlineResponse();", worker)
         self.assertIn("status: 503", worker)
 
 
