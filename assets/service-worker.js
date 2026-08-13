@@ -50,6 +50,7 @@ self.addEventListener("fetch", (event) => {
         .open(CACHE_NAME)
         .then((cache) => cache.match(event.request, { ignoreSearch: true }))
         .then((cached) => cached || fetch(event.request))
+        .catch(() => offlineResponse())
     );
   }
 });
