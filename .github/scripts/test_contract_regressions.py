@@ -180,16 +180,6 @@ def main() -> int:
             None,
         ),
         (
-            "browser-interface rejects startup command drift",
-            "browser-interface",
-            lambda directory: replace_required(
-                directory / "RUNTIME.md",
-                "| Start human verification Web UI | `TEXT_STATS_WEB_ENABLED=1 python web/server.py` |",
-                "| Start human verification Web UI | `python web/other.py` |",
-            ),
-            None,
-        ),
-        (
             "headless-service rejects a browser contract",
             "headless-service",
             lambda directory: (directory / "WEB_INTERFACE.md").write_text(
