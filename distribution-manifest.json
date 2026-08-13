@@ -85,7 +85,6 @@
     ".agent-policy.yml",
     ".github/REVIEW_GUIDELINES.md",
     ".github/fixtures",
-    ".github/scripts/test-skill-distribution.rb",
     ".github/workflows/check-agent-policy.yml",
     ".github/workflows/pages.yml",
     ".github/workflows/validate-extended-profile-contracts.yml",
