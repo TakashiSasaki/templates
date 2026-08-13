@@ -146,6 +146,7 @@ class PwaAssetTests(unittest.TestCase):
             "cache.match(event.request, { ignoreSearch: true })",
             worker,
         )
+        self.assertIn(".catch(() => offlineResponse())", worker)
 
     def test_service_worker_activation_cache_cleanup_filter(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
