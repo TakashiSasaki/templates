@@ -15,12 +15,12 @@ Use this skill when a local human operator needs to verify the text-statistics b
 
 ## Workflow
 
-1. From the skill root, install dependencies with `bundle install`.
-2. Start the interface with `TEXT_STATS_WEB_ENABLED=1 bundle exec ruby web/server.rb`.
+1. Confirm CPython 3.12 or newer is available; no dependency installation is required.
+2. Start the interface with `TEXT_STATS_WEB_ENABLED=1 python web/server.py`.
 3. Open `http://127.0.0.1:4567/` from the same host.
 4. Submit text through the page and inspect the normalized byte, line, and word counts.
-5. Check readiness with `bundle exec ruby web/server.rb --health` when operational verification is needed.
-6. Stop the process with `bundle exec ruby web/server.rb --stop`.
+5. Check readiness with `python web/server.py --health` when operational verification is needed.
+6. Stop the process with `python web/server.py --stop`.
 
 ## Public Web interface
 
@@ -36,7 +36,7 @@ Display only the computed `bytes`, `lines`, and `words` integers. The API respon
 
 ## Validation
 
-Run `bundle exec ruby tests/test_web_server.rb` and the repository validator. Confirm disabled-by-default behavior, loopback-only binding, same-origin request enforcement, deterministic API results, redaction, health isolation, startup, readiness, and bounded shutdown.
+Run `python tests/test_web_server.py` and the repository validator. Confirm disabled-by-default behavior, loopback-only binding, same-origin request enforcement, deterministic API results, redaction, Content-Length and chunked body limits, health isolation, PID identity checks, startup, readiness, and bounded shutdown.
 
 ## Safety and approval
 
