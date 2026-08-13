@@ -140,6 +140,14 @@ class BrowserHandler(BaseHTTPRequestHandler):
     def do_DELETE(self) -> None:  # noqa: N802
         self._service("DELETE")
 
+    def __getattr__(self, name: str):
+        # BaseHTTPRequestHandler dispatches through do_<METHOD>. Route every
+        # extension method through the same Host/security/405 machinery rather
+        # than falling back to its unhardened 501 response.
+        if name.startswith("do_"):
+            return lambda: self._service(self.command)
+        raise AttributeError(name)
+
     def _service(self, method: str) -> None:
         status = 500
         try:
@@ -152,8 +160,12 @@ class BrowserHandler(BaseHTTPRequestHandler):
                 status = 200
                 self._respond_json(status, {"ok": True, "interface": "web"})
             elif method == "POST" and self.path == "/api/text-stats":
+                # Bound and consume the declared request framing before Origin
+                # rejection so a keep-alive connection cannot retain an
+                # oversized unread body after a 403 response.
+                raw = self._read_bounded_body()
                 self._authorize_origin(request_origin)
-                status, payload = self._handle_stats()
+                status, payload = self._handle_stats(raw)
                 self._respond_json(status, payload)
             elif self.path in KNOWN_PATHS:
                 status = 405
@@ -211,12 +223,11 @@ class BrowserHandler(BaseHTTPRequestHandler):
         if origin != request_origin:
             raise RequestError(403, "same-origin browser request required")
 
-    def _handle_stats(self) -> tuple[int, dict[str, object]]:
+    def _handle_stats(self, raw: bytes) -> tuple[int, dict[str, object]]:
         media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if media_type != "application/json":
             raise RequestError(415, "application/json is required")
 
-        raw = self._read_bounded_body()
         try:
             text = raw.decode("utf-8", "strict")
         except UnicodeDecodeError as exc:
@@ -273,6 +284,8 @@ class BrowserHandler(BaseHTTPRequestHandler):
                 size = int(token, 16)
             except ValueError as exc:
                 raise RequestError(400, "invalid chunked request body") from exc
+            if size < 0:
+                raise RequestError(400, "invalid chunked request body")
             if size == 0:
                 while True:
                     trailer = self.rfile.readline(4097)
@@ -336,7 +349,7 @@ def _parse_authority(value: str) -> tuple[str, int] | None:
             or parsed.username is not None
             or parsed.password is not None
             or parsed.hostname is None
-            or parsed.path not in {"", "/"}
+            or parsed.path != ""
             or parsed.query
             or parsed.fragment
         ):
@@ -356,7 +369,7 @@ def _parse_origin(value: str) -> tuple[str, int] | None:
             or parsed.username is not None
             or parsed.password is not None
             or parsed.hostname is None
-            or parsed.path not in {"", "/"}
+            or parsed.path != ""
             or parsed.query
             or parsed.fragment
         ):
