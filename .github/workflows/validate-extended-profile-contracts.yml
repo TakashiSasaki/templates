@@ -46,19 +46,19 @@ jobs:
 
       - name: Test minimal profile repository layouts
         shell: bash
-        run: ruby .github/scripts/test-minimal-profile-layouts.rb
+        run: python .github/scripts/test_minimal_profile_layouts.py
 
       - name: Test clean-room template adoption and installation
         shell: bash
-        run: ruby .github/scripts/test-copyable-template-consumption.rb
+        run: python .github/scripts/test_copyable_template_consumption.py
 
       - name: Test parent-owned vendoring
         shell: bash
-        run: ruby .github/scripts/test-parent-owned-vendoring.rb
+        run: python .github/scripts/test_parent_owned_vendoring.py
 
       - name: Test script-assisted optional-runtime profile fixture
         shell: bash
-        run: ruby .github/scripts/test-script-assisted-runtime-profile.rb
+        run: python .github/scripts/test_script_assisted_runtime_profile.py
 
       - name: Test packaged CLI profile fixture
         shell: bash

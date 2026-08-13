@@ -1,23 +1,23 @@
 ---
 name: line-normalization-runtime-helper
-description: Normalize supplied UTF-8 text deterministically with a private Ruby helper whose runtime and exact commands are maintained in RUNTIME.md.
+description: Normalize supplied UTF-8 text deterministically with a private Python helper whose runtime and exact commands are maintained in RUNTIME.md.
 ---
 
 # Line normalization helper with runtime authority
 
 ## Purpose
 
-Normalize line endings and remove trailing horizontal whitespace from a supplied UTF-8 text file using one private Ruby helper with an explicit runtime record.
+Normalize line endings and remove trailing horizontal whitespace from a supplied UTF-8 text file using one private Python helper with an explicit runtime record.
 
 ## Use this skill when
 
-Use this skill when deterministic text normalization is required and maintainers need the supported Ruby version and exact helper commands recorded separately from the operational workflow.
+Use this skill when deterministic text normalization is required and maintainers need the supported Python version and exact helper commands recorded separately from the operational workflow.
 
 ## Helper scripts
 
-Script: scripts/normalize.rb
+Script: scripts/normalize.py
 Run when: the input file must be normalized before comparison or delivery
-Exact invocation: ruby scripts/normalize.rb INPUT OUTPUT
+Exact invocation: python scripts/normalize.py INPUT OUTPUT
 Working directory: skill root
 Inputs and arguments: INPUT is a readable UTF-8 text file and OUTPUT is a distinct destination path that must not resolve to the same file as INPUT
 Stdout/result: prints the normalized output path after a successful write
@@ -32,12 +32,12 @@ Idempotency and retry behavior: repeated execution with the same input produces 
 
 ## Runtime authority
 
-Runtime identity, portability, and exact shared commands are authoritative in `RUNTIME.md`. The helper and its executable test use only the Ruby standard library, and the helper is not a packaged public CLI.
+Runtime identity, portability, and exact shared commands are authoritative in `RUNTIME.md`. The helper and its executable test use only the Python standard library, and the helper is not a packaged public CLI.
 
 ## Workflow
 
 1. Confirm that the input and output paths are distinct and do not resolve to the same file.
-2. From the skill root, run `ruby scripts/normalize.rb INPUT OUTPUT`.
+2. From the skill root, run `python scripts/normalize.py INPUT OUTPUT`.
 3. Stop on a nonzero exit status and report the stderr diagnostic.
 4. Validate the generated output before comparison or delivery.
 
@@ -47,7 +47,7 @@ Return the output path and whether normalization changed the text. The output mu
 
 ## Validation
 
-From the skill root, run `ruby -c scripts/normalize.rb` and `ruby tests/test_normalize.rb`. The executable test confirms deterministic LF output, input immutability, same-file rejection, and bounded invalid-UTF-8 failure.
+From the skill root, run `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` and `python tests/test_normalize.py`. The syntax check is intentionally non-writing so validation does not create undeclared `__pycache__` resources. The executable test confirms deterministic LF output, input immutability, same-file and hard-link alias rejection, and bounded invalid-UTF-8 failure.
 
 ## Safety and approval
 

@@ -8,14 +8,14 @@ Selection status: SELECTED
 
 | Item | Selected value |
 |---|---|
-| Language | Ruby |
-| Runtime | CRuby |
-| Minimum runtime version | 3.1 |
-| Dependency/package manager | NONE; the helper and tests use only the Ruby standard library |
+| Language | Python |
+| Runtime | CPython |
+| Minimum runtime version | 3.12 |
+| Dependency/package manager | NONE; the helper and tests use only the Python standard library |
 | Project manifest | NONE |
 | Lockfile policy | NONE |
-| Source layout | `scripts/normalize.rb` and `tests/test_normalize.rb` |
-| Supported operating systems | Linux, macOS, and Windows environments with CRuby 3.1 or newer |
+| Source layout | `scripts/normalize.py` and `tests/test_normalize.py` |
+| Supported operating systems | Linux, macOS, and Windows environments with CPython 3.12 or newer |
 
 ## Commands
 
@@ -25,19 +25,19 @@ Run every command from the skill root.
 
 | Purpose | Exact command |
 |---|---|
-| Install development dependencies | NONE; verify the existing runtime with `ruby --version` |
-| Run in place | `ruby scripts/normalize.rb INPUT OUTPUT` |
-| Agent launcher | `ruby scripts/normalize.rb INPUT OUTPUT` |
-| Test | `ruby tests/test_normalize.rb` |
-| Lint/static analysis | `ruby -c scripts/normalize.rb` |
-| Format check | `ruby -c scripts/normalize.rb` |
+| Install development dependencies | NONE; verify the existing runtime with `python --version` |
+| Run in place | `python scripts/normalize.py INPUT OUTPUT` |
+| Agent launcher | `python scripts/normalize.py INPUT OUTPUT` |
+| Test | `python tests/test_normalize.py` |
+| Lint/static analysis | `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` |
+| Format check | `python -c "from pathlib import Path; compile(Path('scripts/normalize.py').read_text(encoding='utf-8'), 'scripts/normalize.py', 'exec')"` |
 | Build/package | NOT APPLICABLE |
 
 ## Distribution
 
 | Item | Selected value |
 |---|---|
-| Skill distribution | Git clone or release archive containing `SKILL.md`, `RUNTIME.md`, `scripts/normalize.rb`, and `tests/test_normalize.rb` |
+| Skill distribution | Git clone or release archive containing `SKILL.md`, `RUNTIME.md`, `scripts/normalize.py`, and `tests/test_normalize.py` |
 | CLI distribution | NOT APPLICABLE |
 | MCP distribution | not supported |
 | Human Web interface distribution | not supported |
@@ -52,4 +52,4 @@ Run every command from the skill root.
 
 ## Decision rationale
 
-CRuby 3.1 or newer is selected because the helper and its executable validation use only standard-library file, encoding, process, and temporary-directory APIs. A separate runtime record is retained to make the supported interpreter, exact invocation, reproducible test command, distribution boundary, and absence of dependencies explicit without promoting the helper to a packaged public CLI or adding unused manifests and lockfiles.
+CPython 3.12 or newer is selected because the helper and its executable validation use only standard-library file, encoding, process, and temporary-directory APIs. A separate runtime record is retained to make the supported interpreter, exact invocation, reproducible test command, distribution boundary, and absence of dependencies explicit without promoting the helper to a packaged public CLI or adding unused manifests and lockfiles.
