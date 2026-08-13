@@ -62,7 +62,7 @@ jobs:
 
       - name: Test packaged CLI profile fixture
         shell: bash
-        run: ruby .github/scripts/test-packaged-cli-profile.rb
+        run: python .github/scripts/test_packaged_cli_profile.py
 
       - name: Test decomposed interface contract validation
         shell: bash
