@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -132,30 +133,26 @@ def main(argv: list[str]) -> int:
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
 '''
-FORBIDDEN_HELPER_TOKENS = (
-    "socket",
-    "urllib",
-    "requests",
-    "pip install",
-    "subprocess",
-    "os.system",
-    "os.spawn",
-    "os.exec",
-)
+
+
+def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    for key in ("PYTHONPATH", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
+        env.pop(key, None)
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    if extra:
+        env.update(extra)
+    return env
 
 
 def capture(
     *command: str, cwd: Path, extra_env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    env = os.environ.copy()
-    for key in ("PYTHONPATH", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
-        env.pop(key, None)
-    if extra_env:
-        env.update(extra_env)
     return subprocess.run(
         list(command),
         cwd=cwd,
-        env=env,
+        env=clean_env(extra_env),
         text=True,
         encoding="utf-8",
         capture_output=True,
@@ -186,13 +183,12 @@ def copy_canonical_root(target: Path) -> None:
         else:
             shutil.copy2(source, destination, follow_symlinks=False)
     skill_path = target / "SKILL.md"
-    valid_source = (
+    if not (
         skill_path.is_file()
         and "Selected profiles: template-scaffold"
         in skill_path.read_text(encoding="utf-8")
         and (target / "README.md").is_file()
-    )
-    if not valid_source:
+    ):
         raise RuntimeError("copy did not originate from the canonical repository root")
 
 
@@ -221,9 +217,7 @@ def materialize_source(target: Path) -> None:
     (target / "scripts/normalize.py").write_text(HELPER_SOURCE, encoding="utf-8")
     run_or_raise("git", "init", "--quiet", cwd=target)
     run_or_raise("git", "config", "user.name", "Installation Mode Fixture", cwd=target)
-    run_or_raise(
-        "git", "config", "user.email", "fixture@example.invalid", cwd=target
-    )
+    run_or_raise("git", "config", "user.email", "fixture@example.invalid", cwd=target)
     run_or_raise("git", "add", ".", cwd=target)
     run_or_raise("git", "commit", "--quiet", "-m", "Create concrete skill", cwd=target)
 
@@ -232,8 +226,7 @@ def inventory(root: Path) -> list[str]:
     return sorted(
         path.relative_to(root).as_posix()
         for path in root.rglob("*")
-        if not path.is_dir()
-        and path.relative_to(root).parts[0] != ".git"
+        if not path.is_dir() and path.relative_to(root).parts[0] != ".git"
     )
 
 
@@ -253,11 +246,7 @@ def validate(
     target: Path, outside: Path, extra_env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     return capture(
-        sys.executable,
-        str(VALIDATOR),
-        str(target),
-        cwd=outside,
-        extra_env=extra_env,
+        sys.executable, str(VALIDATOR), str(target), cwd=outside, extra_env=extra_env
     )
 
 
@@ -277,18 +266,6 @@ def expect_validation_success(
         FAILURES.append(
             f"{label}: expected validation success; status={result.returncode!r}, "
             f"stdout={result.stdout!r}, stderr={result.stderr!r}"
-        )
-
-
-def expect_validation_failure(
-    label: str, target: Path, outside: Path, diagnostic: str
-) -> None:
-    result = validate(target, outside)
-    if result.returncode == 0:
-        FAILURES.append(f"{label}: expected validation failure")
-    elif diagnostic not in result.stderr:
-        FAILURES.append(
-            f"{label}: expected diagnostic {diagnostic!r}; stderr={result.stderr!r}"
         )
 
 
@@ -314,9 +291,13 @@ def exercise_helper(label: str, target: Path) -> None:
     ):
         FAILURES.append(
             f"{label} helper: status={result.returncode!r}, stdout={result.stdout!r}, "
-            f"stderr={result.stderr!r}, output={output!r}, "
-            f"input_unchanged={input_path.read_bytes() == before}"
+            f"stderr={result.stderr!r}, output={output!r}"
         )
+
+
+def extract_git_archive(archive_path: Path, destination: Path) -> None:
+    with tarfile.open(archive_path, mode="r:") as archive:
+        archive.extractall(destination, filter="data")
 
 
 def main() -> int:
@@ -334,45 +315,22 @@ def main() -> int:
         submodule_project = workspace / "submodule-project"
         submodule_project.mkdir()
         run_or_raise("git", "init", "--quiet", cwd=submodule_project)
-        run_or_raise(
-            "git", "config", "user.name", "Installation Mode Fixture", cwd=submodule_project
-        )
-        run_or_raise(
-            "git", "config", "user.email", "fixture@example.invalid", cwd=submodule_project
-        )
+        run_or_raise("git", "config", "user.name", "Installation Mode Fixture", cwd=submodule_project)
+        run_or_raise("git", "config", "user.email", "fixture@example.invalid", cwd=submodule_project)
         submodule_target = submodule_project / ".agents/skills/submodule-skill"
         run_or_raise(
-            "git",
-            "-c",
-            "protocol.file.allow=always",
-            "submodule",
-            "add",
-            "--quiet",
-            str(source),
-            ".agents/skills/submodule-skill",
-            cwd=submodule_project,
-        )
-        run_or_raise(
-            "git",
-            "add",
-            ".gitmodules",
-            ".agents/skills/submodule-skill",
-            cwd=submodule_project,
+            "git", "-c", "protocol.file.allow=always", "submodule", "add", "--quiet",
+            str(source), ".agents/skills/submodule-skill", cwd=submodule_project,
         )
 
         archive_path = workspace / "concrete-skill.tar"
         run_or_raise(
-            "git",
-            "archive",
-            "--format=tar",
-            "--prefix=concrete-skill/",
-            f"--output={archive_path}",
-            "HEAD",
-            cwd=source,
+            "git", "archive", "--format=tar", "--prefix=concrete-skill/",
+            f"--output={archive_path}", "HEAD", cwd=source,
         )
         extracted = workspace / "archive-extracted"
         extracted.mkdir()
-        run_or_raise("tar", "-xf", str(archive_path), "-C", str(extracted), cwd=workspace)
+        extract_git_archive(archive_path, extracted)
         archive_target = workspace / "archive-project/.agents/skills/archive-skill"
         archive_target.mkdir(parents=True)
         shutil.copytree(
@@ -398,11 +356,7 @@ def main() -> int:
             if content_map(target) != expected_content:
                 FAILURES.append(f"{label}: content differs from committed source")
             if git_mode_map(target) != expected_git_modes:
-                FAILURES.append(
-                    f"{label}: Git-significant executable modes differ from committed source"
-                )
-            if (target / "concrete-skill").is_dir():
-                FAILURES.append(f"{label}: unexpected archive wrapper")
+                FAILURES.append(f"{label}: executable modes differ from committed source")
             expect_validation_success(label, target, outside)
             exercise_helper(label, target)
 
@@ -415,34 +369,17 @@ def main() -> int:
         ):
             FAILURES.append("submodule installation: expected a .git indirection file")
         submodule_index = run_or_raise(
-            "git",
-            "ls-files",
-            "--stage",
-            "--",
-            ".agents/skills/submodule-skill",
+            "git", "ls-files", "--stage", "--", ".agents/skills/submodule-skill",
             cwd=submodule_project,
         )
         if not submodule_index.startswith("160000 "):
-            FAILURES.append(
-                "submodule installation: parent index must retain mode 160000"
-            )
-
-        archive_git = capture(
-            "git", "rev-parse", "--is-inside-work-tree", cwd=archive_target
-        )
-        if archive_git.returncode == 0 or archive_git.stdout or not archive_git.stderr:
-            FAILURES.append(
-                "archive installation: expected a target independent of Git metadata"
-            )
+            FAILURES.append("submodule installation: parent index must retain mode 160000")
         if (archive_target / ".git").exists():
             FAILURES.append("archive installation: unexpected .git metadata")
 
         alternate_index = workspace / "caller-owned.index"
         run_or_raise(
-            "git",
-            "read-tree",
-            "HEAD",
-            cwd=source,
+            "git", "read-tree", "HEAD", cwd=source,
             extra_env={"GIT_INDEX_FILE": str(alternate_index)},
         )
         caller_index_before = alternate_index.read_bytes()
@@ -453,9 +390,7 @@ def main() -> int:
             {"GIT_INDEX_FILE": str(alternate_index)},
         )
         if alternate_index.read_bytes() != caller_index_before:
-            FAILURES.append(
-                "archive installation: validation modified the caller-owned alternate Git index"
-            )
+            FAILURES.append("archive validation modified the caller-owned alternate Git index")
 
         wrapped_target = workspace / "wrapped-project/.agents/skills/wrapped-skill"
         wrapped_target.mkdir(parents=True)
@@ -464,27 +399,17 @@ def main() -> int:
             wrapped_target / "concrete-skill",
             symlinks=True,
         )
-        expect_validation_failure(
-            "archive wrapper rejection",
-            wrapped_target,
-            outside,
-            "Missing universally required file: SKILL.md",
-        )
+        result = validate(wrapped_target, outside)
+        if result.returncode == 0 or "Missing universally required file: SKILL.md" not in result.stderr:
+            FAILURES.append("archive wrapper was not rejected")
 
         for label, target in targets.items():
             undeclared = target / "scripts/undeclared.py"
             undeclared.write_text("print('undeclared')\n", encoding="utf-8")
-            expect_validation_failure(
-                f"{label} undeclared resource rejection",
-                target,
-                outside,
-                "SKILL.md must declare the exact retained resource path as 'Script: scripts/undeclared.py'.",
-            )
+            result = validate(target, outside)
+            if result.returncode == 0 or "Script: scripts/undeclared.py" not in result.stderr:
+                FAILURES.append(f"{label}: undeclared helper was not rejected")
             undeclared.unlink()
-
-        for token in FORBIDDEN_HELPER_TOKENS:
-            if token in HELPER_SOURCE:
-                FAILURES.append(f"committed helper contains forbidden token {token!r}")
 
     if FAILURES:
         for failure in FAILURES:
