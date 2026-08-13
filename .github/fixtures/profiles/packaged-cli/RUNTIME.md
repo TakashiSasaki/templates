@@ -27,7 +27,7 @@ Run commands from the fixture root.
 |---|---|
 | Install development dependencies | `python -m pip install --disable-pip-version-check --no-input --requirement requirements-build.lock` |
 | Run in place | `python bin/text-stat INPUT` |
-| Agent launcher | `python bin/text-stat INPUT` |
+| Agent launcher | `python bin/text-stat` |
 | Test | `python tests/test_text_stat.py` |
 | Lint/static analysis | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
 | Format check | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
