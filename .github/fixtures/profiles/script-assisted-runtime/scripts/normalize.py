@@ -17,9 +17,16 @@ def main(argv: list[str]) -> int:
     input_text, output_text = argv
     input_path = Path(input_text)
     output_path = Path(output_text)
+    temporary: Path | None = None
 
     try:
-        if output_path.exists() and os.path.samefile(input_path, output_path):
+        same_path = os.path.abspath(input_path) == os.path.abspath(output_path)
+        same_file = (
+            input_path.exists()
+            and output_path.exists()
+            and os.path.samefile(input_path, output_path)
+        )
+        if same_path or same_file:
             print("input and output must refer to different files", file=sys.stderr)
             return 2
 
@@ -33,12 +40,21 @@ def main(argv: list[str]) -> int:
         normalized = text.replace("\r\n", "\n").replace("\r", "\n")
         normalized = re.sub(r"[\t ]+(?=\n|$)", "", normalized)
         normalized = normalized.rstrip("\n") + "\n"
-        output_path.write_bytes(normalized.encode("utf-8"))
+        temporary = Path(f"{output_text}.tmp-{os.getpid()}")
+        temporary.write_bytes(normalized.encode("utf-8"))
+        os.replace(temporary, output_path)
+        temporary = None
         print(output_text)
         return 0
     except OSError as exc:
         print(str(exc), file=sys.stderr)
         return 1
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
 
 if __name__ == "__main__":
