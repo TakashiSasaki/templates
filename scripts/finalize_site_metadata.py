@@ -24,8 +24,9 @@ PAGE_PATH_PATTERN = re.compile(
     r'<code>(?P<path>[^<]+)</code></p>'
 )
 IMMUTABLE_GITHUB_SOURCE_PATTERN = re.compile(
-    r'<a href="(?P<href>[^"]+)" target="_blank" rel="noopener">'
-    r'immutable GitHub source</a>'
+    r'<a\b[^>]*\bhref="(?P<href>[^"]+)"[^>]*>\s*'
+    r'immutable GitHub source\s*</a>',
+    re.IGNORECASE,
 )
 CSP_META_PATTERN = re.compile(
     r'(?P<prefix><meta http-equiv="Content-Security-Policy" content=")'
@@ -112,12 +113,19 @@ def validate_github_source_url(value: str, path: Path) -> str:
         parsed.port
     except ValueError as exc:
         raise SiteMetadataError(f"{path}: invalid immutable GitHub source URL") from exc
+    parts = parsed.path.split("/")
     if (
         parsed.scheme != "https"
         or parsed.netloc != "github.com"
-        or not parsed.path.startswith("/")
         or parsed.query
         or parsed.fragment
+        or len(parts) < 6
+        or parts[0] != ""
+        or not parts[1]
+        or not parts[2]
+        or parts[3] != "blob"
+        or re.fullmatch(r"[0-9a-f]{40}", parts[4]) is None
+        or any(not part for part in parts[5:])
     ):
         raise SiteMetadataError(f"{path}: invalid immutable GitHub source URL")
     return value
@@ -265,7 +273,8 @@ def allow_guided_copy_script(source: str, path: Path) -> str:
     if not script_directives:
         directives.append("script-src 'self'")
     updated_policy = "; ".join(directives)
-    replacement = match.group("prefix") + updated_policy + match.group("suffix")
+    escaped_policy = html.escape(updated_policy, quote=True)
+    replacement = match.group("prefix") + escaped_policy + match.group("suffix")
     return source[: match.start()] + replacement + source[match.end() :]
 
 
