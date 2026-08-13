@@ -98,9 +98,16 @@ class ConfigurationError(RuntimeError):
 
 
 class RequestError(RuntimeError):
-    def __init__(self, status: int, message: str) -> None:
+    def __init__(
+        self,
+        status: int,
+        message: str,
+        *,
+        close_connection: bool = False,
+    ) -> None:
         super().__init__(message)
         self.status = status
+        self.close_connection = close_connection
 
 
 class BrowserHTTPServer(ThreadingHTTPServer):
@@ -175,8 +182,9 @@ class BrowserHandler(BaseHTTPRequestHandler):
                 self._respond_json(status, {"ok": False, "error": "not found"})
         except RequestError as exc:
             status = exc.status
-            extra_headers = {"Connection": "close"} if status == 413 else None
-            if status == 413:
+            should_close = exc.close_connection or status == 413
+            extra_headers = {"Connection": "close"} if should_close else None
+            if should_close:
                 self.close_connection = True
             self._respond_json(
                 status,
@@ -243,7 +251,9 @@ class BrowserHandler(BaseHTTPRequestHandler):
         try:
             submitted_text.encode("utf-8", "strict")
         except UnicodeEncodeError as exc:
-            raise RequestError(400, "request text contains an invalid Unicode scalar value") from exc
+            raise RequestError(
+                400, "request text contains an invalid Unicode scalar value"
+            ) from exc
         return (
             200,
             {
@@ -254,23 +264,62 @@ class BrowserHandler(BaseHTTPRequestHandler):
         )
 
     def _read_bounded_body(self) -> bytes:
-        transfer_encoding = self.headers.get("Transfer-Encoding", "").strip().lower()
-        if transfer_encoding:
-            if transfer_encoding != "chunked":
-                raise RequestError(400, "unsupported transfer encoding")
+        transfer_values = self.headers.get_all("Transfer-Encoding") or []
+        content_lengths = self.headers.get_all("Content-Length") or []
+
+        if transfer_values and content_lengths:
+            raise RequestError(
+                400,
+                "ambiguous request framing",
+                close_connection=True,
+            )
+
+        if transfer_values:
+            if (
+                len(transfer_values) != 1
+                or transfer_values[0].strip().lower() != "chunked"
+            ):
+                raise RequestError(
+                    400,
+                    "unsupported transfer encoding",
+                    close_connection=True,
+                )
             return self._read_chunked_body()
 
-        content_length = self.headers.get("Content-Length")
-        if content_length is None:
-            return b""
+        if not content_lengths:
+            raise RequestError(
+                411,
+                "Content-Length or chunked Transfer-Encoding is required",
+                close_connection=True,
+            )
+        if len(content_lengths) != 1:
+            raise RequestError(
+                400,
+                "ambiguous Content-Length",
+                close_connection=True,
+            )
+
+        content_length = content_lengths[0].strip()
         if not content_length.isascii() or not content_length.isdigit():
-            raise RequestError(400, "invalid Content-Length")
+            raise RequestError(
+                400,
+                "invalid Content-Length",
+                close_connection=True,
+            )
         length = int(content_length, 10)
         if length > MAX_BODY_BYTES:
-            raise RequestError(413, "request body exceeds 65536 bytes")
+            raise RequestError(
+                413,
+                "request body exceeds 65536 bytes",
+                close_connection=True,
+            )
         body = self.rfile.read(length)
         if len(body) != length:
-            raise RequestError(400, "incomplete request body")
+            raise RequestError(
+                400,
+                "incomplete request body",
+                close_connection=True,
+            )
         return body
 
     def _read_chunked_body(self) -> bytes:
@@ -278,28 +327,56 @@ class BrowserHandler(BaseHTTPRequestHandler):
         while True:
             line = self.rfile.readline(4097)
             if not line or len(line) > 4096 or not line.endswith(b"\n"):
-                raise RequestError(400, "invalid chunked request body")
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                )
             token = line.strip().split(b";", 1)[0]
             try:
                 size = int(token, 16)
             except ValueError as exc:
-                raise RequestError(400, "invalid chunked request body") from exc
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                ) from exc
             if size < 0:
-                raise RequestError(400, "invalid chunked request body")
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                )
             if size == 0:
                 while True:
                     trailer = self.rfile.readline(4097)
                     if not trailer or len(trailer) > 4096:
-                        raise RequestError(400, "invalid chunked request body")
+                        raise RequestError(
+                            400,
+                            "invalid chunked request body",
+                            close_connection=True,
+                        )
                     if trailer in {b"\r\n", b"\n"}:
                         return bytes(body)
             if len(body) + size > MAX_BODY_BYTES:
-                raise RequestError(413, "request body exceeds 65536 bytes")
+                raise RequestError(
+                    413,
+                    "request body exceeds 65536 bytes",
+                    close_connection=True,
+                )
             chunk = self.rfile.read(size)
             if len(chunk) != size:
-                raise RequestError(400, "incomplete chunked request body")
+                raise RequestError(
+                    400,
+                    "incomplete chunked request body",
+                    close_connection=True,
+                )
             if self.rfile.read(2) != b"\r\n":
-                raise RequestError(400, "invalid chunked request body")
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                )
             body.extend(chunk)
 
     def _respond_json(
