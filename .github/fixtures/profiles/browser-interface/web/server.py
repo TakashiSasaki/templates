@@ -141,35 +141,30 @@ class BrowserHandler(BaseHTTPRequestHandler):
         self._service("DELETE")
 
     def __getattr__(self, name: str):
-        # BaseHTTPRequestHandler dispatches through do_<METHOD>. Route every
-        # extension method through the same Host/security/405 machinery rather
-        # than falling back to its unhardened 501 response.
         if name.startswith("do_"):
             return lambda: self._service(self.command)
         raise AttributeError(name)
 
     def _service(self, method: str) -> None:
         status = 500
+        request_path = urlsplit(self.path).path
         try:
             request_origin = self._authorize_host()
-            if method == "GET" and self.path in STATIC_RESPONSES:
-                body, content_type = STATIC_RESPONSES[self.path]
+            if method == "GET" and request_path in STATIC_RESPONSES:
+                body, content_type = STATIC_RESPONSES[request_path]
                 status = 200
                 self._respond(status, content_type, body)
-            elif method == "GET" and self.path == "/healthz":
+            elif method == "GET" and request_path == "/healthz":
                 status = 200
                 self._respond_json(status, {"ok": True, "interface": "web"})
-            elif method == "POST" and self.path == "/api/text-stats":
-                # Bound and consume the declared request framing before Origin
-                # rejection so a keep-alive connection cannot retain an
-                # oversized unread body after a 403 response.
+            elif method == "POST" and request_path == "/api/text-stats":
                 raw = self._read_bounded_body()
                 self._authorize_origin(request_origin)
                 status, payload = self._handle_stats(raw)
                 self._respond_json(status, payload)
-            elif self.path in KNOWN_PATHS:
+            elif request_path in KNOWN_PATHS:
                 status = 405
-                allow = "POST" if self.path == "/api/text-stats" else "GET"
+                allow = "POST" if request_path == "/api/text-stats" else "GET"
                 self._respond_json(
                     status,
                     {"ok": False, "error": "method not allowed"},
@@ -205,7 +200,7 @@ class BrowserHandler(BaseHTTPRequestHandler):
                 self.close_connection = True
         finally:
             print(
-                f"web request {method} {self.path} -> {status}",
+                f"web request {method} {request_path} -> {status}",
                 file=self.diagnostic,
                 flush=True,
             )
@@ -244,12 +239,17 @@ class BrowserHandler(BaseHTTPRequestHandler):
             raise RequestError(
                 422, "request must contain only one string field named text"
             )
+        submitted_text = payload["text"]
+        try:
+            submitted_text.encode("utf-8", "strict")
+        except UnicodeEncodeError as exc:
+            raise RequestError(400, "request text contains an invalid Unicode scalar value") from exc
         return (
             200,
             {
                 "contractVersion": CONTRACT_VERSION,
                 "ok": True,
-                "result": analyze(payload["text"]),
+                "result": analyze(submitted_text),
             },
         )
 

@@ -6,11 +6,14 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import queue
+import re
 import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -23,6 +26,7 @@ SECURITY_HEADERS = {
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
 }
+READY_PATTERN = re.compile(r"text-stats web ready http://127\.0\.0\.1:(\d+)/\s*$")
 
 
 def free_port() -> int:
@@ -116,10 +120,35 @@ def wait_ready(port: int, process: subprocess.Popen, deadline: float = 4.0) -> N
     raise AssertionError(f"server did not become ready: {last_error}")
 
 
+def discover_ready_port(process: subprocess.Popen, deadline: float = 4.0) -> int:
+    if process.stderr is None:
+        raise AssertionError("server stderr pipe is unavailable")
+    result: queue.Queue[str] = queue.Queue(maxsize=1)
+
+    def read_line() -> None:
+        result.put(process.stderr.readline())
+
+    reader = threading.Thread(target=read_line, daemon=True)
+    reader.start()
+    try:
+        line = result.get(timeout=deadline)
+    except queue.Empty as exc:
+        raise AssertionError("server did not publish its kernel-selected port") from exc
+    match = READY_PATTERN.fullmatch(line)
+    if match is None:
+        remaining = process.stderr.read() if process.poll() is not None else ""
+        raise AssertionError(
+            f"server exited or emitted unexpected readiness diagnostics: {line!r}{remaining!r}"
+        )
+    return int(match.group(1), 10)
+
+
 def start_server(root: Path) -> tuple[subprocess.Popen, int, Path, dict[str, str]]:
-    port = free_port()
     pid_file = root / "web.pid"
-    env = base_env(port=port, pid_file=pid_file)
+    # Exercise the documented port-zero behavior directly and let the kernel
+    # choose the listener.  The active port is discovered from readiness output,
+    # eliminating the check-then-bind race in a pre-reserved free-port helper.
+    env = base_env(port=0, pid_file=pid_file)
     process = subprocess.Popen(
         [sys.executable, str(SERVER)],
         cwd=ROOT,
@@ -130,8 +159,16 @@ def start_server(root: Path) -> tuple[subprocess.Popen, int, Path, dict[str, str
         text=True,
         encoding="utf-8",
     )
-    wait_ready(port, process)
-    return process, port, pid_file, env
+    try:
+        port = discover_ready_port(process)
+        if port <= 0:
+            raise AssertionError(f"kernel-selected port is invalid: {port}")
+        env["TEXT_STATS_WEB_PORT"] = str(port)
+        wait_ready(port, process)
+        return process, port, pid_file, env
+    except Exception:
+        terminate(process)
+        raise
 
 
 def terminate(process: subprocess.Popen) -> tuple[str, str]:
@@ -165,12 +202,32 @@ class BrowserServerTests(unittest.TestCase):
         self.assertIn("default-src 'none'", headers.get("content-security-policy", ""))
         self.assertNotIn("access-control-allow-origin", headers)
 
-    def test_static_routes_security_and_host_policy(self) -> None:
-        for path in ("/", "/app.js", "/app.css", "/healthz"):
-            status, headers, body = http_request(self.port, "GET", path)
-            self.assertEqual(200, status, path)
-            self.assertTrue(body)
-            self.assert_security_headers(headers)
+    def test_static_routes_content_linkage_mime_and_security(self) -> None:
+        status, headers, body = http_request(self.port, "GET", "/")
+        self.assertEqual(200, status)
+        self.assertIn(b"Text statistics verification", body)
+        self.assertIn(b'<script src="/app.js" defer></script>', body)
+        self.assertNotIn(b"<script>", body)
+        self.assertIn("text/html", headers.get("content-type", ""))
+        self.assert_security_headers(headers)
+
+        status, headers, body = http_request(self.port, "GET", "/app.js")
+        self.assertEqual(200, status)
+        self.assertIn("text/javascript", headers.get("content-type", ""))
+        self.assertIn(b"/api/text-stats", body)
+        self.assertIn(b'fetch("/api/text-stats"', body)
+        self.assert_security_headers(headers)
+
+        status, headers, body = http_request(self.port, "GET", "/app.css")
+        self.assertEqual(200, status)
+        self.assertIn("text/css", headers.get("content-type", ""))
+        self.assertIn(b"textarea", body)
+        self.assert_security_headers(headers)
+
+        status, headers, body = http_request(self.port, "GET", "/healthz")
+        self.assertEqual(200, status)
+        self.assertEqual({"ok": True, "interface": "web"}, json.loads(body))
+        self.assert_security_headers(headers)
 
         status, _, payload = http_request(self.port, "GET", "/missing")
         self.assertEqual(404, status)
@@ -267,6 +324,7 @@ class BrowserServerTests(unittest.TestCase):
             (b'{"text":"x","extra":1}', "application/json", 422),
             (b"{", "application/json", 400),
             (b"\xff", "application/json", 400),
+            (b'{"text":"\\ud800"}', "application/json", 400),
             (b'{"text":"x"}', "text/plain", 415),
         ]
         for body, content_type, expected in cases:
@@ -278,7 +336,7 @@ class BrowserServerTests(unittest.TestCase):
                 body=body,
                 content_type=content_type,
             )
-            self.assertEqual(expected, status)
+            self.assertEqual(expected, status, body)
             health, _, _ = http_request(self.port, "GET", "/healthz")
             self.assertEqual(200, health)
 
@@ -330,7 +388,9 @@ class BrowserServerTests(unittest.TestCase):
         response = raw_request(self.port, negative_chunk)
         self.assertIn(b" 400 ", response)
 
-    def test_health_command_and_pid_record(self) -> None:
+    def test_health_command_and_kernel_allocated_port_record(self) -> None:
+        self.assertGreater(self.port, 0)
+        self.assertEqual(str(self.port), self.env["TEXT_STATS_WEB_PORT"])
         result = command(["--health"], cwd=ROOT, env=self.env)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("Web UI ready\n", result.stdout)
@@ -356,6 +416,20 @@ class BrowserLifecycleTests(unittest.TestCase):
             result = command([], cwd=ROOT, env=env)
             self.assertEqual(78, result.returncode)
             self.assertIn("127.0.0.1", result.stderr)
+
+    def test_query_values_are_redacted_from_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="browser-query-redaction") as temporary:
+            root = Path(temporary)
+            process, port, _, _ = start_server(root)
+            try:
+                status, _, body = http_request(port, "GET", "/?text=secret-token")
+                self.assertEqual(200, status)
+                self.assertIn(b"Text statistics verification", body)
+            finally:
+                stdout, stderr = terminate(process)
+            self.assertEqual("", stdout)
+            self.assertNotIn("secret-token", stderr)
+            self.assertIn("web request GET / -> 200", stderr)
 
     def test_documented_stop_cleans_owned_pid_and_stdout_stays_empty(self) -> None:
         with tempfile.TemporaryDirectory(prefix="browser-stop") as temporary:
@@ -403,7 +477,7 @@ class BrowserLifecycleTests(unittest.TestCase):
     def test_preexisting_pid_and_live_port_collision_fail_without_hanging(self) -> None:
         with tempfile.TemporaryDirectory(prefix="browser-collision") as temporary:
             root = Path(temporary)
-            process, port, _, env = start_server(root)
+            process, port, _, _ = start_server(root)
             try:
                 other_pid = root / "other.pid"
                 collision_env = base_env(port=port, pid_file=other_pid)
@@ -414,7 +488,7 @@ class BrowserLifecycleTests(unittest.TestCase):
 
                 occupied_pid = root / "occupied.pid"
                 occupied_pid.write_text("sentinel\n", encoding="utf-8")
-                occupied_env = base_env(port=free_port(), pid_file=occupied_pid)
+                occupied_env = base_env(port=0, pid_file=occupied_pid)
                 result = command([], cwd=ROOT, env=occupied_env)
                 self.assertEqual(78, result.returncode)
                 self.assertIn("already exists", result.stderr)
