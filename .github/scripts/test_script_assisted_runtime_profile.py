@@ -102,13 +102,20 @@ def main() -> int:
             )
 
     helper_source = (FIXTURE_ROOT / "scripts/normalize.py").read_text(encoding="utf-8")
-    if "output_path.write_bytes(normalized.encode(\"utf-8\"))" not in helper_source:
-        failures.append(
-            "script-assisted-runtime: helper output must use byte writes to preserve LF bytes on Windows"
-        )
+    for required_source in (
+        'same_path = os.path.abspath(input_path) == os.path.abspath(output_path)',
+        'temporary.write_bytes(normalized.encode("utf-8"))',
+        'os.replace(temporary, output_path)',
+        'temporary.unlink()',
+    ):
+        if required_source not in helper_source:
+            failures.append(
+                "script-assisted-runtime: helper must preserve absolute alias checks, "
+                f"atomic byte publication, and cleanup; missing {required_source!r}"
+            )
     if "os.path.samefile(input_path, output_path)" not in helper_source:
         failures.append(
-            "script-assisted-runtime: helper must reject output aliases before writing"
+            "script-assisted-runtime: helper must reject existing output aliases before writing"
         )
 
     with tempfile.TemporaryDirectory(prefix="script-assisted-runtime-profile") as temporary:
@@ -174,9 +181,10 @@ def main() -> int:
             and helper.stderr == ""
             and output == b"alpha\nbeta\n"
             and input_path.read_bytes() == input_before
+            and not list(directory.glob("output.txt.tmp-*"))
         ):
             failures.append(
-                "script-assisted-runtime helper: expected deterministic output without input mutation; "
+                "script-assisted-runtime helper: expected atomic deterministic output without input mutation or temp residue; "
                 f"status={helper.returncode!r}, stdout={helper.stdout!r}, "
                 f"stderr={helper.stderr!r}, output={output!r}"
             )
@@ -234,9 +242,10 @@ def main() -> int:
             and helper.stdout == ""
             and helper.stderr == "invalid UTF-8 input\n"
             and not (directory / "invalid-output.txt").exists()
+            and not list(directory.glob("invalid-output.txt.tmp-*"))
         ):
             failures.append(
-                "script-assisted-runtime helper: expected bounded invalid UTF-8 failure; "
+                "script-assisted-runtime helper: expected bounded invalid UTF-8 failure without temp residue; "
                 f"status={helper.returncode!r}, stdout={helper.stdout!r}, "
                 f"stderr={helper.stderr!r}"
             )
