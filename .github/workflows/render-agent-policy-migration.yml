@@ -1,0 +1,33 @@
+name: Render agent policy migration artifact
+
+on:
+  push:
+    branches:
+      - agent/skill-python-final-ruby-purge
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Render with pinned policy compiler
+        uses: TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41
+        with:
+          command: render
+          config: .agent-policy.yml
+
+      - name: Upload generated outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-agent-policy
+          path: |
+            AGENTS.md
+            .agent-policy.lock
+          include-hidden-files: true
+          if-no-files-found: error
