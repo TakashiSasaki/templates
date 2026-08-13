@@ -1,6 +1,6 @@
 ---
 name: text-stat-cli
-description: Compute deterministic byte, line, and word counts through a packaged Ruby command with human-readable and versioned JSON output.
+description: Compute deterministic byte, line, and word counts through a packaged Python command with human-readable and versioned JSON output.
 ---
 
 # Text statistics CLI
@@ -33,7 +33,7 @@ Return byte, line, and word counts. Structured output must include `contractVers
 
 ## Validation
 
-Confirm `text-stat --help`, `text-stat --version`, human-readable output, JSON output, and documented failure exit codes through the repository test suite.
+Confirm `python tests/test_text_stat.py`, wheel construction, offline wheel installation, `text-stat --help`, `text-stat --version`, human-readable output, JSON output, and documented failure exit codes through the repository fixture harness.
 
 ## Safety and approval
 
