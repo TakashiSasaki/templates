@@ -1,4 +1,6 @@
 (() => {
+  const statusTimeouts = new WeakMap();
+
   const copyWithFallback = (value) => {
     const field = document.createElement("textarea");
     field.value = value;
@@ -46,7 +48,13 @@
     const name = button.dataset.copyName || "URL";
     const container = button.closest(".page-path");
     const status = container ? container.querySelector(".copy-status") : null;
-    const previousStatus = status ? status.textContent : "";
+    if (status) {
+      const existingTimeout = statusTimeouts.get(status);
+      if (existingTimeout !== undefined) {
+        window.clearTimeout(existingTimeout);
+        statusTimeouts.delete(status);
+      }
+    }
 
     button.disabled = true;
     try {
@@ -62,12 +70,11 @@
     } finally {
       button.disabled = false;
       if (status) {
-        const displayedStatus = status.textContent;
-        window.setTimeout(() => {
-          if (status.textContent === displayedStatus) {
-            status.textContent = previousStatus;
-          }
+        const timeoutId = window.setTimeout(() => {
+          status.textContent = "";
+          statusTimeouts.delete(status);
         }, 1800);
+        statusTimeouts.set(status, timeoutId);
       }
     }
   });
