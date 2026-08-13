@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -21,6 +22,8 @@ def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     env = os.environ.copy()
     for key in ("PYTHONPATH", "GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
         env.pop(key, None)
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     if extra:
         env.update(extra)
     return env
@@ -51,12 +54,7 @@ def run_or_raise(*command: str, cwd: Path) -> str:
 
 
 def validate(target: Path, outside: Path) -> subprocess.CompletedProcess[str]:
-    return capture(
-        sys.executable,
-        str(VALIDATOR),
-        str(target),
-        cwd=outside,
-    )
+    return capture(sys.executable, str(VALIDATOR), str(target), cwd=outside)
 
 
 def git_index_bytes(repository: Path) -> bytes:
@@ -128,39 +126,24 @@ def main() -> int:
         shutil.copytree(FIXTURE, source, dirs_exist_ok=True, symlinks=True)
 
         run_or_raise("git", "init", "--quiet", cwd=source)
-        run_or_raise(
-            "git", "config", "user.name", "Parent-owned Vendoring Fixture", cwd=source
-        )
-        run_or_raise(
-            "git", "config", "user.email", "fixture@example.invalid", cwd=source
-        )
+        run_or_raise("git", "config", "user.name", "Parent-owned Vendoring Fixture", cwd=source)
+        run_or_raise("git", "config", "user.email", "fixture@example.invalid", cwd=source)
         run_or_raise("git", "add", ".", cwd=source)
+        run_or_raise("git", "commit", "--quiet", "-m", "Create concrete skill", cwd=source)
         run_or_raise(
-            "git", "commit", "--quiet", "-m", "Create concrete skill", cwd=source
-        )
-        run_or_raise(
-            "git",
-            "archive",
-            "--format=tar",
-            "--prefix=line-normalization-helper/",
-            f"--output={archive}",
-            "HEAD",
+            "git", "archive", "--format=tar",
+            "--prefix=line-normalization-helper/", f"--output={archive}", "HEAD",
             cwd=source,
         )
-        run_or_raise("tar", "-xf", str(archive), "-C", str(extracted), cwd=workspace)
+        with tarfile.open(archive, mode="r:") as handle:
+            handle.extractall(extracted, filter="data")
 
         run_or_raise("git", "init", "--quiet", cwd=parent)
-        run_or_raise(
-            "git", "config", "user.name", "Parent Project Fixture", cwd=parent
-        )
-        run_or_raise(
-            "git", "config", "user.email", "parent@example.invalid", cwd=parent
-        )
+        run_or_raise("git", "config", "user.name", "Parent Project Fixture", cwd=parent)
+        run_or_raise("git", "config", "user.email", "parent@example.invalid", cwd=parent)
         (parent / "README.md").write_text("# Parent project\n", encoding="utf-8")
         run_or_raise("git", "add", "README.md", cwd=parent)
-        run_or_raise(
-            "git", "commit", "--quiet", "-m", "Create parent project", cwd=parent
-        )
+        run_or_raise("git", "commit", "--quiet", "-m", "Create parent project", cwd=parent)
 
         target.mkdir(parents=True)
         shutil.copytree(
@@ -170,9 +153,7 @@ def main() -> int:
             symlinks=True,
         )
         run_or_raise("git", "add", "--", skill_prefix, cwd=parent)
-        run_or_raise(
-            "git", "commit", "--quiet", "-m", "Vendor concrete skill", cwd=parent
-        )
+        run_or_raise("git", "commit", "--quiet", "-m", "Vendor concrete skill", cwd=parent)
 
         expected_entries = {
             f"{skill_prefix}/{relative}": "100644" for relative in SKILL_FILES
@@ -216,12 +197,8 @@ def main() -> int:
         parent_head = run_or_raise("git", "rev-parse", "HEAD", cwd=parent).strip()
         gitlink_path = f"{skill_prefix}/scripts/index-only-link"
         run_or_raise(
-            "git",
-            "update-index",
-            "--add",
-            "--cacheinfo",
-            f"160000,{parent_head},{gitlink_path}",
-            cwd=parent,
+            "git", "update-index", "--add", "--cacheinfo",
+            f"160000,{parent_head},{gitlink_path}", cwd=parent,
         )
         if (parent / gitlink_path).exists():
             FAILURES.append("index-only gitlink unexpectedly exists on the filesystem")
