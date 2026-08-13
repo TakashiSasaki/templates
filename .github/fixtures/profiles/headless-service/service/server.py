@@ -11,9 +11,9 @@ import os
 import re
 import signal
 import socket
-import stat
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -289,6 +289,36 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 close_connection=True,
             )
 
+    def _set_body_deadline(self, deadline: float) -> None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise socket.timeout("request deadline exceeded")
+        self.connection.settimeout(remaining)
+
+    def _read1_with_deadline(self, maximum: int, deadline: float) -> bytes:
+        self._set_body_deadline(deadline)
+        return self.rfile.read1(maximum)
+
+    def _read_exact_with_deadline(self, size: int, deadline: float) -> bytes:
+        data = bytearray()
+        while len(data) < size:
+            chunk = self._read1_with_deadline(size - len(data), deadline)
+            if not chunk:
+                break
+            data.extend(chunk)
+        return bytes(data)
+
+    def _readline_with_deadline(self, limit: int, deadline: float) -> bytes:
+        data = bytearray()
+        while len(data) < limit:
+            chunk = self._read1_with_deadline(1, deadline)
+            if not chunk:
+                break
+            data.extend(chunk)
+            if chunk == b"\n":
+                break
+        return bytes(data)
+
     def _handle_stats(self) -> tuple[int, dict[str, object]]:
         media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if media_type != "application/json":
@@ -297,8 +327,8 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 "application/json is required",
                 close_connection=True,
             )
-        self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
-        raw = self._read_bounded_body()
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        raw = self._read_bounded_body(deadline)
         try:
             text = raw.decode("utf-8", "strict")
         except UnicodeDecodeError as exc:
@@ -334,7 +364,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
             },
         )
 
-    def _read_bounded_body(self) -> bytes:
+    def _read_bounded_body(self, deadline: float) -> bytes:
         transfer_encoding = self.headers.get("Transfer-Encoding", "").strip().lower()
         if transfer_encoding:
             if transfer_encoding != "chunked":
@@ -343,7 +373,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "unsupported transfer encoding",
                     close_connection=True,
                 )
-            return self._read_chunked_body()
+            return self._read_chunked_body(deadline)
 
         content_length = self.headers.get("Content-Length")
         if content_length is None:
@@ -357,15 +387,15 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 "request body exceeds 65536 bytes",
                 close_connection=True,
             )
-        body = self.rfile.read(length)
+        body = self._read_exact_with_deadline(length, deadline)
         if len(body) != length:
             raise RequestError(400, "incomplete request body", close_connection=True)
         return body
 
-    def _read_chunked_body(self) -> bytes:
+    def _read_chunked_body(self, deadline: float) -> bytes:
         body = bytearray()
         while True:
-            line = self.rfile.readline(4097)
+            line = self._readline_with_deadline(4097, deadline)
             if not line or len(line) > 4096 or not line.endswith(b"\n"):
                 raise RequestError(
                     400,
@@ -381,9 +411,15 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "invalid chunked request body",
                     close_connection=True,
                 ) from exc
+            if size < 0:
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                )
             if size == 0:
                 while True:
-                    trailer = self.rfile.readline(4097)
+                    trailer = self._readline_with_deadline(4097, deadline)
                     if not trailer or len(trailer) > 4096:
                         raise RequestError(
                             400,
@@ -398,14 +434,14 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "request body exceeds 65536 bytes",
                     close_connection=True,
                 )
-            chunk = self.rfile.read(size)
+            chunk = self._read_exact_with_deadline(size, deadline)
             if len(chunk) != size:
                 raise RequestError(
                     400,
                     "incomplete chunked request body",
                     close_connection=True,
                 )
-            if self.rfile.read(2) != b"\r\n":
+            if self._read_exact_with_deadline(2, deadline) != b"\r\n":
                 raise RequestError(
                     400,
                     "invalid chunked request body",

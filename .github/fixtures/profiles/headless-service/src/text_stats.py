@@ -92,6 +92,42 @@ def _open_bounded_regular(path: Path, label: str, limit: int) -> tuple[int, os.s
         raise
 
 
+def _read_bounded_descriptor(
+    descriptor: int,
+    initial_info: os.stat_result,
+    *,
+    path: Path,
+    label: str,
+    limit: int,
+) -> bytes:
+    """Read a regular descriptor to EOF without trusting one os.read call.
+
+    The initial fstat bounds the file before reading.  We then loop to EOF or
+    limit+1 and compare the final descriptor state with both the initial size
+    and the bytes actually consumed, rejecting concurrent size changes or a
+    short-read prefix that did not reach EOF.
+    """
+    data = bytearray()
+    while len(data) <= limit:
+        remaining = limit + 1 - len(data)
+        chunk = os.read(descriptor, min(4096, remaining))
+        if not chunk:
+            break
+        data.extend(chunk)
+    if len(data) > limit:
+        raise ConfigurationError(f"{label} exceeds {limit} bytes: {path}")
+    final_info = os.fstat(descriptor)
+    if (
+        not stat.S_ISREG(final_info.st_mode)
+        or final_info.st_dev != initial_info.st_dev
+        or final_info.st_ino != initial_info.st_ino
+        or final_info.st_size != initial_info.st_size
+        or final_info.st_size != len(data)
+    ):
+        raise ConfigurationError(f"{label} changed while reading: {path}")
+    return bytes(data)
+
+
 def read_token(path: Path | None) -> str:
     if path is None:
         raise ConfigurationError(
@@ -108,9 +144,13 @@ def read_token(path: Path | None) -> str:
                 "service token file must not be accessible by group or other users: "
                 f"{path}"
             )
-        raw = os.read(descriptor, 4097)
-        if len(raw) > 4096:
-            raise ConfigurationError(f"service token file exceeds 4096 bytes: {path}")
+        raw = _read_bounded_descriptor(
+            descriptor,
+            info,
+            path=path,
+            label="service token file",
+            limit=4096,
+        )
     finally:
         os.close(descriptor)
     try:
@@ -302,11 +342,13 @@ def read_pid_record(path: Path) -> dict[str, object]:
             raise ConfigurationError(
                 f"Headless service PID file must have mode 0600: {path}"
             )
-        raw = os.read(descriptor, PID_RECORD_MAX_BYTES + 1)
-        if len(raw) > PID_RECORD_MAX_BYTES:
-            raise ConfigurationError(
-                f"Headless service PID file exceeds {PID_RECORD_MAX_BYTES} bytes: {path}"
-            )
+        raw = _read_bounded_descriptor(
+            descriptor,
+            info,
+            path=path,
+            label="Headless service PID file",
+            limit=PID_RECORD_MAX_BYTES,
+        )
     finally:
         os.close(descriptor)
     try:

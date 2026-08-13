@@ -134,6 +134,28 @@ if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
 '''
 
+# This is intentionally an explicit source-level regression guard.  The helper
+# contract forbids networking, package installation, and child-process launch;
+# the old Ruby harness enforced the same property with a forbidden-token scan.
+FORBIDDEN_HELPER_TOKENS = (
+    "import socket",
+    "from socket",
+    "import subprocess",
+    "from subprocess",
+    "import urllib",
+    "from urllib",
+    "import http.client",
+    "from http.client",
+    "import requests",
+    "from requests",
+    "os.system",
+    "os.popen",
+    "subprocess.",
+    "pip install",
+    "-m pip",
+    "ensurepip",
+)
+
 
 def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     env = os.environ.copy()
@@ -301,6 +323,10 @@ def extract_git_archive(archive_path: Path, destination: Path) -> None:
 
 
 def main() -> int:
+    for token in FORBIDDEN_HELPER_TOKENS:
+        if token in HELPER_SOURCE:
+            FAILURES.append(f"committed helper contains forbidden token {token!r}")
+
     with tempfile.TemporaryDirectory(prefix="installation-mode-smoke") as temporary:
         workspace = Path(temporary)
         outside = workspace / "outside"
@@ -374,6 +400,18 @@ def main() -> int:
         )
         if not submodule_index.startswith("160000 "):
             FAILURES.append("submodule installation: parent index must retain mode 160000")
+
+        archive_git_context = capture(
+            "git", "rev-parse", "--is-inside-work-tree", cwd=archive_target
+        )
+        if (
+            archive_git_context.returncode == 0
+            or archive_git_context.stdout != ""
+            or archive_git_context.stderr == ""
+        ):
+            FAILURES.append(
+                "archive installation: expected a target independent of ancestor Git worktrees"
+            )
         if (archive_target / ".git").exists():
             FAILURES.append("archive installation: unexpected .git metadata")
 
