@@ -215,18 +215,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up minimum supported Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          ruby-version: "3.1"
+          python-version: "3.12"
 
-      - name: Install Bundler
+      - name: Install Python validator dependencies
         shell: bash
-        run: gem install bundler --no-document
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3
 
       - name: Test browser-interface profile fixture
         shell: bash
-        run: ruby .github/scripts/test-browser-interface-profile.rb
+        run: python .github/scripts/test_browser_interface_profile.py
 
   headless-service-profile-fixture:
     runs-on: ubuntu-latest
