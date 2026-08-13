@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -31,6 +33,7 @@ def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
         env.pop(key, None)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     if extra:
         env.update(extra)
     return env
@@ -80,12 +83,81 @@ def validate(target: Path) -> subprocess.CompletedProcess[str]:
     return run([sys.executable, str(VALIDATOR), str(target)], cwd=target, timeout=30)
 
 
+def compile_without_writing(path: Path, label: str) -> str | None:
+    try:
+        compile(path.read_text(encoding="utf-8"), label, "exec", dont_inherit=True)
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        return str(exc)
+    return None
+
+
+def load_text_stats(target: Path):
+    path = target / "src/text_stats.py"
+    spec = importlib.util.spec_from_file_location("headless_profile_text_stats", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load headless text_stats fixture module")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def exercise_short_read_regressions(target: Path, failures: list[str]) -> None:
+    module = load_text_stats(target)
+    original_read = module.os.read
+
+    token = target / "short-read-token"
+    token_prefix = b"A" * 32 + b"\n"
+    token_suffix = b"invalid-extra"
+    token.write_bytes(token_prefix + token_suffix)
+    os.chmod(token, 0o600)
+    chunks = [token_prefix, token_suffix, b""]
+
+    def token_read(_descriptor: int, _size: int) -> bytes:
+        return chunks.pop(0) if chunks else b""
+
+    module.os.read = token_read
+    try:
+        try:
+            module.read_token(token)
+        except module.ConfigurationError:
+            pass
+        else:
+            failures.append(
+                "headless-service token short-read regression: a valid prefix plus trailing bytes was accepted"
+            )
+    finally:
+        module.os.read = original_read
+
+    pid = target / "short-read.pid"
+    pid_prefix = json.dumps({"pid": 1, "startTicks": "1"}, separators=(",", ":")).encode() + b"\n"
+    pid_suffix = b"trailing-garbage"
+    pid.write_bytes(pid_prefix + pid_suffix)
+    os.chmod(pid, 0o600)
+    chunks = [pid_prefix, pid_suffix, b""]
+
+    def pid_read(_descriptor: int, _size: int) -> bytes:
+        return chunks.pop(0) if chunks else b""
+
+    module.os.read = pid_read
+    try:
+        try:
+            module.read_pid_record(pid)
+        except module.ConfigurationError:
+            pass
+        else:
+            failures.append(
+                "headless-service PID short-read regression: a valid JSON prefix plus trailing bytes was accepted"
+            )
+    finally:
+        module.os.read = original_read
+
+
 def main() -> int:
     failures: list[str] = []
     actual = sorted(
         path.relative_to(FIXTURE).as_posix()
         for path in FIXTURE.rglob("*")
-        if not path.is_dir()
+        if not path.is_dir() and "__pycache__" not in path.parts and path.suffix != ".pyc"
     )
     if actual != EXPECTED_FILES:
         failures.append(
@@ -105,6 +177,27 @@ def main() -> int:
                 f"headless-service runtime: missing documented command {command!r}"
             )
 
+    server_source = (FIXTURE / "service/server.py").read_text(encoding="utf-8")
+    for required in (
+        "if size < 0:",
+        "deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS",
+        "def _read1_with_deadline",
+        "self.rfile.read1(maximum)",
+    ):
+        if required not in server_source:
+            failures.append(
+                f"headless-service request-boundary regression: missing {required!r}"
+            )
+    for forbidden in (
+        "self.rfile.read(length)",
+        "self.rfile.read(size)",
+        "self.rfile.readline(4097)",
+    ):
+        if forbidden in server_source:
+            failures.append(
+                f"headless-service overall-deadline regression: unbounded high-level read remains: {forbidden!r}"
+            )
+
     with tempfile.TemporaryDirectory(prefix="headless-service-profile") as temporary:
         target = Path(temporary) / "fixture"
         copy_fixture(target)
@@ -117,22 +210,16 @@ def main() -> int:
                 f"stdout={validation.stdout!r}, stderr={validation.stderr!r}"
             )
 
-        syntax = run(
-            [
-                sys.executable,
-                "-m",
-                "py_compile",
-                "src/text_stats.py",
-                "service/server.py",
-                "tests/test_service_server.py",
-            ],
-            cwd=target,
-            timeout=20,
-        )
-        if syntax.returncode != 0:
-            failures.append(
-                f"headless-service syntax: stdout={syntax.stdout!r}, stderr={syntax.stderr!r}"
-            )
+        for relative in (
+            "src/text_stats.py",
+            "service/server.py",
+            "tests/test_service_server.py",
+        ):
+            diagnostic = compile_without_writing(target / relative, relative)
+            if diagnostic is not None:
+                failures.append(
+                    f"headless-service syntax {relative}: expected success; diagnostic={diagnostic!r}"
+                )
 
         tests = run(
             [sys.executable, "tests/test_service_server.py"],
@@ -144,6 +231,8 @@ def main() -> int:
                 "headless-service tests: expected success; "
                 f"stdout={tests.stdout!r}, stderr={tests.stderr!r}"
             )
+
+        exercise_short_read_regressions(target, failures)
 
         token_fifo = target / "token.fifo"
         os.mkfifo(token_fifo, 0o600)
