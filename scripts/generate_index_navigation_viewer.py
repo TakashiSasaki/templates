@@ -596,7 +596,13 @@ def breadcrumb_chain(
     ]
 
 
-def page_shell(title: str, body: str) -> str:
+def page_shell(title: str, body: str, page_path: str | None = None) -> str:
+    path_html = ""
+    if page_path is not None:
+        path_html = (
+            '<p class="page-path"><span class="page-path-label">Page path:</span> '
+            f'<code>{html.escape(page_path)}</code></p>\n'
+        )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -612,6 +618,8 @@ body {{ margin: 0; background: Canvas; color: CanvasText; }}
 main {{ max-width: 74rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }}
 a {{ color: LinkText; }}
 code {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }}
+.page-path {{ margin: 0 0 1rem; padding: .5rem .7rem; border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: .55rem; background: color-mix(in srgb, CanvasText 3%, Canvas); font-size: .86rem; }}
+.page-path-label {{ font-weight: 650; margin-right: .25rem; }}
 .eyebrow {{ font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; opacity: .65; }}
 .meta {{ padding: .8rem 1rem; border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: .6rem; background: color-mix(in srgb, CanvasText 3%, Canvas); }}
 .meta p {{ margin: .25rem 0; }}
@@ -632,7 +640,7 @@ code {{ font-family: ui-monospace, SFMono-Regular, Consolas, monospace; overflow
 </head>
 <body>
 <main>
-{body}
+{path_html}{body}
 </main>
 </body>
 </html>
@@ -754,7 +762,11 @@ def render_index_page(
             body_parts.append("<p><em>No links in this section.</em></p>")
         body_parts.append("</section>")
 
-    return page_shell(index["title"], "\n".join(body_parts))
+    return page_shell(
+        index["title"],
+        "\n".join(body_parts),
+        index_page_url(provider["name"], source_path),
+    )
 
 
 def render_landing(graph: dict[str, Any]) -> str:
@@ -783,7 +795,7 @@ def render_landing(graph: dict[str, Any]) -> str:
             f'<div class="provider-grid">{"".join(cards)}</div>',
         ]
     )
-    return page_shell("Index-guided document discovery", body)
+    return page_shell("Index-guided document discovery", body, "/guided/")
 
 
 def validate_render_destinations(destinations: list[Path]) -> None:
