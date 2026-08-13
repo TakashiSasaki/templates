@@ -8,40 +8,65 @@ Selection status: SELECTED
 
 | Item | Selected value |
 |---|---|
-| Language | Ruby |
-| Runtime | CRuby |
-| Minimum runtime version | 3.1 |
-| Dependency/package manager | RubyGems and Bundler |
-| Project manifest | `text-stat.gemspec` |
-| Lockfile policy | Commit and update `Gemfile.lock` with dependency changes |
-| Source layout | `src/text_stat.rb` with `bin/text-stat` as the public entry point |
-| Supported operating systems | Linux, macOS, and Windows with CRuby 3.1 or newer |
+| Language | Python |
+| Runtime | CPython |
+| Minimum runtime version | 3.12 |
+| Dependency/package manager | pip with PEP 517 packaging |
+| Project manifest | `pyproject.toml` |
+| Lockfile policy | `requirements-build.lock` pins the complete build-tool input; the package has no runtime dependencies |
+| Source layout | `src/text_stat/` with repository-local launcher `bin/text-stat` |
+| Supported operating systems | Linux, macOS, and Windows with CPython 3.12 or newer |
 
 ## Commands
 
-Run all repository-local commands from the repository root.
+Run commands from the fixture root.
 
 ### Shared development commands
 
 | Purpose | Exact command |
 |---|---|
-| Install development dependencies | `bundle install` |
-| Run in place | `ruby bin/text-stat --help` |
-| Agent launcher | `ruby bin/text-stat` |
-| Test | `ruby tests/test_text_stat.rb` |
-| Lint/static analysis | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` |
-| Format check | `ruby -c src/text_stat.rb && ruby -c bin/text-stat` |
-| Build/package | `gem build text-stat.gemspec` |
-| Install packaged command locally | `gem install --no-document --install-dir .local/gems --bindir .local/bin ./text-stat-1.0.0.gem` |
+| Install development dependencies | `python -m pip install --disable-pip-version-check --no-input --requirement requirements-build.lock` |
+| Run in place | `python bin/text-stat INPUT` |
+| Agent launcher | `python bin/text-stat INPUT` |
+| Test | `python tests/test_text_stat.py` |
+| Lint/static analysis | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
+| Format check | `python -m py_compile bin/text-stat src/text_stat/__init__.py src/text_stat/cli.py tests/test_text_stat.py` |
+| Build/package | `python -m pip wheel --disable-pip-version-check --no-input --no-deps --no-build-isolation --wheel-dir dist .` |
 
-The local installation keeps the gem and executable inside the repository working tree. Activate those paths before invoking the preferred installed interface.
+## Distribution
 
-| Shell | Exact command |
+| Item | Selected value |
 |---|---|
-| POSIX shell | `export GEM_HOME="$PWD/.local/gems"; export GEM_PATH="$GEM_HOME"; export PATH="$PWD/.local/bin:$PATH"; text-stat --help` |
-| PowerShell | `$env:GEM_HOME="$PWD/.local/gems"; $env:GEM_PATH=$env:GEM_HOME; $env:PATH="$PWD/.local/bin;$env:PATH"; text-stat --help` |
+| Skill distribution | Git clone or release archive containing the Skill contracts, `pyproject.toml`, `requirements-build.lock`, `bin/`, `src/`, and `tests/` |
+| CLI distribution | Python wheel built from `pyproject.toml`; installed command is `text-stat` |
+| MCP distribution | NOT SUPPORTED |
+| Human Web interface distribution | NOT SUPPORTED |
+| Service integration | NONE |
+| Version source of truth | `project.version` in `pyproject.toml`, which must equal `text_stat.VERSION` |
 
-The activation commands above persist for the current shell session and apply only to the repository-local installation. A normal RubyGems installation may use the environment's configured gem home and executable directory instead.
+### Local package installation and activation
+
+Build the wheel first with the exact `Build/package` command above.
+
+POSIX local installation:
+
+```sh
+python -m venv .local/venv
+.local/venv/bin/python -m pip install --disable-pip-version-check --no-input --no-index --find-links dist text-stat==1.0.0
+. .local/venv/bin/activate
+text-stat --version
+```
+
+PowerShell local installation:
+
+```powershell
+python -m venv .local/venv
+.local/venv/Scripts/python.exe -m pip install --disable-pip-version-check --no-input --no-index --find-links dist text-stat==1.0.0
+.local/venv/Scripts/Activate.ps1
+text-stat --version
+```
+
+The activation commands affect only the current shell session. The repository-local fallback `python bin/text-stat` and the installed `text-stat` command delegate to the same `text_stat.cli` implementation.
 
 ### Packaged CLI commands
 
@@ -49,27 +74,14 @@ The activation commands above persist for the current shell session and apply on
 |---|---|
 | Human CLI | `text-stat` |
 
-## Distribution
-
-| Item | Selected value |
-|---|---|
-| Skill distribution | Git clone or release archive |
-| CLI distribution | Ruby gem `text-stat` with the `text-stat` executable |
-| MCP distribution | NOT SUPPORTED |
-| Human Web interface distribution | NOT SUPPORTED |
-| Service integration | NONE |
-| Version source of truth | `TextStat::VERSION` in `src/text_stat.rb` |
-
 ## Environment and configuration
 
 | Variable | Required | Purpose | Secret |
 |---|---:|---|---:|
-| `GEM_HOME` | Only for the repository-local packaged installation | Locate the locally installed gem | NO |
-| `GEM_PATH` | Only for the repository-local packaged installation | Restrict gem lookup to the local installation | NO |
-| `PATH` | Only for the repository-local packaged installation | Make `.local/bin/text-stat` available as `text-stat` | NO |
+| NONE | NO | CLI behavior is selected only by arguments and input bytes | NO |
 
-No application-specific environment configuration is required.
+The CLI performs no network access. Installing the pinned build tools may access the configured Python package index; wheel installation from `dist/` is explicitly offline through `--no-index`.
 
 ## Decision rationale
 
-Ruby provides the standard-library JSON, option parsing, package, and test support needed for a small deterministic CLI without runtime dependencies. A gem supplies a stable installed command while the in-place launcher exercises the same implementation.
+CPython 3.12 provides a portable standard-library implementation for the CLI behavior while `pyproject.toml` supplies a standard packaged command. The fixture has no runtime dependency. Build-tool versions are pinned separately so package construction is reviewable without introducing a runtime lock dependency. The public `text-stat` command, structured-output contract, exit statuses, and caller behavior remain language-neutral.
