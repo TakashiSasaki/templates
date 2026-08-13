@@ -45,6 +45,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (STATIC_ASSETS.includes(url.pathname)) {
-    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+    event.respondWith(
+      caches
+        .open(CACHE_NAME)
+        .then((cache) => cache.match(event.request, { ignoreSearch: true }))
+        .then((cached) => cached || fetch(event.request))
+    );
   }
 });
