@@ -70,10 +70,10 @@ Profile changes require synchronized contract templates, validators, positive fi
 Run the source/distribution checks:
 
 ```sh
-ruby .github/scripts/test-distribution-boundary.rb
-ruby .github/scripts/test-skill-distribution.rb
-ruby .github/scripts/validate-skill-distribution.rb
-ruby .github/scripts/test-restructure-completion.rb
+python .github/scripts/test_distribution_boundary.py
+python .github/scripts/test_skill_distribution.py
+python .github/scripts/validate_skill_distribution.py
+python .github/scripts/test_restructure_completion.py
 ```
 
 Run the supported profile-aware validation entry point:
@@ -94,7 +94,7 @@ python template/.github/scripts/test_template_baseline.py
 Run clean-room adoption and installation:
 
 ```sh
-ruby .github/scripts/test-copyable-template-consumption.rb
+python .github/scripts/test_copyable_template_consumption.py
 ```
 
 The explicit-root Python validator resolves every contract and operational resource relative to the supplied Skill root rather than the caller's working directory and runs without requiring a second source-side implementation copy.
