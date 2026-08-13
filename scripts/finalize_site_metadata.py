@@ -9,17 +9,35 @@ import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 
 LINK_TAG_PATTERN = re.compile(r"<link\b[^>]*>", re.IGNORECASE | re.DOTALL)
 HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
+BODY_CLOSE_PATTERN = re.compile(r"</body\s*>", re.IGNORECASE)
 HREF_ATTRIBUTE_PATTERN = re.compile(
     r"(?<![-:\w])href\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)",
     re.IGNORECASE,
 )
+PAGE_PATH_PATTERN = re.compile(
+    r'<p class="page-path"><span class="page-path-label">Page path:</span>\s*'
+    r'<code>(?P<path>[^<]+)</code></p>'
+)
+IMMUTABLE_GITHUB_SOURCE_PATTERN = re.compile(
+    r'<a\b[^>]*\bhref="(?P<href>[^"]+)"[^>]*>\s*'
+    r'immutable GitHub source\s*</a>',
+    re.IGNORECASE,
+)
+CSP_META_PATTERN = re.compile(
+    r'(?P<prefix><meta http-equiv="Content-Security-Policy" content=")'
+    r'(?P<policy>[^"]*)'
+    r'(?P<suffix>">)',
+    re.IGNORECASE,
+)
 MANIFEST_HREF = "/app.webmanifest"
 THEME_COLOR = "#3f51b5"
+GUIDED_COPY_SCRIPT = "/javascripts/guided-copy.js"
+GUIDED_COPY_SCRIPT_TAG = f'<script src="{GUIDED_COPY_SCRIPT}" defer></script>'
 
 
 class SiteMetadataError(RuntimeError):
@@ -70,6 +88,46 @@ def validate_canonical_url(value: str) -> str:
         raise SiteMetadataError(
             "canonical URL must be an HTTPS directory URL without query or fragment"
         )
+    return value
+
+
+def validate_guided_page_path(value: str, path: Path) -> str:
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+        or not value.startswith("/guided/")
+        or not value.endswith("/")
+        or "\\" in value
+        or "//" in value[1:]
+    ):
+        raise SiteMetadataError(f"{path}: invalid guided page path: {value!r}")
+    return value
+
+
+def validate_github_source_url(value: str, path: Path) -> str:
+    parsed = urlsplit(value)
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise SiteMetadataError(f"{path}: invalid immutable GitHub source URL") from exc
+    parts = parsed.path.split("/")
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "github.com"
+        or parsed.query
+        or parsed.fragment
+        or len(parts) < 6
+        or parts[0] != ""
+        or not parts[1]
+        or not parts[2]
+        or parts[3] != "blob"
+        or re.fullmatch(r"[0-9a-f]{40}", parts[4]) is None
+        or any(not part for part in parts[5:])
+    ):
+        raise SiteMetadataError(f"{path}: invalid immutable GitHub source URL")
     return value
 
 
@@ -192,6 +250,104 @@ def ensure_pwa_metadata(source: str, path: Path) -> str:
     return updated
 
 
+def allow_guided_copy_script(source: str, path: Path) -> str:
+    matches = list(CSP_META_PATTERN.finditer(source))
+    if len(matches) != 1:
+        raise SiteMetadataError(
+            f"{path}: guided page must contain exactly one Content-Security-Policy meta element"
+        )
+    match = matches[0]
+    policy = html.unescape(match.group("policy"))
+    directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
+    script_directives = [
+        directive
+        for directive in directives
+        if directive.split(maxsplit=1)[0].casefold() == "script-src"
+    ]
+    if len(script_directives) > 1:
+        raise SiteMetadataError(f"{path}: duplicate script-src directives")
+    if script_directives and script_directives[0] != "script-src 'self'":
+        raise SiteMetadataError(
+            f"{path}: guided script-src must be exactly script-src 'self'"
+        )
+    if not script_directives:
+        directives.append("script-src 'self'")
+    updated_policy = "; ".join(directives)
+    escaped_policy = html.escape(updated_policy, quote=True).replace("&#x27;", "'")
+    replacement = match.group("prefix") + escaped_policy + match.group("suffix")
+    return source[: match.start()] + replacement + source[match.end() :]
+
+
+def guided_copy_button(name: str, url: str) -> str:
+    escaped_name = html.escape(name, quote=True)
+    escaped_url = html.escape(url, quote=True)
+    return (
+        f'<button type="button" data-copy-name="{escaped_name}" '
+        f'data-copy-url="{escaped_url}">Copy {escaped_name}</button>'
+    )
+
+
+def enhance_guided_copy_controls(
+    source: str,
+    canonical_url: str,
+    path: Path,
+) -> str:
+    page_path_matches = list(PAGE_PATH_PATTERN.finditer(source))
+    if not page_path_matches:
+        return source
+    if len(page_path_matches) != 1:
+        raise SiteMetadataError(f"{path}: multiple guided page path markers")
+
+    canonical_url = validate_canonical_url(canonical_url)
+    page_path_match = page_path_matches[0]
+    escaped_page_path = page_path_match.group("path")
+    page_path = validate_guided_page_path(html.unescape(escaped_page_path), path)
+    public_url = urljoin(canonical_url, page_path.lstrip("/"))
+
+    github_matches = list(IMMUTABLE_GITHUB_SOURCE_PATTERN.finditer(source))
+    if len(github_matches) > 1:
+        raise SiteMetadataError(f"{path}: multiple immutable GitHub sources")
+
+    buttons: list[str] = []
+    if github_matches:
+        github_url = validate_github_source_url(
+            html.unescape(github_matches[0].group("href")),
+            path,
+        )
+        buttons.append(guided_copy_button("GitHub URL", github_url))
+    buttons.append(guided_copy_button("public URL", public_url))
+
+    replacement = (
+        '<p class="page-path"><span class="page-path-label">Page path:</span> '
+        f'<code>{html.escape(page_path)}</code> '
+        '<span class="page-path-actions">'
+        + " ".join(buttons)
+        + ' <span class="copy-status" role="status" aria-live="polite"></span>'
+        "</span></p>"
+    )
+    updated = (
+        source[: page_path_match.start()]
+        + replacement
+        + source[page_path_match.end() :]
+    )
+    updated = allow_guided_copy_script(updated, path)
+
+    if GUIDED_COPY_SCRIPT_TAG not in updated:
+        body_closes = list(BODY_CLOSE_PATTERN.finditer(updated))
+        if len(body_closes) != 1:
+            raise SiteMetadataError(
+                f"{path}: expected exactly one closing body tag, found {len(body_closes)}"
+            )
+        position = body_closes[0].start()
+        updated = (
+            updated[:position]
+            + GUIDED_COPY_SCRIPT_TAG
+            + "\n"
+            + updated[position:]
+        )
+    return updated
+
+
 def generated_html_files(site_root: Path) -> tuple[Path, list[Path]]:
     resolved_root = site_root.resolve(strict=True)
     html_files = sorted(
@@ -242,6 +398,7 @@ def normalize_site_metadata(
         if not is_inline_preview(path, resolved_root):
             updated = ensure_pwa_metadata(updated, path)
             pwa_pages += 1
+        updated = enhance_guided_copy_controls(updated, canonical_url, path)
         updates[path] = updated
 
     for path, source in updates.items():
