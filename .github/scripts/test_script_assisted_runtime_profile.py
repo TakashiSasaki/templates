@@ -233,7 +233,7 @@ def main() -> int:
             (
                 "rejects a runtime placeholder",
                 placeholder_runtime,
-                'unresolved scalar placeholder "TBD"',
+                "unresolved scalar placeholder",
             ),
         ]
     )
