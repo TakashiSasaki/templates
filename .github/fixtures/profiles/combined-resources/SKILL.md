@@ -33,9 +33,9 @@ Must remain unchanged: heading order and the final verification heading
 
 ## Helper scripts
 
-Script: scripts/normalize.rb
+Script: scripts/normalize.py
 Run when: the staged completed response must be normalized before comparison or delivery
-Exact invocation: ruby scripts/normalize.rb STAGING OUTPUT
+Exact invocation: python scripts/normalize.py STAGING OUTPUT
 Working directory: repository root
 Inputs and arguments: STAGING is the caller-supplied file containing the completed UTF-8 response generated from the asset; OUTPUT is the distinct final destination path and must not alias STAGING
 Stdout/result: prints the normalized output path after a successful write
@@ -54,7 +54,7 @@ Idempotency and retry behavior: repeated execution with the same staging input p
 2. Read `references/review-policy.md` and map each finding to an applicable rule.
 3. Open `assets/response-template.txt`, preserve its heading order, and fill it only with supported findings.
 4. Save the completed UTF-8 response to the caller-supplied STAGING path, which must refer to a different file from both the supplied facts source and OUTPUT path.
-5. Run `ruby scripts/normalize.rb STAGING OUTPUT` from the repository root and stop on a nonzero exit status.
+5. Run `python scripts/normalize.py STAGING OUTPUT` from the repository root and stop on a nonzero exit status.
 6. Verify that the supplied facts and staged response are unchanged, verify the normalized response, and report the generated output path.
 
 ## Output requirements
