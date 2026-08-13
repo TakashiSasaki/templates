@@ -11,9 +11,9 @@ import os
 import re
 import signal
 import socket
-import stat
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -289,6 +289,12 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 close_connection=True,
             )
 
+    def _set_body_deadline(self, deadline: float) -> None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise socket.timeout("request deadline exceeded")
+        self.connection.settimeout(remaining)
+
     def _handle_stats(self) -> tuple[int, dict[str, object]]:
         media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if media_type != "application/json":
@@ -297,8 +303,8 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 "application/json is required",
                 close_connection=True,
             )
-        self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
-        raw = self._read_bounded_body()
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        raw = self._read_bounded_body(deadline)
         try:
             text = raw.decode("utf-8", "strict")
         except UnicodeDecodeError as exc:
@@ -334,7 +340,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
             },
         )
 
-    def _read_bounded_body(self) -> bytes:
+    def _read_bounded_body(self, deadline: float) -> bytes:
         transfer_encoding = self.headers.get("Transfer-Encoding", "").strip().lower()
         if transfer_encoding:
             if transfer_encoding != "chunked":
@@ -343,7 +349,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "unsupported transfer encoding",
                     close_connection=True,
                 )
-            return self._read_chunked_body()
+            return self._read_chunked_body(deadline)
 
         content_length = self.headers.get("Content-Length")
         if content_length is None:
@@ -357,14 +363,16 @@ class ServiceHandler(BaseHTTPRequestHandler):
                 "request body exceeds 65536 bytes",
                 close_connection=True,
             )
+        self._set_body_deadline(deadline)
         body = self.rfile.read(length)
         if len(body) != length:
             raise RequestError(400, "incomplete request body", close_connection=True)
         return body
 
-    def _read_chunked_body(self) -> bytes:
+    def _read_chunked_body(self, deadline: float) -> bytes:
         body = bytearray()
         while True:
+            self._set_body_deadline(deadline)
             line = self.rfile.readline(4097)
             if not line or len(line) > 4096 or not line.endswith(b"\n"):
                 raise RequestError(
@@ -381,8 +389,15 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "invalid chunked request body",
                     close_connection=True,
                 ) from exc
+            if size < 0:
+                raise RequestError(
+                    400,
+                    "invalid chunked request body",
+                    close_connection=True,
+                )
             if size == 0:
                 while True:
+                    self._set_body_deadline(deadline)
                     trailer = self.rfile.readline(4097)
                     if not trailer or len(trailer) > 4096:
                         raise RequestError(
@@ -398,6 +413,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "request body exceeds 65536 bytes",
                     close_connection=True,
                 )
+            self._set_body_deadline(deadline)
             chunk = self.rfile.read(size)
             if len(chunk) != size:
                 raise RequestError(
@@ -405,6 +421,7 @@ class ServiceHandler(BaseHTTPRequestHandler):
                     "incomplete chunked request body",
                     close_connection=True,
                 )
+            self._set_body_deadline(deadline)
             if self.rfile.read(2) != b"\r\n":
                 raise RequestError(
                     400,
