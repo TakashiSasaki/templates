@@ -31,6 +31,7 @@ def clean_env(extra: dict[str, str] | None = None) -> dict[str, str]:
         env.pop(key, None)
     env["PYTHONUTF8"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     if extra:
         env.update(extra)
     return env
@@ -63,8 +64,19 @@ def run(
         )
 
 
+def is_python_cache(path: Path) -> bool:
+    relative = path.relative_to(FIXTURE)
+    return "__pycache__" in relative.parts or path.suffix in {".pyc", ".pyo"}
+
+
 def copy_fixture(target: Path) -> None:
-    shutil.copytree(FIXTURE, target, dirs_exist_ok=True, symlinks=True)
+    shutil.copytree(
+        FIXTURE,
+        target,
+        dirs_exist_ok=True,
+        symlinks=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
 
 
 def initialize_git(target: Path) -> None:
@@ -78,12 +90,21 @@ def validate(target: Path) -> subprocess.CompletedProcess[str]:
     return run([sys.executable, str(VALIDATOR), str(target)], cwd=target, timeout=30)
 
 
+def compile_without_writing(target: Path, relative: str) -> str | None:
+    try:
+        source = (target / relative).read_text(encoding="utf-8")
+        compile(source, relative, "exec", dont_inherit=True)
+    except (OSError, UnicodeError, SyntaxError) as exc:
+        return str(exc)
+    return None
+
+
 def main() -> int:
     failures: list[str] = []
     actual = sorted(
         path.relative_to(FIXTURE).as_posix()
         for path in FIXTURE.rglob("*")
-        if not path.is_dir()
+        if not path.is_dir() and not is_python_cache(path)
     )
     if actual != EXPECTED_FILES:
         failures.append(
@@ -114,22 +135,16 @@ def main() -> int:
                 f"stdout={validation.stdout!r}, stderr={validation.stderr!r}"
             )
 
-        syntax = run(
-            [
-                sys.executable,
-                "-m",
-                "py_compile",
-                "src/text_stats.py",
-                "web/server.py",
-                "tests/test_web_server.py",
-            ],
-            cwd=target,
-            timeout=15,
-        )
-        if syntax.returncode != 0:
-            failures.append(
-                f"browser-interface syntax: stdout={syntax.stdout!r}, stderr={syntax.stderr!r}"
-            )
+        for relative in (
+            "src/text_stats.py",
+            "web/server.py",
+            "tests/test_web_server.py",
+        ):
+            diagnostic = compile_without_writing(target, relative)
+            if diagnostic is not None:
+                failures.append(
+                    f"browser-interface syntax {relative}: diagnostic={diagnostic!r}"
+                )
 
         tests = run(
             [sys.executable, "tests/test_web_server.py"],
@@ -140,6 +155,24 @@ def main() -> int:
             failures.append(
                 "browser-interface tests: expected success; "
                 f"stdout={tests.stdout!r}, stderr={tests.stderr!r}"
+            )
+
+        post_validation = validate(target)
+        if post_validation.returncode != 0:
+            failures.append(
+                "browser-interface: syntax/tests mutated the fixture into an invalid repository; "
+                f"stdout={post_validation.stdout!r}, stderr={post_validation.stderr!r}"
+            )
+
+        caches = sorted(
+            path.relative_to(target).as_posix()
+            for path in target.rglob("*")
+            if path.is_file()
+            and ("__pycache__" in path.relative_to(target).parts or path.suffix in {".pyc", ".pyo"})
+        )
+        if caches:
+            failures.append(
+                f"browser-interface: Python validation left bytecode cache artifacts: {caches!r}"
             )
 
         implementation = target / "src/text_stats.py"
