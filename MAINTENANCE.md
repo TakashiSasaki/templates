@@ -203,11 +203,11 @@ The installable shell is owned entirely by the `site` branch:
 - `assets/app.webmanifest` defines the root-scoped application identity, start URL, scope, standalone display mode, theme colors, and SVG icon declarations;
 - `assets/icon.svg` is the shared scalable PWA icon and Zensical favicon;
 - `assets/javascripts/pwa.js` preserves the static manifest and theme metadata when present and registers `/service-worker.js` with root scope in a secure context;
-- `assets/service-worker.js` precaches only `/`, `/app.webmanifest`, and `/icon.svg`, uses network-first document navigation, falls back to the cached portal home, and returns an explicit HTTP 503 response if both the network and cached home are unavailable.
+- `assets/service-worker.js` precaches only `/app.webmanifest` and `/icon.svg`; document navigation remains network-first, same-origin non-navigation document requests are not intercepted by the static cache, and failed offline document navigation returns an explicit HTTP 503 response instead of stale documentation.
 
-Do not broadly precache generated documentation pages. Provider publications change independently and must remain network-first to avoid serving stale documentation after deployment. A cache-key change must increment `CACHE_NAME` so the activation handler can delete the previous shell cache.
+Do not precache the portal home or generated documentation pages. Provider publications change independently, and document URLs must remain outside the static shell cache regardless of whether navigation arrives as a browser navigation request or an instant-navigation fetch. When cached static asset contents or cache strategy change, increment `CACHE_NAME` so the activation handler can delete the previous shell cache.
 
-`tests/test_pwa_assets.py` owns the source-level PWA contract, including manifest shape, shared SVG safety, favicon and registration wiring, generated metadata insertion and preview exclusion, duplicate or conflicting metadata rejection, minimal cache scope, and the guaranteed `Response` fallback. The Pages build separately verifies that the manifest, icon, service worker, registration script, manifest link, and theme-color metadata exist in the generated artifact, including the post-generated guided pages.
+`tests/test_pwa_assets.py` owns the source-level PWA contract, including manifest shape, shared SVG safety, favicon and registration wiring, generated metadata insertion and preview exclusion, duplicate or conflicting metadata rejection, document exclusion from static caching, cache-version transition, and the guaranteed `Response` fallback. The Pages build separately verifies that the manifest, icon, service worker, registration script, manifest link, and theme-color metadata exist in the generated artifact, including the post-generated guided pages.
 
 ## Build and deployment policy
 
