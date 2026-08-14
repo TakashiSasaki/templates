@@ -1,4 +1,4 @@
-const CACHE_NAME = "templates-portal-shell-v2";
+const CACHE_NAME = "templates-portal-shell-v3";
 const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"];
 
 function offlineResponse() {
@@ -29,6 +29,16 @@ function isDocumentRequest(request, url) {
 
 function fetchFreshDocument(request) {
   return fetch(request, { cache: "no-cache" });
+}
+
+function refreshStaticAsset(request) {
+  return caches.open(CACHE_NAME).then(async (cache) => {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  });
 }
 
 self.addEventListener("install", (event) => {
@@ -71,11 +81,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (STATIC_ASSETS.includes(url.pathname)) {
+    const refresh = refreshStaticAsset(event.request);
+    event.waitUntil(refresh.catch(() => undefined));
     event.respondWith(
       caches
         .open(CACHE_NAME)
-        .then((cache) => cache.match(event.request, { ignoreSearch: true }))
-        .then((cached) => cached || fetch(event.request))
+        .then((cache) => cache.match(event.request))
+        .then((cached) => cached || refresh)
         .catch(() => offlineResponse())
     );
   }
