@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   check:
-    if: github.repository == 'TakashiSasaki/templates'
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
 
     steps:
