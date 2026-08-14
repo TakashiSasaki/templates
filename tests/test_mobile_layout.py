@@ -7,6 +7,7 @@ from scripts.check_mobile_layout import (
     CheckCase,
     MobileLayoutError,
     _browser_runtime_arguments,
+    _number,
     harness_html,
     parse_harness_result,
     validate_metrics,
@@ -91,6 +92,15 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("portal cover top padding exceeds 20px", failures)
         self.assertIn("portal lead line height exceeds 27px", failures)
 
+    def test_missing_required_elements_are_reported(self) -> None:
+        case = CheckCase("policy", "/policy/", "document")
+        metrics = compact_metrics()
+        metrics["content"] = None
+        metrics["heading"] = None
+        failures = validate_metrics(case, 390, 844, metrics)
+        self.assertIn("missing .md-content__inner", failures)
+        self.assertIn("missing visible page heading", failures)
+
     def test_unready_and_non_numeric_metrics_fail_cleanly(self) -> None:
         case = CheckCase("policy", "/policy/", "document")
         self.assertEqual(
@@ -108,6 +118,16 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             validate_metrics(case, 390, 844, metrics),
             ["viewport.width must be numeric"],
         )
+
+    def test_number_rejects_boolean_non_numeric_and_infinite_values(self) -> None:
+        for value in (True, False, "1", None):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(MobileLayoutError, "metric must be numeric"):
+                    _number(value, "metric")
+        for value in (float("inf"), float("-inf"), float("nan")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(MobileLayoutError, "metric must be finite"):
+                    _number(value, "metric")
 
     def test_parse_harness_result_extracts_json_and_rejects_invalid_output(self) -> None:
         parsed = parse_harness_result(
