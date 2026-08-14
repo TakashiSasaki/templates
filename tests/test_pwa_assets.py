@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -35,6 +36,19 @@ class PwaAssetTests(unittest.TestCase):
             self.assertEqual(icon["type"], "image/svg+xml")
             self.assertEqual(set(icon["purpose"].split()), {"any", "maskable"})
 
+    def test_manifest_icon_paths_are_in_service_worker_static_assets(self) -> None:
+        manifest = json.loads((ROOT / "assets/app.webmanifest").read_text(encoding="utf-8"))
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+        match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", worker)
+
+        self.assertIsNotNone(match)
+        static_assets = set(json.loads(match.group(1)))
+        self.assertIn("/app.webmanifest", static_assets)
+        self.assertLessEqual(
+            {icon["src"] for icon in manifest["icons"]},
+            static_assets,
+        )
+
     def test_svg_icon_is_self_contained_and_scalable(self) -> None:
         icon_path = ROOT / "assets/icon.svg"
         icon_text = icon_path.read_text(encoding="utf-8")
@@ -57,8 +71,10 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('navigator.serviceWorker.register("/service-worker.js", {', registration)
         self.assertIn('scope: "/"', registration)
         self.assertIn('updateViaCache: "none"', registration)
-        self.assertIn("if (registration.active)", registration)
+        self.assertIn("if (!registration.active)", registration)
         self.assertIn("await registration.update()", registration)
+        self.assertIn('console.warn("Service worker registration failed", error)', registration)
+        self.assertIn('console.warn("Service worker update check failed", error)', registration)
 
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -206,6 +222,9 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('service_workers="allow"', checker)
         self.assertIn('worker_source + "\\n" + marker', checker)
         self.assertIn("state.record_hit", checker)
+        self.assertIn("navigator.serviceWorker.startMessages()", checker)
+        self.assertIn("def _wait_for_manifest_version(", checker)
+        self.assertIn("_wait_for_manifest_version(page, 2)", checker)
         self.assertIn('context.set_offline(True)', checker)
         self.assertIn('evidence["offline_fetch_status"] = 503', checker)
         self.assertIn('"document-v2"', checker)

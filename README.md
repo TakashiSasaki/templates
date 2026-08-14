@@ -96,6 +96,8 @@ progressive-disclosure path that agents can follow.
   static `/guided/` human navigation surface without reparsing Markdown;
 - `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
   Playwright-managed Chromium and writes screenshot and metric evidence;
+- `scripts/check_pwa_freshness.py`: exercises document revalidation, static-shell
+  refresh, service-worker update propagation, and offline fallbacks in Chromium;
 - `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
@@ -107,7 +109,8 @@ progressive-disclosure path that agents can follow.
   generated HTML, including the post-generated `/guided/` tree;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
 - `.github/workflows/mobile-visual-regression.yml`: same-repository pull-request
-  check that consumes the built Pages artifact and validates mobile layout;
+  check that consumes the built Pages artifact and validates mobile layout plus
+  the browser-level PWA freshness lifecycle;
 - `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
   to `site`.
 
@@ -196,11 +199,17 @@ python -m playwright install --with-deps chromium
 python site/scripts/check_mobile_layout.py \
   --site-root build/site \
   --output-root build/mobile-visual
+python site/scripts/check_pwa_freshness.py \
+  --site-root build/site \
+  --output build/mobile-visual/pwa-freshness.json
 ```
 
 The mobile layout check uses the Chromium build matched to the pinned Playwright
 controller and writes 390×844 screenshots plus `metrics.json` under
 `build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
+The PWA freshness check uses the same browser installation and writes
+`pwa-freshness.json` while validating HTTP-cache revalidation, static-shell
+convergence, worker update propagation, and explicit offline 503 fallbacks.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
 preview URLs, repository-browser snapshots, and guided navigation all use the

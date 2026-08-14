@@ -169,6 +169,7 @@ def _worker_version(page: Any) -> int | None:
         """async () => {
           const worker = navigator.serviceWorker.controller;
           if (!worker) return null;
+          navigator.serviceWorker.startMessages();
           return await new Promise((resolve) => {
             const timer = setTimeout(() => {
               navigator.serviceWorker.removeEventListener("message", onMessage);
@@ -193,7 +194,9 @@ def _wait_for_worker_version(page: Any, expected: int, timeout_seconds: float = 
     last_error: Exception | None = None
     while time.monotonic() < deadline:
         try:
-            if _worker_version(page) == expected:
+            version = _worker_version(page)
+            last_error = None
+            if version == expected:
                 return
         except Exception as exc:
             last_error = exc
@@ -221,6 +224,31 @@ def _fetch_manifest_version(page: Any) -> int:
             }"""
         )
     )
+
+
+def _wait_for_manifest_version(
+    page: Any,
+    expected: int,
+    timeout_seconds: float = 10.0,
+) -> list[int]:
+    deadline = time.monotonic() + timeout_seconds
+    observed_versions: list[int] = []
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            version = _fetch_manifest_version(page)
+            last_error = None
+            observed_versions.append(version)
+            if version == expected:
+                return observed_versions
+        except Exception as exc:
+            last_error = exc
+        time.sleep(0.1)
+
+    message = f"cached manifest did not converge to fixture version {expected}"
+    if last_error is not None:
+        raise PwaFreshnessError(message) from last_error
+    raise PwaFreshnessError(message)
 
 
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
@@ -280,18 +308,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                     f"initial cached manifest version is {initial_manifest}, expected 1"
                 )
             state.manifest_version = 2
-            observed_manifest_versions: list[int] = []
-            deadline = time.monotonic() + 10.0
-            while time.monotonic() < deadline:
-                version = _fetch_manifest_version(page)
-                observed_manifest_versions.append(version)
-                if version == 2:
-                    break
-                time.sleep(0.1)
-            else:
-                raise PwaFreshnessError(
-                    "cached manifest did not converge to the revalidated network version"
-                )
+            observed_manifest_versions = _wait_for_manifest_version(page, 2)
             evidence["manifest_versions"] = [initial_manifest, *observed_manifest_versions]
 
             state.worker_version = 2
