@@ -69,7 +69,7 @@ def prepare_single_translation(root: Path) -> bytes:
     canonical = b"# Canonical\n"
     (root / "docs" / "overview.md").write_bytes(canonical)
     (root / "translations" / "ja" / "docs" / "overview.md").write_text(
-        "> **参考訳（非正本）:** test\n\n# Translation\n",
+        "# Translation\n\n> **参考訳（非正本）:** test\n",
         encoding="utf-8",
     )
     write_catalog(root)
@@ -92,7 +92,7 @@ class TranslationContractTests(unittest.TestCase):
             current = b"# Canonical\n\nChanged English.\n"
             (root / "docs" / "overview.md").write_bytes(current)
             (root / "translations" / "ja" / "docs" / "overview.md").write_text(
-                "> **参考訳（非正本）:** test\n\n# Translation\n",
+                "# Translation\n\n> **参考訳（非正本）:** test\n",
                 encoding="utf-8",
             )
             write_catalog(root)
@@ -110,7 +110,7 @@ class TranslationContractTests(unittest.TestCase):
             canonical = prepare_single_translation(root)
             wrong_path = root / "translations" / "ja" / "overview.md"
             wrong_path.write_text(
-                "> **参考訳（非正本）:** test\n",
+                "# Translation\n\n> **参考訳（非正本）:** test\n",
                 encoding="utf-8",
             )
             write_manifest(
@@ -142,9 +142,46 @@ class TranslationContractTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 TranslationError,
-                "must begin with the non-authoritative notice",
+                "must place the non-authoritative notice immediately after",
             ):
                 validate(root)
+
+    def test_japanese_translation_notice_before_title_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="translation-test-") as directory:
+            root = Path(directory)
+            canonical = prepare_single_translation(root)
+            translation = root / "translations" / "ja" / "docs" / "overview.md"
+            translation.write_text(
+                "> **参考訳（非正本）:** test\n\n# Translation\n",
+                encoding="utf-8",
+            )
+            write_manifest(
+                root,
+                [translation_entry(canonical_blob_sha=blob_sha(canonical))],
+            )
+
+            with self.assertRaisesRegex(
+                TranslationError,
+                "must place a top-level title before",
+            ):
+                validate(root)
+
+    def test_japanese_translation_front_matter_before_title_allowed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="translation-test-") as directory:
+            root = Path(directory)
+            canonical = prepare_single_translation(root)
+            translation = root / "translations" / "ja" / "docs" / "overview.md"
+            translation.write_text(
+                "---\ndescription: translated\n---\n\n"
+                "# Translation\n\n> **参考訳（非正本）:** test\n",
+                encoding="utf-8",
+            )
+            write_manifest(
+                root,
+                [translation_entry(canonical_blob_sha=blob_sha(canonical))],
+            )
+
+            self.assertIn("translations validated: 1", validate(root))
 
     @unittest.skipIf(os.name == "nt", "symlink creation is not reliably available on Windows")
     def test_symlink_translation_path_rejected(self) -> None:
@@ -155,7 +192,7 @@ class TranslationContractTests(unittest.TestCase):
             target = root / "translations" / "ja" / "docs" / "target.md"
             translation.unlink()
             target.write_text(
-                "> **参考訳（非正本）:** test\n",
+                "# Translation\n\n> **参考訳（非正本）:** test\n",
                 encoding="utf-8",
             )
             translation.symlink_to(target.name)
@@ -173,7 +210,7 @@ class TranslationContractTests(unittest.TestCase):
             canonical = prepare_single_translation(root)
             undeclared = root / "translations" / "ja" / "docs" / "extra.md"
             undeclared.write_text(
-                "> **参考訳（非正本）:** test\n",
+                "# Extra\n\n> **参考訳（非正本）:** test\n",
                 encoding="utf-8",
             )
             write_manifest(
@@ -205,7 +242,7 @@ class TranslationContractTests(unittest.TestCase):
             private.write_bytes(canonical)
             private_translation = root / "translations" / "ja" / "docs" / "private.md"
             private_translation.write_text(
-                "> **参考訳（非正本）:** test\n",
+                "# Private\n\n> **参考訳（非正本）:** test\n",
                 encoding="utf-8",
             )
             write_manifest(
