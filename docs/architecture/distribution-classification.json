@@ -23,7 +23,8 @@
       ".agent-policy.yml",
       "AGENTS.md",
       "distribution-manifest.json",
-      "policy"
+      "policy",
+      "translations"
     ]
   },
   "targetSourceRoots": {

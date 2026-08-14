@@ -8,11 +8,15 @@ order: 1030
 
 Use the isolated Python and pip bootstrap procedure documented in `README.md` before executing repository validators.
 
-For changes that can affect the distribution boundary, run both source-only distribution validator entry points from the branch root. For changes that can affect Webapp contracts or validation, run both supported entry points for each applicable canonical validator from `template/`, then run the source-maintainer standard-library test suite. The complete retained baseline includes:
+For changes that can affect the distribution boundary, publication interface, or repository-owned translation metadata, run both supported source-only distribution, publication-catalog, and translation validator entry points from the branch root. For changes that can affect Webapp contracts or validation, run both supported entry points for each applicable canonical validator from `template/`, then run the source-maintainer standard-library test suite. The complete retained baseline includes:
 
 ```sh
 python scripts/validate_distribution.py
 python -m scripts.validate_distribution
+python scripts/validate_publication_catalog.py
+python -m scripts.validate_publication_catalog
+python scripts/validate_translations.py
+python -m scripts.validate_translations
 (cd template && ../.venv/bin/python scripts/validate_contracts.py)
 (cd template && ../.venv/bin/python -m scripts.validate_contracts)
 (cd template && ../.venv/bin/python scripts/validate_contract_evolution.py)

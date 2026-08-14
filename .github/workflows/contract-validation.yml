@@ -81,6 +81,18 @@ jobs:
       - name: Validate copyable distribution as a module
         run: .venv/bin/python -m scripts.validate_distribution
 
+      - name: Validate documentation publication catalog as a standalone script
+        run: .venv/bin/python scripts/validate_publication_catalog.py
+
+      - name: Validate documentation publication catalog as a module
+        run: .venv/bin/python -m scripts.validate_publication_catalog
+
+      - name: Validate repository translations as a standalone script
+        run: .venv/bin/python scripts/validate_translations.py
+
+      - name: Validate repository translations as a module
+        run: .venv/bin/python -m scripts.validate_translations
+
       - name: Validate canonical contracts as a standalone script
         working-directory: template
         run: ../.venv/bin/python scripts/validate_contracts.py

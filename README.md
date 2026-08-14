@@ -20,6 +20,17 @@ python template/scripts/verify_locked_environment.py
 python -m pip check
 ```
 
+Validate source-maintainer distribution closure, the publication interface, and repository-owned translation metadata through both supported root entry points:
+
+```sh
+python scripts/validate_distribution.py
+python -m scripts.validate_distribution
+python scripts/validate_publication_catalog.py
+python -m scripts.validate_publication_catalog
+python scripts/validate_translations.py
+python -m scripts.validate_translations
+```
+
 Validate the complete machine-readable contract set through both supported source-maintainer entry points:
 
 ```sh
@@ -48,7 +59,7 @@ python template/scripts/validate_release_evidence.py
 python -m scripts.validate_release_evidence
 ```
 
-The root `scripts` package is a maintainer-only import bridge to `template/scripts`; direct file execution always names the canonical `template/scripts/...` path.
+The root `scripts` package contains source-maintainer distribution, publication, and translation validators plus an import bridge to canonical downstream validators under `template/scripts`; direct file execution of a downstream validator always names its canonical `template/scripts/...` path.
 
 A generated product validates completed release evidence by supplying the exact immutable candidate revision from the copied repository root:
 
