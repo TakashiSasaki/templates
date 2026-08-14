@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.generate_index_navigation_locale_viewer import (
+    LocaleViewerError,
+    load_overlays,
+    locale_index_path,
     locale_index_url,
+    render_localized_index,
     render_localized_landing,
     translated_edge_href,
 )
@@ -114,6 +121,107 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
         self.assertNotIn('/ja/guided/graph.json', source)
         self.assertIn('/ja/guided/policy/', source)
         self.assertIn('/guided/skill/', source)
+
+    def test_unsafe_language_cannot_become_filesystem_component(self) -> None:
+        with self.assertRaisesRegex(LocaleViewerError, "language tag"):
+            locale_index_path("../escape", "policy", "docs/index.md")
+        with self.assertRaisesRegex(LocaleViewerError, "language tag"):
+            locale_index_url("/tmp", "policy", "docs/index.md")
+
+    def test_overlay_loader_rejects_unsafe_language(self) -> None:
+        graph = {"schema_version": 1, "providers": []}
+        payload = {
+            "schema_version": 1,
+            "canonical_graph_schema_version": 1,
+            "canonical_language": "en",
+            "locales": [{"language": "../escape", "providers": []}],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-overlay-") as directory:
+            path = Path(directory) / "overlay.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(LocaleViewerError, "language tag"):
+                load_overlays(path, graph)
+
+    def test_overlay_loader_rejects_graph_schema_mismatch(self) -> None:
+        graph = {"schema_version": 1, "providers": []}
+        payload = {
+            "schema_version": 1,
+            "canonical_graph_schema_version": 2,
+            "canonical_language": "en",
+            "locales": [],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-overlay-") as directory:
+            path = Path(directory) / "overlay.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(LocaleViewerError, "does not match graph schema"):
+                load_overlays(path, graph)
+
+    def test_overlay_loader_rejects_provider_revision_mismatch(self) -> None:
+        graph = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "name": "policy",
+                    "revision": REVISION,
+                    "indexes": [],
+                    "edges": [],
+                }
+            ],
+        }
+        payload = {
+            "schema_version": 1,
+            "canonical_graph_schema_version": 1,
+            "canonical_language": "en",
+            "locales": [
+                {
+                    "language": "ja",
+                    "providers": [
+                        {
+                            "name": "policy",
+                            "revision": "b" * 40,
+                            "indexes": [],
+                        }
+                    ],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-overlay-") as directory:
+            path = Path(directory) / "overlay.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(LocaleViewerError, "revision mismatch"):
+                load_overlays(path, graph)
+
+    def test_localized_headings_preserve_canonical_fragment_ids(self) -> None:
+        canonical_index = {
+            "path": "docs/index.md",
+            "title": "Policy navigation",
+            "sections": [{"title": "Details", "level": 2}],
+        }
+        overlay = {
+            "title": "ポリシーナビゲーション",
+            "sections": [{"title": "詳細", "level": 2}],
+            "links": [],
+        }
+        provider = {
+            "name": "policy",
+            "revision": REVISION,
+        }
+        source = render_localized_index(
+            "ja",
+            REPOSITORY,
+            provider,
+            canonical_index,
+            overlay,
+            {"docs/index.md": overlay},
+            {},
+            {},
+            {"docs/index.md": canonical_index},
+            {},
+            [],
+        )
+        self.assertIn('<h1 id="policy-navigation">ポリシーナビゲーション</h1>', source)
+        self.assertIn('<h2 id="details">詳細</h2>', source)
+        self.assertNotIn('id="ポリシーナビゲーション"', source)
 
 
 if __name__ == "__main__":
