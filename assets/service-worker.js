@@ -33,7 +33,7 @@ function fetchFreshDocument(request) {
 
 function refreshStaticAsset(request) {
   return caches.open(CACHE_NAME).then(async (cache) => {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: "no-cache" });
     if (response.ok) {
       await cache.put(request, response.clone());
     }
