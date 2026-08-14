@@ -7,6 +7,7 @@ import argparse
 import html
 import json
 import math
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -374,6 +375,10 @@ def _browser_runtime_arguments(profile: str, *, no_sandbox: bool) -> list[str]:
         "--headless=new",
         "--disable-gpu",
         "--disable-dev-shm-usage",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--metrics-recording-only",
         "--no-first-run",
         "--no-default-browser-check",
         "--force-device-scale-factor=1",
@@ -391,12 +396,13 @@ def _run_browser(
     no_sandbox: bool = False,
     timeout: int = 45,
 ) -> subprocess.CompletedProcess[str]:
-    with tempfile.TemporaryDirectory(prefix="mobile-layout-chrome-") as profile:
-        command = [
-            str(browser),
-            *_browser_runtime_arguments(profile, no_sandbox=no_sandbox),
-            *arguments,
-        ]
+    profile = tempfile.mkdtemp(prefix="mobile-layout-chrome-")
+    command = [
+        str(browser),
+        *_browser_runtime_arguments(profile, no_sandbox=no_sandbox),
+        *arguments,
+    ]
+    try:
         try:
             return subprocess.run(
                 command,
@@ -415,6 +421,12 @@ def _run_browser(
                 detail = "browser timed out"
             suffix = f": {detail}" if detail else ""
             raise MobileLayoutError(f"unable to run headless browser{suffix}") from exc
+    finally:
+        # Chrome can briefly leave background helpers touching the profile even
+        # after its parent process exits. Profile cleanup must not turn a valid
+        # layout result into a CI failure; hosted runners are ephemeral and
+        # local cleanup remains best-effort.
+        shutil.rmtree(profile, ignore_errors=True)
 
 
 def measure(
