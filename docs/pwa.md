@@ -1,33 +1,33 @@
-# PWAとして利用する
+# Use as a PWA
 
-このドキュメントサイトは、対応ブラウザからProgressive Web App（PWA）としてインストールできます。インストール後は、OSのアプリ一覧、ホーム画面、スタートメニューなどから独立したウィンドウで起動できます。
+This documentation site can be installed as a Progressive Web App (PWA) from supported browsers. After installation, it can be launched in a standalone window from the operating system's application list, home screen, Start menu, or equivalent launcher.
 
-## インストール
+## Installation
 
-### Android／Chrome系ブラウザ
+### Android and Chromium-based browsers
 
-ブラウザのメニューから「アプリをインストール」または「ホーム画面に追加」を選択します。インストール可能と判定された場合は、アドレスバーにもインストール操作が表示されます。
+Use the browser menu and choose **Install app** or **Add to Home screen**. When the browser considers the site installable, an install action may also appear in the address bar.
 
-### デスクトップ版Chrome／Edge
+### Desktop Chrome and Edge
 
-アドレスバーのインストールアイコン、またはブラウザメニューの「agent-policyをインストール」を使用します。
+Use the install icon in the address bar or the browser menu action to install `agent-policy`.
 
-### iPhone／iPad
+### iPhone and iPad
 
-Safariの共有メニューから「ホーム画面に追加」を選択します。ブラウザによって、利用できるPWA機能には差があります。
+In Safari, use the Share menu and choose **Add to Home Screen**. Available PWA features vary by browser and operating-system version.
 
-## 画面の向き
+## Orientation
 
-モバイル端末でインストール済みPWAとして起動した場合は、ポートレイト（縦長）の主方向を要求します。Web App Manifestの`orientation`を`portrait-primary`に設定し、standalone表示ではScreen Orientation APIによる固定も試行します。
+When launched as an installed PWA on a mobile device, the application requests portrait-primary orientation. The Web App Manifest sets `orientation` to `portrait-primary`, and standalone display also attempts to lock orientation through the Screen Orientation API.
 
-通常のブラウザタブ、API非対応ブラウザ、OS側で向き固定が拒否された環境では、端末側の画面回転設定が優先されます。
+In a normal browser tab, in browsers without the API, or when the operating system rejects orientation locking, the device's own rotation setting takes precedence.
 
-## オフライン動作
+## Offline behavior
 
-Service Workerは、アプリの基本資産と以前表示した同一オリジンのページをキャッシュします。ネットワークへ接続できない場合は、キャッシュ済みページまたはオフライン案内を表示します。
+The Service Worker caches the application's basic assets and same-origin pages that have previously been viewed. When the network is unavailable, the application displays a cached page when available or the offline guidance page otherwise.
 
-ドキュメントは更新されるため、オンライン時にはネットワーク上の最新版を優先します。
+Documentation changes over time, so while online the application prefers the current network version.
 
-## 更新
+## Updates
 
-新しいService Workerが配信されると、自動的に有効化されます。表示内容が古い場合は、ページを再読み込みするか、アプリを終了して再起動してください。
+When a new Service Worker is delivered, it is activated automatically. If displayed content appears stale, reload the page or close and restart the installed application.
