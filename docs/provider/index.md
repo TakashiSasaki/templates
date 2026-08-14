@@ -24,4 +24,4 @@
 
 ## Agent environments
 
-* [Agent environment guidance](../agent-environments/) - Contains environment-specific operating guidance owned by the provider documentation layer.
+* [Google AI Studio Build mode](../agent-environments/google-ai-studio.md) - Describes environment-specific operating guidance owned by the provider documentation layer.
