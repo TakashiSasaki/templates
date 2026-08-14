@@ -175,6 +175,8 @@ def validate(root: Path) -> list[str]:
         for surface in surfaces:
             counts[surface] += 1
 
+    # Discover locale content only below translations/<language>/..., intentionally
+    # excluding the maintainer-facing translations/README.md at the directory root.
     discovered = {
         PurePosixPath(path.relative_to(root).as_posix())
         for path in (root / "translations").glob("*/**/*.md")
