@@ -91,6 +91,10 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("scripts/check_mobile_layout.py", workflow)
         self.assertIn("build/mobile-visual", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn(
+            "github.event.pull_request.head.repo.full_name == github.repository",
+            workflow,
+        )
         self.assertNotIn("actions/upload-pages-artifact", workflow)
 
 
