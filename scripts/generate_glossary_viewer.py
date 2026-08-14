@@ -602,6 +602,18 @@ def generate(input_path: Path, output_path: Path) -> None:
     ):
         raise GlossaryViewerError("output must be a regular file path")
     try:
+        same_file = input_path.resolve(strict=True) == output_path.resolve(strict=False)
+        if not same_file and output_path.exists():
+            same_file = input_path.samefile(output_path)
+    except OSError as exc:
+        raise GlossaryViewerError(
+            f"unable to compare glossary viewer input and output paths: {exc}"
+        ) from exc
+    if same_file:
+        raise GlossaryViewerError(
+            "input and output must refer to different files"
+        )
+    try:
         output_path.write_text(render(model), encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise GlossaryViewerError(
