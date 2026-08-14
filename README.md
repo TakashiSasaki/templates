@@ -96,6 +96,8 @@ progressive-disclosure path that agents can follow.
   static `/guided/` human navigation surface without reparsing Markdown;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
+- `assets/javascripts/repository-browser.js`: progressive-enhancement controller
+  for narrow-viewport Files/Content switching in the static repository browser;
 - `scripts/assemble_publications.py`: catalog validation and multi-source
   assembly;
 - `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
