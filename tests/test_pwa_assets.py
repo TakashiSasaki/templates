@@ -159,14 +159,18 @@ class PwaAssetTests(unittest.TestCase):
     def test_service_worker_static_asset_cache_revalidates_exact_keys(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
-        self.assertIn("function refreshStaticAsset(request)", worker)
+        self.assertIn("async function refreshStaticAsset(request)", worker)
         self.assertIn('const response = await fetch(request, { cache: "no-cache" })', worker)
         self.assertIn("if (response.ok)", worker)
+        self.assertIn("try {", worker)
+        self.assertIn("const cache = await caches.open(CACHE_NAME)", worker)
         self.assertIn("await cache.put(request, response.clone())", worker)
+        self.assertIn('console.warn("PWA static asset cache refresh failed", error)', worker)
         self.assertIn("const refresh = refreshStaticAsset(event.request)", worker)
+        self.assertIn("const cached = caches", worker)
+        self.assertIn(".catch(() => undefined)", worker)
         self.assertIn("event.waitUntil(refresh.catch(() => undefined))", worker)
-        self.assertIn("cache.match(event.request)", worker)
-        self.assertIn("cached || refresh", worker)
+        self.assertIn("response || refresh", worker)
         self.assertNotIn("ignoreSearch", worker)
 
     def test_service_worker_activation_cache_cleanup_filter(self) -> None:
