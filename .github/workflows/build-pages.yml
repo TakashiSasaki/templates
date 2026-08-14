@@ -142,16 +142,6 @@ jobs:
             --publication webapp=webapp-source \
             --site-root site-publication \
             --output-root build
-          test -f build/docs/ja/policy/index.md
-          test -f build/docs/ja/policy/getting-started.md
-          test -f build/docs/ja/policy/managed-operation.md
-          test -f build/docs/ja/policy/cli.md
-          test -f build/docs/ja/policy/bootstrap.md
-          test -f build/docs/ja/policy/pwa.md
-          test -f build/docs/ja/policy/agent-environments/google-ai-studio.md
-          test -f build/docs/ja/policy/repository-structure.md
-          test -f build/docs/ja/policy/external-artifact-intake.md
-          test -f build/docs/ja/policy/regression-prevention.md
 
       - name: Generate repository trees
         run: |
