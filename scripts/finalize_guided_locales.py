@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Finalize canonical metadata and language switchers for localized guided pages."""
+
+from __future__ import annotations
+
+import argparse
+import html
+import json
+import re
+import sys
+from collections import defaultdict
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+try:
+    from scripts.finalize_site_metadata import ensure_pwa_metadata
+    from scripts.finalize_translation_reader import (
+        TranslationReaderError,
+        html_public_url,
+        inject_switcher,
+        language_label,
+        replace_alternates,
+        replace_canonical,
+        replace_html_language,
+        validate_canonical_base,
+    )
+except ModuleNotFoundError:
+    from finalize_site_metadata import ensure_pwa_metadata
+    from finalize_translation_reader import (
+        TranslationReaderError,
+        html_public_url,
+        inject_switcher,
+        language_label,
+        replace_alternates,
+        replace_canonical,
+        replace_html_language,
+        validate_canonical_base,
+    )
+
+HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
+STYLE_MARKER = 'id="guided-translation-reader-style"'
+STYLE = """<style id="guided-translation-reader-style">
+.translation-switcher{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin:.55rem 0 1rem;padding:.5rem .65rem;border:1px solid #d7dce5;border-radius:.65rem;background:#f8f9fb;font-size:.88rem;line-height:1.35}.translation-switcher__status{color:#505866}.translation-switcher__links{display:flex;flex-wrap:wrap;gap:.35rem}.translation-switcher__link{display:inline-block;padding:.3rem .55rem;border:1px solid #b7c0d0;border-radius:999px;background:#fff;text-decoration:none;font-weight:650}@media(max-width:600px){.translation-switcher{align-items:flex-start;flex-direction:column;gap:.4rem;padding:.45rem .55rem;margin:.45rem 0 .8rem}.translation-switcher__link{padding:.25rem .5rem}}
+</style>
+"""
+
+
+class GuidedLocaleFinalizeError(RuntimeError):
+    """Raised when localized guided page metadata is malformed or ambiguous."""
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_file():
+        raise GuidedLocaleFinalizeError(f"guided locale pair map must be a regular file: {path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise GuidedLocaleFinalizeError(f"unable to read guided locale pair map: {exc}") from exc
+    if not isinstance(value, dict):
+        raise GuidedLocaleFinalizeError("guided locale pair map must be an object")
+    return value
+
+
+def safe_html_path(value: Any, field: str) -> PurePosixPath:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+        or "\0" in value
+    ):
+        raise GuidedLocaleFinalizeError(f"{field} must be a safe relative HTML path")
+    parts = value.split("/")
+    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
+        raise GuidedLocaleFinalizeError(f"{field} must be a safe relative HTML path")
+    path = PurePosixPath(value)
+    if path.is_absolute() or path.suffix.lower() != ".html":
+        raise GuidedLocaleFinalizeError(f"{field} must be a safe relative HTML path")
+    return path
+
+
+def load_pairs(path: Path) -> list[dict[str, Any]]:
+    data = read_json(path)
+    if set(data) != {"schema_version", "canonical_language", "pages"}:
+        raise GuidedLocaleFinalizeError("guided locale pair map has unsupported fields")
+    if type(data["schema_version"]) is not int or data["schema_version"] != 1:
+        raise GuidedLocaleFinalizeError("guided locale pair map schema_version must be integer 1")
+    if data["canonical_language"] != "en" or not isinstance(data["pages"], list):
+        raise GuidedLocaleFinalizeError("guided locale pair map is invalid")
+    pairs: list[dict[str, Any]] = []
+    seen_translations: set[PurePosixPath] = set()
+    seen_pair: set[tuple[PurePosixPath, str]] = set()
+    for index, record in enumerate(data["pages"]):
+        field = f"pages[{index}]"
+        if not isinstance(record, dict) or set(record) != {
+            "language",
+            "canonical_path",
+            "translation_path",
+        }:
+            raise GuidedLocaleFinalizeError(f"{field} has unsupported fields")
+        language = record["language"]
+        if not isinstance(language, str) or not language or language == "en":
+            raise GuidedLocaleFinalizeError(f"{field}.language is invalid")
+        canonical = safe_html_path(record["canonical_path"], f"{field}.canonical_path")
+        translation = safe_html_path(record["translation_path"], f"{field}.translation_path")
+        if canonical.parts[0] != "guided":
+            raise GuidedLocaleFinalizeError(f"{field}.canonical_path must be under guided/")
+        if translation.parts[:2] != (language, "guided"):
+            raise GuidedLocaleFinalizeError(
+                f"{field}.translation_path must be under {language}/guided/"
+            )
+        if translation.parts[2:] != canonical.parts[1:]:
+            raise GuidedLocaleFinalizeError(f"{field} localized path must mirror canonical guided path")
+        key = (canonical, language)
+        if key in seen_pair or translation in seen_translations:
+            raise GuidedLocaleFinalizeError(f"{field} duplicates a guided locale mapping")
+        seen_pair.add(key)
+        seen_translations.add(translation)
+        pairs.append({"language": language, "canonical": canonical, "translation": translation})
+    return pairs
+
+
+def existing_html(site_root: Path, relative: PurePosixPath, field: str) -> Path:
+    root = site_root.resolve(strict=True)
+    current = root
+    for part in relative.parts:
+        current /= part
+        if current.is_symlink():
+            raise GuidedLocaleFinalizeError(f"{field} must not traverse a symlink: {relative}")
+    if not current.is_file():
+        raise GuidedLocaleFinalizeError(f"{field} is missing generated HTML: {relative}")
+    return current
+
+
+def switch_link(label: str, target: str, language: str) -> str:
+    return (
+        f'<a class="translation-switcher__link" href="{html.escape(target, quote=True)}" '
+        f'lang="{html.escape(language, quote=True)}" hreflang="{html.escape(language, quote=True)}">'
+        f"{html.escape(label)}</a>"
+    )
+
+
+def canonical_markup(translations: list[tuple[str, str]]) -> str:
+    links = "".join(
+        switch_link(language_label(language), target, language)
+        for language, target in translations
+    )
+    return (
+        '\n<div class="translation-switcher" role="group" aria-label="Navigation language">'
+        '<span class="translation-switcher__status">Site · Canonical English</span>'
+        f'<span class="translation-switcher__links">{links}</span></div>'
+    )
+
+
+def translated_markup(language: str, canonical_url: str) -> str:
+    status = (
+        "Site · 日本語参考表示"
+        if language.split("-", 1)[0] == "ja"
+        else f"Site · {language_label(language)} localized view · Non-authoritative"
+    )
+    return (
+        '\n<div class="translation-switcher" role="group" aria-label="Navigation language">'
+        f'<span class="translation-switcher__status">{html.escape(status)}</span>'
+        '<span class="translation-switcher__links">'
+        f'{switch_link("English · Canonical", canonical_url, "en")}'
+        "</span></div>"
+    )
+
+
+def add_style(source: str, path: Path) -> str:
+    if STYLE_MARKER in source:
+        return source
+    matches = list(HEAD_CLOSE.finditer(source))
+    if len(matches) != 1:
+        raise GuidedLocaleFinalizeError(
+            f"{path}: expected exactly one closing head tag, found {len(matches)}"
+        )
+    position = matches[0].start()
+    return source[:position] + STYLE + source[position:]
+
+
+def finalize(
+    site_root: Path,
+    pair_map: Path,
+    canonical_base: str,
+) -> list[str]:
+    canonical_base = validate_canonical_base(canonical_base)
+    pairs = load_pairs(pair_map)
+    groups: dict[PurePosixPath, list[dict[str, Any]]] = defaultdict(list)
+    for pair in pairs:
+        groups[pair["canonical"]].append(pair)
+
+    updates: dict[Path, str] = {}
+    messages: list[str] = []
+    for canonical, records in groups.items():
+        canonical_file = existing_html(site_root, canonical, "canonical guided page")
+        canonical_url = html_public_url(canonical_base, Path(*canonical.parts))
+        alternates = [("en", canonical_url)]
+        translated_urls: list[tuple[str, str]] = []
+        for record in sorted(records, key=lambda value: value["language"]):
+            translation_file = existing_html(
+                site_root,
+                record["translation"],
+                "localized guided page",
+            )
+            translation_url = html_public_url(
+                canonical_base,
+                Path(*record["translation"].parts),
+            )
+            translated_urls.append((record["language"], translation_url))
+            alternates.append((record["language"], translation_url))
+
+            source = translation_file.read_text(encoding="utf-8")
+            source = ensure_pwa_metadata(source, translation_file)
+            source = replace_canonical(source, canonical_url, translation_file)
+            source = replace_alternates(source, alternates, translation_file)
+            source = replace_html_language(source, record["language"], translation_file)
+            source = inject_switcher(
+                source,
+                translated_markup(record["language"], canonical_url),
+                translation_file,
+            )
+            source = add_style(source, translation_file)
+            updates[translation_file] = source
+
+        source = canonical_file.read_text(encoding="utf-8")
+        source = ensure_pwa_metadata(source, canonical_file)
+        source = replace_canonical(source, canonical_url, canonical_file)
+        source = replace_alternates(source, alternates, canonical_file)
+        source = replace_html_language(source, "en", canonical_file)
+        source = inject_switcher(
+            source,
+            canonical_markup(translated_urls),
+            canonical_file,
+        )
+        source = add_style(source, canonical_file)
+        updates[canonical_file] = source
+        messages.append(
+            f"guided locale group finalized: {canonical.as_posix()} ({len(records)} translation(s))"
+        )
+
+    for path, content in updates.items():
+        path.write_text(content, encoding="utf-8")
+    return messages
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--site-root", required=True, type=Path)
+    parser.add_argument("--pair-map", required=True, type=Path)
+    parser.add_argument("--canonical-url", required=True)
+    args = parser.parse_args()
+    try:
+        messages = finalize(args.site_root, args.pair_map, args.canonical_url)
+    except (
+        GuidedLocaleFinalizeError,
+        TranslationReaderError,
+        OSError,
+        UnicodeError,
+    ) as exc:
+        parser.error(str(exc))
+    for message in messages:
+        print(message)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
