@@ -95,7 +95,8 @@ progressive-disclosure path that agents can follow.
 - `scripts/generate_index_navigation_viewer.py`: renders that graph as the
   static `/guided/` human navigation surface without reparsing Markdown;
 - `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
-  headless Chrome and writes screenshot and metric evidence;
+  Playwright-managed Chromium and writes screenshot and metric evidence;
+- `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
 - `assets/javascripts/repository-browser.js`: progressive-enhancement controller
@@ -190,19 +191,20 @@ python site/scripts/write_publication_provenance.py \
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
+python -m pip install -r site/requirements-visual.txt
+python -m playwright install --with-deps chromium
 python site/scripts/check_mobile_layout.py \
   --site-root build/site \
-  --browser "$(command -v google-chrome)" \
   --output-root build/mobile-visual
 ```
 
-The mobile layout check requires a local Chrome executable and writes
-390×844 screenshots plus `metrics.json` under `build/mobile-visual`; geometry is
-validated at 360×800, 390×844, and 412×915. Use workflow-call revision overrides
-only for deliberate compatibility testing. Normal builds use the reviewed
-full-SHA lock file. Repository-tree links, preview URLs, repository-browser
-snapshots, and guided navigation all use the actual checked-out commits, so
-override builds remain internally consistent.
+The mobile layout check uses the Chromium build matched to the pinned Playwright
+controller and writes 390×844 screenshots plus `metrics.json` under
+`build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
+Use workflow-call revision overrides only for deliberate compatibility testing.
+Normal builds use the reviewed full-SHA lock file. Repository-tree links,
+preview URLs, repository-browser snapshots, and guided navigation all use the
+actual checked-out commits, so override builds remain internally consistent.
 
 ## Deployment boundary
 
