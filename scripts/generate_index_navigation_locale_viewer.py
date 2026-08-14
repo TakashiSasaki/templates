@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import re
+import shutil
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote
 
@@ -124,6 +126,80 @@ def is_japanese(language: str) -> bool:
     return validate_language(language).split("-", 1)[0] == "ja"
 
 
+def safe_markdown_destination(value: Any, field: str) -> PurePosixPath:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+        or "\0" in value
+    ):
+        raise LocaleViewerError(f"{field} must be a safe relative Markdown path")
+    parts = value.split("/")
+    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
+        raise LocaleViewerError(f"{field} must be a safe relative Markdown path")
+    path = PurePosixPath(value)
+    if path.is_absolute() or path.suffix.lower() != ".md":
+        raise LocaleViewerError(f"{field} must be a safe relative Markdown path")
+    return path
+
+
+def existing_directory_without_symlinks(path: Path, field: str) -> Path:
+    """Return an absolute existing directory after rejecting every symlink component."""
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise LocaleViewerError(f"{field} must not traverse a symlink: {path}")
+        if not current.exists():
+            raise LocaleViewerError(f"{field} must be an existing directory: {path}")
+    if not absolute.is_dir():
+        raise LocaleViewerError(f"{field} must be an existing directory: {path}")
+    return absolute
+
+
+def localized_guided_root(output_root: Path, language: str) -> Path:
+    """Resolve one not-yet-created locale guided root without following locale symlinks."""
+    language = validate_language(language, "guided locale")
+    root = existing_directory_without_symlinks(
+        output_root,
+        "localized guided output root",
+    )
+    locale_root = root / language
+    if locale_root.is_symlink():
+        raise LocaleViewerError(
+            f"localized guided locale parent must not be a symlink: {locale_root}"
+        )
+    if locale_root.exists() and not locale_root.is_dir():
+        raise LocaleViewerError(
+            f"localized guided locale parent must be a directory when present: {locale_root}"
+        )
+    guided_root = locale_root / "guided"
+    if guided_root.exists() or guided_root.is_symlink():
+        raise LocaleViewerError(
+            f"localized guided destination already exists: {guided_root}"
+        )
+    return guided_root
+
+
+def remove_generated_guided_root(root: Path, output_root: Path) -> None:
+    """Remove only a generated root whose current parents are still non-symlinks."""
+    try:
+        relative = root.relative_to(output_root)
+    except ValueError:
+        return
+    current = output_root
+    for part in relative.parts[:-1]:
+        current /= part
+        if current.is_symlink():
+            return
+    if root.is_symlink():
+        return
+    if root.is_dir():
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def read_json(path: Path, label: str) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise LocaleViewerError(f"{label} must be a regular file: {path}")
@@ -156,6 +232,17 @@ def load_overlays(path: Path, graph: dict[str, Any]) -> dict[str, dict[str, dict
         raise LocaleViewerError("guided locale overlay locales must be an array")
 
     graph_providers = {provider["name"]: provider for provider in graph["providers"]}
+    canonical_indexes_by_provider: dict[str, dict[str, dict[str, Any]]] = {}
+    edges_by_source_by_provider: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for name, canonical_provider in graph_providers.items():
+        canonical_indexes_by_provider[name] = {
+            index["path"]: index for index in canonical_provider["indexes"]
+        }
+        edges_by_source: dict[str, list[dict[str, Any]]] = {}
+        for edge in canonical_provider["edges"]:
+            edges_by_source.setdefault(edge["source"], []).append(edge)
+        edges_by_source_by_provider[name] = edges_by_source
+
     result: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
     for locale_index, locale in enumerate(locales):
         if not isinstance(locale, dict) or set(locale) != {"language", "providers"}:
@@ -181,9 +268,8 @@ def load_overlays(path: Path, graph: dict[str, Any]) -> dict[str, dict[str, dict
             indexes = provider["indexes"]
             if not isinstance(indexes, list):
                 raise LocaleViewerError(f"locale provider indexes must be an array: {name}")
-            canonical_indexes = {
-                index["path"]: index for index in canonical_provider["indexes"]
-            }
+            canonical_indexes = canonical_indexes_by_provider[name]
+            edges_by_source = edges_by_source_by_provider[name]
             index_result: dict[str, dict[str, Any]] = {}
             for index in indexes:
                 if not isinstance(index, dict) or set(index) != {"path", "title", "sections", "links"}:
@@ -209,9 +295,7 @@ def load_overlays(path: Path, graph: dict[str, Any]) -> dict[str, dict[str, dict
                         or type(section["level"]) is not int
                     ):
                         raise LocaleViewerError(f"localized section prose is invalid: {name}:{path_value}")
-                source_edges = [
-                    edge for edge in canonical_provider["edges"] if edge["source"] == path_value
-                ]
+                source_edges = edges_by_source.get(path_value, [])
                 if len(links) != len(source_edges):
                     raise LocaleViewerError(f"localized link count drift: {name}:{path_value}")
                 for link in links:
@@ -237,9 +321,10 @@ def load_reader_translations(path: Path) -> dict[tuple[str, str, str], str]:
     if data["canonical_language"] != "en" or not isinstance(data["translations"], list):
         raise LocaleViewerError("reader translation publication map is invalid")
     result: dict[tuple[str, str, str], str] = {}
-    for record in data["translations"]:
+    for index, record in enumerate(data["translations"]):
+        field = f"reader translation publication map translations[{index}]"
         if not isinstance(record, dict):
-            raise LocaleViewerError("reader translation publication record must be an object")
+            raise LocaleViewerError(f"{field} must be an object")
         required = {
             "publication",
             "language",
@@ -247,19 +332,29 @@ def load_reader_translations(path: Path) -> dict[tuple[str, str, str], str]:
             "translation_destination",
         }
         if set(record) != required:
-            raise LocaleViewerError("reader translation publication record has unsupported fields")
-        language = validate_language(record["language"], "reader translation language")
-        key = (
-            language,
-            record["publication"],
+            raise LocaleViewerError(f"{field} has unsupported fields")
+        language = validate_language(record["language"], f"{field}.language")
+        publication = record["publication"]
+        if not isinstance(publication, str) or not publication:
+            raise LocaleViewerError(f"{field}.publication must be a non-empty string")
+        canonical = safe_markdown_destination(
             record["canonical_destination"],
+            f"{field}.canonical_destination",
         )
-        if not all(isinstance(value, str) and value for value in key) or key in result:
-            raise LocaleViewerError("reader translation publication record is invalid or duplicate")
-        destination = record["translation_destination"]
-        if not isinstance(destination, str) or not destination:
-            raise LocaleViewerError("reader translation destination is invalid")
-        result[key] = destination
+        translation = safe_markdown_destination(
+            record["translation_destination"],
+            f"{field}.translation_destination",
+        )
+        expected_translation = PurePosixPath(language) / canonical
+        if translation != expected_translation:
+            raise LocaleViewerError(
+                f"{field}.translation_destination must mirror canonical at "
+                f"{expected_translation}"
+            )
+        key = (language, publication, canonical.as_posix())
+        if key in result:
+            raise LocaleViewerError("reader translation publication record is duplicate")
+        result[key] = translation.as_posix()
     return result
 
 
@@ -557,10 +652,16 @@ def render_localized_landing(
 
 
 def write_pair_map(path: Path, pairs: list[dict[str, str]]) -> None:
-    if path.is_symlink():
-        raise LocaleViewerError("guided locale publication map must not be a symlink")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    parent = existing_directory_without_symlinks(
+        path.parent,
+        "guided locale publication map parent",
+    )
+    target = parent / path.name
+    if target.exists() or target.is_symlink():
+        raise LocaleViewerError(
+            f"guided locale publication map destination already exists: {target}"
+        )
+    target.write_text(
         json.dumps(
             {
                 "schema_version": 1,
@@ -597,16 +698,19 @@ def generate_localized_viewer(
             raise LocaleViewerError(f"{name} checkout revision does not match graph")
         revisions[name] = provider["revision"]
     published = published_maps(site_root, provider_roots, revisions)
+    safe_output_root = existing_directory_without_symlinks(
+        output_root,
+        "localized guided output root",
+    )
 
     rendered: list[tuple[Path, str]] = []
     pairs: list[dict[str, str]] = []
     messages: list[str] = []
     providers_by_name = {provider["name"]: provider for provider in graph["providers"]}
+    guided_roots: dict[str, Path] = {}
     for language, locale in sorted(overlays.items()):
         language = validate_language(language, "guided locale")
-        guided_root = output_root / language / "guided"
-        if guided_root.exists() or guided_root.is_symlink():
-            raise LocaleViewerError(f"localized guided destination already exists: {guided_root}")
+        guided_roots[language] = localized_guided_root(safe_output_root, language)
         landing_path = Path(language) / "guided" / "index.html"
         rendered.append((landing_path, render_localized_landing(language, graph, locale)))
         pairs.append(
@@ -659,17 +763,26 @@ def generate_localized_viewer(
         raise LocaleViewerError("localized guided destinations collide")
     written_roots: set[Path] = set()
     try:
+        for language, guided_root in guided_roots.items():
+            locale_root = safe_output_root / language
+            if locale_root.is_symlink():
+                raise LocaleViewerError(
+                    f"localized guided locale parent became a symlink: {locale_root}"
+                )
+            guided_root.mkdir(parents=True, exist_ok=False)
+            if guided_root.is_symlink():
+                raise LocaleViewerError(
+                    f"localized guided destination became a symlink: {guided_root}"
+                )
+            written_roots.add(guided_root)
         for relative, content in rendered:
-            destination = output_root / relative
+            destination = safe_output_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            written_roots.add(output_root / relative.parts[0] / "guided")
             destination.write_text(content, encoding="utf-8")
         write_pair_map(pair_map, pairs)
     except BaseException:
-        import shutil
-
         for root in written_roots:
-            shutil.rmtree(root, ignore_errors=True)
+            remove_generated_guided_root(root, safe_output_root)
         raise
     return messages
 
