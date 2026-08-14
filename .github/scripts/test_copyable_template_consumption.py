@@ -24,6 +24,7 @@ SOURCE_ONLY_PATHS = (
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "distribution-manifest.json",
+    "docs/glossary.yml",
     "docs/publication-catalog.json",
     "docs/publication-maintenance.md",
     "docs/architecture/distribution-boundary.md",
