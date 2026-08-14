@@ -39,6 +39,11 @@ class PublicationCatalogV3Tests(unittest.TestCase):
         )
         return path
 
+    def rewrite(self, catalog: Path, **changes: object) -> None:
+        data = json.loads(catalog.read_text(encoding="utf-8"))
+        data.update(changes)
+        catalog.write_text(json.dumps(data), encoding="utf-8")
+
     def test_valid_v3_glossary_declaration(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -47,14 +52,56 @@ class PublicationCatalogV3Tests(unittest.TestCase):
         self.assertEqual(["overview"], [item.document_id for item in documents])
         self.assertEqual([], assets)
 
-    def test_glossary_must_be_yml(self) -> None:
+    def test_v3_catalog_without_glossary_is_valid(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             catalog = self.prepare(root)
             data = json.loads(catalog.read_text(encoding="utf-8"))
-            data["glossary"] = {"source": "README.md"}
+            del data["glossary"]
             catalog.write_text(json.dumps(data), encoding="utf-8")
+            documents, assets = validate_catalog(catalog, root)
+        self.assertEqual(["overview"], [item.document_id for item in documents])
+        self.assertEqual([], assets)
+
+    def test_glossary_rejected_on_version_2(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            self.rewrite(catalog, schema_version=2)
+            with self.assertRaisesRegex(CatalogError, "requires schema_version 3"):
+                validate_catalog(catalog, root)
+
+    def test_glossary_must_be_object(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            self.rewrite(catalog, glossary=["docs/glossary.yml"])
+            with self.assertRaisesRegex(CatalogError, "glossary must be an object"):
+                validate_catalog(catalog, root)
+
+    def test_glossary_must_have_exactly_source_field(self) -> None:
+        for glossary in ({}, {"source": "docs/glossary.yml", "extra": True}):
+            with self.subTest(glossary=glossary), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.prepare(root)
+                self.rewrite(catalog, glossary=glossary)
+                with self.assertRaisesRegex(CatalogError, "exactly the source field"):
+                    validate_catalog(catalog, root)
+
+    def test_glossary_must_be_yml(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            self.rewrite(catalog, glossary={"source": "README.md"})
             with self.assertRaisesRegex(CatalogError, "must be a \\.yml file"):
+                validate_catalog(catalog, root)
+
+    def test_nonexistent_glossary_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            self.rewrite(catalog, glossary={"source": "docs/missing.yml"})
+            with self.assertRaisesRegex(CatalogError, "not a regular file"):
                 validate_catalog(catalog, root)
 
     def test_glossary_symlink_is_rejected(self) -> None:
@@ -71,17 +118,26 @@ class PublicationCatalogV3Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             catalog = self.prepare(root)
-            data = json.loads(catalog.read_text(encoding="utf-8"))
-            data["assets"] = [
-                {
-                    "source": "docs/glossary.yml",
-                    "destination": "glossary-source.yml",
-                    "optional": False,
-                }
-            ]
-            catalog.write_text(json.dumps(data), encoding="utf-8")
+            self.rewrite(
+                catalog,
+                assets=[
+                    {
+                        "source": "docs/glossary.yml",
+                        "destination": "glossary-source.yml",
+                        "optional": False,
+                    }
+                ],
+            )
             with self.assertRaisesRegex(CatalogError, "must not overlap"):
                 validate_catalog(catalog, root)
+
+    def test_repository_declares_expected_glossary(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        data = json.loads(
+            (root / "docs/publication-catalog.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(3, data["schema_version"])
+        self.assertEqual({"source": "docs/glossary.yml"}, data["glossary"])
 
 
 if __name__ == "__main__":
