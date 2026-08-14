@@ -69,31 +69,53 @@ def regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
 def git_blob_sha(path: Path) -> str:
     data = path.read_bytes()
     header = f"blob {len(data)}\0".encode("ascii")
-    return hashlib.sha1(header + data).hexdigest()
+    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
 
 
 def catalog_sources(root: Path) -> set[PurePosixPath]:
-    catalog = read_json(root / "docs" / "publication-catalog.json", "publication catalog")
+    catalog = read_json(
+        root / "docs" / "publication-catalog.json",
+        "publication catalog",
+    )
     documents = catalog.get("documents")
     if not isinstance(documents, list):
         raise TranslationError("publication catalog documents must be an array")
+
     result: set[PurePosixPath] = set()
     for index, document in enumerate(documents):
         if not isinstance(document, dict):
-            raise TranslationError(f"publication catalog documents[{index}] must be an object")
-        source = safe_path(document.get("source"), f"publication catalog documents[{index}].source")
+            raise TranslationError(
+                f"publication catalog documents[{index}] must be an object"
+            )
+        source = safe_path(
+            document.get("source"),
+            f"publication catalog documents[{index}].source",
+        )
         result.add(source)
     return result
 
 
 def validate(root: Path) -> list[str]:
     root = root.resolve(strict=True)
-    manifest = read_json(root / "translations" / "manifest.json", "translation manifest")
-    if set(manifest) != {"schema_version", "canonical_language", "translations"}:
+    manifest = read_json(
+        root / "translations" / "manifest.json",
+        "translation manifest",
+    )
+    expected_manifest_keys = {
+        "schema_version",
+        "canonical_language",
+        "translations",
+    }
+    if set(manifest) != expected_manifest_keys:
         raise TranslationError(
-            "translation manifest must contain only schema_version, canonical_language, and translations"
+            "translation manifest must contain only schema_version, "
+            "canonical_language, and translations"
         )
-    if manifest["schema_version"] != 1 or type(manifest["schema_version"]) is not int:
+
+    schema_version = manifest["schema_version"]
+    if not isinstance(schema_version, int) or isinstance(schema_version, bool):
+        raise TranslationError("translation manifest schema_version must be integer 1")
+    if schema_version != 1:
         raise TranslationError("translation manifest schema_version must be integer 1")
     if manifest["canonical_language"] != "en":
         raise TranslationError("translation manifest canonical_language must be en")
@@ -108,33 +130,56 @@ def validate(root: Path) -> list[str]:
 
     for index, entry in enumerate(entries):
         field = f"translations[{index}]"
-        required = {"canonical", "language", "translation", "canonical_blob_sha"}
+        required = {
+            "canonical",
+            "language",
+            "translation",
+            "canonical_blob_sha",
+        }
         if not isinstance(entry, dict) or set(entry) != required:
-            raise TranslationError(f"{field} must contain canonical, language, translation, and canonical_blob_sha")
+            raise TranslationError(
+                f"{field} must contain canonical, language, translation, "
+                "and canonical_blob_sha"
+            )
 
         canonical = safe_path(entry["canonical"], f"{field}.canonical")
         language = entry["language"]
         translation = safe_path(entry["translation"], f"{field}.translation")
         blob_sha = entry["canonical_blob_sha"]
 
-        if not isinstance(language, str) or not LANGUAGE.fullmatch(language) or language == "en":
-            raise TranslationError(f"{field}.language must be a non-English lowercase language tag")
+        if (
+            not isinstance(language, str)
+            or not LANGUAGE.fullmatch(language)
+            or language == "en"
+        ):
+            raise TranslationError(
+                f"{field}.language must be a non-English lowercase language tag"
+            )
         if not isinstance(blob_sha, str) or not BLOB_SHA.fullmatch(blob_sha):
-            raise TranslationError(f"{field}.canonical_blob_sha must be a full lowercase Git blob SHA")
+            raise TranslationError(
+                f"{field}.canonical_blob_sha must be a full lowercase Git blob SHA"
+            )
         if canonical.suffix.lower() != ".md" or translation.suffix.lower() != ".md":
-            raise TranslationError(f"{field} canonical and translation paths must be Markdown")
+            raise TranslationError(
+                f"{field} canonical and translation paths must be Markdown"
+            )
         if canonical not in published:
-            raise TranslationError(f"{field}.canonical is not a published canonical document: {canonical}")
+            raise TranslationError(
+                f"{field}.canonical is not a published canonical document: {canonical}"
+            )
 
         expected_translation = PurePosixPath("translations") / language / canonical
         if translation != expected_translation:
             raise TranslationError(
-                f"{field}.translation must mirror the canonical path at {expected_translation}"
+                f"{field}.translation must mirror the canonical path at "
+                f"{expected_translation}"
             )
 
         pair = (canonical, language)
         if pair in seen_pairs:
-            raise TranslationError(f"duplicate canonical/language translation pair: {canonical} {language}")
+            raise TranslationError(
+                f"duplicate canonical/language translation pair: {canonical} {language}"
+            )
         if translation in declared_translation_paths:
             raise TranslationError(f"duplicate translation path: {translation}")
         seen_pairs.add(pair)
@@ -145,34 +190,36 @@ def validate(root: Path) -> list[str]:
         actual_blob_sha = git_blob_sha(canonical_file)
         if actual_blob_sha != blob_sha:
             raise TranslationError(
-                f"stale translation for {canonical}: expected canonical blob {blob_sha}, current blob {actual_blob_sha}"
+                f"stale translation for {canonical}: expected canonical blob "
+                f"{blob_sha}, current blob {actual_blob_sha}"
             )
 
         if language == "ja":
             try:
                 first_line = translation_file.read_text(encoding="utf-8").splitlines()[0]
             except (OSError, UnicodeError, IndexError) as exc:
-                raise TranslationError(f"unable to inspect Japanese translation notice: {translation}") from exc
+                raise TranslationError(
+                    f"unable to inspect Japanese translation notice: {translation}"
+                ) from exc
             if not first_line.startswith(JA_NOTICE):
                 raise TranslationError(
-                    f"Japanese translation must begin with the non-authoritative notice: {translation}"
+                    "Japanese translation must begin with the non-authoritative "
+                    f"notice: {translation}"
                 )
 
     discovered = {
         PurePosixPath(path.relative_to(root).as_posix())
         for path in (root / "translations").glob("*/**/*.md")
-        if path.is_file() and path.parent != root / "translations"
+        if path.is_file()
     }
     undeclared = sorted(discovered - declared_translation_paths)
     missing = sorted(declared_translation_paths - discovered)
     if undeclared:
-        raise TranslationError(
-            "undeclared translation Markdown: " + ", ".join(str(path) for path in undeclared)
-        )
+        paths = ", ".join(str(path) for path in undeclared)
+        raise TranslationError(f"undeclared translation Markdown: {paths}")
     if missing:
-        raise TranslationError(
-            "declared translation Markdown not discovered: " + ", ".join(str(path) for path in missing)
-        )
+        paths = ", ".join(str(path) for path in missing)
+        raise TranslationError(f"declared translation Markdown not discovered: {paths}")
 
     return [
         f"canonical language: {manifest['canonical_language']}",
