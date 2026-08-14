@@ -159,8 +159,13 @@ The browser must satisfy all of the following constraints:
   fallback when no lexer matches;
 - source text is HTML-escaped before publication, and generated file pages use a
   restrictive content security policy;
-- the tree and selected file remain visible in a split browser layout, while the
-  file is isolated in an iframe with the `sandbox` attribute and no permissions;
+- desktop-width views keep the tree and selected file visible in a split browser
+  layout; at narrow viewports a same-origin progressive-enhancement controller
+  may switch between full-height Files and Content panes while the no-JavaScript
+  fallback remains the bounded split layout;
+- the hidden narrow-viewport pane is non-interactive, an explicit Files control
+  restores the unchanged tree state, and the selected file remains isolated in
+  an iframe with the `sandbox` attribute and no permissions;
 - line numbers and line wrapping can be toggled locally without executing
   repository-supplied code;
 - ordinary text viewing has no runtime GitHub API, raw-content, or CDN dependency;
