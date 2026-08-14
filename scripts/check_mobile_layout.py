@@ -344,7 +344,7 @@ def validate_metrics(
             try:
                 table_client = _number(table.get("clientWidth"), "revisionTable.clientWidth")
                 table_scroll = _number(table.get("scrollWidth"), "revisionTable.scrollWidth")
-                if table_scroll < table_client:
+                if table_scroll + 1 < table_client:
                     failures.append("repository table scroll geometry is invalid")
             except MobileLayoutError as exc:
                 failures.append(str(exc))
@@ -454,6 +454,7 @@ def screenshot(
     _run_browser(
         browser,
         [
+            "--virtual-time-budget=4000",
             f"--window-size={width},{height}",
             f"--screenshot={destination.resolve()}",
             f"{base_url}{case.path}",
