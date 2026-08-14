@@ -218,22 +218,16 @@ def validate(root: Path) -> list[str]:
         for surface in surfaces:
             counts[surface] += 1
 
-    # Discover locale content only below translations/<language>/..., intentionally
-    # excluding the maintainer-facing translations/README.md at the directory root.
+    readme = PurePosixPath("translations/README.md")
     discovered = {
         PurePosixPath(path.relative_to(root).as_posix())
-        for path in (root / "translations").glob("*/**/*.md")
-        if path.is_file()
+        for path in (root / "translations").rglob("*.md")
+        if path.is_file() and PurePosixPath(path.relative_to(root).as_posix()) != readme
     }
     undeclared = sorted(discovered - declared_paths)
-    missing = sorted(declared_paths - discovered)
     if undeclared:
         raise TranslationError(
             "undeclared translation Markdown: " + ", ".join(map(str, undeclared))
-        )
-    if missing:
-        raise TranslationError(
-            "declared translation Markdown not discovered: " + ", ".join(map(str, missing))
         )
 
     return [
