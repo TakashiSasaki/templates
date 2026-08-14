@@ -23,6 +23,7 @@ try:
         EXTERNAL_TERM_ID,
         FULL_SHA,
         LANGUAGE_TAG,
+        PROVIDER_NAME,
         REPOSITORY_TERM_ID,
         TERM_ID,
     )
@@ -33,6 +34,7 @@ except ModuleNotFoundError:
         EXTERNAL_TERM_ID,
         FULL_SHA,
         LANGUAGE_TAG,
+        PROVIDER_NAME,
         REPOSITORY_TERM_ID,
         TERM_ID,
     )
@@ -276,7 +278,7 @@ def _parse_term(raw: Any, index: int) -> dict[str, Any]:
     if origin not in {"repository", "external"}:
         raise GlossaryViewerError(f"{field}.origin is invalid")
     provider = _nonempty_string(raw["provider"], f"{field}.provider")
-    if provider not in PROVIDER_ORDER:
+    if PROVIDER_NAME.fullmatch(provider) is None:
         raise GlossaryViewerError(f"{field}.provider is invalid")
     revision = _nonempty_string(raw["source_revision"], f"{field}.source_revision")
     if FULL_SHA.fullmatch(revision) is None:
@@ -400,6 +402,11 @@ def source_url(repository: str, term: dict[str, Any]) -> str:
     )
 
 
+def provider_label(provider: str) -> str:
+    """Return a friendly label for known providers without inventing unknown names."""
+    return PROVIDER_LABELS.get(provider, provider)
+
+
 def _join_labels(values: list[str], language: str | None = None) -> str:
     attrs = f' lang="{html.escape(language, quote=True)}"' if language else ""
     return ", ".join(
@@ -518,7 +525,7 @@ def render_term(
         f'{render_localized_labels(term)}</div>'
         '<div class="term-badges">'
         f'<span class="badge">{origin_label}</span>'
-        f'<span class="badge">{PROVIDER_LABELS[term["provider"]]}</span>'
+        f'<span class="badge">{html.escape(provider_label(term["provider"]))}</span>'
         '</div></header>'
         f'{explanation_html}{aliases_html}{usage}'
         f'{render_related(term, by_id)}{render_authority(term)}'
@@ -561,24 +568,27 @@ def render(model: dict[str, Any]) -> str:
         )
         for term in terms
     )
+    repository_providers = {term["provider"] for term in repository_terms}
+    provider_order = [
+        provider for provider in PROVIDER_ORDER if provider in repository_providers
+    ] + sorted(repository_providers - set(PROVIDER_ORDER))
     provider_sections = []
-    for provider in PROVIDER_ORDER:
+    for provider in provider_order:
         owned = sorted(
             (term for term in repository_terms if term["provider"] == provider),
             key=lambda term: (term["term"].casefold(), term["id"]),
         )
-        if owned:
-            cards = "".join(
-                render_term(
-                    model["repository"], term, by_id, heading_level=4
-                )
-                for term in owned
+        cards = "".join(
+            render_term(
+                model["repository"], term, by_id, heading_level=4
             )
-            provider_sections.append(
-                f'<section class="provider-section" id="provider-{provider}">'
-                f'<h3>{html.escape(PROVIDER_LABELS[provider])}</h3>'
-                f'<div class="term-list">{cards}</div></section>'
-            )
+            for term in owned
+        )
+        provider_sections.append(
+            f'<section class="provider-section" id="provider-{html.escape(provider, quote=True)}">'
+            f'<h3>{html.escape(provider_label(provider))}</h3>'
+            f'<div class="term-list">{cards}</div></section>'
+        )
     external_cards = "".join(
         render_term(model["repository"], term, by_id, heading_level=3)
         for term in sorted(
