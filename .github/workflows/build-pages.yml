@@ -334,10 +334,13 @@ jobs:
               "build/site/repository-trees/${copyable}/template/index.html"
           done
           test -f build/site/files/index.html
+          test -f build/site/files/repository-browser.js
           for branch in site skill policy webapp; do
             page="build/site/files/${branch}/index.html"
             test -f "$page"
             grep --fixed-strings -- 'repository-file-viewer' "$page"
+            grep --fixed-strings -- \
+              '<script src="../repository-browser.js" defer></script>' "$page"
             test -n "$(
               find \
                 "build/site/files/${branch}/content" \
