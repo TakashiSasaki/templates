@@ -127,16 +127,23 @@ class LockedProviderGraphTests(unittest.TestCase):
         policy_indexes = {index["path"] for index in by_name["policy"]["indexes"]}
         self.assertTrue(POLICY_LAYER_INDEXES.issubset(policy_indexes))
 
-        overview = (providers["policy"] / "docs" / "overview.md").read_text(encoding="utf-8")
-        overview_targets = {
+        root_index = (providers["policy"] / "docs" / "index.md").read_text(
+            encoding="utf-8"
+        )
+        overview = (providers["policy"] / "docs" / "overview.md").read_text(
+            encoding="utf-8"
+        )
+        layer_targets = {
             "provider/index.md": providers["policy"] / "docs" / "provider" / "index.md",
             "shared-policy/index.md": providers["policy"] / "docs" / "shared-policy" / "index.md",
             "consumer/index.md": providers["policy"] / "docs" / "consumer" / "index.md",
         }
-        for target, path in overview_targets.items():
+        for target, path in layer_targets.items():
+            with self.subTest(policy_root_target=target):
+                self.assertIn(f"]({target})", root_index)
+                self.assertTrue(path.is_file())
             with self.subTest(policy_overview_target=target):
                 self.assertIn(f"]({target})", overview)
-                self.assertTrue(path.is_file())
 
 
 if __name__ == "__main__":
