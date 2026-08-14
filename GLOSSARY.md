@@ -27,12 +27,19 @@ A primary branch may own one canonical glossary at:
 docs/glossary.yml
 ```
 
-A glossary is a publication input only when the provider declares it in publication-catalog schema version 3:
+A glossary is a publication input only when the provider declares it in publication-catalog schema version 3. For example, a provider whose required home document is `docs/index.md` may declare:
 
 ```json
 {
   "schema_version": 3,
-  "documents": [],
+  "documents": [
+    {
+      "id": "index",
+      "source": "docs/index.md",
+      "optional": false,
+      "home": true
+    }
+  ],
   "glossary": {
     "source": "docs/glossary.yml"
   }
