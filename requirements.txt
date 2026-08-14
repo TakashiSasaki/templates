@@ -1,3 +1,4 @@
 zensical==0.0.51
 idna==3.18
 Pygments==2.20.0
+PyYAML==6.0.3
