@@ -6,6 +6,7 @@ from pathlib import Path
 from scripts.check_mobile_layout import (
     CheckCase,
     MobileLayoutError,
+    _browser_runtime_arguments,
     harness_html,
     parse_harness_result,
     validate_metrics,
@@ -128,6 +129,12 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertNotIn("http://", text)
         self.assertNotIn("https://", text)
 
+    def test_browser_sandbox_disablement_is_explicit_and_opt_in(self) -> None:
+        sandboxed = _browser_runtime_arguments("/tmp/profile", no_sandbox=False)
+        unsandboxed = _browser_runtime_arguments("/tmp/profile", no_sandbox=True)
+        self.assertNotIn("--no-sandbox", sandboxed)
+        self.assertIn("--no-sandbox", unsandboxed)
+
     def test_workflow_reuses_pages_artifact_and_uploads_visual_evidence(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("actions/github-script@v8", workflow)
@@ -135,6 +142,7 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("actions/download-artifact@v5", workflow)
         self.assertIn("browser-actions/setup-chrome@v2", workflow)
         self.assertIn("scripts/check_mobile_layout.py", workflow)
+        self.assertIn("--no-sandbox", workflow)
         self.assertIn("build/mobile-visual", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
         self.assertIn(
