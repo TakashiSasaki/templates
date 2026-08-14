@@ -80,6 +80,16 @@ def _write_symlinked_source(root: Path) -> Path:
     return write_catalog(root)
 
 
+def _write_symlinked_glossary(root: Path) -> Path:
+    glossary = root / "docs/glossary.yml"
+    glossary.symlink_to(root / "README.md")
+    return write_catalog(
+        root,
+        schema_version=3,
+        extra={"glossary": {"source": "docs/glossary.yml"}},
+    )
+
+
 def _set_all_home(root: Path, value: bool) -> Path:
     documents = copy.deepcopy(BASE_DOCUMENTS)
     for document in documents:
@@ -162,6 +172,25 @@ def run() -> int:
             lambda root: write_catalog(root, schema_version=3, extra={"glossary": []}),
         ),
         (
+            "rejects glossary declarations missing source",
+            r"glossary fields are invalid \(missing: source\)",
+            lambda root: write_catalog(root, schema_version=3, extra={"glossary": {}}),
+        ),
+        (
+            "rejects glossary declarations with extra fields",
+            r"glossary fields are invalid \(unsupported: extra\)",
+            lambda root: write_catalog(
+                root,
+                schema_version=3,
+                extra={
+                    "glossary": {
+                        "source": write_glossary(root),
+                        "extra": True,
+                    }
+                },
+            ),
+        ),
+        (
             "rejects non-yml glossary sources",
             r"must identify a \.yml file",
             lambda root: write_catalog(
@@ -178,6 +207,11 @@ def run() -> int:
                 schema_version=3,
                 extra={"glossary": {"source": "docs/missing.yml"}},
             ),
+        ),
+        (
+            "rejects symlinked glossary sources",
+            r"glossary\.source traverses a symlink",
+            _write_symlinked_glossary,
         ),
         (
             "rejects malformed UTF-8 before JSON parsing",
