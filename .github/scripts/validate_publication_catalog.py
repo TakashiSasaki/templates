@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT_KEYS = {"documents", "schema_version"}
+BASE_ROOT_KEYS = {"documents", "schema_version"}
+GLOSSARY_KEYS = {"source"}
 DOCUMENT_KEYS = {"home", "id", "optional", "source"}
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -72,7 +73,7 @@ def _read_catalog(path: Path) -> Any:
         raise ValidationError(f"Invalid publication catalog JSON {path}: {exc}") from exc
 
 
-def _validate_source(value: Any, field: str) -> str:
+def _validate_relative_source(value: Any, field: str, suffix: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValidationError(f"{field} must be a non-empty string")
 
@@ -81,14 +82,31 @@ def _validate_source(value: Any, field: str) -> str:
         value.startswith("/")
         or "\\" in value
         or "\x00" in value
-        or any(part in {"", ".", ".."} for part in parts)
+        or any(part in {"", ".", ".."} or part.casefold() == ".git" for part in parts)
     )
     if unsafe:
         raise ValidationError(f"{field} must be a safe relative POSIX path: {value!r}")
 
+    if not value.lower().endswith(suffix):
+        raise ValidationError(f"{field} must identify a {suffix} file")
+
+    return value
+
+
+def _validate_source(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValidationError(f"{field} must be a non-empty string")
+    parts = value.split("/")
+    unsafe = (
+        value.startswith("/")
+        or "\\" in value
+        or "\x00" in value
+        or any(part in {"", ".", ".."} or part.casefold() == ".git" for part in parts)
+    )
+    if unsafe:
+        raise ValidationError(f"{field} must be a safe relative POSIX path: {value!r}")
     if not value.lower().endswith(".md"):
         raise ValidationError(f"{field} must identify a Markdown file")
-
     return value
 
 
@@ -132,6 +150,12 @@ def _parse_document(raw_document: Any, index: int, root: Path) -> Document:
     return Document(id=document_id, source=source, optional=optional, home=home)
 
 
+def _validate_glossary(raw: Any, root: Path) -> None:
+    _validate_exact_keys(raw, GLOSSARY_KEYS, "glossary")
+    source = _validate_relative_source(raw["source"], "glossary.source", ".yml")
+    _validate_source_file(root, source, "glossary.source")
+
+
 def _duplicate_value(values: list[str]) -> str | None:
     seen: set[str] = set()
     for value in values:
@@ -154,13 +178,19 @@ def validate(
         resolved_catalog_path = root_path / resolved_catalog_path
 
     catalog = _read_catalog(resolved_catalog_path)
-    _validate_exact_keys(catalog, ROOT_KEYS, "publication catalog")
+    if not isinstance(catalog, dict):
+        raise ValidationError("publication catalog must be an object")
 
-    schema_version = catalog["schema_version"]
-    if type(schema_version) is not int or schema_version != 1:
+    schema_version = catalog.get("schema_version")
+    if type(schema_version) is not int or schema_version not in (1, 3):
         raise ValidationError(
-            "publication catalog schema_version must be 1 and use an integer JSON value"
+            "publication catalog schema_version must be integer 1 or 3"
         )
+
+    expected_root_keys = set(BASE_ROOT_KEYS)
+    if schema_version == 3 and "glossary" in catalog:
+        expected_root_keys.add("glossary")
+    _validate_exact_keys(catalog, expected_root_keys, "publication catalog")
 
     raw_documents = catalog["documents"]
     if not isinstance(raw_documents, list) or not raw_documents:
@@ -184,6 +214,9 @@ def validate(
         raise ValidationError("publication catalog must select exactly one home document")
     if home_documents[0].optional:
         raise ValidationError("publication catalog home document must not be optional")
+
+    if schema_version == 3 and "glossary" in catalog:
+        _validate_glossary(catalog["glossary"], root_path)
 
     return documents
 

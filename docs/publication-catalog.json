@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "documents": [
     {
       "id": "overview",
@@ -85,5 +85,8 @@
       "optional": true,
       "home": false
     }
-  ]
+  ],
+  "glossary": {
+    "source": "docs/glossary.yml"
+  }
 }

@@ -26,7 +26,7 @@ def main() -> int:
     required_source_files = [
         "README.md", "AGENTS.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE",
         "distribution-manifest.json", "docs/architecture/distribution-boundary.md",
-        "docs/architecture/distribution-classification.json",
+        "docs/architecture/distribution-classification.json", "docs/glossary.yml",
         "docs/publication-catalog.json", "docs/publication-maintenance.md",
         "maintainer/README.md", "template/SKILL.md", "template/README.md",
         "template/AGENTS.md",
