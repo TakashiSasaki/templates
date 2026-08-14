@@ -96,7 +96,8 @@ jobs:
           python scripts/check_mobile_layout.py \
             --site-root build/site \
             --browser "${{ steps.chrome.outputs.chrome-path }}" \
-            --output-root build/mobile-visual
+            --output-root build/mobile-visual \
+            --no-sandbox
 
       - name: Upload mobile visual evidence
         if: ${{ always() }}
