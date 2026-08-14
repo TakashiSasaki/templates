@@ -215,6 +215,8 @@ Do not precache the portal home or generated documentation pages. Provider publi
 
 `.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, generates the bounded static repository browser, generates the immutable provider index-navigation graph and `/guided/` viewer, normalizes guided metadata, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
+`.github/workflows/mobile-visual-regression.yml` is a pull-request-only consumer of that build artifact for same-repository pull requests targeting `site`. It has only `contents: read` and `actions: read`, waits for the matching successful `build-pages.yml` run at the exact pull-request head SHA, downloads that run's `github-pages` artifact, installs the controller pinned by `requirements-visual.txt` plus its matching Playwright Chromium build, and runs `scripts/check_mobile_layout.py` against the already-built site. The checker measures 360×800, 390×844, and 412×915 viewports, rejects page-wide horizontal overflow and mobile-density regressions, verifies full repository revisions remain on one line inside their local table scroll container, and enforces the 48 px portal-action floor. It also uploads 390×844 screenshots and `metrics.json` as short-lived review evidence. It does not build or deploy Pages and does not run repository code from fork pull requests.
+
 `.github/workflows/deploy-pages.yml` is the sole deployment authority. Its only trigger is a push to `site`. The metadata, build, and deploy jobs each require:
 
 ```text
@@ -237,11 +239,13 @@ Expected behavior:
 | workflow on a provider branch | branch-local only | not applicable | no |
 | push to any other branch | no site deployment workflow | not applicable | no |
 
+For same-repository pull requests targeting `site`, the mobile visual regression workflow additionally consumes the successful preview artifact; it never grants deployment authority.
+
 `deployment-state.json` records the active state and the final reviewed Skill revision. `DEPLOYMENT_RESTORATION.md` records the completed gates and restored authority boundary.
 
 ## Dependency updates
 
-`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. Update them intentionally, run the full integrated build, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, the static repository browser, the guided navigation surface, canonical URLs, provenance, and link-validation results before merging.
+`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. `requirements-visual.txt` separately pins the Playwright controller used only by the mobile visual regression workflow; its matching Chromium build is installed by Playwright rather than committed to the repository. Update either dependency set intentionally, run the relevant full build and mobile visual checks, and review generated navigation, complete repository trees, both copyable-template trees, inline previews, the static repository browser, the guided navigation surface, canonical URLs, provenance, link-validation results, mobile geometry, and screenshots before merging.
 
 ## Local validation
 
@@ -321,6 +325,11 @@ python site/scripts/write_publication_provenance.py \
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
+python -m pip install -r site/requirements-visual.txt
+python -m playwright install --with-deps chromium
+python site/scripts/check_mobile_layout.py \
+  --site-root build/site \
+  --output-root build/mobile-visual
 ```
 
-Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, repository-browser snapshots, and guided-navigation graph/viewer output always use the actual checked-out commits.
+The mobile layout command uses the Chromium build matched to the pinned Playwright controller and writes screenshots plus `metrics.json` under `build/mobile-visual`. Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, repository-browser snapshots, and guided-navigation graph/viewer output always use the actual checked-out commits.

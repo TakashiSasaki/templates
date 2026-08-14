@@ -94,6 +94,9 @@ progressive-disclosure path that agents can follow.
   files from immutable Git blobs into a deterministic navigation graph;
 - `scripts/generate_index_navigation_viewer.py`: renders that graph as the
   static `/guided/` human navigation surface without reparsing Markdown;
+- `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
+  Playwright-managed Chromium and writes screenshot and metric evidence;
+- `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
 - `assets/javascripts/repository-browser.js`: progressive-enhancement controller
@@ -103,6 +106,8 @@ progressive-disclosure path that agents can follow.
 - `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
   generated HTML, including the post-generated `/guided/` tree;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
+- `.github/workflows/mobile-visual-regression.yml`: same-repository pull-request
+  check that consumes the built Pages artifact and validates mobile layout;
 - `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
   to `site`.
 
@@ -186,8 +191,16 @@ python site/scripts/write_publication_provenance.py \
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
+python -m pip install -r site/requirements-visual.txt
+python -m playwright install --with-deps chromium
+python site/scripts/check_mobile_layout.py \
+  --site-root build/site \
+  --output-root build/mobile-visual
 ```
 
+The mobile layout check uses the Chromium build matched to the pinned Playwright
+controller and writes 390×844 screenshots plus `metrics.json` under
+`build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
 preview URLs, repository-browser snapshots, and guided navigation all use the
