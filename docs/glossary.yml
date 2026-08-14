@@ -1,0 +1,44 @@
+schema_version: 1
+terms:
+  - id: templates-publication-catalog
+    term: Publication catalog
+    localized_labels:
+      ja:
+        term: 公開カタログ
+        aliases:
+          - パブリケーションカタログ
+    origin: repository
+    definition: >-
+      A provider-controlled declaration of canonical publication inputs that
+      the integrated site is permitted to consume.
+
+  - id: templates-provider-branch
+    term: Provider branch
+    localized_labels:
+      ja:
+        term: プロバイダーブランチ
+        aliases:
+          - 提供ブランチ
+    origin: repository
+    definition: >-
+      A primary branch that owns canonical content consumed by the integrated
+      publication system.
+    related_terms:
+      - templates-publication-catalog
+
+  - id: external-git-branch
+    term: Branch
+    localized_labels:
+      ja:
+        term: ブランチ
+    origin: external
+    summary: >-
+      A named line of development represented through Git references.
+    authority:
+      kind: upstream
+      sources:
+        - title: Git glossary
+          url: https://git-scm.com/docs/gitglossary
+    repository_usage: >-
+      The repository uses separate primary branches for site, policy, skill,
+      and webapp publication and template responsibilities.
