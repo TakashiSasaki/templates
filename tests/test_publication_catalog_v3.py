@@ -68,7 +68,10 @@ class PublicationCatalogV3Tests(unittest.TestCase):
             root = Path(directory)
             catalog = self.prepare(root)
             self.rewrite(catalog, schema_version=2)
-            with self.assertRaisesRegex(CatalogError, "requires schema_version 3"):
+            with self.assertRaisesRegex(
+                CatalogError,
+                "unsupported top-level fields: glossary",
+            ):
                 validate_catalog(catalog, root)
 
     def test_glossary_must_be_object(self) -> None:
