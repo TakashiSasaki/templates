@@ -21,16 +21,25 @@
   }
 
   const register = async () => {
+    let registration;
     try {
-      const registration = await navigator.serviceWorker.register("/service-worker.js", {
+      registration = await navigator.serviceWorker.register("/service-worker.js", {
         scope: "/",
         updateViaCache: "none",
       });
-      if (registration.active) {
-        await registration.update();
-      }
     } catch (error) {
       console.warn("Service worker registration failed", error);
+      return;
+    }
+
+    if (!registration.active) {
+      return;
+    }
+
+    try {
+      await registration.update();
+    } catch (error) {
+      console.warn("Service worker update check failed", error);
     }
   };
 
