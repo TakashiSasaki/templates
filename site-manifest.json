@@ -136,6 +136,29 @@
           "destination": "policy/index.md"
         },
         {
+          "title": "Policy layers",
+          "children": [
+            {
+              "title": "Provider and toolchain",
+              "publication": "policy",
+              "document": "provider-navigation",
+              "destination": "policy/provider/index.md"
+            },
+            {
+              "title": "Shared policy corpus",
+              "publication": "policy",
+              "document": "shared-policy-navigation",
+              "destination": "policy/shared-policy/index.md"
+            },
+            {
+              "title": "Consumer effective policy",
+              "publication": "policy",
+              "document": "consumer-policy-navigation",
+              "destination": "policy/consumer/index.md"
+            }
+          ]
+        },
+        {
           "title": "Introduction",
           "children": [
             {

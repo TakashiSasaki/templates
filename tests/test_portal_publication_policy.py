@@ -95,6 +95,18 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "skill/docs/mcp-apps.md",
         )
         self.assertEqual(indexed[("policy", "overview")], "policy/index.md")
+        self.assertEqual(
+            indexed[("policy", "provider-navigation")],
+            "policy/provider/index.md",
+        )
+        self.assertEqual(
+            indexed[("policy", "shared-policy-navigation")],
+            "policy/shared-policy/index.md",
+        )
+        self.assertEqual(
+            indexed[("policy", "consumer-policy-navigation")],
+            "policy/consumer/index.md",
+        )
         self.assertEqual(indexed[("webapp", "overview")], "webapp/index.md")
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]

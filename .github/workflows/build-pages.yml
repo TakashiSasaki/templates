@@ -308,6 +308,9 @@ jobs:
             build/site/index.html
           test -f build/site/skill/index.html
           test -f build/site/policy/index.html
+          test -f build/site/policy/provider/index.html
+          test -f build/site/policy/shared-policy/index.html
+          test -f build/site/policy/consumer/index.html
           test -f build/site/webapp/index.html
           test -f build/site/repository-trees/index.html
           test -f build/site/repository-trees/skill/index.html
