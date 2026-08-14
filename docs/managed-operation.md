@@ -1,24 +1,24 @@
 # Managed repository operation
 
-`agent-policy` の導入後は、製品リポジトリ内の生成済み `AGENTS.md` が一般的なコーディングエージェントの入口になります。このページは、初めてリポジトリを開いたエージェントと、policyを保守する人間の双方が同じ探索順序を使うための運用規約です。
+After `agent-policy` has been adopted, the generated `AGENTS.md` in a product repository becomes the normal entry point for general coding agents. This page defines an operating sequence that both an agent opening the repository for the first time and a human maintaining policy can follow consistently.
 
-## 初回探索順序
+## Initial discovery order
 
-製品リポジトリで変更を始める前に、次の順序で確認します。
+Before changing a product repository, inspect it in this order:
 
-1. root `AGENTS.md` を読み、適用される共有規約、製品固有規約、必須検証コマンドを確認する。
-2. `.agent-policy.yml` を読み、固定されたtoolchain repositoryと完全なcommit SHA、project policy入力、生成出力、generated skillを確認する。
-3. `.agents/skills/manifest.json` などのrepository-local skill catalogが存在する場合は読み、変更面に該当するskillを確認する。
-4. `AGENTS.md` の `Policy system` に列挙されたgenerated skillを読む。
-5. 製品固有の意味を変更する場合だけ、`.agent-policy.yml` が参照するproject policyファイルを編集する。
+1. Read the root `AGENTS.md` to identify applicable shared policy, product-specific policy, and required verification commands.
+2. Read `.agent-policy.yml` to identify the pinned toolchain repository and full commit SHA, project-policy inputs, generated outputs, and generated skills.
+3. If a repository-local skill catalog such as `.agents/skills/manifest.json` exists, read it and identify skills relevant to the change surface.
+4. Read the generated skills listed under `Policy system` in `AGENTS.md`.
+5. Edit project-policy files referenced by `.agent-policy.yml` only when changing product-specific semantics.
 
-生成`AGENTS.md`は直接編集しません。共有profile由来のrule sourceは、固定toolchainの `repository@revision:path` として表示されます。repository-local policyは、現在の製品リポジトリ内のpathとして表示されます。
+Do not edit generated `AGENTS.md` directly. Rule sources originating from shared profiles are shown as `repository@revision:path` using the pinned toolchain revision. Repository-local policy is shown as a path in the current product repository.
 
-## Policy変更の検証
+## Verifying policy-related changes
 
-`.agent-policy.yml`、project policy、生成instructions、generated skill、lock fileのいずれかに関係する変更では、`.agents/skills/validate-agent-policy/SKILL.md`を使用します。
+Use `.agents/skills/validate-agent-policy/SKILL.md` for changes involving `.agent-policy.yml`, project policy, generated instructions, generated skills, or the lock file.
 
-利用可能な `agent-policy` コマンドがない場合でも、mutable branchや未固定releaseへ切り替えてはいけません。`.agent-policy.yml` の `toolchain.repository` と `toolchain.revision` を使用し、一時環境で固定revisionを実行します。
+Even when no installed `agent-policy` command is available, do not switch to a mutable branch or an unpinned release. Use the `toolchain.repository` and `toolchain.revision` from `.agent-policy.yml` and run that pinned revision in a temporary environment.
 
 ```bash
 uvx --from "git+https://github.com/<repository>.git@<revision>" \
@@ -27,20 +27,20 @@ uvx --from "git+https://github.com/<repository>.git@<revision>" \
   agent-policy --repository . check --config .agent-policy.yml
 ```
 
-`uvx` がない場合は一時virtual environmentへ同じfull-SHA Git referenceをinstallします。global環境へunversioned toolchainをinstallしません。
+If `uvx` is unavailable, install the same full-SHA Git reference into a temporary virtual environment. Do not install an unversioned toolchain into a global environment.
 
-意味入力を変更して生成物がstaleになった場合は、明示的に同期する作業として固定toolchainの `render` を実行し、その後に `validate` と `check` を再実行します。
+When semantic inputs change and generated outputs become stale, run `render` through the pinned toolchain as an explicit synchronization operation, then rerun `validate` and `check`.
 
 ## Consumer CI
 
-製品リポジトリには、製品固有のテストとは別にagent-policyの整合性gateを置きます。基準テンプレートはtoolchain repositoryの `templates/workflows/check-agent-policy.yml.j2` です。
+A product repository should have an agent-policy consistency gate in addition to product-specific tests. The baseline template is `templates/workflows/check-agent-policy.yml.j2` in the toolchain repository.
 
-workflowは `.agent-policy.yml` が固定する完全なcommit SHAを `uses:` に指定します。`main`、tag、短縮SHAなどのmutableまたは曖昧な参照を使用しません。
+The workflow must use the complete commit SHA pinned by `.agent-policy.yml` in `uses:`. Do not use mutable or ambiguous references such as `main`, a tag, or an abbreviated SHA.
 
-agent output、project policy、generated skillのpathは設定可能であるため、CIの `pull_request.paths` で固定pathだけに限定すると変更を見落とします。標準workflowは全pull requestで `agent-policy check` を実行します。製品側の必須検証コマンドは別のjobまたは既存CIで実行します。
+Because agent-output, project-policy, and generated-skill paths are configurable, limiting CI with `pull_request.paths` to fixed paths can miss relevant changes. The standard workflow runs `agent-policy check` for every pull request. Product-required verification commands run in a separate job or existing product CI.
 
 ## Adoption backup
 
-既存リポジトリをfinalizeした場合、元のprimary instructionsは `.agent-policy/adoption.json` の `backup_path` に保存されます。これはcutoverの証跡と復旧用backupであり、現行instructionsではありません。
+When an existing repository is finalized, the original primary instructions are stored at the `backup_path` recorded in `.agent-policy/adoption.json`. This is cutover evidence and a recovery backup; it is not the current instruction source.
 
-rootの生成`AGENTS.md`と現在のproject policyを正本として扱います。再帰的にすべての `AGENTS.md` を探索するツールは、adoption backupを現行規約として合成しないようにしてください。
+Treat the generated root `AGENTS.md` and current project policy as authoritative. Tools that recursively discover every `AGENTS.md` must not compose the adoption backup as if it were current policy.

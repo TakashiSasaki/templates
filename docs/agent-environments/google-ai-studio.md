@@ -1,44 +1,44 @@
 ---
-description: Google AI Studio Build modeでrepositoryを編集、検証、GitHubへexportする際の標準運用を説明します。
+description: Standard operation for editing and verifying a repository in Google AI Studio Build mode and exporting changes to GitHub.
 ---
 
 # Google AI Studio Build mode operation
 
-このページは、Google AI Studio Build modeで既存repositoryを編集し、workspace内で検証した後にGitHubへexportする作業の標準運用を定義します。
+This page defines the standard operating model for editing an existing repository in Google AI Studio Build mode, verifying it in the workspace, and exporting changes to GitHub.
 
-Google AI Studio固有の実行環境を対象とする非規範的なガイドです。製品repository固有のbranch、database、deployment、security、verification commandは、各repositoryのinstructionsとproject policyで定義します。
+It is non-normative guidance for the Google AI Studio execution environment. Product-repository-specific branches, databases, deployment, security, and verification commands are defined by each repository's instructions and project policy.
 
-## 責任境界
+## Responsibility boundary
 
-Google AI Studioは、GitHubからprojectをimportし、複数fileを編集し、live previewを表示し、GitHub repositoryへ変更をexportできます。ただし、作業中に観測できるworkspace stateと、export後のGitHub repository stateは別のevidence layerです。
+Google AI Studio can import a project from GitHub, edit multiple files, show a live preview, and export changes to a GitHub repository. The workspace state observable during the task and the GitHub repository state after export are separate evidence layers.
 
-標準的な責任分担は次です。
+The standard responsibility split is:
 
-| 担当 | 責任 |
+| Actor | Responsibility |
 |---|---|
-| Google AI Studio | workspaceの確認と編集、repository-local command、live preview、repository-local verification、GitHub exportの要求 |
-| 外部repository observer | exported revisionの特定、前回baselineとの差分、remote CI、permission・dependency・metadata変更、最終acceptance |
+| Google AI Studio | inspect and edit the workspace, run repository-local commands, use live preview, perform repository-local verification, request GitHub export |
+| External repository observer | identify the exported revision, compare it with the previous baseline, inspect remote CI, permission/dependency/metadata changes, and determine final acceptance |
 
-AI Studioから直接確認できないcommit SHA、remote branch state、GitHub Actions結果、external audit結果を推測してはいけません。観測できない項目は`NOT_OBSERVABLE`、実行していない項目は`NOT_RUN`、確認が完了していない項目は`UNVERIFIED`と報告します。
+Do not infer a commit SHA, remote branch state, GitHub Actions result, or external audit result that AI Studio cannot observe directly. Report unavailable evidence as `NOT_OBSERVABLE`, unexecuted checks as `NOT_RUN`, and incomplete verification as `UNVERIFIED`.
 
-## 作業開始時のbaseline sentinel
+## Baseline sentinel at task start
 
-Git revisionを直接確認できない場合は、次のtaskが依存するworkspace capabilityをbaseline sentinelとして確認します。
+When the Git revision cannot be inspected directly, check the workspace capabilities on which the next task depends and use them as baseline sentinels.
 
-- 必要なfileが存在する
-- 必要なsymbol、route、command、configurationが存在する
-- 前工程で成立した主要なuser-visible behaviorが存在する
-- repositoryが定めるcentral verification commandが存在する
+- required files exist;
+- required symbols, routes, commands, and configuration exist;
+- important user-visible behavior established by earlier work exists; and
+- the repository-defined central verification command exists.
 
-Baseline sentinelはcommit identityの代替ではありません。表示文言、file ordering、軽微なstyle差など、次のtaskが依存しない事項を過剰なsentinelにして作業を停止させません。
+A baseline sentinel is not a substitute for commit identity. Do not stop work because of excessive sentinels such as display wording, file ordering, or minor style differences that the next task does not depend on.
 
-重大なbaseline mismatchは報告してdependent workを止めます。独立して安全に進められる作業は、軽微なmismatchだけを理由に停止しません。
+Report a material baseline mismatch and stop dependent work. Work that is independent and safe may continue despite a minor mismatch.
 
-## Task promptの構成
+## Task prompt structure
 
-AI Studioへ渡すtask promptは、repository内の`AGENTS.md`、project policy、該当skillを前提とする差分指示として構成します。恒久規約や過去作業の詳細を毎回再掲しません。
+A task prompt for AI Studio should be a delta instruction that assumes the repository's `AGENTS.md`, project policy, and applicable skills. Do not restate permanent policy or detailed history on every task.
 
-標準構成は次です。
+Use this standard structure:
 
 ```text
 Goal
@@ -51,100 +51,100 @@ Export condition
 Final report
 ```
 
-制約は次の三種類に分類します。
+Classify constraints into three categories:
 
-| 分類 | 意味 |
+| Category | Meaning |
 |---|---|
-| Hard boundary | 違反が必要なら作業を停止する安全、data、authorization上の境界 |
-| Preserved invariant | 変更後も維持する既存behavior、compatibility、data meaning |
-| Planning boundary | 想定する変更範囲。逸脱は説明するが、material impactがなければそれだけで自動FAILにしない |
+| Hard boundary | Safety, data, or authorization boundary that requires stopping if compliance would otherwise be violated |
+| Preserved invariant | Existing behavior, compatibility, or data meaning that must remain true after the change |
+| Planning boundary | Expected change scope; deviations must be explained but are not automatically failures when they have no material impact |
 
-Promptにはtask固有の到達点、境界、対象、verificationだけを残します。背景説明、過去のstride、詳細な外部監査手順、既にrepository instructionsへ存在する一般規則は省略します。
+Keep only task-specific outcomes, boundaries, scope, and verification in the prompt. Omit background prose, previous work details, detailed external-audit procedure, and general rules already present in repository instructions.
 
-## 実装単位
+## Implementation units
 
-大きな復元またはintegration作業は、利用可能なthin vertical sliceへ分割します。各作業単位は、小さくても入力からuser-visible resultまで到達できる形を優先します。
+Split a large restoration or integration into usable thin vertical slices. Prefer each unit, even a small one, to connect input through to a user-visible result.
 
-外部serviceへまだ接続できない場合は、次のような境界を先に完成させます。
+When an external service is not yet available, complete boundaries such as:
 
-- runtime-neutral model
-- providerまたはadapter interface
-- 明示的なunconfigured state
-- development-only fixtureまたはstub
-- loading、success、negative result、errorの区別
-- cancellationとstale-result protection
+- runtime-neutral model;
+- provider or adapter interface;
+- explicit unconfigured state;
+- development-only fixture or stub;
+- distinct loading, success, negative-result, and error states; and
+- cancellation and stale-result protection.
 
-`unconfigured`は、serviceへ問い合わせてnegative resultを得た状態とは区別します。問い合わせていない状態を`not found`などのdomain resultとして表示してはいけません。
+`unconfigured` is different from a negative result returned by a service query. Do not display a domain result such as `not found` when no query was performed.
 
 ## Verification
 
-Verification evidenceは次のlayerへ分離します。
+Separate verification evidence into layers:
 
-| Layer | 例 |
+| Layer | Examples |
 |---|---|
-| Repository-local | typecheck、build、unit test、schema validator、repository central verification |
-| Preview-dependent | browser navigation、reload、UI interaction、AI Studio preview behavior |
-| Hardware-dependent | camera、microphone、NFC、Bluetooth、USB、serial |
-| Remote | GitHub Actions、deployment、external service |
-| Independent audit | exported revisionのdiff、regression、hard boundaryの外部確認 |
+| Repository-local | typecheck, build, unit tests, schema validators, repository central verification |
+| Preview-dependent | browser navigation, reload, UI interaction, AI Studio preview behavior |
+| Hardware-dependent | camera, microphone, NFC, Bluetooth, USB, serial |
+| Remote | GitHub Actions, deployment, external services |
+| Independent audit | exported-revision diff, regression inspection, external hard-boundary confirmation |
 
-一つのlayerのPASSを別layerのPASSとして報告しません。例えば、build PASSはbrowser reload、hardware API、remote CIのPASSを意味しません。
+Do not use a PASS in one layer as evidence that another layer passed. For example, a successful build does not prove browser reload behavior, hardware APIs, or remote CI.
 
-Central verificationがFAILした場合は原因を修正して再実行できます。corrective回数を機械的な完了条件にせず、working outcome、安全境界、検証結果を優先します。
+When central verification fails, fix the cause and rerun it. Do not make the number of corrective iterations an artificial completion criterion; prioritize the working outcome, safety boundaries, and verification results.
 
 ## GitHub export
 
-Repository-local verificationがPASSし、primary outcomeが成立し、hard boundary violationがない場合にGitHub exportを要求します。
+Request GitHub export when repository-local verification passes, the primary outcome is achieved, and there is no hard-boundary violation.
 
-Export前に次を確認します。
+Before export, confirm that:
 
-- temporary download、archive、extraction tree、patch scriptが残っていない
-- dependency、permission、platform capabilityの追加が意図されたものか
-- secretsまたはcredentialsがsourceへ書かれていない
-- generated fileを直接編集していない
-- repositoryが指定するexport destinationと現在の連携先を確認した
+- temporary downloads, archives, extraction trees, and patch scripts are absent;
+- dependency, permission, and platform-capability additions are intentional;
+- no secrets or credentials were written into source;
+- generated files were not edited directly; and
+- the repository-specified export destination agrees with the current integration target.
 
-任意branchへexportできると仮定してはいけません。branch controlが必要でAI StudioのUIで選択できない場合は、ZIP exportまたは完全なGit環境へのhandoffを使用します。
+Do not assume AI Studio can export to an arbitrary branch. If branch control is required and the UI cannot select the target, use ZIP export or hand off to a complete Git environment.
 
-## Export後の外部監査
+## External audit after export
 
-外部監査では、前回accepted revisionとexport後revisionの差分に集中します。
+External audit should focus on the difference between the previously accepted revision and the exported revision.
 
-1. Exported revisionを特定する。
-2. 前回accepted revisionとの差分とchanged filesを取得する。
-3. 変更を`intended`、`derived`、`incidental but harmless`、`unexplained and material`へ分類する。
-4. Primary outcomeとpreserved invariantsを確認する。
-5. Hard boundary、dependency、permission、metadata、temporary artifactを確認する。
-6. Remote CIが現在のrevisionを対象としているか確認する。
-7. Acceptance、follow-up、または明示的なrebaselineを決定する。
+1. Identify the exported revision.
+2. Obtain the diff and changed files against the previously accepted revision.
+3. Classify changes as `intended`, `derived`, `incidental but harmless`, or `unexplained and material`.
+4. Confirm the primary outcome and preserved invariants.
+5. Inspect hard boundaries, dependencies, permissions, metadata, and temporary artifacts.
+6. Confirm that remote CI applies to the current revision.
+7. Decide acceptance, follow-up, or an explicit rebaseline.
 
-想定外のdocumentation fileやmetadata変更があることだけでは自動的にFAILにしません。runtime、security、data boundary、dependency、将来のagent behaviorへの影響を評価します。
+An unexpected documentation or metadata file is not an automatic failure. Evaluate its effect on runtime, security, data boundaries, dependencies, and future agent behavior.
 
-## `metadata.json`とplatform-generated changes
+## `metadata.json` and platform-generated changes
 
-Google AI Studioのweb appでは、`metadata.json`の`requestFramePermissions`にcamera、microphone、geolocation、Bluetoothなどのpermission requestを記録できます。Export後は少なくとも次を確認します。
+For web applications created or edited in Google AI Studio, `metadata.json` can declare camera, microphone, geolocation, Bluetooth, and similar permission requests in `requestFramePermissions`. After export, inspect at least:
 
-- `requestFramePermissions`
-- capability declaration
-- secretまたはserver-side featureに関するmetadata
-- dependencyとscript
-- root-level temporary file
+- `requestFramePermissions`;
+- capability declarations;
+- metadata related to secrets or server-side features;
+- dependencies and scripts; and
+- root-level temporary files.
 
-Permissionまたはcapabilityの追加は必要性を確認します。追加されたという事実だけでも、AI Studioが生成したという事実だけでも、正当化にはなりません。
+Permission or capability additions require a necessity review. The fact that a permission was added, or that AI Studio generated it, is not by itself a justification.
 
-## External artifact
+## External artifacts
 
-Historical source、archive、reference bundleなどをAI Studioへ渡す場合は、`external-artifact-intake` profileの規約を適用します。
+When historical source, archives, reference bundles, or similar artifacts are supplied to AI Studio, apply the `external-artifact-intake` profile.
 
-- mutable branch URLよりimmutable revisionを含むURLを優先する
-- 修正版artifactでは同じpathを置換せず、新しいartifact nameまたはrevisionを使う
-- digest、archive integrity、repository-authoritative validatorを分けて実行する
-- artifact依存作業とartifact非依存作業を分離する
-- reference-only materialを暗黙にinstallまたはactivateしない
+- prefer URLs containing immutable revisions over mutable branch URLs;
+- for corrected artifacts, use a new artifact name or revision rather than replacing the same path;
+- separate digest verification, archive integrity, and repository-authoritative validation;
+- separate artifact-dependent from artifact-independent work; and
+- do not implicitly install or activate reference-only material.
 
-## 完了報告
+## Completion report
 
-完了報告は短く、外部監査へ必要な事実だけを含めます。
+Keep the completion report short and include only facts needed by the external audit.
 
 ```text
 Outcome
@@ -157,7 +157,7 @@ Unobservable evidence
 Remaining work
 ```
 
-標準状態語は次です。
+Use these standard status terms:
 
 ```text
 PASS
@@ -169,9 +169,9 @@ NOT_OBSERVABLE
 UNVERIFIED
 ```
 
-Implemented、executed、verified、inferredを区別し、観測できないremote stateを成功として報告しません。
+Distinguish implemented, executed, verified, and inferred states. Do not report unobservable remote state as successful.
 
-## 参照
+## References
 
 - [Build apps in Google AI Studio](https://ai.google.dev/gemini-api/docs/aistudio-build-mode)
 - [Develop Full-Stack Apps in Google AI Studio](https://ai.google.dev/gemini-api/docs/aistudio-fullstack)

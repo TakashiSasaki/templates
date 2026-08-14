@@ -1,39 +1,39 @@
-# はじめに
+# Getting started
 
-## 前提
+## Prerequisites
 
-対象はGitリポジトリです。Python 3.11以降とGitが必要です。`uvx` が利用可能な場合は一時環境でCLIを実行し、利用できない場合はブートストラップスクリプトが一時的なPython仮想環境を作成します。
+The target must be a Git repository. Python 3.11 or later and Git are required. When `uvx` is available, the CLI can run in a temporary environment. Otherwise, the bootstrap script creates a temporary Python virtual environment.
 
-## 推奨: 統合済みブートストラップスキルから導入する
+## Recommended: adopt through the integrated bootstrap skill
 
-ブートストラップスキルは `TakashiSasaki/templates` の `policy` ブランチ内、`skills/bootstrap-agent-policy/` にあります。レビュー済みのfull commit SHAをcheckoutし、installerでエージェントのskill directoryへ配置します。
+The bootstrap skill is maintained at `skills/bootstrap-agent-policy/` in the `policy` branch of `TakashiSasaki/templates`. Check out a reviewed full commit SHA and install the skill into the agent's skill directory.
 
 ```bash
 python skills/bootstrap-agent-policy/scripts/install.py \
   /path/to/agent-skills/bootstrap-agent-policy
 ```
 
-スキル自身の `bootstrap-manifest.yml` は、実行する `TakashiSasaki/templates` のtoolchain revisionをfull SHAで固定しています。`policy`、tag、短縮SHAなどのmutable referenceへ置き換えないでください。
+The skill's own `bootstrap-manifest.yml` pins the `TakashiSasaki/templates` toolchain revision that it will execute by full SHA. Do not replace that revision with a mutable reference such as `policy`, a tag, or an abbreviated SHA.
 
-## 1. リポジトリを調査し、導入計画を確認する
+## 1. Inspect the repository and review the adoption plan
 
-ブートストラップ処理は既定ではdry-runです。導入済みskill directoryから次を実行します。
+Bootstrap is a dry run by default. From the installed skill directory, run:
 
 ```bash
 python scripts/bootstrap.py \
   --repository /path/to/product-repository
 ```
 
-固定されたtoolchainで `agent-policy adopt inspect` を実行し、対象を次のいずれかへ分類します。
+The bootstrap script executes `agent-policy adopt inspect` through the pinned toolchain and classifies the target as one of:
 
-- `unmanaged-empty`: 既存instructionがなく、`init`を使用できる
-- `unmanaged-existing`: 既存instructionやpolicyがあり、`adopt prepare`を使用する
-- `managed`: `.agent-policy.yml`が存在し、bootstrapは不要
-- `inconsistent`: 部分導入、生成物だけの残存、危険なpathなどがあり、先に修復が必要
+- `unmanaged-empty`: no existing instructions; `init` can be used;
+- `unmanaged-existing`: existing instructions or policy are present; use `adopt prepare`;
+- `managed`: `.agent-policy.yml` already exists; bootstrap is unnecessary; or
+- `inconsistent`: partial adoption, orphaned generated artifacts, unsafe paths, or another inconsistent state must be repaired first.
 
-自動振り分けはdry-runの助言だけです。書込み時には経路を明示します。
+Automatic routing is advisory during the dry run only. A write operation requires an explicit route.
 
-## 2A. 空のリポジトリを初期化する
+## 2A. Initialize an empty repository
 
 ```bash
 python scripts/bootstrap.py \
@@ -42,9 +42,9 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-初期化後、ブートストラップスクリプトは同じ固定ツールチェーンによる `validate` と `check` の成功を要求します。
+After initialization, the bootstrap script requires `validate` and `check` to succeed through the same pinned toolchain.
 
-主に次のファイルが作成されます。
+The main files created are:
 
 ```text
 .agent-policy.yml
@@ -54,13 +54,13 @@ AGENTS.md
 .agents/skills/validate-agent-policy/SKILL.md
 ```
 
-`.agent-policy.yml` が人間が編集する設定の入口です。`.agent-policy.lock`、`AGENTS.md`、生成されたスキルはCLIが管理します。
+`.agent-policy.yml` is the human-edited configuration entry point. `.agent-policy.lock`, `AGENTS.md`, and generated skills are managed by the CLI.
 
-## 2B. 既存instructionを保持して導入準備する
+## 2B. Prepare adoption while preserving existing instructions
 
-`unmanaged-existing` と判定された場合は、調査で発見された `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、または `.github/copilot-instructions.md` からprimary instructionを選択します。
+For `unmanaged-existing`, choose the primary instruction from an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection.
 
-まずdry-runを確認します。
+Review the dry run first:
 
 ```bash
 python scripts/bootstrap.py \
@@ -69,7 +69,7 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md
 ```
 
-計画を確認した後、準備状態を適用します。
+After reviewing the plan, apply the prepared state:
 
 ```bash
 python scripts/bootstrap.py \
@@ -79,7 +79,7 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-既存primary instructionは置き換えられません。主に次の準備資産が作成され、`adopt preview`まで実行されます。
+The existing primary instruction is not replaced. The operation primarily creates the following prepared artifacts and runs `adopt preview`:
 
 ```text
 .agent-policy.yml
@@ -90,15 +90,15 @@ policy/project.md
 .agents/skills/validate-agent-policy/SKILL.md
 ```
 
-手書きinstructionの意味をproject policyへ反映し、previewとの意味的な差分をレビューしてください。CLIは自由記述を自動的に規約へ変換しません。
+Represent the semantics of the handwritten instructions in project policy and review the semantic difference against the preview. The CLI does not automatically convert free-form instructions into policy.
 
-cutoverは別段階です。レビュー後に、manifestに固定された同じrepositoryとfull SHAのCLIで `agent-policy adopt finalize` をdry-runし、明示的に `--apply`して初めてprimary instructionを生成物へ切り替えます。genericなbootstrap `--apply`はfinalizeを実行しません。
+Cutover is a separate phase. After review, run `agent-policy adopt finalize` as a dry run using the CLI from the same repository and full SHA pinned by the manifest, and then explicitly use `--apply` to replace the primary instruction with the generated output. Generic bootstrap `--apply` does not perform finalization.
 
-## 3. 製品固有規約を記述する
+## 3. Author product-specific policy
 
-`policy/project.md` に、その製品だけに適用する不変条件、互換性要件、検証方法を記述します。共通規約の正本を製品リポジトリへコピーして編集しないでください。
+In `policy/project.md`, record invariants, compatibility requirements, and verification methods that apply only to that product. Do not copy the canonical shared policy into the product repository and edit it there.
 
-通常のmanaged stateでは次を実行します。
+For normal managed operation, run:
 
 ```bash
 agent-policy --repository . validate
@@ -106,15 +106,15 @@ agent-policy --repository . render
 agent-policy --repository . check
 ```
 
-adoption準備中は、project policyを編集した後に次を実行してshadow previewを更新します。
+During adoption preparation, update the shadow preview after editing project policy:
 
 ```bash
 agent-policy --repository . adopt preview
 ```
 
-## 4. 変更をレビューしてコミットする
+## 4. Review and commit the changes
 
-初期化、adoption preparation、preview、finalization、再生成はGit commitやpushを自動実行しません。生成された差分を確認し、製品コードと同じ通常のレビューフローでコミットしてください。
+Initialization, adoption preparation, preview, finalization, and regeneration do not automatically create Git commits or push changes. Review the generated diff and commit it through the same normal review flow used for product code.
 
 !!! note
-    ブートストラップスキルは初回導入のtrust seedです。初期化後またはadoption finalization後の通常運用では、製品リポジトリ内の `.agent-policy.yml` と `.agent-policy.lock` がツールチェーンと生成状態を固定します。
+    The bootstrap skill is the first-adoption trust seed. After initialization or adoption finalization, normal operation is pinned by the product repository's `.agent-policy.yml` and `.agent-policy.lock`.

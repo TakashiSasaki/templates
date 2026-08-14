@@ -1,148 +1,142 @@
-# 退行を抑制する普遍規約
+# Universal regression-prevention policy
 
-このページは、複数のリポジトリでコーディングエージェントを利用した際に繰り返し観察された退行と、その抑止に有効だった対策のうち、特定の言語、フレームワーク、製品、またはUI実装に依存しないものを整理します。
+This page collects recurring regressions observed when coding agents are used across multiple repositories and the countermeasures that proved effective without depending on a specific language, framework, product, or UI implementation.
 
-`policy/core/` には、生成されるエージェント指示へ直接含める短い規範だけを置きます。このページは、その採用理由、適用境界、および機械的強制との関係を説明する非規範的な文書です。
+`policy/core/` contains only short normative rules intended to appear directly in generated agent instructions. This page is non-normative explanatory material covering the rationale for those rules, their applicability boundaries, and their relationship to machine enforcement.
 
-## 採用基準
+## Adoption criteria
 
-普遍規約へ含める項目は、原則として次の条件を満たすものに限定します。
+A principle belongs in universal policy only when it normally satisfies all of these conditions:
 
-1. 複数のリポジトリまたは異なる種類の変更で同型の失敗が観察されている。
-2. 特定の技術スタックを前提とせず、一般的なソフトウェア変更へ適用できる。
-3. エージェントが実行可能な指示として短く表現できる。
-4. diff、テスト、生成差分、現在のrevision、または操作対象の状態など、何らかの証拠で遵守を確認できる。
-5. 過剰な探索や無関係な作業を誘発する一般論ではなく、具体的な失敗経路を閉じる。
+1. The same failure pattern has been observed in multiple repositories or different categories of change.
+2. The rule applies to general software changes without assuming a specific technology stack.
+3. It can be expressed concisely as an instruction an agent can execute.
+4. Compliance can be checked through evidence such as diffs, tests, generated differences, the current revision, or the state of the mutation target.
+5. It closes a concrete failure path rather than encouraging broad exploration or unrelated work.
 
-## core profileへ含める原則
+## Principles included in the core profile
 
-### 変更契約を先に確定する
+### Establish the change contract first
 
-変更対象だけを指定しても、保存すべき既存挙動、非目標、受入証拠が暗黙のままでは、エージェントが実装上の都合で範囲を拡大しやすくなります。そのため、編集前に次を識別します。
+Naming only the files or subsystem to change leaves preserved behavior, non-goals, and acceptance evidence implicit and makes it easier for an agent to expand scope for implementation convenience. Before editing, identify:
 
-- requested outcome
-- allowed change surface
-- preserved behavior and invariants
-- explicit non-goals
-- acceptance evidence
+- requested outcome;
+- allowed change surface;
+- preserved behavior and invariants;
+- explicit non-goals; and
+- acceptance evidence.
 
-指定されていない既存挙動は、要求された変更に不可避でない限り保存対象として扱います。これは `changes.define-contract` と `changes.minimize-scope` の組合せで表現します。
+Treat unspecified existing behavior as preserved unless the requested change necessarily requires altering it. This is represented by the combination of `changes.define-contract` and `changes.minimize-scope`.
 
-### Acceptance baselineを作業中に動かさない
+### Do not move the acceptance baseline during execution
 
-変更契約を定義しても、実装またはauditの途中でscope、非目標、完了条件、必要証拠、停止条件を遡及的に拡張すると、完了可能性と過去のevidenceが失われます。`changes.preserve-acceptance-baseline` は、開始後のbaselineを固定し、rebaselineを明示的なowner decisionとして扱います。
+Even after defining a change contract, retroactively expanding scope, non-goals, completion criteria, required evidence, or stopping conditions during implementation or audit destroys completion stability and can invalidate earlier evidence. `changes.preserve-acceptance-baseline` freezes the baseline after work starts and treats rebaselining as an explicit owner decision.
 
-Rebaselineが必要な場合は、少なくとも次を記録します。
+When a rebaseline is necessary, record at least:
 
-- 変更するbaseline項目
-- 変更理由
-- 既に完了した作業への影響
-- 以前の検証結果が引き続き有効か
-- 新しい停止条件
+- the baseline item being changed;
+- why it is changing;
+- the effect on work already completed;
+- whether earlier verification remains valid; and
+- the new stopping condition.
 
-Auditは新しい要求を発見する場になり得ますが、その要求を現在の作業へ自動的に遡及適用してはいけません。別の作業単位へdeferするか、明示的にrebaselineします。
+An audit may discover new requirements, but those requirements must not automatically be applied retroactively to the current work. Defer them to another work unit or rebaseline explicitly.
 
-### 意味に関わる曖昧さを推測で閉じない
+### Do not resolve semantic ambiguity by guessing
 
-実装方法の小さな選択はエージェントが判断できますが、observable behavior、data meaning、compatibility、architecture、risk、scopeを変える選択はowner decisionです。`decisions.escalate-semantic-ambiguity` は、単に質問するのではなく、次を提示してdependent changeを止めます。
+Agents can decide small implementation details, but choices that alter observable behavior, data meaning, compatibility, architecture, risk, or scope are owner decisions. `decisions.escalate-semantic-ambiguity` requires more than asking a bare question: identify the viable options, trade-offs, impact, recommendation, and decision required, then stop the dependent change.
 
-- viable options
-- trade-offs
-- impact
-- recommendation
-- decision required
+This rule does not require confirmation for every minor implementation detail. It gates only choices that change the meaning or contract of the result.
 
-この規約は、些細な実装詳細ごとに確認を要求するものではありません。結果の意味または契約を変える選択だけをgateします。
+### Capture discovered failures as regression tests
 
-### 発見した失敗を回帰テストとして固定する
+In addition to preserving existing tests, a reproducible defect fix should add a test that fails before the fix and passes after it. Capturing the actual discovered counterexample provides more direct protection against recurrence than merely increasing the number of tests.
 
-既存テストを弱めないだけでなく、再現可能な不具合修正では、修正前に失敗し修正後に成功するテストを追加します。一般的なテスト数の増加より、実際に発見された反例を固定する方が、同型の退行に対する直接的な検出力を持ちます。
+When reproduction is environment-dependent or nondeterministic, do not report inability to reproduce as success. Report the hazardous condition, the defense added, and the alternative verification that was executed.
 
-再現が環境依存または非決定的である場合は、再現できなかった事実を成功として扱わず、対象となる危険な条件、追加した防御、実行した代替検証を報告します。
+### Distinguish executing verification from passing verification
 
-### 検証の実行と合格を区別する
+Starting a command, having a workflow configured, or having a review rule present does not mean the current change has been verified. Verification results should distinguish at least:
 
-コマンドを起動したこと、workflowが存在すること、レビューが設定されていることは、現在の変更が検証済みであることを意味しません。検証結果は、少なくとも次の状態を区別します。
+- passed;
+- failed;
+- pending;
+- skipped;
+- not triggered;
+- stale for the current revision;
+- blocked by the environment; and
+- inspected or inferred only.
 
-- passed
-- failed
-- pending
-- skipped
-- not triggered
-- stale for the current revision
-- blocked by the environment
-- inspected or inferred only
+Also confirm that the required verification actually covers the change surface. Do not use an aggregate command or green CI status as a substitute for tests that were omitted, workflows excluded by path filters, or results produced for an older commit.
 
-必要な検証が変更surfaceを実際に覆っているかも確認します。集約コマンドや緑色のCIだけを、未包含のテスト、path filterで除外されたworkflow、または古いcommitに対する結果の代替にしてはいけません。
+### Do not substitute one evidence layer for another
 
-### Evidence layerを相互に代用しない
+`verification.separate-evidence-layers` binds a verification result both to the exact revision or artifact and to the layer that produced it. At minimum, distinguish:
 
-`verification.separate-evidence-layers` は、検証結果をexact revisionまたはartifactと、その結果を生成したlayerへ結び付けます。標準的には次を分けます。
+- repository-local checks;
+- environment-dependent checks;
+- remote CI; and
+- independent audit.
 
-- repository-local checks
-- environment-dependent checks
-- remote CI
-- independent audit
+For example, a passing local validator does not prove that remote CI ran, and passing remote CI does not prove independent-audit acceptance. Schema validation, filesystem validation, transfer hashes, and semantic acceptance are also distinct claims.
 
-例えば、local validatorのPASSはremote CIの実行を証明せず、remote CIのPASSはindependent auditのacceptanceを証明しません。Schema validation、filesystem validation、transfer hash、semantic acceptanceも、それぞれ異なる主張です。
+### Keep canonical sources and derived artifacts synchronized
 
-### 正本と派生物を同期する
+Generated files, duplicated configuration, compiled assets, manifests, fixtures, and published documentation can become stale after their canonical inputs change. For related changes, use the repository-defined generation or synchronization procedure and verify that no missing or unexpected difference remains.
 
-生成ファイル、複製された設定、コンパイル済み資産、manifest、fixture、公開文書などは、正本の変更後に陳腐化しやすい対象です。関連する変更では、リポジトリが定める生成または同期手順を使用し、欠落または差分が残っていないことを検査します。
+Do not rely solely on human or agent attention for synchronization. When possible, enforce it with generator check modes, post-regeneration diffs, hashes, schema validation, or CI exact-match checks.
 
-派生物の同期は、人間やエージェントの注意だけに依存させず、可能ならgeneratorのcheck mode、再生成後のdiff、hash、schema検証、またはCIの完全一致検査で強制します。
+### Revalidate state immediately before destructive actions
 
-### 破壊的操作の直前に状態を再検証する
+For deletion, overwrite, migration, deployment, publication, force updates, and similar mutations, state observed at task start may no longer be valid at execution time. Immediately before the operation, revalidate at least target identity, scope, revision, protection state, and conflicting use.
 
-削除、上書き、migration、deploy、publish、force updateなどの操作では、作業開始時に取得した状態が実行時にも有効とは限りません。操作直前に、少なくとも対象のidentity、scope、revision、保護状態、および競合利用を再確認します。
+Prefer dry runs, minimum scope, and idempotent operations when possible. Do not authorize a destructive operation by inferring global current state from an earlier search result or a local intermediate result.
 
-可能な場合はdry-run、最小scope、冪等な操作を優先します。以前の検索結果や局所的な処理結果だけから、現在の全体状態を推定して破壊的操作を許可してはいけません。
+### Limit rollback to changes owned by the current operation
 
-### Rollbackを現在の操作が所有する変更へ限定する
+In multi-stage mutations, cleanup that deletes a file created by another process or a file that existed before the task is itself a regression. `safety.limit-rollback-to-owned-changes` requires preflight before the first write, live-state revalidation at the commit boundary, and tracking of paths created or changed by the current operation.
 
-複数段階のmutationでは、失敗時cleanupが別processまたは作業前から存在したfileを削除すること自体が退行になります。`safety.limit-rollback-to-owned-changes` は、最初のwriteより前にpreflightを完了し、commit boundaryでlive stateを再検証し、現在の操作がcreateまたはchangeしたpathを追跡することを要求します。
+Rollback only changes whose ownership by the current operation is known. Do not delete or overwrite files created concurrently, files that predated the operation, or referents not modified by the current operation under the label of cleanup.
 
-Rollbackでは、そのownershipが確認できる変更だけを戻します。競合processが作成したfile、作業前から存在したfile、今回変更していないreferentをcleanupの名目で削除または上書きしてはいけません。
+### Preserve external contracts and truthful reporting
 
-### 外部契約と報告の真実性を保存する
+Public APIs, storage formats, configuration formats, CLIs, migration paths, and other external contracts are preserved unless an incompatible change is explicitly authorized. Reporting must also distinguish implemented, generated, executed, verified, and inferred states; unverified work must not be reported as complete.
 
-公開API、保存形式、設定形式、CLI、migration pathなどの外部契約は、明示的に許可された非互換変更でない限り保存します。また、implemented、generated、executed、verified、inferredを区別し、未検証事項を完了として報告しません。
+## Items separated into optional profiles
 
-## Optional profileへ分離する項目
+Receiving external archives, historical source, vendor bundles, generated artifacts, and similar material requires additional policy about provenance, digests, archive paths, declared intent, exact-byte staging, and dependency closure. These concerns do not apply to every change and therefore belong in the `external-artifact-intake` profile.
 
-外部archive、historical source、vendor bundle、生成物などの受領では、provenance、digest、archive path、declared intent、exact-byte staging、dependency closureといった追加規約が必要です。これらは一般的な変更すべてに必要ではないため、`external-artifact-intake` profileへ分離します。
+See [External artifact intake policy profile](external-artifact-intake.md) for the concrete rules and validation order. Product-specific manifest schemas, source allowlists, destination mappings, and activation gates remain in product-repository policy and validators.
 
-具体的な規則と適用順序は[外部artifact受領規約プロファイル](external-artifact-intake.md)を参照してください。製品固有のmanifest schema、source allowlist、destination mapping、activation gateは製品repositoryのpolicyとvalidatorに残します。
+## Natural-language policy and machine enforcement
 
-## 自然言語規約と機械的強制
+Natural-language policy is a shared contract for agent judgment, but merely documenting a rule does not make it an integration gate. Where possible, mechanize requirements in this order:
 
-自然言語規約は、エージェントが判断するための共通契約です。ただし、記載されているだけでは統合ゲートになりません。可能な項目は、次の順に機械化します。
+1. repository-specific tests or validators;
+2. generator check modes and diff checks;
+3. CI status for the current commit;
+4. required checks or required reviews; and
+5. precondition checks immediately before mutation.
 
-1. repository-specific testまたはvalidator
-2. generatorのcheck modeと差分検査
-3. 現在のcommitを対象とするCI status
-4. required checkまたはrequired review
-5. 操作直前のprecondition check
+`agent-policy` itself validates consistency between generated instructions and lock state. Product-specific invariants and acceptance tests remain enforced by product-repository tests and CI.
 
-`agent-policy` 自体は、生成された指示とlock fileの整合性を検査します。製品固有の不変条件や受入試験は、製品リポジトリのテストとCIで強制します。
+## Items not included in core
 
-## coreへ含めない項目
+The following practices can be useful, but their applicability depends on a technical domain and they are therefore not universal core policy at this time:
 
-次の知見は有用ですが、適用条件が技術領域に依存するため、現時点では普遍的なcore規約には含めません。
+- rechecking a request ID or selected object after each `await` in asynchronous UI code;
+- not waiting for an auxiliary display feature before basic functionality;
+- a specific choice between fail-open and fail-closed behavior;
+- mandatory CODEOWNERS or specific reviewers;
+- universally running every platform, package, and test suite;
+- universally requiring fuzzing, formal methods, or a particular coverage percentage; and
+- universally requiring a specific archive format, hash algorithm, or signature format.
 
-- 非同期UIでrequest IDまたは選択対象を各`await`後に再確認すること
-- 補助的な表示機能を基礎機能より先に待たないこと
-- fail-openとfail-closedの具体的な選択
-- CODEOWNERSや特定reviewerの必須化
-- 全platform、全package、全test suiteの一律実行
-- fuzz test、形式手法、特定coverage値の一律必須化
-- 特定のarchive形式、hash algorithm、署名方式の一律強制
+These are better expressed in frontend, workflow, database, release, security, artifact-intake, or other domain profiles, or as product-repository-specific policy.
 
-これらは、frontend、workflow、database、release、security、artifact intakeなどのdomain profile、または製品リポジトリ固有のpolicyとして追加する方が適切です。
+## Minimal task-specific contract
 
-## タスク固有契約の最小形
-
-恒久規約とは別に、個々のタスクでは次の情報を明示すると、core規約を具体化できます。
+Separate from permanent policy, an individual task can specialize the core rules by stating:
 
 ```text
 Outcome:
@@ -154,4 +148,4 @@ Destructive or externally visible actions:
 Stop condition:
 ```
 
-この契約は恒久規約へ蓄積せず、issue、pull request、作業指示、または一時的な作業文書で管理します。
+Do not accumulate this task contract into permanent policy. Keep it in an issue, pull request, work instruction, or temporary task document.

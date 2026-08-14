@@ -1,46 +1,46 @@
 # agent-policy
 
-`agent-policy` は、複数の製品リポジトリと複数のコーディング／汎用エージェントで共有する規約を、検証可能かつ再現可能な形で管理するためのポリシーツールチェーンです。開発上の正本は `TakashiSasaki/templates` の `policy` ブランチです。
+`agent-policy` is a policy toolchain for managing operating rules shared across multiple product repositories and multiple coding or general-purpose agents in a verifiable and reproducible form. The canonical development source is the `policy` branch of `TakashiSasaki/templates`.
 
-## 目的
+## Purpose
 
-- 共通規約を中央で一度だけ管理する
-- 製品固有規約を各リポジトリに保持する
-- `.agent-policy.yml` を単一の意味的設定入口にする
-- 共通規約と製品固有規約を決定的に合成する
-- `AGENTS.md` と通常運用スキルを生成してコミットする
-- `.agent-policy.lock` に入力・出力ハッシュとツールチェーンの完全なコミットSHAを記録する
-- 設定、lock、生成物の不整合をCIで検出する
-- 既存instructionを破壊せずに導入準備・preview・明示的cutoverを行う
+- manage shared policy once at a central source;
+- keep product-specific policy in each product repository;
+- use `.agent-policy.yml` as the single semantic configuration entry point;
+- compose shared and product-specific policy deterministically;
+- generate and commit `AGENTS.md` and normal-operation skills;
+- record input and output hashes and the complete toolchain commit SHA in `.agent-policy.lock`;
+- detect inconsistencies among configuration, lock state, and generated outputs in CI; and
+- prepare adoption, preview the generated state, and perform explicit cutover without destructively replacing existing instructions.
 
-## 区別すべき3つの層
+## Three layers that must remain distinct
 
-`policy` という語は、リポジトリのbranch、branch内で正本として保持する共有規約、consumer repositoryで実際に有効になる規約を指し得ます。これらは別の層です。
+The word `policy` can refer to the repository branch, the canonical shared rules stored in that branch, or the policy that is actually effective in a consumer repository. These are separate layers.
 
-1. **Provider / toolchain layer** — `TakashiSasaki/templates` の `policy` ブランチ全体です。共有規約だけでなく、`agent-policy` CLI、schema、renderer template、bootstrap、test、release machinery、maintainer documentationを保持します。このbranch自体がconsumer repositoryへmergeされて効力を持つわけではありません。
-2. **Shared policy corpus layer** — `policy/` に置くcanonicalな共有規則と、`profiles/` に置く選択集合です。ここが複数repositoryで共有する規約意味論の正本です。規則はbranchに存在するだけではconsumerで有効にならず、consumer側の設定から選択されます。
-3. **Consumer effective-policy layer** — consumer repositoryの `.agent-policy.yml` がshared profileとrepository-local policyを選択し、toolchainがそれらをcomposeして `AGENTS.md`、context output、通常運用skillなどへrenderした状態です。`.agent-policy.lock` は選択入力、toolchain revision、生成結果を固定します。実際のrepository作業で効力を持つのはこのconsumer側の選択・合成・生成結果です。
+1. **Provider / toolchain layer** — the entire `policy` branch of `TakashiSasaki/templates`. In addition to shared policy, it contains the `agent-policy` CLI, schemas, renderer templates, bootstrap support, tests, release machinery, and maintainer documentation. The branch itself does not become effective in a consumer repository by being merged into it.
+2. **Shared policy corpus layer** — the canonical shared rules under `policy/` and the selection sets under `profiles/`. This is the semantic source of truth for policy shared by multiple repositories. A rule does not become effective merely because it exists in the branch; the consumer configuration must select it.
+3. **Consumer effective-policy layer** — the state in which a consumer repository's `.agent-policy.yml` selects shared profiles and repository-local policy and the toolchain composes and renders them into `AGENTS.md`, context outputs, normal-operation skills, and related artifacts. `.agent-policy.lock` pins the selected inputs, toolchain revision, and generated results. Repository work is governed by this consumer-side selected, composed, and generated state.
 
-したがって、導入処理は `policy` ブランチ全体をconsumerへinjectまたはGit mergeする仕組みではありません。共有規則を **select → compose → render** し、consumer repositoryに生成projectionとlock stateを保持する仕組みです。branch間のunrelated historyは維持されます。
+Adoption therefore does not inject or Git-merge the entire `policy` branch into a consumer. It **selects → composes → renders** shared rules and keeps the generated projections and lock state in the consumer repository. The unrelated histories of the branches remain separate.
 
-Index-guided navigationでもこの境界を維持し、[Provider and toolchain](provider/index.md)、[Shared policy corpus](shared-policy/index.md)、[Applying policy to a consumer repository](consumer/index.md) を別の入口として扱います。
+Index-guided navigation preserves the same boundary by presenting [Provider and toolchain](provider/index.md), [Shared policy corpus](shared-policy/index.md), and [Applying policy to a consumer repository](consumer/index.md) as separate entry points.
 
-## `policy`ブランチの構成
+## Structure of the `policy` branch
 
-`policy`は、`templates`リポジトリの`skill`、`site`、`webapp`とはunrelated historyです。このbranch内で次を管理します。
+The `policy` history is unrelated to the `skill`, `site`, and `webapp` histories in the `templates` repository. It maintains the following components.
 
-| パス | 役割 |
+| Path | Responsibility |
 |---|---|
-| `policy/`, `profiles/` | application-type-independentな共有規約と適用集合 |
-| `src/agent_policy/` | Python CLIとadoption transaction |
-| `schemas/`, `templates/` | consumer設定・stateのschemaと生成template |
-| `skills/` | 通常運用skillと統合済み`bootstrap-agent-policy` trust seed |
-| `tests/` | compiler、path safety、lock、adoption、bootstrap boundaryの検証 |
-| `docs/` | 導入、設計、ADR、publication資産 |
+| `policy/`, `profiles/` | Application-type-independent shared policy and selection sets |
+| `src/agent_policy/` | Python CLI and adoption transaction implementation |
+| `schemas/`, `templates/` | Schemas for consumer configuration and state, and generation templates |
+| `skills/` | Normal-operation skills and the integrated `bootstrap-agent-policy` trust seed |
+| `tests/` | Validation of the compiler, path safety, lock state, adoption, and bootstrap boundary |
+| `docs/` | Adoption, architecture, ADR, and publication material |
 
-ブートストラップスキルは `skills/bootstrap-agent-policy/` にあります。manifestは `TakashiSasaki/templates` のfull commit SHAを固定してCLIを実行し、mutableな`policy`先端を直接信頼しません。初期化後またはadoption finalization後は、製品リポジトリ内の `.agent-policy.yml`、`.agent-policy.lock`、生成された指示・skill、CIへ制御を引き渡します。
+The bootstrap skill is under `skills/bootstrap-agent-policy/`. Its manifest pins a full commit SHA of `TakashiSasaki/templates` before invoking the CLI, so it never executes the mutable `policy` branch tip directly. After initialization or adoption finalization, control transfers to the product repository's `.agent-policy.yml`, `.agent-policy.lock`, generated instructions and skills, and CI.
 
-## 提供コマンド
+## Commands
 
 ```text
 agent-policy init
@@ -53,17 +53,17 @@ agent-policy render
 agent-policy check
 ```
 
-- `init`: 未導入で既存instruction競合のないリポジトリを初期化する
-- `adopt`: 既存instructionを保持したまま調査、準備、preview、明示的cutoverを行う
-- `validate`: 設定、参照、規則ID、path safetyなどを検査する
-- `render`: 共通規約と製品固有規約を合成して生成物とlockを更新する
-- `check`: 設定、入力、lock、生成物が一致しているかをread-onlyで確認する
+- `init`: initialize an unmanaged repository that has no conflicting existing instructions;
+- `adopt`: inspect, prepare, preview, and explicitly cut over while preserving existing instructions;
+- `validate`: validate configuration, references, rule IDs, path safety, and related constraints;
+- `render`: compose shared and product-specific policy and update generated outputs and lock state; and
+- `check`: verify read-only that configuration, inputs, lock state, and generated outputs agree.
 
-## 次に読むページ
+## Read next
 
-- [Provider and toolchain](provider/index.md) — `policy`ブランチ自体とtoolchainの設計・保守・release boundaryをたどります。
-- [Shared policy corpus](shared-policy/index.md) — consumerから選択されるcanonical shared policyとprofileをたどります。
-- [Applying policy to a consumer repository](consumer/index.md) — adoption、configuration、effective policy、managed operationをたどります。
-- [CLIリファレンス](cli.md) — `agent-policy` コマンドと各サブコマンドの契約を確認します。
-- [Architecture decisions](adr/) — 現在有効なADRを短い説明付きで一覧します。
-- [脅威モデル](threat-model.md) — toolchainが防御する脅威と信頼境界を確認します。
+- [Provider and toolchain](provider/index.md) — follow the design, maintenance, and release boundary of the `policy` branch and toolchain.
+- [Shared policy corpus](shared-policy/index.md) — follow the canonical shared policy and profiles selected by consumers.
+- [Applying policy to a consumer repository](consumer/index.md) — follow adoption, configuration, effective policy, and managed operation.
+- [CLI reference](cli.md) — inspect the `agent-policy` command and subcommand contracts.
+- [Architecture decisions](adr/) — browse the currently applicable ADRs with short descriptions.
+- [Threat model](threat-model.md) — review the threats and trust boundaries defended by the toolchain.

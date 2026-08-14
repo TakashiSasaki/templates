@@ -1,12 +1,12 @@
 ---
-description: 外部archive、historical source、vendor bundle、生成物などを安全に受領・検証・stageする共有規約と運用境界を説明します。
+description: Describes shared policy and operating boundaries for safely receiving, validating, and staging external archives, historical source, vendor bundles, generated artifacts, and similar material.
 ---
 
-# 外部artifact受領規約プロファイル
+# External artifact intake policy profile
 
-`external-artifact-intake` profileは、別repository、外部生成工程、配布archive、historical snapshot、vendor bundleなどからartifactを受け取り、destination repositoryへ導入する作業に適用します。
+The `external-artifact-intake` profile applies when artifacts are received from another repository, an external generation process, a distribution archive, a historical snapshot, a vendor bundle, or a similar source and are introduced into a destination repository.
 
-このprofileは`core`へ暗黙には含めません。外部artifactを扱う製品repositoryが`.agent-policy.yml`で明示的に選択します。
+This profile is not implicitly included in `core`. Product repositories that handle external artifacts select it explicitly in `.agent-policy.yml`.
 
 ```yaml
 profiles:
@@ -14,71 +14,71 @@ profiles:
   - external-artifact-intake
 ```
 
-## 収録する規則
+## Included rules
 
-| 規則ID | 要点 |
+| Rule ID | Summary |
 |---|---|
-| `artifacts.distinguish-provenance-integrity` | provenance claim、transfer integrity、source authenticity、source-set completenessを別の主張として扱う |
-| `artifacts.validate-before-use` | metadataとschemaを先に検証し、その後にpath、symlink、file type、size、digestを検査する |
-| `artifacts.apply-declared-intent-only` | artifactごとに宣言された利用目的を超えてinstall、activate、再構成しない |
-| `artifacts.separate-staging-adaptation-activation` | exact-byte staging、destination adaptation、runtime activationを別の変更として扱う |
-| `artifacts.isolate-transport-material` | archive、sidecar、展開tree、reportを通常の製品diffへ混入させない |
-| `artifacts.minimize-dependency-closure` | source側manifestをdestinationの正本にせず、必要最小限のdependencyだけを追加する |
+| `artifacts.distinguish-provenance-integrity` | Treat provenance claims, transfer integrity, source authenticity, and source-set completeness as separate claims. |
+| `artifacts.validate-before-use` | Validate metadata and schema first, then inspect paths, symlinks, file types, sizes, and digests. |
+| `artifacts.apply-declared-intent-only` | Do not install, activate, or reconstruct an artifact beyond its declared intended use. |
+| `artifacts.separate-staging-adaptation-activation` | Treat exact-byte staging, destination adaptation, and runtime activation as separate changes. |
+| `artifacts.isolate-transport-material` | Keep archives, sidecars, extraction trees, and reports out of the normal product diff. |
+| `artifacts.minimize-dependency-closure` | Do not make the source manifest authoritative for the destination; add only the minimum required dependencies. |
 
-## 証拠の意味を分離する
+## Keep evidence claims distinct
 
-外部artifactの検証では、似ているが異なる主張を混同しないことが重要です。
+External-artifact validation requires separating claims that are related but not equivalent.
 
 ```text
-repository、revision、URLの記録
+recorded repository, revision, and URL
   → provenance claim
 
-archiveのSHA-256一致
-  → 確認したarchive bytesのtransfer integrity
+matching archive SHA-256
+  → transfer integrity of the archive bytes that were checked
 
-source systemのblob IDまたは署名との一致
-  → そのsource objectとのbyte identityまたはauthenticity
+match to a source-system blob ID or signature
+  → byte identity or authenticity relative to that source object
 
-manifestへ列挙されたfileの検証
-  → 列挙された集合の内部整合性
+validation of files listed in a manifest
+  → internal consistency of the listed set
 ```
 
-これらのいずれも、それ単独ではsource repository全体が完全に収録されていることを証明しません。限定的なpacket、reference bundle、選択的なrestore setは、限定的であることを明示して扱います。
+None of these claims alone proves that the complete source repository has been captured. A bounded packet, reference bundle, or selective restore set must be treated and described as bounded.
 
-## 検証順序
+## Validation order
 
-Artifact-controlled pathを使用する前に、宣言構造を検証します。標準的な順序は次です。
+Validate declared structure before using artifact-controlled paths. The standard order is:
 
-1. source identity、destination baseline、expected digest、declared intentを確認する。
-2. archiveをrepository外の一時領域へ取得する。
-3. transfer digestを検証する。
-4. 展開前にarchive entryを検査する。
-5. 一時領域へ展開する。
-6. repository-authoritativeなschema validatorとoperational validatorを実行する。
-7. containment、regular file、symlink、size、digest、duplicate destinationを検査する。
-8. declared intentが許可するentryだけを適用する。
-9. destination bytesとdependency diffを検証する。
-10. repositoryの必須検証を実行し、transport materialがfinal diffに残っていないことを確認する。
+1. Confirm source identity, destination baseline, expected digest, and declared intent.
+2. Acquire the archive into a temporary area outside the repository.
+3. Verify the transfer digest.
+4. Inspect archive entries before extraction.
+5. Extract into a temporary area.
+6. Run repository-authoritative schema and operational validators.
+7. Validate containment, regular-file status, symlinks, sizes, digests, and duplicate destinations.
+8. Apply only entries permitted by the declared intent.
+9. Validate destination bytes and the dependency diff.
+10. Run required repository verification and confirm that transport material is absent from the final diff.
 
-Producerが添付したvalidation reportは有用なevidenceですが、destination repositoryのauthoritative validatorを実行した結果の代替にはなりません。
+A producer-supplied validation report can be useful evidence, but it does not replace execution of the destination repository's authoritative validators.
 
-## Staging、adaptation、activation
+## Staging, adaptation, and activation
 
-Exact historical sourceや署名済みartifactをstageする場合、byte-for-byte一致を確認するまでsourceを編集しません。Import path変更、formatting、compatibility wrapper、dependency追加、route接続、runtime activationは、stagingとは異なる変更です。
+When staging exact historical source or signed artifacts, do not edit the source until byte-for-byte identity has been checked. Import-path changes, formatting, compatibility wrappers, dependency additions, route wiring, and runtime activation are changes distinct from staging.
 
 ```text
 transfer validation
   → exact-byte staging
   → destination adaptation
   → runtime activation
-  → publishまたはdeploy
+  → publish or deploy
 ```
 
-各段階は独立したscopeとevidenceを持ちます。前段階のPASSだけで後段階を暗黙に許可しません。
+Each stage has its own scope and evidence. A PASS at one stage does not implicitly authorize the next.
 
 ## Operational skills
 
-このprofileと組み合わせて、必要なrepositoryだけが次のskillを選択できます。
+Repositories that need them may select these skills together with this profile:
 
 ```yaml
 skills:
@@ -88,21 +88,21 @@ skills:
     - audit-frozen-change
 ```
 
-`intake-validated-artifact`はdownload、archive inspection、authoritative validation、declared-intent application、dependency review、transport cleanupまでの標準手順を提供します。
+`intake-validated-artifact` provides a standard process from download and archive inspection through authoritative validation, declared-intent application, dependency review, and transport cleanup.
 
-`audit-frozen-change`は、合意済みacceptance baselineに対してregressionとevidenceを評価し、audit中に新しいgateを発明しないための停止条件を提供します。
+`audit-frozen-change` provides stopping conditions for evaluating regression and evidence against an agreed acceptance baseline without inventing new gates during the audit.
 
-## 製品固有規約との境界
+## Boundary with product-specific policy
 
-次は共有profileではなく、製品repositoryのproject policy、schema、validator、test、CIで定義します。
+The following belong in product-repository project policy, schemas, validators, tests, or CI rather than in the shared profile:
 
-- manifestの具体的fieldとversion
-- dispositionまたはactionの具体的enum
-- 許可されるsource repositoryとdestination path
-- baseline revisionの取得方法
-- archive format、size上限、署名方式
-- file mapping、dependency policy、activation gate
-- database、runtime、migrationに関する製品固有の禁止事項
-- acceptance reportの具体的format
+- concrete manifest fields and versions;
+- concrete disposition or action enums;
+- allowed source repositories and destination paths;
+- the method used to obtain a baseline revision;
+- archive formats, size limits, and signature formats;
+- file mappings, dependency policy, and activation gates;
+- product-specific database, runtime, and migration prohibitions; and
+- the concrete acceptance-report format.
 
-自然言語の共有規約だけでartifact contractを代替せず、検証可能な部分はdestination repositoryのvalidatorとCIで強制してください。
+Do not use natural-language shared policy as a substitute for an artifact contract. Enforce verifiable requirements in destination-repository validators and CI.
