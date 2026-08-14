@@ -15,6 +15,11 @@ from scripts.generate_index_navigation import (
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "TakashiSasaki/templates"
 PROVIDER_ORDER = ("skill", "policy", "webapp")
+POLICY_LAYER_INDEXES = {
+    "docs/provider/index.md",
+    "docs/shared-policy/index.md",
+    "docs/consumer/index.md",
+}
 
 
 class InlineCodeDescriptionTests(unittest.TestCase):
@@ -118,6 +123,20 @@ class LockedProviderGraphTests(unittest.TestCase):
                     "docs/index.md",
                     {index["path"] for index in provider["indexes"]},
                 )
+
+        policy_indexes = {index["path"] for index in by_name["policy"]["indexes"]}
+        self.assertTrue(POLICY_LAYER_INDEXES.issubset(policy_indexes))
+
+        overview = (providers["policy"] / "docs" / "overview.md").read_text(encoding="utf-8")
+        overview_targets = {
+            "provider/index.md": providers["policy"] / "docs" / "provider" / "index.md",
+            "shared-policy/index.md": providers["policy"] / "docs" / "shared-policy" / "index.md",
+            "consumer/index.md": providers["policy"] / "docs" / "consumer" / "index.md",
+        }
+        for target, path in overview_targets.items():
+            with self.subTest(policy_overview_target=target):
+                self.assertIn(f"]({target})", overview)
+                self.assertTrue(path.is_file())
 
 
 if __name__ == "__main__":
