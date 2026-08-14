@@ -131,12 +131,26 @@ class PwaAssetTests(unittest.TestCase):
         self.assertNotIn('caches.match("/")', worker)
         for event in ("install", "activate", "fetch"):
             self.assertIn(f'self.addEventListener("{event}"', worker)
-        self.assertIn('event.request.mode === "navigate"', worker)
+        self.assertIn("function isDocumentRequest(request, url)", worker)
+        self.assertIn('request.mode === "navigate"', worker)
+        self.assertIn("if (isDocumentRequest(event.request, url))", worker)
+        self.assertIn('fetch(request, { cache: "no-cache" })', worker)
         self.assertIn(
-            "fetch(event.request).catch(() => offlineResponse())",
+            "fetchFreshDocument(event.request).catch(() => offlineResponse())",
             worker,
         )
+        self.assertEqual(worker.count("fetchFreshDocument(event.request)"), 1)
         self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
+
+    def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
+        self.assertIn('if (request.destination !== "")', worker)
+        self.assertIn('pathname.endsWith("/") || pathname.endsWith(".html")', worker)
+        self.assertIn('pathname.slice(pathname.lastIndexOf("/") + 1)', worker)
+        self.assertIn('!lastSegment.includes(".")', worker)
+        self.assertIn('url.origin !== self.location.origin', worker)
+        self.assertIn('event.request.method !== "GET"', worker)
 
     def test_service_worker_static_asset_cache_ignores_query_string(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")

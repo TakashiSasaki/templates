@@ -9,6 +9,28 @@ function offlineResponse() {
   });
 }
 
+function isDocumentRequest(request, url) {
+  if (request.mode === "navigate") {
+    return true;
+  }
+
+  if (request.destination !== "") {
+    return false;
+  }
+
+  const pathname = url.pathname;
+  if (pathname.endsWith("/") || pathname.endsWith(".html")) {
+    return true;
+  }
+
+  const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
+  return lastSegment.length > 0 && !lastSegment.includes(".");
+}
+
+function fetchFreshDocument(request) {
+  return fetch(request, { cache: "no-cache" });
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
   self.skipWaiting();
@@ -39,8 +61,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => offlineResponse()));
+  if (isDocumentRequest(event.request, url)) {
+    event.respondWith(fetchFreshDocument(event.request).catch(() => offlineResponse()));
     return;
   }
 
