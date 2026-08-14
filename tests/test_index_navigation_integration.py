@@ -21,24 +21,39 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
         static_build = workflow.index("- name: Build the static site")
         browser = workflow.index("- name: Generate static repository browser")
         graph = workflow.index("- name: Generate index navigation graph")
+        overlay = workflow.index("- name: Generate index navigation locale overlays")
         viewer = workflow.index("- name: Generate index-guided navigation viewer")
+        locale_viewer = workflow.index(
+            "- name: Generate localized index-guided navigation viewer"
+        )
         guided_metadata = workflow.index(
             "- name: Normalize guided canonical links and PWA metadata"
         )
+        reader_metadata = workflow.index(
+            "- name: Finalize per-page and translation reader metadata"
+        )
+        locale_metadata = workflow.index("- name: Finalize localized guided metadata")
         entry_points = workflow.index("- name: Verify the Pages entry point")
         link_validation = workflow.index("- name: Validate generated site links")
 
         self.assertLess(static_build, browser)
         self.assertLess(browser, graph)
-        self.assertLess(graph, viewer)
-        self.assertLess(viewer, guided_metadata)
-        self.assertLess(guided_metadata, entry_points)
+        self.assertLess(graph, overlay)
+        self.assertLess(overlay, viewer)
+        self.assertLess(viewer, locale_viewer)
+        self.assertLess(locale_viewer, guided_metadata)
+        self.assertLess(guided_metadata, reader_metadata)
+        self.assertLess(reader_metadata, locale_metadata)
+        self.assertLess(locale_metadata, entry_points)
         self.assertLess(entry_points, link_validation)
 
+        # Each locked provider is consumed by the canonical graph, locale overlay,
+        # canonical viewer, and localized viewer. All four stages must use the same
+        # checked-out provider root rather than rediscovering branch state.
         for provider in ("skill", "policy", "webapp"):
             self.assertEqual(
                 workflow.count(f"--provider {provider}={provider}-source"),
-                2,
+                4,
             )
             self.assertIn(
                 f'build/site/guided/${{provider}}/index.html',
@@ -46,8 +61,12 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
             )
         self.assertIn("--output build/index-navigation.json", workflow)
         self.assertIn("--graph build/index-navigation.json", workflow)
+        self.assertIn("--output build/index-navigation-locales.json", workflow)
+        self.assertIn("--locale-overlays build/index-navigation-locales.json", workflow)
+        self.assertIn("--pair-map build/guided-locale-publication.json", workflow)
         self.assertIn("--site-root build/site/guided", workflow)
         self.assertIn("build/site/guided/graph.json", workflow)
+        self.assertIn("test ! -e build/site/ja/guided/graph.json", workflow)
         self.assertIn("missing guided index page", workflow)
         self.assertGreaterEqual(
             workflow.count('<link rel="manifest" href="/app.webmanifest">'),

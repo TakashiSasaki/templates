@@ -186,8 +186,11 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         )
         self.assertIn("scripts/finalize_site_metadata.py", build_workflow)
         self.assertIn("scripts/finalize_translation_reader.py", build_workflow)
+        self.assertIn("scripts/finalize_guided_locales.py", build_workflow)
+        # The prepare step, two generic metadata passes, reader finalizer, and
+        # localized guided finalizer all receive the same public canonical URL.
         self.assertEqual(
-            4,
+            5,
             build_workflow.count('--canonical-url "${PUBLIC_SITE_URL}"'),
         )
         self.assertIn("Verify generated public URL boundary", build_workflow)
