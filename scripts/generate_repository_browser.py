@@ -59,6 +59,13 @@ MAX_TOTAL_TEXT_BYTES = 64 * 1024 * 1024
 BROWSER_ROOT = Path("files")
 MANAGED_MARKER = ".repository-browser-root"
 MANAGED_MARKER_CONTENT = "managed by scripts/generate_repository_browser.py\n"
+CONTROLLER_NAME = "repository-browser.js"
+CONTROLLER_SOURCE = (
+    Path(__file__).resolve().parents[1]
+    / "assets"
+    / "javascripts"
+    / CONTROLLER_NAME
+)
 
 
 class RepositoryBrowserError(RuntimeError):
@@ -205,17 +212,20 @@ def render_tree_entry(
         ]
 
     record = records[entry.path]
+    display_path = display_bytes(entry.path)
     title = html.escape(
-        f"{display_bytes(entry.path)} — {human_size(record.size)}",
+        f"{display_path} — {human_size(record.size)}",
         quote=True,
     )
+    data_path = html.escape(display_path, quote=True)
     viewer = html.escape(record.viewer_url, quote=True)
     source = html.escape(record.source_url, quote=True)
     state = "" if record.viewable else " tree-file--fallback"
     return [
         f'{indent}<span class="tree-file-row">'
         f'<a class="tree-file{state}" href="{viewer}" '
-        f'target="repository-file-viewer" title="{title}"><code>{label}</code></a>'
+        f'target="repository-file-viewer" title="{title}" '
+        f'data-repository-file data-file-path="{data_path}"><code>{label}</code></a>'
         f'<a class="tree-source" href="{source}" target="_blank" rel="noopener" '
         f'title="Open immutable GitHub source for {title}" '
         f'aria-label="Open immutable GitHub source for {title}">↗</a>'
@@ -253,7 +263,7 @@ def render_browser_page(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src 'self'; script-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>{html.escape(branch)} files · templates</title>
 <style>
 :root {{ color-scheme: light dark; font-family: system-ui, sans-serif; }}
@@ -280,22 +290,37 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
 .tree-file, .tree-disabled {{ display: block; padding: .18rem .35rem .18rem 1.35rem; border-radius: .3rem; color: inherit; text-decoration: none; }}
 .tree-file {{ min-width: 0; flex: 1; }}
 .tree-file:hover {{ background: color-mix(in srgb, CanvasText 8%, transparent); }}
+.tree-file[aria-current="true"] {{ background: color-mix(in srgb, CanvasText 10%, Canvas); font-weight: 700; }}
 .tree-file--fallback {{ opacity: .68; text-decoration: underline dotted; }}
 .tree-source {{ flex: none; padding: .1rem .35rem; border-radius: .3rem; color: inherit; opacity: .52; text-decoration: none; font-size: .72rem; }}
 .tree-source:hover {{ opacity: 1; background: color-mix(in srgb, CanvasText 8%, transparent); }}
 .tree-disabled {{ opacity: .55; }}
 .viewer {{ min-width: 0; min-height: 100vh; background: Canvas; }}
 .viewer iframe {{ display: block; width: 100%; height: 100vh; border: 0; background: Canvas; }}
+.viewer-mobile-toolbar {{ display: none; min-width: 0; align-items: center; gap: .6rem; padding: max(.55rem, env(safe-area-inset-top)) .7rem .55rem; border-bottom: 1px solid color-mix(in srgb, CanvasText 18%, transparent); background: Canvas; }}
+.viewer-mobile-toolbar button {{ flex: none; min-height: 2.3rem; border: 1px solid color-mix(in srgb, CanvasText 24%, transparent); border-radius: .45rem; padding: .35rem .65rem; color: inherit; background: color-mix(in srgb, CanvasText 6%, Canvas); font: inherit; cursor: pointer; }}
+.viewer-mobile-path {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: .76rem/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }}
 @media (max-width: 800px) {{
   .browser {{ grid-template-columns: 1fr; grid-template-rows: minmax(16rem, 42vh) 58vh; }}
   aside {{ max-height: 42vh; border-right: 0; border-bottom: 1px solid color-mix(in srgb, CanvasText 22%, transparent); }}
   .viewer, .viewer iframe {{ min-height: 58vh; height: 58vh; }}
+  .repository-browser-enhanced body {{ height: 100vh; height: 100dvh; overflow: hidden; }}
+  .repository-browser-enhanced .browser {{ display: block; width: 100%; height: 100vh; height: 100dvh; min-height: 0; }}
+  .repository-browser-enhanced .browser > aside,
+  .repository-browser-enhanced .browser > .viewer {{ width: 100%; height: 100%; max-height: none; min-height: 0; border: 0; }}
+  .repository-browser-enhanced .browser[data-mobile-view="files"] > aside {{ display: flex; }}
+  .repository-browser-enhanced .browser[data-mobile-view="files"] > .viewer {{ display: none; }}
+  .repository-browser-enhanced .browser[data-mobile-view="content"] > aside {{ display: none; }}
+  .repository-browser-enhanced .browser[data-mobile-view="content"] > .viewer {{ display: flex; flex-direction: column; }}
+  .repository-browser-enhanced .viewer-mobile-toolbar {{ display: flex; flex: none; }}
+  .repository-browser-enhanced .viewer iframe {{ flex: 1 1 auto; min-height: 0; height: auto; }}
 }}
 </style>
+<script src="../{CONTROLLER_NAME}" defer></script>
 </head>
 <body>
-<div class="browser">
-  <aside aria-label="Repository tree">
+<div class="browser" data-repository-browser data-mobile-view="files">
+  <aside id="repository-tree" aria-label="Repository tree" data-repository-tree>
     <div class="browser-header">
       <h1>{html.escape(branch)} branch file browser</h1>
       <p class="browser-meta">revision {escaped_revision}<br>{viewable}/{total} regular files available as bounded UTF-8 text</p>
@@ -309,8 +334,12 @@ aside {{ min-width: 0; border-right: 1px solid color-mix(in srgb, CanvasText 22%
       </ul>
     </div>
   </aside>
-  <main class="viewer">
-    <iframe name="repository-file-viewer" title="Repository file viewer" sandbox="" referrerpolicy="no-referrer" srcdoc="{placeholder}"></iframe>
+  <main id="repository-content" class="viewer" data-repository-content>
+    <div class="viewer-mobile-toolbar" aria-label="File viewer navigation">
+      <button type="button" data-show-files aria-controls="repository-tree">← Files</button>
+      <span class="viewer-mobile-path" data-selected-file aria-live="polite">Selected file</span>
+    </div>
+    <iframe id="repository-file-frame" name="repository-file-viewer" title="Repository file viewer" sandbox="" referrerpolicy="no-referrer" srcdoc="{placeholder}"></iframe>
   </main>
 </div>
 </body>
@@ -471,6 +500,17 @@ def write_root_index(browser_root: Path) -> None:
     )
 
 
+def write_browser_controller(browser_root: Path) -> None:
+    if CONTROLLER_SOURCE.is_symlink() or not CONTROLLER_SOURCE.is_file():
+        raise RepositoryBrowserError(
+            f"repository browser controller is unavailable: {CONTROLLER_SOURCE}"
+        )
+    controller = CONTROLLER_SOURCE.read_text(encoding="utf-8")
+    if "\0" in controller:
+        raise RepositoryBrowserError("repository browser controller contains NUL")
+    (browser_root / CONTROLLER_NAME).write_text(controller, encoding="utf-8")
+
+
 def generate_browser(
     repository: str,
     output_root: Path,
@@ -484,6 +524,7 @@ def generate_browser(
         )
     browser_root = prepare_browser_root(output_root)
     write_root_index(browser_root)
+    write_browser_controller(browser_root)
     messages: list[str] = []
     for branch in BRANCH_ORDER:
         root = branches[branch].resolve(strict=True)
