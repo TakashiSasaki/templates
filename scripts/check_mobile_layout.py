@@ -4,22 +4,15 @@
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import math
-import shutil
-import subprocess
-import tempfile
 import threading
 from dataclasses import dataclass
-from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
-from urllib.parse import urlencode, urlsplit
+from typing import Any, Callable
 
 
-HARNESS_PATH = "/__mobile-layout-check__.html"
 VIEWPORTS = ((360, 800), (390, 844), (412, 915))
 SCREENSHOT_VIEWPORT = (390, 844)
 
@@ -43,76 +36,8 @@ CASES = (
 )
 
 
-class MobileLayoutError(RuntimeError):
-    """Raised when the browser cannot produce trustworthy layout evidence."""
-
-
-class ResultParser(HTMLParser):
-    """Extract the text content of the harness result element."""
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._capture = False
-        self.result: list[str] = []
-
-    def handle_starttag(
-        self,
-        tag: str,
-        attrs: list[tuple[str, str | None]],
-    ) -> None:
-        if tag != "pre":
-            return
-        attributes = dict(attrs)
-        if attributes.get("id") == "result":
-            self._capture = True
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "pre" and self._capture:
-            self._capture = False
-
-    def handle_data(self, data: str) -> None:
-        if self._capture:
-            self.result.append(data)
-
-
-def harness_html() -> str:
-    """Return a same-origin harness that measures a target page in an iframe."""
-
-    return """<!doctype html>
-<meta charset="utf-8">
-<title>Mobile layout check</title>
-<style>
-  html, body { margin: 0; padding: 0; }
-  iframe {
-    position: absolute;
-    left: -10000px;
-    top: 0;
-    border: 0;
-  }
-  #result { white-space: pre-wrap; }
-</style>
-<iframe id="target" title="layout target"></iframe>
-<pre id="result">{"ready":false}</pre>
-<script>
-(() => {
-  const params = new URLSearchParams(location.search);
-  const target = params.get("target");
-  const width = Number(params.get("width"));
-  const height = Number(params.get("height"));
-  const result = document.getElementById("result");
-  const frame = document.getElementById("target");
-
-  if (!target || !target.startsWith("/") || target.startsWith("//")
-      || target.includes("\\\\")
-      || !Number.isInteger(width) || !Number.isInteger(height)
-      || width < 240 || width > 800 || height < 320 || height > 1400) {
-    result.textContent = JSON.stringify({ready: false, error: "invalid harness parameters"});
-    return;
-  }
-
-  frame.style.width = `${width}px`;
-  frame.style.height = `${height}px`;
-
+MEASURE_SCRIPT = r"""
+() => {
   const number = (value) => {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -143,69 +68,56 @@ def harness_html() -> str:
     };
   };
 
-  frame.addEventListener("load", () => {
-    setTimeout(() => {
-      try {
-        const doc = frame.contentDocument;
-        const win = frame.contentWindow;
-        const root = doc.documentElement;
-        const content = doc.querySelector(".md-content__inner");
-        const breadcrumb = doc.querySelector(".md-path");
-        const heading = doc.querySelector(".portal-cover h1, .md-content__inner > h1");
-        const cover = doc.querySelector(".portal-cover");
-        const lead = doc.querySelector(".portal-cover__lead");
-        const buttons = Array.from(doc.querySelectorAll(".portal-cover__button"));
-        const revision = Array.from(doc.querySelectorAll("table code")).find(
-          (element) => /^[0-9a-f]{40}$/.test(element.textContent.trim())
-        );
-        const revisionTable = revision ? revision.closest("table") : null;
-        const revisionStyle = revision ? getComputedStyle(revision) : null;
-        const revisionRect = revision ? revision.getBoundingClientRect() : null;
+  const root = document.documentElement;
+  const content = document.querySelector(".md-content__inner");
+  const breadcrumb = document.querySelector(".md-path");
+  const heading = document.querySelector(".portal-cover h1, .md-content__inner > h1");
+  const cover = document.querySelector(".portal-cover");
+  const lead = document.querySelector(".portal-cover__lead");
+  const buttons = Array.from(document.querySelectorAll(".portal-cover__button"));
+  const revision = Array.from(document.querySelectorAll("table code")).find(
+    (element) => /^[0-9a-f]{40}$/.test(element.textContent.trim())
+  );
+  const revisionTable = revision ? revision.closest("table") : null;
+  const revisionStyle = revision ? getComputedStyle(revision) : null;
+  const revisionRect = revision ? revision.getBoundingClientRect() : null;
 
-        result.textContent = JSON.stringify({
-          ready: true,
-          target,
-          viewport: {
-            width: win.innerWidth,
-            height: win.innerHeight,
-          },
-          page: {
-            clientWidth: root.clientWidth,
-            scrollWidth: root.scrollWidth,
-          },
-          content: box(content),
-          breadcrumb: box(breadcrumb),
-          heading: box(heading),
-          cover: box(cover),
-          lead: box(lead),
-          buttons: buttons.map(box),
-          revision: revision ? {
-            text: revision.textContent.trim(),
-            height: revisionRect.height,
-            lineHeight: number(revisionStyle.lineHeight),
-            whiteSpace: revisionStyle.whiteSpace,
-            overflowWrap: revisionStyle.overflowWrap,
-            wordBreak: revisionStyle.wordBreak,
-            rectCount: revision.getClientRects().length,
-          } : null,
-          revisionTable: revisionTable ? {
-            clientWidth: revisionTable.clientWidth,
-            scrollWidth: revisionTable.scrollWidth,
-          } : null,
-        });
-      } catch (error) {
-        result.textContent = JSON.stringify({
-          ready: false,
-          error: String(error),
-        });
-      }
-    }, 250);
-  }, {once: true});
-
-  frame.src = target;
-})();
-</script>
+  return {
+    ready: true,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    page: {
+      clientWidth: root.clientWidth,
+      scrollWidth: root.scrollWidth,
+    },
+    content: box(content),
+    breadcrumb: box(breadcrumb),
+    heading: box(heading),
+    cover: box(cover),
+    lead: box(lead),
+    buttons: buttons.map(box),
+    revision: revision ? {
+      text: revision.textContent.trim(),
+      height: revisionRect.height,
+      lineHeight: number(revisionStyle.lineHeight),
+      whiteSpace: revisionStyle.whiteSpace,
+      overflowWrap: revisionStyle.overflowWrap,
+      wordBreak: revisionStyle.wordBreak,
+      rectCount: revision.getClientRects().length,
+    } : null,
+    revisionTable: revisionTable ? {
+      clientWidth: revisionTable.clientWidth,
+      scrollWidth: revisionTable.scrollWidth,
+    } : null,
+  };
+}
 """
+
+
+class MobileLayoutError(RuntimeError):
+    """Raised when the browser cannot produce trustworthy layout evidence."""
 
 
 def _number(value: Any, label: str) -> float:
@@ -227,12 +139,12 @@ def validate_metrics(
 
     failures: list[str] = []
     if metrics.get("ready") is not True:
-        return [f"harness did not become ready: {metrics.get('error', 'unknown error')}"]
+        return [f"browser measurement did not become ready: {metrics.get('error', 'unknown error')}"]
 
     viewport = metrics.get("viewport")
     page = metrics.get("page")
     if not isinstance(viewport, dict) or not isinstance(page, dict):
-        return ["harness did not return viewport/page metrics"]
+        return ["browser measurement did not return viewport/page metrics"]
 
     try:
         measured_width = _number(viewport.get("width"), "viewport.width")
@@ -353,150 +265,36 @@ def validate_metrics(
     return failures
 
 
-def parse_harness_result(document: str) -> dict[str, Any]:
-    parser = ResultParser()
-    parser.feed(document)
-    if not parser.result:
-        raise MobileLayoutError("browser output did not contain harness result")
-    raw = html.unescape("".join(parser.result)).strip()
+def _load_playwright() -> tuple[Callable[[], Any], type[Exception]]:
+    """Load Playwright lazily so the ordinary unit-test build needs no browser dependency."""
+
     try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise MobileLayoutError(f"harness result is not JSON: {exc}") from exc
-    if not isinstance(value, dict):
-        raise MobileLayoutError("harness result must be an object")
-    return value
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise MobileLayoutError(
+            "Playwright is required for browser layout checks; install requirements-visual.txt"
+        ) from exc
+    return sync_playwright, PlaywrightError
 
 
-def _browser_runtime_arguments(profile: str, *, no_sandbox: bool) -> list[str]:
-    """Return browser-wide flags, keeping sandbox disablement opt-in."""
-
-    arguments = [
-        "--headless=new",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--disable-background-networking",
-        "--disable-component-update",
-        "--disable-sync",
-        "--metrics-recording-only",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--force-device-scale-factor=1",
-        f"--user-data-dir={profile}",
-    ]
-    if no_sandbox:
-        arguments.append("--no-sandbox")
-    return arguments
-
-
-def _run_browser(
-    browser: Path,
-    arguments: list[str],
-    *,
-    no_sandbox: bool = False,
-    timeout: int = 45,
-) -> subprocess.CompletedProcess[str]:
-    profile = tempfile.mkdtemp(prefix="mobile-layout-chrome-")
-    command = [
-        str(browser),
-        *_browser_runtime_arguments(profile, no_sandbox=no_sandbox),
-        *arguments,
-    ]
-    try:
-        try:
-            return subprocess.run(
-                command,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=timeout,
-            )
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            detail = ""
-            if isinstance(exc, subprocess.CalledProcessError):
-                output = exc.stderr or exc.stdout or ""
-                detail = output.strip()[-2000:]
-            elif isinstance(exc, subprocess.TimeoutExpired):
-                detail = "browser timed out"
-            suffix = f": {detail}" if detail else ""
-            raise MobileLayoutError(f"unable to run headless browser{suffix}") from exc
-    finally:
-        # Chrome can briefly leave background helpers touching the profile even
-        # after its parent process exits. Profile cleanup must not turn a valid
-        # layout result into a CI failure; hosted runners are ephemeral and
-        # local cleanup remains best-effort.
-        shutil.rmtree(profile, ignore_errors=True)
-
-
-def measure(
-    browser: Path,
-    base_url: str,
-    case: CheckCase,
-    width: int,
-    height: int,
-    *,
-    no_sandbox: bool = False,
-) -> dict[str, Any]:
-    query = urlencode({"target": case.path, "width": width, "height": height})
-    result = _run_browser(
-        browser,
-        [
-            "--dump-dom",
-            "--virtual-time-budget=4000",
-            f"--window-size={max(width, 800)},{max(height, 600)}",
-            f"{base_url}{HARNESS_PATH}?{query}",
-        ],
-        no_sandbox=no_sandbox,
-    )
-    return parse_harness_result(result.stdout)
-
-
-def screenshot(
-    browser: Path,
-    base_url: str,
-    case: CheckCase,
-    width: int,
-    height: int,
-    destination: Path,
-    *,
-    no_sandbox: bool = False,
-) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    _run_browser(
-        browser,
-        [
-            "--virtual-time-budget=4000",
-            f"--window-size={width},{height}",
-            f"--screenshot={destination.resolve()}",
-            f"{base_url}{case.path}",
-        ],
-        no_sandbox=no_sandbox,
-    )
-    if not destination.is_file() or destination.stat().st_size == 0:
-        raise MobileLayoutError(f"browser did not create screenshot {destination}")
+def _validate_cases() -> None:
+    for case in CASES:
+        if (
+            not case.path.startswith("/")
+            or case.path.startswith("//")
+            or "\\" in case.path
+        ):
+            raise MobileLayoutError(f"unsafe layout-check path: {case.path!r}")
 
 
 def serve(site_root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
-    harness = harness_html().encode("utf-8")
-
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=str(site_root), **kwargs)
 
         def log_message(self, format: str, *args: Any) -> None:
             return
-
-        def do_GET(self) -> None:
-            if urlsplit(self.path).path == HARNESS_PATH:
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(harness)))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(harness)
-                return
-            super().do_GET()
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -505,74 +303,99 @@ def serve(site_root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     return server, thread, f"http://{host}:{port}"
 
 
-def run_checks(
-    site_root: Path,
-    browser: Path,
-    output_root: Path,
-    *,
-    no_sandbox: bool = False,
-) -> None:
+def _measure_case(
+    browser: Any,
+    base_url: str,
+    case: CheckCase,
+    width: int,
+    height: int,
+    screenshot_path: Path | None,
+) -> dict[str, Any]:
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=1,
+    )
+    try:
+        page = context.new_page()
+        page.goto(f"{base_url}{case.path}", wait_until="load", timeout=15_000)
+        page.wait_for_timeout(250)
+        metrics = page.evaluate(MEASURE_SCRIPT)
+        if not isinstance(metrics, dict):
+            raise MobileLayoutError("browser measurement script returned a non-object")
+        if screenshot_path is not None:
+            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=str(screenshot_path), full_page=False)
+        return metrics
+    finally:
+        context.close()
+
+
+def run_checks(site_root: Path, output_root: Path) -> None:
     if not site_root.is_dir():
         raise MobileLayoutError(f"site root does not exist: {site_root}")
     if not (site_root / "index.html").is_file():
         raise MobileLayoutError(f"site root has no index.html: {site_root}")
-    if not browser.is_file():
-        raise MobileLayoutError(f"browser executable does not exist: {browser}")
+    _validate_cases()
 
+    sync_playwright, PlaywrightError = _load_playwright()
     output_root.mkdir(parents=True, exist_ok=True)
     server, thread, base_url = serve(site_root)
     report: dict[str, Any] = {
         "schema_version": 1,
-        "viewports": [{"width": width, "height": height} for width, height in VIEWPORTS],
+        "viewports": [
+            {"width": width, "height": height} for width, height in VIEWPORTS
+        ],
         "checks": [],
         "failures": [],
     }
     failures: list[str] = []
 
     try:
-        for case in CASES:
-            for width, height in VIEWPORTS:
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(headless=True)
                 try:
-                    metrics = measure(
-                        browser,
-                        base_url,
-                        case,
-                        width,
-                        height,
-                        no_sandbox=no_sandbox,
-                    )
-                    case_failures = validate_metrics(case, width, height, metrics)
-                except MobileLayoutError as exc:
-                    metrics = {"ready": False, "error": str(exc)}
-                    case_failures = [str(exc)]
-                prefix = f"{case.name} {width}x{height}"
-                failures.extend(f"{prefix}: {failure}" for failure in case_failures)
-                report["checks"].append(
-                    {
-                        "case": case.name,
-                        "path": case.path,
-                        "width": width,
-                        "height": height,
-                        "metrics": metrics,
-                        "failures": case_failures,
-                    }
-                )
-
-        width, height = SCREENSHOT_VIEWPORT
-        for case in CASES:
-            destination = output_root / f"{case.name}-{width}x{height}.png"
-            try:
-                screenshot(
-                    browser,
-                    base_url,
-                    case,
-                    width,
-                    height,
-                    destination,
-                    no_sandbox=no_sandbox,
-                )
-            except MobileLayoutError as exc:
-                failures.append(f"{case.name} screenshot: {exc}")
+                    for case in CASES:
+                        for width, height in VIEWPORTS:
+                            screenshot_path = None
+                            if (width, height) == SCREENSHOT_VIEWPORT:
+                                screenshot_path = (
+                                    output_root / f"{case.name}-{width}x{height}.png"
+                                )
+                            try:
+                                metrics = _measure_case(
+                                    browser,
+                                    base_url,
+                                    case,
+                                    width,
+                                    height,
+                                    screenshot_path,
+                                )
+                                case_failures = validate_metrics(
+                                    case, width, height, metrics
+                                )
+                            except (MobileLayoutError, PlaywrightError) as exc:
+                                metrics = {"ready": False, "error": str(exc)}
+                                case_failures = [str(exc)]
+                            prefix = f"{case.name} {width}x{height}"
+                            failures.extend(
+                                f"{prefix}: {failure}"
+                                for failure in case_failures
+                            )
+                            report["checks"].append(
+                                {
+                                    "case": case.name,
+                                    "path": case.path,
+                                    "width": width,
+                                    "height": height,
+                                    "metrics": metrics,
+                                    "failures": case_failures,
+                                }
+                            )
+                finally:
+                    browser.close()
+        except PlaywrightError as exc:
+            raise MobileLayoutError(f"unable to run Playwright Chromium: {exc}") from exc
     finally:
         server.shutdown()
         server.server_close()
@@ -592,13 +415,7 @@ def run_checks(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--site-root", type=Path, required=True)
-    parser.add_argument("--browser", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument(
-        "--no-sandbox",
-        action="store_true",
-        help="Disable the Chromium sandbox for restricted CI runners.",
-    )
     return parser.parse_args()
 
 
@@ -607,9 +424,7 @@ def main() -> int:
     try:
         run_checks(
             args.site_root.resolve(strict=True),
-            args.browser.resolve(strict=True),
             args.output_root.resolve(),
-            no_sandbox=args.no_sandbox,
         )
     except (OSError, MobileLayoutError) as exc:
         raise SystemExit(str(exc)) from exc
