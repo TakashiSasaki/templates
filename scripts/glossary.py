@@ -253,7 +253,7 @@ def _parse_authority(value: Any, field: str) -> dict[str, Any]:
         )
 
     kind = value["kind"]
-    if kind not in AUTHORITY_KINDS:
+    if not isinstance(kind, str) or kind not in AUTHORITY_KINDS:
         raise GlossaryError(
             f"{field}.kind must be normative, upstream, or conventional"
         )
@@ -339,7 +339,7 @@ def parse_term(raw: Any, index: int) -> dict[str, Any]:
     _validate_labels(term, aliases, field)
 
     origin = raw["origin"]
-    if origin not in ORIGINS:
+    if not isinstance(origin, str) or origin not in ORIGINS:
         raise GlossaryError(f"{field}.origin must be repository or external")
 
     result: dict[str, Any] = {
