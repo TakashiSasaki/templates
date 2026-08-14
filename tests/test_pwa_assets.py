@@ -139,6 +139,7 @@ class PwaAssetTests(unittest.TestCase):
             "fetchFreshDocument(event.request).catch(() => offlineResponse())",
             worker,
         )
+        self.assertEqual(worker.count("fetchFreshDocument(event.request)"), 1)
         self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
