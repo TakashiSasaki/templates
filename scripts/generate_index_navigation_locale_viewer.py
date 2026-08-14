@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,8 @@ except ModuleNotFoundError:
         published_url,
     )
 
+LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
+
 
 class LocaleViewerError(RuntimeError):
     """Raised when localized guided navigation cannot be rendered safely."""
@@ -106,6 +109,16 @@ ROUTE_LABELS_JA = {
 }
 
 
+def validate_language(value: Any, field: str = "language") -> str:
+    if (
+        not isinstance(value, str)
+        or not LANGUAGE_TAG.fullmatch(value)
+        or value == "en"
+    ):
+        raise LocaleViewerError(f"{field} must be a non-English lowercase language tag")
+    return value
+
+
 def read_json(path: Path, label: str) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise LocaleViewerError(f"{label} must be a regular file: {path}")
@@ -142,10 +155,10 @@ def load_overlays(path: Path, graph: dict[str, Any]) -> dict[str, dict[str, dict
     for locale_index, locale in enumerate(locales):
         if not isinstance(locale, dict) or set(locale) != {"language", "providers"}:
             raise LocaleViewerError(f"locales[{locale_index}] is invalid")
-        language = locale["language"]
+        language = validate_language(
+            locale["language"], f"locales[{locale_index}].language"
+        )
         providers = locale["providers"]
-        if not isinstance(language, str) or not language or language == "en":
-            raise LocaleViewerError(f"locales[{locale_index}].language is invalid")
         if language in result:
             raise LocaleViewerError(f"duplicate guided locale: {language}")
         if not isinstance(providers, list):
@@ -173,17 +186,37 @@ def load_overlays(path: Path, graph: dict[str, Any]) -> dict[str, dict[str, dict
                 path_value = index["path"]
                 if path_value not in canonical_indexes or path_value in index_result:
                     raise LocaleViewerError(f"localized index path is invalid or duplicate: {name}:{path_value}")
+                title = index["title"]
                 sections = index["sections"]
                 links = index["links"]
+                if not isinstance(title, str) or not title:
+                    raise LocaleViewerError(f"localized index title is invalid: {name}:{path_value}")
                 if not isinstance(sections, list) or not isinstance(links, list):
                     raise LocaleViewerError(f"localized index prose is invalid: {name}:{path_value}")
                 if len(sections) != len(canonical_indexes[path_value]["sections"]):
                     raise LocaleViewerError(f"localized section count drift: {name}:{path_value}")
+                for section in sections:
+                    if (
+                        not isinstance(section, dict)
+                        or set(section) != {"title", "level"}
+                        or not isinstance(section["title"], str)
+                        or not section["title"]
+                        or type(section["level"]) is not int
+                    ):
+                        raise LocaleViewerError(f"localized section prose is invalid: {name}:{path_value}")
                 source_edges = [
                     edge for edge in canonical_provider["edges"] if edge["source"] == path_value
                 ]
                 if len(links) != len(source_edges):
                     raise LocaleViewerError(f"localized link count drift: {name}:{path_value}")
+                for link in links:
+                    if (
+                        not isinstance(link, dict)
+                        or set(link) != {"label", "description"}
+                        or not isinstance(link["label"], str)
+                        or not isinstance(link["description"], str)
+                    ):
+                        raise LocaleViewerError(f"localized link prose is invalid: {name}:{path_value}")
                 index_result[path_value] = index
             locale_result[name] = index_result
         result[language] = locale_result
@@ -210,8 +243,9 @@ def load_reader_translations(path: Path) -> dict[tuple[str, str, str], str]:
         }
         if set(record) != required:
             raise LocaleViewerError("reader translation publication record has unsupported fields")
+        language = validate_language(record["language"], "reader translation language")
         key = (
-            record["language"],
+            language,
             record["publication"],
             record["canonical_destination"],
         )
@@ -225,10 +259,12 @@ def load_reader_translations(path: Path) -> dict[tuple[str, str, str], str]:
 
 
 def locale_index_url(language: str, provider: str, source_path: str) -> str:
+    language = validate_language(language)
     return f"/{quote(language, safe='')}" + index_page_url(provider, source_path)
 
 
 def locale_index_path(language: str, provider: str, source_path: str) -> Path:
+    language = validate_language(language)
     return Path(language) / index_page_path(provider, source_path)
 
 
@@ -241,6 +277,7 @@ def translated_edge_href(
     overlay_indexes: dict[str, dict[str, Any]],
     reader_translations: dict[tuple[str, str, str], str],
 ) -> tuple[str, str, bool]:
+    language = validate_language(language)
     kind = edge["kind"]
     target = edge["target"]
     fragment = edge.get("fragment")
@@ -273,6 +310,7 @@ def translated_edge_href(
 
 
 def localized_shell(title: str, body: str, page_path: str, language: str) -> str:
+    language = validate_language(language)
     source = page_shell(title, body, page_path)
     source = source.replace('<html lang="en">', f'<html lang="{html.escape(language, quote=True)}">', 1)
     if language.startswith("ja"):
@@ -354,6 +392,7 @@ def render_localized_index(
     parents: dict[str, tuple[str, str]],
     edges: list[dict[str, Any]],
 ) -> str:
+    language = validate_language(language)
     source_path = canonical_index["path"]
     source = github_url(
         repository,
@@ -377,9 +416,11 @@ def render_localized_index(
     )
 
     localized_sections = overlay["sections"]
-    heading_ids = heading_anchors(
-        [overlay["title"], *[section["title"] for section in localized_sections]]
-    )
+    canonical_sections = canonical_index["sections"]
+    canonical_section_titles = [_section_title(section) for section in canonical_sections]
+    # Localized pages deliberately preserve the canonical English heading IDs. This
+    # keeps canonical graph fragments valid while only the visible prose is localized.
+    heading_ids = heading_anchors([canonical_index["title"], *canonical_section_titles])
     localized_links = overlay["links"]
     edge_pairs = list(zip(edges, localized_links, strict=True))
     unsectioned = [pair for pair in edge_pairs if pair[0].get("section") is None]
@@ -423,7 +464,6 @@ def render_localized_index(
             )
         body_parts.append("</ul></div>")
 
-    canonical_sections = canonical_index["sections"]
     for section_number, (canonical_section, localized_section) in enumerate(
         zip(canonical_sections, localized_sections, strict=True), start=1
     ):
@@ -468,6 +508,7 @@ def render_localized_landing(
     graph: dict[str, Any],
     locale: dict[str, dict[str, dict[str, Any]]],
 ) -> str:
+    language = validate_language(language)
     ja = language.startswith("ja")
     strings = JA_STRINGS
     cards = []
@@ -554,6 +595,7 @@ def generate_localized_viewer(
     messages: list[str] = []
     providers_by_name = {provider["name"]: provider for provider in graph["providers"]}
     for language, locale in sorted(overlays.items()):
+        language = validate_language(language, "guided locale")
         guided_root = output_root / language / "guided"
         if guided_root.exists() or guided_root.is_symlink():
             raise LocaleViewerError(f"localized guided destination already exists: {guided_root}")
