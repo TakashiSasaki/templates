@@ -182,19 +182,33 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("> .md-sidebar", shell_css)
         self.assertNotIn("@import", shell_css)
 
-        self.assertIn("@media screen and (max-width: 44.984375em)", mobile_css)
+        mobile_query = "@media screen and (max-width: 44.984375em)"
+        self.assertEqual(mobile_css.count(mobile_query), 1)
+        unscoped_prefix = re.sub(
+            r"/\*.*?\*/",
+            "",
+            mobile_css[: mobile_css.index(mobile_query)],
+            flags=re.DOTALL,
+        )
+        self.assertNotIn("{", unscoped_prefix)
         for selector in (
             ".md-main__inner",
             ".md-path",
             ".md-content__inner",
             ".md-typeset h1",
             ".md-typeset h2",
+            ".md-typeset h3",
+            ".md-typeset blockquote",
+            ".md-typeset table:not([class]) th",
+            ".md-typeset table:not([class]) td",
             ".portal-cover",
             ".portal-cover__lead",
             ".portal-cover__button",
+            ".portal-domain-card",
+            ".portal-cover-features article",
         ):
             self.assertIn(selector, mobile_css)
-        self.assertIn("min-height: 2.4rem", mobile_css)
+        self.assertIn("min-height: 48px", mobile_css)
         self.assertNotIn("@import", mobile_css)
 
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
