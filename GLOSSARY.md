@@ -88,7 +88,8 @@ All entries require `id`, `term`, and `origin`.
 Repository-defined entries:
 
 - use a `templates-<slug>` ID;
-- require `definition`;
+- require `definition`, which is the canonical repository meaning;
+- may optionally include `summary` as a simplified English explanation, but that summary does not replace or weaken the canonical `definition`;
 - must not declare `authority`.
 
 Externally defined entries:
