@@ -16,6 +16,10 @@ theme:
 
 nav:
   - ホーム: overview.md
+  - レイヤー別ナビゲーション:
+      - Provider / toolchain: provider/index.md
+      - Shared policy corpus: shared-policy/index.md
+      - Consumer effective policy: consumer/index.md
   - 導入:
       - はじめに: getting-started.md
       - Managed repository operation: managed-operation.md
