@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import check_pwa_freshness  # noqa: E402
 import finalize_site_metadata  # noqa: E402
 
 
@@ -53,7 +54,11 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('"javascripts/pwa.js"', config)
         self.assertIn('manifest.rel = "manifest"', registration)
         self.assertIn('manifest.href = manifestHref', registration)
-        self.assertIn('register("/service-worker.js", { scope: "/" })', registration)
+        self.assertIn('navigator.serviceWorker.register("/service-worker.js", {', registration)
+        self.assertIn('scope: "/"', registration)
+        self.assertIn('updateViaCache: "none"', registration)
+        self.assertIn("if (registration.active)", registration)
+        self.assertIn("await registration.update()", registration)
 
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -188,6 +193,34 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn(
             'headers: { "Content-Type": "text/plain; charset=utf-8" }',
             worker,
+        )
+
+    def test_browser_regression_check_is_wired_into_visual_ci(self) -> None:
+        workflow = (ROOT / ".github/workflows/mobile-visual-regression.yml").read_text(
+            encoding="utf-8"
+        )
+        checker = (ROOT / "scripts/check_pwa_freshness.py").read_text(encoding="utf-8")
+
+        self.assertIn("Check PWA freshness lifecycle", workflow)
+        self.assertIn("python scripts/check_pwa_freshness.py", workflow)
+        self.assertIn('service_workers="allow"', checker)
+        self.assertIn('worker_source + "\\n" + marker', checker)
+        self.assertIn("state.record_hit", checker)
+        self.assertIn('context.set_offline(True)', checker)
+        self.assertIn('evidence["offline_fetch_status"] = 503', checker)
+        self.assertIn('"document-v2"', checker)
+        self.assertIn('"manifest-v{state.manifest_version}"', checker)
+        self.assertIn("_wait_for_worker_version(page, 2)", checker)
+
+    def test_pwa_freshness_checker_validates_missing_site_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            with self.assertRaises(check_pwa_freshness.PwaFreshnessError) as context:
+                check_pwa_freshness.run_check(site_root, None)
+
+        self.assertIn(
+            "built site is missing required PWA assets",
+            str(context.exception),
         )
 
 

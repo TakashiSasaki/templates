@@ -101,6 +101,12 @@ jobs:
             --site-root build/site \
             --output-root build/mobile-visual
 
+      - name: Check PWA freshness lifecycle
+        run: |
+          python scripts/check_pwa_freshness.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-freshness.json
+
       - name: Upload mobile visual evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
