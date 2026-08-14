@@ -13,26 +13,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Preserve committed generated output
-        shell: bash
-        run: cp AGENTS.md /tmp/AGENTS.before
       - uses: TakashiSasaki/templates@5de32547e68fa15e24ff3b8affadf12e9d730a41
         with:
-          command: render
+          command: check
           config: .agent-policy.yml
-      - name: Show final generated policy changes
-        shell: bash
-        run: |
-          echo '---BEGIN LOCK---'
-          cat .agent-policy.lock
-          echo '---END LOCK---'
-          python - <<'PY'
-          import difflib
-          from pathlib import Path
-          before = Path('/tmp/AGENTS.before').read_text(encoding='utf-8').splitlines(keepends=True)
-          after = Path('AGENTS.md').read_text(encoding='utf-8').splitlines(keepends=True)
-          print('---BEGIN AGENTS DIFF---')
-          print(''.join(difflib.unified_diff(before, after, fromfile='committed', tofile='generated')), end='')
-          print('---END AGENTS DIFF---')
-          print('generated_tail=', repr(Path('AGENTS.md').read_bytes()[-32:]))
-          PY
