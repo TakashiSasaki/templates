@@ -73,6 +73,7 @@ Artifact separation does not reduce supported profiles, convert them into a matu
 ├── distribution-manifest.json     # exact canonical template inventory
 ├── docs/                          # source architecture and publication interface
 ├── maintainer/                    # source-maintainer ownership documentation
+├── translations/                  # non-authoritative reader/guided locale overlays
 └── template/                      # canonical directly copyable profile-aware Skill template
 ```
 
