@@ -118,9 +118,9 @@ def parse_document(raw: Any, index: int) -> Document:
         raise CatalogError(f"{field}.source must be a Markdown file")
     optional = raw["optional"]
     home = raw["home"]
-    if type(optional) is not bool:
+    if not isinstance(optional, bool):
         raise CatalogError(f"{field}.optional must be boolean")
-    if type(home) is not bool:
+    if not isinstance(home, bool):
         raise CatalogError(f"{field}.home must be boolean")
     return Document(document_id, source, optional, home)
 
@@ -143,7 +143,7 @@ def parse_asset(raw: Any, index: int) -> Asset:
     source = safe_relative_path(raw["source"], f"{field}.source")
     destination = safe_relative_path(raw["destination"], f"{field}.destination")
     optional = raw["optional"]
-    if type(optional) is not bool:
+    if not isinstance(optional, bool):
         raise CatalogError(f"{field}.optional must be boolean")
     return Asset(source, destination, optional)
 
@@ -223,7 +223,9 @@ def validate_catalog(
     data = read_json_object(catalog_path)
     schema_version = data.get("schema_version")
     if type(schema_version) is not int or schema_version not in (1, 2, 3):
-        raise CatalogError("schema_version must be the integer 1, 2, or 3")
+        raise CatalogError(
+            "schema_version must be the integer 1 or 2, or the integer 3"
+        )
 
     allowed_top_level = {"schema_version", "documents"}
     if schema_version >= 2:
