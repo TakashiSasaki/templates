@@ -8,6 +8,7 @@ from pathlib import Path
 from scripts.generate_glossary_viewer import (
     GlossaryViewerError,
     load_model,
+    render,
     render_term,
 )
 
@@ -72,6 +73,27 @@ class GlossaryViewerBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(GlossaryViewerError, "owner/name"):
                 load_model(write_model(Path(directory), value))
+
+    def test_integrator_compatible_provider_name_is_rendered(self) -> None:
+        value = model()
+        value["terms"] = [
+            {
+                "id": "templates-docs-example",
+                "term": "Docs example",
+                "aliases": [],
+                "origin": "repository",
+                "definition": "A repository-defined example.",
+                "provider": "docs",
+                "source_path": "docs/glossary.yml",
+                "source_revision": REVISION,
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            loaded = load_model(write_model(Path(directory), value))
+        page = render(loaded)
+        self.assertIn('id="provider-docs"', page)
+        self.assertIn("<h3>docs</h3>", page)
+        self.assertIn('<span class="badge">docs</span>', page)
 
     def test_symlinked_json_input_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
