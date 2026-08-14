@@ -102,6 +102,7 @@ def harness_html() -> str:
   const frame = document.getElementById("target");
 
   if (!target || !target.startsWith("/") || target.startsWith("//")
+      || target.includes("\\\\")
       || !Number.isInteger(width) || !Number.isInteger(height)
       || width < 240 || width > 800 || height < 320 || height > 1400) {
     result.textContent = JSON.stringify({ready: false, error: "invalid harness parameters"});
@@ -309,9 +310,9 @@ def validate_metrics(
                     failures.append(f"portal action {index} metrics are invalid")
                     continue
                 try:
-                    if _number(button.get("height"), f"buttons[{index}].height") < 44:
+                    if _number(button.get("height"), f"buttons[{index}].height") < 48:
                         failures.append(
-                            f"portal action {index} is shorter than 44px"
+                            f"portal action {index} is shorter than 48px"
                         )
                 except MobileLayoutError as exc:
                     failures.append(str(exc))
@@ -396,7 +397,8 @@ def _run_browser(
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
             detail = ""
             if isinstance(exc, subprocess.CalledProcessError):
-                detail = (exc.stderr or "").strip()[-2000:]
+                output = exc.stderr or exc.stdout or ""
+                detail = output.strip()[-2000:]
             elif isinstance(exc, subprocess.TimeoutExpired):
                 detail = "browser timed out"
             suffix = f": {detail}" if detail else ""
