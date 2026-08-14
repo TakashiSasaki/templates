@@ -9,6 +9,7 @@ from pathlib import Path
 
 from assemble_publications import load_catalog, load_manifest, pages, parse_publications
 from publish_translations import TranslationPublicationError, publish_translations
+from translation_reader_metadata import exclude_translation_from_search
 
 
 def main() -> int:
@@ -34,6 +35,10 @@ def main() -> int:
             if docs_root.joinpath(*page["destination"].parts).is_file()
         ]
         records = publish_translations(publications, included_pages, docs_root)
+        for record in records:
+            exclude_translation_from_search(
+                docs_root.joinpath(*record.translation_destination.parts)
+            )
         print(f"translations published: {len(records)}")
     except (OSError, TranslationPublicationError, RuntimeError) as exc:
         print(f"publish_provider_translations.py: {exc}", file=sys.stderr)
