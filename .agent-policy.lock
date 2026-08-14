@@ -10,9 +10,9 @@ inputs:
   policy/repository/history-boundary.md:
     sha256: cbd99376f24764589cd3d3aef1e2ba520f7b9106a1de856a06a53733f0a03c7b
   policy/repository/maintainer-validation.md:
-    sha256: 3c6740e307ed2c80481bdceda97385bc79f4a3c812a0f33e78305a979cfd3f44
+    sha256: ee11187a7dc7618e5ec4f5e1c650d2741dbb6423173b8c9b9dd72c7fb5c4a6cf
   policy/repository/reading-scope.md:
     sha256: 2efa3690f7b62808ebb1842715d72eb5c1c588ed533a0eed8c98317a33302b16
 outputs:
   AGENTS.md:
-    sha256: a6afead9c44c8309d8096cdc85e119227dbeabb725d4c7a863e3f819f74b7078
+    sha256: 9ff70071ac9ab289f54639a275558eb0bedf33b2a4a35d22269e51ef61b385d6
