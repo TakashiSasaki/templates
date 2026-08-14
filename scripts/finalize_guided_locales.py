@@ -11,14 +11,19 @@ import sys
 from collections import defaultdict
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urljoin, urlsplit
 
 try:
     from scripts.finalize_site_metadata import (
+        BODY_CLOSE_PATTERN,
+        GUIDED_COPY_SCRIPT_TAG,
         SiteMetadataError,
+        allow_guided_copy_script,
         ensure_pwa_metadata,
+        guided_copy_button,
         rewrite_canonical_link,
         validate_canonical_url,
+        validate_github_source_url,
     )
     from scripts.finalize_translation_reader import (
         TranslationReaderError,
@@ -30,10 +35,15 @@ try:
     )
 except ModuleNotFoundError:
     from finalize_site_metadata import (
+        BODY_CLOSE_PATTERN,
+        GUIDED_COPY_SCRIPT_TAG,
         SiteMetadataError,
+        allow_guided_copy_script,
         ensure_pwa_metadata,
+        guided_copy_button,
         rewrite_canonical_link,
         validate_canonical_url,
+        validate_github_source_url,
     )
     from finalize_translation_reader import (
         TranslationReaderError,
@@ -46,6 +56,15 @@ except ModuleNotFoundError:
 
 HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
+LOCALIZED_PAGE_PATH_PATTERN = re.compile(
+    r'<p class="page-path"><span class="page-path-label">(?P<label>[^<]+)</span>\s*'
+    r'<code>(?P<path>[^<]+)</code></p>'
+)
+LOCALIZED_IMMUTABLE_GITHUB_SOURCE_PATTERN = re.compile(
+    r'<a\b[^>]*\bhref="(?P<href>[^"]+)"[^>]*>\s*'
+    r'(?:immutable GitHub source|不変の GitHub ソース)\s*</a>',
+    re.IGNORECASE,
+)
 STYLE_MARKER = 'id="guided-translation-reader-style"'
 STYLE = """<style id="guided-translation-reader-style">
 .translation-switcher{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin:.55rem 0 1rem;padding:.5rem .65rem;border:1px solid #d7dce5;border-radius:.65rem;background:#f8f9fb;font-size:.88rem;line-height:1.35}.translation-switcher__status{color:#505866}.translation-switcher__links{display:flex;flex-wrap:wrap;gap:.35rem}.translation-switcher__link{display:inline-block;padding:.3rem .55rem;border:1px solid #b7c0d0;border-radius:999px;background:#fff;text-decoration:none;font-weight:650}@media(max-width:600px){.translation-switcher{align-items:flex-start;flex-direction:column;gap:.4rem;padding:.45rem .55rem;margin:.45rem 0 .8rem}.translation-switcher__link{padding:.25rem .5rem}}
@@ -197,6 +216,79 @@ def add_style(source: str, path: Path) -> str:
     return source[:position] + STYLE + source[position:]
 
 
+def validate_localized_guided_page_path(value: str, language: str, path: Path) -> str:
+    parsed = urlsplit(value)
+    prefix = f"/{language}/guided/"
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+        or not value.startswith(prefix)
+        or not value.endswith("/")
+        or "\\" in value
+        or "//" in value[1:]
+    ):
+        raise GuidedLocaleFinalizeError(
+            f"{path}: invalid localized guided page path: {value!r}"
+        )
+    return value
+
+
+def enhance_localized_guided_copy_controls(
+    source: str,
+    canonical_base: str,
+    language: str,
+    path: Path,
+) -> str:
+    """Apply the canonical guided copy-control contract to one localized page."""
+    page_path_matches = list(LOCALIZED_PAGE_PATH_PATTERN.finditer(source))
+    if not page_path_matches:
+        return source
+    if len(page_path_matches) != 1:
+        raise GuidedLocaleFinalizeError(f"{path}: multiple localized guided page path markers")
+
+    page_path_match = page_path_matches[0]
+    page_path = validate_localized_guided_page_path(
+        html.unescape(page_path_match.group("path")), language, path
+    )
+    public_url = urljoin(canonical_base, page_path.lstrip("/"))
+
+    github_matches = list(LOCALIZED_IMMUTABLE_GITHUB_SOURCE_PATTERN.finditer(source))
+    if len(github_matches) > 1:
+        raise GuidedLocaleFinalizeError(f"{path}: multiple immutable GitHub sources")
+
+    buttons: list[str] = []
+    if github_matches:
+        github_url = validate_github_source_url(
+            html.unescape(github_matches[0].group("href")), path
+        )
+        buttons.append(guided_copy_button("GitHub URL", github_url))
+    buttons.append(guided_copy_button("public URL", public_url))
+
+    replacement = (
+        '<p class="page-path"><span class="page-path-label">'
+        f'{html.escape(html.unescape(page_path_match.group("label")))}'</n        '</span> '
+        f'<code>{html.escape(page_path)}</code> '
+        '<span class="page-path-actions">'
+        + " ".join(buttons)
+        + ' <span class="copy-status" role="status" aria-live="polite"></span>'
+        "</span></p>"
+    )
+    updated = source[: page_path_match.start()] + replacement + source[page_path_match.end() :]
+    updated = allow_guided_copy_script(updated, path)
+
+    if GUIDED_COPY_SCRIPT_TAG not in updated:
+        body_closes = list(BODY_CLOSE_PATTERN.finditer(updated))
+        if len(body_closes) != 1:
+            raise GuidedLocaleFinalizeError(
+                f"{path}: expected exactly one closing body tag, found {len(body_closes)}"
+            )
+        position = body_closes[0].start()
+        updated = updated[:position] + GUIDED_COPY_SCRIPT_TAG + "\n" + updated[position:]
+    return updated
+
+
 def finalize(
     site_root: Path,
     pair_map: Path,
@@ -235,6 +327,12 @@ def finalize(
 
         for record, translation_file, _translation_url in resolved:
             source = translation_file.read_text(encoding="utf-8")
+            source = enhance_localized_guided_copy_controls(
+                source,
+                canonical_base,
+                record["language"],
+                translation_file,
+            )
             source = ensure_pwa_metadata(source, translation_file)
             source = rewrite_canonical_link(source, canonical_url, translation_file)
             source = replace_alternates(source, alternates, translation_file)
