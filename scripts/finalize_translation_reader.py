@@ -19,10 +19,6 @@ from finalize_site_metadata import (
 )
 
 HTML_TAG_PATTERN = re.compile(r"<html\b[^>]*>", re.IGNORECASE)
-LANG_ATTRIBUTE_PATTERN = re.compile(
-    r"(?<![-:\w])lang\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+)",
-    re.IGNORECASE,
-)
 HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
 H1_CLOSE_PATTERN = re.compile(r"</h1\s*>", re.IGNORECASE)
 ALTERNATE_TAG_PATTERN = re.compile(
@@ -33,6 +29,9 @@ ALTERNATE_TAG_PATTERN = re.compile(
 SWITCHER_MARKER = 'class="translation-switcher"'
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 PUBLICATION_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+LANGUAGE_LABELS = {
+    "ja": "日本語",
+}
 
 
 class TranslationReaderError(RuntimeError):
@@ -97,6 +96,44 @@ def html_public_url(
     return urljoin(canonical_base, route)
 
 
+def _attribute_span(tag: str, attribute: str) -> tuple[int, int] | None:
+    """Return an exact attribute span without matching text inside quoted values."""
+    start = re.match(r"<html\b", tag, re.IGNORECASE)
+    if start is None:
+        return None
+    index = start.end()
+    limit = len(tag) - 1
+    while index < limit:
+        while index < limit and tag[index].isspace():
+            index += 1
+        if index >= limit or tag[index] in "/>":
+            break
+        name_start = index
+        while index < limit and not tag[index].isspace() and tag[index] not in "=/>":
+            index += 1
+        name = tag[name_start:index]
+        while index < limit and tag[index].isspace():
+            index += 1
+        if index < limit and tag[index] == "=":
+            index += 1
+            while index < limit and tag[index].isspace():
+                index += 1
+            if index < limit and tag[index] in "\"'":
+                quote = tag[index]
+                index += 1
+                while index < limit and tag[index] != quote:
+                    index += 1
+                if index >= limit:
+                    raise TranslationReaderError("html start tag contains an unterminated attribute")
+                index += 1
+            else:
+                while index < limit and not tag[index].isspace() and tag[index] not in "/>":
+                    index += 1
+        if name.casefold() == attribute.casefold():
+            return name_start, index
+    return None
+
+
 def replace_html_language(source: str, language: str, path: Path) -> str:
     matches = list(HTML_TAG_PATTERN.finditer(source))
     if len(matches) != 1:
@@ -105,18 +142,22 @@ def replace_html_language(source: str, language: str, path: Path) -> str:
         )
     tag = matches[0].group(0)
     replacement = f'lang="{html.escape(language, quote=True)}"'
-    if LANG_ATTRIBUTE_PATTERN.search(tag):
-        updated_tag = LANG_ATTRIBUTE_PATTERN.sub(replacement, tag, count=1)
+    span = _attribute_span(tag, "lang")
+    if span is not None:
+        updated_tag = tag[: span[0]] + replacement + tag[span[1] :]
     else:
-        updated_tag = tag[:-1] + f" {replacement}>"
+        before_close = tag[:-1]
+        trimmed = before_close.rstrip()
+        trailing_space = before_close[len(trimmed) :]
+        if trimmed.endswith("/"):
+            raise TranslationReaderError(f"{path}: html start tag must not be self-closing")
+        updated_tag = f"{trimmed} {replacement}{trailing_space}>"
     return source[: matches[0].start()] + updated_tag + source[matches[0].end() :]
 
 
 def replace_alternates(
     source: str,
-    canonical_url: str,
-    translation_url: str,
-    language: str,
+    alternates: list[tuple[str, str]],
     path: Path,
 ) -> str:
     source = ALTERNATE_TAG_PATTERN.sub("", source)
@@ -125,39 +166,79 @@ def replace_alternates(
         raise TranslationReaderError(
             f"{path}: expected exactly one closing head tag, found {len(head_closes)}"
         )
-    links = (
-        f'<link rel="alternate" hreflang="en" href="{html.escape(canonical_url, quote=True)}">\n'
-        f'<link rel="alternate" hreflang="{html.escape(language, quote=True)}" '
-        f'href="{html.escape(translation_url, quote=True)}">\n'
-    )
+    seen_languages: set[str] = set()
+    links: list[str] = []
+    for language, target_url in alternates:
+        if language in seen_languages:
+            raise TranslationReaderError(
+                f"{path}: duplicate alternate language: {language}"
+            )
+        seen_languages.add(language)
+        links.append(
+            f'<link rel="alternate" hreflang="{html.escape(language, quote=True)}" '
+            f'href="{html.escape(target_url, quote=True)}">\n'
+        )
     position = head_closes[0].start()
-    return source[:position] + links + source[position:]
+    return source[:position] + "".join(links) + source[position:]
 
 
-def switcher_markup(
-    *,
-    canonical: bool,
+def publication_label(publication: str) -> str:
+    return " ".join(part.capitalize() for part in publication.split("-"))
+
+
+def language_label(language: str) -> str:
+    primary = language.split("-", 1)[0]
+    return LANGUAGE_LABELS.get(primary, language)
+
+
+def translation_status(language: str) -> str:
+    if language.split("-", 1)[0] == "ja":
+        return "日本語参考訳"
+    return f"{language_label(language)} translation · Non-authoritative"
+
+
+def switcher_link(label: str, target_url: str, language: str) -> str:
+    return (
+        f'<a class="translation-switcher__link" '
+        f'href="{html.escape(target_url, quote=True)}" '
+        f'lang="{html.escape(language, quote=True)}" '
+        f'hreflang="{html.escape(language, quote=True)}">'
+        f"{html.escape(label)}</a>"
+    )
+
+
+def canonical_switcher_markup(
     publication: str,
-    target_url: str,
-    language: str,
+    translations: list[tuple[str, str]],
 ) -> str:
-    publication_label = html.escape(publication.capitalize())
-    if canonical:
-        status = f"{publication_label} · Canonical English"
-        target_label = "日本語"
-        target_language = language
-    else:
-        status = f"{publication_label} · 日本語参考訳"
-        target_label = "English · Canonical"
-        target_language = "en"
+    status = f"{html.escape(publication_label(publication))} · Canonical English"
+    links = "".join(
+        switcher_link(language_label(language), target_url, language)
+        for language, target_url in translations
+    )
     return (
         '\n<div class="translation-switcher" role="group" '
         'aria-label="Document language">'
         f'<span class="translation-switcher__status">{status}</span>'
-        f'<a class="translation-switcher__link" href="{html.escape(target_url, quote=True)}" '
-        f'lang="{html.escape(target_language, quote=True)}" '
-        f'hreflang="{html.escape(target_language, quote=True)}">'
-        f"{target_label}</a></div>"
+        f'<span class="translation-switcher__links">{links}</span></div>'
+    )
+
+
+def translated_switcher_markup(
+    publication: str,
+    language: str,
+    canonical_url: str,
+) -> str:
+    status = (
+        f"{html.escape(publication_label(publication))} · "
+        f"{html.escape(translation_status(language))}"
+    )
+    link = switcher_link("English · Canonical", canonical_url, "en")
+    return (
+        '\n<div class="translation-switcher" role="group" '
+        'aria-label="Document language">'
+        f'<span class="translation-switcher__status">{status}</span>'
+        f'<span class="translation-switcher__links">{link}</span></div>'
     )
 
 
@@ -184,8 +265,9 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
         raise TranslationReaderError("translation map translations must be an array")
 
     result: list[dict[str, Any]] = []
-    seen_canonical: set[tuple[str, str, PurePosixPath]] = set()
+    seen_pairs: set[tuple[PurePosixPath, str]] = set()
     seen_translation: set[PurePosixPath] = set()
+    canonical_publications: dict[PurePosixPath, str] = {}
     for index, entry in enumerate(entries):
         field = f"translations[{index}]"
         if not isinstance(entry, dict) or set(entry) != {
@@ -223,10 +305,15 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
             raise TranslationReaderError(
                 f"{field}.translation_destination must be {expected_translation}"
             )
-        key = (publication, language, canonical)
-        if key in seen_canonical or translation in seen_translation:
+        owner = canonical_publications.setdefault(canonical, publication)
+        if owner != publication:
+            raise TranslationReaderError(
+                f"{field}.canonical_destination is assigned to multiple publications"
+            )
+        pair_key = (canonical, language)
+        if pair_key in seen_pairs or translation in seen_translation:
             raise TranslationReaderError(f"{field} duplicates a translation mapping")
-        seen_canonical.add(key)
+        seen_pairs.add(pair_key)
         seen_translation.add(translation)
         result.append(
             {
@@ -265,72 +352,94 @@ def finalize(
         except SiteMetadataError as exc:
             raise TranslationReaderError(str(exc)) from exc
 
+    groups: dict[tuple[str, PurePosixPath], list[dict[str, Any]]] = {}
     for pair in pairs:
-        canonical_relative = markdown_to_html_path(pair["canonical"])
-        translation_relative = markdown_to_html_path(pair["translation"])
+        groups.setdefault((pair["publication"], pair["canonical"]), []).append(pair)
+
+    resolved_groups: list[
+        tuple[Path, str, str, list[tuple[dict[str, Any], Path, str]]]
+    ] = []
+    for (publication, canonical), group in sorted(
+        groups.items(),
+        key=lambda item: (item[0][0], item[0][1].as_posix()),
+    ):
+        canonical_relative = markdown_to_html_path(canonical)
         canonical_path = site_root.joinpath(*canonical_relative.parts)
-        translation_path = site_root.joinpath(*translation_relative.parts)
-        if canonical_path not in updates or translation_path not in updates:
+        if canonical_path not in updates:
             raise TranslationReaderError(
-                "translation mapping references missing generated page: "
-                f"{pair['canonical']} -> {pair['translation']}"
+                f"translation mapping references missing generated page: {canonical}"
             )
         canonical_url = html_public_url(canonical_relative, canonical_base)
-        translation_url = html_public_url(translation_relative, canonical_base)
+        translations: list[tuple[dict[str, Any], Path, str]] = []
+        for pair in sorted(group, key=lambda item: item["language"]):
+            translation_relative = markdown_to_html_path(pair["translation"])
+            translation_path = site_root.joinpath(*translation_relative.parts)
+            if translation_path not in updates:
+                raise TranslationReaderError(
+                    "translation mapping references missing generated page: "
+                    f"{canonical} -> {pair['translation']}"
+                )
+            translation_url = html_public_url(translation_relative, canonical_base)
+            translations.append((pair, translation_path, translation_url))
+        resolved_groups.append(
+            (canonical_path, publication, canonical_url, translations)
+        )
 
+    for canonical_path, publication, canonical_url, translations in resolved_groups:
+        alternates = [("en", canonical_url)] + [
+            (pair["language"], translation_url)
+            for pair, _, translation_url in translations
+        ]
         canonical_source = updates[canonical_path]
         canonical_source = replace_html_language(canonical_source, "en", canonical_path)
         canonical_source = replace_alternates(
             canonical_source,
-            canonical_url,
-            translation_url,
-            pair["language"],
+            alternates,
             canonical_path,
         )
         canonical_source = inject_switcher(
             canonical_source,
-            switcher_markup(
-                canonical=True,
-                publication=pair["publication"],
-                target_url=translation_url,
-                language=pair["language"],
+            canonical_switcher_markup(
+                publication,
+                [
+                    (pair["language"], translation_url)
+                    for pair, _, translation_url in translations
+                ],
             ),
             canonical_path,
         )
         updates[canonical_path] = canonical_source
 
-        translation_source = updates[translation_path]
-        translation_source = replace_html_language(
-            translation_source,
-            pair["language"],
-            translation_path,
-        )
-        try:
-            translation_source = rewrite_canonical_link(
+        for pair, translation_path, _ in translations:
+            translation_source = updates[translation_path]
+            translation_source = replace_html_language(
                 translation_source,
-                canonical_url,
+                pair["language"],
                 translation_path,
             )
-        except SiteMetadataError as exc:
-            raise TranslationReaderError(str(exc)) from exc
-        translation_source = replace_alternates(
-            translation_source,
-            canonical_url,
-            translation_url,
-            pair["language"],
-            translation_path,
-        )
-        translation_source = inject_switcher(
-            translation_source,
-            switcher_markup(
-                canonical=False,
-                publication=pair["publication"],
-                target_url=canonical_url,
-                language=pair["language"],
-            ),
-            translation_path,
-        )
-        updates[translation_path] = translation_source
+            try:
+                translation_source = rewrite_canonical_link(
+                    translation_source,
+                    canonical_url,
+                    translation_path,
+                )
+            except SiteMetadataError as exc:
+                raise TranslationReaderError(str(exc)) from exc
+            translation_source = replace_alternates(
+                translation_source,
+                alternates,
+                translation_path,
+            )
+            translation_source = inject_switcher(
+                translation_source,
+                translated_switcher_markup(
+                    publication,
+                    pair["language"],
+                    canonical_url,
+                ),
+                translation_path,
+            )
+            updates[translation_path] = translation_source
 
     for path, source in updates.items():
         path.write_text(source, encoding="utf-8")
