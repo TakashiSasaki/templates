@@ -107,6 +107,16 @@ class PublicationCatalogV3Tests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "not a regular file"):
                 validate_catalog(catalog, root)
 
+    def test_glossary_source_as_directory_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            glossary = root / "docs/glossary.yml"
+            glossary.unlink()
+            glossary.mkdir()
+            with self.assertRaisesRegex(CatalogError, "not a regular file"):
+                validate_catalog(catalog, root)
+
     def test_glossary_symlink_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -127,6 +137,23 @@ class PublicationCatalogV3Tests(unittest.TestCase):
                     {
                         "source": "docs/glossary.yml",
                         "destination": "glossary-source.yml",
+                        "optional": False,
+                    }
+                ],
+            )
+            with self.assertRaisesRegex(CatalogError, "must not overlap"):
+                validate_catalog(catalog, root)
+
+    def test_glossary_must_not_be_inside_asset_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            catalog = self.prepare(root)
+            self.rewrite(
+                catalog,
+                assets=[
+                    {
+                        "source": "docs",
+                        "destination": "docs-assets",
                         "optional": False,
                     }
                 ],
