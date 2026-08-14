@@ -98,7 +98,20 @@ def _validate_relative_source(
 
 
 def _validate_source(value: Any, field: str) -> str:
-    return _validate_relative_source(value, field, ".md")
+    if not isinstance(value, str) or not value:
+        raise ValidationError(f"{field} must be a non-empty string")
+    parts = value.split("/")
+    unsafe = (
+        value.startswith("/")
+        or "\\" in value
+        or "\x00" in value
+        or any(part in {"", ".", ".."} or part.casefold() == ".git" for part in parts)
+    )
+    if unsafe:
+        raise ValidationError(f"{field} must be a safe relative POSIX path: {value!r}")
+    if not value.lower().endswith(".md"):
+        raise ValidationError(f"{field} must identify a Markdown file")
+    return value
 
 
 def _validate_source_file(root: Path, source: str, field: str) -> None:
