@@ -78,6 +78,7 @@
     "policy",
     "scripts/validate_distribution.py",
     "scripts/validate_publication_catalog.py",
+    "scripts/validate_translations.py",
     "translations"
   ]
 }
