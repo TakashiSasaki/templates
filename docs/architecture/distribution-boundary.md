@@ -64,12 +64,13 @@ The source layout uses one explicit canonical copy boundary rather than duplicat
 ├── distribution-manifest.json  # closed canonical distribution inventory
 ├── policy/                     # repository-local maintainer policy
 ├── docs/                       # maintainer architecture, audits, publication interface
-├── scripts/                    # source-only distribution/publication tooling and import bridge
+├── scripts/                    # source-only distribution/publication/translation tooling and import bridge
 ├── tests/                      # source-maintainer regression and clean-room suites
+├── translations/               # non-authoritative reader/guided locale overlays
 └── template/                   # sole canonical downstream repository source tree
 ```
 
-Consumer contracts, schemas, reusable validators, dependency files, migrations, operational guidance, and downstream tests are authored only below `template/`. Source-maintainer tests and workflows reference those canonical paths directly. The root `scripts` package may expose an import bridge into `template/scripts`, but it does not contain duplicate validator implementations.
+Consumer contracts, schemas, reusable validators, dependency files, migrations, operational guidance, and downstream tests are authored only below `template/`. Source-maintainer tests and workflows reference those canonical paths directly. The root `scripts` package may expose an import bridge into `template/scripts` and may contain source-only validators such as translation metadata validation, but it does not contain duplicate downstream validator implementations.
 
 The distribution tree contains:
 
@@ -124,7 +125,7 @@ The principal split points are:
 - `scripts`: source distribution/publication tooling remains at root, while reusable validators are canonical under `template/scripts`;
 - `tests`: source clean-room generation, producer fixtures, publication tests, and review regressions remain at root, while downstream baseline tests are canonical under `template/tests`.
 
-Root `AGENTS.md` is wholly `maintainer`: it is generated from the source-maintainer policy configuration and must not be copied into the Webapp product template.
+Root `AGENTS.md` is wholly `maintainer`: it is generated from the source-maintainer policy configuration and must not be copied into the Webapp product template. The `translations/` tree is also wholly `maintainer`: it contains non-authoritative locale overlays for source-owned and downstream-canonical documentation without altering the copyable `template/` bytes.
 
 ## Conformance strategy
 
