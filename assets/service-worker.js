@@ -72,11 +72,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isDocumentRequest(event.request, url)) {
-    if (event.request.mode === "navigate") {
-      event.respondWith(fetchFreshDocument(event.request).catch(() => offlineResponse()));
-    } else {
-      event.respondWith(fetchFreshDocument(event.request));
-    }
+    event.respondWith(fetchFreshDocument(event.request).catch(() => offlineResponse()));
     return;
   }
 
