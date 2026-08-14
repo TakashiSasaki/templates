@@ -99,7 +99,7 @@ def run() -> int:
     invalid_cases = [
         (
             "rejects unsupported schema versions",
-            r"schema_version must be 1",
+            r"schema_version must be integer 1 or 3",
             lambda root: write_catalog(root, schema_version=2),
         ),
         (
