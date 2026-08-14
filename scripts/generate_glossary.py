@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the integrated machine-readable glossary from locked publications."""
+"""Generate integrated glossary data and its static human-readable viewer."""
 
 from __future__ import annotations
 
@@ -11,6 +11,10 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.generate_glossary_viewer import (
+    GlossaryViewerError,
+    generate as generate_viewer,
+)
 from scripts.glossary import GlossaryError, integrate_glossaries
 
 
@@ -34,6 +38,12 @@ def generate(
     repository: str,
     output: Path,
 ) -> None:
+    """Write only the canonical integrated JSON model.
+
+    Tests and other Python callers can use this semantic layer without creating
+    presentation output. The CLI calls ``generate_publication`` below so the
+    Pages workflow receives both the JSON read model and its static viewer.
+    """
     publications_raw = _mapping(publication_values, "publication")
     revisions = _mapping(revision_values, "revision")
     publications = {name: Path(path) for name, path in publications_raw.items()}
@@ -51,6 +61,26 @@ def generate(
         raise GlossaryError(f"unable to write integrated glossary {output}: {exc}") from exc
 
 
+def generate_publication(
+    publication_values: list[str],
+    revision_values: list[str],
+    repository: str,
+    output: Path,
+) -> Path:
+    """Write a ``.json`` model plus a sibling ``.html`` human viewer."""
+    if output.suffix.lower() != ".json":
+        raise GlossaryError("integrated glossary output must use a .json suffix")
+    viewer_output = output.with_suffix(".html")
+    if viewer_output == output:
+        raise GlossaryError("glossary viewer output must differ from JSON output")
+    generate(publication_values, revision_values, repository, output)
+    try:
+        generate_viewer(output, viewer_output)
+    except GlossaryViewerError as exc:
+        raise GlossaryError(f"unable to generate glossary viewer: {exc}") from exc
+    return viewer_output
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--publication", action="append", default=[], metavar="NAME=PATH")
@@ -59,7 +89,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        generate(
+        generate_publication(
             args.publication,
             args.revision,
             args.repository,
