@@ -37,12 +37,18 @@ def generate(
     publications_raw = _mapping(publication_values, "publication")
     revisions = _mapping(revision_values, "revision")
     publications = {name: Path(path) for name, path in publications_raw.items()}
-    value = integrate_glossaries(publications, revisions, repository)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    try:
+        value = integrate_glossaries(publications, revisions, repository)
+    except OSError as exc:
+        raise GlossaryError(f"unable to resolve glossary publication input: {exc}") from exc
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(value, indent=2, ensure_ascii=False, sort_keys=False) + "\n",
+            encoding="utf-8",
+        )
+    except (OSError, UnicodeError) as exc:
+        raise GlossaryError(f"unable to write integrated glossary {output}: {exc}") from exc
 
 
 def main() -> int:
