@@ -1,0 +1,61 @@
+schema_version: 1
+terms:
+  - id: templates-webapp-template-mode
+    term: Template mode
+    localized_labels:
+      ja:
+        term: テンプレートモード
+    origin: repository
+    definition: >-
+      The source-template evidence state in which the Webapp template records
+      required structure and proof obligations without claiming concrete
+      product source locations, commands, verified results, release gates, or
+      release decisions.
+
+  - id: templates-webapp-contract-manifest
+    term: Contract manifest
+    localized_labels:
+      ja:
+        term: コントラクトマニフェスト
+        aliases:
+          - 契約マニフェスト
+    origin: repository
+    definition: >-
+      The closed versioned registry in contracts/manifest.json that identifies
+      every active Webapp contract family and schema and preserves the identity
+      and version history of retired families. Contract files do not become
+      part of the authoritative set merely by existing in the repository.
+
+  - id: templates-webapp-implementation-evidence
+    term: Implementation evidence
+    localized_labels:
+      ja:
+        term: 実装エビデンス
+        aliases:
+          - 実装証跡
+    origin: repository
+    definition: >-
+      The Webapp contract that connects framework-neutral declarations to
+      repository-local implementation boundaries, positive and negative
+      proofs, authoritative command definitions, and release-gate definitions.
+      It defines what must be proved and run but does not prove candidate
+      execution itself.
+    related_terms:
+      - templates-webapp-release-evidence
+
+  - id: templates-webapp-release-evidence
+    term: Release evidence
+    localized_labels:
+      ja:
+        term: リリースエビデンス
+        aliases:
+          - リリース証跡
+    origin: repository
+    definition: >-
+      A revision-specific Webapp release record that binds one exact product
+      revision to the current authoritative command definitions and release
+      gates, records their completed results and provenance, and records the
+      resulting release decision. It supplements rather than replaces
+      implementation evidence.
+    related_terms:
+      - templates-webapp-implementation-evidence

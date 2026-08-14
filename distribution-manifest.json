@@ -73,6 +73,7 @@
     "docs/architecture/distribution-readiness-audit.md",
     "docs/architecture/final-readiness-audit.md",
     "docs/architecture/generated-repository-conformance.md",
+    "docs/glossary.yml",
     "docs/publication-catalog.json",
     "docs/publication-catalog.md",
     "policy",
