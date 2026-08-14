@@ -22,16 +22,21 @@ def write_catalog(root: Path) -> None:
     )
 
 
-def write_manifest_entries(root: Path, entries: list[dict[str, object]]) -> None:
+def write_manifest_payload(root: Path, payload: dict[str, object]) -> None:
     (root / "translations" / "manifest.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 2,
-                "canonical_language": "en",
-                "translations": entries,
-            }
-        ),
+        json.dumps(payload),
         encoding="utf-8",
+    )
+
+
+def write_manifest_entries(root: Path, entries: list[dict[str, object]]) -> None:
+    write_manifest_payload(
+        root,
+        {
+            "schema_version": 2,
+            "canonical_language": "en",
+            "translations": entries,
+        },
     )
 
 
@@ -192,6 +197,42 @@ class TranslationContractTests(unittest.TestCase):
                 "undeclared translation Markdown: translations/NOTES.md",
             ):
                 validate(root)
+
+    def test_invalid_schema_version_is_rejected(self) -> None:
+        for version in (1, 3, "2"):
+            with self.subTest(version=version):
+                with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+                    root = Path(directory)
+                    canonical = prepare_guided_translation(root)
+                    write_manifest_payload(
+                        root,
+                        {
+                            "schema_version": version,
+                            "canonical_language": "en",
+                            "translations": [guided_entry(canonical)],
+                        },
+                    )
+                    with self.assertRaisesRegex(
+                        TranslationError,
+                        "schema_version must be integer 2",
+                    ):
+                        validate(root)
+
+    def test_unsafe_path_traversal_in_manifest_is_rejected(self) -> None:
+        unsafe_paths = ("../docs/index.md", "/etc/passwd", ".git/config")
+        for unsafe in unsafe_paths:
+            with self.subTest(unsafe=unsafe):
+                with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+                    root = Path(directory)
+                    canonical = prepare_guided_translation(root)
+                    entry = guided_entry(canonical)
+                    entry["canonical"] = unsafe
+                    write_manifest(root, entry)
+                    with self.assertRaisesRegex(
+                        TranslationError,
+                        "must be a safe relative POSIX path",
+                    ):
+                        validate(root)
 
 
 if __name__ == "__main__":
