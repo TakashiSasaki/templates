@@ -98,6 +98,7 @@
     "docs/architecture/index.md",
     "docs/publication-catalog.json",
     "docs/publication-maintenance.md",
-    "policy"
+    "policy",
+    "translations"
   ]
 }
