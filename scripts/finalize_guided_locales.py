@@ -268,7 +268,8 @@ def enhance_localized_guided_copy_controls(
 
     replacement = (
         '<p class="page-path"><span class="page-path-label">'
-        f'{html.escape(html.unescape(page_path_match.group("label")))}'</n        '</span> '
+        f'{html.escape(html.unescape(page_path_match.group("label")))}'
+        '</span> '
         f'<code>{html.escape(page_path)}</code> '
         '<span class="page-path-actions">'
         + " ".join(buttons)
