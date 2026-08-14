@@ -69,6 +69,28 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
         self.assertEqual("published document", route_kind)
         self.assertFalse(external)
 
+    def test_published_reader_fragment_falls_back_to_canonical_reader(self) -> None:
+        edge = {
+            "kind": "file",
+            "target": "docs/overview.md",
+            "fragment": "scope",
+            "source": "docs/index.md",
+            "line": 5,
+            "raw_target": "overview.md#scope",
+        }
+        href, route_kind, external = translated_edge_href(
+            "ja",
+            REPOSITORY,
+            self.provider,
+            edge,
+            {"docs/overview.md": "policy/index.md"},
+            {},
+            {("ja", "policy", "policy/index.md"): "ja/policy/index.md"},
+        )
+        self.assertEqual("/policy/#scope", href)
+        self.assertEqual("published document", route_kind)
+        self.assertFalse(external)
+
     def test_missing_reader_translation_falls_back_to_canonical_reader(self) -> None:
         edge = {
             "kind": "file",
@@ -121,6 +143,27 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
         self.assertNotIn('/ja/guided/graph.json', source)
         self.assertIn('/ja/guided/policy/', source)
         self.assertIn('/guided/skill/', source)
+
+    def test_three_letter_language_starting_with_ja_is_not_japanese(self) -> None:
+        graph = {
+            "providers": [
+                {
+                    "name": name,
+                    "revision": REVISION,
+                    "diagnostics": {
+                        "index_count": 1,
+                        "edge_count": 0,
+                        "max_index_depth": 0,
+                    },
+                }
+                for name in ("skill", "policy", "webapp")
+            ]
+        }
+        source = render_localized_landing("jam", graph, {})
+        self.assertIn("Index-guided document discovery", source)
+        self.assertIn("Page path:", source)
+        self.assertNotIn("インデックスに沿った文書探索", source)
+        self.assertNotIn("ページパス:", source)
 
     def test_unsafe_language_cannot_become_filesystem_component(self) -> None:
         with self.assertRaisesRegex(LocaleViewerError, "language tag"):
