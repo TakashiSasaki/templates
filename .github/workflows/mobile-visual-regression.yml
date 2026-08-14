@@ -84,20 +84,22 @@ jobs:
           tar --extract --file pages-artifact/artifact.tar --directory build/site
           test -f build/site/index.html
 
-      - name: Set up Chrome
-        id: chrome
-        uses: browser-actions/setup-chrome@v2
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          chrome-version: stable
-          install-dependencies: true
+          python-version: '3.13'
+
+      - name: Install Playwright controller
+        run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
 
       - name: Check mobile layout geometry
         run: |
           python scripts/check_mobile_layout.py \
             --site-root build/site \
-            --browser "${{ steps.chrome.outputs.chrome-path }}" \
-            --output-root build/mobile-visual \
-            --no-sandbox
+            --output-root build/mobile-visual
 
       - name: Upload mobile visual evidence
         if: ${{ always() }}
