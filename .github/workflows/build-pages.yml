@@ -133,6 +133,26 @@ jobs:
             --site-root site-publication \
             --output-root build
 
+      - name: Publish declared translations
+        run: |
+          python site-source/scripts/publish_provider_translations.py \
+            --publication site=site-publication \
+            --publication skill=skill-source \
+            --publication policy=policy-source \
+            --publication webapp=webapp-source \
+            --site-root site-publication \
+            --output-root build
+          test -f build/docs/ja/policy/index.md
+          test -f build/docs/ja/policy/getting-started.md
+          test -f build/docs/ja/policy/managed-operation.md
+          test -f build/docs/ja/policy/cli.md
+          test -f build/docs/ja/policy/bootstrap.md
+          test -f build/docs/ja/policy/pwa.md
+          test -f build/docs/ja/policy/agent-environments/google-ai-studio.md
+          test -f build/docs/ja/policy/repository-structure.md
+          test -f build/docs/ja/policy/external-artifact-intake.md
+          test -f build/docs/ja/policy/regression-prevention.md
+
       - name: Generate repository trees
         run: |
           python site-source/scripts/generate_repository_trees.py \
