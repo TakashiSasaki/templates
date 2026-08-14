@@ -128,6 +128,23 @@ def _label_key(value: str) -> str:
     return unicodedata.normalize("NFC", value).casefold()
 
 
+def _canonical_language_tag(value: str) -> str:
+    parts = value.split("-")
+    canonical = [parts[0].lower()]
+    for part in parts[1:]:
+        if len(part) == 4 and part.isalpha():
+            canonical.append(part.title())
+        elif (
+            len(part) == 2 and part.isalpha()
+        ) or (
+            len(part) == 3 and part.isdigit()
+        ):
+            canonical.append(part.upper())
+        else:
+            canonical.append(part.lower())
+    return "-".join(canonical)
+
+
 def _validate_labels(term: str, aliases: list[str], field: str) -> None:
     normalized = [_label_key(value) for value in (term, *aliases)]
     if len(set(normalized)) != len(normalized):
@@ -148,7 +165,8 @@ def _parse_localized_labels(
             raise GlossaryError(
                 f"{field} contains an invalid language tag: {language}"
             )
-        normalized_language = language.casefold()
+        canonical_language = _canonical_language_tag(language)
+        normalized_language = canonical_language.casefold()
         if normalized_language in normalized_languages:
             raise GlossaryError(
                 f"{field} contains duplicate language tags ignoring case: {language}"
@@ -177,7 +195,7 @@ def _parse_localized_labels(
             f"{item_field}.aliases",
         )
         _validate_labels(term, aliases, item_field)
-        result[language] = {"term": term, "aliases": aliases}
+        result[canonical_language] = {"term": term, "aliases": aliases}
     return result
 
 
@@ -326,6 +344,10 @@ def parse_term(raw: Any, index: int) -> dict[str, Any]:
                 raise GlossaryError(
                     f"{field}.related_terms contains an invalid term ID: "
                     f"{related_id}"
+                )
+            if related_id == term_id:
+                raise GlossaryError(
+                    f"{field}.related_terms must not reference the term itself"
                 )
         result["related_terms"] = related
 
