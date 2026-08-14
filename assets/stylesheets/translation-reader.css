@@ -44,15 +44,15 @@
   outline-offset: 0.12rem;
 }
 
-/* Keep the provider-owned non-authoritative notice visible but compact. */
-html[lang="ja"] .translation-switcher + blockquote {
+/* Keep provider-owned non-authoritative translation notices visible but compact. */
+html:not([lang="en"]) .translation-switcher + blockquote {
   margin-top: 0;
   margin-bottom: 0.9rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.72rem;
 }
 
-html[lang="ja"] .translation-switcher + blockquote p {
+html:not([lang="en"]) .translation-switcher + blockquote p {
   margin: 0;
 }
 
