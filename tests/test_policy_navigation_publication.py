@@ -67,12 +67,38 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
         policy_section = next(
             node for node in manifest["navigation"] if node["title"] == "Policy"
         )
-        section_titles = [
-            child["title"]
+        layers_node = next(
+            child
             for child in policy_section["children"]
-            if "children" in child
-        ]
-        self.assertIn("Policy layers", section_titles)
+            if child.get("title") == "Policy layers"
+        )
+        self.assertEqual(
+            [
+                (
+                    child["title"],
+                    child["document"],
+                    child["destination"],
+                )
+                for child in layers_node["children"]
+            ],
+            [
+                (
+                    "Provider and toolchain",
+                    "provider-navigation",
+                    "policy/provider/index.md",
+                ),
+                (
+                    "Shared policy corpus",
+                    "shared-policy-navigation",
+                    "policy/shared-policy/index.md",
+                ),
+                (
+                    "Consumer effective policy",
+                    "consumer-policy-navigation",
+                    "policy/consumer/index.md",
+                ),
+            ],
+        )
 
     def test_policy_layer_documents_have_distinct_destinations(self) -> None:
         manifest = json.loads(
