@@ -8,8 +8,10 @@ from pathlib import Path
 from scripts.generate_index_navigation_locale_viewer import (
     LocaleViewerError,
     load_overlays,
+    load_reader_translations,
     locale_index_path,
     locale_index_url,
+    localized_guided_root,
     render_localized_index,
     render_localized_landing,
     translated_edge_href,
@@ -17,6 +19,16 @@ from scripts.generate_index_navigation_locale_viewer import (
 
 REPOSITORY = "TakashiSasaki/templates"
 REVISION = "a" * 40
+
+
+class CountingEdges(list[dict[str, str]]):
+    def __init__(self, values: list[dict[str, str]]) -> None:
+        super().__init__(values)
+        self.iterations = 0
+
+    def __iter__(self):
+        self.iterations += 1
+        return super().__iter__()
 
 
 class IndexNavigationLocaleViewerTests(unittest.TestCase):
@@ -113,6 +125,44 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
         self.assertEqual("published document", route_kind)
         self.assertFalse(external)
 
+    def test_reader_translation_destination_must_be_safe_relative_markdown(self) -> None:
+        payload = {
+            "schema_version": 1,
+            "canonical_language": "en",
+            "translations": [
+                {
+                    "publication": "policy",
+                    "language": "ja",
+                    "canonical_destination": "policy/index.md",
+                    "translation_destination": "//attacker.example/page.md",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-reader-map-") as directory:
+            path = Path(directory) / "translations.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(LocaleViewerError, "safe relative Markdown path"):
+                load_reader_translations(path)
+
+    def test_reader_translation_destination_must_mirror_canonical_destination(self) -> None:
+        payload = {
+            "schema_version": 1,
+            "canonical_language": "en",
+            "translations": [
+                {
+                    "publication": "policy",
+                    "language": "ja",
+                    "canonical_destination": "policy/index.md",
+                    "translation_destination": "ja/other/index.md",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-reader-map-") as directory:
+            path = Path(directory) / "translations.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(LocaleViewerError, "must mirror canonical"):
+                load_reader_translations(path)
+
     def test_japanese_landing_reuses_canonical_machine_readable_graph(self) -> None:
         graph = {
             "providers": [
@@ -170,6 +220,19 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
             locale_index_path("../escape", "policy", "docs/index.md")
         with self.assertRaisesRegex(LocaleViewerError, "language tag"):
             locale_index_url("/tmp", "policy", "docs/index.md")
+
+    def test_symlinked_locale_parent_is_rejected_before_guided_write(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="guided-output-") as directory:
+            root = Path(directory)
+            output = root / "site"
+            outside = root / "outside"
+            output.mkdir()
+            outside.mkdir()
+            (output / "ja").symlink_to(outside, target_is_directory=True)
+
+            with self.assertRaisesRegex(LocaleViewerError, "locale parent must not be a symlink"):
+                localized_guided_root(output, "ja")
+            self.assertFalse((outside / "guided").exists())
 
     def test_overlay_loader_rejects_unsafe_language(self) -> None:
         graph = {"schema_version": 1, "providers": []}
@@ -233,6 +296,63 @@ class IndexNavigationLocaleViewerTests(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(LocaleViewerError, "revision mismatch"):
                 load_overlays(path, graph)
+
+    def test_overlay_loader_indexes_provider_edges_once(self) -> None:
+        edges = CountingEdges(
+            [
+                {"source": "docs/index.md"},
+                {"source": "docs/provider/index.md"},
+            ]
+        )
+        graph = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "name": "policy",
+                    "revision": REVISION,
+                    "indexes": [
+                        {"path": "docs/index.md", "sections": []},
+                        {"path": "docs/provider/index.md", "sections": []},
+                    ],
+                    "edges": edges,
+                }
+            ],
+        }
+        payload = {
+            "schema_version": 1,
+            "canonical_graph_schema_version": 1,
+            "canonical_language": "en",
+            "locales": [
+                {
+                    "language": "ja",
+                    "providers": [
+                        {
+                            "name": "policy",
+                            "revision": REVISION,
+                            "indexes": [
+                                {
+                                    "path": "docs/index.md",
+                                    "title": "索引",
+                                    "sections": [],
+                                    "links": [{"label": "子", "description": ""}],
+                                },
+                                {
+                                    "path": "docs/provider/index.md",
+                                    "title": "子索引",
+                                    "sections": [],
+                                    "links": [{"label": "文書", "description": ""}],
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory(prefix="guided-overlay-") as directory:
+            path = Path(directory) / "overlay.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            load_overlays(path, graph)
+        self.assertEqual(1, edges.iterations)
 
     def test_localized_headings_preserve_canonical_fragment_ids(self) -> None:
         canonical_index = {
