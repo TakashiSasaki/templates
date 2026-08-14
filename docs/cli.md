@@ -1,22 +1,22 @@
 # CLI
 
-## 共通形式
+## Common form
 
 ```bash
 agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 ```
 
-`--repository` と `--format` はサブコマンドより前に指定します。`--repository` を省略すると、現在位置からGitリポジトリルートを探索します。
+Specify `--repository` and `--format` before the subcommand. If `--repository` is omitted, the CLI searches upward from the current location for the Git repository root.
 
 ## `init`
 
-未導入かつ既存規約を持たないリポジトリの初期化計画を作成します。既定ではファイルを書き換えません。既存instructionを保持しながら導入する場合は、後続の`adopt`機能を使用し、`init`で競合を回避しないでください。
+Create an initialization plan for an unmanaged repository that has no existing policy instructions. Files are not modified by default. To adopt a repository while preserving existing instructions, use the `adopt` workflow rather than trying to bypass conflicts with `init`.
 
 ```bash
 agent-policy --repository /path/to/repository init
 ```
 
-適用する場合は `--apply` を指定します。
+Specify `--apply` to apply the plan.
 
 ```bash
 agent-policy --repository /path/to/repository init \
@@ -27,30 +27,30 @@ agent-policy --repository /path/to/repository init \
   --apply
 ```
 
-主なオプション:
+Main options:
 
-| オプション | 説明 |
+| Option | Description |
 | --- | --- |
-| `--config PATH` | 設定ファイルのパス。既定は `.agent-policy.yml` |
-| `--apply` | 計画を実際に適用する |
-| `--toolchain-revision SHA` | 設定とロックへ記録するツールチェーンの完全なコミットSHA |
-| `--profile NAME` | 初期プロファイル。複数指定可能 |
-| `--project-policy PATH` | 作成する単一のproject policy scaffold。既定は `policy/project.md` |
-| `--verification-command COMMAND` | 生成指示へ記載する検証コマンド。既定は `./scripts/verify.sh` |
-| `--no-verification` | `verification` セクションを初期設定へ含めない |
-| `--agents-output-path PATH` | agent instructionの生成先。既定は `AGENTS.md` |
-| `--disable-agents-output` | agent instruction生成を初期設定で無効にする。pathは将来の有効化に備えて保持される |
-| `--skill NAME` | 初期状態で生成するskill。`[a-z0-9][a-z0-9-]*`形式で複数指定可能。省略時は `validate-agent-policy` |
+| `--config PATH` | Configuration-file path. Defaults to `.agent-policy.yml`. |
+| `--apply` | Actually apply the plan. |
+| `--toolchain-revision SHA` | Full toolchain commit SHA recorded in configuration and lock state. |
+| `--profile NAME` | Initial profile. May be specified multiple times. |
+| `--project-policy PATH` | Single project-policy scaffold to create. Defaults to `policy/project.md`. |
+| `--verification-command COMMAND` | Verification command recorded in generated instructions. Defaults to `./scripts/verify.sh`. |
+| `--no-verification` | Omit the `verification` section from the initial configuration. |
+| `--agents-output-path PATH` | Generated agent-instruction destination. Defaults to `AGENTS.md`. |
+| `--disable-agents-output` | Disable agent-instruction generation initially while retaining the path for later enablement. |
+| `--skill NAME` | Skill to generate initially. May be specified multiple times and must match `[a-z0-9][a-z0-9-]*`. Defaults to `validate-agent-policy` when omitted. |
 
-プロファイルを省略した場合は `core` と `security-baseline` が選択されます。`init`はplaceholder rule IDの重複を避けるため、project policy scaffoldを一つだけ作成します。複数の既存project policyを保持する導入は`adopt prepare`の責務です。
+If profiles are omitted, `core` and `security-baseline` are selected. To avoid duplicate placeholder rule IDs, `init` creates exactly one project-policy scaffold. Adoption that preserves multiple existing project-policy files is the responsibility of `adopt prepare`.
 
-`init`は書き込み前に、skill名をschema相当の形式で検証し、設定、project policy、agent instruction、generated skillの各ファイル、`.agent-policy.lock`の生成予定pathを正規化して比較します。同一path、一方が他方の親pathとなる組合せ、いずれかの生成先の途中に既存の通常ファイルがある場合を拒否し、部分的な初期化を行いません。生成予定物同士の重複は`INIT_PATH_COLLISION`、既存pathによる妨害は`FILE_CONFLICT`として報告します。
+Before writing, `init` validates skill names against the schema-equivalent form and normalizes and compares every planned path for configuration, project policy, agent instructions, generated skills, and `.agent-policy.lock`. It rejects identical paths, parent/child path overlap, and any planned destination whose ancestor is an existing regular file, rather than performing partial initialization. Collisions among planned outputs are reported as `INIT_PATH_COLLISION`; blocking existing paths are reported as `FILE_CONFLICT`.
 
-既存挙動との互換性のため、verificationを指定しない場合は`./scripts/verify.sh`が設定されます。そのコマンドを持たないリポジトリでは、実際の検証コマンドを明示するか、`--no-verification`を指定します。
+For compatibility with existing behavior, omitting verification configures `./scripts/verify.sh`. In a repository without that command, specify the actual verification command or use `--no-verification`.
 
 ## `adopt inspect`
 
-既存のagent instruction、`.agents/policies`、`.agents/skills`を読み取り専用で調査し、リポジトリを次のいずれかへ分類します。
+Read existing agent instructions, `.agents/policies`, and `.agents/skills` without mutation and classify the repository as one of:
 
 - `unmanaged-empty`
 - `unmanaged-existing`
@@ -62,11 +62,11 @@ agent-policy --repository . adopt inspect
 agent-policy --repository . --format json adopt inspect
 ```
 
-各sourceについてpath、SHA-256、生成マーカーの有無を診断として返します。ファイル内容はreportへ複製しません。repository内のsymlinkをsourceとして発見した場合、reportとadoption stateには発見されたlexical pathを記録し、SHA-256と生成マーカーはrepository内へ安全に解決した実体から計算します。既知のsource tree配下では、既存の通常ファイルを指すsymlinkだけをsourceとして許可します。directory、dangling target、その他の非通常ファイルを指すsymlinkは`inconsistent`として拒否し、repository外を指すsymlinkも拒否します。absolute symlinkはsource自身だけでなく、`.agents`や`.github`などlexical source pathのancestor componentに含まれる場合も`inconsistent`として拒否します。設定、lock、adoption state、生成マーカーだけが残る部分導入状態は`inconsistent`として扱います。
+For each source, diagnostics report its path, SHA-256, and whether it contains a generated marker. File contents are not copied into the report. If a repository-internal symlink is discovered as a source, the report and adoption state record the discovered lexical path, while SHA-256 and the generated marker are calculated from the safely resolved target within the repository. Under known source trees, only symlinks to existing regular files are accepted as sources. Symlinks to directories, dangling targets, or other non-regular files are classified as `inconsistent`, as are symlinks that resolve outside the repository. Absolute symlinks are rejected not only when the source itself is absolute but also when an ancestor component of the lexical source path, such as `.agents` or `.github`, is an absolute symlink. Partial adoption states in which only configuration, lock state, adoption state, or generated markers remain are also classified as `inconsistent`.
 
 ## `adopt prepare`
 
-既存instructionを正本として保持したまま、agent-policy管理へ移行する準備状態を作ります。既定ではdry-runであり、実リポジトリには書き込みません。
+Create a prepared state for migration to agent-policy management while preserving existing instructions as authoritative. The command is a dry run by default and does not write to the live repository.
 
 ```bash
 agent-policy --repository . adopt prepare \
@@ -77,7 +77,7 @@ agent-policy --repository . adopt prepare \
   --verification-command "npm run verify:pr"
 ```
 
-適用する場合は`--apply`を明示します。
+Use `--apply` explicitly to apply the prepared state.
 
 ```bash
 agent-policy --repository . adopt prepare \
@@ -86,49 +86,49 @@ agent-policy --repository . adopt prepare \
   --apply
 ```
 
-`prepare`は一時コピー上でmanifest、project policy、preview、generated skill、lock、adoption stateを完全に生成・検証してから、新規ファイルだけを反映します。既存primary instructionと既存project policyは上書きしません。previewの既定出力先は`.agent-policy/preview/AGENTS.md`です。適用時の各fileはexclusive createで作成し、その呼出しが作成に成功したfileだけを失敗時cleanupの対象にします。
+`prepare` fully generates and validates the manifest, project policy, preview, generated skills, lock state, and adoption state in a temporary copy before creating only new files in the live repository. It does not overwrite the existing primary instructions or existing project policy. The default preview destination is `.agent-policy/preview/AGENTS.md`. Each file is created exclusively during application, and failure cleanup is limited to files that the current invocation successfully created.
 
-主なオプション:
+Main options:
 
-| オプション | 説明 |
+| Option | Description |
 | --- | --- |
-| `--config PATH` | 作成する設定ファイル。既定は `.agent-policy.yml` |
-| `--state PATH` | adoption state。既定は `.agent-policy/adoption.json` |
-| `--apply` | 検証済み準備状態を実際に作成する |
-| `--toolchain-revision SHA` | 設定、lock、stateへ記録するtoolchain revision |
-| `--profile NAME` | 選択するprofile。複数指定可能 |
-| `--primary-instructions PATH` | 保持する既存instruction file。既定は `AGENTS.md` |
-| `--project-policy PATH` | 既存または作成対象のproject policy。複数指定可能 |
-| `--verification-command COMMAND` | repositoryの検証コマンド |
-| `--no-verification` | verificationを設定しない。adoptionではこれが実質的な既定 |
-| `--preview-output-path PATH` | shadow instructionの生成先 |
-| `--skill NAME` | 生成するskill。複数指定可能。省略時は `validate-agent-policy` |
-| `--no-skills` | generated skillを作成しない。`--skill`とは同時指定不可 |
+| `--config PATH` | Configuration file to create. Defaults to `.agent-policy.yml`. |
+| `--state PATH` | Adoption-state path. Defaults to `.agent-policy/adoption.json`. |
+| `--apply` | Actually create the validated prepared state. |
+| `--toolchain-revision SHA` | Toolchain revision recorded in configuration, lock state, and adoption state. |
+| `--profile NAME` | Profile to select. May be specified multiple times. |
+| `--primary-instructions PATH` | Existing instruction file to preserve. Defaults to `AGENTS.md`. |
+| `--project-policy PATH` | Existing or newly created project-policy path. May be specified multiple times. |
+| `--verification-command COMMAND` | Repository verification command. |
+| `--no-verification` | Do not configure verification. This is effectively the adoption default. |
+| `--preview-output-path PATH` | Destination for shadow instructions. |
+| `--skill NAME` | Skill to generate. May be specified multiple times. Defaults to `validate-agent-policy`. |
+| `--no-skills` | Do not create generated skills. Mutually exclusive with `--skill`. |
 
-`--primary-instructions`は、inspectionで発見された`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md`のいずれかでなければなりません。`.agents/policies`または`.agents/skills`配下のsourceはinventoryとadoption stateには記録されますが、primary instructionとしては選択できません。policyまたはskillだけが存在するrepositoryは、対応するinstruction fileを用意するまで`adopt prepare`を実行できません。
+`--primary-instructions` must name an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection. Sources under `.agents/policies` or `.agents/skills` are recorded in the inventory and adoption state but cannot be selected as primary instructions. A repository containing only policy or skills cannot run `adopt prepare` until a corresponding instruction file exists.
 
-複数のproject policyを指定できますが、`prepare`が新規scaffoldとして作成できるmissing fileは一つだけです。既存policyは内容を変更せず、そのままmanifest inputとして採用します。handwrittenの`.agents/skills/validate-agent-policy/SKILL.md`を保持する場合など、既存skillとdefault generated skillが競合するときは`--no-skills`を指定します。
+Multiple project-policy files may be supplied, but `prepare` can create at most one missing file as a new scaffold. Existing policy is left byte-for-byte unchanged and becomes a manifest input. When an existing skill conflicts with the default generated skill, for example a handwritten `.agents/skills/validate-agent-policy/SKILL.md`, specify `--no-skills`.
 
 ## `adopt preview`
 
-prepared stateに記録された不変sourceのhashと設定の整合性を検査し、現在のprofileとproject policyからshadow instruction、generated skill、lockを再生成します。project policyは編集可能なmanifest inputであり、prepare後に変更してpreviewへ反映できます。
+Validate the immutable-source hashes recorded in prepared state and the consistency of configuration, then regenerate shadow instructions, generated skills, and lock state from the current profiles and project policy. Project policy is an editable manifest input and may be changed after preparation before regenerating the preview.
 
 ```bash
 agent-policy --repository . adopt preview
 agent-policy --repository . adopt preview --state .agent-policy/adoption.json
 ```
 
-prepare時に記録したprimary instructionなどの不変sourceが変更または削除されている場合は、`ADOPTION_SOURCE_CHANGED`として停止します。
+If an immutable source recorded during preparation, such as the primary instructions, has been changed or removed, preview stops with `ADOPTION_SOURCE_CHANGED`.
 
 ## `adopt finalize`
 
-prepared stateを正式なmanaged stateへ切り替えます。既定ではdry-runであり、source hash、state/config整合性、preview freshness、backup path、最終renderを一時コピー上で検証するだけです。
+Switch a prepared state into the formal managed state. The command is a dry run by default: it validates source hashes, state/configuration agreement, preview freshness, the backup path, and final rendering in a temporary copy only.
 
 ```bash
 agent-policy --repository . adopt finalize
 ```
 
-cutoverを適用する場合は`--apply`を明示します。
+Use `--apply` explicitly to apply the cutover.
 
 ```bash
 agent-policy --repository . adopt finalize \
@@ -136,62 +136,62 @@ agent-policy --repository . adopt finalize \
   --apply
 ```
 
-finalizeは次の変更を一つのtransactionとして扱います。
+Finalization treats these changes as one transaction:
 
-- handwritten primary instructionをbackup pathへbyte-for-byteで保存する
-- `.agent-policy.yml`のagent outputをprimary instruction pathへ切り替える
-- primary instructionを生成済みinstructionへ置き換える
-- `.agent-policy.lock`を更新する
-- adoption stateを`finalized`へ更新する
-- shadow previewを削除する
+- preserve the handwritten primary instructions byte-for-byte at the backup path;
+- switch the agent output in `.agent-policy.yml` to the primary-instruction path;
+- replace the primary instructions with the generated instructions;
+- update `.agent-policy.lock`;
+- update the adoption state to `finalized`; and
+- remove the shadow preview.
 
-finalizeはconfig、state、lock、preview、adoption stateに記録された全immutable source、project policyを一つの入力snapshotとして扱います。temporary repositoryがそのsnapshotと一致することをrender前に検査し、最初の実書込み直前にもlive repositoryのbytesを再比較します。したがって、validationとstagingの間、またはstagingとtransactionの間にprimary、追加instruction、handwritten skill、policyのいずれかが変更された場合もcutoverせず停止します。config、state、lock、preview、primary instructionはlexical path上の通常ファイルでなければなりません。prepareとpreviewではrepository内の安全なprimary symlinkを保持できますが、finalize前には同じ意図した内容を持つ通常ファイルへmaterializeする必要があります。strict finalization pathがsymlinkへ置換された場合やsymlinked ancestorが導入された場合は、referentを変更せず拒否します。適用後の`check`が失敗した場合を含め、transaction途中の失敗ではtransactionが変更したfileだけを変更前へ戻します。backup pathが既に存在する場合、previewまたはlockがstaleな場合もcutoverしません。
+Finalization treats configuration, adoption state, lock state, preview, every immutable source recorded in adoption state, and project policy as one input snapshot. It verifies that the temporary repository matches that snapshot before rendering and re-compares live repository bytes immediately before the first real write. Therefore a change to the primary instructions, additional instructions, handwritten skills, or policy between validation and staging or between staging and the transaction causes cutover to stop. Configuration, adoption state, lock state, preview, and primary instructions must be regular files at their lexical paths. Preparation and preview may preserve a safe repository-internal primary symlink, but before finalization it must be materialized as a regular file with the same intended content. If a strict finalization path is replaced by a symlink or gains a symlinked ancestor, finalization rejects it without mutating the referent. On any transaction failure, including failure of the post-apply `check`, rollback restores only files changed by that transaction. Cutover also refuses an existing backup path or stale preview or lock state.
 
-主なオプション:
+Main options:
 
-| オプション | 説明 |
+| Option | Description |
 | --- | --- |
-| `--state PATH` | prepared adoption state。既定は `.agent-policy/adoption.json` |
-| `--backup-path PATH` | handwritten primary instructionの保存先 |
-| `--apply` | 検証済みcutoverを実際に適用する |
+| `--state PATH` | Prepared adoption-state path. Defaults to `.agent-policy/adoption.json`. |
+| `--backup-path PATH` | Destination for the handwritten primary instructions. |
+| `--apply` | Actually apply the validated cutover. |
 
 ## `validate`
 
-設定ファイルと参照対象の整合性を検査します。
+Validate the configuration file and referenced inputs.
 
 ```bash
 agent-policy --repository . validate
 agent-policy --repository . validate --config .agent-policy.yml
 ```
 
-検査対象には、YAML／スキーマ、未知のキー、プロファイル、規約ファイル、規則ID、override、入力・出力パスの安全性が含まれます。
+Validation covers YAML/schema correctness, unknown keys, profiles, policy files, rule IDs, overrides, and input/output path safety.
 
 ## `render`
 
-共通規約と製品固有規約を合成し、生成物と `.agent-policy.lock` を更新します。
+Compose shared and product-specific policy and update generated outputs and `.agent-policy.lock`.
 
 ```bash
 agent-policy --repository . render
 ```
 
-生成物は直接編集せず、入力規約または `.agent-policy.yml` を変更して再生成します。
+Do not edit generated outputs directly. Change input policy or `.agent-policy.yml` and regenerate.
 
 ## `check`
 
-設定、入力、ロックファイル、生成物が一致しているかを読み取り専用で確認します。
+Verify read-only that configuration, inputs, lock state, and generated outputs agree.
 
 ```bash
 agent-policy --repository . check
 ```
 
-CIではこのコマンドを使い、規約変更後の再生成漏れや生成物の手動改変を検出します。
+Use this command in CI to detect missed regeneration after policy changes and manual modification of generated outputs.
 
-## JSON出力
+## JSON output
 
-エージェントやCIから診断を処理する場合は、共通オプションの `--format json` を使います。
+Use the common `--format json` option when agents or CI need to process diagnostics.
 
 ```bash
 agent-policy --repository . --format json validate
 ```
 
-終了コードは、エラー診断が一件以上あれば非ゼロになります。
+The exit status is nonzero when one or more error diagnostics are present.
