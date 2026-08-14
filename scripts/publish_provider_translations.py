@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from assemble_publications import load_catalog, load_manifest, pages, parse_publications
+from assemble_publications import load_manifest, pages, parse_publications
+from assemble_publications_v3 import load_catalog
 import publish_translations as translation_publisher
 from translation_manifest_surfaces import (
     TranslationManifestSurfaceError,
