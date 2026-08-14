@@ -14,7 +14,13 @@ from urllib.parse import urlsplit, urlunsplit
 
 LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
-MARKDOWN_LINK = re.compile(r"(?<!!)\[([^\]\n]+)\]\(([^)\n]+)\)")
+INLINE_LINK = re.compile(
+    r"(?P<image>!?)\[(?P<label>[^\]\n]*)\]\((?P<target>[^)\n]+)\)"
+)
+REFERENCE_TARGET = re.compile(
+    r"^(?P<prefix>\s{0,3}\[(?!\^)[^\]\n]+\]:\s*)"
+    r"(?P<target><[^>\n]+>|\S+)(?P<suffix>.*)$"
+)
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 JA_NOTICE = "> **参考訳（非正本）:**"
 
@@ -32,6 +38,13 @@ class TranslationRecord:
     canonical_destination: PurePosixPath
     translation_destination: PurePosixPath
     source_file: Path
+
+
+@dataclass(frozen=True)
+class AssetRoute:
+    source: PurePosixPath
+    destination: PurePosixPath
+    directory: bool
 
 
 def _read_json(path: Path, label: str) -> dict[str, Any]:
@@ -77,7 +90,7 @@ def _safe_path(value: Any, field: str) -> PurePosixPath:
     return path
 
 
-def _regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
+def _walk_path(root: Path, relative: PurePosixPath, field: str) -> Path:
     root = root.resolve(strict=True)
     current = root
     for part in relative.parts:
@@ -92,9 +105,42 @@ def _regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
             raise TranslationPublicationError(
                 f"{field} must not traverse a symlink: {relative}"
             )
+    return current
+
+
+def _regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
+    current = _walk_path(root, relative, field)
     if not current.is_file():
         raise TranslationPublicationError(
             f"{field} must be an existing regular file: {relative}"
+        )
+    return current
+
+
+def _optional_regular_file(
+    root: Path,
+    relative: PurePosixPath,
+    field: str,
+) -> Path | None:
+    root = root.resolve(strict=True)
+    current = root
+    for part in relative.parts:
+        current /= part
+        try:
+            current.relative_to(root)
+        except ValueError as exc:
+            raise TranslationPublicationError(
+                f"{field} must remain within publication root: {relative}"
+            ) from exc
+        if current.is_symlink():
+            raise TranslationPublicationError(
+                f"{field} must not traverse a symlink: {relative}"
+            )
+        if not current.exists():
+            return None
+    if not current.is_file():
+        raise TranslationPublicationError(
+            f"{field} must be a regular file when present: {relative}"
         )
     return current
 
@@ -113,14 +159,14 @@ def _normalize_relative(base: PurePosixPath, raw: str) -> PurePosixPath:
         if part == "..":
             if not parts:
                 raise TranslationPublicationError(
-                    f"translation link escapes the published documentation root: {raw}"
+                    f"translation link escapes the provider root: {raw}"
                 )
             parts.pop()
             continue
         parts.append(part)
     if not parts:
         raise TranslationPublicationError(
-            f"translation link resolves to the published documentation root: {raw}"
+            f"translation link resolves to the provider root: {raw}"
         )
     return PurePosixPath(*parts)
 
@@ -150,6 +196,66 @@ def _validate_japanese_notice(text: str, field: str) -> None:
         )
 
 
+def _asset_routes(
+    publication: str,
+    root: Path,
+    assets: list[dict[str, Any]],
+) -> list[AssetRoute]:
+    routes: list[AssetRoute] = []
+    for index, asset in enumerate(assets):
+        source = asset["source"]
+        destination = PurePosixPath(publication) / asset["destination"]
+        source_path = _walk_path(root, source, f"{publication}.assets[{index}].source")
+        if not source_path.exists():
+            if asset["optional"]:
+                continue
+            raise TranslationPublicationError(
+                f"required publication asset does not exist: {source}"
+            )
+        if not source_path.is_file() and not source_path.is_dir():
+            raise TranslationPublicationError(
+                f"publication asset must be a regular file or directory: {source}"
+            )
+        routes.append(
+            AssetRoute(
+                source=source,
+                destination=destination,
+                directory=source_path.is_dir(),
+            )
+        )
+
+    if not assets:
+        legacy = root / "assets"
+        if legacy.is_symlink():
+            raise TranslationPublicationError(
+                f"{publication} legacy asset root must not be a symlink"
+            )
+        if legacy.is_dir():
+            routes.append(
+                AssetRoute(
+                    source=PurePosixPath("assets"),
+                    destination=PurePosixPath(publication) / "assets",
+                    directory=True,
+                )
+            )
+    return routes
+
+
+def _map_asset(
+    source: PurePosixPath,
+    routes: list[AssetRoute],
+) -> PurePosixPath | None:
+    for route in sorted(routes, key=lambda item: len(item.source.parts), reverse=True):
+        if route.directory:
+            if source == route.source:
+                return route.destination
+            if route.source in source.parents:
+                return route.destination / source.relative_to(route.source)
+        elif source == route.source:
+            return route.destination
+    return None
+
+
 def _split_link_target(raw: str) -> tuple[str, str, str]:
     leading = raw[: len(raw) - len(raw.lstrip())]
     stripped = raw.strip()
@@ -169,15 +275,30 @@ def _relative_destination(
     current: PurePosixPath,
     target: PurePosixPath,
     *,
-    preserve_trailing_slash: bool,
+    trailing_slash: bool = False,
 ) -> str:
     value = posixpath.relpath(
         target.as_posix(),
         start=current.parent.as_posix(),
     )
-    if preserve_trailing_slash and not value.endswith("/"):
+    if trailing_slash and not value.endswith("/"):
         value += "/"
     return value
+
+
+def _document_source(
+    publication: str,
+    source: PurePosixPath,
+    raw_path: str,
+    canonical_destinations: dict[tuple[str, PurePosixPath], PurePosixPath],
+) -> PurePosixPath | None:
+    if (publication, source) in canonical_destinations:
+        return source
+    index_source = source / "index.md"
+    if raw_path.endswith("/") or not source.suffix:
+        if (publication, index_source) in canonical_destinations:
+            return index_source
+    return None
 
 
 def _rewrite_link(
@@ -187,6 +308,7 @@ def _rewrite_link(
     translated_destinations: dict[
         tuple[str, str, PurePosixPath], PurePosixPath
     ],
+    asset_routes: dict[str, list[AssetRoute]],
 ) -> str:
     leading, target, trailing = _split_link_target(raw)
     if not target:
@@ -202,22 +324,43 @@ def _rewrite_link(
         return raw
 
     target_source = _normalize_relative(record.canonical_source.parent, parsed.path)
-    canonical_key = (record.publication, target_source)
-    translated_key = (record.publication, record.language, target_source)
-    if translated_key in translated_destinations:
-        destination = translated_destinations[translated_key]
-    elif canonical_key in canonical_destinations:
-        destination = canonical_destinations[canonical_key]
-    else:
-        destination = _normalize_relative(
-            record.canonical_destination.parent,
-            parsed.path,
+    document_source = _document_source(
+        record.publication,
+        target_source,
+        parsed.path,
+        canonical_destinations,
+    )
+    destination: PurePosixPath
+    trailing_slash = False
+    if document_source is not None:
+        translated_key = (
+            record.publication,
+            record.language,
+            document_source,
         )
+        if translated_key in translated_destinations:
+            destination = translated_destinations[translated_key]
+        else:
+            destination = canonical_destinations[
+                (record.publication, document_source)
+            ]
+    else:
+        asset_destination = _map_asset(
+            target_source,
+            asset_routes.get(record.publication, []),
+        )
+        if asset_destination is None:
+            raise TranslationPublicationError(
+                "translation link does not resolve to a published canonical "
+                f"document or asset: {record.translation_source} -> {target}"
+            )
+        destination = asset_destination
+        trailing_slash = parsed.path.endswith("/")
 
     rewritten_path = _relative_destination(
         record.translation_destination,
         destination,
-        preserve_trailing_slash=parsed.path.endswith("/"),
+        trailing_slash=trailing_slash,
     )
     rewritten = urlunsplit(("", "", rewritten_path, parsed.query, parsed.fragment))
     if raw.strip().startswith("<"):
@@ -232,6 +375,7 @@ def _rewrite_markdown(
     translated_destinations: dict[
         tuple[str, str, PurePosixPath], PurePosixPath
     ],
+    asset_routes: dict[str, list[AssetRoute]],
 ) -> str:
     output: list[str] = []
     fence_character: str | None = None
@@ -253,17 +397,34 @@ def _rewrite_markdown(
             output.append(line)
             continue
 
-        def replace(match: re.Match[str]) -> str:
-            label = match.group(1)
+        def replace_inline(match: re.Match[str]) -> str:
             target = _rewrite_link(
-                match.group(2),
+                match.group("target"),
                 record,
                 canonical_destinations,
                 translated_destinations,
+                asset_routes,
             )
-            return f"[{label}]({target})"
+            return (
+                f"{match.group('image')}[{match.group('label')}]({target})"
+            )
 
-        output.append(MARKDOWN_LINK.sub(replace, line))
+        rewritten = INLINE_LINK.sub(replace_inline, line)
+        reference = REFERENCE_TARGET.match(rewritten.rstrip("\r\n"))
+        if reference:
+            target = _rewrite_link(
+                reference.group("target"),
+                record,
+                canonical_destinations,
+                translated_destinations,
+                asset_routes,
+            )
+            newline = rewritten[len(rewritten.rstrip("\r\n")) :]
+            rewritten = (
+                f"{reference.group('prefix')}{target}"
+                f"{reference.group('suffix')}{newline}"
+            )
+        output.append(rewritten)
     return "".join(output)
 
 
@@ -276,6 +437,7 @@ def _load_records(
 ) -> tuple[
     list[TranslationRecord],
     dict[tuple[str, PurePosixPath], PurePosixPath],
+    dict[str, list[AssetRoute]],
 ]:
     page_destinations = {
         (page["publication"], page["document"]): page["destination"]
@@ -284,32 +446,38 @@ def _load_records(
     canonical_destinations: dict[
         tuple[str, PurePosixPath], PurePosixPath
     ] = {}
-    for publication, (_, documents, _) in publications.items():
+    publication_asset_routes: dict[str, list[AssetRoute]] = {}
+    for publication, (root, documents, assets) in publications.items():
         for document_id, document in documents.items():
             destination = page_destinations.get((publication, document_id))
             if destination is not None:
                 canonical_destinations[(publication, document["source"])] = destination
+        publication_asset_routes[publication] = _asset_routes(
+            publication,
+            root,
+            assets,
+        )
 
     records: list[TranslationRecord] = []
     seen_pairs: set[tuple[str, str, PurePosixPath]] = set()
     seen_translation_paths: set[tuple[str, PurePosixPath]] = set()
 
+    manifest_relative = PurePosixPath("translations/manifest.json")
     for publication, (root, documents, _) in sorted(publications.items()):
-        manifest_path = root / "translations" / "manifest.json"
-        if not manifest_path.exists():
+        manifest_path = _optional_regular_file(
+            root,
+            manifest_relative,
+            f"{publication} translation manifest",
+        )
+        if manifest_path is None:
             continue
-        if manifest_path.is_symlink() or not manifest_path.is_file():
-            raise TranslationPublicationError(
-                f"{publication} translation manifest must be a regular file"
-            )
         manifest = _read_json(manifest_path, f"{publication} translation manifest")
         if set(manifest) != {"schema_version", "canonical_language", "translations"}:
             raise TranslationPublicationError(
                 f"{publication} translation manifest has unsupported fields"
             )
-        if manifest["schema_version"] != 1 or isinstance(
-            manifest["schema_version"], bool
-        ):
+        version = manifest["schema_version"]
+        if type(version) is not int or version != 1:
             raise TranslationPublicationError(
                 f"{publication} translation manifest schema_version must be integer 1"
             )
@@ -419,7 +587,7 @@ def _load_records(
                 )
             )
 
-    return records, canonical_destinations
+    return records, canonical_destinations, publication_asset_routes
 
 
 def publish_translations(
@@ -431,7 +599,10 @@ def publish_translations(
     docs_root: Path,
 ) -> list[TranslationRecord]:
     """Publish only explicitly declared, synchronized provider translations."""
-    records, canonical_destinations = _load_records(publications, included_pages)
+    records, canonical_destinations, asset_routes = _load_records(
+        publications,
+        included_pages,
+    )
     translated_destinations = {
         (record.publication, record.language, record.canonical_source):
         record.translation_destination
@@ -468,6 +639,7 @@ def publish_translations(
             record,
             canonical_destinations,
             translated_destinations,
+            asset_routes,
         )
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(rewritten, encoding="utf-8")
