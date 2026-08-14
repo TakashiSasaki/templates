@@ -1,7 +1,6 @@
-from __future__ import annotations
-
-import json
 from pathlib import Path
+
+from scripts.validate_publication_catalog import validate_catalog
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,10 +23,11 @@ def test_root_navigation_separates_policy_layers() -> None:
 
 
 def test_layer_navigation_entries_are_published() -> None:
-    catalog = json.loads(
-        (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
+    documents, _assets = validate_catalog(
+        ROOT / "docs" / "publication-catalog.json",
+        ROOT,
     )
-    documents = {document["id"]: document for document in catalog["documents"]}
+    by_id = {document.document_id: document for document in documents}
 
     expected = {
         "provider-navigation": "docs/provider/index.md",
@@ -35,12 +35,10 @@ def test_layer_navigation_entries_are_published() -> None:
         "consumer-policy-navigation": "docs/consumer/index.md",
     }
     for document_id, source in expected.items():
-        assert documents[document_id] == {
-            "id": document_id,
-            "source": source,
-            "optional": False,
-            "home": False,
-        }
+        document = by_id[document_id]
+        assert document.source.as_posix() == source
+        assert document.optional is False
+        assert document.home is False
 
 
 def test_provider_environment_link_targets_a_document() -> None:
