@@ -7,17 +7,37 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from assemble_publications import load_catalog, load_manifest, pages, parse_publications
-from publish_translations import (
-    TranslationPublicationError,
-    TranslationRecord,
-    publish_translations,
+import publish_translations as translation_publisher
+from translation_manifest_surfaces import (
+    TranslationManifestSurfaceError,
+    project_reader_manifest,
 )
 from translation_reader_metadata import exclude_translation_from_search
 
 
-def write_publication_map(path: Path, records: list[TranslationRecord]) -> None:
+def install_reader_manifest_surface_adapter() -> None:
+    """Project schema-v2 manifests before the reader-only publisher consumes them."""
+    original = translation_publisher._read_json
+    if getattr(original, "_reader_surface_adapter", False):
+        return
+
+    def read_json(path: Path, label: str) -> dict[str, Any]:
+        value = original(path, label)
+        if path.name == "manifest.json" and path.parent.name == "translations":
+            return project_reader_manifest(value, label)
+        return value
+
+    setattr(read_json, "_reader_surface_adapter", True)
+    translation_publisher._read_json = read_json
+
+
+def write_publication_map(
+    path: Path,
+    records: list[translation_publisher.TranslationRecord],
+) -> None:
     translations = []
     for record in records:
         translations.append(
@@ -61,7 +81,12 @@ def main() -> int:
             for page in pages(navigation)
             if docs_root.joinpath(*page["destination"].parts).is_file()
         ]
-        records = publish_translations(publications, included_pages, docs_root)
+        install_reader_manifest_surface_adapter()
+        records = translation_publisher.publish_translations(
+            publications,
+            included_pages,
+            docs_root,
+        )
         for record in records:
             exclude_translation_from_search(
                 docs_root.joinpath(*record.translation_destination.parts)
@@ -71,7 +96,12 @@ def main() -> int:
             records,
         )
         print(f"translations published: {len(records)}")
-    except (OSError, TranslationPublicationError, RuntimeError) as exc:
+    except (
+        OSError,
+        TranslationManifestSurfaceError,
+        translation_publisher.TranslationPublicationError,
+        RuntimeError,
+    ) as exc:
         print(f"publish_provider_translations.py: {exc}", file=sys.stderr)
         return 1
     return 0
