@@ -1,4 +1,4 @@
-# agent-policy provider navigation
+# agent-policy navigation
 
 ## Provider and toolchain
 
