@@ -95,6 +95,41 @@ def catalog_sources(root: Path) -> set[PurePosixPath]:
     return result
 
 
+def validate_japanese_notice(path: Path, translation: PurePosixPath) -> None:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise TranslationError(
+            f"unable to inspect Japanese translation notice: {translation}"
+        ) from exc
+
+    index = 0
+    if lines and lines[0] == "---":
+        try:
+            index = lines.index("---", 1) + 1
+        except ValueError as exc:
+            raise TranslationError(
+                f"Japanese translation has unterminated front matter: {translation}"
+            ) from exc
+
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    if index >= len(lines) or not lines[index].startswith("# "):
+        raise TranslationError(
+            "Japanese translation must place a top-level title before the "
+            f"non-authoritative notice: {translation}"
+        )
+
+    index += 1
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    if index >= len(lines) or not lines[index].startswith(JA_NOTICE):
+        raise TranslationError(
+            "Japanese translation must place the non-authoritative notice "
+            f"immediately after its top-level title: {translation}"
+        )
+
+
 def validate(root: Path) -> list[str]:
     root = root.resolve(strict=True)
     manifest = read_json(
@@ -195,17 +230,7 @@ def validate(root: Path) -> list[str]:
             )
 
         if language == "ja":
-            try:
-                first_line = translation_file.read_text(encoding="utf-8").splitlines()[0]
-            except (OSError, UnicodeError, IndexError) as exc:
-                raise TranslationError(
-                    f"unable to inspect Japanese translation notice: {translation}"
-                ) from exc
-            if not first_line.startswith(JA_NOTICE):
-                raise TranslationError(
-                    "Japanese translation must begin with the non-authoritative "
-                    f"notice: {translation}"
-                )
+            validate_japanese_notice(translation_file, translation)
 
     discovered = {
         PurePosixPath(path.relative_to(root).as_posix())
