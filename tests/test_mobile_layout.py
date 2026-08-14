@@ -4,18 +4,18 @@ import unittest
 from pathlib import Path
 
 from scripts.check_mobile_layout import (
+    CASES,
     CheckCase,
     MobileLayoutError,
-    _browser_runtime_arguments,
     _number,
-    harness_html,
-    parse_harness_result,
+    _validate_cases,
     validate_metrics,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
+VISUAL_REQUIREMENTS = ROOT / "requirements-visual.txt"
 
 
 def compact_metrics() -> dict:
@@ -108,9 +108,9 @@ class MobileLayoutRegressionTests(unittest.TestCase):
                 case,
                 390,
                 844,
-                {"ready": False, "error": "frame failed"},
+                {"ready": False, "error": "page failed"},
             ),
-            ["harness did not become ready: frame failed"],
+            ["browser measurement did not become ready: page failed"],
         )
         metrics = compact_metrics()
         metrics["viewport"] = {"width": "390", "height": 844}
@@ -129,46 +129,38 @@ class MobileLayoutRegressionTests(unittest.TestCase):
                 with self.assertRaisesRegex(MobileLayoutError, "metric must be finite"):
                     _number(value, "metric")
 
-    def test_parse_harness_result_extracts_json_and_rejects_invalid_output(self) -> None:
-        parsed = parse_harness_result(
-            '<html><pre id="result">{&quot;ready&quot;:true,&quot;value&quot;:1}</pre></html>'
+    def test_layout_cases_are_fixed_same_origin_paths(self) -> None:
+        _validate_cases()
+        self.assertGreaterEqual(len(CASES), 4)
+        for case in CASES:
+            with self.subTest(case=case.name):
+                self.assertTrue(case.path.startswith("/"))
+                self.assertFalse(case.path.startswith("//"))
+                self.assertNotIn("\\", case.path)
+
+    def test_visual_dependency_is_pinned(self) -> None:
+        self.assertEqual(
+            VISUAL_REQUIREMENTS.read_text(encoding="utf-8"),
+            "playwright==1.61.0\n",
         )
-        self.assertEqual(parsed, {"ready": True, "value": 1})
 
-        with self.assertRaisesRegex(MobileLayoutError, "did not contain harness result"):
-            parse_harness_result("<html><body>missing</body></html>")
-        with self.assertRaisesRegex(MobileLayoutError, "result is not JSON"):
-            parse_harness_result('<pre id="result">not-json</pre>')
-
-    def test_harness_keeps_measurement_same_origin(self) -> None:
-        text = harness_html()
-        self.assertIn('frame.src = target;', text)
-        self.assertIn('target.startsWith("/")', text)
-        self.assertIn('target.startsWith("//")', text)
-        self.assertIn('target.includes("\\\\")', text)
-        self.assertNotIn("http://", text)
-        self.assertNotIn("https://", text)
-
-    def test_browser_sandbox_disablement_is_explicit_and_opt_in(self) -> None:
-        sandboxed = _browser_runtime_arguments("/tmp/profile", no_sandbox=False)
-        unsandboxed = _browser_runtime_arguments("/tmp/profile", no_sandbox=True)
-        self.assertNotIn("--no-sandbox", sandboxed)
-        self.assertIn("--no-sandbox", unsandboxed)
-
-    def test_workflow_reuses_pages_artifact_and_uploads_visual_evidence(self) -> None:
+    def test_workflow_reuses_pages_artifact_and_runs_playwright_chromium(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("actions/github-script@v8", workflow)
         self.assertIn("workflow_id: 'build-pages.yml'", workflow)
         self.assertIn("actions/download-artifact@v5", workflow)
-        self.assertIn("browser-actions/setup-chrome@v2", workflow)
+        self.assertIn("actions/setup-python@v6", workflow)
+        self.assertIn("requirements-visual.txt", workflow)
+        self.assertIn("python -m playwright install --with-deps chromium", workflow)
         self.assertIn("scripts/check_mobile_layout.py", workflow)
-        self.assertIn("--no-sandbox", workflow)
         self.assertIn("build/mobile-visual", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name == github.repository",
             workflow,
         )
+        self.assertNotIn("browser-actions/setup-chrome", workflow)
+        self.assertNotIn("--no-sandbox", workflow)
         self.assertNotIn("actions/upload-pages-artifact", workflow)
 
 
