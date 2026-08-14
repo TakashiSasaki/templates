@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "canonical_language": "en",
+  "translations": [
+    {
+      "canonical": "docs/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/index.md",
+      "canonical_blob_sha": "2e4487b1e9aa2a1b821bc6ceabfc4483b0dcf9af",
+      "surfaces": ["guided"]
+    },
+    {
+      "canonical": "docs/architecture/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/architecture/index.md",
+      "canonical_blob_sha": "551e2b2fb6caf6f937531a550ca4df6446417405",
+      "surfaces": ["guided"]
+    },
+    {
+      "canonical": "template/docs/index.md",
+      "language": "ja",
+      "translation": "translations/ja/template/docs/index.md",
+      "canonical_blob_sha": "a30f0aba7334401da772d5b0a0729d1e7fec60d5",
+      "surfaces": ["guided"]
+    }
+  ]
+}

@@ -64,6 +64,14 @@ jobs:
         shell: bash
         run: python .github/scripts/validate_publication_catalog.py
 
+      - name: Test translation contract
+        shell: bash
+        run: python .github/scripts/test_translations.py
+
+      - name: Validate translations
+        shell: bash
+        run: python .github/scripts/validate_translations.py .
+
       - name: Reject Ruby tooling regression
         shell: bash
         run: python .github/scripts/test_no_ruby.py
