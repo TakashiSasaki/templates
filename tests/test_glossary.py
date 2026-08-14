@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.generate_glossary import generate
-from scripts.glossary import GlossaryError, integrate_glossaries, load_glossary
+from scripts.glossary import (
+    GlossaryError,
+    glossary_source_from_catalog,
+    integrate_glossaries,
+    load_glossary,
+)
 
 
 REPO_TERM = """schema_version: 1
@@ -50,12 +58,22 @@ class GlossarySchemaTests(unittest.TestCase):
 
     def test_repository_term_preserves_japanese_labels(self) -> None:
         terms = self.load_text(REPO_TERM)
-        self.assertEqual(terms[0]["localized_labels"]["ja"]["term"], "プロバイダーブランチ")
-        self.assertEqual(terms[0]["localized_labels"]["ja"]["aliases"], ["提供ブランチ"])
+        self.assertEqual(
+            terms[0]["localized_labels"]["ja"]["term"],
+            "プロバイダーブランチ",
+        )
+        self.assertEqual(
+            terms[0]["localized_labels"]["ja"]["aliases"],
+            ["提供ブランチ"],
+        )
 
     def test_external_term_requires_authority(self) -> None:
         text = EXTERNAL_TERM.replace(
-            "    authority:\n      kind: upstream\n      sources:\n        - title: Git glossary\n          url: https://git-scm.com/docs/gitglossary\n",
+            "    authority:\n"
+            "      kind: upstream\n"
+            "      sources:\n"
+            "        - title: Git glossary\n"
+            "          url: https://git-scm.com/docs/gitglossary\n",
             "",
         )
         with self.assertRaisesRegex(GlossaryError, "authority is required"):
@@ -63,25 +81,59 @@ class GlossarySchemaTests(unittest.TestCase):
 
     def test_repository_term_rejects_external_namespace(self) -> None:
         with self.assertRaisesRegex(GlossaryError, "must start with templates-"):
-            self.load_text(REPO_TERM.replace("templates-provider-branch", "external-git-provider-branch"))
+            self.load_text(
+                REPO_TERM.replace(
+                    "templates-provider-branch",
+                    "external-git-provider-branch",
+                )
+            )
 
     def test_external_term_rejects_repository_namespace(self) -> None:
         with self.assertRaisesRegex(GlossaryError, "external-<domain>-<slug>"):
-            self.load_text(EXTERNAL_TERM.replace("external-git-branch", "templates-git-branch"))
+            self.load_text(
+                EXTERNAL_TERM.replace(
+                    "external-git-branch",
+                    "templates-git-branch",
+                )
+            )
 
     def test_localized_english_is_rejected(self) -> None:
         text = REPO_TERM.replace("      ja:\n", "      en:\n")
         with self.assertRaisesRegex(GlossaryError, "canonical English"):
             self.load_text(text)
 
+    def test_language_tags_are_unique_ignoring_case(self) -> None:
+        text = REPO_TERM.replace(
+            "    origin: repository\n",
+            "      JA:\n"
+            "        term: 別表記\n"
+            "    origin: repository\n",
+        )
+        with self.assertRaisesRegex(GlossaryError, "duplicate language tags"):
+            self.load_text(text)
+
     def test_duplicate_labels_within_one_locale_are_rejected(self) -> None:
-        text = REPO_TERM.replace("          - 提供ブランチ", "          - プロバイダーブランチ")
+        text = REPO_TERM.replace(
+            "          - 提供ブランチ",
+            "          - プロバイダーブランチ",
+        )
         with self.assertRaisesRegex(GlossaryError, "duplicate labels"):
             self.load_text(text)
 
     def test_duplicate_yaml_mapping_key_is_rejected(self) -> None:
-        text = REPO_TERM.replace("    term: Provider branch\n", "    term: Provider branch\n    term: Duplicate\n")
+        text = REPO_TERM.replace(
+            "    term: Provider branch\n",
+            "    term: Provider branch\n    term: Duplicate\n",
+        )
         with self.assertRaisesRegex(GlossaryError, "duplicate mapping key"):
+            self.load_text(text)
+
+    def test_non_string_yaml_mapping_key_is_rejected(self) -> None:
+        text = REPO_TERM.replace(
+            "    origin: repository\n",
+            "    1: invalid\n    origin: repository\n",
+        )
+        with self.assertRaisesRegex(GlossaryError, "mapping keys must be strings"):
             self.load_text(text)
 
     def test_yaml_alias_is_rejected(self) -> None:
@@ -97,23 +149,57 @@ terms:
         with self.assertRaisesRegex(GlossaryError, "anchors and aliases"):
             self.load_text(text)
 
+    def test_yaml_merge_key_is_rejected(self) -> None:
+        text = REPO_TERM.replace(
+            "    origin: repository\n",
+            "    <<:\n      summary: merged\n    origin: repository\n",
+        )
+        with self.assertRaisesRegex(GlossaryError, "merge keys"):
+            self.load_text(text)
+
     def test_custom_tag_is_rejected(self) -> None:
-        text = REPO_TERM.replace("term: Provider branch", "term: !custom Provider branch")
+        text = REPO_TERM.replace(
+            "term: Provider branch",
+            "term: !custom Provider branch",
+        )
         with self.assertRaisesRegex(GlossaryError, "custom tags"):
             self.load_text(text)
 
     def test_http_authority_url_is_rejected(self) -> None:
         with self.assertRaisesRegex(GlossaryError, "absolute HTTPS URL"):
-            self.load_text(EXTERNAL_TERM.replace("https://git-scm.com", "http://git-scm.com"))
+            self.load_text(
+                EXTERNAL_TERM.replace(
+                    "https://git-scm.com",
+                    "http://git-scm.com",
+                )
+            )
+
+    def test_authority_url_whitespace_is_rejected(self) -> None:
+        with self.assertRaisesRegex(GlossaryError, "must not contain whitespace"):
+            self.load_text(
+                EXTERNAL_TERM.replace(
+                    "https://git-scm.com/docs/gitglossary",
+                    "https://git-scm.com/docs/git glossary",
+                )
+            )
 
     def test_unknown_term_field_is_rejected(self) -> None:
-        text = REPO_TERM.replace("    origin: repository\n", "    origin: repository\n    owner: site\n")
+        text = REPO_TERM.replace(
+            "    origin: repository\n",
+            "    origin: repository\n    owner: site\n",
+        )
         with self.assertRaisesRegex(GlossaryError, "unsupported fields: owner"):
             self.load_text(text)
 
 
 class IntegratedGlossaryTests(unittest.TestCase):
-    def make_provider(self, root: Path, name: str, glossary: str, related: str | None = None) -> Path:
+    def make_provider(
+        self,
+        root: Path,
+        name: str,
+        glossary: str,
+        related: str | None = None,
+    ) -> Path:
         provider = root / name
         docs = provider / "docs"
         docs.mkdir(parents=True)
@@ -143,13 +229,34 @@ class IntegratedGlossaryTests(unittest.TestCase):
         )
         return provider
 
+    def test_explicit_null_glossary_declaration_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = self.make_provider(root, "site", REPO_TERM)
+            catalog = provider / "docs" / "publication-catalog.json"
+            value = json.loads(catalog.read_text(encoding="utf-8"))
+            value["glossary"] = None
+            catalog.write_text(json.dumps(value), encoding="utf-8")
+            with self.assertRaisesRegex(GlossaryError, "must contain only source"):
+                glossary_source_from_catalog(provider)
+
     def test_same_japanese_label_can_resolve_to_multiple_ids(self) -> None:
-        first = REPO_TERM.replace("templates-provider-branch", "templates-policy-profile").replace(
-            "Provider branch", "Policy profile"
-        ).replace("プロバイダーブランチ", "プロファイル")
-        second = REPO_TERM.replace("templates-provider-branch", "templates-skill-profile").replace(
-            "Provider branch", "Skill profile"
-        ).replace("プロバイダーブランチ", "プロファイル")
+        first = (
+            REPO_TERM.replace(
+                "templates-provider-branch",
+                "templates-policy-profile",
+            )
+            .replace("Provider branch", "Policy profile")
+            .replace("プロバイダーブランチ", "プロファイル")
+        )
+        second = (
+            REPO_TERM.replace(
+                "templates-provider-branch",
+                "templates-skill-profile",
+            )
+            .replace("Provider branch", "Skill profile")
+            .replace("プロバイダーブランチ", "プロファイル")
+        )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             policy = self.make_provider(root, "policy", first)
@@ -195,16 +302,42 @@ class IntegratedGlossaryTests(unittest.TestCase):
             site = self.make_provider(root, "site", REPO_TERM)
             output1 = root / "one.json"
             output2 = root / "two.json"
-            args_publication = [f"site={site}"]
-            args_revision = ["site=" + "a" * 40]
-            generate(args_publication, args_revision, "TakashiSasaki/templates", output1)
-            generate(args_publication, args_revision, "TakashiSasaki/templates", output2)
+            publication_args = [f"site={site}"]
+            revision_args = ["site=" + "a" * 40]
+            generate(
+                publication_args,
+                revision_args,
+                "TakashiSasaki/templates",
+                output1,
+            )
+            generate(
+                publication_args,
+                revision_args,
+                "TakashiSasaki/templates",
+                output2,
+            )
             self.assertEqual(output1.read_bytes(), output2.read_bytes())
             value = json.loads(output1.read_text(encoding="utf-8"))
             term = value["terms"][0]
             self.assertEqual(term["provider"], "site")
             self.assertEqual(term["source_path"], "docs/glossary.yml")
             self.assertEqual(term["source_revision"], "a" * 40)
+
+    def test_generator_script_runs_without_repository_pythonpath(self) -> None:
+        script = Path(__file__).resolve().parents[1] / "scripts" / "generate_glossary.py"
+        env = dict(os.environ)
+        env.pop("PYTHONPATH", None)
+        with tempfile.TemporaryDirectory() as directory:
+            completed = subprocess.run(
+                [sys.executable, str(script), "--help"],
+                cwd=directory,
+                env=env,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
 
 if __name__ == "__main__":
