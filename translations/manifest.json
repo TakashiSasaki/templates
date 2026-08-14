@@ -1,66 +1,111 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "canonical_language": "en",
   "translations": [
     {
       "canonical": "docs/overview.md",
       "language": "ja",
       "translation": "translations/ja/docs/overview.md",
-      "canonical_blob_sha": "612a73dc0ebb835156655ee48b716e78189d0ce7"
+      "canonical_blob_sha": "612a73dc0ebb835156655ee48b716e78189d0ce7",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/getting-started.md",
       "language": "ja",
       "translation": "translations/ja/docs/getting-started.md",
-      "canonical_blob_sha": "752c4f909976e51d7de9ed4e0b82a4afd34f804d"
+      "canonical_blob_sha": "752c4f909976e51d7de9ed4e0b82a4afd34f804d",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/managed-operation.md",
       "language": "ja",
       "translation": "translations/ja/docs/managed-operation.md",
-      "canonical_blob_sha": "c3943184f814fe4d6efaf4cfe518f6853d91dd2e"
+      "canonical_blob_sha": "c3943184f814fe4d6efaf4cfe518f6853d91dd2e",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/cli.md",
       "language": "ja",
       "translation": "translations/ja/docs/cli.md",
-      "canonical_blob_sha": "eeb0f6c7fdbe84dcf7260b5d516988e25e810662"
+      "canonical_blob_sha": "eeb0f6c7fdbe84dcf7260b5d516988e25e810662",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/bootstrap.md",
       "language": "ja",
       "translation": "translations/ja/docs/bootstrap.md",
-      "canonical_blob_sha": "499491f0343a5bf9f1abb0882b7c8c72eb1f880e"
+      "canonical_blob_sha": "499491f0343a5bf9f1abb0882b7c8c72eb1f880e",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/pwa.md",
       "language": "ja",
       "translation": "translations/ja/docs/pwa.md",
-      "canonical_blob_sha": "68af9688c623f4ca1abc743c98aa1ae00cf9a1bc"
+      "canonical_blob_sha": "68af9688c623f4ca1abc743c98aa1ae00cf9a1bc",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/agent-environments/google-ai-studio.md",
       "language": "ja",
       "translation": "translations/ja/docs/agent-environments/google-ai-studio.md",
-      "canonical_blob_sha": "0c32159c61433dabafb33f49f5a97f703b8482f7"
+      "canonical_blob_sha": "0c32159c61433dabafb33f49f5a97f703b8482f7",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/repository-structure.md",
       "language": "ja",
       "translation": "translations/ja/docs/repository-structure.md",
-      "canonical_blob_sha": "28a7f6b1455961a83f25aedd18857f0732dd44c6"
+      "canonical_blob_sha": "28a7f6b1455961a83f25aedd18857f0732dd44c6",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/external-artifact-intake.md",
       "language": "ja",
       "translation": "translations/ja/docs/external-artifact-intake.md",
-      "canonical_blob_sha": "7e9500fcaa509bcda8de4b52b14f2e1e44a3ba20"
+      "canonical_blob_sha": "7e9500fcaa509bcda8de4b52b14f2e1e44a3ba20",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/regression-prevention.md",
       "language": "ja",
       "translation": "translations/ja/docs/regression-prevention.md",
-      "canonical_blob_sha": "18f8ee64e40d2e23cdccb77ef92c495a1add9e13"
+      "canonical_blob_sha": "18f8ee64e40d2e23cdccb77ef92c495a1add9e13",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/index.md",
+      "canonical_blob_sha": "57ad8125a662becb0fef197c06a038ef54abd032",
+      "surfaces": ["guided"]
+    },
+    {
+      "canonical": "docs/provider/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/provider/index.md",
+      "canonical_blob_sha": "cb611f36ff700e5b2424f47911d3307a8f152548",
+      "surfaces": ["reader", "guided"]
+    },
+    {
+      "canonical": "docs/shared-policy/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/shared-policy/index.md",
+      "canonical_blob_sha": "f1b93088a7c7f202dfd90247c1a10df124d9e02a",
+      "surfaces": ["reader", "guided"]
+    },
+    {
+      "canonical": "docs/consumer/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/consumer/index.md",
+      "canonical_blob_sha": "38e1bc18f09c50f8846d26b45cc1b839de6a18c1",
+      "surfaces": ["reader", "guided"]
+    },
+    {
+      "canonical": "docs/adr/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/adr/index.md",
+      "canonical_blob_sha": "daac56b7f841a60003f1184985af6b50cc98a300",
+      "surfaces": ["reader", "guided"]
     }
   ]
 }

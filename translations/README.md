@@ -1,6 +1,6 @@
 # Repository translations
 
-English is the canonical language of maintained repository documentation. Files under `translations/<language>/` are non-authoritative translations of canonical English sources and must not define independent requirements.
+English is the canonical language of maintained repository documentation. Files under `translations/<language>/` are non-authoritative translations of canonical English sources and must not define independent requirements, navigation structure, or authority.
 
 ## Authority
 
@@ -14,4 +14,15 @@ For every translated document:
 
 `translations/manifest.json` records the relationship between canonical documents and translations. `canonical_blob_sha` is the Git blob SHA-1 of the canonical file bytes against which that translation was reviewed. The translation validator recomputes the blob identity from the current canonical bytes and rejects stale records.
 
-Translations are not currently part of `docs/publication-catalog.json`; the publication catalog continues to expose only canonical English documents. A publication layer may add translated routes only after it preserves this one-way authority relationship and makes the non-authoritative status explicit to readers.
+## Translation surfaces
+
+Manifest schema version 2 declares the presentation surfaces on which each translation may be used:
+
+- `reader` allows a translation of a canonical document selected by `docs/publication-catalog.json` to be exposed as a non-authoritative reader route;
+- `guided` allows a translation of an `index.md` document to provide localized labels and explanatory prose for index-guided navigation.
+
+A translation may declare both surfaces. A `reader` translation must correspond to a canonical document in the publication catalog. A `guided` translation may be outside the publication catalog, but its canonical source must be an `index.md` document.
+
+The `guided` surface does not create a second navigation authority. Link targets, reachability, ordering, and graph structure remain defined only by canonical English `index.md` files. A site integration may use the translated `index.md` text only as a locale overlay on that canonical graph and must fall back to canonical English when an overlay is unavailable.
+
+Translations remain separate from `docs/publication-catalog.json`; the publication catalog continues to expose only canonical English documents. A publication layer may add translated routes or localized guided views only after it preserves this one-way authority relationship and makes the non-authoritative status explicit to readers.

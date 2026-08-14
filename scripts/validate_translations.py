@@ -13,6 +13,7 @@ from typing import Any
 LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
 JA_NOTICE = "> **参考訳（非正本）:**"
+ALLOWED_SURFACES = {"reader", "guided"}
 
 
 class TranslationError(RuntimeError):
@@ -130,6 +131,21 @@ def validate_japanese_notice(path: Path, translation: PurePosixPath) -> None:
         )
 
 
+def validate_surfaces(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not value:
+        raise TranslationError(f"{field} must be a non-empty array")
+    surfaces: list[str] = []
+    for index, surface in enumerate(value):
+        if not isinstance(surface, str) or surface not in ALLOWED_SURFACES:
+            raise TranslationError(
+                f"{field}[{index}] must be one of reader or guided"
+            )
+        if surface in surfaces:
+            raise TranslationError(f"{field} must not contain duplicate surfaces")
+        surfaces.append(surface)
+    return tuple(surfaces)
+
+
 def validate(root: Path) -> list[str]:
     root = root.resolve(strict=True)
     manifest = read_json(
@@ -148,10 +164,8 @@ def validate(root: Path) -> list[str]:
         )
 
     schema_version = manifest["schema_version"]
-    if not isinstance(schema_version, int) or isinstance(schema_version, bool):
-        raise TranslationError("translation manifest schema_version must be integer 1")
-    if schema_version != 1:
-        raise TranslationError("translation manifest schema_version must be integer 1")
+    if type(schema_version) is not int or schema_version != 2:
+        raise TranslationError("translation manifest schema_version must be integer 2")
     if manifest["canonical_language"] != "en":
         raise TranslationError("translation manifest canonical_language must be en")
 
@@ -162,6 +176,7 @@ def validate(root: Path) -> list[str]:
     published = catalog_sources(root)
     seen_pairs: set[tuple[PurePosixPath, str]] = set()
     declared_translation_paths: set[PurePosixPath] = set()
+    surface_counts = {surface: 0 for surface in sorted(ALLOWED_SURFACES)}
 
     for index, entry in enumerate(entries):
         field = f"translations[{index}]"
@@ -170,17 +185,19 @@ def validate(root: Path) -> list[str]:
             "language",
             "translation",
             "canonical_blob_sha",
+            "surfaces",
         }
         if not isinstance(entry, dict) or set(entry) != required:
             raise TranslationError(
                 f"{field} must contain canonical, language, translation, "
-                "and canonical_blob_sha"
+                "canonical_blob_sha, and surfaces"
             )
 
         canonical = safe_path(entry["canonical"], f"{field}.canonical")
         language = entry["language"]
         translation = safe_path(entry["translation"], f"{field}.translation")
         blob_sha = entry["canonical_blob_sha"]
+        surfaces = validate_surfaces(entry["surfaces"], f"{field}.surfaces")
 
         if (
             not isinstance(language, str)
@@ -198,9 +215,13 @@ def validate(root: Path) -> list[str]:
             raise TranslationError(
                 f"{field} canonical and translation paths must be Markdown"
             )
-        if canonical not in published:
+        if "reader" in surfaces and canonical not in published:
             raise TranslationError(
                 f"{field}.canonical is not a published canonical document: {canonical}"
+            )
+        if "guided" in surfaces and canonical.name != "index.md":
+            raise TranslationError(
+                f"{field}.canonical must be an index.md document for guided use: {canonical}"
             )
 
         expected_translation = PurePosixPath("translations") / language / canonical
@@ -232,6 +253,9 @@ def validate(root: Path) -> list[str]:
         if language == "ja":
             validate_japanese_notice(translation_file, translation)
 
+        for surface in surfaces:
+            surface_counts[surface] += 1
+
     discovered = {
         PurePosixPath(path.relative_to(root).as_posix())
         for path in (root / "translations").glob("*/**/*.md")
@@ -249,6 +273,8 @@ def validate(root: Path) -> list[str]:
     return [
         f"canonical language: {manifest['canonical_language']}",
         f"translations validated: {len(entries)}",
+        f"reader translations: {surface_counts['reader']}",
+        f"guided translations: {surface_counts['guided']}",
     ]
 
 
