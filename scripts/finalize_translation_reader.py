@@ -124,10 +124,16 @@ def _attribute_span(tag: str, attribute: str) -> tuple[int, int] | None:
                 while index < limit and tag[index] != quote:
                     index += 1
                 if index >= limit:
-                    raise TranslationReaderError("html start tag contains an unterminated attribute")
+                    raise TranslationReaderError(
+                        "html start tag contains an unterminated attribute"
+                    )
                 index += 1
             else:
-                while index < limit and not tag[index].isspace() and tag[index] not in "/>":
+                while (
+                    index < limit
+                    and not tag[index].isspace()
+                    and tag[index] not in "/>"
+                ):
                     index += 1
         if name.casefold() == attribute.casefold():
             return name_start, index
@@ -253,8 +259,20 @@ def inject_switcher(source: str, markup: str, path: Path) -> str:
 
 def load_pairs(path: Path) -> list[dict[str, Any]]:
     data = read_json(path)
-    if set(data) != {"schema_version", "canonical_language", "translations"}:
-        raise TranslationReaderError("translation map has unsupported fields")
+    expected_fields = {"schema_version", "canonical_language", "translations"}
+    actual_fields = set(data)
+    missing_fields = expected_fields - actual_fields
+    unsupported_fields = actual_fields - expected_fields
+    if missing_fields:
+        raise TranslationReaderError(
+            "translation map is missing required fields: "
+            + ", ".join(sorted(missing_fields))
+        )
+    if unsupported_fields:
+        raise TranslationReaderError(
+            "translation map has unsupported fields: "
+            + ", ".join(sorted(unsupported_fields))
+        )
     version = data["schema_version"]
     if type(version) is not int or version != 1:
         raise TranslationReaderError("translation map schema_version must be integer 1")
