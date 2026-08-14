@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import check_pwa_freshness  # noqa: E402
 import finalize_site_metadata  # noqa: E402
 
 
@@ -203,10 +204,23 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("Check PWA freshness lifecycle", workflow)
         self.assertIn("python scripts/check_pwa_freshness.py", workflow)
         self.assertIn('service_workers="allow"', checker)
+        self.assertIn("state.record_hit", checker)
         self.assertIn('context.set_offline(True)', checker)
+        self.assertIn('evidence["offline_fetch_status"] = 503', checker)
         self.assertIn('"document-v2"', checker)
         self.assertIn('"manifest-v{state.manifest_version}"', checker)
         self.assertIn("_wait_for_worker_version(page, 2)", checker)
+
+    def test_pwa_freshness_checker_validates_missing_site_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            site_root = Path(temporary_directory)
+            with self.assertRaises(check_pwa_freshness.PwaFreshnessError) as context:
+                check_pwa_freshness.run_check(site_root, None)
+
+        self.assertIn(
+            "built site is missing required PWA assets",
+            str(context.exception),
+        )
 
 
 if __name__ == "__main__":
