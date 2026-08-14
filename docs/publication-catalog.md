@@ -19,6 +19,27 @@ must not gain a Pages deployment route.
 The catalog field `home: true` identifies the landing document for the
 `policy` section. It does not select the global portal home.
 
+## Canonical language and translations
+
+English is the canonical language for maintained repository documentation.
+Every `source` listed in `docs/publication-catalog.json` therefore identifies an
+English canonical document. A translation is a non-authoritative derivative
+and must not define independent requirements or override the English source.
+
+Translations mirror the canonical path below `translations/<language>/`. For
+example, the Japanese translation of `docs/overview.md` is
+`translations/ja/docs/overview.md`. `translations/manifest.json` records each
+canonical/translation relationship and the Git blob identity of the canonical
+bytes against which the translation was reviewed. Changing canonical bytes
+therefore makes the translation record stale until the translation is reviewed
+and the synchronization record is deliberately updated.
+
+Translations are not currently entries in the publication catalog and are not
+published as independent Pages documents. A future publication layer may expose
+translated routes only if it preserves the one-way authority relationship,
+keeps the English document canonical, and presents the translation as
+non-authoritative to readers.
+
 ## Schema versions
 
 Schema version `1` declares Markdown documents. Schema version `2` retains the
@@ -64,16 +85,23 @@ escape the declared source root.
 
 ## Validation
 
-Run the validator from the repository root:
+Run the validators from the repository root:
 
 ```sh
 python scripts/validate_publication_catalog.py
 python -m scripts.validate_publication_catalog
+python scripts/validate_translations.py
 ```
 
-The validator rejects duplicate JSON members, unsupported fields, unsafe or
-symbolic-link paths, duplicate IDs and destinations, invalid home declarations,
-missing required sources, and undeclared schema versions.
+The publication validator rejects duplicate JSON members, unsupported fields,
+unsafe or symbolic-link paths, duplicate IDs and destinations, invalid home
+declarations, missing required sources, and undeclared schema versions.
+
+The translation validator rejects unsafe or unmirrored translation paths,
+translations of non-published canonical documents, missing non-authoritative
+notices for Japanese translations, duplicate translation declarations, and
+translation records whose recorded canonical Git blob no longer matches the
+current English source.
 
 A publication-set change is complete only after both the `policy` pull request
 and the dependent `site` pull request pass. The site source lock must record the
