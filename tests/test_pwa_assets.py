@@ -204,6 +204,7 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("Check PWA freshness lifecycle", workflow)
         self.assertIn("python scripts/check_pwa_freshness.py", workflow)
         self.assertIn('service_workers="allow"', checker)
+        self.assertIn('worker_source + "\\n" + marker', checker)
         self.assertIn("state.record_hit", checker)
         self.assertIn('context.set_offline(True)', checker)
         self.assertIn('evidence["offline_fetch_status"] = 503', checker)
