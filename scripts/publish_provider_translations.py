@@ -9,11 +9,15 @@ import sys
 from pathlib import Path
 
 from assemble_publications import load_catalog, load_manifest, pages, parse_publications
-from publish_translations import TranslationPublicationError, publish_translations
+from publish_translations import (
+    TranslationPublicationError,
+    TranslationRecord,
+    publish_translations,
+)
 from translation_reader_metadata import exclude_translation_from_search
 
 
-def write_publication_map(path: Path, records: list[object]) -> None:
+def write_publication_map(path: Path, records: list[TranslationRecord]) -> None:
     translations = []
     for record in records:
         translations.append(
