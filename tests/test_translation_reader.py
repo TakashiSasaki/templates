@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from finalize_translation_reader import (  # noqa: E402
     TranslationReaderError,
     finalize,
+    replace_alternates,
     replace_html_language,
 )
 from publish_provider_translations import write_publication_map  # noqa: E402
@@ -208,6 +209,49 @@ class TranslationReaderTests(unittest.TestCase):
             ):
                 finalize(site, map_path, "https://templates.moukaeritai.work/")
 
+    def test_translation_map_version_and_canonical_language_are_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site = base / "site"
+            site.mkdir()
+            map_path = self.prepare_site(site)
+            original = json.loads(map_path.read_text(encoding="utf-8"))
+
+            for field, value, message in (
+                ("schema_version", 2, "schema_version must be integer 1"),
+                ("canonical_language", "fr", "canonical_language must be en"),
+            ):
+                with self.subTest(field=field):
+                    mapping = dict(original)
+                    mapping[field] = value
+                    map_path.write_text(json.dumps(mapping), encoding="utf-8")
+                    with self.assertRaisesRegex(TranslationReaderError, message):
+                        finalize(site, map_path, "https://templates.moukaeritai.work/")
+
+    def test_translation_map_reports_missing_and_unsupported_fields_distinctly(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site = base / "site"
+            site.mkdir()
+            map_path = self.prepare_site(site)
+            mapping = json.loads(map_path.read_text(encoding="utf-8"))
+            del mapping["canonical_language"]
+            map_path.write_text(json.dumps(mapping), encoding="utf-8")
+            with self.assertRaisesRegex(
+                TranslationReaderError,
+                "missing required fields: canonical_language",
+            ):
+                finalize(site, map_path, "https://templates.moukaeritai.work/")
+
+            mapping["canonical_language"] = "en"
+            mapping["extra"] = True
+            map_path.write_text(json.dumps(mapping), encoding="utf-8")
+            with self.assertRaisesRegex(
+                TranslationReaderError,
+                "unsupported fields: extra",
+            ):
+                finalize(site, map_path, "https://templates.moukaeritai.work/")
+
     def test_page_without_heading_is_rejected_before_writes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -251,6 +295,34 @@ class TranslationReaderTests(unittest.TestCase):
     def test_self_closing_html_start_tag_is_rejected(self) -> None:
         with self.assertRaisesRegex(TranslationReaderError, "must not be self-closing"):
             replace_html_language("<html class=app/><head></head>", "ja", Path("page.html"))
+
+    def test_html_language_requires_exactly_one_html_start_tag(self) -> None:
+        for source, count in (
+            ("<head></head>", 0),
+            ("<html><head></head><html>", 2),
+        ):
+            with self.subTest(count=count):
+                with self.assertRaisesRegex(
+                    TranslationReaderError,
+                    f"expected exactly one html start tag, found {count}",
+                ):
+                    replace_html_language(source, "ja", Path("page.html"))
+
+    def test_alternates_require_exactly_one_closing_head_tag(self) -> None:
+        for source, count in (
+            ("<html><body></body></html>", 0),
+            ("<html><head></head></head></html>", 2),
+        ):
+            with self.subTest(count=count):
+                with self.assertRaisesRegex(
+                    TranslationReaderError,
+                    f"expected exactly one closing head tag, found {count}",
+                ):
+                    replace_alternates(
+                        source,
+                        [("en", "https://templates.moukaeritai.work/")],
+                        Path("page.html"),
+                    )
 
     def test_write_publication_map_matches_reader_schema(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
