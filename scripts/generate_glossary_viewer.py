@@ -8,6 +8,7 @@ import html
 import ipaddress
 import json
 import re
+import sys
 import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -626,7 +627,7 @@ def main() -> int:
     try:
         generate(args.input, args.output)
     except GlossaryViewerError as exc:
-        print(f"generate_glossary_viewer.py: {exc}", file=__import__("sys").stderr)
+        print(f"generate_glossary_viewer.py: {exc}", file=sys.stderr)
         return 1
     return 0
 
