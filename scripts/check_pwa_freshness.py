@@ -26,6 +26,15 @@ class FixtureState:
     hits: dict[str, int] = field(
         default_factory=lambda: {"document": 0, "manifest": 0, "worker": 0}
     )
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def record_hit(self, asset: str) -> None:
+        with self.lock:
+            self.hits[asset] += 1
+
+    def snapshot_hits(self) -> dict[str, int]:
+        with self.lock:
+            return dict(self.hits)
 
 
 def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPRequestHandler]:
@@ -86,9 +95,8 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
                 return
 
             if path == "/service-worker.js":
-                state.hits["worker"] += 1
-                marker = f"""
-const __PWA_FIXTURE_WORKER_VERSION = {state.worker_version};
+                state.record_hit("worker")
+                marker = f"""const __PWA_FIXTURE_WORKER_VERSION = {state.worker_version};
 self.addEventListener("message", (event) => {{
   if (event.data === "__pwa_fixture_worker_version__" && event.source) {{
     event.source.postMessage({{
@@ -98,7 +106,7 @@ self.addEventListener("message", (event) => {{
   }}
 }});
 """
-                body = (worker_source + marker).encode("utf-8")
+                body = (worker_source + "\n" + marker).encode("utf-8")
                 self._send(
                     body,
                     "text/javascript; charset=utf-8",
@@ -108,7 +116,7 @@ self.addEventListener("message", (event) => {{
                 return
 
             if path == "/app.webmanifest":
-                state.hits["manifest"] += 1
+                state.record_hit("manifest")
                 body = json.dumps(
                     {
                         "name": "PWA freshness fixture",
@@ -139,7 +147,7 @@ self.addEventListener("message", (event) => {{
                 return
 
             if path in {"/document", "/document/", "/document/index.html"}:
-                state.hits["document"] += 1
+                state.record_hit("document")
                 body = f"document-v{state.document_version}\n".encode("utf-8")
                 self._send(
                     body,
@@ -182,11 +190,18 @@ def _worker_version(page: Any) -> int | None:
 
 def _wait_for_worker_version(page: Any, expected: int, timeout_seconds: float = 15.0) -> None:
     deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
     while time.monotonic() < deadline:
-        if _worker_version(page) == expected:
-            return
+        try:
+            if _worker_version(page) == expected:
+                return
+        except Exception as exc:
+            last_error = exc
         time.sleep(0.1)
-    raise PwaFreshnessError(f"service worker did not activate fixture version {expected}")
+    message = f"service worker did not activate fixture version {expected}"
+    if last_error is not None:
+        raise PwaFreshnessError(message) from last_error
+    raise PwaFreshnessError(message)
 
 
 def _fetch_text(page: Any, path: str) -> str:
@@ -285,6 +300,18 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             evidence["worker_version"] = 2
 
             context.set_offline(True)
+            offline_fetch = page.evaluate(
+                """async () => {
+                  const response = await fetch("/document/");
+                  return { status: response.status, body: await response.text() };
+                }"""
+            )
+            if offline_fetch.get("status") != 503 or "unavailable while offline" not in offline_fetch.get("body", ""):
+                raise PwaFreshnessError(
+                    "offline instant-navigation document fetch did not return the explicit 503 fallback"
+                )
+            evidence["offline_fetch_status"] = 503
+
             response = page.goto(base_url + "/document/", wait_until="load")
             if response is None or response.status != 503:
                 status = None if response is None else response.status
@@ -305,12 +332,13 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
         server.server_close()
         server_thread.join(timeout=5)
 
-    evidence["hits"] = dict(state.hits)
-    if state.hits["document"] < 2:
+    hits = state.snapshot_hits()
+    evidence["hits"] = hits
+    if hits["document"] < 2:
         raise PwaFreshnessError("document revalidation did not reach the fixture server")
-    if state.hits["manifest"] < 2:
+    if hits["manifest"] < 2:
         raise PwaFreshnessError("manifest revalidation did not reach the fixture server")
-    if state.hits["worker"] < 2:
+    if hits["worker"] < 2:
         raise PwaFreshnessError("service worker update did not refetch the worker script")
 
     if output is not None:
