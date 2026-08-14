@@ -22,7 +22,8 @@
       "distribution-manifest.json",
       "docs",
       "maintainer",
-      "policy"
+      "policy",
+      "translations"
     ],
     "split": []
   },
