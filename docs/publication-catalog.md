@@ -1,30 +1,35 @@
 # Publication catalog
 
 The `policy` branch publishes a branch-owned allowlist of human-readable
-documentation through `docs/publication-catalog.json`. The unrelated `site`
-branch consumes this catalog together with the `skill` and `webapp` catalogs
-and assembles the only GitHub Pages deployment for this repository.
+documentation, supporting public assets, and canonical terminology input through
+`docs/publication-catalog.json`. The unrelated `site` branch consumes this
+catalog together with the `skill` and `webapp` catalogs and assembles the only
+GitHub Pages deployment for this repository.
 
 ## Ownership
 
 `policy` owns each document's stable local ID, canonical Markdown source path,
-optionality, and the publication landing document. The effective cross-branch
-identity is `policy:<document-id>`.
+optionality, the publication landing document, explicit public asset roots, and
+its canonical `docs/glossary.yml` terminology source. The effective
+cross-branch document identity is `policy:<document-id>`. Glossary term identity
+is independent of document identity and follows the repository-wide stable term
+ID contract.
 
 `site` owns the portal home page, navigation labels and ordering, generated
-destinations, the reviewed source-revision lock, the Zensical build, and Pages
-deployment. `policy` continues to run only its branch-local MkDocs build and
-must not gain a Pages deployment route.
+destinations, the reviewed source-revision lock, the Zensical build, integrated
+glossary generation, and Pages deployment. `policy` continues to run only its
+branch-local documentation build and must not gain a Pages deployment route.
 
 The catalog field `home: true` identifies the landing document for the
 `policy` section. It does not select the global portal home.
 
 ## Canonical language and translations
 
-English is the canonical language for maintained repository documentation.
-Every `source` listed in `docs/publication-catalog.json` therefore identifies an
-English canonical document. A translation is a non-authoritative derivative
-and must not define independent requirements or override the English source.
+English is the canonical language for maintained repository documentation and
+for glossary definitions. Every document `source` listed in
+`docs/publication-catalog.json` therefore identifies an English canonical
+document. A translation is a non-authoritative derivative and must not define
+independent requirements or override the English source.
 
 Translations mirror the canonical path below `translations/<language>/`. For
 example, the Japanese translation of `docs/overview.md` is
@@ -34,20 +39,24 @@ bytes against which the translation was reviewed. Changing canonical bytes
 therefore makes the translation record stale until the translation is reviewed
 and the synchronization record is deliberately updated.
 
-Translations are not currently entries in the publication catalog and are not
-published as independent Pages documents. A future publication layer may expose
-translated routes only if it preserves the one-way authority relationship,
-keeps the English document canonical, and presents the translation as
-non-authoritative to readers.
+Glossary `localized_labels` are not translated definitions. They are lexical
+discovery metadata that resolve to the same stable term ID and canonical
+English meaning.
+
+Translations are not entries in the publication catalog. The Site publication
+layer may expose synchronized derivative routes while preserving the one-way
+authority relationship and keeping the English document canonical.
 
 ## Schema versions
 
 Schema version `1` declares Markdown documents. Schema version `2` retains the
-same document contract and adds explicit non-Markdown asset roots:
+same document contract and adds explicit non-Markdown asset roots. Schema
+version `3` retains the version 2 document and asset contract and additionally
+permits one canonical glossary declaration:
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "documents": [
     {
       "id": "overview",
@@ -62,21 +71,31 @@ same document contract and adds explicit non-Markdown asset roots:
       "destination": "assets",
       "optional": false
     }
-  ]
+  ],
+  "glossary": {
+    "source": "docs/glossary.yml"
+  }
 }
 ```
 
-Each document contains exactly `id`, `source`, `optional`, and `home`.
-A required document source must identify an existing regular Markdown file.
-An optional document source may be absent, but when present it must also be a
+Each document contains exactly `id`, `source`, `optional`, and `home`. A
+required document source must identify an existing regular Markdown file. An
+optional document source may be absent, but when present it must also be a
 regular Markdown file. Exactly one non-optional document is the publication
 landing page.
 
-Each version 2 asset contains exactly `source`, `destination`, and `optional`.
-Asset destinations are relative to the `policy` namespace in the generated
-site. Markdown files are forbidden inside asset roots because every published
-Markdown page must be named explicitly in `documents`. Asset roots must not
-contain a nested `.git` subtree in any letter case.
+Each version 2 or 3 asset contains exactly `source`, `destination`, and
+`optional`. Asset destinations are relative to the `policy` namespace in the
+generated site. Markdown files are forbidden inside asset roots because every
+published Markdown page must be named explicitly in `documents`. Asset roots
+must not contain a nested `.git` subtree in any letter case.
+
+The optional version 3 `glossary` object contains exactly `source`. When
+present, it identifies an existing regular `.yml` file within the provider
+source root. It must not traverse a symbolic link and must not overlap an asset
+source. Individual glossary terms are not catalog entries; adding a term or a
+localized lexical label to an already declared glossary does not require a
+catalog change.
 
 All source and destination values are portable relative POSIX paths. They may
 not be absolute, contain empty, `.` or `..` components, use backslashes or
@@ -95,7 +114,13 @@ python scripts/validate_translations.py
 
 The publication validator rejects duplicate JSON members, unsupported fields,
 unsafe or symbolic-link paths, duplicate IDs and destinations, invalid home
-declarations, missing required sources, and undeclared schema versions.
+declarations, missing required sources, undeclared schema versions, malformed
+glossary declarations, and glossary/asset source overlap.
+
+The Site build independently parses and validates the glossary content itself,
+including its schema, stable term IDs, localized labels, external authority
+metadata, cross-provider term-ID uniqueness, related-term resolution, and exact
+provider revision provenance.
 
 The translation validator rejects unsafe or unmirrored translation paths,
 translations of non-published canonical documents, missing non-authoritative
