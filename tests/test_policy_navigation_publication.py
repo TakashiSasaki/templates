@@ -29,11 +29,10 @@ def test_site_pins_reviewed_policy_navigation_revision() -> None:
 def test_site_publishes_policy_layer_navigation_documents() -> None:
     manifest = json.loads((ROOT / "site-manifest.json").read_text(encoding="utf-8"))
     leaves = _walk_navigation(manifest["navigation"])
-    policy_documents = {
-        item["document"]: item
-        for item in leaves
-        if item.get("publication") == "policy"
-    }
+    policy_items = [item for item in leaves if item.get("publication") == "policy"]
+    document_ids = [item["document"] for item in policy_items]
+    assert len(document_ids) == len(set(document_ids))
+    policy_documents = {item["document"]: item for item in policy_items}
 
     expected = {
         "provider-navigation": ("Provider and toolchain", "policy/provider/index.md"),
