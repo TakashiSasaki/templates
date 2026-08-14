@@ -1,0 +1,47 @@
+schema_version: 1
+terms:
+  - id: templates-skill-profile
+    term: Skill profile
+    localized_labels:
+      ja:
+        term: スキルプロファイル
+        aliases:
+          - Skill プロファイル
+    origin: repository
+    definition: >-
+      A selectable structural pattern that activates the repository resources
+      and contracts needed by a concrete Agent Skill. Profiles are not
+      mandatory maturity levels, and compatible non-instruction-only profiles
+      may be combined.
+
+  - id: templates-skill-template-scaffold
+    term: Skill template scaffold
+    localized_labels:
+      ja:
+        term: スキルテンプレート・スキャフォールド
+        aliases:
+          - スキルテンプレート雛形
+    origin: repository
+    definition: >-
+      The uncustomized Agent Skill template state identified by the reserved
+      template-scaffold selection. A concrete operational skill must replace
+      this selection before retaining operational resources, implementation,
+      runtime manifests, or interface contracts.
+    related_terms:
+      - templates-skill-profile
+
+  - id: templates-skill-mcp-extension
+    term: Skill MCP extension
+    localized_labels:
+      ja:
+        term: スキルMCP拡張
+        aliases:
+          - MCP拡張
+    origin: repository
+    definition: >-
+      An MCP extension identifier selected for an mcp-enabled Skill and
+      recorded separately from Skill profile tags. Selecting an extension does
+      not create a new Skill profile; for example, MCP Apps is represented by
+      the io.modelcontextprotocol/ui extension identifier.
+    related_terms:
+      - templates-skill-profile
