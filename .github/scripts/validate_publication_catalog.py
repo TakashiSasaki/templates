@@ -73,11 +73,7 @@ def _read_catalog(path: Path) -> Any:
         raise ValidationError(f"Invalid publication catalog JSON {path}: {exc}") from exc
 
 
-def _validate_relative_source(
-    value: Any,
-    field: str,
-    suffix: str,
-) -> str:
+def _validate_relative_source(value: Any, field: str, suffix: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValidationError(f"{field} must be a non-empty string")
 
@@ -192,7 +188,7 @@ def validate(
         )
 
     expected_root_keys = set(BASE_ROOT_KEYS)
-    if schema_version == 3:
+    if schema_version == 3 and "glossary" in catalog:
         expected_root_keys.add("glossary")
     _validate_exact_keys(catalog, expected_root_keys, "publication catalog")
 
@@ -219,7 +215,7 @@ def validate(
     if home_documents[0].optional:
         raise ValidationError("publication catalog home document must not be optional")
 
-    if schema_version == 3:
+    if schema_version == 3 and "glossary" in catalog:
         _validate_glossary(catalog["glossary"], root_path)
 
     return documents
