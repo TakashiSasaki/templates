@@ -64,6 +64,7 @@
 
   .md-typeset table:not([class]) {
     max-width: 100%;
+    overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
   }
