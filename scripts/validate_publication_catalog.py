@@ -77,6 +77,7 @@ def safe_relative_path(value: Any, field: str) -> PurePosixPath:
         or not value
         or "\\" in value
         or ":" in value
+        or "\0" in value
     ):
         raise CatalogError(f"{field} must be a safe non-empty relative POSIX path")
     parts = value.split("/")
