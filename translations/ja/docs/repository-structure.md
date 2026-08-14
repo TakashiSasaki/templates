@@ -1,10 +1,10 @@
-> **参考訳（非正本）:** この文書は `docs/repository-structure.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
-
 ---
 description: templatesのpolicyブランチにおける規約ツールチェーン、統合済みbootstrap skill、および各ディレクトリの責務を説明します。
 ---
 
 # リポジトリ構造
+
+> **参考訳（非正本）:** この文書は `docs/repository-structure.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
 `TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には、規約ツールチェーンと初回導入用trust seedの両方を配置します。
 
