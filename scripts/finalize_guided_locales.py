@@ -11,33 +11,41 @@ import sys
 from collections import defaultdict
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import quote
 
 try:
-    from scripts.finalize_site_metadata import ensure_pwa_metadata
+    from scripts.finalize_site_metadata import (
+        SiteMetadataError,
+        ensure_pwa_metadata,
+        rewrite_canonical_link,
+        validate_canonical_url,
+    )
     from scripts.finalize_translation_reader import (
         TranslationReaderError,
         html_public_url,
         inject_switcher,
         language_label,
         replace_alternates,
-        replace_canonical,
         replace_html_language,
-        validate_canonical_base,
     )
 except ModuleNotFoundError:
-    from finalize_site_metadata import ensure_pwa_metadata
+    from finalize_site_metadata import (
+        SiteMetadataError,
+        ensure_pwa_metadata,
+        rewrite_canonical_link,
+        validate_canonical_url,
+    )
     from finalize_translation_reader import (
         TranslationReaderError,
         html_public_url,
         inject_switcher,
         language_label,
         replace_alternates,
-        replace_canonical,
         replace_html_language,
-        validate_canonical_base,
     )
 
 HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
+LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 STYLE_MARKER = 'id="guided-translation-reader-style"'
 STYLE = """<style id="guided-translation-reader-style">
 .translation-switcher{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin:.55rem 0 1rem;padding:.5rem .65rem;border:1px solid #d7dce5;border-radius:.65rem;background:#f8f9fb;font-size:.88rem;line-height:1.35}.translation-switcher__status{color:#505866}.translation-switcher__links{display:flex;flex-wrap:wrap;gap:.35rem}.translation-switcher__link{display:inline-block;padding:.3rem .55rem;border:1px solid #b7c0d0;border-radius:999px;background:#fff;text-decoration:none;font-weight:650}@media(max-width:600px){.translation-switcher{align-items:flex-start;flex-direction:column;gap:.4rem;padding:.45rem .55rem;margin:.45rem 0 .8rem}.translation-switcher__link{padding:.25rem .5rem}}
@@ -79,6 +87,12 @@ def safe_html_path(value: Any, field: str) -> PurePosixPath:
     return path
 
 
+def encoded_html_public_url(relative: PurePosixPath, canonical_base: str) -> str:
+    """Return a public URL whose filesystem path components are percent-encoded."""
+    encoded = PurePosixPath(*(quote(part, safe="") for part in relative.parts))
+    return html_public_url(encoded, canonical_base)
+
+
 def load_pairs(path: Path) -> list[dict[str, Any]]:
     data = read_json(path)
     if set(data) != {"schema_version", "canonical_language", "pages"}:
@@ -99,7 +113,11 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
         }:
             raise GuidedLocaleFinalizeError(f"{field} has unsupported fields")
         language = record["language"]
-        if not isinstance(language, str) or not language or language == "en":
+        if (
+            not isinstance(language, str)
+            or not LANGUAGE_TAG.fullmatch(language)
+            or language == "en"
+        ):
             raise GuidedLocaleFinalizeError(f"{field}.language is invalid")
         canonical = safe_html_path(record["canonical_path"], f"{field}.canonical_path")
         translation = safe_html_path(record["translation_path"], f"{field}.translation_path")
@@ -184,7 +202,7 @@ def finalize(
     pair_map: Path,
     canonical_base: str,
 ) -> list[str]:
-    canonical_base = validate_canonical_base(canonical_base)
+    canonical_base = validate_canonical_url(canonical_base)
     pairs = load_pairs(pair_map)
     groups: dict[PurePosixPath, list[dict[str, Any]]] = defaultdict(list)
     for pair in pairs:
@@ -194,25 +212,31 @@ def finalize(
     messages: list[str] = []
     for canonical, records in groups.items():
         canonical_file = existing_html(site_root, canonical, "canonical guided page")
-        canonical_url = html_public_url(canonical_base, Path(*canonical.parts))
-        alternates = [("en", canonical_url)]
-        translated_urls: list[tuple[str, str]] = []
+        canonical_url = encoded_html_public_url(canonical, canonical_base)
+
+        resolved: list[tuple[dict[str, Any], Path, str]] = []
         for record in sorted(records, key=lambda value: value["language"]):
             translation_file = existing_html(
                 site_root,
                 record["translation"],
                 "localized guided page",
             )
-            translation_url = html_public_url(
+            translation_url = encoded_html_public_url(
+                record["translation"],
                 canonical_base,
-                Path(*record["translation"].parts),
             )
-            translated_urls.append((record["language"], translation_url))
-            alternates.append((record["language"], translation_url))
+            resolved.append((record, translation_file, translation_url))
 
+        translated_urls = [
+            (record["language"], translation_url)
+            for record, _translation_file, translation_url in resolved
+        ]
+        alternates = [("en", canonical_url), *translated_urls]
+
+        for record, translation_file, _translation_url in resolved:
             source = translation_file.read_text(encoding="utf-8")
             source = ensure_pwa_metadata(source, translation_file)
-            source = replace_canonical(source, canonical_url, translation_file)
+            source = rewrite_canonical_link(source, canonical_url, translation_file)
             source = replace_alternates(source, alternates, translation_file)
             source = replace_html_language(source, record["language"], translation_file)
             source = inject_switcher(
@@ -225,7 +249,7 @@ def finalize(
 
         source = canonical_file.read_text(encoding="utf-8")
         source = ensure_pwa_metadata(source, canonical_file)
-        source = replace_canonical(source, canonical_url, canonical_file)
+        source = rewrite_canonical_link(source, canonical_url, canonical_file)
         source = replace_alternates(source, alternates, canonical_file)
         source = replace_html_language(source, "en", canonical_file)
         source = inject_switcher(
@@ -254,6 +278,7 @@ def main() -> int:
         messages = finalize(args.site_root, args.pair_map, args.canonical_url)
     except (
         GuidedLocaleFinalizeError,
+        SiteMetadataError,
         TranslationReaderError,
         OSError,
         UnicodeError,
