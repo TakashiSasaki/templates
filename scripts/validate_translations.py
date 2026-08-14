@@ -44,7 +44,14 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
 
 
 def safe_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+    """Return a safe relative POSIX path suitable for repository traversal."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+        or "\0" in value
+    ):
         raise TranslationError(f"{field} must be a safe relative POSIX path")
     parts = value.split("/")
     if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
@@ -73,6 +80,7 @@ def git_blob_sha(path: Path) -> str:
 
 
 def catalog_sources(root: Path) -> set[PurePosixPath]:
+    """Return canonical document sources selected by the publication catalog."""
     catalog = read_json(root / "docs" / "publication-catalog.json", "publication catalog")
     documents = catalog.get("documents")
     if not isinstance(documents, list):
@@ -118,6 +126,7 @@ def validate_japanese_notice(path: Path, translation: PurePosixPath) -> None:
 
 
 def validate_surfaces(value: Any, field: str) -> tuple[str, ...]:
+    """Validate a non-empty, duplicate-free list of supported presentation surfaces."""
     if not isinstance(value, list) or not value:
         raise TranslationError(f"{field} must be a non-empty array")
     result: list[str] = []
@@ -128,6 +137,40 @@ def validate_surfaces(value: Any, field: str) -> tuple[str, ...]:
             raise TranslationError(f"{field} must not contain duplicate surfaces")
         result.append(surface)
     return tuple(result)
+
+
+def discover_translation_files(
+    root: Path,
+    declared_paths: set[PurePosixPath],
+) -> set[PurePosixPath]:
+    """Close the translations tree over metadata plus declared Markdown translations."""
+    translation_root = root / "translations"
+    allowed_metadata = {
+        PurePosixPath("translations/README.md"),
+        PurePosixPath("translations/manifest.json"),
+    }
+    discovered: set[PurePosixPath] = set()
+    for path in translation_root.rglob("*"):
+        relative = PurePosixPath(path.relative_to(root).as_posix())
+        if path.is_symlink():
+            raise TranslationError(f"translation tree must not contain symlinks: {relative}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise TranslationError(f"translation tree entry must be a regular file: {relative}")
+        if relative in allowed_metadata:
+            continue
+        if path.suffix.lower() != ".md":
+            raise TranslationError(
+                f"translation content must be declared Markdown: {relative}"
+            )
+        discovered.add(relative)
+    undeclared = sorted(discovered - declared_paths)
+    if undeclared:
+        raise TranslationError(
+            "undeclared translation Markdown: " + ", ".join(map(str, undeclared))
+        )
+    return discovered
 
 
 def validate(root: Path) -> list[str]:
@@ -149,7 +192,7 @@ def validate(root: Path) -> list[str]:
     published = catalog_sources(root)
     seen_pairs: set[tuple[PurePosixPath, str]] = set()
     declared_paths: set[PurePosixPath] = set()
-    counts = {"reader": 0, "guided": 0}
+    counts = {surface: 0 for surface in ALLOWED_SURFACES}
     required = {
         "canonical",
         "language",
@@ -213,21 +256,16 @@ def validate(root: Path) -> list[str]:
                 f"stale translation for {canonical}: expected canonical blob "
                 f"{blob_sha}, current blob {actual}"
             )
-        if language == "ja":
+        if language == "ja" or language.startswith("ja-"):
             validate_japanese_notice(translation_file, translation)
         for surface in surfaces:
             counts[surface] += 1
 
-    readme = PurePosixPath("translations/README.md")
-    discovered = {
-        PurePosixPath(path.relative_to(root).as_posix())
-        for path in (root / "translations").rglob("*.md")
-        if path.is_file() and PurePosixPath(path.relative_to(root).as_posix()) != readme
-    }
-    undeclared = sorted(discovered - declared_paths)
-    if undeclared:
+    discovered = discover_translation_files(root, declared_paths)
+    missing = sorted(declared_paths - discovered)
+    if missing:
         raise TranslationError(
-            "undeclared translation Markdown: " + ", ".join(map(str, undeclared))
+            "declared translation Markdown not discovered: " + ", ".join(map(str, missing))
         )
 
     return [
