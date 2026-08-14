@@ -167,7 +167,7 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
         self.assertNotIn("pushState", controller)
         self.assertNotIn("popstate", controller)
 
-    def test_legacy_viewport_listener_executes_and_preserves_mobile_context(self) -> None:
+    def test_legacy_listener_keyboard_activation_and_viewport_context(self) -> None:
         node = shutil.which("node")
         if node is None:
             self.skipTest("node is required to execute the repository browser controller")
@@ -246,6 +246,7 @@ function clickEvent(target, overrides = {}) {
     target,
     defaultPrevented: false,
     button: 0,
+    detail: 0,
     metaKey: false,
     ctrlKey: false,
     shiftKey: false,
@@ -289,10 +290,13 @@ const modifiedClicks = {
 };
 
 browserHandlers.click(clickEvent(link));
-const selectedMobile = {
+const keyboardActivation = {
   mode: browser.dataset.mobileView,
+  current: link.attributes.get("aria-current") || null,
+  label: selectedFileLabel.textContent,
   treeInert: tree.inert,
   contentInert: content.inert,
+  filesButtonFocusCount: filesButton.focusCount,
 };
 
 mobileViewport.matches = false;
@@ -323,7 +327,7 @@ process.stdout.write(JSON.stringify({
   initialMobile,
   noSelectionReturn,
   modifiedClicks,
-  selectedMobile,
+  keyboardActivation,
   desktop,
   restoredMobile,
   returnedFiles,
@@ -355,8 +359,15 @@ process.stdout.write(JSON.stringify({
             {"mode": "files", "current": None, "filesButtonFocusCount": 0},
         )
         self.assertEqual(
-            result["selectedMobile"],
-            {"mode": "content", "treeInert": True, "contentInert": False},
+            result["keyboardActivation"],
+            {
+                "mode": "content",
+                "current": "true",
+                "label": "README.md",
+                "treeInert": True,
+                "contentInert": False,
+                "filesButtonFocusCount": 1,
+            },
         )
         self.assertEqual(
             result["desktop"],
