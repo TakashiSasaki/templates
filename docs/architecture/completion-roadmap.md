@@ -141,4 +141,4 @@ Subsequent maintenance makes `template/` the sole canonical source tree for down
 
 With Phase 4 merged after successful current-head CI and resolved review, the `webapp` branch is complete for its stated framework-neutral template scope. No identified gap requires another repository-authoritative, locally verifiable contract or conformance check.
 
-Further additions should be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in [`template/docs/architecture/contract-completeness.md`](../../template/docs/architecture/contract-completeness.md) rather than expanding the template speculatively.
+Further additions should be driven by concrete generated-repository failures. They must satisfy the contract-family criteria in `template/docs/architecture/contract-completeness.md` rather than expanding the template speculatively.
