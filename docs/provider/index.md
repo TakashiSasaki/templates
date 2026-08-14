@@ -2,7 +2,6 @@
 
 ## Orientation
 
-* [Overview](../overview.md) - Introduces `agent-policy`, its purpose, the branch-owned toolchain, and the separation between provider, shared-policy, and consumer layers.
 * [Repository structure](../repository-structure.md) - Describes the maintained `policy` branch layout and the responsibility of each top-level directory.
 * [Architecture](../architecture.md) - Describes the compiler, generated artifacts, lock state, and trust boundaries.
 * [CLI reference](../cli.md) - Defines the `agent-policy` command-line interface and subcommands.
@@ -16,7 +15,6 @@
 ## Maintainer lifecycle and publication
 
 * [Policy completion roadmap](../policy-readiness.md) - Records completion criteria for the maintained policy toolchain.
-* [Policy readiness audit](../policy-readiness-audit.md) - Records the maintainer readiness audit.
 * [Documentation publication](../documentation-publication.md) - Defines the branch-owned documentation publication boundary.
 * [Publication catalog](../publication-catalog.md) - Documents the branch-owned publication allowlist.
 * [PWA usage](../pwa.md) - Describes Progressive Web App behavior for policy documentation.
