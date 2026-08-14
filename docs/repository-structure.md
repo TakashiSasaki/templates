@@ -1,39 +1,39 @@
 ---
-description: templatesのpolicyブランチにおける規約ツールチェーン、統合済みbootstrap skill、および各ディレクトリの責務を説明します。
+description: Describes the policy toolchain, integrated bootstrap skill, and directory responsibilities on the templates policy branch.
 ---
 
-# リポジトリ構造
+# Repository structure
 
-`TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には、規約ツールチェーンと初回導入用trust seedの両方を配置します。
+The `policy` branch of `TakashiSasaki/templates` is an orphan history with no common ancestor with the repository's other long-lived `main`, `site`, and `webapp` branches. The `policy` branch contains both the policy toolchain and the first-adoption trust seed.
 
-bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifestがレビュー済みのfull commit SHAを固定するため、mutableな`policy`先端を実行しません。
+The bootstrap skill is under `skills/bootstrap-agent-policy/`. Its manifest pins a reviewed full commit SHA, so it never executes the mutable `policy` branch tip.
 
-## `policy` ブランチ
+## The `policy` branch
 
-以下は、`policy` でGitが追跡している完全なツリーを表示するためのplaceholderです。documentation publication時に同じcommitからpreview manifestを生成します。
+The placeholder below displays the complete Git-tracked tree of the `policy` branch. During documentation publication, the preview manifest is generated from the same commit.
 
 <!-- BEGIN VERIFIED TREE: policy -->
 <div class="repository-tree" data-repository-branch="policy">
-<p class="repository-tree__loading" role="status">ツリーを読み込んでいます…</p>
+<p class="repository-tree__loading" role="status">Loading tree…</p>
 </div>
 <!-- END VERIFIED TREE: policy -->
 
-## 主要ディレクトリの役割
+## Main directory responsibilities
 
-| パス | 役割 |
+| Path | Responsibility |
 |---|---|
-| `policy/` | 共有規約の正本。各規則はYAML front matter付きMarkdownとして管理する。 |
-| `profiles/` | 適用する規約ファイルの集合と順序を宣言する。artifact categoryではなくagent operationやrisk contextを分類する。 |
-| `schemas/` | 製品リポジトリの `.agent-policy.yml` とadoption stateを検証するJSON Schema。toolchain repositoryは`TakashiSasaki/templates`。 |
-| `src/agent_policy/` | `init`、`adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するPython CLI。 |
-| `templates/` | `AGENTS.md`、製品固有規約、consumer workflowなどの生成template。 |
-| `skills/` | 通常運用skillの正本と、`skills/bootstrap-agent-policy/`に統合された初回導入trust seed。 |
-| `tests/` | 設定、adoption transaction、rendering、lock、path safety、repository identity、bootstrap trust boundaryを検査する。 |
-| `docs/` | 導入方法、設計、ADR、PWA資産、repository preview UI。 |
-| `scripts/` | repository preview生成・検証など、branchの保守とpublicationを支援するscript。 |
-| `.github/workflows/` | `policy`向けCIとbuild-only documentation validation。Pages deployment authorityは持たない。 |
+| `policy/` | Canonical shared policy. Each rule is maintained as Markdown with YAML front matter. |
+| `profiles/` | Declares sets and ordering of applicable policy files, classifying agent operation or risk context rather than artifact category. |
+| `schemas/` | JSON Schemas for product-repository `.agent-policy.yml` and adoption state. The toolchain repository is `TakashiSasaki/templates`. |
+| `src/agent_policy/` | Python CLI implementing `init`, `adopt inspect/prepare/preview/finalize`, `validate`, `render`, and `check`. |
+| `templates/` | Generation templates for `AGENTS.md`, product-specific policy, consumer workflows, and related outputs. |
+| `skills/` | Canonical normal-operation skills and the first-adoption trust seed integrated at `skills/bootstrap-agent-policy/`. |
+| `tests/` | Validation for configuration, adoption transactions, rendering, lock state, path safety, repository identity, and bootstrap trust boundaries. |
+| `docs/` | Adoption guidance, architecture, ADRs, PWA assets, and repository-preview UI. |
+| `scripts/` | Branch-maintenance and publication helpers such as repository-preview generation and validation. |
+| `.github/workflows/` | CI and build-only documentation validation for `policy`. This branch has no Pages deployment authority. |
 
-## 統合済みbootstrap skill
+## Integrated bootstrap skill
 
 ```text
 skills/bootstrap-agent-policy/
@@ -46,36 +46,36 @@ skills/bootstrap-agent-policy/
     uninstall.py
 ```
 
-| パス | 役割 |
+| Path | Responsibility |
 |---|---|
-| `SKILL.md` | 起動条件、inspection、`init`／`adopt`振り分け、安全制約、finalize分離を定義する。 |
-| `bootstrap-manifest.yml` | 実行を許可する`TakashiSasaki/templates`のfull SHAとroute集合を固定する。finalize routeは含まない。 |
-| `scripts/bootstrap.py` | 固定CLIを一時環境で取得し、read-only inspection、明示的なinitializationまたはadoption preparation、適用後検証を実行する。 |
-| `scripts/install.py` | レビュー済みcheckoutからskill directoryへ安全にコピーする。 |
-| `scripts/uninstall.py` | markerを確認して導入済みskillを削除する。 |
-| `tests/test_bootstrap_skill.py` | manifest、pin、route、安全制約、state parsing、post-apply commandを検査する。 |
+| `SKILL.md` | Defines trigger conditions, inspection, `init`/`adopt` routing, safety constraints, and separation of finalization. |
+| `bootstrap-manifest.yml` | Pins the full SHA of `TakashiSasaki/templates` and the allowed route set. It does not include a finalize route. |
+| `scripts/bootstrap.py` | Acquires the pinned CLI in a temporary environment and performs read-only inspection, explicit initialization or adoption preparation, and post-apply verification. |
+| `scripts/install.py` | Safely copies the skill from a reviewed checkout into a skill directory. |
+| `scripts/uninstall.py` | Removes an installed skill after checking its identity marker. |
+| `tests/test_bootstrap_skill.py` | Verifies the manifest, pin, routes, safety constraints, state parsing, and post-apply commands. |
 
-## 導入前後の制御移行
+## Transfer of control before and after adoption
 
 ```text
-導入前
-  user environmentの bootstrap-agent-policy skill
-      ↓ bootstrap-manifest.yml の repository + full SHA
-  templates上の pinned agent-policy CLI
+before adoption
+  bootstrap-agent-policy skill in the user environment
+      ↓ repository + full SHA from bootstrap-manifest.yml
+  pinned agent-policy CLI from templates
       ↓ adopt inspect
   ├─ unmanaged-empty
-  │    └─ 明示的な init --apply
+  │    └─ explicit init --apply
   │
   └─ unmanaged-existing
-       └─ 明示的な adopt prepare --apply
-            ↓ previewと意味レビュー
-          別の明示指示による adopt finalize --apply
+       └─ explicit adopt prepare --apply
+            ↓ preview and semantic review
+          adopt finalize --apply by a separate explicit instruction
 
-導入完了後
-  製品リポジトリの .agent-policy.yml
+after adoption
+  product-repository .agent-policy.yml
   .agent-policy.lock
-  生成されたエージェント指示と通常運用skill
+  generated agent instructions and normal-operation skills
   repository-local CI
 ```
 
-導入前のtrust seedはbootstrap packageです。初期化完了後、またはadoption finalization完了後は、製品リポジトリに記録された設定、lock、生成物へ制御を引き渡します。
+Before adoption, the bootstrap package is the trust seed. After initialization or adoption finalization, control transfers to the configuration, lock state, and generated outputs recorded in the product repository.
