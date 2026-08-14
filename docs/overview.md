@@ -13,9 +13,21 @@
 - 設定、lock、生成物の不整合をCIで検出する
 - 既存instructionを破壊せずに導入準備・preview・明示的cutoverを行う
 
+## 区別すべき3つの層
+
+`policy` という語は、リポジトリのbranch、branch内で正本として保持する共有規約、consumer repositoryで実際に有効になる規約を指し得ます。これらは別の層です。
+
+1. **Provider / toolchain layer** — `TakashiSasaki/templates` の `policy` ブランチ全体です。共有規約だけでなく、`agent-policy` CLI、schema、renderer template、bootstrap、test、release machinery、maintainer documentationを保持します。このbranch自体がconsumer repositoryへmergeされて効力を持つわけではありません。
+2. **Shared policy corpus layer** — `policy/` に置くcanonicalな共有規則と、`profiles/` に置く選択集合です。ここが複数repositoryで共有する規約意味論の正本です。規則はbranchに存在するだけではconsumerで有効にならず、consumer側の設定から選択されます。
+3. **Consumer effective-policy layer** — consumer repositoryの `.agent-policy.yml` がshared profileとrepository-local policyを選択し、toolchainがそれらをcomposeして `AGENTS.md`、context output、通常運用skillなどへrenderした状態です。`.agent-policy.lock` は選択入力、toolchain revision、生成結果を固定します。実際のrepository作業で効力を持つのはこのconsumer側の選択・合成・生成結果です。
+
+したがって、導入処理は `policy` ブランチ全体をconsumerへinjectまたはGit mergeする仕組みではありません。共有規則を **select → compose → render** し、consumer repositoryに生成projectionとlock stateを保持する仕組みです。branch間のunrelated historyは維持されます。
+
+Index-guided navigationでもこの境界を維持し、[Provider and toolchain](provider/index.md)、[Shared policy corpus](shared-policy/index.md)、[Applying policy to a consumer repository](consumer/index.md) を別の入口として扱います。
+
 ## `policy`ブランチの構成
 
-`policy`は、`templates`リポジトリの`main`、`site`、`webapp`とはunrelated historyです。このbranch内で次を管理します。
+`policy`は、`templates`リポジトリの`skill`、`site`、`webapp`とはunrelated historyです。このbranch内で次を管理します。
 
 | パス | 役割 |
 |---|---|
@@ -49,11 +61,9 @@ agent-policy check
 
 ## 次に読むページ
 
-- [はじめに](getting-started.md) — 初回導入と基本的な利用経路を確認します。
-- [Managed repository operation](managed-operation.md) — 導入後の管理対象リポジトリでの通常運用を説明します。
+- [Provider and toolchain](provider/index.md) — `policy`ブランチ自体とtoolchainの設計・保守・release boundaryをたどります。
+- [Shared policy corpus](shared-policy/index.md) — consumerから選択されるcanonical shared policyとprofileをたどります。
+- [Applying policy to a consumer repository](consumer/index.md) — adoption、configuration、effective policy、managed operationをたどります。
 - [CLIリファレンス](cli.md) — `agent-policy` コマンドと各サブコマンドの契約を確認します。
-- [ブートストラップスキル](bootstrap.md) — immutableなtrust seedから初期化・adoption準備へ入る経路を説明します。
-- [既存リポジトリの導入](adoption.md) — 既存instructionを保持した段階的adoptionを説明します。
-- [アーキテクチャ](architecture.md) — policy compiler、生成物、lock、trust boundaryの全体設計を説明します。
 - [Architecture decisions](adr/) — 現在有効なADRを短い説明付きで一覧します。
 - [脅威モデル](threat-model.md) — toolchainが防御する脅威と信頼境界を確認します。
