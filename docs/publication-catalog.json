@@ -8,6 +8,24 @@
       "home": true
     },
     {
+      "id": "provider-navigation",
+      "source": "docs/provider/index.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "shared-policy-navigation",
+      "source": "docs/shared-policy/index.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "consumer-policy-navigation",
+      "source": "docs/consumer/index.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "getting-started",
       "source": "docs/getting-started.md",
       "optional": false,
