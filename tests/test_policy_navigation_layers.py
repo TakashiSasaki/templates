@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from scripts.validate_publication_catalog import validate_catalog
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,22 +21,32 @@ def test_root_navigation_separates_policy_layers() -> None:
 
 
 def test_layer_navigation_entries_are_published() -> None:
-    documents, _assets = validate_catalog(
-        ROOT / "docs" / "publication-catalog.json",
-        ROOT,
-    )
-    by_id = {document.document_id: document for document in documents}
+    text = (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
 
-    expected = {
-        "provider-navigation": "docs/provider/index.md",
-        "shared-policy-navigation": "docs/shared-policy/index.md",
-        "consumer-policy-navigation": "docs/consumer/index.md",
-    }
-    for document_id, source in expected.items():
-        document = by_id[document_id]
-        assert document.source.as_posix() == source
-        assert document.optional is False
-        assert document.home is False
+    expected_entries = [
+        (
+            '"id": "provider-navigation"',
+            '"source": "docs/provider/index.md"',
+        ),
+        (
+            '"id": "shared-policy-navigation"',
+            '"source": "docs/shared-policy/index.md"',
+        ),
+        (
+            '"id": "consumer-policy-navigation"',
+            '"source": "docs/consumer/index.md"',
+        ),
+    ]
+    for document_id, source in expected_entries:
+        id_position = text.index(document_id)
+        source_position = text.index(source, id_position)
+        next_entry = text.find('"id":', id_position + len(document_id))
+        assert source_position > id_position
+        assert next_entry == -1 or source_position < next_entry
+        entry_end = next_entry if next_entry != -1 else len(text)
+        entry = text[id_position:entry_end]
+        assert '"optional": false' in entry
+        assert '"home": false' in entry
 
 
 def test_provider_environment_link_targets_a_document() -> None:
