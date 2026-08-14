@@ -232,6 +232,15 @@ jobs:
             --provider policy=policy-source \
             --provider webapp=webapp-source
 
+      - name: Generate index navigation locale overlays
+        run: |
+          python site-source/scripts/generate_index_navigation_locales.py \
+            --graph build/index-navigation.json \
+            --output build/index-navigation-locales.json \
+            --provider skill=skill-source \
+            --provider policy=policy-source \
+            --provider webapp=webapp-source
+
       - name: Generate index-guided navigation viewer
         run: |
           python site-source/scripts/generate_index_navigation_viewer.py \
@@ -239,6 +248,20 @@ jobs:
             --graph build/index-navigation.json \
             --site-root site-publication \
             --output-root build/site \
+            --provider skill=skill-source \
+            --provider policy=policy-source \
+            --provider webapp=webapp-source
+
+      - name: Generate localized index-guided navigation viewer
+        run: |
+          python site-source/scripts/generate_index_navigation_locale_viewer.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --graph build/index-navigation.json \
+            --locale-overlays build/index-navigation-locales.json \
+            --translation-map build/translation-publication.json \
+            --site-root site-publication \
+            --output-root build/site \
+            --pair-map build/guided-locale-publication.json \
             --provider skill=skill-source \
             --provider policy=policy-source \
             --provider webapp=webapp-source
@@ -254,6 +277,13 @@ jobs:
           python site-source/scripts/finalize_translation_reader.py \
             --site-root build/site \
             --translation-map build/translation-publication.json \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
+      - name: Finalize localized guided metadata
+        run: |
+          python site-source/scripts/finalize_guided_locales.py \
+            --site-root build/site \
+            --pair-map build/guided-locale-publication.json \
             --canonical-url "${PUBLIC_SITE_URL}"
 
       - name: Verify generated public URL boundary
@@ -308,7 +338,10 @@ jobs:
               guided_view = (
                   path.suffix.lower() == ".html"
                   and bool(relative.parts)
-                  and relative.parts[0] == "guided"
+                  and (
+                      relative.parts[0] == "guided"
+                      or (len(relative.parts) > 1 and relative.parts[1] == "guided")
+                  )
               )
               if browser_source_view or guided_view:
                   parser = URLAttributeParser()
@@ -416,6 +449,17 @@ jobs:
             grep --fixed-strings -- \
               '<meta name="theme-color" content="#3f51b5">' "$page"
           done
+          test -f build/site/ja/guided/index.html
+          test ! -e build/site/ja/guided/graph.json
+          grep --fixed-strings -- \
+            '<link rel="manifest" href="/app.webmanifest">' \
+            build/site/ja/guided/index.html
+          grep --fixed-strings -- \
+            'data-copy-name="public URL"' \
+            build/site/ja/guided/index.html
+          grep --fixed-strings -- \
+            '<script src="/javascripts/guided-copy.js" defer></script>' \
+            build/site/ja/guided/index.html
           python - <<'PY'
           import json
           from pathlib import Path, PurePosixPath
