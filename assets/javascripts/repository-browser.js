@@ -50,6 +50,17 @@
   setMobileMode("files");
 
   browser.addEventListener("click", (event) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
@@ -77,10 +88,14 @@
   });
 
   filesButton.addEventListener("click", () => {
+    const focusTarget =
+      selectedLink instanceof HTMLAnchorElement
+        ? selectedLink
+        : tree.querySelector("a[data-repository-file], summary, a, button");
     setMobileMode("files");
-    if (mobileViewport.matches && selectedLink instanceof HTMLAnchorElement) {
+    if (mobileViewport.matches && focusTarget instanceof HTMLElement) {
       window.requestAnimationFrame(() => {
-        selectedLink.focus({ preventScroll: true });
+        focusTarget.focus({ preventScroll: true });
       });
     }
   });
