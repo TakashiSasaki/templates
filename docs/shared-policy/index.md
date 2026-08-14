@@ -1,25 +1,18 @@
 # Shared policy corpus
 
-## Canonical policy families
+## Corpus ownership and structure
 
-* [Core policy modules](../../policy/core/) - Contains application-type-independent core operating rules selected by the core profile.
-* [Review policy modules](../../policy/review/) - Contains application-type-independent rules selected for review operations.
-* [Pull-request policy modules](../../policy/pull-request/) - Contains generic pull-request merge-readiness rules.
-* [Security policy modules](../../policy/security/) - Contains application-type-independent security baseline rules.
-* [Artifact-related shared modules](../../policy/artifacts/) - Contains shared rules whose semantics remain independent of a particular product repository.
+* [Repository structure](../repository-structure.md) - Identifies `policy/` as the canonical shared-rule corpus and `profiles/` as the branch-owned rule-selection sets, separate from the provider toolchain and maintainer-only repository policy.
+* [Policy authoring](../policy-authoring.md) - Defines shared-policy ownership, atomic rule modules, context policy, repository-local extensions, and override semantics.
+* [Policy authority inventory](../policy-authority-inventory.md) - Enumerates semantic authority surfaces and distinguishes canonical rules from generated projections and adapters.
 
-## Selection profiles
+## Policy families and contexts
 
-* [Core profile](../../profiles/core.yml) - Selects the default core shared-policy modules.
-* [Review profile](../../profiles/review.yml) - Selects shared rules for review context composition.
-* [Pull-request profile](../../profiles/pull-request.yml) - Selects generic pull-request merge gates.
-* [Security baseline profile](../../profiles/security-baseline.yml) - Selects shared security baseline rules.
-* [External artifact intake profile](../../profiles/external-artifact-intake.yml) - Selects rules for validated external-artifact intake.
+* [Shared review policy](../review-policy.md) - Describes the provider-neutral review-policy family selected for review operations.
+* [External artifact intake](../external-artifact-intake.md) - Describes the context policy selected for validated external-artifact intake.
+* [Regression prevention](../regression-prevention.md) - Describes cross-cutting regression-prevention semantics represented in the shared corpus.
 
-## Corpus semantics and authority
+## Selection, composition, and rendering
 
-* [Policy authoring](../policy-authoring.md) - Defines shared-policy ownership, atomic rule modules, repository-local extensions, and override semantics.
-* [Policy authority inventory](../policy-authority-inventory.md) - Enumerates the maintained authority surfaces and distinguishes semantic authorities from projections and adapters.
-* [Shared review policy](../review-policy.md) - Describes the shared review-policy family and its provider-neutral boundary.
-* [External artifact intake](../external-artifact-intake.md) - Describes the shared context policy for intake of external artifacts.
-* [Regression prevention](../regression-prevention.md) - Describes cross-cutting regression-prevention semantics represented in shared policy.
+* [Configuration](../configuration.md) - Defines how a consumer selects shared profiles, adds repository-local policy, declares explicit overrides, and binds outputs to contexts.
+* [Architecture](../architecture.md) - Describes how selected shared and repository-local rules are loaded, composed, rendered, and recorded in lock state.
