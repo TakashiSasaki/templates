@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "documents": [
     {
       "id": "overview",
@@ -199,5 +199,8 @@
       "destination": "manifest.webmanifest",
       "optional": false
     }
-  ]
+  ],
+  "glossary": {
+    "source": "docs/glossary.yml"
+  }
 }

@@ -148,6 +148,17 @@ def parse_asset(raw: Any, index: int) -> Asset:
     return Asset(source, destination, optional)
 
 
+def parse_glossary_source(raw: Any) -> PurePosixPath:
+    if not isinstance(raw, dict):
+        raise CatalogError("glossary must be an object")
+    if set(raw) != {"source"}:
+        raise CatalogError("glossary must contain exactly the source field")
+    source = safe_relative_path(raw["source"], "glossary.source")
+    if source.suffix.lower() != ".yml":
+        raise CatalogError("glossary.source must be a .yml file")
+    return source
+
+
 def resolve_without_symlinks(
     source_root: Path,
     relative: PurePosixPath,
@@ -211,12 +222,16 @@ def validate_catalog(
 ) -> tuple[list[Document], list[Asset]]:
     data = read_json_object(catalog_path)
     schema_version = data.get("schema_version")
-    if type(schema_version) is not int or schema_version not in (1, 2):
-        raise CatalogError("schema_version must be the integer 1 or 2")
+    if type(schema_version) is not int or schema_version not in (1, 2, 3):
+        raise CatalogError(
+            "schema_version must be the integer 1 or 2, or the integer 3"
+        )
 
     allowed_top_level = {"schema_version", "documents"}
-    if schema_version == 2:
+    if schema_version >= 2:
         allowed_top_level.add("assets")
+    if schema_version == 3:
+        allowed_top_level.add("glossary")
     unknown = set(data) - allowed_top_level
     if unknown:
         raise CatalogError(
@@ -225,6 +240,8 @@ def validate_catalog(
         )
     if schema_version == 1 and "assets" in data:
         raise CatalogError("schema_version 1 does not support assets")
+    if schema_version < 3 and "glossary" in data:
+        raise CatalogError("glossary requires schema_version 3")
 
     raw_documents = data.get("documents")
     if not isinstance(raw_documents, list) or not raw_documents:
@@ -256,6 +273,16 @@ def validate_catalog(
         raise CatalogError("asset destinations must be unique")
     reject_overlapping_paths(asset_destinations, "asset destinations")
 
+    glossary_source: PurePosixPath | None = None
+    if schema_version == 3 and "glossary" in data:
+        glossary_source = parse_glossary_source(data["glossary"])
+        for asset_source in asset_sources:
+            if paths_overlap(glossary_source, asset_source):
+                raise CatalogError(
+                    "glossary source must not overlap an asset source: "
+                    f"{glossary_source} and {asset_source}"
+                )
+
     source_root = source_root.resolve(strict=True)
     for index, document in enumerate(documents):
         path = resolve_without_symlinks(
@@ -281,6 +308,14 @@ def validate_catalog(
                 f"declared asset source does not exist: {asset.source}"
             )
         validate_asset_tree(path, f"assets[{index}].source")
+
+    if glossary_source is not None:
+        path = resolve_without_symlinks(source_root, glossary_source, "glossary.source")
+        if not path.is_file():
+            raise CatalogError(
+                "declared glossary source is not a regular file: "
+                f"{glossary_source}"
+            )
 
     return documents, assets
 
