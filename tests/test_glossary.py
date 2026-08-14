@@ -67,6 +67,12 @@ class GlossarySchemaTests(unittest.TestCase):
             ["提供ブランチ"],
         )
 
+    def test_language_tag_output_is_canonicalized(self) -> None:
+        text = REPO_TERM.replace("      ja:\n", "      JA-jp:\n")
+        terms = self.load_text(text)
+        self.assertIn("ja-JP", terms[0]["localized_labels"])
+        self.assertNotIn("JA-jp", terms[0]["localized_labels"])
+
     def test_external_term_requires_authority(self) -> None:
         text = EXTERNAL_TERM.replace(
             "    authority:\n"
@@ -183,6 +189,29 @@ terms:
                 )
             )
 
+    def test_authority_url_credentials_are_rejected(self) -> None:
+        with self.assertRaisesRegex(GlossaryError, "without credentials"):
+            self.load_text(
+                EXTERNAL_TERM.replace(
+                    "https://git-scm.com/docs/gitglossary",
+                    "https://user:pass@git-scm.com/docs/gitglossary",
+                )
+            )
+
+    def test_invalid_authority_kind_is_rejected(self) -> None:
+        with self.assertRaisesRegex(GlossaryError, "normative, upstream, or conventional"):
+            self.load_text(EXTERNAL_TERM.replace("kind: upstream", "kind: informal"))
+
+    def test_self_referential_related_term_is_rejected(self) -> None:
+        text = REPO_TERM.replace(
+            "    definition: A branch that owns canonical publication content.\n",
+            "    definition: A branch that owns canonical publication content.\n"
+            "    related_terms:\n"
+            "      - templates-provider-branch\n",
+        )
+        with self.assertRaisesRegex(GlossaryError, "must not reference the term itself"):
+            self.load_text(text)
+
     def test_unknown_term_field_is_rejected(self) -> None:
         text = REPO_TERM.replace(
             "    origin: repository\n",
@@ -229,6 +258,12 @@ class IntegratedGlossaryTests(unittest.TestCase):
         )
         return provider
 
+    def set_glossary_source(self, provider: Path, source: object) -> None:
+        catalog = provider / "docs" / "publication-catalog.json"
+        value = json.loads(catalog.read_text(encoding="utf-8"))
+        value["glossary"] = {"source": source}
+        catalog.write_text(json.dumps(value), encoding="utf-8")
+
     def test_explicit_null_glossary_declaration_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -238,6 +273,35 @@ class IntegratedGlossaryTests(unittest.TestCase):
             value["glossary"] = None
             catalog.write_text(json.dumps(value), encoding="utf-8")
             with self.assertRaisesRegex(GlossaryError, "must contain only source"):
+                glossary_source_from_catalog(provider)
+
+    def test_parent_traversal_glossary_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = self.make_provider(root, "site", REPO_TERM)
+            self.set_glossary_source(provider, "../glossary.yml")
+            with self.assertRaisesRegex(GlossaryError, "safe relative POSIX path"):
+                glossary_source_from_catalog(provider)
+
+    def test_absolute_glossary_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = self.make_provider(root, "site", REPO_TERM)
+            self.set_glossary_source(provider, "/abs/glossary.yml")
+            with self.assertRaisesRegex(GlossaryError, "safe relative .yml path"):
+                glossary_source_from_catalog(provider)
+
+    def test_symlinked_glossary_source_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = self.make_provider(root, "site", REPO_TERM)
+            link = provider / "docs" / "glossary-link.yml"
+            try:
+                link.symlink_to("glossary.yml")
+            except (OSError, NotImplementedError):
+                self.skipTest("symlinks are not supported in this environment")
+            self.set_glossary_source(provider, "docs/glossary-link.yml")
+            with self.assertRaisesRegex(GlossaryError, "must not traverse a symlink"):
                 glossary_source_from_catalog(provider)
 
     def test_same_japanese_label_can_resolve_to_multiple_ids(self) -> None:
