@@ -367,22 +367,34 @@ def parse_harness_result(document: str) -> dict[str, Any]:
     return value
 
 
+def _browser_runtime_arguments(profile: str, *, no_sandbox: bool) -> list[str]:
+    """Return browser-wide flags, keeping sandbox disablement opt-in."""
+
+    arguments = [
+        "--headless=new",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--force-device-scale-factor=1",
+        f"--user-data-dir={profile}",
+    ]
+    if no_sandbox:
+        arguments.append("--no-sandbox")
+    return arguments
+
+
 def _run_browser(
     browser: Path,
     arguments: list[str],
     *,
+    no_sandbox: bool = False,
     timeout: int = 45,
 ) -> subprocess.CompletedProcess[str]:
     with tempfile.TemporaryDirectory(prefix="mobile-layout-chrome-") as profile:
         command = [
             str(browser),
-            "--headless=new",
-            "--disable-gpu",
-            "--disable-dev-shm-usage",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--force-device-scale-factor=1",
-            f"--user-data-dir={profile}",
+            *_browser_runtime_arguments(profile, no_sandbox=no_sandbox),
             *arguments,
         ]
         try:
@@ -411,6 +423,8 @@ def measure(
     case: CheckCase,
     width: int,
     height: int,
+    *,
+    no_sandbox: bool = False,
 ) -> dict[str, Any]:
     query = urlencode({"target": case.path, "width": width, "height": height})
     result = _run_browser(
@@ -421,6 +435,7 @@ def measure(
             f"--window-size={max(width, 800)},{max(height, 600)}",
             f"{base_url}{HARNESS_PATH}?{query}",
         ],
+        no_sandbox=no_sandbox,
     )
     return parse_harness_result(result.stdout)
 
@@ -432,6 +447,8 @@ def screenshot(
     width: int,
     height: int,
     destination: Path,
+    *,
+    no_sandbox: bool = False,
 ) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     _run_browser(
@@ -441,6 +458,7 @@ def screenshot(
             f"--screenshot={destination.resolve()}",
             f"{base_url}{case.path}",
         ],
+        no_sandbox=no_sandbox,
     )
     if not destination.is_file() or destination.stat().st_size == 0:
         raise MobileLayoutError(f"browser did not create screenshot {destination}")
@@ -474,7 +492,13 @@ def serve(site_root: Path) -> tuple[ThreadingHTTPServer, threading.Thread, str]:
     return server, thread, f"http://{host}:{port}"
 
 
-def run_checks(site_root: Path, browser: Path, output_root: Path) -> None:
+def run_checks(
+    site_root: Path,
+    browser: Path,
+    output_root: Path,
+    *,
+    no_sandbox: bool = False,
+) -> None:
     if not site_root.is_dir():
         raise MobileLayoutError(f"site root does not exist: {site_root}")
     if not (site_root / "index.html").is_file():
@@ -496,7 +520,14 @@ def run_checks(site_root: Path, browser: Path, output_root: Path) -> None:
         for case in CASES:
             for width, height in VIEWPORTS:
                 try:
-                    metrics = measure(browser, base_url, case, width, height)
+                    metrics = measure(
+                        browser,
+                        base_url,
+                        case,
+                        width,
+                        height,
+                        no_sandbox=no_sandbox,
+                    )
                     case_failures = validate_metrics(case, width, height, metrics)
                 except MobileLayoutError as exc:
                     metrics = {"ready": False, "error": str(exc)}
@@ -518,7 +549,15 @@ def run_checks(site_root: Path, browser: Path, output_root: Path) -> None:
         for case in CASES:
             destination = output_root / f"{case.name}-{width}x{height}.png"
             try:
-                screenshot(browser, base_url, case, width, height, destination)
+                screenshot(
+                    browser,
+                    base_url,
+                    case,
+                    width,
+                    height,
+                    destination,
+                    no_sandbox=no_sandbox,
+                )
             except MobileLayoutError as exc:
                 failures.append(f"{case.name} screenshot: {exc}")
     finally:
@@ -542,6 +581,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--browser", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument(
+        "--no-sandbox",
+        action="store_true",
+        help="Disable the Chromium sandbox for restricted CI runners.",
+    )
     return parser.parse_args()
 
 
@@ -552,6 +596,7 @@ def main() -> int:
             args.site_root.resolve(strict=True),
             args.browser.resolve(strict=True),
             args.output_root.resolve(),
+            no_sandbox=args.no_sandbox,
         )
     except (OSError, MobileLayoutError) as exc:
         raise SystemExit(str(exc)) from exc
