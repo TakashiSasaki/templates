@@ -144,9 +144,17 @@ def load_catalog(
     )
 
     try:
-        glossary_source_from_catalog(root)
+        glossary_source = glossary_source_from_catalog(root)
     except GlossaryError as exc:
         raise AssemblyError(f"{name} catalog glossary is invalid: {exc}") from exc
+
+    if glossary_source is not None and any(
+        legacy.paths_overlap(glossary_source, asset_source)
+        for asset_source in asset_sources
+    ):
+        raise AssemblyError(
+            f"{name} catalog glossary source must not overlap asset sources"
+        )
 
     return documents, assets
 
