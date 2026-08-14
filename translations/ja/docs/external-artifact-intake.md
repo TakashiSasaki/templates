@@ -1,10 +1,10 @@
-> **参考訳（非正本）:** この文書は `docs/external-artifact-intake.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
-
 ---
 description: 外部archive、historical source、vendor bundle、生成物などを安全に受領・検証・stageする共有規約と運用境界を説明します。
 ---
 
 # 外部artifact受領規約プロファイル
+
+> **参考訳（非正本）:** この文書は `docs/external-artifact-intake.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
 `external-artifact-intake` profileは、別repository、外部生成工程、配布archive、historical snapshot、vendor bundleなどからartifactを受け取り、destination repositoryへ導入する作業に適用します。
 
