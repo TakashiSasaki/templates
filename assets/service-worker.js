@@ -31,14 +31,17 @@ function fetchFreshDocument(request) {
   return fetch(request, { cache: "no-cache" });
 }
 
-function refreshStaticAsset(request) {
-  return caches.open(CACHE_NAME).then(async (cache) => {
-    const response = await fetch(request, { cache: "no-cache" });
-    if (response.ok) {
+async function refreshStaticAsset(request) {
+  const response = await fetch(request, { cache: "no-cache" });
+  if (response.ok) {
+    try {
+      const cache = await caches.open(CACHE_NAME);
       await cache.put(request, response.clone());
+    } catch (error) {
+      console.warn("PWA static asset cache refresh failed", error);
     }
-    return response;
-  });
+  }
+  return response;
 }
 
 self.addEventListener("install", (event) => {
@@ -78,12 +81,14 @@ self.addEventListener("fetch", (event) => {
 
   if (STATIC_ASSETS.includes(url.pathname)) {
     const refresh = refreshStaticAsset(event.request);
+    const cached = caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.match(event.request))
+      .catch(() => undefined);
     event.waitUntil(refresh.catch(() => undefined));
     event.respondWith(
-      caches
-        .open(CACHE_NAME)
-        .then((cache) => cache.match(event.request))
-        .then((cached) => cached || refresh)
+      cached
+        .then((response) => response || refresh)
         .catch(() => offlineResponse())
     );
   }
