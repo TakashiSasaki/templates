@@ -235,6 +235,13 @@ jobs:
             --site-root build/site/guided \
             --canonical-url "${PUBLIC_SITE_URL}"
 
+      - name: Finalize per-page and translation reader metadata
+        run: |
+          python site-source/scripts/finalize_translation_reader.py \
+            --site-root build/site \
+            --translation-map build/translation-publication.json \
+            --canonical-url "${PUBLIC_SITE_URL}"
+
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'

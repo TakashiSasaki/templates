@@ -15,6 +15,7 @@ STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
 COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
 SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
 MOBILE_STYLESHEET = ROOT / "assets" / "stylesheets" / "mobile-density.css"
+TRANSLATION_STYLESHEET = ROOT / "assets" / "stylesheets" / "translation-reader.css"
 IMAGES = ROOT / "assets" / "images"
 EXPECTED_SVGS = {
     "landing-architecture.svg",
@@ -153,6 +154,7 @@ class LandingPageTests(unittest.TestCase):
         cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
         shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
         mobile_css = MOBILE_STYLESHEET.read_text(encoding="utf-8")
+        translation_css = TRANSLATION_STYLESHEET.read_text(encoding="utf-8")
         for selector in (
             ".portal-landing",
             ".portal-hero",
@@ -219,6 +221,11 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("word-break: normal", mobile_css)
         self.assertNotIn("@import", mobile_css)
 
+        self.assertIn(".translation-switcher", translation_css)
+        self.assertIn(".translation-switcher__link", translation_css)
+        self.assertIn(mobile_query, translation_css)
+        self.assertNotIn("@import", translation_css)
+
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
         parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
         self.assertEqual(
@@ -228,6 +235,7 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/landing-cover.css",
                 "stylesheets/landing-shell.css",
                 "stylesheets/mobile-density.css",
+                "stylesheets/translation-reader.css",
             ],
         )
 

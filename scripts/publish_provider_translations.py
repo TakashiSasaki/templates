@@ -4,12 +4,39 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from assemble_publications import load_catalog, load_manifest, pages, parse_publications
-from publish_translations import TranslationPublicationError, publish_translations
+from publish_translations import (
+    TranslationPublicationError,
+    TranslationRecord,
+    publish_translations,
+)
 from translation_reader_metadata import exclude_translation_from_search
+
+
+def write_publication_map(path: Path, records: list[TranslationRecord]) -> None:
+    translations = []
+    for record in records:
+        translations.append(
+            {
+                "publication": record.publication,
+                "language": record.language,
+                "canonical_destination": record.canonical_destination.as_posix(),
+                "translation_destination": record.translation_destination.as_posix(),
+            }
+        )
+    payload = {
+        "schema_version": 1,
+        "canonical_language": "en",
+        "translations": translations,
+    }
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
@@ -39,6 +66,10 @@ def main() -> int:
             exclude_translation_from_search(
                 docs_root.joinpath(*record.translation_destination.parts)
             )
+        write_publication_map(
+            args.output_root / "translation-publication.json",
+            records,
+        )
         print(f"translations published: {len(records)}")
     except (OSError, TranslationPublicationError, RuntimeError) as exc:
         print(f"publish_provider_translations.py: {exc}", file=sys.stderr)
