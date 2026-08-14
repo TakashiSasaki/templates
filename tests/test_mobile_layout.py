@@ -5,7 +5,9 @@ from pathlib import Path
 
 from scripts.check_mobile_layout import (
     CheckCase,
+    MobileLayoutError,
     harness_html,
+    parse_harness_result,
     validate_metrics,
 )
 
@@ -70,15 +72,59 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         metrics = compact_metrics()
         metrics["cover"] = {"paddingTop": 17}
         metrics["lead"] = {"lineHeight": 25.5}
-        metrics["buttons"] = [{"height": 43}, {"height": 48}]
+        metrics["buttons"] = [{"height": 47}, {"height": 48}]
         failures = validate_metrics(case, 390, 844, metrics)
-        self.assertIn("portal action 0 is shorter than 44px", failures)
+        self.assertIn("portal action 0 is shorter than 48px", failures)
+
+    def test_layout_threshold_exceedance_is_reported(self) -> None:
+        case = CheckCase("landing", "/", "landing")
+        metrics = compact_metrics()
+        metrics["content"] = {"paddingTop": 9}
+        metrics["heading"] = {"marginBottom": 23}
+        metrics["cover"] = {"paddingTop": 21}
+        metrics["lead"] = {"lineHeight": 28}
+        metrics["buttons"] = [{"height": 48}]
+        failures = validate_metrics(case, 390, 844, metrics)
+        self.assertIn("mobile content top padding exceeds 8px", failures)
+        self.assertIn("mobile heading bottom margin exceeds 22px", failures)
+        self.assertIn("portal cover top padding exceeds 20px", failures)
+        self.assertIn("portal lead line height exceeds 27px", failures)
+
+    def test_unready_and_non_numeric_metrics_fail_cleanly(self) -> None:
+        case = CheckCase("policy", "/policy/", "document")
+        self.assertEqual(
+            validate_metrics(
+                case,
+                390,
+                844,
+                {"ready": False, "error": "frame failed"},
+            ),
+            ["harness did not become ready: frame failed"],
+        )
+        metrics = compact_metrics()
+        metrics["viewport"] = {"width": "390", "height": 844}
+        self.assertEqual(
+            validate_metrics(case, 390, 844, metrics),
+            ["viewport.width must be numeric"],
+        )
+
+    def test_parse_harness_result_extracts_json_and_rejects_invalid_output(self) -> None:
+        parsed = parse_harness_result(
+            '<html><pre id="result">{&quot;ready&quot;:true,&quot;value&quot;:1}</pre></html>'
+        )
+        self.assertEqual(parsed, {"ready": True, "value": 1})
+
+        with self.assertRaisesRegex(MobileLayoutError, "did not contain harness result"):
+            parse_harness_result("<html><body>missing</body></html>")
+        with self.assertRaisesRegex(MobileLayoutError, "result is not JSON"):
+            parse_harness_result('<pre id="result">not-json</pre>')
 
     def test_harness_keeps_measurement_same_origin(self) -> None:
         text = harness_html()
         self.assertIn('frame.src = target;', text)
         self.assertIn('target.startsWith("/")', text)
         self.assertIn('target.startsWith("//")', text)
+        self.assertIn('target.includes("\\\\")', text)
         self.assertNotIn("http://", text)
         self.assertNotIn("https://", text)
 
