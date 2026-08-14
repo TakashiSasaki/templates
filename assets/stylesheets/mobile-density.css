@@ -1,0 +1,117 @@
+/* Compact mobile reading profile.
+   Keep the desktop documentation rhythm unchanged and reduce only phone-width
+   spacing that does not carry semantic or interaction value. */
+@media screen and (max-width: 44.984375em) {
+  .md-main__inner {
+    margin-top: 0.35rem;
+  }
+
+  .md-path {
+    margin: 0 0.6rem;
+    padding-top: 0.2rem;
+    font-size: 0.64rem;
+  }
+
+  .md-content__inner {
+    margin-right: 0.6rem;
+    margin-bottom: 0.9rem;
+    margin-left: 0.6rem;
+    padding-top: 0.3rem;
+  }
+
+  .md-content__inner::before {
+    height: 0.15rem;
+  }
+
+  .md-typeset {
+    line-height: 1.58;
+  }
+
+  .md-typeset h1 {
+    margin-bottom: 0.7em;
+    font-size: 1.68em;
+    line-height: 1.22;
+  }
+
+  .md-typeset h2 {
+    margin-top: 1.15em;
+    margin-bottom: 0.42em;
+    font-size: 1.35em;
+    line-height: 1.3;
+  }
+
+  .md-typeset h3 {
+    margin-top: 1.15em;
+    margin-bottom: 0.5em;
+    font-size: 1.15em;
+    line-height: 1.35;
+  }
+
+  .md-typeset blockquote,
+  .md-typeset dl,
+  .md-typeset figure,
+  .md-typeset ol,
+  .md-typeset pre,
+  .md-typeset ul {
+    margin-top: 0.65em;
+    margin-bottom: 0.65em;
+  }
+
+  .md-typeset ol li,
+  .md-typeset ul li {
+    margin-bottom: 0.25em;
+  }
+
+  .md-typeset table:not([class]) th,
+  .md-typeset table:not([class]) td {
+    padding: 0.65em 0.8em;
+  }
+
+  .portal-landing--cover {
+    margin-top: 0;
+  }
+
+  .portal-cover {
+    gap: 0.9rem;
+    padding: 0.85rem;
+    border-radius: 0.8rem;
+  }
+
+  .portal-cover__kicker {
+    margin-bottom: 0.55rem;
+  }
+
+  .portal-cover h1 {
+    margin-bottom: 0.65rem;
+    font-size: clamp(1.75rem, 9vw, 2.25rem);
+    line-height: 1.02;
+  }
+
+  .portal-cover__lead {
+    margin-bottom: 0.8rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .portal-cover__actions {
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .portal-cover__button {
+    min-height: 48px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .portal-domain-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .portal-cover-features article {
+    padding: 0.75rem;
+  }
+
+  .portal-cover__signals {
+    gap: 0.35rem;
+  }
+}

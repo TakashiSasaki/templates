@@ -9,7 +9,8 @@ site_dir = "site"
 extra_css = [
   "stylesheets/extra.css",
   "stylesheets/landing-cover.css",
-  "stylesheets/landing-shell.css"
+  "stylesheets/landing-shell.css",
+  "stylesheets/mobile-density.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",

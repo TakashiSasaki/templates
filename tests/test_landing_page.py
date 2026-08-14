@@ -14,6 +14,7 @@ OVERVIEW = ROOT / "docs" / "overview.md"
 STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
 COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
 SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
+MOBILE_STYLESHEET = ROOT / "assets" / "stylesheets" / "mobile-density.css"
 IMAGES = ROOT / "assets" / "images"
 EXPECTED_SVGS = {
     "landing-architecture.svg",
@@ -151,6 +152,7 @@ class LandingPageTests(unittest.TestCase):
         css = STYLESHEET.read_text(encoding="utf-8")
         cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
         shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
+        mobile_css = MOBILE_STYLESHEET.read_text(encoding="utf-8")
         for selector in (
             ".portal-landing",
             ".portal-hero",
@@ -180,6 +182,35 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn("> .md-sidebar", shell_css)
         self.assertNotIn("@import", shell_css)
 
+        mobile_query = "@media screen and (max-width: 44.984375em)"
+        self.assertEqual(mobile_css.count(mobile_query), 1)
+        unscoped_prefix = re.sub(
+            r"/\*.*?\*/",
+            "",
+            mobile_css[: mobile_css.index(mobile_query)],
+            flags=re.DOTALL,
+        )
+        self.assertNotIn("{", unscoped_prefix)
+        for selector in (
+            ".md-main__inner",
+            ".md-path",
+            ".md-content__inner",
+            ".md-typeset h1",
+            ".md-typeset h2",
+            ".md-typeset h3",
+            ".md-typeset blockquote",
+            ".md-typeset table:not([class]) th",
+            ".md-typeset table:not([class]) td",
+            ".portal-cover",
+            ".portal-cover__lead",
+            ".portal-cover__button",
+            ".portal-domain-card",
+            ".portal-cover-features article",
+        ):
+            self.assertIn(selector, mobile_css)
+        self.assertIn("min-height: 48px", mobile_css)
+        self.assertNotIn("@import", mobile_css)
+
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
         parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
         self.assertEqual(
@@ -188,6 +219,7 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/extra.css",
                 "stylesheets/landing-cover.css",
                 "stylesheets/landing-shell.css",
+                "stylesheets/mobile-density.css",
             ],
         )
 
