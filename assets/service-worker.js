@@ -1,4 +1,4 @@
-const CACHE_NAME = "templates-portal-shell-v2";
+const CACHE_NAME = "templates-portal-shell-v3";
 const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"];
 
 function offlineResponse() {
@@ -29,6 +29,19 @@ function isDocumentRequest(request, url) {
 
 function fetchFreshDocument(request) {
   return fetch(request, { cache: "no-cache" });
+}
+
+async function refreshStaticAsset(request) {
+  const response = await fetch(request, { cache: "no-cache" });
+  if (response.ok) {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    } catch (error) {
+      console.warn("PWA static asset cache refresh failed", error);
+    }
+  }
+  return response;
 }
 
 self.addEventListener("install", (event) => {
@@ -67,11 +80,15 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (STATIC_ASSETS.includes(url.pathname)) {
+    const refresh = refreshStaticAsset(event.request);
+    const cached = caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.match(event.request))
+      .catch(() => undefined);
+    event.waitUntil(refresh.catch(() => undefined));
     event.respondWith(
-      caches
-        .open(CACHE_NAME)
-        .then((cache) => cache.match(event.request, { ignoreSearch: true }))
-        .then((cached) => cached || fetch(event.request))
+      cached
+        .then((response) => response || refresh)
         .catch(() => offlineResponse())
     );
   }

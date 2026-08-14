@@ -122,7 +122,7 @@ class PwaAssetTests(unittest.TestCase):
     def test_service_worker_keeps_documents_out_of_static_cache(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
-        self.assertIn('const CACHE_NAME = "templates-portal-shell-v2"', worker)
+        self.assertIn('const CACHE_NAME = "templates-portal-shell-v3"', worker)
         self.assertIn(
             'const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"]',
             worker,
@@ -152,15 +152,22 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('url.origin !== self.location.origin', worker)
         self.assertIn('event.request.method !== "GET"', worker)
 
-    def test_service_worker_static_asset_cache_ignores_query_string(self) -> None:
+    def test_service_worker_static_asset_cache_revalidates_exact_keys(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
-        self.assertIn("caches.open(CACHE_NAME)", worker)
-        self.assertIn(
-            "cache.match(event.request, { ignoreSearch: true })",
-            worker,
-        )
-        self.assertIn(".catch(() => offlineResponse())", worker)
+        self.assertIn("async function refreshStaticAsset(request)", worker)
+        self.assertIn('const response = await fetch(request, { cache: "no-cache" })', worker)
+        self.assertIn("if (response.ok)", worker)
+        self.assertIn("try {", worker)
+        self.assertIn("const cache = await caches.open(CACHE_NAME)", worker)
+        self.assertIn("await cache.put(request, response.clone())", worker)
+        self.assertIn('console.warn("PWA static asset cache refresh failed", error)', worker)
+        self.assertIn("const refresh = refreshStaticAsset(event.request)", worker)
+        self.assertIn("const cached = caches", worker)
+        self.assertIn(".catch(() => undefined)", worker)
+        self.assertIn("event.waitUntil(refresh.catch(() => undefined))", worker)
+        self.assertIn("response || refresh", worker)
+        self.assertNotIn("ignoreSearch", worker)
 
     def test_service_worker_activation_cache_cleanup_filter(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
