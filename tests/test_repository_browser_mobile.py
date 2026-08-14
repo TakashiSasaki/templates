@@ -6,8 +6,15 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from scripts.generate_repository_browser import BRANCH_ORDER, generate_browser
+import scripts.generate_repository_browser as repository_browser
+from scripts.generate_repository_browser import (
+    BRANCH_ORDER,
+    RepositoryBrowserError,
+    generate_browser,
+    write_browser_controller,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,6 +116,38 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
                 page,
             )
 
+    def test_write_browser_controller_rejects_invalid_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            missing = root / "missing.js"
+            with mock.patch.object(repository_browser, "CONTROLLER_SOURCE", missing):
+                with self.assertRaisesRegex(
+                    RepositoryBrowserError,
+                    "controller is unavailable",
+                ):
+                    write_browser_controller(root)
+
+            target = root / "target.js"
+            target.write_text("(() => {})();\n", encoding="utf-8")
+            symlink = root / "controller-link.js"
+            symlink.symlink_to(target)
+            with mock.patch.object(repository_browser, "CONTROLLER_SOURCE", symlink):
+                with self.assertRaisesRegex(
+                    RepositoryBrowserError,
+                    "controller is unavailable",
+                ):
+                    write_browser_controller(root)
+
+            nul_source = root / "nul.js"
+            nul_source.write_bytes(b"before\x00after")
+            with mock.patch.object(repository_browser, "CONTROLLER_SOURCE", nul_source):
+                with self.assertRaisesRegex(
+                    RepositoryBrowserError,
+                    "controller contains NUL",
+                ):
+                    write_browser_controller(root)
+
     def test_controller_uses_explicit_navigation_without_swipe_or_history(self) -> None:
         controller = CONTROLLER.read_text(encoding="utf-8")
         self.assertIn('matchMedia("(max-width: 800px)")', controller)
@@ -116,6 +155,12 @@ class RepositoryBrowserMobileTests(unittest.TestCase):
         self.assertIn('setMobileMode("files")', controller)
         self.assertIn("tree.inert", controller)
         self.assertIn("content.inert", controller)
+        self.assertIn("event.defaultPrevented", controller)
+        self.assertIn("event.button !== 0", controller)
+        self.assertIn("event.metaKey", controller)
+        self.assertIn("event.ctrlKey", controller)
+        self.assertIn("event.shiftKey", controller)
+        self.assertIn("event.altKey", controller)
         self.assertIn("preventScroll: true", controller)
         self.assertNotIn("touchstart", controller)
         self.assertNotIn("touchmove", controller)
@@ -164,6 +209,9 @@ const tree = new HTMLElement();
 const content = new HTMLElement();
 const filesButton = new HTMLButtonElement();
 const selectedFileLabel = new HTMLElement();
+const fallbackTreeLink = new HTMLAnchorElement();
+fallbackTreeLink.dataset.filePath = "fallback.md";
+tree.querySelector = () => fallbackTreeLink;
 const browserHandlers = {};
 const buttonHandlers = {};
 const browser = new HTMLElement();
@@ -193,6 +241,19 @@ global.window = {
   requestAnimationFrame: (callback) => callback(),
 };
 
+function clickEvent(target, overrides = {}) {
+  return {
+    target,
+    defaultPrevented: false,
+    button: 0,
+    metaKey: false,
+    ctrlKey: false,
+    shiftKey: false,
+    altKey: false,
+    ...overrides,
+  };
+}
+
 vm.runInThisContext(fs.readFileSync(process.argv[1], "utf8"), {
   filename: process.argv[1],
 });
@@ -208,10 +269,26 @@ const initialMobile = {
   contentInert: content.inert,
 };
 
+buttonHandlers.click();
+const noSelectionReturn = {
+  mode: browser.dataset.mobileView,
+  treeInert: tree.inert,
+  contentInert: content.inert,
+  fallbackFocusCount: fallbackTreeLink.focusCount,
+};
+
 const link = new HTMLAnchorElement();
 link.dataset.filePath = "README.md";
 link.textContent = "README.md";
-browserHandlers.click({ target: link });
+browserHandlers.click(clickEvent(link, { ctrlKey: true }));
+browserHandlers.click(clickEvent(link, { button: 1 }));
+const modifiedClicks = {
+  mode: browser.dataset.mobileView,
+  current: link.attributes.get("aria-current") || null,
+  filesButtonFocusCount: filesButton.focusCount,
+};
+
+browserHandlers.click(clickEvent(link));
 const selectedMobile = {
   mode: browser.dataset.mobileView,
   treeInert: tree.inert,
@@ -244,6 +321,8 @@ const returnedFiles = {
 
 process.stdout.write(JSON.stringify({
   initialMobile,
+  noSelectionReturn,
+  modifiedClicks,
   selectedMobile,
   desktop,
   restoredMobile,
@@ -261,6 +340,19 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(
             result["initialMobile"],
             {"mode": "files", "treeInert": False, "contentInert": True},
+        )
+        self.assertEqual(
+            result["noSelectionReturn"],
+            {
+                "mode": "files",
+                "treeInert": False,
+                "contentInert": True,
+                "fallbackFocusCount": 1,
+            },
+        )
+        self.assertEqual(
+            result["modifiedClicks"],
+            {"mode": "files", "current": None, "filesButtonFocusCount": 0},
         )
         self.assertEqual(
             result["selectedMobile"],
