@@ -10,7 +10,8 @@ extra_css = [
   "stylesheets/extra.css",
   "stylesheets/landing-cover.css",
   "stylesheets/landing-shell.css",
-  "stylesheets/mobile-density.css"
+  "stylesheets/mobile-density.css",
+  "stylesheets/translation-reader.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
