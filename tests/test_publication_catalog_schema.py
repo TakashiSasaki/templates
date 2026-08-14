@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from scripts.assemble_publications_v3 import AssemblyError, load_catalog
+from scripts.prepare_repository_tree_publication import augment_catalog
 
 
 class PublicationCatalogSchemaVersionTests(unittest.TestCase):
@@ -30,6 +31,17 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             ],
         }
 
+    def write_glossary(self, root: Path) -> None:
+        (root / "docs" / "glossary.yml").write_text(
+            "schema_version: 1\n"
+            "terms:\n"
+            "  - id: templates-example\n"
+            "    term: Example\n"
+            "    origin: repository\n"
+            "    definition: Example term.\n",
+            encoding="utf-8",
+        )
+
     def test_boolean_schema_version_is_rejected(self) -> None:
         catalog = self.base_catalog(True)
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
@@ -47,15 +59,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
             root = Path(directory)
             self.write_catalog(root, catalog)
-            (root / "docs" / "glossary.yml").write_text(
-                "schema_version: 1\n"
-                "terms:\n"
-                "  - id: templates-example\n"
-                "    term: Example\n"
-                "    origin: repository\n"
-                "    definition: Example term.\n",
-                encoding="utf-8",
-            )
+            self.write_glossary(root)
             documents, assets = load_catalog("test", root)
             self.assertIn("overview", documents)
             self.assertEqual(assets, [])
@@ -86,6 +90,36 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             self.write_catalog(root, catalog)
             with self.assertRaisesRegex(AssemblyError, "glossary is invalid"):
                 load_catalog("test", root)
+
+    def test_glossary_source_must_not_overlap_assets(self) -> None:
+        catalog = self.base_catalog(3)
+        catalog["glossary"] = {"source": "docs/glossary.yml"}
+        catalog["assets"] = [
+            {
+                "source": "docs/glossary.yml",
+                "destination": "raw-glossary.yml",
+                "optional": False,
+            }
+        ]
+        with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
+            root = Path(directory)
+            self.write_catalog(root, catalog)
+            self.write_glossary(root)
+            with self.assertRaisesRegex(
+                AssemblyError,
+                "glossary source must not overlap asset sources",
+            ):
+                load_catalog("test", root)
+
+    def test_repository_tree_preparation_preserves_glossary_declaration(self) -> None:
+        catalog = self.base_catalog(3)
+        catalog["glossary"] = {"source": "docs/glossary.yml"}
+        prepared = augment_catalog(catalog, ())
+        self.assertEqual(
+            prepared["glossary"],
+            {"source": "docs/glossary.yml"},
+        )
+        self.assertEqual(catalog["documents"], prepared["documents"])
 
 
 if __name__ == "__main__":
