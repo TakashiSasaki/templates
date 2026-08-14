@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import re
 import unicodedata
@@ -11,6 +12,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
+import idna
 import yaml
 
 TERM_ID = re.compile(
@@ -19,7 +21,7 @@ TERM_ID = re.compile(
 )
 REPOSITORY_TERM_ID = re.compile(r"\Atemplates-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 EXTERNAL_TERM_ID = re.compile(
-    r"\Aexternal-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*\Z"
+    r"\Aexternal-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*)\Z"
 )
 LANGUAGE_TAG = re.compile(r"\A[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*\Z")
 PROVIDER_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
@@ -27,6 +29,7 @@ FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
 AUTHORITY_KINDS = {"normative", "upstream", "conventional"}
 ORIGINS = {"repository", "external"}
 MERGE_TAG = "tag:yaml.org,2002:merge"
+ALLOWED_TEXT_CONTROLS = {"\t", "\n", "\r"}
 
 
 class GlossaryError(RuntimeError):
@@ -77,11 +80,13 @@ def _reject_yaml_features(text: str) -> None:
         raise GlossaryError(f"unable to scan glossary YAML: {exc}") from exc
 
 
-def _reject_control_characters(text: str) -> None:
-    allowed = {"\t", "\n", "\r"}
+def _reject_control_characters(text: str, field: str = "glossary") -> None:
     for char in text:
-        if unicodedata.category(char) == "Cc" and char not in allowed:
-            raise GlossaryError("glossary contains a disallowed control character")
+        if (
+            unicodedata.category(char) == "Cc"
+            and char not in ALLOWED_TEXT_CONTROLS
+        ):
+            raise GlossaryError(f"{field} contains a disallowed control character")
 
 
 def read_yaml(path: Path) -> dict[str, Any]:
@@ -109,6 +114,7 @@ def read_yaml(path: Path) -> dict[str, Any]:
 def _nonempty_text(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise GlossaryError(f"{field} must be a non-empty string")
+    _reject_control_characters(value, field)
     return value
 
 
@@ -199,6 +205,36 @@ def _parse_localized_labels(
     return result
 
 
+def _validate_authority_url(url: str, field: str) -> None:
+    if any(char.isspace() for char in url):
+        raise GlossaryError(f"{field} must not contain whitespace")
+    try:
+        parsed = urlsplit(url)
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError as exc:
+        raise GlossaryError(f"{field} must be a valid absolute HTTPS URL") from exc
+
+    if (
+        parsed.scheme.casefold() != "https"
+        or not parsed.netloc
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise GlossaryError(
+            f"{field} must be an absolute HTTPS URL without credentials"
+        )
+
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            idna.encode(hostname, uts46=True, std3_rules=True)
+        except idna.IDNAError as exc:
+            raise GlossaryError(f"{field} has an invalid authority host") from exc
+
+
 def _parse_authority(value: Any, field: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise GlossaryError(f"{field} must be a mapping")
@@ -247,22 +283,7 @@ def _parse_authority(value: Any, field: str) -> dict[str, Any]:
 
         title = _nonempty_text(raw["title"], f"{source_field}.title")
         url = _nonempty_text(raw["url"], f"{source_field}.url")
-        if any(char.isspace() for char in url):
-            raise GlossaryError(
-                f"{source_field}.url must not contain whitespace"
-            )
-        parsed = urlsplit(url)
-        if (
-            parsed.scheme.casefold() != "https"
-            or not parsed.netloc
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-        ):
-            raise GlossaryError(
-                f"{source_field}.url must be an absolute HTTPS URL "
-                "without credentials"
-            )
+        _validate_authority_url(url, f"{source_field}.url")
 
         source = {"title": title, "url": url}
         for optional in ("version", "locator"):
@@ -491,7 +512,11 @@ def resolve_without_symlinks(
 
 
 def glossary_source_from_catalog(root: Path) -> PurePosixPath | None:
-    path = root / "docs" / "publication-catalog.json"
+    path = resolve_without_symlinks(
+        root,
+        PurePosixPath("docs/publication-catalog.json"),
+        "publication catalog",
+    )
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
