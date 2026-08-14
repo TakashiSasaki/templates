@@ -33,6 +33,9 @@
       return;
     }
 
+    // data-mobile-view is the preferred narrow-viewport pane. Keep it while
+    // desktop shows both panes so rotating or resizing back to mobile restores
+    // the user's prior Files/Content context instead of discarding it.
     const showingContent = mobileMode() === "content";
     tree.inert = showingContent;
     content.inert = !showingContent;
