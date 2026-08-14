@@ -85,6 +85,9 @@ jobs:
       - name: Verify published repository tree
         run: .venv/bin/python scripts/verify-repository-structure.py --check
 
+      - name: Validate translations
+        run: .venv/bin/python scripts/validate_translations.py
+
       - name: Generate documentation assets
         run: .venv/bin/python scripts/generate-doc-assets.py
 
