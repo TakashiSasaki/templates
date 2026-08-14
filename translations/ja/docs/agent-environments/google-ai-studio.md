@@ -1,10 +1,10 @@
-> **参考訳（非正本）:** この文書は `docs/agent-environments/google-ai-studio.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
-
 ---
 description: Google AI Studio Build modeでrepositoryを編集、検証、GitHubへexportする際の標準運用を説明します。
 ---
 
 # Google AI Studio Build mode operation
+
+> **参考訳（非正本）:** この文書は `docs/agent-environments/google-ai-studio.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
 このページは、Google AI Studio Build modeで既存repositoryを編集し、workspace内で検証した後にGitHubへexportする作業の標準運用を定義します。
 
