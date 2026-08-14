@@ -125,7 +125,7 @@ jobs:
 
       - name: Assemble the documentation project
         run: |
-          python site-source/scripts/assemble_publications.py \
+          python site-source/scripts/assemble_publications_v3.py \
             --publication site=site-publication \
             --publication skill=skill-source \
             --publication policy=policy-source \
@@ -192,6 +192,20 @@ jobs:
 
       - name: Build the static site
         run: zensical build --config-file build/zensical.toml --clean --strict
+
+      - name: Generate integrated glossary
+        run: |
+          python site-source/scripts/generate_glossary.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --output build/site/glossary/index.json \
+            --publication site=site-publication \
+            --revision "site=$(git -C site-source rev-parse HEAD)" \
+            --publication skill=skill-source \
+            --revision "skill=$(git -C skill-source rev-parse HEAD)" \
+            --publication policy=policy-source \
+            --revision "policy=$(git -C policy-source rev-parse HEAD)" \
+            --publication webapp=webapp-source \
+            --revision "webapp=$(git -C webapp-source rev-parse HEAD)"
 
       - name: Normalize generated canonical links and PWA metadata
         run: |
@@ -317,6 +331,17 @@ jobs:
           test -f build/site/icon.svg
           test -f build/site/service-worker.js
           test -f build/site/javascripts/pwa.js
+          test -f build/site/glossary/index.json
+          grep --fixed-strings -- \
+            '"id": "templates-provider-branch"' \
+            build/site/glossary/index.json
+          grep --fixed-strings -- \
+            '"term": "プロバイダーブランチ"' \
+            build/site/glossary/index.json
+          site_revision="$(git -C site-source rev-parse HEAD)"
+          grep --fixed-strings -- \
+            "\"source_revision\": \"${site_revision}\"" \
+            build/site/glossary/index.json
           grep --fixed-strings -- \
             '<link rel="manifest" href="/app.webmanifest">' \
             build/site/index.html
