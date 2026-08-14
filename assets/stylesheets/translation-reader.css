@@ -15,6 +15,13 @@
   font-weight: 650;
 }
 
+.translation-switcher__links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
 .translation-switcher__link {
   display: inline-flex;
   align-items: center;
@@ -52,6 +59,10 @@ html[lang="ja"] .translation-switcher + blockquote p {
 @media screen and (max-width: 44.984375em) {
   .translation-switcher {
     margin-bottom: 0.65rem;
+  }
+
+  .translation-switcher__links {
+    gap: 0.25rem;
   }
 
   .translation-switcher__link {
