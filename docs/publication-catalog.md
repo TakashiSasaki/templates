@@ -1,8 +1,9 @@
 # Publication catalog
 
-The `webapp` template-development source declares the human-readable material
-and machine-readable reference assets that may be published through the
-repository documentation portal in `docs/publication-catalog.json`.
+The `webapp` template-development source declares the human-readable material,
+machine-readable reference assets, and canonical terminology source that may be
+consumed by the repository documentation portal through
+`docs/publication-catalog.json`.
 
 The unrelated `site` branch consumes this catalog together with the `skill`
 and `policy` catalogs. Only `site` assembles and deploys GitHub Pages. After a
@@ -16,7 +17,8 @@ The catalog deliberately publishes from two ownership roots:
 - downstream material is published from `template/`, the sole canonical source
   tree whose contents may be copied directly to a new product repository root;
 - source-maintainer architecture, audits, clean-room conformance explanation,
-  and this publication contract remain outside `template/`.
+  the canonical glossary, and this publication contract remain outside
+  `template/`.
 
 The distinction is based on artifact ownership, not on whether a document is
 public. Publishing a source-maintainer document does not place it in the
@@ -38,7 +40,8 @@ application publication home. The contract and schema assets resolve from
 - canonical source paths across the source and distribution responsibility roots;
 - source optionality;
 - the publication landing document;
-- explicit non-Markdown asset roots needed by the published documents; and
+- explicit non-Markdown asset roots needed by the published documents;
+- the canonical `docs/glossary.yml` terminology source; and
 - the distinction between source-maintainer and distributed material.
 
 `site` owns:
@@ -46,17 +49,46 @@ application publication home. The contract and schema assets resolve from
 - the portal home page;
 - navigation labels, hierarchy, and generated destinations;
 - the reviewed full-SHA source lock;
-- integrated assembly and strict static-site generation; and
+- integrated assembly, glossary generation, and strict static-site generation;
+  and
 - the only workflow that may receive Pages deployment authority.
 
 The effective document identity is `webapp:<document-id>`. The catalog field
 `home: true` selects the landing page for the Web application section, not the
-global site home.
+global site home. Glossary terms use their own stable repository-wide term IDs.
 
 ## Schema contract
 
 Schema version `1` declares only Markdown documents. Schema version `2` retains
-the same document contract and adds explicit non-Markdown asset roots.
+the same document contract and adds explicit non-Markdown asset roots. Schema
+version `3` retains the version 2 document and asset contract and additionally
+permits a canonical glossary declaration.
+
+A representative version 3 catalog is:
+
+```json
+{
+  "schema_version": 3,
+  "documents": [
+    {
+      "id": "overview",
+      "source": "template/README.md",
+      "optional": false,
+      "home": true
+    }
+  ],
+  "assets": [
+    {
+      "source": "template/contracts",
+      "destination": "contracts",
+      "optional": false
+    }
+  ],
+  "glossary": {
+    "source": "docs/glossary.yml"
+  }
+}
+```
 
 Each document contains exactly `id`, `source`, `optional`, and `home`. A
 required document source must identify an existing regular Markdown file. An
@@ -64,10 +96,21 @@ optional document source may be absent, but when present it must also be a
 regular Markdown file. Exactly one non-optional document is the publication
 landing page.
 
-Each version 2 asset contains exactly `source`, `destination`, and `optional`.
-A required asset source must exist. An optional asset source may be absent.
-Asset destinations are relative to the `webapp` namespace in the generated
-site.
+Each version 2 or 3 asset contains exactly `source`, `destination`, and
+`optional`. A required asset source must exist. An optional asset source may be
+absent. Asset destinations are relative to the `webapp` namespace in the
+generated site.
+
+The optional version 3 `glossary` object contains exactly `source`. When
+present, it identifies an existing regular `.yml` file inside the provider
+source root. The path may not traverse a symbolic link or overlap any declared
+asset source. The glossary is semantic input, not a raw published asset.
+Individual terms and localized lexical labels are added inside the glossary and
+do not become catalog entries.
+
+English remains canonical for glossary definitions. `localized_labels`, such
+as Japanese preferred terms and aliases, are discovery metadata that resolve to
+the same stable term ID; they do not create localized definitions.
 
 ## Machine-readable references
 
@@ -98,7 +141,13 @@ python -m scripts.validate_publication_catalog
 
 The validator rejects duplicate JSON members, unsupported fields, unsafe paths,
 symbolic-link traversal, duplicate IDs or destinations, invalid home
-declarations, and missing required documents or assets.
+declarations, missing required documents or assets, malformed glossary
+declarations, and glossary/asset source overlap.
+
+The Site build independently validates glossary content semantics, stable term
+IDs, localized labels, external authority metadata, related-term resolution,
+cross-provider uniqueness, and exact provider revision provenance before it
+emits the integrated machine-readable glossary.
 
 The separate distribution validator proves that the schema-v2
 `distribution_files` inventory is a closed description of the canonical
