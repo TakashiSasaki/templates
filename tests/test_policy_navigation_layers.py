@@ -1,6 +1,8 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+LINK_TARGET = re.compile(r"\]\(([^)#]+)(?:#[^)]+)?\)")
 
 
 def test_root_navigation_separates_policy_layers() -> None:
@@ -46,6 +48,22 @@ def test_layer_navigation_entries_are_published() -> None:
         entry = text[id_position:entry_end]
         assert '"optional": false' in entry
         assert '"home": false' in entry
+
+
+def test_all_layer_navigation_links_target_existing_files() -> None:
+    layer_files = [
+        ROOT / "docs" / "provider" / "index.md",
+        ROOT / "docs" / "shared-policy" / "index.md",
+        ROOT / "docs" / "consumer" / "index.md",
+    ]
+
+    for layer_file in layer_files:
+        text = layer_file.read_text(encoding="utf-8")
+        targets = LINK_TARGET.findall(text)
+        assert targets
+        for target in targets:
+            target_path = layer_file.parent / target
+            assert target_path.is_file(), f"Broken link in {layer_file}: {target}"
 
 
 def test_provider_environment_link_targets_a_document() -> None:
