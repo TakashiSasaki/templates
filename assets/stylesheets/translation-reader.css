@@ -1,0 +1,61 @@
+.translation-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: -0.15rem 0 0.8rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.translation-switcher__status {
+  min-width: 0;
+  font-weight: 650;
+}
+
+.translation-switcher__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0.2rem 0.58rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 999px;
+  background: var(--md-default-bg-color);
+  font-weight: 700;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+
+.translation-switcher__link:hover {
+  border-color: var(--md-accent-fg-color);
+}
+
+.translation-switcher__link:focus-visible {
+  outline: 0.12rem solid var(--md-accent-fg-color);
+  outline-offset: 0.12rem;
+}
+
+/* Keep the provider-owned non-authoritative notice visible but compact. */
+html[lang="ja"] .translation-switcher + blockquote {
+  margin-top: 0;
+  margin-bottom: 0.9rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.72rem;
+}
+
+html[lang="ja"] .translation-switcher + blockquote p {
+  margin: 0;
+}
+
+@media screen and (max-width: 44.984375em) {
+  .translation-switcher {
+    margin-bottom: 0.65rem;
+  }
+
+  .translation-switcher__link {
+    min-height: 1.7rem;
+    padding-inline: 0.52rem;
+  }
+}
