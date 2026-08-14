@@ -10,7 +10,9 @@ served from the domain root rather than from the former `/templates/` project
 path.
 
 The normative cross-branch publication rules are documented in
-[`PUBLISHING.md`](PUBLISHING.md).
+[`PUBLISHING.md`](PUBLISHING.md). Canonical terminology ownership, glossary
+schema rules, localized lexical labels, and glossary integration are documented
+in [`GLOSSARY.md`](GLOSSARY.md).
 
 ## Ownership model
 
@@ -21,18 +23,25 @@ Each provider branch owns its public source boundary in
 - canonical Markdown source paths;
 - required versus optional documents;
 - its section landing document;
-- explicit non-Markdown asset roots when catalog schema version 2 is used.
+- explicit non-Markdown asset roots when catalog schema version 2 or later is
+  used;
+- an optional canonical `docs/glossary.yml` source when catalog schema version 3
+  is used.
 
-The catalog is an explicit allowlist for rendered documentation and provider
-assets. Repository inventory previews are a separate bounded surface: they do
-not add files to the documentation catalog and are generated only from eligible
-immutable Git blobs under the constraints in `PUBLISHING.md`.
+The catalog is an explicit allowlist for rendered documentation, provider
+assets, and declared canonical glossary input. Individual glossary terms are
+not catalog entries; adding a term to a declared glossary does not require a
+catalog change. Repository inventory previews are a separate bounded surface:
+they do not add files to the documentation catalog and are generated only from
+eligible immutable Git blobs under the constraints in `PUBLISHING.md`.
 
 The `site` branch owns:
 
 - the global portal home;
 - cross-publication navigation, titles, ordering, and generated destinations;
 - full-commit source locking in `publication-sources.json`;
+- deterministic integration of declared provider glossaries into
+  `/glossary/index.json`, with provider/path/full-SHA provenance;
 - generated repository-tree inventories and sandboxed text previews for the
   exact checked-out revisions;
 - the bounded static repository browser for immutable source inspection;
@@ -42,7 +51,8 @@ The `site` branch owns:
   and Pages deployment.
 
 A document is identified by the pair `publication:document`, such as
-`skill:overview`, `policy:overview`, or `webapp:overview`.
+`skill:overview`, `policy:overview`, or `webapp:overview`. A glossary concept is
+identified independently by its stable glossary term ID.
 
 ## Reader-facing portal
 
@@ -62,6 +72,10 @@ Three complementary discovery surfaces are available:
   provider revisions;
 - `/files/` provides the bounded static browser for immutable source snapshots.
 
+The machine-readable integrated terminology registry is published at
+`/glossary/index.json`. A human glossary/search UI is deliberately separate from
+the glossary data contract and may be added later.
+
 Cataloged Markdown files link to their Pages documentation. Eligible regular
 UTF-8 text files up to 256 KiB can be opened in a sandboxed inline frame, while
 every file retains an immutable GitHub source link at the exact rendered full
@@ -76,7 +90,11 @@ progressive-disclosure path that agents can follow.
 
 ## Key files
 
-- `docs/publication-catalog.json`: the canonical site portal publication;
+- `docs/publication-catalog.json`: the canonical site portal publication and
+  optional glossary-source declaration;
+- `docs/glossary.yml`: Site-owned canonical glossary entries;
+- `GLOSSARY.md`: normative glossary schema, authority, ownership, and
+  localization contract;
 - `docs/repository-trees/*.md`: reviewed templates for generated tree pages;
 - `site-manifest.json`: canonical integrated navigation before generated
   inventory augmentation;
@@ -84,6 +102,12 @@ progressive-disclosure path that agents can follow.
 - `PUBLISHING.md`: normative public-boundary and deployment policy;
 - `scripts/prepare_repository_tree_publication.py`: creates a temporary site
   publication with validated tree-page catalog and navigation entries;
+- `scripts/assemble_publications_v3.py`: transitional catalog v1/v2/v3 consumer
+  used while the provider branches migrate to catalog schema version 3;
+- `scripts/glossary.py`: strict glossary parsing, schema validation, and
+  cross-provider integration logic;
+- `scripts/generate_glossary.py`: emits deterministic `/glossary/index.json`
+  source data with exact provider provenance;
 - `scripts/generate_repository_trees.py`: generates tracked-path trees and
   immutable GitHub links from `git ls-tree`;
 - `scripts/generate_repository_file_previews.py`: reads exact Git blob objects,
@@ -103,8 +127,8 @@ progressive-disclosure path that agents can follow.
   viewer without rendering repository content in the parent document;
 - `assets/javascripts/repository-browser.js`: progressive-enhancement controller
   for narrow-viewport Files/Content switching in the static repository browser;
-- `scripts/assemble_publications.py`: catalog validation and multi-source
-  assembly;
+- `scripts/assemble_publications.py`: legacy catalog v1/v2 assembly
+  implementation reused by the transitional v3 consumer;
 - `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
   generated HTML, including the post-generated `/guided/` tree;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
@@ -118,14 +142,22 @@ progressive-disclosure path that agents can follow.
 
 Check out the four unrelated branches into separate directories, with provider
 commits matching `publication-sources.json`, then run the same material stages as
-the Pages build:
+the Pages build. During the catalog-v3 migration, use the transitional v3
+assembler rather than invoking the legacy v1/v2 assembler directly:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
 python site/scripts/prepare_repository_tree_publication.py \
   --site-root site \
   --output-root site-publication
-python site/scripts/assemble_publications.py \
+python site/scripts/assemble_publications_v3.py \
+  --publication site=site-publication \
+  --publication skill=sources/skill \
+  --publication policy=sources/policy \
+  --publication webapp=sources/webapp \
+  --site-root site-publication \
+  --output-root build
+python site/scripts/publish_provider_translations.py \
   --publication site=site-publication \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
@@ -157,6 +189,17 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/generate_glossary.py \
+  --repository TakashiSasaki/templates \
+  --output build/site/glossary/index.json \
+  --publication site=site-publication \
+  --revision "site=$(git -C site rev-parse HEAD)" \
+  --publication skill=sources/skill \
+  --revision "skill=$(git -C sources/skill rev-parse HEAD)" \
+  --publication policy=sources/policy \
+  --revision "policy=$(git -C sources/policy rev-parse HEAD)" \
+  --publication webapp=sources/webapp \
+  --revision "webapp=$(git -C sources/webapp rev-parse HEAD)"
 python site/scripts/finalize_site_metadata.py \
   --site-root build/site \
   --canonical-url https://templates.moukaeritai.work/
@@ -212,8 +255,9 @@ The PWA freshness check uses the same browser installation and writes
 convergence, worker update propagation, and explicit offline 503 fallbacks.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
-preview URLs, repository-browser snapshots, and guided navigation all use the
-actual checked-out commits, so override builds remain internally consistent.
+preview URLs, repository-browser snapshots, guided navigation, and glossary
+provenance all use the actual checked-out commits, so override builds remain
+internally consistent.
 
 ## Deployment boundary
 
