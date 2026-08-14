@@ -155,7 +155,7 @@ class PwaAssetTests(unittest.TestCase):
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
         self.assertIn("function refreshStaticAsset(request)", worker)
-        self.assertIn("const response = await fetch(request)", worker)
+        self.assertIn('const response = await fetch(request, { cache: "no-cache" })', worker)
         self.assertIn("if (response.ok)", worker)
         self.assertIn("await cache.put(request, response.clone())", worker)
         self.assertIn("const refresh = refreshStaticAsset(event.request)", worker)
