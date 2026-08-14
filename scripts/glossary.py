@@ -21,7 +21,7 @@ TERM_ID = re.compile(
 )
 REPOSITORY_TERM_ID = re.compile(r"\Atemplates-[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 EXTERNAL_TERM_ID = re.compile(
-    r"\Aexternal-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*)\Z"
+    r"\Aexternal-[a-z0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*\Z"
 )
 LANGUAGE_TAG = re.compile(r"\A[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*\Z")
 PROVIDER_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
