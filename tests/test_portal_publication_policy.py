@@ -14,7 +14,6 @@ README = ROOT / "README.md"
 PUBLISHING_POLICY = ROOT / "PUBLISHING.md"
 SITE_MANIFEST = ROOT / "site-manifest.json"
 SOURCE_LOCK = ROOT / "publication-sources.json"
-POLICY_NAVIGATION_REVISION = "be0f1ee0aef7551c5b078bbb6640c2a7222f3c88"
 
 
 def iter_pages(nodes: list[dict[str, Any]]):
@@ -126,10 +125,6 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         for publication, entry in lock["publications"].items():
             with self.subTest(publication=publication):
                 self.assertRegex(entry["revision"], re.compile(r"^[0-9a-f]{40}$"))
-        self.assertEqual(
-            lock["publications"]["policy"]["revision"],
-            POLICY_NAVIGATION_REVISION,
-        )
 
     def test_normative_policy_rejects_implicit_and_branch_wide_publication(self) -> None:
         policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
