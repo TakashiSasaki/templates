@@ -22,11 +22,21 @@ def write_catalog(root: Path) -> None:
     )
 
 
-def write_manifest(root: Path, entry: dict[str, object]) -> None:
+def write_manifest_entries(root: Path, entries: list[dict[str, object]]) -> None:
     (root / "translations" / "manifest.json").write_text(
-        json.dumps({"schema_version": 2, "canonical_language": "en", "translations": [entry]}),
+        json.dumps(
+            {
+                "schema_version": 2,
+                "canonical_language": "en",
+                "translations": entries,
+            }
+        ),
         encoding="utf-8",
     )
+
+
+def write_manifest(root: Path, entry: dict[str, object]) -> None:
+    write_manifest_entries(root, [entry])
 
 
 def prepare_guided_translation(
@@ -48,6 +58,16 @@ def prepare_guided_translation(
     return canonical
 
 
+def guided_entry(canonical: bytes) -> dict[str, object]:
+    return {
+        "canonical": "docs/index.md",
+        "language": "ja",
+        "translation": "translations/ja/docs/index.md",
+        "canonical_blob_sha": blob_sha(canonical),
+        "surfaces": ["guided"],
+    }
+
+
 class TranslationContractTests(unittest.TestCase):
     def test_repository_manifest_is_valid(self) -> None:
         result = validate(ROOT)
@@ -59,32 +79,16 @@ class TranslationContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
             root = Path(directory)
             canonical = prepare_guided_translation(root)
-            write_manifest(
-                root,
-                {
-                    "canonical": "docs/index.md",
-                    "language": "ja",
-                    "translation": "translations/ja/docs/index.md",
-                    "canonical_blob_sha": blob_sha(canonical),
-                    "surfaces": ["guided"],
-                },
-            )
+            write_manifest(root, guided_entry(canonical))
             self.assertIn("guided translations: 1", validate(root))
 
     def test_reader_surface_still_requires_catalog_membership(self) -> None:
         with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
             root = Path(directory)
             canonical = prepare_guided_translation(root)
-            write_manifest(
-                root,
-                {
-                    "canonical": "docs/index.md",
-                    "language": "ja",
-                    "translation": "translations/ja/docs/index.md",
-                    "canonical_blob_sha": blob_sha(canonical),
-                    "surfaces": ["reader"],
-                },
-            )
+            entry = guided_entry(canonical)
+            entry["surfaces"] = ["reader"]
+            write_manifest(root, entry)
             with self.assertRaisesRegex(TranslationError, "not a published canonical document"):
                 validate(root)
 
@@ -93,16 +97,7 @@ class TranslationContractTests(unittest.TestCase):
             root = Path(directory)
             original = prepare_guided_translation(root)
             (root / "docs" / "index.md").write_bytes(b"# Changed\n")
-            write_manifest(
-                root,
-                {
-                    "canonical": "docs/index.md",
-                    "language": "ja",
-                    "translation": "translations/ja/docs/index.md",
-                    "canonical_blob_sha": blob_sha(original),
-                    "surfaces": ["guided"],
-                },
-            )
+            write_manifest(root, guided_entry(original))
             with self.assertRaisesRegex(TranslationError, "stale translation"):
                 validate(root)
 
@@ -138,19 +133,63 @@ class TranslationContractTests(unittest.TestCase):
                 root,
                 translation_text="# ナビゲーション\n",
             )
-            write_manifest(
-                root,
-                {
-                    "canonical": "docs/index.md",
-                    "language": "ja",
-                    "translation": "translations/ja/docs/index.md",
-                    "canonical_blob_sha": blob_sha(canonical),
-                    "surfaces": ["guided"],
-                },
-            )
+            write_manifest(root, guided_entry(canonical))
             with self.assertRaisesRegex(
                 TranslationError,
                 "must place the non-authoritative notice immediately after",
+            ):
+                validate(root)
+
+    def test_duplicate_canonical_language_pair_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_guided_translation(root)
+            entry = guided_entry(canonical)
+            write_manifest_entries(root, [entry, dict(entry)])
+            with self.assertRaisesRegex(
+                TranslationError,
+                "duplicate canonical/language translation pair",
+            ):
+                validate(root)
+
+    def test_translation_path_must_mirror_canonical_path(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_guided_translation(root)
+            entry = guided_entry(canonical)
+            entry["translation"] = "translations/ja/other/index.md"
+            write_manifest(root, entry)
+            with self.assertRaisesRegex(
+                TranslationError,
+                "must mirror the canonical path",
+            ):
+                validate(root)
+
+    def test_undeclared_language_translation_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_guided_translation(root)
+            extra = root / "translations" / "ja" / "docs" / "extra.md"
+            extra.write_text(
+                "# 追加\n\n> **参考訳（非正本）:** test\n",
+                encoding="utf-8",
+            )
+            write_manifest(root, guided_entry(canonical))
+            with self.assertRaisesRegex(TranslationError, "undeclared translation Markdown"):
+                validate(root)
+
+    def test_root_level_translation_markdown_is_not_silently_ignored(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_guided_translation(root)
+            (root / "translations" / "NOTES.md").write_text(
+                "# Maintainer note\n",
+                encoding="utf-8",
+            )
+            write_manifest(root, guided_entry(canonical))
+            with self.assertRaisesRegex(
+                TranslationError,
+                "undeclared translation Markdown: translations/NOTES.md",
             ):
                 validate(root)
 
