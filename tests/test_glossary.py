@@ -288,7 +288,7 @@ class IntegratedGlossaryTests(unittest.TestCase):
             root = Path(directory)
             provider = self.make_provider(root, "site", REPO_TERM)
             self.set_glossary_source(provider, "/abs/glossary.yml")
-            with self.assertRaisesRegex(GlossaryError, "safe relative .yml path"):
+            with self.assertRaisesRegex(GlossaryError, "safe relative POSIX path"):
                 glossary_source_from_catalog(provider)
 
     def test_symlinked_glossary_source_is_rejected(self) -> None:
