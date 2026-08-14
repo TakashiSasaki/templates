@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""Validate provider translation manifests and publish non-authoritative reader pages."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import posixpath
+import re
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
+BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
+INLINE_LINK = re.compile(
+    r"(?P<image>!?)\[(?P<label>[^\]\n]*)\]\((?P<target>[^)\n]+)\)"
+)
+REFERENCE_TARGET = re.compile(
+    r"^(?P<prefix>\s{0,3}\[(?!\^)[^\]\n]+\]:\s*)"
+    r"(?P<target><[^>\n]+>|\S+)(?P<suffix>.*)$"
+)
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+JA_NOTICE = "> **参考訳（非正本）:**"
+
+
+class TranslationPublicationError(RuntimeError):
+    """Raised when provider translation publication state is unsafe or inconsistent."""
+
+
+@dataclass(frozen=True)
+class TranslationRecord:
+    publication: str
+    language: str
+    canonical_source: PurePosixPath
+    translation_source: PurePosixPath
+    canonical_destination: PurePosixPath
+    translation_destination: PurePosixPath
+    source_file: Path
+
+
+@dataclass(frozen=True)
+class AssetRoute:
+    source: PurePosixPath
+    destination: PurePosixPath
+    directory: bool
+
+
+def _read_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise TranslationPublicationError(f"unable to read {label} {path}: {exc}") from exc
+
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise TranslationPublicationError(
+                    f"{label} contains duplicate member: {key}"
+                )
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(text, object_pairs_hook=unique)
+    except json.JSONDecodeError as exc:
+        raise TranslationPublicationError(f"unable to parse {label} {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise TranslationPublicationError(f"{label} must be an object")
+    return value
+
+
+def _safe_path(value: Any, field: str) -> PurePosixPath:
+    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+        raise TranslationPublicationError(
+            f"{field} must be a safe relative POSIX path"
+        )
+    parts = value.split("/")
+    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
+        raise TranslationPublicationError(
+            f"{field} must be a safe relative POSIX path"
+        )
+    path = PurePosixPath(value)
+    if path.is_absolute():
+        raise TranslationPublicationError(
+            f"{field} must be a safe relative POSIX path"
+        )
+    return path
+
+
+def _walk_path(root: Path, relative: PurePosixPath, field: str) -> Path:
+    root = root.resolve(strict=True)
+    current = root
+    for part in relative.parts:
+        current /= part
+        try:
+            current.relative_to(root)
+        except ValueError as exc:
+            raise TranslationPublicationError(
+                f"{field} must remain within publication root: {relative}"
+            ) from exc
+        if current.is_symlink():
+            raise TranslationPublicationError(
+                f"{field} must not traverse a symlink: {relative}"
+            )
+    return current
+
+
+def _regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
+    current = _walk_path(root, relative, field)
+    if not current.is_file():
+        raise TranslationPublicationError(
+            f"{field} must be an existing regular file: {relative}"
+        )
+    return current
+
+
+def _optional_regular_file(
+    root: Path,
+    relative: PurePosixPath,
+    field: str,
+) -> Path | None:
+    root = root.resolve(strict=True)
+    current = root
+    for part in relative.parts:
+        current /= part
+        try:
+            current.relative_to(root)
+        except ValueError as exc:
+            raise TranslationPublicationError(
+                f"{field} must remain within publication root: {relative}"
+            ) from exc
+        if current.is_symlink():
+            raise TranslationPublicationError(
+                f"{field} must not traverse a symlink: {relative}"
+            )
+        if not current.exists():
+            return None
+    if not current.is_file():
+        raise TranslationPublicationError(
+            f"{field} must be a regular file when present: {relative}"
+        )
+    return current
+
+
+def _git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
+
+
+def _normalize_relative(base: PurePosixPath, raw: str) -> PurePosixPath:
+    parts = list(base.parts)
+    for part in PurePosixPath(raw).parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not parts:
+                raise TranslationPublicationError(
+                    f"translation link escapes the provider root: {raw}"
+                )
+            parts.pop()
+            continue
+        parts.append(part)
+    if not parts:
+        raise TranslationPublicationError(
+            f"translation link resolves to the provider root: {raw}"
+        )
+    return PurePosixPath(*parts)
+
+
+def _validate_japanese_notice(text: str, field: str) -> None:
+    lines = text.splitlines()
+    index = 0
+    if lines and lines[0] == "---":
+        try:
+            index = lines.index("---", 1) + 1
+        except ValueError as exc:
+            raise TranslationPublicationError(
+                f"{field} has unterminated front matter"
+            ) from exc
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    if index >= len(lines) or not lines[index].startswith("# "):
+        raise TranslationPublicationError(
+            f"{field} must place a top-level title before its translation notice"
+        )
+    index += 1
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    if index >= len(lines) or not lines[index].startswith(JA_NOTICE):
+        raise TranslationPublicationError(
+            f"{field} must place the non-authoritative Japanese notice after its title"
+        )
+
+
+def _asset_routes(
+    publication: str,
+    root: Path,
+    assets: list[dict[str, Any]],
+) -> list[AssetRoute]:
+    routes: list[AssetRoute] = []
+    for index, asset in enumerate(assets):
+        source = asset["source"]
+        destination = PurePosixPath(publication) / asset["destination"]
+        source_path = _walk_path(root, source, f"{publication}.assets[{index}].source")
+        if not source_path.exists():
+            if asset["optional"]:
+                continue
+            raise TranslationPublicationError(
+                f"required publication asset does not exist: {source}"
+            )
+        if not source_path.is_file() and not source_path.is_dir():
+            raise TranslationPublicationError(
+                f"publication asset must be a regular file or directory: {source}"
+            )
+        routes.append(
+            AssetRoute(
+                source=source,
+                destination=destination,
+                directory=source_path.is_dir(),
+            )
+        )
+
+    if not assets:
+        legacy = root / "assets"
+        if legacy.is_symlink():
+            raise TranslationPublicationError(
+                f"{publication} legacy asset root must not be a symlink"
+            )
+        if legacy.is_dir():
+            routes.append(
+                AssetRoute(
+                    source=PurePosixPath("assets"),
+                    destination=PurePosixPath(publication) / "assets",
+                    directory=True,
+                )
+            )
+    return routes
+
+
+def _map_asset(
+    source: PurePosixPath,
+    routes: list[AssetRoute],
+) -> PurePosixPath | None:
+    for route in sorted(routes, key=lambda item: len(item.source.parts), reverse=True):
+        if route.directory:
+            if source == route.source:
+                return route.destination
+            if route.source in source.parents:
+                return route.destination / source.relative_to(route.source)
+        elif source == route.source:
+            return route.destination
+    return None
+
+
+def _split_link_target(raw: str) -> tuple[str, str, str]:
+    leading = raw[: len(raw) - len(raw.lstrip())]
+    stripped = raw.strip()
+    if not stripped:
+        return leading, "", ""
+    if stripped.startswith("<"):
+        end = stripped.find(">")
+        if end == -1:
+            return leading, stripped, ""
+        return leading, stripped[1:end], stripped[end + 1 :]
+    match = re.match(r"(\S+)(.*)\Z", stripped)
+    assert match is not None
+    return leading, match.group(1), match.group(2)
+
+
+def _relative_destination(
+    current: PurePosixPath,
+    target: PurePosixPath,
+    *,
+    trailing_slash: bool = False,
+) -> str:
+    value = posixpath.relpath(
+        target.as_posix(),
+        start=current.parent.as_posix(),
+    )
+    if trailing_slash and not value.endswith("/"):
+        value += "/"
+    return value
+
+
+def _document_source(
+    publication: str,
+    source: PurePosixPath,
+    raw_path: str,
+    canonical_destinations: dict[tuple[str, PurePosixPath], PurePosixPath],
+) -> PurePosixPath | None:
+    if (publication, source) in canonical_destinations:
+        return source
+    index_source = source / "index.md"
+    if raw_path.endswith("/") or not source.suffix:
+        if (publication, index_source) in canonical_destinations:
+            return index_source
+    return None
+
+
+def _rewrite_link(
+    raw: str,
+    record: TranslationRecord,
+    canonical_destinations: dict[tuple[str, PurePosixPath], PurePosixPath],
+    translated_destinations: dict[
+        tuple[str, str, PurePosixPath], PurePosixPath
+    ],
+    asset_routes: dict[str, list[AssetRoute]],
+) -> str:
+    leading, target, trailing = _split_link_target(raw)
+    if not target:
+        return raw
+    parsed = urlsplit(target)
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or target.startswith("/")
+        or target.startswith("#")
+        or not parsed.path
+    ):
+        return raw
+
+    target_source = _normalize_relative(record.canonical_source.parent, parsed.path)
+    document_source = _document_source(
+        record.publication,
+        target_source,
+        parsed.path,
+        canonical_destinations,
+    )
+    destination: PurePosixPath
+    trailing_slash = False
+    if document_source is not None:
+        translated_key = (
+            record.publication,
+            record.language,
+            document_source,
+        )
+        if translated_key in translated_destinations:
+            destination = translated_destinations[translated_key]
+        else:
+            destination = canonical_destinations[
+                (record.publication, document_source)
+            ]
+    else:
+        asset_destination = _map_asset(
+            target_source,
+            asset_routes.get(record.publication, []),
+        )
+        if asset_destination is None:
+            raise TranslationPublicationError(
+                "translation link does not resolve to a published canonical "
+                f"document or asset: {record.translation_source} -> {target}"
+            )
+        destination = asset_destination
+        trailing_slash = parsed.path.endswith("/")
+
+    rewritten_path = _relative_destination(
+        record.translation_destination,
+        destination,
+        trailing_slash=trailing_slash,
+    )
+    rewritten = urlunsplit(("", "", rewritten_path, parsed.query, parsed.fragment))
+    if raw.strip().startswith("<"):
+        rewritten = f"<{rewritten}>"
+    return f"{leading}{rewritten}{trailing}"
+
+
+def _rewrite_markdown(
+    text: str,
+    record: TranslationRecord,
+    canonical_destinations: dict[tuple[str, PurePosixPath], PurePosixPath],
+    translated_destinations: dict[
+        tuple[str, str, PurePosixPath], PurePosixPath
+    ],
+    asset_routes: dict[str, list[AssetRoute]],
+) -> str:
+    output: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+
+    for line in text.splitlines(keepends=True):
+        fence = FENCE.match(line)
+        if fence:
+            marker = fence.group(1)
+            if fence_character is None:
+                fence_character = marker[0]
+                fence_length = len(marker)
+            elif marker[0] == fence_character and len(marker) >= fence_length:
+                fence_character = None
+                fence_length = 0
+            output.append(line)
+            continue
+        if fence_character is not None:
+            output.append(line)
+            continue
+
+        def replace_inline(match: re.Match[str]) -> str:
+            target = _rewrite_link(
+                match.group("target"),
+                record,
+                canonical_destinations,
+                translated_destinations,
+                asset_routes,
+            )
+            return (
+                f"{match.group('image')}[{match.group('label')}]({target})"
+            )
+
+        rewritten = INLINE_LINK.sub(replace_inline, line)
+        reference = REFERENCE_TARGET.match(rewritten.rstrip("\r\n"))
+        if reference:
+            target = _rewrite_link(
+                reference.group("target"),
+                record,
+                canonical_destinations,
+                translated_destinations,
+                asset_routes,
+            )
+            newline = rewritten[len(rewritten.rstrip("\r\n")) :]
+            rewritten = (
+                f"{reference.group('prefix')}{target}"
+                f"{reference.group('suffix')}{newline}"
+            )
+        output.append(rewritten)
+    return "".join(output)
+
+
+def _load_records(
+    publications: dict[
+        str,
+        tuple[Path, dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ],
+    included_pages: list[dict[str, Any]],
+) -> tuple[
+    list[TranslationRecord],
+    dict[tuple[str, PurePosixPath], PurePosixPath],
+    dict[str, list[AssetRoute]],
+]:
+    page_destinations = {
+        (page["publication"], page["document"]): page["destination"]
+        for page in included_pages
+    }
+    canonical_destinations: dict[
+        tuple[str, PurePosixPath], PurePosixPath
+    ] = {}
+    publication_asset_routes: dict[str, list[AssetRoute]] = {}
+    for publication, (root, documents, assets) in publications.items():
+        for document_id, document in documents.items():
+            destination = page_destinations.get((publication, document_id))
+            if destination is not None:
+                canonical_destinations[(publication, document["source"])] = destination
+        publication_asset_routes[publication] = _asset_routes(
+            publication,
+            root,
+            assets,
+        )
+
+    records: list[TranslationRecord] = []
+    seen_pairs: set[tuple[str, str, PurePosixPath]] = set()
+    seen_translation_paths: set[tuple[str, PurePosixPath]] = set()
+
+    manifest_relative = PurePosixPath("translations/manifest.json")
+    for publication, (root, documents, _) in sorted(publications.items()):
+        manifest_path = _optional_regular_file(
+            root,
+            manifest_relative,
+            f"{publication} translation manifest",
+        )
+        if manifest_path is None:
+            continue
+        manifest = _read_json(manifest_path, f"{publication} translation manifest")
+        if set(manifest) != {"schema_version", "canonical_language", "translations"}:
+            raise TranslationPublicationError(
+                f"{publication} translation manifest has unsupported fields"
+            )
+        version = manifest["schema_version"]
+        if type(version) is not int or version != 1:
+            raise TranslationPublicationError(
+                f"{publication} translation manifest schema_version must be integer 1"
+            )
+        if manifest["canonical_language"] != "en":
+            raise TranslationPublicationError(
+                f"{publication} translation manifest canonical_language must be en"
+            )
+        entries = manifest["translations"]
+        if not isinstance(entries, list):
+            raise TranslationPublicationError(
+                f"{publication} translation manifest translations must be an array"
+            )
+
+        source_to_document = {
+            document["source"]: document_id
+            for document_id, document in documents.items()
+        }
+        for index, entry in enumerate(entries):
+            field = f"{publication}.translations[{index}]"
+            required = {
+                "canonical",
+                "language",
+                "translation",
+                "canonical_blob_sha",
+            }
+            if not isinstance(entry, dict) or set(entry) != required:
+                raise TranslationPublicationError(
+                    f"{field} must contain canonical, language, translation, "
+                    "and canonical_blob_sha"
+                )
+            canonical = _safe_path(entry["canonical"], f"{field}.canonical")
+            translation = _safe_path(entry["translation"], f"{field}.translation")
+            language = entry["language"]
+            blob_sha = entry["canonical_blob_sha"]
+            if (
+                not isinstance(language, str)
+                or not LANGUAGE.fullmatch(language)
+                or language == "en"
+            ):
+                raise TranslationPublicationError(
+                    f"{field}.language must be a non-English lowercase language tag"
+                )
+            if not isinstance(blob_sha, str) or not BLOB_SHA.fullmatch(blob_sha):
+                raise TranslationPublicationError(
+                    f"{field}.canonical_blob_sha must be a full lowercase Git blob SHA"
+                )
+            if canonical.suffix.lower() != ".md" or translation.suffix.lower() != ".md":
+                raise TranslationPublicationError(
+                    f"{field} canonical and translation paths must be Markdown"
+                )
+            document_id = source_to_document.get(canonical)
+            if document_id is None:
+                raise TranslationPublicationError(
+                    f"{field}.canonical is not in the canonical publication catalog"
+                )
+            canonical_destination = page_destinations.get((publication, document_id))
+            if canonical_destination is None:
+                raise TranslationPublicationError(
+                    f"{field}.canonical is not included in the assembled site"
+                )
+            expected_translation = PurePosixPath("translations") / language / canonical
+            if translation != expected_translation:
+                raise TranslationPublicationError(
+                    f"{field}.translation must mirror canonical at {expected_translation}"
+                )
+
+            pair = (publication, language, canonical)
+            translation_key = (publication, translation)
+            if pair in seen_pairs:
+                raise TranslationPublicationError(
+                    f"duplicate translation pair: {publication} {language} {canonical}"
+                )
+            if translation_key in seen_translation_paths:
+                raise TranslationPublicationError(
+                    f"duplicate translation path: {publication} {translation}"
+                )
+            seen_pairs.add(pair)
+            seen_translation_paths.add(translation_key)
+
+            canonical_file = _regular_file(root, canonical, f"{field}.canonical")
+            source_file = _regular_file(root, translation, f"{field}.translation")
+            actual_sha = _git_blob_sha(canonical_file)
+            if actual_sha != blob_sha:
+                raise TranslationPublicationError(
+                    f"stale translation for {publication}:{canonical}: expected "
+                    f"{blob_sha}, current {actual_sha}"
+                )
+            try:
+                text = source_file.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise TranslationPublicationError(
+                    f"unable to read translation source {source_file}: {exc}"
+                ) from exc
+            if language == "ja":
+                _validate_japanese_notice(text, field)
+
+            records.append(
+                TranslationRecord(
+                    publication=publication,
+                    language=language,
+                    canonical_source=canonical,
+                    translation_source=translation,
+                    canonical_destination=canonical_destination,
+                    translation_destination=PurePosixPath(language)
+                    / canonical_destination,
+                    source_file=source_file,
+                )
+            )
+
+    return records, canonical_destinations, publication_asset_routes
+
+
+def publish_translations(
+    publications: dict[
+        str,
+        tuple[Path, dict[str, dict[str, Any]], list[dict[str, Any]]],
+    ],
+    included_pages: list[dict[str, Any]],
+    docs_root: Path,
+) -> list[TranslationRecord]:
+    """Publish only explicitly declared, synchronized provider translations."""
+    records, canonical_destinations, asset_routes = _load_records(
+        publications,
+        included_pages,
+    )
+    translated_destinations = {
+        (record.publication, record.language, record.canonical_source):
+        record.translation_destination
+        for record in records
+    }
+    if len(translated_destinations) != len(records):
+        raise TranslationPublicationError("translation destination mapping is not unique")
+
+    output_destinations: set[PurePosixPath] = set()
+    for record in records:
+        if record.translation_destination in output_destinations:
+            raise TranslationPublicationError(
+                f"duplicate translated output: {record.translation_destination}"
+            )
+        output_destinations.add(record.translation_destination)
+        target = docs_root.joinpath(*record.translation_destination.parts)
+        try:
+            target.relative_to(docs_root)
+        except ValueError as exc:
+            raise TranslationPublicationError(
+                f"translation output escapes documentation root: "
+                f"{record.translation_destination}"
+            ) from exc
+        if target.exists() or target.is_symlink():
+            raise TranslationPublicationError(f"translation output collision: {target}")
+        try:
+            text = record.source_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise TranslationPublicationError(
+                f"unable to read translation source {record.source_file}: {exc}"
+            ) from exc
+        rewritten = _rewrite_markdown(
+            text,
+            record,
+            canonical_destinations,
+            translated_destinations,
+            asset_routes,
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(rewritten, encoding="utf-8")
+
+    return records
