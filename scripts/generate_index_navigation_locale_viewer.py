@@ -119,6 +119,11 @@ def validate_language(value: Any, field: str = "language") -> str:
     return value
 
 
+def is_japanese(language: str) -> bool:
+    """Return whether the validated locale's primary language subtag is Japanese."""
+    return validate_language(language).split("-", 1)[0] == "ja"
+
+
 def read_json(path: Path, label: str) -> dict[str, Any]:
     if path.is_symlink() or not path.is_file():
         raise LocaleViewerError(f"{label} must be a regular file: {path}")
@@ -293,10 +298,12 @@ def translated_edge_href(
             translated_destination = reader_translations.get(
                 (language, provider["name"], canonical_destination)
             )
-            if translated_destination is not None:
-                suffix = "" if fragment is None else "#" + quote(fragment, safe="-._~:/")
+            # Reader translations do not preserve canonical heading IDs. Route a
+            # fragment-bearing edge to the canonical reader unless a fragment map
+            # exists in a future contract; otherwise the localized anchor is unsafe.
+            if translated_destination is not None and fragment is None:
                 return (
-                    published_url("/", translated_destination) + suffix,
+                    published_url("/", translated_destination),
                     "published document",
                     False,
                 )
@@ -313,7 +320,7 @@ def localized_shell(title: str, body: str, page_path: str, language: str) -> str
     language = validate_language(language)
     source = page_shell(title, body, page_path)
     source = source.replace('<html lang="en">', f'<html lang="{html.escape(language, quote=True)}">', 1)
-    if language.startswith("ja"):
+    if is_japanese(language):
         source = source.replace("Page path:", JA_STRINGS["page_path"], 1)
     return source
 
@@ -361,12 +368,13 @@ def render_localized_edge(
         "blob",
         edge["source"].encode("utf-8"),
     ) + f"#L{edge['line']}"
+    ja = is_japanese(language)
     metadata = [
-        f'<span class="badge">{html.escape(ROUTE_LABELS_JA.get(route_kind, route_kind) if language.startswith("ja") else route_kind)}</span>',
-        f'<a href="{html.escape(origin, quote=True)}" target="_blank" rel="noopener">{JA_STRINGS["index_line"] if language.startswith("ja") else "index line"} {edge["line"]}</a>',
+        f'<span class="badge">{html.escape(ROUTE_LABELS_JA.get(route_kind, route_kind) if ja else route_kind)}</span>',
+        f'<a href="{html.escape(origin, quote=True)}" target="_blank" rel="noopener">{JA_STRINGS["index_line"] if ja else "index line"} {edge["line"]}</a>',
     ]
     if source is not None:
-        label = JA_STRINGS["immutable_source_short"] if language.startswith("ja") else "immutable source"
+        label = JA_STRINGS["immutable_source_short"] if ja else "immutable source"
         metadata.append(
             f'<a href="{html.escape(source, quote=True)}" target="_blank" rel="noopener">{html.escape(label)}</a>'
         )
@@ -429,7 +437,7 @@ def render_localized_index(
         if edge.get("section") is not None:
             by_section.setdefault(edge["section"], []).append((edge, localized))
 
-    ja = language.startswith("ja")
+    ja = is_japanese(language)
     strings = JA_STRINGS
     body_parts = [
         f'<p class="eyebrow">{html.escape(strings["eyebrow"] if ja else "Index-guided navigation")}</p>',
@@ -509,7 +517,7 @@ def render_localized_landing(
     locale: dict[str, dict[str, dict[str, Any]]],
 ) -> str:
     language = validate_language(language)
-    ja = language.startswith("ja")
+    ja = is_japanese(language)
     strings = JA_STRINGS
     cards = []
     for provider in graph["providers"]:
@@ -697,6 +705,7 @@ def main() -> int:
         IndexNavigationViewerError,
         LocaleViewerError,
         RepositoryTreeError,
+        ValueError,
         OSError,
     ) as exc:
         parser.error(str(exc))
