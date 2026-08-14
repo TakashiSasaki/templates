@@ -1,5 +1,9 @@
 # agent-policy navigation
 
+## Orientation
+
+* [Overview](overview.md) - Explains the provider/toolchain, shared-policy corpus, and consumer effective-policy layers before entering a layer-specific path.
+
 ## Provider and toolchain
 
 * [Provider and toolchain documentation](provider/index.md) - Describes the `policy` branch as the source repository for the toolchain, release and bootstrap machinery, maintenance model, and explanatory documentation.

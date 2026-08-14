@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -10,12 +11,14 @@ def test_root_navigation_separates_policy_layers() -> None:
 
     assert text.startswith("# agent-policy navigation\n")
     headings = [
+        "## Orientation",
         "## Provider and toolchain",
         "## Shared policy corpus",
         "## Consumer application",
     ]
     positions = [text.index(heading) for heading in headings]
     assert positions == sorted(positions)
+    assert "[Overview](overview.md)" in text
     assert "[Provider and toolchain documentation](provider/index.md)" in text
     assert "[Shared policy corpus](shared-policy/index.md)" in text
     assert "[Applying policy to a consumer repository](consumer/index.md)" in text
@@ -64,6 +67,26 @@ def test_all_layer_navigation_links_target_existing_files() -> None:
         for target in targets:
             target_path = layer_file.parent / target
             assert target_path.is_file(), f"Broken link in {layer_file}: {target}"
+
+
+def test_published_layer_navigation_links_remain_inside_catalog() -> None:
+    catalog = json.loads(
+        (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
+    )
+    published_sources = {ROOT / document["source"] for document in catalog["documents"]}
+    layer_files = [
+        ROOT / "docs" / "provider" / "index.md",
+        ROOT / "docs" / "shared-policy" / "index.md",
+        ROOT / "docs" / "consumer" / "index.md",
+    ]
+
+    for layer_file in layer_files:
+        for target in LINK_TARGET.findall(layer_file.read_text(encoding="utf-8")):
+            target_path = (layer_file.parent / target).resolve()
+            assert target_path in published_sources, (
+                f"Published layer navigation links to uncataloged document: "
+                f"{layer_file} -> {target}"
+            )
 
 
 def test_provider_environment_link_targets_a_document() -> None:
