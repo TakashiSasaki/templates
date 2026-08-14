@@ -46,6 +46,17 @@ def write_catalog(
     return path
 
 
+def write_glossary(root: Path, name: str = "glossary.yml") -> str:
+    path = root / "docs" / name
+    path.write_text(
+        "schema_version: 1\nterms:\n  - id: templates-example\n"
+        "    term: Example\n    origin: repository\n"
+        "    definition: Example definition.\n",
+        encoding="utf-8",
+    )
+    return f"docs/{name}"
+
+
 def _mutated_catalog(root: Path, index: int, field: str, value: object) -> Path:
     documents = copy.deepcopy(BASE_DOCUMENTS)
     documents[index][field] = value
@@ -96,6 +107,36 @@ def run() -> int:
         except Exception as exc:  # noqa: BLE001 - record all harness failures.
             failures.append(f"valid catalog: unexpected {type(exc).__name__}: {exc}")
 
+    with prepare_repository() as directory:
+        root = Path(directory)
+        try:
+            documents = validate(write_catalog(root, schema_version=3), root=root)
+            if [document.id for document in documents] != ["overview", "guide"]:
+                failures.append("valid v3 catalog without glossary: unexpected documents")
+        except Exception as exc:  # noqa: BLE001 - record all harness failures.
+            failures.append(
+                f"valid v3 catalog without glossary: unexpected {type(exc).__name__}: {exc}"
+            )
+
+    with prepare_repository() as directory:
+        root = Path(directory)
+        try:
+            source = write_glossary(root)
+            documents = validate(
+                write_catalog(
+                    root,
+                    schema_version=3,
+                    extra={"glossary": {"source": source}},
+                ),
+                root=root,
+            )
+            if [document.id for document in documents] != ["overview", "guide"]:
+                failures.append("valid v3 glossary catalog: unexpected documents")
+        except Exception as exc:  # noqa: BLE001 - record all harness failures.
+            failures.append(
+                f"valid v3 glossary catalog: unexpected {type(exc).__name__}: {exc}"
+            )
+
     invalid_cases = [
         (
             "rejects unsupported schema versions",
@@ -106,6 +147,37 @@ def run() -> int:
             "rejects unsupported root fields",
             r"unsupported: navigation",
             lambda root: write_catalog(root, extra={"navigation": []}),
+        ),
+        (
+            "rejects v1 glossary declarations",
+            r"unsupported: glossary",
+            lambda root: write_catalog(
+                root,
+                extra={"glossary": {"source": write_glossary(root)}},
+            ),
+        ),
+        (
+            "rejects non-object glossary declarations",
+            r"glossary must be an object",
+            lambda root: write_catalog(root, schema_version=3, extra={"glossary": []}),
+        ),
+        (
+            "rejects non-yml glossary sources",
+            r"must identify a \.yml file",
+            lambda root: write_catalog(
+                root,
+                schema_version=3,
+                extra={"glossary": {"source": "docs/guide.md"}},
+            ),
+        ),
+        (
+            "rejects missing glossary sources",
+            r"existing regular file",
+            lambda root: write_catalog(
+                root,
+                schema_version=3,
+                extra={"glossary": {"source": "docs/missing.yml"}},
+            ),
         ),
         (
             "rejects malformed UTF-8 before JSON parsing",
@@ -197,7 +269,7 @@ def run() -> int:
             print(failure, file=sys.stderr)
         return 1
 
-    print(f"Publication catalog tests passed ({len(invalid_cases) + 1} cases).")
+    print(f"Publication catalog tests passed ({len(invalid_cases) + 3} cases).")
     return 0
 
 
