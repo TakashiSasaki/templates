@@ -1,0 +1,54 @@
+schema_version: 1
+terms:
+  - id: templates-policy-module
+    term: Policy module
+    localized_labels:
+      ja:
+        term: ポリシーモジュール
+    origin: repository
+    definition: >-
+      A shared-policy source file that owns one independently applicable
+      normative rule and one stable rule ID, with metadata such as severity,
+      override permission, and deterministic order plus optional rationale and
+      examples.
+
+  - id: templates-policy-profile
+    term: Policy profile
+    localized_labels:
+      ja:
+        term: ポリシープロファイル
+    origin: repository
+    definition: >-
+      A named ordered selection of shared policy modules that can be selected
+      by a managed repository or policy context as part of its semantic policy
+      input.
+    related_terms:
+      - templates-policy-module
+
+  - id: templates-policy-context
+    term: Policy context
+    localized_labels:
+      ja:
+        term: ポリシーコンテキスト
+    origin: repository
+    definition: >-
+      A named semantic authority boundary in agent-policy configuration that
+      selects shared policy profiles, repository-local policy files, and any
+      explicit overrides. Outputs reference a context rather than selecting
+      policy semantics independently.
+    related_terms:
+      - templates-policy-profile
+      - templates-policy-renderer
+
+  - id: templates-policy-renderer
+    term: Policy renderer
+    localized_labels:
+      ja:
+        term: ポリシーレンダラー
+    origin: repository
+    definition: >-
+      A presentation adapter that renders the semantic rules selected by a
+      policy context into a caller-facing output format without selecting,
+      adding, removing, or overriding policy rules.
+    related_terms:
+      - templates-policy-context
