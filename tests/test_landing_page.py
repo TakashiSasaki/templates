@@ -189,12 +189,17 @@ class LandingPageTests(unittest.TestCase):
             ".md-content__inner",
             ".md-typeset h1",
             ".md-typeset h2",
+            ".md-typeset table:not([class]) code",
             ".portal-cover",
             ".portal-cover__lead",
             ".portal-cover__button",
         ):
             self.assertIn(selector, mobile_css)
         self.assertIn("min-height: 2.4rem", mobile_css)
+        self.assertIn("overscroll-behavior-x: contain", mobile_css)
+        self.assertIn("white-space: nowrap", mobile_css)
+        self.assertIn("overflow-wrap: normal", mobile_css)
+        self.assertIn("word-break: normal", mobile_css)
         self.assertNotIn("@import", mobile_css)
 
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
