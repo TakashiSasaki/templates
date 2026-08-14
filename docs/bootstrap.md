@@ -1,23 +1,23 @@
-# ブートストラップスキル
+# Bootstrap skill
 
-## 役割
+## Role
 
-`skills/bootstrap-agent-policy/` は、まだ `.agent-policy.yml` を持たないGitリポジトリを調査し、空のリポジトリなら初期化、既存の手書き指示があるリポジトリなら安全な導入準備へ振り分けるエージェントスキルです。
+`skills/bootstrap-agent-policy/` is an agent skill that inspects a Git repository without `.agent-policy.yml` and routes an empty repository to initialization or a repository with existing handwritten instructions to safe adoption preparation.
 
-スキルは `TakashiSasaki/templates` の `policy` ブランチ内で管理されますが、実行時にmutableなブランチ先端を信頼することはありません。`bootstrap-manifest.yml` が、レビュー済みの完全なコミットSHAと許可されたCLI routeを固定します。
+The skill is maintained in the `policy` branch of `TakashiSasaki/templates`, but it never trusts the mutable branch tip at runtime. `bootstrap-manifest.yml` pins a reviewed full commit SHA and the allowed CLI routes.
 
-## レビュー済みcheckoutから導入する
+## Install from a reviewed checkout
 
-`policy` のレビュー済みcommitをcheckoutした状態で、installerを実行します。
+From a reviewed `policy` commit checkout, run the installer:
 
 ```bash
 python skills/bootstrap-agent-policy/scripts/install.py \
   /path/to/agent-skills/bootstrap-agent-policy
 ```
 
-既存の同名スキルを置き換える場合だけ `--replace` を指定します。installerは、置換対象の `SKILL.md` がこのスキルを示していない場合は拒否します。
+Use `--replace` only when replacing an existing skill with the same identity. The installer refuses replacement when the target `SKILL.md` does not identify this skill.
 
-リポジトリ全体を常設したくない場合はsparse checkoutを使用できます。
+If a permanent checkout of the whole repository is unnecessary, use a sparse checkout:
 
 ```bash
 git clone --filter=blob:none --no-checkout \
@@ -33,9 +33,9 @@ python templates-policy/skills/bootstrap-agent-policy/scripts/install.py \
   /path/to/agent-skills/bootstrap-agent-policy
 ```
 
-`<reviewed-full-commit-sha>`を`policy`、tag、短縮SHAなどへ置き換えないでください。
+Do not replace `<reviewed-full-commit-sha>` with `policy`, a tag, an abbreviated SHA, or another mutable or ambiguous reference.
 
-## スキルの構成
+## Skill contents
 
 ```text
 skills/bootstrap-agent-policy/
@@ -48,28 +48,28 @@ skills/bootstrap-agent-policy/
     uninstall.py
 ```
 
-repository側の `tests/test_bootstrap_skill.py` がmanifest、固定SHA、state parsing、route選択、refusal state、finalize非公開、適用後commandを検査します。
+Repository test `tests/test_bootstrap_skill.py` verifies the manifest, full-SHA pin, state parsing, route selection, refusal states, the absence of a finalize route, and post-apply commands.
 
-## リポジトリ調査とdry-run
+## Repository inspection and dry run
 
-導入済みskill directoryから実行します。
+Run from the installed skill directory:
 
 ```bash
 python scripts/bootstrap.py --repository /path/to/product
 ```
 
-既定ではファイルを変更しません。固定されたCLIの `agent-policy adopt inspect` を実行して、次の状態を報告します。
+The command does not modify files by default. It invokes `agent-policy adopt inspect` through the pinned CLI and reports one of the following states:
 
-| 状態 | 推奨経路 |
+| State | Recommended route |
 |---|---|
 | `unmanaged-empty` | `init` |
 | `unmanaged-existing` | `adopt prepare` |
-| `managed` | bootstrapを停止して通常運用へ移行 |
-| `inconsistent` | 変更せず、部分導入状態や危険なpathを修復 |
+| `managed` | stop bootstrap and use normal managed operation |
+| `inconsistent` | make no changes; repair partial adoption or unsafe paths first |
 
-続いて、推奨された `init` または `adopt prepare` をdry-runで実行し、作成予定ファイルや競合を表示します。自動振り分けはdry-runの助言に限定されます。
+It then runs the recommended `init` or `adopt prepare` route as a dry run and shows the files that would be created and any conflicts. Automatic routing is advisory only during dry run.
 
-## 空のリポジトリを初期化する
+## Initialize an empty repository
 
 ```bash
 python scripts/bootstrap.py \
@@ -78,11 +78,11 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-書込み時は明示的なroute選択が必須です。適用後は、同じ固定ツールチェーンで `validate` と `check` が実行されます。
+A write operation requires explicit route selection. After application, `validate` and `check` run through the same pinned toolchain.
 
-## 既存指示の導入準備を行う
+## Prepare adoption of existing instructions
 
-調査で発見されたinstruction fileから正本を一つ選びます。
+Choose one authoritative instruction file discovered during inspection:
 
 ```bash
 python scripts/bootstrap.py \
@@ -91,7 +91,7 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md
 ```
 
-計画を確認した後、準備状態を作成する場合だけ `--apply` を付けます。
+After reviewing the plan, add `--apply` only when the prepared state should be created:
 
 ```bash
 python scripts/bootstrap.py \
@@ -101,25 +101,25 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-適用時は `adopt prepare --apply` の後に `adopt preview` を実行します。既存のprimary instructionは置き換えません。
+Application runs `adopt prepare --apply` and then `adopt preview`. The existing primary instructions are not replaced.
 
-project policyとpreviewをレビューした後の `adopt finalize --apply` は別の明示的な指示として、manifestに記録された同じrepositoryとfull SHAのCLIを用いて実行します。bootstrap manifestと `scripts/bootstrap.py` はfinalize routeを公開しません。
+After project policy and the preview have been reviewed, `adopt finalize --apply` is a separate explicit action using the CLI from the same repository and full SHA recorded in the manifest. The bootstrap manifest and `scripts/bootstrap.py` do not expose a finalize route.
 
-## 信頼境界
+## Trust boundary
 
-導入前は次を一組のtrust seedとしてレビューします。
+Before adoption, review these components together as the trust seed:
 
-- `SKILL.md`の安全制約
-- `bootstrap-manifest.yml`のrepository、full SHA、route集合
-- `scripts/bootstrap.py`の取得・振り分け・適用処理
-- installer/uninstaller
-- bootstrap tests
+- the safety constraints in `SKILL.md`;
+- the repository, full SHA, and route set in `bootstrap-manifest.yml`;
+- acquisition, routing, and application logic in `scripts/bootstrap.py`;
+- installer and uninstaller behavior; and
+- bootstrap tests.
 
-初期化完了後、またはadoption finalization完了後は次が通常運用の記録になります。
+After initialization or adoption finalization, these become the normal operating records:
 
-- `.agent-policy.yml`
-- `.agent-policy.lock`
-- 生成されたエージェント指示と通常運用スキル
-- リポジトリローカルのCI
+- `.agent-policy.yml`;
+- `.agent-policy.lock`;
+- generated agent instructions and normal-operation skills; and
+- repository-local CI.
 
-bootstrap skillはmanaged repositoryのruntime dependencyではありません。
+The bootstrap skill is not a runtime dependency of a managed repository.
