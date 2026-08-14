@@ -25,8 +25,7 @@ def tracked_paths(ref: str) -> list[str]:
 def tree_placeholder(branch: str) -> str:
     return (
         f'<div class="repository-tree" data-repository-branch="{branch}">\n'
-        '<p class="repository-tree__loading" role="status">'
-        "ツリーを読み込んでいます…</p>\n"
+        '<p class="repository-tree__loading" role="status">Loading tree…</p>\n'
         "</div>"
     )
 
@@ -121,7 +120,9 @@ def main() -> int:
         print(f"Updated {DOCUMENT_PATH}.")
         return 0
 
-    placeholders_match = all(check_placeholder(document, branch) for branch in BRANCH_REFS)
+    placeholders_match = all(
+        check_placeholder(document, branch) for branch in BRANCH_REFS
+    )
     manifest_matches = check_manifest()
     return 0 if placeholders_match and manifest_matches else 1
 
