@@ -15,12 +15,33 @@ from finalize_guided_locales import (  # noqa: E402
     finalize,
 )
 
+REVISION = "a" * 40
+
 
 def page(title: str) -> str:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<link rel="canonical" href="https://templates.moukaeritai.work/">'
         f'<title>{title}</title></head><body><main><h1>{title}</h1></main></body></html>'
+    )
+
+
+def guided_page(title: str, page_path: str) -> str:
+    source_url = (
+        "https://github.com/TakashiSasaki/templates/blob/"
+        f"{REVISION}/docs/index.md"
+    )
+    return (
+        '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+        '<meta http-equiv="Content-Security-Policy" '
+        'content="default-src \'none\'; style-src \'unsafe-inline\'">'
+        '<link rel="canonical" href="https://templates.moukaeritai.work/">'
+        f'<title>{title}</title></head><body>'
+        f'<p class="page-path"><span class="page-path-label">ページパス:</span> '
+        f'<code>{page_path}</code></p>'
+        f'<main><h1>{title}</h1>'
+        f'<a href="{source_url}" target="_blank" rel="noopener">不変の GitHub ソース</a>'
+        '</main></body></html>'
     )
 
 
@@ -75,6 +96,47 @@ class FinalizeGuidedLocalesTests(unittest.TestCase):
             self.assertIn('English · Canonical', japanese)
             self.assertIn('rel="manifest" href="/app.webmanifest"', japanese)
             self.assertIn('name="theme-color" content="#3f51b5"', japanese)
+
+    def test_localized_guided_page_receives_public_and_github_copy_controls(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="guided-locale-") as directory:
+            root = Path(directory)
+            canonical = root / "guided" / "policy" / "index.html"
+            translated = root / "ja" / "guided" / "policy" / "index.html"
+            canonical.parent.mkdir(parents=True)
+            translated.parent.mkdir(parents=True)
+            canonical.write_text(page("Policy navigation"), encoding="utf-8")
+            translated.write_text(
+                guided_page("ポリシーナビゲーション", "/ja/guided/policy/"),
+                encoding="utf-8",
+            )
+            pair_map = write_pair_map(
+                root,
+                [
+                    {
+                        "language": "ja",
+                        "canonical_path": "guided/policy/index.html",
+                        "translation_path": "ja/guided/policy/index.html",
+                    }
+                ],
+            )
+
+            finalize(root, pair_map, "https://templates.moukaeritai.work/")
+            japanese = translated.read_text(encoding="utf-8")
+            source_url = (
+                "https://github.com/TakashiSasaki/templates/blob/"
+                f"{REVISION}/docs/index.md"
+            )
+
+            self.assertIn('data-copy-name="GitHub URL"', japanese)
+            self.assertIn(f'data-copy-url="{source_url}"', japanese)
+            self.assertIn('data-copy-name="public URL"', japanese)
+            self.assertIn(
+                'data-copy-url="https://templates.moukaeritai.work/ja/guided/policy/"',
+                japanese,
+            )
+            self.assertIn('<script src="/javascripts/guided-copy.js" defer></script>', japanese)
+            self.assertIn("script-src 'self'", japanese)
+            self.assertIn('<span class="page-path-label">ページパス:</span>', japanese)
 
     def test_every_translation_receives_complete_alternate_set(self) -> None:
         with tempfile.TemporaryDirectory(prefix="guided-locale-") as directory:
