@@ -105,10 +105,16 @@ button.glossary-term:focus-visible {
   line-height: 1.55;
 }
 
-.glossary-inline-dialog__meta {
+.glossary-inline-dialog__meta,
+.glossary-inline-dialog__freshness {
   margin: 0;
   font-size: 0.76rem;
   opacity: 0.68;
+}
+
+.glossary-inline-dialog__freshness:not([hidden]) {
+  margin-top: 0.45rem;
+  font-weight: 650;
 }
 
 .glossary-inline-dialog__actions {
