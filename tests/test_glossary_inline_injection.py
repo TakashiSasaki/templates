@@ -65,6 +65,25 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertNotIn(RUNTIME_STYLE, plain_text)
             self.assertNotIn(RUNTIME_SCRIPT, plain_text)
 
+    def test_headless_document_keeps_static_glossary_link_without_runtime_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "index.html"
+            page.write_text(
+                "<html><body><main>Publication catalog</main></body></html>",
+                encoding="utf-8",
+            )
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
+            self.assertNotIn(RUNTIME_STYLE, rendered)
+            self.assertNotIn(RUNTIME_SCRIPT, rendered)
+
     def test_second_finalization_is_idempotent_for_runtime_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
