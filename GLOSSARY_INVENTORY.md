@@ -153,6 +153,10 @@ lookup. No Japanese definition is required.
 
 ## Implementation order after inventory review
 
+During steps 1–4, provider entries must contain only provider-local
+`related_terms`; cross-provider relations are deferred to step 7 after every
+target exists in the locked integrated set.
+
 1. Add the Site-owned terms to `site/docs/glossary.yml`.
 2. Add Skill-owned terms to `skill/docs/glossary.yml`.
 3. Add Policy-owned terms to `policy/docs/glossary.yml`.
