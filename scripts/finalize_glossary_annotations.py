@@ -61,9 +61,12 @@ VOID_TAGS = {
     "wbr",
 }
 EXCLUDED_ROUTE_COMPONENTS = {"files", "glossary", "repository-trees"}
+RUNTIME_EXCLUDED_ROUTE_COMPONENTS = {"guided"}
 CONTENT_CLASS = "md-content__inner"
 RUNTIME_STYLE = '<link rel="stylesheet" href="/stylesheets/glossary-inline.css">'
 RUNTIME_SCRIPT = '<script src="/javascripts/glossary-inline.js" defer></script>'
+RUNTIME_STYLE_NAME = "glossary-inline.css"
+RUNTIME_SCRIPT_NAME = "glossary-inline.js"
 
 
 def _class_tokens(attrs: list[tuple[str, str | None]]) -> set[str]:
@@ -281,15 +284,16 @@ def annotate_html(source: str, index: AnnotationIndex) -> tuple[str, int]:
 
 
 def inject_runtime_assets(source: str) -> str:
-    """Enhance annotated full documents while preserving static-link fallback."""
-    missing = [asset for asset in (RUNTIME_STYLE, RUNTIME_SCRIPT) if asset not in source]
+    """Enhance annotated standalone pages without duplicating global assets."""
+    missing: list[str] = []
+    if RUNTIME_STYLE_NAME not in source:
+        missing.append(RUNTIME_STYLE)
+    if RUNTIME_SCRIPT_NAME not in source:
+        missing.append(RUNTIME_SCRIPT)
     if not missing:
         return source
     marker = "</head>"
     if marker not in source:
-        # Build-time annotation remains useful without JavaScript. Generated Site
-        # pages normally contain a head element, while reduced fixtures or other
-        # HTML fragments retain the stable Glossary links without enhancement.
         return source
     return source.replace(marker, "\n".join(missing) + "\n" + marker, 1)
 
@@ -298,6 +302,10 @@ def _excluded_route(relative: Path) -> bool:
     return relative.stem in EXCLUDED_ROUTE_COMPONENTS or any(
         part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
     )
+
+
+def _runtime_excluded_route(relative: Path) -> bool:
+    return any(part in RUNTIME_EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1])
 
 
 def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
@@ -334,7 +342,10 @@ def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
                 f"unable to read generated HTML {relative.as_posix()}: {exc}"
             ) from exc
         rendered, count = annotate_html(source, index)
-        if count > 0 or 'class="glossary-term"' in rendered:
+        if (
+            not _runtime_excluded_route(relative)
+            and (count > 0 or 'class="glossary-term"' in rendered)
+        ):
             rendered = inject_runtime_assets(rendered)
         if rendered == source:
             continue
