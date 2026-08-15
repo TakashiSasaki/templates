@@ -352,11 +352,28 @@ python site/scripts/generate_index_navigation.py \
   --provider skill=sources/skill \
   --provider policy=sources/policy \
   --provider webapp=sources/webapp
+python site/scripts/generate_index_navigation_locales.py \
+  --graph build/index-navigation.json \
+  --output build/index-navigation-locales.json \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
 python site/scripts/generate_index_navigation_viewer.py \
   --repository TakashiSasaki/templates \
   --graph build/index-navigation.json \
   --site-root site-publication \
   --output-root build/site \
+  --provider skill=sources/skill \
+  --provider policy=sources/policy \
+  --provider webapp=sources/webapp
+python site/scripts/generate_index_navigation_locale_viewer.py \
+  --repository TakashiSasaki/templates \
+  --graph build/index-navigation.json \
+  --locale-overlays build/index-navigation-locales.json \
+  --translation-map build/translation-publication.json \
+  --site-root site-publication \
+  --output-root build/site \
+  --pair-map build/guided-locale-publication.json \
   --provider skill=sources/skill \
   --provider policy=sources/policy \
   --provider webapp=sources/webapp
@@ -366,6 +383,10 @@ python site/scripts/finalize_site_metadata.py \
 python site/scripts/finalize_translation_reader.py \
   --site-root build/site \
   --translation-map build/translation-publication.json \
+  --canonical-url https://templates.moukaeritai.work/
+python site/scripts/finalize_guided_locales.py \
+  --site-root build/site \
+  --pair-map build/guided-locale-publication.json \
   --canonical-url https://templates.moukaeritai.work/
 python site/scripts/finalize_glossary_annotations.py \
   --site-root build/site \
