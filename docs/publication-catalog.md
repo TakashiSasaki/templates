@@ -47,12 +47,12 @@ Translations are not entries in the publication catalog. The Site publication
 layer may expose synchronized derivative routes while preserving the one-way
 authority relationship and keeping the English document canonical.
 
-## Schema versions
+## Schema version
 
-Schema version `1` declares Markdown documents. Schema version `2` retains the
-same document contract and adds explicit non-Markdown asset roots. Schema
-version `3` retains the version 2 document and asset contract and additionally
-permits one canonical glossary declaration:
+The provider validator accepts only integer schema version `3`. Legacy
+publication-catalog schema versions `1` and `2` are retired and fail closed.
+Schema version `3` defines the current Markdown document and explicit asset
+contracts and additionally permits one canonical glossary declaration:
 
 ```json
 {
@@ -84,13 +84,13 @@ optional document source may be absent, but when present it must also be a
 regular Markdown file. Exactly one non-optional document is the publication
 landing page.
 
-Each version 2 or 3 asset contains exactly `source`, `destination`, and
-`optional`. Asset destinations are relative to the `policy` namespace in the
-generated site. Markdown files are forbidden inside asset roots because every
-published Markdown page must be named explicitly in `documents`. Asset roots
-must not contain a nested `.git` subtree in any letter case.
+Each schema-v3 asset contains exactly `source`, `destination`, and `optional`.
+Asset destinations are relative to the `policy` namespace in the generated
+site. Markdown files are forbidden inside asset roots because every published
+Markdown page must be named explicitly in `documents`. Asset roots must not
+contain a nested `.git` subtree in any letter case.
 
-The optional version 3 `glossary` object contains exactly `source`. When
+The optional schema-v3 `glossary` object contains exactly `source`. When
 present, it identifies an existing regular `.yml` file within the provider
 source root. It must not traverse a symbolic link and must not overlap an asset
 source. Individual glossary terms are not catalog entries; adding a term or a
@@ -114,8 +114,9 @@ python scripts/validate_translations.py
 
 The publication validator rejects duplicate JSON members, unsupported fields,
 unsafe or symbolic-link paths, duplicate IDs and destinations, invalid home
-declarations, missing required sources, undeclared schema versions, malformed
-glossary declarations, and glossary/asset source overlap.
+declarations, missing required sources, any catalog schema version other than
+integer `3`, malformed glossary declarations, and glossary/asset source
+overlap.
 
 The Site build independently parses and validates the glossary content itself,
 including its schema, stable term IDs, localized labels, external authority
