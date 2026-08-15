@@ -181,7 +181,11 @@ async function notifyInstantNavigationState(event, state, requireAcknowledgement
     return !requireAcknowledgement;
   }
 
-  const message = { type: "templates:freshness-state", state };
+  const message = {
+    type: "templates:freshness-state",
+    state,
+    url: event.request.url,
+  };
   if (!requireAcknowledgement) {
     client.postMessage(message);
     return true;
@@ -231,7 +235,6 @@ async function fetchDocumentNetworkFirst(event) {
           console.warn("PWA document cache namespace cleanup failed", cleanupError);
         }
       }
-      await notifyInstantNavigationState(event, "verified-current");
       return response;
     }
     if (response.status >= 500) {
@@ -250,7 +253,6 @@ async function fetchDocumentNetworkFirst(event) {
       const cachedResponse = response.clone();
       event.waitUntil(cacheVerifiedDocument(request, cachedResponse));
     }
-    await notifyInstantNavigationState(event, "verified-current");
     return response;
   } catch (error) {
     const cached = await cachedDocumentFallback(request);
