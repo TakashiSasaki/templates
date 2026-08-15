@@ -51,6 +51,27 @@ EXPECTED_JA_LABELS = {
     "templates-context-policy": "コンテキストポリシー",
     "templates-webapp-product-mode": "プロダクトモード",
 }
+EXPECTED_CROSS_PROVIDER_RELATED_TERMS = {
+    "templates-skill-profile": {
+        "templates-policy-profile",
+    },
+    "templates-policy-profile": {
+        "templates-skill-profile",
+    },
+    "templates-skill-public-interface-selection-contract": {
+        "templates-artifact-contract",
+        "templates-adapter-renderer-requirement",
+    },
+    "templates-webapp-implementation-evidence": {
+        "templates-artifact-contract",
+    },
+    "templates-webapp-release-evidence": {
+        "templates-artifact-contract",
+    },
+    "templates-webapp-release-bundle": {
+        "templates-artifact-contract",
+    },
+}
 
 
 class LockedProviderGlossaryTests(unittest.TestCase):
@@ -106,6 +127,17 @@ class LockedProviderGlossaryTests(unittest.TestCase):
                     by_id[term_id]["localized_labels"]["ja"]["term"],
                     expected_label,
                 )
+
+        for term_id, expected_related in EXPECTED_CROSS_PROVIDER_RELATED_TERMS.items():
+            with self.subTest(term_id=term_id, relation_scope="cross-provider"):
+                self.assertTrue(
+                    expected_related <= set(by_id[term_id].get("related_terms", []))
+                )
+                for related_id in expected_related:
+                    self.assertNotEqual(
+                        by_id[term_id]["provider"],
+                        by_id[related_id]["provider"],
+                    )
 
 
 if __name__ == "__main__":
