@@ -13,7 +13,7 @@ from scripts.assemble_publications import AssemblyError, load_catalog, load_mani
 class DuplicateJsonMemberTests(unittest.TestCase):
     def test_catalog_duplicate_member_is_rejected(self) -> None:
         content = (
-            '{"schema_version":1,"documents":['
+            '{"schema_version":3,"documents":['
             '{"id":"overview","source":"README.md","source":"HOME.md",'
             '"optional":false,"home":true}]}'
         )
