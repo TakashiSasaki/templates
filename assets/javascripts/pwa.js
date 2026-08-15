@@ -65,7 +65,8 @@
     document.head.appendChild(theme);
   }
 
-  const documentObservable = globalThis.document$;
+  const documentObservable =
+    typeof document$ !== "undefined" ? document$ : globalThis.document$;
   if (documentObservable && typeof documentObservable.subscribe === "function") {
     documentObservable.subscribe(handleCommittedDocument);
   }
