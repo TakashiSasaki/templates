@@ -79,6 +79,9 @@ jobs:
       - name: Verify installed dependency graph
         run: .venv/bin/python -m pip check
 
+      - name: Validate publication catalog
+        run: .venv/bin/python scripts/validate_publication_catalog.py
+
       - name: Generate repository file previews
         run: .venv/bin/python scripts/generate_repository_preview.py
 

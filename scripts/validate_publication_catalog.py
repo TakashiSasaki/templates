@@ -222,26 +222,16 @@ def validate_catalog(
 ) -> tuple[list[Document], list[Asset]]:
     data = read_json_object(catalog_path)
     schema_version = data.get("schema_version")
-    if type(schema_version) is not int or schema_version not in (1, 2, 3):
-        raise CatalogError(
-            "schema_version must be the integer 1 or 2, or the integer 3"
-        )
+    if type(schema_version) is not int or schema_version != 3:
+        raise CatalogError("schema_version must be the integer 3")
 
-    allowed_top_level = {"schema_version", "documents"}
-    if schema_version >= 2:
-        allowed_top_level.add("assets")
-    if schema_version == 3:
-        allowed_top_level.add("glossary")
+    allowed_top_level = {"schema_version", "documents", "assets", "glossary"}
     unknown = set(data) - allowed_top_level
     if unknown:
         raise CatalogError(
             "catalog contains unsupported top-level fields: "
             + ", ".join(sorted(unknown))
         )
-    if schema_version == 1 and "assets" in data:
-        raise CatalogError("schema_version 1 does not support assets")
-    if schema_version < 3 and "glossary" in data:
-        raise CatalogError("glossary requires schema_version 3")
 
     raw_documents = data.get("documents")
     if not isinstance(raw_documents, list) or not raw_documents:
@@ -274,7 +264,7 @@ def validate_catalog(
     reject_overlapping_paths(asset_destinations, "asset destinations")
 
     glossary_source: PurePosixPath | None = None
-    if schema_version == 3 and "glossary" in data:
+    if "glossary" in data:
         glossary_source = parse_glossary_source(data["glossary"])
         for asset_source in asset_sources:
             if paths_overlap(glossary_source, asset_source):
