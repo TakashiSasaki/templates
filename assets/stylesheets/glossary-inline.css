@@ -5,12 +5,33 @@
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
   text-decoration-color: color-mix(in srgb, currentColor 48%, transparent);
+  cursor: help;
+}
+
+button.glossary-term {
+  appearance: none;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
 }
 
 .glossary-term:hover,
 .glossary-term:focus-visible {
   text-decoration-style: solid;
   text-decoration-color: currentColor;
+}
+
+button.glossary-term:focus-visible {
+  outline: 0.12rem solid currentColor;
+  outline-offset: 0.12rem;
+  border-radius: 0.12rem;
 }
 
 .glossary-term[aria-busy="true"] {
