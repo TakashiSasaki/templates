@@ -36,18 +36,27 @@ class PwaAssetTests(unittest.TestCase):
             self.assertEqual(icon["type"], "image/svg+xml")
             self.assertEqual(set(icon["purpose"].split()), {"any", "maskable"})
 
-    def test_manifest_icon_paths_are_in_service_worker_static_assets(self) -> None:
-        manifest = json.loads((ROOT / "assets/app.webmanifest").read_text(encoding="utf-8"))
+    def test_service_worker_precache_paths_exist_in_source_assets(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
         match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", worker)
 
         self.assertIsNotNone(match)
         static_assets = set(json.loads(match.group(1)))
+        for public_path in static_assets:
+            with self.subTest(public_path=public_path):
+                self.assertTrue(
+                    (ROOT / "assets" / public_path.lstrip("/")).is_file(),
+                    f"missing source asset for {public_path}",
+                )
+
+        manifest = json.loads((ROOT / "assets/app.webmanifest").read_text(encoding="utf-8"))
         self.assertIn("/app.webmanifest", static_assets)
         self.assertLessEqual(
             {icon["src"] for icon in manifest["icons"]},
             static_assets,
         )
+        self.assertIn("/stylesheets/freshness-status.css", static_assets)
+        self.assertIn("/javascripts/pwa.js", static_assets)
 
     def test_svg_icon_is_self_contained_and_scalable(self) -> None:
         icon_path = ROOT / "assets/icon.svg"
@@ -66,6 +75,7 @@ class PwaAssetTests(unittest.TestCase):
 
         self.assertIn('favicon = "icon.svg"', config)
         self.assertIn('"javascripts/pwa.js"', config)
+        self.assertIn('"stylesheets/freshness-status.css"', config)
         self.assertIn('manifest.rel = "manifest"', registration)
         self.assertIn('manifest.href = manifestHref', registration)
         self.assertIn('navigator.serviceWorker.register("/service-worker.js", {', registration)
@@ -140,16 +150,12 @@ class PwaAssetTests(unittest.TestCase):
                         Path("index.html"),
                     )
 
-    def test_service_worker_keeps_documents_out_of_static_cache(self) -> None:
+    def test_service_worker_uses_separate_shell_and_document_caches(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
-        self.assertIn('const CACHE_NAME = "templates-portal-shell-v3"', worker)
+        self.assertIn('const CACHE_NAME = "templates-portal-shell-v4"', worker)
         self.assertIn(
             'const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"',
-            worker,
-        )
-        self.assertIn(
-            'const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"]',
             worker,
         )
         self.assertNotIn("const APP_SHELL", worker)
@@ -160,13 +166,48 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('request.mode === "navigate"', worker)
         self.assertIn("if (isDocumentRequest(event.request, url))", worker)
         self.assertIn('fetch(request, { cache: "no-cache" })', worker)
+        self.assertIn("event.respondWith(fetchDocumentNetworkFirst(event))", worker)
+        self.assertIn("caches.open(DOCUMENT_CACHE_NAME)", worker)
+
+    def test_service_worker_document_network_first_contract(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
+        self.assertIn("async function fetchDocumentNetworkFirst(event)", worker)
+        self.assertIn("if (response.status === 404 || response.status === 410)", worker)
+        self.assertIn("event.waitUntil(deleteCachedDocument(request))", worker)
+        self.assertIn("if (response.status >= 500)", worker)
+        self.assertIn("cachedDocumentFallback(request)", worker)
+        self.assertIn("isCacheableDocumentResponse(response)", worker)
+        self.assertIn("response.status !== 200", worker)
+        self.assertIn('includes("text/html")', worker)
+        self.assertIn("const cachedResponse = response.clone();", worker)
         self.assertIn(
-            "fetchFreshDocument(event.request).catch(() => offlineResponse())",
+            "event.waitUntil(cacheVerifiedDocument(request, cachedResponse))",
             worker,
         )
-        self.assertEqual(worker.count("fetchFreshDocument(event.request)"), 1)
-        self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
-        self.assertNotIn("caches.open(DOCUMENT_CACHE_NAME)", worker)
+        self.assertIn("await cache.put(request, cachedResponse)", worker)
+        self.assertIn("await cache.delete(request)", worker)
+        clone_position = worker.index("const cachedResponse = response.clone();")
+        wait_position = worker.index(
+            "event.waitUntil(cacheVerifiedDocument(request, cachedResponse))"
+        )
+        self.assertLess(clone_position, wait_position)
+
+    def test_cached_document_fallback_is_always_marked_unverified(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+        stylesheet = (ROOT / "assets/stylesheets/freshness-status.css").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('data-freshness-state="cached-unverified"', worker)
+        self.assertIn("The latest version could not be verified.", worker)
+        self.assertIn('headers.set("X-Templates-Freshness", "cached-unverified")', worker)
+        self.assertIn('headers.set("Cache-Control", "no-store")', worker)
+        for header in ("Content-Encoding", "Content-Length", "ETag", "Last-Modified"):
+            self.assertIn(f'"{header}"', worker)
+        self.assertIn("if (!bodyMatch)", worker)
+        self.assertIn("return undefined", worker)
+        self.assertIn(".freshness-status", stylesheet)
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
@@ -184,18 +225,15 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("async function refreshStaticAsset(request)", worker)
         self.assertIn('const response = await fetch(request, { cache: "no-cache" })', worker)
         self.assertIn("if (response.ok)", worker)
-        self.assertIn("try {", worker)
         self.assertIn("const cache = await caches.open(CACHE_NAME)", worker)
         self.assertIn("await cache.put(request, response.clone())", worker)
         self.assertIn('console.warn("PWA static asset cache refresh failed", error)', worker)
         self.assertIn("const refresh = refreshStaticAsset(event.request)", worker)
-        self.assertIn("const cached = caches", worker)
-        self.assertIn(".catch(() => undefined)", worker)
         self.assertIn("event.waitUntil(refresh.catch(() => undefined))", worker)
         self.assertIn("response || refresh", worker)
         self.assertNotIn("ignoreSearch", worker)
 
-    def test_service_worker_activation_cache_cleanup_filter(self) -> None:
+    def test_service_worker_activation_cleanup_preserves_document_cache(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
         self.assertIn(
@@ -224,7 +262,7 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('siteVersionUrl: "/site-version.json"', worker)
         self.assertIn("documentCacheName: DOCUMENT_CACHE_NAME", worker)
 
-    def test_service_worker_offline_response_contract(self) -> None:
+    def test_service_worker_cache_miss_offline_response_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
         self.assertIn("function offlineResponse()", worker)
@@ -234,6 +272,7 @@ class PwaAssetTests(unittest.TestCase):
             'headers: { "Content-Type": "text/plain; charset=utf-8" }',
             worker,
         )
+        self.assertIn("cachedDocumentFallback(request)) || offlineResponse()", worker)
 
     def test_browser_regression_check_is_wired_into_visual_ci(self) -> None:
         workflow = (ROOT / ".github/workflows/mobile-visual-regression.yml").read_text(
@@ -250,7 +289,8 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("def _wait_for_manifest_version(", checker)
         self.assertIn("_wait_for_manifest_version(page, 2)", checker)
         self.assertIn('context.set_offline(True)', checker)
-        self.assertIn('evidence["offline_fetch_status"] = 503', checker)
+        self.assertIn('evidence["offline_cached_status"] = 200', checker)
+        self.assertIn('evidence["offline_cache_miss_status"] = 503', checker)
         self.assertIn('"document-v2"', checker)
         self.assertIn('"manifest-v{state.manifest_version}"', checker)
         self.assertIn("_wait_for_worker_version(page, 2)", checker)

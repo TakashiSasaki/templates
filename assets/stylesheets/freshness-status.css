@@ -1,0 +1,26 @@
+.freshness-status {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-block: 0.125rem solid currentColor;
+  background: var(--md-default-bg-color, Canvas);
+  color: var(--md-default-fg-color, CanvasText);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.freshness-status strong {
+  font-weight: 700;
+}
+
+@media (max-width: 800px) {
+  .freshness-status {
+    padding-inline: 0.55rem;
+    font-size: 0.75rem;
+  }
+}

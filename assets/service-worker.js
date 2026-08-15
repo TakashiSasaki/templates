@@ -1,12 +1,30 @@
-const CACHE_NAME = "templates-portal-shell-v3";
+const CACHE_NAME = "templates-portal-shell-v4";
 const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
-const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"];
+const STATIC_ASSETS = [
+  "/app.webmanifest",
+  "/icon.svg",
+  "/stylesheets/extra.css",
+  "/stylesheets/landing-cover.css",
+  "/stylesheets/landing-shell.css",
+  "/stylesheets/mobile-density.css",
+  "/stylesheets/translation-reader.css",
+  "/stylesheets/glossary-inline.css",
+  "/stylesheets/freshness-status.css",
+  "/javascripts/repository-tree-viewer.js",
+  "/javascripts/pwa.js",
+  "/javascripts/glossary-inline.js"
+];
 const FRESHNESS_STATES = Object.freeze([
   "verified-current",
   "checking",
   "cached-unverified",
   "update-available",
 ]);
+const CACHED_DOCUMENT_NOTICE =
+  '<aside class="freshness-status freshness-status--cached" ' +
+  'data-freshness-state="cached-unverified" role="status" aria-live="polite">' +
+  '<strong>Saved copy.</strong> The latest version could not be verified.' +
+  "</aside>";
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -36,6 +54,106 @@ function isDocumentRequest(request, url) {
 
 function fetchFreshDocument(request) {
   return fetch(request, { cache: "no-cache" });
+}
+
+function isCacheableDocumentResponse(response) {
+  if (response.status !== 200) {
+    return false;
+  }
+  if (!response.url || new URL(response.url).origin !== self.location.origin) {
+    return false;
+  }
+  const contentType = response.headers.get("Content-Type") || "";
+  return contentType.toLowerCase().includes("text/html");
+}
+
+async function cacheVerifiedDocument(request, cachedResponse) {
+  try {
+    const cache = await caches.open(DOCUMENT_CACHE_NAME);
+    await cache.put(request, cachedResponse);
+  } catch (error) {
+    console.warn("PWA document cache update failed", error);
+  }
+}
+
+async function deleteCachedDocument(request) {
+  try {
+    const cache = await caches.open(DOCUMENT_CACHE_NAME);
+    await cache.delete(request);
+  } catch (error) {
+    console.warn("PWA document cache deletion failed", error);
+  }
+}
+
+async function decorateCachedDocument(response) {
+  const contentType = response.headers.get("Content-Type") || "";
+  if (!contentType.toLowerCase().includes("text/html")) {
+    return undefined;
+  }
+
+  let source;
+  try {
+    source = await response.text();
+  } catch (error) {
+    console.warn("PWA cached document read failed", error);
+    return undefined;
+  }
+
+  const bodyMatch = /<body\b[^>]*>/i.exec(source);
+  if (!bodyMatch) {
+    console.warn("PWA cached document has no body element");
+    return undefined;
+  }
+
+  const insertion = bodyMatch.index + bodyMatch[0].length;
+  const decorated =
+    source.slice(0, insertion) + CACHED_DOCUMENT_NOTICE + source.slice(insertion);
+  const headers = new Headers(response.headers);
+  for (const name of ["Content-Encoding", "Content-Length", "ETag", "Last-Modified"]) {
+    headers.delete(name);
+  }
+  headers.set("Cache-Control", "no-store");
+  headers.set("X-Templates-Freshness", "cached-unverified");
+  return new Response(decorated, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function cachedDocumentFallback(request) {
+  try {
+    const cache = await caches.open(DOCUMENT_CACHE_NAME);
+    const response = await cache.match(request);
+    if (!response) {
+      return undefined;
+    }
+    return await decorateCachedDocument(response);
+  } catch (error) {
+    console.warn("PWA document cache lookup failed", error);
+    return undefined;
+  }
+}
+
+async function fetchDocumentNetworkFirst(event) {
+  const request = event.request;
+  try {
+    const response = await fetchFreshDocument(request);
+    if (response.status === 404 || response.status === 410) {
+      event.waitUntil(deleteCachedDocument(request));
+      return response;
+    }
+    if (response.status >= 500) {
+      return (await cachedDocumentFallback(request)) || response;
+    }
+    if (isCacheableDocumentResponse(response)) {
+      const cachedResponse = response.clone();
+      event.waitUntil(cacheVerifiedDocument(request, cachedResponse));
+    }
+    return response;
+  } catch (error) {
+    return (await cachedDocumentFallback(request)) || offlineResponse();
+  }
 }
 
 async function refreshStaticAsset(request) {
@@ -98,7 +216,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isDocumentRequest(event.request, url)) {
-    event.respondWith(fetchFreshDocument(event.request).catch(() => offlineResponse()));
+    event.respondWith(fetchDocumentNetworkFirst(event));
     return;
   }
 

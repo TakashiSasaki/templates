@@ -237,6 +237,7 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/mobile-density.css",
                 "stylesheets/translation-reader.css",
                 "stylesheets/glossary-inline.css",
+                "stylesheets/freshness-status.css",
             ],
         )
         self.assertEqual(

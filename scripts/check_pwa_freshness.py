@@ -14,6 +14,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 
+DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"
+
+
 class PwaFreshnessError(RuntimeError):
     """Raised when the browser does not satisfy the PWA freshness contract."""
 
@@ -21,6 +24,7 @@ class PwaFreshnessError(RuntimeError):
 @dataclass
 class FixtureState:
     document_version: int = 1
+    document_status: int = 200
     manifest_version: int = 1
     worker_version: int = 1
     hits: dict[str, int] = field(
@@ -41,6 +45,7 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
     worker_source = (site_root / "service-worker.js").read_text(encoding="utf-8")
     registration_source = (site_root / "javascripts/pwa.js").read_bytes()
     icon_source = (site_root / "icon.svg").read_bytes()
+    resolved_site_root = site_root.resolve()
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -53,10 +58,15 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
             body: bytes,
             content_type: str,
             *,
+            status: int = 200,
             cache_control: str = "no-store",
             etag: str | None = None,
         ) -> None:
-            if etag and self.headers.get("If-None-Match") == etag:
+            if (
+                status == 200
+                and etag
+                and self.headers.get("If-None-Match") == etag
+            ):
                 self.send_response(304)
                 self.send_header("Cache-Control", cache_control)
                 self.send_header("ETag", etag)
@@ -64,14 +74,39 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
                 self.end_headers()
                 return
 
-            self.send_response(200)
+            self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", cache_control)
-            if etag:
+            if etag and status == 200:
                 self.send_header("ETag", etag)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _send_static_fixture_asset(self, path: str) -> bool:
+            candidate = (resolved_site_root / path.lstrip("/")).resolve()
+            try:
+                candidate.relative_to(resolved_site_root)
+            except ValueError:
+                return False
+            if not candidate.is_file():
+                return False
+
+            content_types = {
+                ".css": "text/css; charset=utf-8",
+                ".js": "text/javascript; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".svg": "image/svg+xml",
+                ".png": "image/png",
+                ".woff": "font/woff",
+                ".woff2": "font/woff2",
+            }
+            content_type = content_types.get(
+                candidate.suffix.lower(),
+                "application/octet-stream",
+            )
+            self._send(candidate.read_bytes(), content_type)
+            return True
 
         def do_GET(self) -> None:
             path = urlsplit(self.path).path
@@ -148,13 +183,22 @@ self.addEventListener("message", (event) => {{
 
             if path in {"/document", "/document/", "/document/index.html"}:
                 state.record_hit("document")
-                body = f"document-v{state.document_version}\n".encode("utf-8")
+                body = (
+                    "<!doctype html><html><head><meta charset=\"utf-8\">"
+                    "<title>Document fixture</title></head><body>"
+                    f"<main>document-v{state.document_version}</main>"
+                    "</body></html>"
+                ).encode("utf-8")
                 self._send(
                     body,
                     "text/html; charset=utf-8",
+                    status=state.document_status,
                     cache_control="public, max-age=3600",
                     etag=f'"document-v{state.document_version}"',
                 )
+                return
+
+            if self._send_static_fixture_asset(path):
                 return
 
             self.send_response(404)
@@ -207,34 +251,16 @@ def _wait_for_worker_version(page: Any, expected: int, timeout_seconds: float = 
     raise PwaFreshnessError(message)
 
 
-def _freshness_capabilities(page: Any) -> dict[str, Any] | None:
+def _fetch_response(page: Any, path: str) -> dict[str, Any]:
     return page.evaluate(
-        """async () => {
-          const worker = navigator.serviceWorker.controller;
-          if (!worker) return null;
-          navigator.serviceWorker.startMessages();
-          return await new Promise((resolve) => {
-            const timer = setTimeout(() => {
-              navigator.serviceWorker.removeEventListener("message", onMessage);
-              resolve(null);
-            }, 1000);
-            const onMessage = (event) => {
-              if (event.data?.type === "templates:freshness-capabilities") {
-                clearTimeout(timer);
-                navigator.serviceWorker.removeEventListener("message", onMessage);
-                resolve(event.data);
-              }
-            };
-            navigator.serviceWorker.addEventListener("message", onMessage);
-            worker.postMessage({ type: "templates:get-freshness-capabilities" });
-          });
-        }"""
-    )
-
-
-def _fetch_text(page: Any, path: str) -> str:
-    return page.evaluate(
-        "async (path) => { const response = await fetch(path); return await response.text(); }",
+        """async (path) => {
+          const response = await fetch(path);
+          return {
+            status: response.status,
+            body: await response.text(),
+            freshness: response.headers.get("X-Templates-Freshness"),
+          };
+        }""",
         path,
     )
 
@@ -276,11 +302,47 @@ def _wait_for_manifest_version(
     raise PwaFreshnessError(message)
 
 
+def _document_is_cached(page: Any, path: str) -> bool:
+    return bool(
+        page.evaluate(
+            """async ([cacheName, path]) => {
+              const cache = await caches.open(cacheName);
+              return Boolean(await cache.match(path));
+            }""",
+            [DOCUMENT_CACHE_NAME, path],
+        )
+    )
+
+
+def _wait_for_document_cache(
+    page: Any,
+    path: str,
+    expected: bool,
+    timeout_seconds: float = 5.0,
+) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            cached = _document_is_cached(page, path)
+            last_error = None
+            if cached is expected:
+                return
+        except Exception as exc:
+            last_error = exc
+        time.sleep(0.05)
+    message = f"document cache state for {path} did not become {expected}"
+    if last_error is not None:
+        raise PwaFreshnessError(message) from last_error
+    raise PwaFreshnessError(message)
+
+
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     required = (
         site_root / "service-worker.js",
         site_root / "javascripts/pwa.js",
         site_root / "icon.svg",
+        site_root / "stylesheets/freshness-status.css",
     )
     missing = [path for path in required if not path.is_file()]
     if missing:
@@ -311,46 +373,21 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             page.wait_for_function("() => navigator.serviceWorker.controller !== null")
             _wait_for_worker_version(page, 1)
 
-            capabilities = _freshness_capabilities(page)
-            expected_states = [
-                "verified-current",
-                "checking",
-                "cached-unverified",
-                "update-available",
-            ]
-            if capabilities is None:
-                raise PwaFreshnessError(
-                    "service worker freshness capability request timed out"
-                )
-            if capabilities.get("siteVersionUrl") != "/site-version.json":
-                raise PwaFreshnessError(
-                    f"unexpected freshness siteVersionUrl: {capabilities!r}"
-                )
-            if capabilities.get("documentCacheName") != "templates-portal-documents-v1":
-                raise PwaFreshnessError(
-                    f"unexpected freshness documentCacheName: {capabilities!r}"
-                )
-            if capabilities.get("states") != expected_states:
-                raise PwaFreshnessError(
-                    f"unexpected freshness state vocabulary: {capabilities!r}"
-                )
-            evidence["freshness_capabilities"] = capabilities
-
-            first_document = _fetch_text(page, "/document/")
-            if first_document.strip() != "document-v1":
+            first_document = _fetch_response(page, "/document/")
+            if first_document["status"] != 200 or "document-v1" not in first_document["body"]:
                 raise PwaFreshnessError(
                     f"initial document mismatch: {first_document!r}"
                 )
             state.document_version = 2
-            second_document = _fetch_text(page, "/document/")
-            if second_document.strip() != "document-v2":
+            second_document = _fetch_response(page, "/document/")
+            if second_document["status"] != 200 or "document-v2" not in second_document["body"]:
                 raise PwaFreshnessError(
                     "document request reused stale HTTP cache instead of revalidating"
                 )
-            evidence["document_versions"] = [
-                first_document.strip(),
-                second_document.strip(),
-            ]
+            if second_document["freshness"] is not None:
+                raise PwaFreshnessError("network document was incorrectly marked as cached")
+            _wait_for_document_cache(page, "/document/", True)
+            evidence["document_versions"] = ["document-v1", "document-v2"]
 
             initial_manifest = _fetch_manifest_version(page)
             if initial_manifest != 1:
@@ -364,33 +401,84 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             state.worker_version = 2
             page.reload(wait_until="load")
             _wait_for_worker_version(page, 2)
+            _wait_for_document_cache(page, "/document/", True)
             evidence["worker_version"] = 2
+            evidence["document_cache_survived_worker_update"] = True
 
             context.set_offline(True)
-            offline_fetch = page.evaluate(
-                """async () => {
-                  const response = await fetch("/document/");
-                  return { status: response.status, body: await response.text() };
-                }"""
-            )
-            if offline_fetch.get("status") != 503 or "unavailable while offline" not in offline_fetch.get("body", ""):
+            offline_cached = _fetch_response(page, "/document/")
+            if (
+                offline_cached["status"] != 200
+                or offline_cached["freshness"] != "cached-unverified"
+                or "document-v2" not in offline_cached["body"]
+                or "Saved copy." not in offline_cached["body"]
+                or "latest version could not be verified" not in offline_cached["body"]
+            ):
                 raise PwaFreshnessError(
-                    "offline instant-navigation document fetch did not return the explicit 503 fallback"
+                    f"offline cached document was not explicitly marked stale: {offline_cached!r}"
                 )
-            evidence["offline_fetch_status"] = 503
+            evidence["offline_cached_status"] = 200
 
             response = page.goto(base_url + "/document/", wait_until="load")
-            if response is None or response.status != 503:
+            if response is None or response.status != 200:
                 status = None if response is None else response.status
                 raise PwaFreshnessError(
-                    f"offline document navigation returned {status}, expected 503"
+                    f"offline cached document navigation returned {status}, expected 200"
                 )
             offline_body = page.locator("body").inner_text()
-            if "unavailable while offline" not in offline_body:
+            if "Saved copy." not in offline_body or "document-v2" not in offline_body:
                 raise PwaFreshnessError(
-                    "offline navigation did not return the explicit Service Worker fallback"
+                    "offline navigation omitted cached-document freshness warning"
                 )
-            evidence["offline_status"] = 503
+            evidence["offline_navigation_status"] = 200
+
+            offline_miss = _fetch_response(page, "/uncached/")
+            if (
+                offline_miss["status"] != 503
+                or "unavailable while offline" not in offline_miss["body"]
+            ):
+                raise PwaFreshnessError(
+                    f"offline cache miss did not retain the explicit 503 fallback: {offline_miss!r}"
+                )
+            evidence["offline_cache_miss_status"] = 503
+            context.set_offline(False)
+
+            state.document_status = 403
+            forbidden = _fetch_response(page, "/document/")
+            if forbidden["status"] != 403 or forbidden["freshness"] is not None:
+                raise PwaFreshnessError(
+                    "ordinary 4xx response incorrectly fell back to cached documentation"
+                )
+            evidence["ordinary_4xx_status"] = 403
+
+            state.document_status = 503
+            server_error = _fetch_response(page, "/document/")
+            if (
+                server_error["status"] != 200
+                or server_error["freshness"] != "cached-unverified"
+                or "document-v2" not in server_error["body"]
+            ):
+                raise PwaFreshnessError(
+                    "transient 5xx response did not fall back to the verified cached document"
+                )
+            evidence["server_error_cached_status"] = 200
+
+            state.document_status = 404
+            deleted = _fetch_response(page, "/document/")
+            if deleted["status"] != 404 or deleted["freshness"] is not None:
+                raise PwaFreshnessError(
+                    "authoritative deletion incorrectly returned cached documentation"
+                )
+            _wait_for_document_cache(page, "/document/", False)
+            evidence["authoritative_deletion_status"] = 404
+
+            context.set_offline(True)
+            deleted_offline = _fetch_response(page, "/document/")
+            if deleted_offline["status"] != 503:
+                raise PwaFreshnessError(
+                    "deleted document remained available from cache after authoritative 404"
+                )
+            evidence["deleted_document_offline_status"] = 503
             context.set_offline(False)
 
             browser.close()
@@ -401,8 +489,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
 
     hits = state.snapshot_hits()
     evidence["hits"] = hits
-    if hits["document"] < 2:
-        raise PwaFreshnessError("document revalidation did not reach the fixture server")
+    if hits["document"] < 5:
+        raise PwaFreshnessError("document lifecycle did not reach the fixture server")
     if hits["manifest"] < 2:
         raise PwaFreshnessError("manifest revalidation did not reach the fixture server")
     if hits["worker"] < 2:
