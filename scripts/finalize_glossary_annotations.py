@@ -370,9 +370,10 @@ def allow_guided_glossary_runtime(source: str) -> str:
     match = matches[0]
     policy = html.unescape(match.group("policy"))
     directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
-    if "default-src 'none'" not in directives:
+    default_index = _single_directive_index(directives, "default-src")
+    if default_index is None or directives[default_index] != "default-src 'none'":
         raise GlossaryAnnotationFinalizeError(
-            "guided page CSP must specify default-src 'none'"
+            "guided default-src must be exactly default-src 'none'"
         )
     _allow_guided_style_source(directives)
     _allow_guided_self_source(directives, "script-src")
