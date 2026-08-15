@@ -158,3 +158,64 @@ terms:
       across contract evolution.
     related_terms:
       - templates-webapp-contract-manifest
+
+  - id: templates-webapp-candidate-revision
+    term: Candidate revision
+    localized_labels:
+      ja:
+        term: 候補リビジョン
+    origin: repository
+    definition: >-
+      The immutable source revision whose reviewed authoritative commands and
+      release gates ran and whose approval is recorded by Webapp release
+      evidence. Product-mode release bundle version 1 binds this same revision
+      and requires it to equal both the explicit expected revision and the
+      release-evidence subject.
+    related_terms:
+      - templates-webapp-merge-test-revision
+      - templates-webapp-released-revision
+      - templates-webapp-release-evidence
+      - templates-webapp-release-bundle
+
+  - id: templates-webapp-merge-test-revision
+    term: Merge-test revision
+    localized_labels:
+      ja:
+        term: マージテストリビジョン
+    origin: repository
+    definition: >-
+      A temporary or synthetic source revision used to test the proposed result
+      of merging a change, such as a pull-request merge ref. It can provide
+      validation evidence but is not the candidate revision unless that role is
+      selected explicitly.
+    related_terms:
+      - templates-webapp-candidate-revision
+
+  - id: templates-webapp-released-revision
+    term: Released revision
+    localized_labels:
+      ja:
+        term: リリース済みリビジョン
+    origin: repository
+    definition: >-
+      The immutable source identity published by a release system. It may equal
+      the candidate revision or a later merge commit, but any mapping from the
+      accepted candidate bundle to this released identity is owned and audited
+      by the release system rather than inferred by the Webapp bundle contract.
+    related_terms:
+      - templates-webapp-candidate-revision
+      - templates-webapp-deployed-revision
+
+  - id: templates-webapp-deployed-revision
+    term: Deployed revision
+    localized_labels:
+      ja:
+        term: デプロイ済みリビジョン
+    origin: repository
+    definition: >-
+      The immutable source identity observed in a target environment after
+      deployment. It belongs to deployment and post-deployment verification,
+      not the pre-release handoff contract, and should be compared with the
+      released revision in product-owned deployment evidence.
+    related_terms:
+      - templates-webapp-released-revision
