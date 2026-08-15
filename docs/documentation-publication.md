@@ -28,8 +28,10 @@ python -I -m venv --clear .venv
 python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-docs.lock
 python scripts/verify_docs_environment.py
 python -m pip check
+python scripts/validate_publication_catalog.py
 python scripts/generate_repository_preview.py
 python scripts/verify-repository-structure.py --check
+python scripts/validate_translations.py
 python scripts/generate-doc-assets.py
 python scripts/generate_docs_build_info.py \
   --commit "$(git rev-parse HEAD)" \
@@ -61,8 +63,10 @@ The documentation build is successful only when all of the following pass:
 - clean creation of the isolated documentation environment;
 - installation from the complete arbitrary-exact dependency lock with dependency resolution disabled;
 - exact installed-distribution verification and `pip check`;
+- publication catalog validation;
 - repository preview generation;
 - documented-tree verification;
+- translation validation;
 - documentation asset generation;
 - shared build metadata generation;
 - `mkdocs build --strict --clean`;
