@@ -24,8 +24,8 @@ REQUIRED_TABLES = {
         "id": "Canonical ID",
         "owner": "Owner",
     },
-    "Proposed second expansion": {
-        "id": "Proposed ID",
+    "Completed second expansion": {
+        "id": "Canonical ID",
         "owner": "Owner",
     },
     "External terminology candidates": {
@@ -166,6 +166,21 @@ class GlossaryInventoryTests(unittest.TestCase):
         self.assertTrue(rows, f"inventory table must not be empty: {heading}")
         return header, rows
 
+    def section_text(self, section: str, *, heading_level: int = 3) -> str:
+        heading = f"{'#' * heading_level} {section}"
+        if heading not in self.lines:
+            self.fail(f"missing inventory section: {heading}")
+        heading_index = self.lines.index(heading)
+        section_end = next(
+            (
+                index
+                for index in range(heading_index + 1, len(self.lines))
+                if re.match(rf"^#{{1,{heading_level}}} ", self.lines[index])
+            ),
+            len(self.lines),
+        )
+        return "\n".join(self.lines[heading_index + 1 : section_end])
+
     def test_glossary_inventory_candidate_ids_valid_and_unique(self) -> None:
         ids: list[str] = []
 
@@ -217,17 +232,24 @@ class GlossaryInventoryTests(unittest.TestCase):
                         f"invalid origin in {section}: {row['Origin']!r}",
                     )
 
-        completed_header, completed_rows = self.table("Completed first expansion")
-        rationale_column = "Rationale / canonical source"
-        self.assertIn(rationale_column, completed_header)
-        for row in completed_rows:
-            self.assertTrue(
-                row[rationale_column].strip(),
-                f"completed term rationale must not be empty: {row}",
-            )
+        for section in ("Completed first expansion", "Completed second expansion"):
+            completed_header, completed_rows = self.table(section)
+            rationale_column = "Rationale / canonical source"
+            self.assertIn(rationale_column, completed_header)
+            for row in completed_rows:
+                self.assertTrue(
+                    row[rationale_column].strip(),
+                    f"completed term rationale must not be empty: {row}",
+                )
 
-    def test_glossary_inventory_completed_expansion_metadata(self) -> None:
-        header, rows = self.table("Completed first expansion")
+    def assert_completed_expansion(
+        self,
+        section: str,
+        expected_ids: set[str],
+        *,
+        expected_owners: dict[str, str] | None = None,
+    ) -> None:
+        header, rows = self.table(section)
         for column in (
             "Canonical term",
             "Canonical ID",
@@ -239,75 +261,41 @@ class GlossaryInventoryTests(unittest.TestCase):
             self.assertIn(column, header)
 
         ids: set[str] = set()
-        for row in rows:
-            self.assertEqual(row["Origin"], "repository")
-            self.assertTrue(
-                row["Canonical term"].strip(),
-                f"canonical term must not be empty: {row}",
-            )
-            self.assertTrue(
-                row["Japanese discovery label"].strip(),
-                f"Japanese discovery label must not be empty: {row}",
-            )
-
-            term_id = _term_id(
-                row["Canonical ID"],
-                context="completed first-expansion ID",
-            )
-            self.assertIsNotNone(
-                REPOSITORY_TERM_ID.fullmatch(term_id),
-                f"first-expansion term must use a repository ID: {term_id}",
-            )
-            ids.add(term_id)
-
-        self.assertEqual(ids, EXPECTED_FIRST_EXPANSION_IDS)
-        self.assertEqual(len(rows), len(EXPECTED_FIRST_EXPANSION_IDS))
-
-    def test_glossary_inventory_proposed_second_expansion_metadata(self) -> None:
-        header, rows = self.table("Proposed second expansion")
-        for column in (
-            "Candidate term",
-            "Proposed ID",
-            "Owner",
-            "Origin",
-            "Japanese discovery label",
-            "Include next",
-            "Rationale / canonical source",
-        ):
-            self.assertIn(column, header)
-
-        ids: set[str] = set()
         owners: dict[str, str] = {}
         for row in rows:
             self.assertEqual(row["Origin"], "repository")
-            self.assertEqual(row["Include next"], "yes")
-            self.assertTrue(
-                row["Candidate term"].strip(),
-                f"candidate term must not be empty: {row}",
-            )
-            self.assertTrue(
-                row["Japanese discovery label"].strip(),
-                f"Japanese discovery label must not be empty: {row}",
-            )
-            self.assertTrue(
-                row["Rationale / canonical source"].strip(),
-                f"candidate rationale must not be empty: {row}",
-            )
+            self.assertTrue(row["Canonical term"].strip())
+            self.assertTrue(row["Japanese discovery label"].strip())
+            self.assertTrue(row["Rationale / canonical source"].strip())
 
             term_id = _term_id(
-                row["Proposed ID"],
-                context="proposed second-expansion ID",
+                row["Canonical ID"],
+                context=f"{section} ID",
             )
             self.assertIsNotNone(
                 REPOSITORY_TERM_ID.fullmatch(term_id),
-                f"second-expansion term must use a repository ID: {term_id}",
+                f"completed term must use a repository ID: {term_id}",
             )
             ids.add(term_id)
             owners[term_id] = row["Owner"]
 
-        self.assertEqual(ids, EXPECTED_SECOND_EXPANSION_IDS)
-        self.assertEqual(owners, EXPECTED_SECOND_EXPANSION_OWNERS)
-        self.assertEqual(len(rows), len(EXPECTED_SECOND_EXPANSION_IDS))
+        self.assertEqual(ids, expected_ids)
+        self.assertEqual(len(rows), len(expected_ids))
+        if expected_owners is not None:
+            self.assertEqual(owners, expected_owners)
+
+    def test_glossary_inventory_completed_first_expansion_metadata(self) -> None:
+        self.assert_completed_expansion(
+            "Completed first expansion",
+            EXPECTED_FIRST_EXPANSION_IDS,
+        )
+
+    def test_glossary_inventory_completed_second_expansion_metadata(self) -> None:
+        self.assert_completed_expansion(
+            "Completed second expansion",
+            EXPECTED_SECOND_EXPANSION_IDS,
+            expected_owners=EXPECTED_SECOND_EXPANSION_OWNERS,
+        )
 
     def test_glossary_inventory_external_candidates_metadata(self) -> None:
         header, rows = self.table("External terminology candidates")
@@ -350,6 +338,23 @@ class GlossaryInventoryTests(unittest.TestCase):
 
         self.assertEqual(relations, EXPECTED_CROSS_PROVIDER_RELATIONS)
         self.assertEqual(len(rows), len(EXPECTED_CROSS_PROVIDER_RELATIONS))
+
+    def test_glossary_inventory_records_second_relation_review(self) -> None:
+        text = self.section_text("Completed second cross-provider relation review")
+        normalized_text = " ".join(text.split())
+        self.assertIn(
+            "No additional cross-provider `related_terms` were added",
+            normalized_text,
+        )
+        for term_id in (
+            "templates-policy-promoted-toolchain-revision",
+            "templates-webapp-candidate-revision",
+            "templates-policy-stable-release",
+            "templates-webapp-released-revision",
+            "templates-policy-managed-repository",
+            "templates-webapp-product-repository-artifact",
+        ):
+            self.assertIn(f"`{term_id}`", normalized_text)
 
 
 if __name__ == "__main__":
