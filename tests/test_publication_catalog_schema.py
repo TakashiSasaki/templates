@@ -65,6 +65,30 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
     def test_unknown_future_schema_version_is_rejected(self) -> None:
         self.assert_schema_version_rejected(4)
 
+    def test_schema_v3_rejects_unsupported_top_level_fields(self) -> None:
+        catalog = self.base_catalog(3)
+        catalog["extra_field"] = True
+        with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
+            root = Path(directory)
+            self.write_catalog(root, catalog)
+            with self.assertRaisesRegex(
+                AssemblyError,
+                "test catalog has unsupported fields: extra_field",
+            ):
+                load_catalog("test", root)
+
+    def test_schema_v3_rejects_empty_documents(self) -> None:
+        catalog = self.base_catalog(3)
+        catalog["documents"] = []
+        with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
+            root = Path(directory)
+            self.write_catalog(root, catalog)
+            with self.assertRaisesRegex(
+                AssemblyError,
+                "test catalog documents must be a non-empty array",
+            ):
+                load_catalog("test", root)
+
     def test_schema_v3_accepts_declared_glossary(self) -> None:
         catalog = self.base_catalog(3)
         catalog["glossary"] = {"source": "docs/glossary.yml"}
