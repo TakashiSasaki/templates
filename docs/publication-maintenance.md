@@ -37,7 +37,7 @@ Stable document IDs are preserved when a canonical source path moves. For exampl
 
 ## Catalog schema
 
-The provider validator accepts catalog schema versions `1` and `3`. Version `1` is the legacy document-only form. Version `3` retains the same document contract and may additionally declare one canonical glossary source:
+The provider validator accepts only integer catalog schema version `3`. Legacy schema versions `1` and `2` are retired and fail closed. Version `3` defines the current document contract and may additionally declare one canonical glossary source:
 
 ```json
 {
@@ -75,7 +75,7 @@ Catalog and glossary-source paths must not be absolute, traverse `.` or `..`, co
 
 The branch-local catalog validator validates the catalog declaration and glossary source path. It deliberately does not duplicate the repository-wide glossary semantic parser from `site`.
 
-A Skill pull request that changes `docs/**` runs the build-only Site compatibility workflow using the current `site` implementation. That workflow is the canonical semantic validator for `docs/glossary.yml`: it validates glossary schema version, term-ID namespaces, origin-specific fields, localized labels, related-term resolution, external authority metadata, cross-provider uniqueness, and exact revision provenance. This division avoids maintaining a second glossary semantics implementation on the Skill branch while still making glossary semantic validation mandatory for provider changes.
+A Skill pull request that changes publication inputs runs the build-only Site compatibility workflow against an explicitly reviewed immutable Site commit. That workflow is the canonical semantic validator for `docs/glossary.yml`: it validates glossary schema version, term-ID namespaces, origin-specific fields, localized labels, related-term resolution, external authority metadata, cross-provider uniqueness, and exact revision provenance. This division avoids maintaining a second glossary semantics implementation on the Skill branch while still making glossary semantic validation mandatory for provider changes.
 
 ## Change process
 

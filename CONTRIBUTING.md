@@ -113,7 +113,7 @@ This fixture matrix is the stable baseline for the current profile model. A new 
 
 The `skill` branch owns stable publication document IDs and canonical source paths in `docs/publication-catalog.json`. Consumer documents resolve below `template/`; the source-product overview remains root `README.md`.
 
-Pull requests that change `README.md`, `docs/**`, `template/**`, or the compatibility workflow are assembled against the current unrelated `site` branch by **Check documentation site compatibility**. Pull-request runs use the proposed merge commit and never deploy.
+Pull requests that change `README.md`, `docs/**`, `template/**`, or the compatibility workflow are assembled by **Check documentation site compatibility** against the explicitly reviewed immutable Site revision pinned in `.github/workflows/pages.yml`. Pull-request runs use the proposed Skill merge commit, remain build-only, and never deploy. Updating the Site compatibility contract requires a reviewed Skill change that advances both the reusable-workflow reference and `site_ref` to the same reviewed full Site SHA.
 
 The same non-deploying check can be started manually to detect drift. GitHub schedules workflows only from the repository default branch, which is `site`, so this `skill`-branch workflow does not claim a weekly scheduled run. No workflow on `skill` deploys GitHub Pages.
 

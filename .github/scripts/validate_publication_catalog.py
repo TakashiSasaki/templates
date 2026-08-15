@@ -182,13 +182,11 @@ def validate(
         raise ValidationError("publication catalog must be an object")
 
     schema_version = catalog.get("schema_version")
-    if type(schema_version) is not int or schema_version not in (1, 3):
-        raise ValidationError(
-            "publication catalog schema_version must be integer 1 or 3"
-        )
+    if type(schema_version) is not int or schema_version != 3:
+        raise ValidationError("publication catalog schema_version must be integer 3")
 
     expected_root_keys = set(BASE_ROOT_KEYS)
-    if schema_version == 3 and "glossary" in catalog:
+    if "glossary" in catalog:
         expected_root_keys.add("glossary")
     _validate_exact_keys(catalog, expected_root_keys, "publication catalog")
 
@@ -215,7 +213,7 @@ def validate(
     if home_documents[0].optional:
         raise ValidationError("publication catalog home document must not be optional")
 
-    if schema_version == 3 and "glossary" in catalog:
+    if "glossary" in catalog:
         _validate_glossary(catalog["glossary"], root_path)
 
     return documents

@@ -38,6 +38,22 @@ def write_catalog(root: Path, schema_version: object, glossary: bool = False) ->
     return catalog_path
 
 
+def assert_rejected(failures: list[str], root: Path, catalog_path: Path, label: str) -> None:
+    try:
+        validate(catalog_path, root=root)
+        failures.append(f"schema_version {label}: validation unexpectedly succeeded")
+    except ValidationError as exc:
+        expected = "schema_version must be integer 3"
+        if expected not in str(exc):
+            failures.append(
+                f"schema_version {label}: unexpected diagnostic {str(exc)!r}"
+            )
+    except Exception as exc:  # noqa: BLE001 - record all harness failures.
+        failures.append(
+            f"schema_version {label}: unexpected {type(exc).__name__}: {exc}"
+        )
+
+
 def run() -> int:
     failures: list[str] = []
 
@@ -55,36 +71,28 @@ def run() -> int:
                 "\"optional\":false,\"home\":true}]}\n",
                 encoding="utf-8",
             )
+            assert_rejected(failures, root, catalog_path, encoded)
 
-            try:
-                validate(catalog_path, root=root)
-                failures.append(
-                    f"schema_version {encoded}: validation unexpectedly succeeded"
-                )
-            except ValidationError as exc:
-                expected = "schema_version must be integer 1 or 3"
-                if expected not in str(exc):
-                    failures.append(
-                        f"schema_version {encoded}: unexpected diagnostic {str(exc)!r}"
-                    )
-            except Exception as exc:  # noqa: BLE001 - record all harness failures.
-                failures.append(
-                    f"schema_version {encoded}: unexpected {type(exc).__name__}: {exc}"
-                )
-
-    for version, glossary in ((1, False), (3, True)):
+    for version in (1, 2, 4, True, "3", 3.0, None, [3]):
         with tempfile.TemporaryDirectory(
-            prefix="publication-schema-version-positive-"
+            prefix="publication-schema-version-rejected-"
         ) as directory:
             root = Path(directory)
-            catalog_path = write_catalog(root, version, glossary=glossary)
-            try:
-                validate(catalog_path, root=root)
-            except Exception as exc:  # noqa: BLE001 - record all harness failures.
-                failures.append(
-                    f"schema_version {version}: valid catalog failed: "
-                    f"{type(exc).__name__}: {exc}"
-                )
+            catalog_path = write_catalog(root, version)
+            assert_rejected(failures, root, catalog_path, repr(version))
+
+    with tempfile.TemporaryDirectory(
+        prefix="publication-schema-version-positive-"
+    ) as directory:
+        root = Path(directory)
+        catalog_path = write_catalog(root, 3, glossary=True)
+        try:
+            validate(catalog_path, root=root)
+        except Exception as exc:  # noqa: BLE001 - record all harness failures.
+            failures.append(
+                "schema_version 3: valid catalog failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
 
     if failures:
         for failure in failures:
