@@ -20,7 +20,11 @@ class CatalogV3EntrypointTests(unittest.TestCase):
             workflow,
         )
 
-    def test_stable_v3_alias_reexports_canonical_loader(self) -> None:
+    def test_stable_v3_alias_reexports_canonical_symbols(self) -> None:
+        self.assertIs(
+            assemble_publications_v3.AssemblyError,
+            assemble_publications.AssemblyError,
+        )
         self.assertIs(
             assemble_publications_v3.load_catalog,
             assemble_publications.load_catalog,
@@ -33,7 +37,14 @@ class CatalogV3EntrypointTests(unittest.TestCase):
     def test_translation_publisher_uses_stable_v3_alias(self) -> None:
         source = TRANSLATION_PUBLISHER.read_text(encoding="utf-8")
 
-        self.assertIn("from assemble_publications_v3 import load_catalog", source)
+        self.assertIn(
+            "from scripts.assemble_publications_v3 import load_catalog",
+            source,
+        )
+        self.assertIn(
+            "from scripts.assemble_publications import load_manifest, pages, parse_publications",
+            source,
+        )
 
 
 if __name__ == "__main__":
