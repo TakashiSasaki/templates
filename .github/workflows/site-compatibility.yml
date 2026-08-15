@@ -1,0 +1,32 @@
+name: Check integrated site compatibility
+
+on:
+  pull_request:
+    branches:
+      - webapp
+    paths:
+      - docs/**
+      - template/**
+      - .github/workflows/site-compatibility.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webapp-site-compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    if: github.repository == 'TakashiSasaki/templates'
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
+    with:
+      site_ref: site
+      webapp_ref: ${{ github.event_name == 'pull_request' && github.sha || 'webapp' }}
+    # Pull-request runs validate GitHub's proposed merge commit against the
+    # current Site integration contract. Manually dispatched runs validate the
+    # current webapp branch. The called workflow is build-only and cannot
+    # deploy Pages.
+    permissions:
+      contents: read
