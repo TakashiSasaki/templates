@@ -8,11 +8,20 @@ from pathlib import Path
 from scripts.finalize_glossary_annotations import (
     RUNTIME_SCRIPT,
     RUNTIME_STYLE,
+    GlossaryAnnotationFinalizeError,
     annotate_site,
 )
 
 
 REVISION = "a" * 40
+GUIDED_CSP = (
+    "default-src 'none'; style-src 'unsafe-inline'; manifest-src 'self'; "
+    "base-uri 'none'; form-action 'none'; script-src 'self'"
+)
+GUIDED_RUNTIME_CSP = (
+    "default-src 'none'; style-src 'unsafe-inline' 'self'; manifest-src 'self'; "
+    "base-uri 'none'; form-action 'none'; script-src 'self'; connect-src 'self'"
+)
 
 
 def model() -> dict[str, object]:
@@ -32,6 +41,16 @@ def model() -> dict[str, object]:
             }
         ],
     }
+
+
+def guided_source(body: str, *, csp: str = GUIDED_CSP) -> str:
+    return (
+        "<html><head>"
+        f'<meta http-equiv="Content-Security-Policy" content="{csp}">'
+        "</head><body><main>"
+        + body
+        + "</main></body></html>"
+    )
 
 
 class GlossaryInlineInjectionTests(unittest.TestCase):
@@ -84,7 +103,46 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertEqual(rendered.count("glossary-inline.css"), 1)
             self.assertEqual(rendered.count("glossary-inline.js"), 1)
 
-    def test_guided_page_keeps_static_link_without_runtime_injection(self) -> None:
+    def test_guided_page_receives_same_origin_glossary_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided" / "skill" / "index.html"
+            page.parent.mkdir(parents=True)
+            page.write_text(guided_source("Publication catalog"), encoding="utf-8")
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn(
+                '<a class="glossary-term" href="/glossary/#templates-publication-catalog"',
+                rendered,
+            )
+            self.assertIn(RUNTIME_STYLE, rendered)
+            self.assertIn(RUNTIME_SCRIPT, rendered)
+            self.assertIn(f'content="{GUIDED_RUNTIME_CSP}"', rendered)
+            self.assertNotIn("connect-src *", rendered)
+            self.assertNotIn("'unsafe-eval'", rendered)
+
+    def test_guided_filename_stem_receives_same_runtime_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided.html"
+            page.write_text(guided_source("Publication catalog"), encoding="utf-8")
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn(RUNTIME_STYLE, rendered)
+            self.assertIn(RUNTIME_SCRIPT, rendered)
+            self.assertIn(f'content="{GUIDED_RUNTIME_CSP}"', rendered)
+
+    def test_guided_runtime_rejects_broader_script_policy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             glossary = root / "glossary-model.json"
@@ -92,36 +150,21 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             page = root / "guided" / "skill" / "index.html"
             page.parent.mkdir(parents=True)
             page.write_text(
-                "<html><head></head><body><main>Publication catalog</main></body></html>",
+                guided_source(
+                    "Publication catalog",
+                    csp=(
+                        "default-src 'none'; style-src 'unsafe-inline'; "
+                        "script-src 'self' 'unsafe-inline'"
+                    ),
+                ),
                 encoding="utf-8",
             )
 
-            changed, links = annotate_site(root, glossary)
-
-            self.assertEqual((changed, links), (1, 1))
-            rendered = page.read_text(encoding="utf-8")
-            self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
-            self.assertNotIn(RUNTIME_STYLE, rendered)
-            self.assertNotIn(RUNTIME_SCRIPT, rendered)
-
-    def test_guided_filename_stem_also_keeps_static_link_only(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            glossary = root / "glossary-model.json"
-            glossary.write_text(json.dumps(model()), encoding="utf-8")
-            page = root / "guided.html"
-            page.write_text(
-                "<html><head></head><body><main>Publication catalog</main></body></html>",
-                encoding="utf-8",
-            )
-
-            changed, links = annotate_site(root, glossary)
-
-            self.assertEqual((changed, links), (1, 1))
-            rendered = page.read_text(encoding="utf-8")
-            self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
-            self.assertNotIn(RUNTIME_STYLE, rendered)
-            self.assertNotIn(RUNTIME_SCRIPT, rendered)
+            with self.assertRaisesRegex(
+                GlossaryAnnotationFinalizeError,
+                "guided script-src must be exactly",
+            ):
+                annotate_site(root, glossary)
 
     def test_headless_document_keeps_static_glossary_link_without_runtime_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -147,12 +190,9 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             root = Path(directory)
             glossary = root / "glossary-model.json"
             glossary.write_text(json.dumps(model()), encoding="utf-8")
-            page = root / "standalone" / "index.html"
+            page = root / "guided" / "skill" / "index.html"
             page.parent.mkdir(parents=True)
-            page.write_text(
-                "<html><head></head><body><main>Publication catalog</main></body></html>",
-                encoding="utf-8",
-            )
+            page.write_text(guided_source("Publication catalog"), encoding="utf-8")
 
             self.assertEqual(annotate_site(root, glossary), (1, 1))
             first = page.read_text(encoding="utf-8")
@@ -162,6 +202,7 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertEqual(second, first)
             self.assertEqual(second.count(RUNTIME_STYLE), 1)
             self.assertEqual(second.count(RUNTIME_SCRIPT), 1)
+            self.assertEqual(second.count("connect-src 'self'"), 1)
 
     def test_existing_annotation_missing_runtime_assets_is_repaired(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
