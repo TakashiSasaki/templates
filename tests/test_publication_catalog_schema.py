@@ -18,7 +18,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(catalog), encoding="utf-8")
 
-    def base_catalog(self, version: int) -> dict:
+    def base_catalog(self, version: object) -> dict:
         return {
             "schema_version": version,
             "documents": [
@@ -43,7 +43,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         )
 
     def assert_schema_version_rejected(self, version: object) -> None:
-        catalog = self.base_catalog(version)  # type: ignore[arg-type]
+        catalog = self.base_catalog(version)
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
             root = Path(directory)
             self.write_catalog(root, catalog)
@@ -64,6 +64,11 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
 
     def test_unknown_future_schema_version_is_rejected(self) -> None:
         self.assert_schema_version_rejected(4)
+
+    def test_non_integer_schema_versions_are_rejected(self) -> None:
+        for version in ("3", 3.0, [3], None):
+            with self.subTest(version=version):
+                self.assert_schema_version_rejected(version)
 
     def test_schema_v3_rejects_unsupported_top_level_fields(self) -> None:
         catalog = self.base_catalog(3)
