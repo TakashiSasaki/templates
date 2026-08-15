@@ -56,6 +56,24 @@ terms:
       - templates-provider-branch
       - templates-integrated-publication
 
+  - id: templates-index-guided-navigation
+    term: Index-guided navigation
+    localized_labels:
+      ja:
+        term: インデックス誘導ナビゲーション
+    origin: repository
+    definition: >-
+      The bounded Site-generated /guided/ projection of provider-owned index.md
+      navigation metadata from exact reviewed provider revisions. It preserves
+      provider grouping, order, labels, and descriptions without turning
+      provider indexes into a publication catalog or replacing Site-authored
+      reader navigation, and exposes /guided/graph.json as its schema-versioned
+      machine-readable model.
+    related_terms:
+      - templates-integrated-publication
+      - templates-provider-branch
+      - templates-publication-source-lock
+
   - id: external-git-branch
     term: Branch
     localized_labels:
