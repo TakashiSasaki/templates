@@ -72,6 +72,7 @@ terms:
     related_terms:
       - templates-integrated-publication
       - templates-provider-branch
+      - templates-publication-catalog
       - templates-publication-source-lock
 
   - id: external-git-branch
