@@ -2,6 +2,17 @@
   const manifestHref = "/app.webmanifest";
   const themeColor = "#3f51b5";
   const freshnessStatusId = "templates-freshness-status";
+  let pendingCachedCommitUrl = null;
+
+  function normalizedDocumentUrl(url) {
+    try {
+      const normalized = new URL(url, window.location.href);
+      normalized.hash = "";
+      return normalized.href;
+    } catch (error) {
+      return null;
+    }
+  }
 
   function showCachedUnverifiedStatus() {
     let status = document.getElementById(freshnessStatusId);
@@ -24,16 +35,20 @@
     document.getElementById(freshnessStatusId)?.remove();
   }
 
-  function applyFreshnessState(state) {
-    if (state === "cached-unverified") {
-      showCachedUnverifiedStatus();
-      return true;
+  function applyCachedFreshnessState(url) {
+    pendingCachedCommitUrl = normalizedDocumentUrl(url);
+    showCachedUnverifiedStatus();
+    return true;
+  }
+
+  function handleCommittedDocument() {
+    const committedUrl = normalizedDocumentUrl(window.location.href);
+    if (pendingCachedCommitUrl && committedUrl === pendingCachedCommitUrl) {
+      pendingCachedCommitUrl = null;
+      return;
     }
-    if (state === "verified-current") {
-      clearFreshnessStatus();
-      return true;
-    }
-    return false;
+    pendingCachedCommitUrl = null;
+    clearFreshnessStatus();
   }
 
   if (!document.querySelector('link[rel="manifest"]')) {
@@ -50,15 +65,23 @@
     document.head.appendChild(theme);
   }
 
+  const documentObservable = globalThis.document$;
+  if (documentObservable && typeof documentObservable.subscribe === "function") {
+    documentObservable.subscribe(handleCommittedDocument);
+  }
+
   if (!window.isSecureContext || !("serviceWorker" in navigator)) {
     return;
   }
 
   navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data?.type !== "templates:freshness-state") {
+    if (
+      event.data?.type !== "templates:freshness-state" ||
+      event.data.state !== "cached-unverified"
+    ) {
       return;
     }
-    const applied = applyFreshnessState(event.data.state);
+    const applied = applyCachedFreshnessState(event.data.url);
     const acknowledgementPort = event.ports?.[0];
     if (applied && acknowledgementPort) {
       acknowledgementPort.postMessage({
