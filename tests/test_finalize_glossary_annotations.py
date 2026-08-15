@@ -1,0 +1,174 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts.finalize_glossary_annotations import annotate_html, annotate_site
+from scripts.glossary_annotation import build_annotation_index
+
+
+REVISION = "a" * 40
+
+
+def model() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "repository": "TakashiSasaki/templates",
+        "terms": [
+            {
+                "id": "templates-publication-catalog",
+                "term": "Publication catalog",
+                "aliases": [],
+                "localized_labels": {
+                    "ja": {"term": "公開カタログ", "aliases": []}
+                },
+                "origin": "repository",
+                "definition": "A provider-controlled publication declaration.",
+                "provider": "site",
+                "source_path": "docs/glossary.yml",
+                "source_revision": REVISION,
+            },
+            {
+                "id": "external-git-branch",
+                "term": "Branch",
+                "aliases": [],
+                "origin": "external",
+                "summary": "A named line of development.",
+                "authority": {
+                    "kind": "upstream",
+                    "sources": [
+                        {
+                            "title": "Git glossary",
+                            "url": "https://git-scm.com/docs/gitglossary",
+                        }
+                    ],
+                },
+                "provider": "site",
+                "source_path": "docs/glossary.yml",
+                "source_revision": REVISION,
+            },
+        ],
+    }
+
+
+class FinalizeGlossaryAnnotationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.index = build_annotation_index(model())
+
+    def test_annotates_only_md_content_when_present(self) -> None:
+        source = (
+            '<html><body><main><p>Publication catalog outside.</p>'
+            '<div class="md-content__inner"><p>Publication catalog inside.</p></div>'
+            '</main></body></html>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn("Publication catalog outside.", rendered)
+        self.assertIn(
+            'data-glossary-id="templates-publication-catalog">Publication catalog</a> inside.',
+            rendered,
+        )
+
+    def test_generated_main_is_fallback_content_region(self) -> None:
+        source = '<html><body><main><p>この公開カタログを確認する。</p></main></body></html>'
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn(
+            'href="/glossary/#templates-publication-catalog" '
+            'data-glossary-id="templates-publication-catalog">公開カタログ</a>',
+            rendered,
+        )
+
+    def test_code_links_and_navigation_are_not_annotated(self) -> None:
+        source = (
+            '<main><nav>Branch</nav><p><code>Branch</code> Branch '
+            '<a href="/x">Branch</a></p></main>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertEqual(rendered.count('data-glossary-id="external-git-branch"'), 1)
+        self.assertIn("<nav>Branch</nav>", rendered)
+        self.assertIn("<code>Branch</code>", rendered)
+        self.assertIn('<a href="/x">Branch</a>', rendered)
+
+    def test_void_elements_do_not_corrupt_content_state(self) -> None:
+        source = (
+            '<html><head><meta charset="utf-8"><link rel="x" href="/x"></head>'
+            '<body><main><p>Publication catalog<br> Branch</p>'
+            '<img src="/x.png" alt="Branch"><p>Publication catalog</p></main></body></html>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 3)
+        self.assertEqual(
+            rendered.count('data-glossary-id="templates-publication-catalog"'), 2
+        )
+        self.assertEqual(rendered.count('data-glossary-id="external-git-branch"'), 1)
+        self.assertIn('<meta charset="utf-8">', rendered)
+        self.assertIn('<img src="/x.png" alt="Branch">', rendered)
+
+    def test_existing_annotation_is_idempotent(self) -> None:
+        source = '<main><p>Publication catalog.</p></main>'
+        first, first_count = annotate_html(source, self.index)
+        second, second_count = annotate_html(first, self.index)
+
+        self.assertEqual(first_count, 1)
+        self.assertEqual(second_count, 0)
+        self.assertEqual(second, first)
+
+    def test_site_finalizer_skips_non_document_viewer_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "index.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            normal = root / "guide" / "index.html"
+            files = root / "files" / "site" / "content" / "x.html"
+            glossary_page = root / "glossary" / "index.html"
+            tree = root / "repository-trees" / "site" / "index.html"
+            for path in (normal, files, glossary_page, tree):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    '<html><body><main>Publication catalog</main></body></html>',
+                    encoding="utf-8",
+                )
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            self.assertIn("data-glossary-id", normal.read_text(encoding="utf-8"))
+            for path in (files, glossary_page, tree):
+                self.assertNotIn("data-glossary-id", path.read_text(encoding="utf-8"))
+
+    def test_new_glossary_term_is_annotated_without_html_specific_configuration(self) -> None:
+        dynamic = model()
+        dynamic["terms"].append(
+            {
+                "id": "templates-future-term",
+                "term": "Future term",
+                "aliases": [],
+                "origin": "repository",
+                "definition": "Added later.",
+                "provider": "site",
+                "source_path": "docs/glossary.yml",
+                "source_revision": REVISION,
+            }
+        )
+        index = build_annotation_index(dynamic)
+
+        rendered, count = annotate_html("<main>Future term</main>", index)
+
+        self.assertEqual(count, 1)
+        self.assertIn('data-glossary-id="templates-future-term"', rendered)
+
+
+if __name__ == "__main__":
+    unittest.main()
