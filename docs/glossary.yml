@@ -48,6 +48,7 @@ terms:
     related_terms:
       - templates-webapp-release-evidence
       - templates-webapp-product-mode
+      - templates-artifact-contract
 
   - id: templates-webapp-release-evidence
     term: Release evidence
@@ -67,6 +68,7 @@ terms:
       - templates-webapp-implementation-evidence
       - templates-webapp-product-mode
       - templates-webapp-release-bundle
+      - templates-artifact-contract
 
   - id: templates-webapp-template-source-artifact
     term: Template source artifact
@@ -141,6 +143,7 @@ terms:
     related_terms:
       - templates-webapp-contract-manifest
       - templates-webapp-release-evidence
+      - templates-artifact-contract
 
   - id: templates-webapp-contract-family
     term: Contract family
