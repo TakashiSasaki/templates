@@ -77,11 +77,14 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('console.warn("Service worker registration failed", error)', registration)
         self.assertIn('console.warn("Service worker update check failed", error)', registration)
 
-    def test_registration_acknowledges_instant_navigation_freshness_state(self) -> None:
+    def test_registration_acknowledges_stale_state_and_clears_only_after_commit(self) -> None:
         registration = (ROOT / "assets/javascripts/pwa.js").read_text(encoding="utf-8")
         self.assertIn('event.data?.type !== "templates:freshness-state"', registration)
-        self.assertIn('state === "cached-unverified"', registration)
-        self.assertIn('state === "verified-current"', registration)
+        self.assertIn('event.data.state !== "cached-unverified"', registration)
+        self.assertIn("pendingCachedCommitUrl", registration)
+        self.assertIn("globalThis.document$", registration)
+        self.assertIn("documentObservable.subscribe(handleCommittedDocument)", registration)
+        self.assertIn("committedUrl === pendingCachedCommitUrl", registration)
         self.assertIn('status.id = freshnessStatusId', registration)
         self.assertIn('document.body.prepend(status)', registration)
         self.assertIn('document.getElementById(freshnessStatusId)?.remove()', registration)
@@ -184,12 +187,15 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("new MessageChannel()", worker)
         self.assertIn("FRESHNESS_UI_ACK_TIMEOUT_MS", worker)
         self.assertIn('type === "templates:freshness-state-applied"', worker)
+        self.assertIn('url: event.request.url', worker)
         self.assertIn('notifyInstantNavigationState(event, "cached-unverified", true)', worker)
-        self.assertIn('notifyInstantNavigationState(event, "verified-current")', worker)
+        self.assertNotIn('notifyInstantNavigationState(event, "verified-current")', worker)
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
         self.assertIn('if (request.destination !== "")', worker)
+        self.assertIn('const accept = request.headers.get("Accept") || ""', worker)
+        self.assertIn('accept.toLowerCase().includes("text/html")', worker)
         self.assertIn('pathname.endsWith("/") || pathname.endsWith(".html")', worker)
         self.assertIn('pathname.slice(pathname.lastIndexOf("/") + 1)', worker)
         self.assertIn('!lastSegment.includes(".")', worker)
@@ -247,6 +253,8 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('evidence["offline_cached_status"] = 200', checker)
         self.assertIn('evidence["offline_cache_miss_status"] = 503', checker)
         self.assertIn('evidence["legacy_instant_navigation_status"] = 503', checker)
+        self.assertIn('evidence["network_fetch_preserved_indicator_until_commit"] = True', checker)
+        self.assertIn('evidence["committed_navigation_cleared_indicator"] = True', checker)
         self.assertIn('"document-v2"', checker)
         self.assertIn('"manifest-v{state.manifest_version}"', checker)
         self.assertIn("_wait_for_worker_version(page, 2)", checker)
