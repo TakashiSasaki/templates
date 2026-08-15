@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise PWA document-commit correlation regressions in Chromium."""
+"""Exercise PWA document-cache and commit-correlation regressions in Chromium."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import argparse
 import json
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -32,12 +32,25 @@ globalThis.__pwaFixtureCommitDocument = (url) => {
 
 
 class PwaCommitRegressionError(RuntimeError):
-    """Raised when a document-commit freshness invariant is violated."""
+    """Raised when a document-cache or commit-correlation invariant is violated."""
 
 
 @dataclass
 class FixtureState:
     document_version: int = 1
+    race_mode: bool = False
+    race_request_count: int = 0
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def begin_race(self) -> None:
+        with self.lock:
+            self.race_mode = True
+            self.race_request_count = 0
+
+    def next_race_request(self) -> tuple[bool, int]:
+        with self.lock:
+            self.race_request_count += 1
+            return self.race_mode, self.race_request_count
 
 
 def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPRequestHandler]:
@@ -56,14 +69,16 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
             body: bytes,
             content_type: str,
             *,
+            status: int = 200,
             cache_control: str = "no-store",
         ) -> None:
-            self.send_response(200)
+            self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", cache_control)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body)
+            if body:
+                self.wfile.write(body)
 
         def _send_static(self, path: str) -> bool:
             candidate = (resolved_site_root / path.lstrip("/")).resolve()
@@ -122,6 +137,20 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
                 self._send(body, "text/html; charset=utf-8")
                 return
 
+            if path in {"/race", "/race/", "/race/index.html"}:
+                race_mode, request_number = state.next_race_request()
+                if not race_mode:
+                    body = b"<!doctype html><html><head><title>Race seed</title></head><body><main>race-seed</main></body></html>"
+                    self._send(body, "text/html; charset=utf-8")
+                    return
+                if request_number == 1:
+                    time.sleep(0.35)
+                    body = b"<!doctype html><html><head><title>Old race response</title></head><body><main>race-old-200</main></body></html>"
+                    self._send(body, "text/html; charset=utf-8")
+                    return
+                self._send(b"", "text/plain; charset=utf-8", status=404)
+                return
+
             if self._send_static(path):
                 return
 
@@ -133,38 +162,49 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
 
 
 def _fetch_document(page: Any) -> dict[str, Any]:
+    return _fetch_path(page, "/document/")
+
+
+def _fetch_path(page: Any, path: str) -> dict[str, Any]:
     return page.evaluate(
-        """async () => {
-          const response = await fetch('/document/');
+        """async (path) => {
+          const response = await fetch(path);
           return {
             status: response.status,
             body: await response.text(),
             freshness: response.headers.get('X-Templates-Freshness'),
           };
-        }"""
+        }""",
+        path,
     )
 
 
-def _cached_document_body(page: Any) -> str | None:
+def _cached_body(page: Any, path: str) -> str | None:
     return page.evaluate(
-        """async (cacheName) => {
+        """async ([cacheName, path]) => {
           const cache = await caches.open(cacheName);
-          const response = await cache.match('/document/');
+          const response = await cache.match(path);
           return response ? await response.text() : null;
         }""",
-        DOCUMENT_CACHE_NAME,
+        [DOCUMENT_CACHE_NAME, path],
     )
 
 
-def _wait_for_cached_version(page: Any, version: int, timeout_seconds: float = 5.0) -> None:
+def _wait_for_cached_text(
+    page: Any,
+    path: str,
+    expected: str,
+    timeout_seconds: float = 5.0,
+) -> None:
     deadline = time.monotonic() + timeout_seconds
-    expected = f"document-v{version}"
     while time.monotonic() < deadline:
-        body = _cached_document_body(page)
+        body = _cached_body(page, path)
         if body is not None and expected in body:
             return
         time.sleep(0.05)
-    raise PwaCommitRegressionError(f"document cache did not converge to {expected}")
+    raise PwaCommitRegressionError(
+        f"document cache for {path} did not converge to content containing {expected!r}"
+    )
 
 
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
@@ -204,7 +244,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             initial = _fetch_document(page)
             if initial["status"] != 200 or "document-v1" not in initial["body"]:
                 raise PwaCommitRegressionError(f"initial document mismatch: {initial!r}")
-            _wait_for_cached_version(page, 1)
+            _wait_for_cached_text(page, "/document/", "document-v1")
 
             context.set_offline(True)
             cached = _fetch_document(page)
@@ -226,7 +266,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/document/')")
             page.wait_for_selector("#templates-freshness-status", state="detached")
             evidence["same_url_fresh_retry_cleared_on_commit"] = True
-            _wait_for_cached_version(page, 2)
+            _wait_for_cached_text(page, "/document/", "document-v2")
 
             context.set_offline(True)
             response = page.goto(base_url + "/document/", wait_until="load")
@@ -256,6 +296,37 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 )
             evidence["full_navigation_commit_retained_warning"] = True
             evidence["standalone_inline_warning_style"] = True
+
+            context.set_offline(False)
+            seed = _fetch_path(page, "/race/")
+            if seed["status"] != 200 or "race-seed" not in seed["body"]:
+                raise PwaCommitRegressionError(f"race seed mismatch: {seed!r}")
+            _wait_for_cached_text(page, "/race/", "race-seed")
+            state.begin_race()
+            race_results = page.evaluate(
+                """async () => {
+                  const first = fetch('/race/').then(async (response) => ({
+                    status: response.status,
+                    body: await response.text(),
+                  }));
+                  await new Promise((resolve) => setTimeout(resolve, 50));
+                  const second = fetch('/race/').then(async (response) => ({
+                    status: response.status,
+                    body: await response.text(),
+                  }));
+                  return await Promise.all([first, second]);
+                }"""
+            )
+            if [result["status"] for result in race_results] != [200, 404]:
+                raise PwaCommitRegressionError(
+                    f"authoritative deletion race did not produce delayed 200 then newer 404: {race_results!r}"
+                )
+            time.sleep(0.3)
+            if _cached_body(page, "/race/") is not None:
+                raise PwaCommitRegressionError(
+                    "older delayed 200 resurrected a document after a newer authoritative 404"
+                )
+            evidence["older_200_did_not_resurrect_after_newer_404"] = True
             browser.close()
     finally:
         server.shutdown()
