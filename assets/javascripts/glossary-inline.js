@@ -7,6 +7,7 @@
   const DIALOG_ID = "glossary-inline-dialog";
   const GLOSSARY_URL = "/glossary/index.json";
   const CACHED_FRESHNESS = "cached-unverified";
+  const CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
   const PROVIDER_LABELS = {
     site: "Site",
     skill: "Skill",
@@ -26,6 +27,7 @@
       glossaryPromise = fetch(GLOSSARY_URL, {
         credentials: "same-origin",
         cache: "no-cache",
+        headers: { [CACHED_ACCEPT_HEADER]: "1" },
       })
         .then(async (response) => {
           if (!response.ok) {
