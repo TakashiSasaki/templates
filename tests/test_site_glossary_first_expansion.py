@@ -14,12 +14,16 @@ class SiteGlossaryFirstExpansionTests(unittest.TestCase):
         by_id = {term["id"]: term for term in terms}
 
         integrated = by_id["templates-integrated-publication"]
+        self.assertEqual(integrated["term"], "Integrated publication")
+        self.assertEqual(integrated["origin"], "repository")
         self.assertEqual(integrated["localized_labels"]["ja"]["term"], "統合公開")
         self.assertIn("templates-provider-branch", integrated["related_terms"])
         self.assertIn("templates-publication-catalog", integrated["related_terms"])
         self.assertIn("templates-publication-source-lock", integrated["related_terms"])
 
         source_lock = by_id["templates-publication-source-lock"]
+        self.assertEqual(source_lock["term"], "Publication source lock")
+        self.assertEqual(source_lock["origin"], "repository")
         self.assertEqual(source_lock["localized_labels"]["ja"]["term"], "公開ソースロック")
         self.assertIn("full 40-character commit SHA", source_lock["definition"])
         self.assertIn("templates-provider-branch", source_lock["related_terms"])
