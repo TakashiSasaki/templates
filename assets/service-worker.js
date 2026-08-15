@@ -161,13 +161,19 @@ async function deleteCachedDocument(request, generation) {
 }
 
 function injectCachedDocumentNotice(source) {
+  const bodyOpenings = [...source.matchAll(/<body\b[^>]*>/gi)];
   const bodyClosures = [...source.matchAll(/<\/body\s*>/gi)];
-  if (bodyClosures.length !== 1) {
+  if (bodyOpenings.length !== 1 || bodyClosures.length !== 1) {
     console.warn("PWA cached document body boundary is ambiguous");
     return undefined;
   }
-  const boundary = bodyClosures[0].index;
-  return source.slice(0, boundary) + CACHED_DOCUMENT_NOTICE + source.slice(boundary);
+  const opening = bodyOpenings[0];
+  const openingEnd = opening.index + opening[0].length;
+  if (openingEnd > bodyClosures[0].index) {
+    console.warn("PWA cached document body boundary is invalid");
+    return undefined;
+  }
+  return source.slice(0, openingEnd) + CACHED_DOCUMENT_NOTICE + source.slice(openingEnd);
 }
 
 async function decorateCachedDocument(response, request) {
