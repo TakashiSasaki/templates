@@ -33,6 +33,11 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-adapter-renderer-requirement": "policy",
     "templates-explanatory-material": "policy",
     "templates-policy-override": "policy",
+    "templates-policy-stable-release": "policy",
+    "templates-policy-stable-release-descriptor": "policy",
+    "templates-policy-promoted-toolchain-revision": "policy",
+    "templates-policy-bootstrap-trust-seed": "policy",
+    "templates-policy-managed-repository": "policy",
     "templates-webapp-template-mode": "webapp",
     "templates-webapp-contract-manifest": "webapp",
     "templates-webapp-implementation-evidence": "webapp",
@@ -43,14 +48,28 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-webapp-product-mode": "webapp",
     "templates-webapp-release-bundle": "webapp",
     "templates-webapp-contract-family": "webapp",
+    "templates-webapp-candidate-revision": "webapp",
+    "templates-webapp-merge-test-revision": "webapp",
+    "templates-webapp-released-revision": "webapp",
+    "templates-webapp-deployed-revision": "webapp",
 }
 REQUIRED_CANONICAL_TERM_IDS = set(REQUIRED_PROVIDER_BY_TERM_ID)
 EXPECTED_JA_LABELS = {
     "templates-provider-branch": "プロバイダーブランチ",
     "templates-integrated-publication": "統合公開",
+    "templates-index-guided-navigation": "インデックス誘導ナビゲーション",
     "templates-skill-runtime-decision-record": "ランタイム決定記録",
     "templates-context-policy": "コンテキストポリシー",
+    "templates-policy-stable-release": "安定版リリース",
+    "templates-policy-stable-release-descriptor": "安定版リリース記述子",
+    "templates-policy-promoted-toolchain-revision": "昇格済みツールチェーンリビジョン",
+    "templates-policy-bootstrap-trust-seed": "ブートストラップ信頼シード",
+    "templates-policy-managed-repository": "管理対象リポジトリ",
     "templates-webapp-product-mode": "プロダクトモード",
+    "templates-webapp-candidate-revision": "候補リビジョン",
+    "templates-webapp-merge-test-revision": "マージテストリビジョン",
+    "templates-webapp-released-revision": "リリース済みリビジョン",
+    "templates-webapp-deployed-revision": "デプロイ済みリビジョン",
 }
 EXPECTED_CROSS_PROVIDER_RELATED_TERMS = {
     "templates-skill-profile": {
