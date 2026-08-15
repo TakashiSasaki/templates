@@ -16,6 +16,7 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-provider-branch": "site",
     "templates-integrated-publication": "site",
     "templates-publication-source-lock": "site",
+    "templates-index-guided-navigation": "site",
     "templates-skill-profile": "skill",
     "templates-skill-template-scaffold": "skill",
     "templates-skill-mcp-extension": "skill",
