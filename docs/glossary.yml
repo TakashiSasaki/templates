@@ -45,3 +45,33 @@ terms:
       the io.modelcontextprotocol/ui extension identifier.
     related_terms:
       - templates-skill-profile
+
+  - id: templates-skill-runtime-decision-record
+    term: Runtime decision record
+    localized_labels:
+      ja:
+        term: ランタイム決定記録
+    origin: repository
+    definition: >-
+      A maintained Skill authority that records implementation runtime,
+      dependencies, exact shared commands, package and distribution choices,
+      selected core protocol revision, extension identifiers, transport
+      selections, and deployment lifecycle for profiles that need a separate
+      runtime record.
+    related_terms:
+      - templates-skill-profile
+
+  - id: templates-skill-public-interface-selection-contract
+    term: Public interface selection contract
+    localized_labels:
+      ja:
+        term: 公開インターフェース選択契約
+    origin: repository
+    definition: >-
+      A Skill contract that selects one preferred agent interface and a
+      deterministic fallback order among retained public interfaces without
+      owning the interface-specific caller-visible behavior defined by those
+      interfaces' dedicated contracts.
+    related_terms:
+      - templates-skill-profile
+      - templates-skill-runtime-decision-record
