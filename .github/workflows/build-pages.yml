@@ -286,6 +286,12 @@ jobs:
             --pair-map build/guided-locale-publication.json \
             --canonical-url "${PUBLIC_SITE_URL}"
 
+      - name: Annotate Glossary terms
+        run: |
+          python site-source/scripts/finalize_glossary_annotations.py \
+            --site-root build/site \
+            --glossary build/site/glossary/index.json
+
       - name: Verify generated public URL boundary
         run: |
           python - <<'PY'
@@ -365,6 +371,8 @@ jobs:
           test -f build/site/service-worker.js
           test -f build/site/javascripts/pwa.js
           test -f build/site/glossary/index.json
+          grep --recursive --include='*.html' --files-with-matches -- \
+            'data-glossary-id=' build/site | grep --quiet .
           grep --fixed-strings -- \
             '"id": "templates-provider-branch"' \
             build/site/glossary/index.json
@@ -467,7 +475,7 @@ jobs:
           root = Path("build/site")
           graph = json.loads((root / "guided/graph.json").read_text(encoding="utf-8"))
           if graph.get("schema_version") != 1:
-              raise SystemExit("guided graph schema version mismatch")
+            raise SystemExit("guided graph schema version mismatch")
           for provider in graph.get("providers", []):
               name = provider["name"]
               for index in provider["indexes"]:
