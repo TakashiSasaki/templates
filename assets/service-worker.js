@@ -444,6 +444,17 @@ function isCacheableGlossaryResponse(response) {
   return contentType.includes("application/json") || contentType.includes("+json");
 }
 
+function recordAuthoritativeGlossaryDeletion(generation) {
+  if (generation < glossaryCacheMutationGeneration) {
+    return false;
+  }
+  authoritativeGlossaryDeletionGeneration = Math.max(
+    authoritativeGlossaryDeletionGeneration,
+    generation
+  );
+  return true;
+}
+
 function enqueueGlossaryCacheMutation(generation, operation) {
   const next = glossaryCacheMutationQueue.catch(() => undefined).then(async () => {
     if (generation < glossaryCacheMutationGeneration) {
@@ -530,20 +541,18 @@ async function fetchGlossaryNetworkFirst(request, registerBackgroundTask) {
   try {
     const response = await fetch(request, { cache: "no-cache" });
     if (response.status === 404 || response.status === 410) {
-      authoritativeGlossaryDeletionGeneration = Math.max(
-        authoritativeGlossaryDeletionGeneration,
-        generation
-      );
-      registerBackgroundTask(
-        deleteCachedGlossaryModel(request, generation).catch(async (error) => {
-          console.warn("PWA authoritative Glossary cache deletion failed", error);
-          try {
-            await caches.delete(GLOSSARY_CACHE_NAME);
-          } catch (cleanupError) {
-            console.warn("PWA Glossary cache namespace cleanup failed", cleanupError);
-          }
-        })
-      );
+      if (recordAuthoritativeGlossaryDeletion(generation)) {
+        registerBackgroundTask(
+          deleteCachedGlossaryModel(request, generation).catch(async (error) => {
+            console.warn("PWA authoritative Glossary cache deletion failed", error);
+            try {
+              await caches.delete(GLOSSARY_CACHE_NAME);
+            } catch (cleanupError) {
+              console.warn("PWA Glossary cache namespace cleanup failed", cleanupError);
+            }
+          })
+        );
+      }
       return response;
     }
     if (response.status >= 500) {
