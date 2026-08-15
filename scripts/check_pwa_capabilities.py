@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import threading
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -21,10 +22,31 @@ EXPECTED_STATES = [
 ]
 EXPECTED_SITE_VERSION_URL = "/site-version.json"
 EXPECTED_DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"
+STATIC_ASSETS_PATTERN = re.compile(r"const STATIC_ASSETS = (\[[^;]+\]);", re.DOTALL)
 
 
 class PwaCapabilityError(RuntimeError):
     """Raised when the live Service Worker capability contract is unavailable or invalid."""
+
+
+def _read_install_assets(site_root: Path) -> list[Path]:
+    worker_path = site_root / "service-worker.js"
+    if not worker_path.is_file():
+        return [worker_path]
+    source = worker_path.read_text(encoding="utf-8")
+    match = STATIC_ASSETS_PATTERN.search(source)
+    if match is None:
+        raise PwaCapabilityError("service worker STATIC_ASSETS declaration is unavailable")
+    try:
+        asset_urls = json.loads(match.group(1))
+    except json.JSONDecodeError as exc:
+        raise PwaCapabilityError("service worker STATIC_ASSETS declaration is not JSON-compatible") from exc
+    if not isinstance(asset_urls, list) or any(
+        not isinstance(asset, str) or not asset.startswith("/") or ".." in asset.split("/")
+        for asset in asset_urls
+    ):
+        raise PwaCapabilityError("service worker STATIC_ASSETS declaration contains an unsafe asset path")
+    return [worker_path, *(site_root / asset.lstrip("/") for asset in asset_urls)]
 
 
 def _read_capabilities(page: Any) -> dict[str, Any] | None:
@@ -53,13 +75,7 @@ def _read_capabilities(page: Any) -> dict[str, Any] | None:
 
 
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
-    required = (
-        site_root / "service-worker.js",
-        site_root / "javascripts/pwa.js",
-        site_root / "icon.svg",
-        site_root / "app.webmanifest",
-        site_root / "stylesheets/freshness-status.css",
-    )
+    required = _read_install_assets(site_root)
     missing = [path for path in required if not path.is_file()]
     if missing:
         raise PwaCapabilityError(
