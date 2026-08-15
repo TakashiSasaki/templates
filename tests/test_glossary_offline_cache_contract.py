@@ -60,15 +60,20 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertIn("await caches.delete(GLOSSARY_CACHE_NAME)", worker)
         self.assertIn("if (authoritativeGlossaryDeletionGeneration > 0)", worker)
 
-    def test_glossary_cache_mutations_are_generation_ordered(self) -> None:
+    def test_glossary_cache_mutations_and_deletions_are_generation_ordered(self) -> None:
         worker = WORKER.read_text(encoding="utf-8")
 
         self.assertIn("let nextGlossaryRequestGeneration = 0;", worker)
         self.assertIn("let glossaryCacheMutationGeneration = 0;", worker)
         self.assertIn("let glossaryCacheMutationQueue = Promise.resolve();", worker)
         self.assertIn("function beginGlossaryRequest()", worker)
+        self.assertIn("function recordAuthoritativeGlossaryDeletion(generation)", worker)
         self.assertIn("function enqueueGlossaryCacheMutation(generation, operation)", worker)
-        self.assertIn("if (generation < glossaryCacheMutationGeneration)", worker)
+        self.assertGreaterEqual(
+            worker.count("if (generation < glossaryCacheMutationGeneration)"),
+            2,
+        )
+        self.assertIn("if (recordAuthoritativeGlossaryDeletion(generation))", worker)
         self.assertIn("glossaryCacheMutationGeneration = generation", worker)
 
     def test_cached_glossary_response_is_marked_unverified_without_rewriting_json(self) -> None:
