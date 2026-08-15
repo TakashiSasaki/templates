@@ -10,12 +10,21 @@ from scripts.glossary import integrate_glossaries
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "TakashiSasaki/templates"
 PROVIDER_ORDER = ("skill", "policy", "webapp")
-REQUIRED_REPRESENTATIVE_TERM_IDS = {
+REQUIRED_SEED_TERM_IDS = {
     "external-git-branch",
+    "templates-publication-catalog",
     "templates-provider-branch",
     "templates-skill-profile",
+    "templates-skill-template-scaffold",
+    "templates-skill-mcp-extension",
     "templates-policy-module",
+    "templates-policy-profile",
+    "templates-policy-context",
+    "templates-policy-renderer",
     "templates-webapp-template-mode",
+    "templates-webapp-contract-manifest",
+    "templates-webapp-implementation-evidence",
+    "templates-webapp-release-evidence",
 }
 
 
@@ -54,7 +63,7 @@ class LockedProviderGlossaryTests(unittest.TestCase):
         by_id = {term["id"]: term for term in terms}
 
         self.assertEqual(len(by_id), len(terms))
-        self.assertTrue(REQUIRED_REPRESENTATIVE_TERM_IDS <= set(by_id))
+        self.assertTrue(REQUIRED_SEED_TERM_IDS <= set(by_id))
 
         for term_id, term in by_id.items():
             with self.subTest(term_id=term_id):
