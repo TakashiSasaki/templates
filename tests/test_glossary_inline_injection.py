@@ -35,13 +35,12 @@ def model() -> dict[str, object]:
 
 
 class GlossaryInlineInjectionTests(unittest.TestCase):
-    def test_runtime_assets_are_injected_only_into_annotated_pages(self) -> None:
+    def test_standalone_annotated_page_receives_missing_runtime_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             glossary = root / "glossary-model.json"
             glossary.write_text(json.dumps(model()), encoding="utf-8")
-
-            annotated = root / "guide" / "index.html"
+            annotated = root / "standalone" / "index.html"
             plain = root / "plain" / "index.html"
             annotated.parent.mkdir(parents=True)
             plain.parent.mkdir(parents=True)
@@ -64,6 +63,46 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertIn(RUNTIME_SCRIPT, annotated_text)
             self.assertNotIn(RUNTIME_STYLE, plain_text)
             self.assertNotIn(RUNTIME_SCRIPT, plain_text)
+
+    def test_global_asset_names_prevent_duplicate_runtime_injection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "index.html"
+            page.write_text(
+                '<html><head><link rel="stylesheet" href="/stylesheets/glossary-inline.css">'
+                '<script src="/javascripts/glossary-inline.js" defer></script></head>'
+                '<body><main>Publication catalog</main></body></html>',
+                encoding="utf-8",
+            )
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertEqual(rendered.count("glossary-inline.css"), 1)
+            self.assertEqual(rendered.count("glossary-inline.js"), 1)
+
+    def test_guided_page_keeps_static_link_without_runtime_injection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided" / "skill" / "index.html"
+            page.parent.mkdir(parents=True)
+            page.write_text(
+                "<html><head></head><body><main>Publication catalog</main></body></html>",
+                encoding="utf-8",
+            )
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
+            self.assertNotIn(RUNTIME_STYLE, rendered)
+            self.assertNotIn(RUNTIME_SCRIPT, rendered)
 
     def test_headless_document_keeps_static_glossary_link_without_runtime_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -89,7 +128,8 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             root = Path(directory)
             glossary = root / "glossary-model.json"
             glossary.write_text(json.dumps(model()), encoding="utf-8")
-            page = root / "index.html"
+            page = root / "standalone" / "index.html"
+            page.parent.mkdir(parents=True)
             page.write_text(
                 "<html><head></head><body><main>Publication catalog</main></body></html>",
                 encoding="utf-8",
@@ -109,7 +149,8 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             root = Path(directory)
             glossary = root / "glossary-model.json"
             glossary.write_text(json.dumps(model()), encoding="utf-8")
-            page = root / "index.html"
+            page = root / "standalone" / "index.html"
+            page.parent.mkdir(parents=True)
             page.write_text(
                 "<html><head></head><body><main>"
                 '<a class="glossary-term" href="/glossary/#templates-publication-catalog" '
