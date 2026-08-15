@@ -16,12 +16,12 @@ OWNER_CELL = re.compile(
     rf"^({'|'.join(re.escape(provider) for provider in sorted(PROVIDERS))})(?: curator)?$"
 )
 REQUIRED_TABLES = {
-    "Current canonical seed": {
+    "Original canonical seed": {
         "id": "Canonical ID",
         "owner": "Owner / curator",
     },
-    "Proposed first expansion": {
-        "id": "Proposed ID",
+    "Completed first expansion": {
+        "id": "Canonical ID",
         "owner": "Owner",
     },
     "Deferred repository candidates": {
@@ -33,10 +33,53 @@ REQUIRED_TABLES = {
         "owner": "Curator",
     },
 }
+EXPECTED_FIRST_EXPANSION_IDS = {
+    "templates-integrated-publication",
+    "templates-publication-source-lock",
+    "templates-skill-runtime-decision-record",
+    "templates-skill-public-interface-selection-contract",
+    "templates-shared-policy",
+    "templates-context-policy",
+    "templates-repository-local-policy",
+    "templates-artifact-contract",
+    "templates-adapter-renderer-requirement",
+    "templates-explanatory-material",
+    "templates-policy-override",
+    "templates-webapp-template-source-artifact",
+    "templates-webapp-template-distribution-artifact",
+    "templates-webapp-product-repository-artifact",
+    "templates-webapp-product-mode",
+    "templates-webapp-release-bundle",
+    "templates-webapp-contract-family",
+}
+EXPECTED_CROSS_PROVIDER_RELATIONS = {
+    ("templates-skill-profile", "templates-policy-profile"),
+    ("templates-policy-profile", "templates-skill-profile"),
+    (
+        "templates-skill-public-interface-selection-contract",
+        "templates-artifact-contract",
+    ),
+    (
+        "templates-skill-public-interface-selection-contract",
+        "templates-adapter-renderer-requirement",
+    ),
+    ("templates-webapp-implementation-evidence", "templates-artifact-contract"),
+    ("templates-webapp-release-evidence", "templates-artifact-contract"),
+    ("templates-webapp-release-bundle", "templates-artifact-contract"),
+}
 
 
 def _cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _term_id(cell: str, *, context: str) -> str:
+    match = ID_CELL.fullmatch(cell)
+    if match is None:
+        raise AssertionError(
+            f"{context} must be one backticked stable term ID: {cell!r}"
+        )
+    return match.group(1)
 
 
 class GlossaryInventoryTests(unittest.TestCase):
@@ -44,8 +87,14 @@ class GlossaryInventoryTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.lines = INVENTORY.read_text(encoding="utf-8").splitlines()
 
-    def table(self, section: str) -> tuple[list[str], list[dict[str, str]]]:
-        heading = f"## {section}"
+    def table(
+        self,
+        section: str,
+        *,
+        heading_level: int = 2,
+    ) -> tuple[list[str], list[dict[str, str]]]:
+        heading_prefix = "#" * heading_level
+        heading = f"{heading_prefix} {section}"
         if heading not in self.lines:
             self.fail(f"missing inventory section: {heading}")
         heading_index = self.lines.index(heading)
@@ -53,7 +102,7 @@ class GlossaryInventoryTests(unittest.TestCase):
             (
                 index
                 for index in range(heading_index + 1, len(self.lines))
-                if self.lines[index].startswith("## ")
+                if re.match(rf"^#{{1,{heading_level}}} ", self.lines[index])
             ),
             len(self.lines),
         )
@@ -102,14 +151,10 @@ class GlossaryInventoryTests(unittest.TestCase):
             self.assertIn(id_column, header)
 
             for row in rows:
-                raw_id = row[id_column]
-                match = ID_CELL.fullmatch(raw_id)
-                self.assertIsNotNone(
-                    match,
-                    f"{section} ID must be one backticked stable term ID: {raw_id!r}",
+                term_id = _term_id(
+                    row[id_column],
+                    context=f"{section} ID",
                 )
-                assert match is not None
-                term_id = match.group(1)
                 self.assertIsNotNone(
                     TERM_ID.fullmatch(term_id),
                     f"invalid stable term ID in {section}: {term_id}",
@@ -129,7 +174,7 @@ class GlossaryInventoryTests(unittest.TestCase):
 
             for row in rows:
                 owner = row[owner_column]
-                if section == "Current canonical seed":
+                if section == "Original canonical seed":
                     self.assertIsNotNone(
                         OWNER_CELL.fullmatch(owner),
                         f"invalid owner/curator in {section}: {owner!r}",
@@ -148,44 +193,77 @@ class GlossaryInventoryTests(unittest.TestCase):
                         f"invalid origin in {section}: {row['Origin']!r}",
                     )
 
-        proposed_header, proposed_rows = self.table("Proposed first expansion")
+        completed_header, completed_rows = self.table("Completed first expansion")
         rationale_column = "Rationale / canonical source"
-        self.assertIn(rationale_column, proposed_header)
-        for row in proposed_rows:
+        self.assertIn(rationale_column, completed_header)
+        for row in completed_rows:
             self.assertTrue(
                 row[rationale_column].strip(),
-                f"proposed term rationale must not be empty: {row}",
+                f"completed term rationale must not be empty: {row}",
             )
 
-    def test_glossary_inventory_proposed_expansion_metadata(self) -> None:
-        header, rows = self.table("Proposed first expansion")
+    def test_glossary_inventory_completed_expansion_metadata(self) -> None:
+        header, rows = self.table("Completed first expansion")
         for column in (
-            "Proposed ID",
+            "Canonical term",
+            "Canonical ID",
+            "Owner",
             "Origin",
             "Japanese discovery label",
-            "Include next",
+            "Rationale / canonical source",
         ):
             self.assertIn(column, header)
 
+        ids: set[str] = set()
         for row in rows:
             self.assertEqual(row["Origin"], "repository")
+            self.assertTrue(
+                row["Canonical term"].strip(),
+                f"canonical term must not be empty: {row}",
+            )
             self.assertTrue(
                 row["Japanese discovery label"].strip(),
                 f"Japanese discovery label must not be empty: {row}",
             )
-            self.assertEqual(
-                row["Include next"],
-                "yes",
-                f"first-expansion term must be explicitly selected: {row}",
-            )
 
-            match = ID_CELL.fullmatch(row["Proposed ID"])
-            self.assertIsNotNone(match)
-            assert match is not None
-            self.assertIsNotNone(
-                REPOSITORY_TERM_ID.fullmatch(match.group(1)),
-                f"first-expansion term must use a repository ID: {match.group(1)}",
+            term_id = _term_id(
+                row["Canonical ID"],
+                context="completed first-expansion ID",
             )
+            self.assertIsNotNone(
+                REPOSITORY_TERM_ID.fullmatch(term_id),
+                f"first-expansion term must use a repository ID: {term_id}",
+            )
+            ids.add(term_id)
+
+        self.assertEqual(ids, EXPECTED_FIRST_EXPANSION_IDS)
+        self.assertEqual(len(rows), len(EXPECTED_FIRST_EXPANSION_IDS))
+
+    def test_glossary_inventory_records_completed_relation_pass(self) -> None:
+        header, rows = self.table(
+            "Completed first cross-provider relation pass",
+            heading_level=3,
+        )
+        self.assertEqual(
+            header,
+            ["Source term", "Related term", "Relation rationale"],
+        )
+
+        relations: set[tuple[str, str]] = set()
+        for row in rows:
+            source = _term_id(row["Source term"], context="relation source")
+            target = _term_id(row["Related term"], context="relation target")
+            self.assertIsNotNone(TERM_ID.fullmatch(source))
+            self.assertIsNotNone(TERM_ID.fullmatch(target))
+            self.assertNotEqual(source, target)
+            self.assertTrue(
+                row["Relation rationale"].strip(),
+                f"relation rationale must not be empty: {row}",
+            )
+            relations.add((source, target))
+
+        self.assertEqual(relations, EXPECTED_CROSS_PROVIDER_RELATIONS)
+        self.assertEqual(len(rows), len(EXPECTED_CROSS_PROVIDER_RELATIONS))
 
 
 if __name__ == "__main__":
