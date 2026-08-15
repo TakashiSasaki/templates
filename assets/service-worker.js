@@ -72,7 +72,11 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data?.type !== "templates:get-freshness-capabilities" || !event.source) {
+  if (
+    event.data?.type !== "templates:get-freshness-capabilities" ||
+    !event.source ||
+    typeof event.source.postMessage !== "function"
+  ) {
     return;
   }
   event.source.postMessage({
