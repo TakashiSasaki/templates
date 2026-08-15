@@ -146,12 +146,16 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('request.mode === "navigate"', worker)
         self.assertIn("if (isDocumentRequest(event.request, url))", worker)
         self.assertIn('fetch(request, { cache: "no-cache" })', worker)
-        self.assertIn("event.respondWith(fetchDocumentNetworkFirst(event))", worker)
+        self.assertIn("respondWithDocumentNetworkFirst(event)", worker)
         self.assertIn("caches.open(DOCUMENT_CACHE_NAME)", worker)
 
     def test_service_worker_document_network_first_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn("async function fetchDocumentNetworkFirst(event)", worker)
+        self.assertIn(
+            "async function fetchDocumentNetworkFirst(event, registerBackgroundTask)",
+            worker,
+        )
+        self.assertIn("function respondWithDocumentNetworkFirst(event)", worker)
         self.assertIn("const generation = beginDocumentRequest()", worker)
         self.assertIn("if (response.status === 404 || response.status === 410)", worker)
         self.assertIn("recordAuthoritativeDeletion(request, generation)", worker)
@@ -163,12 +167,22 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("response.status !== 200", worker)
         self.assertIn('includes("text/html")', worker)
         self.assertIn("const cachedResponse = response.clone();", worker)
-        self.assertIn("event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation))", worker)
+        self.assertIn(
+            "registerBackgroundTask(cacheVerifiedDocument(request, cachedResponse, generation))",
+            worker,
+        )
+        self.assertIn("const lifetimePromise = responsePromise", worker)
+        self.assertIn("event.waitUntil(lifetimePromise)", worker)
+        self.assertIn("event.respondWith(responsePromise)", worker)
         self.assertIn("await cache.put(request, cachedResponse)", worker)
         self.assertIn("await cache.delete(request)", worker)
         self.assertLess(
-            worker.index("const cachedResponse = response.clone();"),
-            worker.index("event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation))"),
+            worker.index("event.waitUntil(lifetimePromise)"),
+            worker.index("self.addEventListener(\"fetch\""),
+        )
+        self.assertNotIn(
+            "event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation))",
+            worker,
         )
 
     def test_cached_document_fallback_is_always_marked_unverified(self) -> None:
