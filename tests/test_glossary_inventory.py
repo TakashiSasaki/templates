@@ -341,7 +341,11 @@ class GlossaryInventoryTests(unittest.TestCase):
 
     def test_glossary_inventory_records_second_relation_review(self) -> None:
         text = self.section_text("Completed second cross-provider relation review")
-        self.assertIn("No additional cross-provider `related_terms` were added", text)
+        normalized_text = " ".join(text.split())
+        self.assertIn(
+            "No additional cross-provider `related_terms` were added",
+            normalized_text,
+        )
         for term_id in (
             "templates-policy-promoted-toolchain-revision",
             "templates-webapp-candidate-revision",
@@ -350,7 +354,7 @@ class GlossaryInventoryTests(unittest.TestCase):
             "templates-policy-managed-repository",
             "templates-webapp-product-repository-artifact",
         ):
-            self.assertIn(f"`{term_id}`", text)
+            self.assertIn(f"`{term_id}`", normalized_text)
 
 
 if __name__ == "__main__":
