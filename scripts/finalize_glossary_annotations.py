@@ -319,6 +319,46 @@ def _directive_indexes(directives: list[str], name: str) -> list[int]:
     ]
 
 
+def _single_directive_index(directives: list[str], name: str) -> int | None:
+    indexes = _directive_indexes(directives, name)
+    if len(indexes) > 1:
+        raise GlossaryAnnotationFinalizeError(
+            f"guided page contains duplicate {name} directives"
+        )
+    return indexes[0] if indexes else None
+
+
+def _allow_guided_style_source(directives: list[str]) -> None:
+    index = _single_directive_index(directives, "style-src")
+    if index is None:
+        directives.append("style-src 'self'")
+        return
+    allowed = {
+        "style-src 'self'",
+        "style-src 'unsafe-inline'",
+        "style-src 'unsafe-inline' 'self'",
+        "style-src 'self' 'unsafe-inline'",
+    }
+    if directives[index] not in allowed:
+        raise GlossaryAnnotationFinalizeError(
+            "guided style-src must remain limited to inline and same-origin styles"
+        )
+    if directives[index] == "style-src 'unsafe-inline'":
+        directives[index] = "style-src 'unsafe-inline' 'self'"
+
+
+def _allow_guided_self_source(directives: list[str], name: str) -> None:
+    index = _single_directive_index(directives, name)
+    expected = f"{name} 'self'"
+    if index is None:
+        directives.append(expected)
+        return
+    if directives[index] != expected:
+        raise GlossaryAnnotationFinalizeError(
+            f"guided {name} must be exactly {expected}"
+        )
+
+
 def allow_guided_glossary_runtime(source: str) -> str:
     """Permit only the same-origin resources required by the guided Glossary runtime."""
     matches = list(CSP_META_PATTERN.finditer(source))
@@ -332,45 +372,9 @@ def allow_guided_glossary_runtime(source: str) -> str:
     match = matches[0]
     policy = html.unescape(match.group("policy"))
     directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
-    for name in ("style-src", "script-src", "connect-src"):
-        indexes = _directive_indexes(directives, name)
-        if len(indexes) > 1:
-            raise GlossaryAnnotationFinalizeError(
-                f"guided page contains duplicate {name} directives"
-            )
-
-    style_indexes = _directive_indexes(directives, "style-src")
-    if style_indexes:
-        index = style_indexes[0]
-        if directives[index] not in {
-            "style-src 'unsafe-inline'",
-            "style-src 'unsafe-inline' 'self'",
-            "style-src 'self' 'unsafe-inline'",
-        }:
-            raise GlossaryAnnotationFinalizeError(
-                "guided style-src must remain limited to inline and same-origin styles"
-            )
-        directives[index] = "style-src 'unsafe-inline' 'self'"
-    else:
-        directives.append("style-src 'unsafe-inline' 'self'")
-
-    script_indexes = _directive_indexes(directives, "script-src")
-    if script_indexes:
-        if directives[script_indexes[0]] != "script-src 'self'":
-            raise GlossaryAnnotationFinalizeError(
-                "guided script-src must be exactly script-src 'self'"
-            )
-    else:
-        directives.append("script-src 'self'")
-
-    connect_indexes = _directive_indexes(directives, "connect-src")
-    if connect_indexes:
-        if directives[connect_indexes[0]] != "connect-src 'self'":
-            raise GlossaryAnnotationFinalizeError(
-                "guided connect-src must be exactly connect-src 'self'"
-            )
-    else:
-        directives.append("connect-src 'self'")
+    _allow_guided_style_source(directives)
+    _allow_guided_self_source(directives, "script-src")
+    _allow_guided_self_source(directives, "connect-src")
 
     updated_policy = "; ".join(directives)
     escaped_policy = html.escape(updated_policy, quote=True).replace("&#x27;", "'")
