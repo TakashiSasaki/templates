@@ -1,146 +1,212 @@
 from __future__ import annotations
 
 import re
+import tempfile
 import tomllib
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from urllib.parse import urlsplit
-from xml.etree import ElementTree
 
 
 ROOT = Path(__file__).resolve().parents[1]
-LANDING = ROOT / "docs/landing.md"
-OVERVIEW = ROOT / "docs/portal-overview.md"
-COVER_CSS = ROOT / "assets/stylesheets/landing-cover.css"
-SHELL_CSS = ROOT / "assets/stylesheets/landing-shell.css"
-MOBILE_CSS = ROOT / "assets/stylesheets/mobile-density.css"
-TRANSLATION_CSS = ROOT / "assets/stylesheets/translation-reader.css"
-COVER_SVG = ROOT / "assets/images/landing-cover.svg"
-SITE_MANIFEST = ROOT / "site-manifest.json"
-PUBLICATION_CATALOG = ROOT / "docs/publication-catalog.json"
+LANDING = ROOT / "docs" / "landing.md"
+OVERVIEW = ROOT / "docs" / "overview.md"
+STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
+COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
+SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
+MOBILE_STYLESHEET = ROOT / "assets" / "stylesheets" / "mobile-density.css"
+TRANSLATION_STYLESHEET = ROOT / "assets" / "stylesheets" / "translation-reader.css"
+IMAGES = ROOT / "assets" / "images"
+EXPECTED_SVGS = {
+    "landing-architecture.svg",
+    "publication-pipeline.svg",
+    "icon-skill.svg",
+    "icon-policy.svg",
+    "icon-webapp.svg",
+}
+FORBIDDEN_SVG_ELEMENTS = {
+    "animate",
+    "animateMotion",
+    "animateTransform",
+    "foreignObject",
+    "iframe",
+    "image",
+    "script",
+    "set",
+    "style",
+}
+EXTERNAL_REFERENCE = re.compile(
+    r"(?:https?|data|javascript|vbscript|file):|//",
+    re.IGNORECASE,
+)
+CSS_URL = re.compile(r"url\(\s*(['\"]?)(.*?)\1\s*\)", re.IGNORECASE)
+
+
+def validate_static_svg(path: Path) -> None:
+    raw = path.read_text(encoding="utf-8")
+    if re.search(r"<!DOCTYPE|<!ENTITY|<\?xml-stylesheet\b", raw, re.IGNORECASE):
+        raise ValueError("SVG must not declare external XML resources")
+
+    root = ET.fromstring(raw)
+    if not root.tag.endswith("svg"):
+        raise ValueError("root element must be svg")
+    if "viewBox" not in root.attrib:
+        raise ValueError("SVG must define a viewBox")
+    if "width" in root.attrib or "height" in root.attrib:
+        raise ValueError("SVG root must remain responsive")
+
+    for element in root.iter():
+        element_name = element.tag.rsplit("}", 1)[-1]
+        if element_name in FORBIDDEN_SVG_ELEMENTS:
+            raise ValueError(f"forbidden SVG element: {element_name}")
+
+        for qualified_name, value in element.attrib.items():
+            attribute_name = qualified_name.rsplit("}", 1)[-1]
+            lowered_name = attribute_name.casefold()
+            if lowered_name.startswith("on") or lowered_name == "style":
+                raise ValueError(f"forbidden SVG attribute: {attribute_name}")
+            if EXTERNAL_REFERENCE.search(value):
+                raise ValueError(f"external SVG reference: {value}")
+            if lowered_name in {"href", "src"} and not value.startswith("#"):
+                raise ValueError(f"non-fragment SVG reference: {value}")
+            for match in CSS_URL.finditer(value):
+                target = match.group(2).strip()
+                if not target.startswith("#"):
+                    raise ValueError(f"external CSS URL in SVG: {target}")
 
 
 class LandingPageTests(unittest.TestCase):
     def test_graphical_cover_exposes_primary_destinations_and_overview(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
-
-        self.assertIn("# Templates Documentation Portal", text)
-        self.assertIn("landing-cover.svg", text)
+        self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
+        self.assertIn('class="portal-landing portal-landing--cover"', text)
         self.assertIn('class="portal-cover"', text)
-        self.assertIn('class="portal-domain-grid"', text)
-        self.assertIn('class="portal-cover-features"', text)
-        self.assertIn('class="portal-cover__secondary" href="portal-overview/"', text)
-        self.assertIn('class="portal-cover__tertiary" href="glossary/"', text)
-        self.assertIn('class="portal-cover__tertiary" href="files/"', text)
-        self.assertIn('class="portal-cover__tertiary" href="guided/"', text)
-        for href in ("skill/", "policy/", "webapp/"):
-            self.assertIn(f'href="{href}"', text)
-
-        self.assertNotIn("## Repository trees", text)
-        self.assertNotIn("## Scope", text)
+        self.assertIn('href="overview/"', text)
+        for destination in (
+            "skill/",
+            "policy/",
+            "webapp/",
+            "/guided/",
+            "repository-trees/",
+            "files/",
+        ):
+            self.assertIn(f'href="{destination}"', text)
+        self.assertIn("Browse by index.md", text)
+        self.assertIn("Browse source files", text)
+        for label in ("Skill", "Policy", "Web application"):
+            self.assertIn(
+                f'class="portal-domain-card__label">{label}</span>',
+                text,
+            )
 
     def test_overview_preserves_the_detailed_portal_explanation(self) -> None:
         text = OVERVIEW.read_text(encoding="utf-8")
-
-        self.assertIn("# Portal overview", text)
-        self.assertIn("## Integrated publications", text)
-        self.assertIn("## Repository trees", text)
-        self.assertIn("## Scope", text)
-        self.assertIn("../repository-trees/", text)
-        self.assertIn("../glossary/", text)
-        self.assertIn("../files/", text)
-        self.assertIn("../guided/", text)
-        self.assertIn("https://templates.moukaeritai.work/", text)
+        self.assertTrue(text.startswith("# Portal overview\n\n"))
+        self.assertIn('id="choose-a-template"', text)
+        self.assertIn("Publication catalogs are explicit allowlists", text)
+        self.assertIn("full 40-character commit SHAs", text)
+        self.assertIn("build-provenance.json", text)
+        self.assertIn("Machine-readable contracts and schemas", text)
+        self.assertIn("under `/skill/`, `/policy/`, and `/webapp/`.", text)
 
     def test_landing_pages_reference_only_declared_svg_artwork(self) -> None:
-        catalog = __import__("json").loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))
-        assets = catalog["assets"]
-        declared = {(entry["source"], entry["destination"]) for entry in assets}
-
-        self.assertIn(("assets/images", "images"), declared)
-        for source in (LANDING, OVERVIEW):
-            text = source.read_text(encoding="utf-8")
-            for match in re.findall(r"(?:src|href)=\"([^\"]+\.svg)\"", text):
-                self.assertFalse(match.startswith("http"))
-                self.assertFalse(match.startswith("//"))
+        text = "\n".join(
+            (
+                LANDING.read_text(encoding="utf-8"),
+                OVERVIEW.read_text(encoding="utf-8"),
+            )
+        )
+        references = set(
+            re.findall(r'src="(?:\.\./)?images/([a-z0-9-]+\.svg)"', text)
+        )
+        self.assertEqual(references, EXPECTED_SVGS)
+        self.assertEqual(
+            {path.name for path in IMAGES.glob("*.svg")},
+            EXPECTED_SVGS,
+        )
 
     def test_svg_artwork_is_responsive_and_contains_no_active_content(self) -> None:
-        root = ElementTree.fromstring(COVER_SVG.read_text(encoding="utf-8"))
-        self.assertEqual(root.tag.rsplit("}", 1)[-1], "svg")
-        self.assertIsNotNone(root.attrib.get("viewBox"))
-        self.assertNotIn("width", root.attrib)
-        self.assertNotIn("height", root.attrib)
-        for node in root.iter():
-            local = node.tag.rsplit("}", 1)[-1]
-            self.assertNotEqual(local, "script")
-            for name, value in node.attrib.items():
-                self.assertFalse(name.lower().startswith("on"))
-                if name.rsplit("}", 1)[-1] == "href":
-                    self.assertFalse(value.startswith(("http:", "https:", "//")))
+        for path in sorted(IMAGES.glob("*.svg")):
+            with self.subTest(path=path.name):
+                validate_static_svg(path)
 
     def test_svg_validator_rejects_active_and_external_content(self) -> None:
-        unsafe = (
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
-            '<script>alert(1)</script><image href="https://example.com/x.svg" />'
-            "</svg>"
-        )
-        root = ElementTree.fromstring(unsafe)
-        active = []
-        external = []
-        for node in root.iter():
-            local = node.tag.rsplit("}", 1)[-1]
-            if local == "script":
-                active.append(local)
-            for name, value in node.attrib.items():
-                if name.lower().startswith("on"):
-                    active.append(name)
-                if name.rsplit("}", 1)[-1] == "href" and value.startswith(
-                    ("http:", "https:", "//")
-                ):
-                    external.append(value)
-        self.assertTrue(active)
-        self.assertTrue(external)
+        unsafe_documents = {
+            "event-handler.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" onload="alert(1)"/>',
+            "external-paint.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect fill="url(https://example.invalid/paint)"/></svg>',
+            "style-element.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><style>@import url(https://example.invalid/a.css);</style></svg>',
+            "style-attribute.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect style="fill:url(//example.invalid/paint)"/></svg>',
+            "data-image.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><image href="data:image/png;base64,AA=="/></svg>',
+            "external-entity.svg": '<!DOCTYPE svg [<!ENTITY ext SYSTEM "https://example.invalid/x">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>',
+        }
 
-    def test_portal_metadata_matches_the_integrated_site(self) -> None:
-        template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
-        parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
-        project = parsed["project"]
-
-        self.assertEqual(project["site_name"], "Templates Documentation Portal")
-        self.assertEqual(project["repo_name"], "TakashiSasaki/templates")
-        self.assertEqual(project["site_url"], "https://templates.moukaeritai.work/")
-        parsed_url = urlsplit(project["site_url"])
-        self.assertEqual(parsed_url.scheme, "https")
-        self.assertEqual(parsed_url.netloc, "templates.moukaeritai.work")
-        self.assertEqual(parsed_url.path, "/")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, content in unsafe_documents.items():
+                with self.subTest(name=name):
+                    path = root / name
+                    path.write_text(content, encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        validate_static_svg(path)
 
     def test_cover_and_overview_styles_are_scoped_and_responsive(self) -> None:
-        cover_css = COVER_CSS.read_text(encoding="utf-8")
-        shell_css = SHELL_CSS.read_text(encoding="utf-8")
-        mobile_css = MOBILE_CSS.read_text(encoding="utf-8")
-        translation_css = TRANSLATION_CSS.read_text(encoding="utf-8")
-        mobile_query = "@media (max-width: 700px)"
-
+        css = STYLESHEET.read_text(encoding="utf-8")
+        cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
+        shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
+        mobile_css = MOBILE_STYLESHEET.read_text(encoding="utf-8")
+        translation_css = TRANSLATION_STYLESHEET.read_text(encoding="utf-8")
         for selector in (
+            ".portal-landing",
+            ".portal-hero",
+            ".portal-card-grid",
+            ".portal-publication",
+            ".portal-tree-callout",
+        ):
+            self.assertIn(selector, css)
+        for selector in (
+            ".portal-landing--cover",
             ".portal-cover",
-            ".portal-cover__grid",
             ".portal-domain-grid",
+            ".portal-domain-card",
             ".portal-cover-features",
         ):
             self.assertIn(selector, cover_css)
-        self.assertIn(mobile_query, cover_css)
+        self.assertIn(":focus-visible", cover_css)
+        self.assertIn("h1:has(+ .portal-landing)", css)
+        self.assertIn("container: portal / inline-size", css)
+        self.assertIn("@container portal (max-width: 46rem)", cover_css)
+        self.assertIn("@container portal (max-width: 40rem)", cover_css)
+        self.assertIn("prefers-reduced-motion", cover_css)
         self.assertNotIn("@import", cover_css)
 
-        for selector in (
-            ".portal-overview-lead",
-            ".portal-overview-grid",
-            ".portal-overview-card",
-        ):
-            self.assertIn(selector, shell_css)
-        self.assertIn(mobile_query, shell_css)
+        self.assertIn("@media screen and (min-width: 60rem)", shell_css)
+        self.assertIn(":has(.portal-landing--cover)", shell_css)
+        self.assertIn("> .md-sidebar", shell_css)
         self.assertNotIn("@import", shell_css)
 
+        mobile_query = "@media screen and (max-width: 44.984375em)"
+        self.assertEqual(mobile_css.count(mobile_query), 1)
+        unscoped_prefix = re.sub(
+            r"/\*.*?\*/",
+            "",
+            mobile_css[: mobile_css.index(mobile_query)],
+            flags=re.DOTALL,
+        )
+        self.assertNotIn("{", unscoped_prefix)
         for selector in (
+            ".md-main__inner",
+            ".md-path",
+            ".md-content__inner",
+            ".md-typeset h1",
+            ".md-typeset h2",
+            ".md-typeset h3",
+            ".md-typeset blockquote",
+            ".md-typeset table:not([class])",
+            ".md-typeset table:not([class]) th",
+            ".md-typeset table:not([class]) td",
+            ".md-typeset table:not([class]) code",
+            ".portal-cover",
+            ".portal-cover__lead",
             ".portal-cover__button",
             ".portal-domain-card",
             ".portal-cover-features article",
@@ -173,6 +239,14 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/glossary-inline.css",
             ],
         )
+
+    def test_portal_metadata_matches_the_integrated_site(self) -> None:
+        template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
+        parsed = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))
+        project = parsed["project"]
+        self.assertEqual(project["site_name"], "Templates Documentation Portal")
+        self.assertEqual(project["site_url"], "https://templates.moukaeritai.work/")
+        self.assertIn("skill, policy, and Web application", project["site_description"])
 
 
 if __name__ == "__main__":
