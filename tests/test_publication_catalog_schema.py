@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.assemble_publications_v3 import AssemblyError, load_catalog
+from scripts.assemble_publications import AssemblyError, load_catalog
 from scripts.prepare_repository_tree_publication import augment_catalog
 
 
