@@ -239,6 +239,14 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/glossary-inline.css",
             ],
         )
+        self.assertEqual(
+            parsed["project"]["extra_javascript"],
+            [
+                "javascripts/repository-tree-viewer.js",
+                "javascripts/pwa.js",
+                "javascripts/glossary-inline.js",
+            ],
+        )
 
     def test_portal_metadata_matches_the_integrated_site(self) -> None:
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
