@@ -54,12 +54,16 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn('console.warn("PWA cached redirect fallback rejected"', self.worker)
         self.assertIn("return await decorateCachedDocument(response, request)", self.worker)
 
-    def test_cached_notice_is_inserted_before_an_unambiguous_body_close(self) -> None:
+    def test_cached_notice_is_inserted_after_an_unambiguous_body_open(self) -> None:
         self.assertIn("function injectCachedDocumentNotice(source)", self.worker)
+        self.assertIn("source.matchAll(/<html\\b[^>]*>/gi)", self.worker)
+        self.assertIn("source.matchAll(/<body\\b[^>]*>/gi)", self.worker)
         self.assertIn("source.matchAll(/<\\/body\\s*>/gi)", self.worker)
-        self.assertIn("bodyClosures.length !== 1", self.worker)
+        self.assertIn("bodyOpenings.length !== 1", self.worker)
+        self.assertIn('data-templates-cached-fallback="true"', self.worker)
         self.assertIn('id="templates-freshness-status-inline-style"', self.worker)
         self.assertIn("position:fixed", self.worker)
+        self.assertIn("shiftedBodyOpeningEnd", self.worker)
 
     def test_commit_correlation_distinguishes_cached_and_network_representations(self) -> None:
         self.assertIn('type: "templates:document-commit"', self.worker)
@@ -70,6 +74,8 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn('setPendingDocumentCommit(data.url, "network", data.requestGeneration)', self.client)
         self.assertIn('pending.representation === "cached"', self.client)
         self.assertIn("preserveInitialEmbeddedCachedCommit", self.client)
+        self.assertIn('dataset.templatesCachedFallback === "true"', self.client)
+        self.assertIn("delete document.documentElement.dataset.templatesCachedFallback", self.client)
 
     def test_early_freshness_message_does_not_require_document_body(self) -> None:
         self.assertIn("const target = document.body || document.documentElement", self.client)
