@@ -1,6 +1,40 @@
 (() => {
   const manifestHref = "/app.webmanifest";
   const themeColor = "#3f51b5";
+  const freshnessStatusId = "templates-freshness-status";
+
+  function showCachedUnverifiedStatus() {
+    let status = document.getElementById(freshnessStatusId);
+    if (!status) {
+      status = document.createElement("aside");
+      status.id = freshnessStatusId;
+      status.className = "freshness-status freshness-status--cached";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      document.body.prepend(status);
+    }
+    status.dataset.freshnessState = "cached-unverified";
+    status.replaceChildren();
+    const label = document.createElement("strong");
+    label.textContent = "Saved copy.";
+    status.append(label, " The latest version could not be verified.");
+  }
+
+  function clearFreshnessStatus() {
+    document.getElementById(freshnessStatusId)?.remove();
+  }
+
+  function applyFreshnessState(state) {
+    if (state === "cached-unverified") {
+      showCachedUnverifiedStatus();
+      return true;
+    }
+    if (state === "verified-current") {
+      clearFreshnessStatus();
+      return true;
+    }
+    return false;
+  }
 
   if (!document.querySelector('link[rel="manifest"]')) {
     const manifest = document.createElement("link");
@@ -19,6 +53,20 @@
   if (!window.isSecureContext || !("serviceWorker" in navigator)) {
     return;
   }
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type !== "templates:freshness-state") {
+      return;
+    }
+    const applied = applyFreshnessState(event.data.state);
+    const acknowledgementPort = event.ports?.[0];
+    if (applied && acknowledgementPort) {
+      acknowledgementPort.postMessage({
+        type: "templates:freshness-state-applied",
+        state: event.data.state,
+      });
+    }
+  });
 
   const register = async () => {
     let registration;
