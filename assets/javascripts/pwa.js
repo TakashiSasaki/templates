@@ -5,8 +5,9 @@
   let pendingDocumentCommit = null;
   let lastCommitGeneration = 0;
   let preserveInitialEmbeddedCachedCommit =
+    document.documentElement?.dataset.templatesCachedFallback === "true" ||
     document.getElementById(freshnessStatusId)?.dataset.freshnessState ===
-    "cached-unverified";
+      "cached-unverified";
 
   function normalizedDocumentUrl(url) {
     try {
@@ -44,6 +45,13 @@
     document.getElementById(freshnessStatusId)?.remove();
   }
 
+  function clearInitialCachedMarker() {
+    if (document.documentElement) {
+      delete document.documentElement.dataset.templatesCachedFallback;
+    }
+    preserveInitialEmbeddedCachedCommit = false;
+  }
+
   function setPendingDocumentCommit(url, representation, generation) {
     const normalizedUrl = normalizedDocumentUrl(url);
     if (!normalizedUrl || !Number.isSafeInteger(generation) || generation <= 0) {
@@ -73,7 +81,7 @@
     const pending = pendingDocumentCommit;
     if (pending && committedUrl === pending.url) {
       pendingDocumentCommit = null;
-      preserveInitialEmbeddedCachedCommit = false;
+      clearInitialCachedMarker();
       if (pending.representation === "cached") {
         return;
       }
@@ -87,12 +95,12 @@
       preserveInitialEmbeddedCachedCommit &&
       embeddedStatus?.dataset.freshnessState === "cached-unverified"
     ) {
-      preserveInitialEmbeddedCachedCommit = false;
+      clearInitialCachedMarker();
       return;
     }
 
     pendingDocumentCommit = null;
-    preserveInitialEmbeddedCachedCommit = false;
+    clearInitialCachedMarker();
     clearFreshnessStatus();
   }
 
