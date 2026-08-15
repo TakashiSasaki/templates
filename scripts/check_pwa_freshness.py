@@ -15,6 +15,20 @@ from urllib.parse import urlsplit
 
 
 DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"
+DOCUMENT_OBSERVABLE_FIXTURE = """<script>
+globalThis.__pwaDocumentSubscribers = [];
+globalThis.document$ = {
+  subscribe(callback) {
+    globalThis.__pwaDocumentSubscribers.push(callback);
+  },
+};
+globalThis.__pwaFixtureCommitDocument = (url) => {
+  history.pushState({}, "", url);
+  for (const callback of globalThis.__pwaDocumentSubscribers) {
+    callback({ body: document.body });
+  }
+};
+</script>"""
 
 
 class PwaFreshnessError(RuntimeError):
@@ -106,12 +120,12 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
             path = urlsplit(self.path).path
 
             if path == "/":
-                body = b"""<!doctype html>
+                body = f"""<!doctype html>
 <html>
-<head><meta charset=\"utf-8\"><title>PWA freshness fixture</title><link rel=\"stylesheet\" href=\"/stylesheets/freshness-status.css\"></head>
-<body><main id=\"fixture\">fixture</main><script src=\"/javascripts/pwa.js\"></script></body>
+<head><meta charset="utf-8"><title>PWA freshness fixture</title><link rel="stylesheet" href="/stylesheets/freshness-status.css"></head>
+<body><main id="fixture">fixture</main>{DOCUMENT_OBSERVABLE_FIXTURE}<script src="/javascripts/pwa.js"></script></body>
 </html>
-"""
+""".encode("utf-8")
                 self._send(body, "text/html; charset=utf-8")
                 return
 
@@ -329,11 +343,16 @@ def _wait_for_document_cache(page: Any, path: str, expected: bool, timeout_secon
     raise PwaFreshnessError(message)
 
 
+def _commit_fixture_document(page: Any, path: str) -> None:
+    page.evaluate("path => globalThis.__pwaFixtureCommitDocument(path)", path)
+
+
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     required = (
         site_root / "service-worker.js",
         site_root / "javascripts/pwa.js",
         site_root / "icon.svg",
+        site_root / "app.webmanifest",
         site_root / "stylesheets/freshness-status.css",
     )
     missing = [path for path in required if not path.is_file()]
@@ -419,16 +438,32 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             evidence["offline_cached_status"] = 200
             evidence["instant_navigation_indicator"] = True
 
+            _commit_fixture_document(page, "/document/")
+            if page.locator("#templates-freshness-status").count() != 1:
+                raise PwaFreshnessError("committing the cached fallback cleared its stale warning")
+            evidence["stale_commit_retained_indicator"] = True
+
             context.set_offline(False)
             state.document_status = 403
             forbidden = _fetch_response(page, "/document/")
             if forbidden["status"] != 403 or forbidden["freshness"] is not None:
                 raise PwaFreshnessError("ordinary 4xx response incorrectly fell back to cached documentation")
-            page.wait_for_selector("#templates-freshness-status", state="detached")
+            if page.locator("#templates-freshness-status").count() != 1:
+                raise PwaFreshnessError("uncommitted ordinary 4xx response cleared the stale warning")
             evidence["ordinary_4xx_status"] = 403
-            evidence["verified_navigation_cleared_indicator"] = True
 
             state.document_status = 200
+            verified = _fetch_response(page, "/document/")
+            if verified["status"] != 200 or "document-v2" not in verified["body"]:
+                raise PwaFreshnessError("verified network document did not reach the client")
+            if page.locator("#templates-freshness-status").count() != 1:
+                raise PwaFreshnessError("network fetch cleared stale warning before document commit")
+            evidence["network_fetch_preserved_indicator_until_commit"] = True
+
+            _commit_fixture_document(page, "/document/")
+            page.wait_for_selector("#templates-freshness-status", state="detached")
+            evidence["committed_navigation_cleared_indicator"] = True
+
             context.set_offline(True)
             response = page.goto(base_url + "/document/", wait_until="load")
             if response is None or response.status != 200:
