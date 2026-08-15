@@ -376,7 +376,7 @@ def generate_freshness_metadata(
     verify_freshness_contract(
         resolved_root,
         output,
-        payload["site_revision"],
+        site_revision,
         payload,
     )
     return output, annotated
