@@ -25,6 +25,10 @@ following is true:
 Frequency alone is not sufficient. Ordinary technical nouns are not added merely
 because they appear often.
 
+When canonical documentation defines a peer taxonomy or an explicit pair of
+contrasting concepts, the inventory should review that set together rather than
+including only whichever members happen to fit a smaller pull request.
+
 ## Current canonical seed
 
 The following stable IDs are already canonical and remain required seed terms.
@@ -59,44 +63,68 @@ this inventory.
 | Publication source lock | `templates-publication-source-lock` | site | repository | 公開ソースロック | yes | `PUBLISHING.md` and `publication-sources.json` require reviewed full-SHA provider inputs rather than mutable refs. |
 | Runtime decision record | `templates-skill-runtime-decision-record` | skill | repository | ランタイム決定記録 | yes | `template/RUNTIME.md` is a maintained authority for runtime, exact commands, package/distribution choices, protocol selections, and deployment lifecycle. |
 | Public interface selection contract | `templates-skill-interface-selection-contract` | skill | repository | 公開インターフェース選択契約 | yes | `template/INTERFACES.md` owns preferred agent route and deterministic fallback order while detailed caller-visible behavior belongs elsewhere. |
-| Shared policy | `templates-shared-policy` | policy | repository | 共有ポリシー | yes | `docs/policy-authoring.md` distinguishes shared, context, repository-local, artifact-contract, adapter, and explanatory ownership classes. |
-| Context policy | `templates-context-policy` | policy | repository | コンテキストポリシー | yes | `docs/policy-authoring.md` defines artifact- and engine-independent behavior selected only for an operational context such as review. |
-| Repository-local policy | `templates-repository-local-policy` | policy | repository | リポジトリローカルポリシー | yes | `docs/policy-authoring.md` assigns repository-specific facts, invariants, extensions, and explicit permitted overrides to this class. |
+| Shared policy | `templates-shared-policy` | policy | repository | 共有ポリシー | yes | `docs/policy-authoring.md` defines this ownership class as generally applicable, artifact- and engine-independent operating behavior authored canonically in the Policy corpus. It is one member of the six-class policy-ownership taxonomy reviewed together here. |
+| Context policy | `templates-context-policy` | policy | repository | コンテキストポリシー | yes | `docs/policy-authoring.md` defines this ownership class as artifact- and engine-independent policy content selected only for an operational context such as review. It is distinct from `templates-policy-context`: **Context policy is selected policy content; Policy context is the named semantic selector/authority boundary in `.agent-policy.yml` that selects profiles, repository-local policy, and overrides for an output.** |
+| Repository-local policy | `templates-repository-local-policy` | policy | repository | リポジトリローカルポリシー | yes | `docs/policy-authoring.md` assigns repository-specific facts, invariants, justified extensions, and explicit permitted overrides to this ownership class. |
+| Artifact contract | `templates-artifact-contract` | policy | repository | アーティファクト契約 | yes | `docs/policy-authoring.md` uses this ownership class for requirements that define what a produced Skill, Web application, CLI, library, service, or other artifact must contain or do, separating artifact semantics from coding-agent policy. |
+| Adapter/renderer requirement | `templates-adapter-renderer-requirement` | policy | repository | アダプター／レンダラー要件 | yes | `docs/policy-authoring.md` uses this ownership class when behavior depends on a particular agent, platform, protocol, command surface, renderer, or output format rather than shared policy semantics. |
+| Explanatory material | `templates-explanatory-material` | policy | repository | 説明資料 | yes | `docs/policy-authoring.md` separates rationale, examples, history, proposals, and other non-normative text from policy and artifact-contract authority. |
 | Policy override | `templates-policy-override` | policy | repository | ポリシーオーバーライド | yes | `docs/configuration.md` makes override declarations explicit exception records and separates them from replacement policy text. |
 | Template source artifact | `templates-webapp-template-source-artifact` | webapp | repository | テンプレートソースアーティファクト | yes | `docs/architecture/distribution-boundary.md` distinguishes the complete maintainer checkout from the copyable distribution. Confusing the two changes repository ownership. |
 | Template distribution artifact | `templates-webapp-template-distribution-artifact` | webapp | repository | テンプレート配布アーティファクト | yes | `docs/architecture/distribution-boundary.md` defines the committed `template/` subtree copied byte-for-byte to a new product repository. |
 | Product repository artifact | `templates-webapp-product-repository-artifact` | webapp | repository | プロダクトリポジトリアーティファクト | yes | `docs/architecture/distribution-boundary.md` distinguishes a generated/customized product repository from both source and distribution artifacts. |
+| Product mode | `templates-webapp-product-mode` | webapp | repository | プロダクトモード | yes | Webapp evidence-contract documentation explicitly contrasts concrete product mode with the already-canonical `templates-webapp-template-mode`. The pair determines whether repository-local implementation values, immutable revisions, verified results, provenance, release gates, and decisions may or must be asserted. |
 | Release bundle | `templates-webapp-release-bundle` | webapp | repository | リリースバンドル | yes | `template/docs/architecture/release-bundle.md` separates exact handoff bytes from release evidence and defines deterministic artifact closure. |
 | Contract family | `templates-webapp-contract-family` | webapp | repository | コントラクトファミリー | yes | `template/docs/architecture/contract-completeness.md` and release-bundle guidance use stable contract-family identity, version history, migrations, active/retired state, and evidence coverage. |
+
+### Policy ownership-taxonomy boundary
+
+The six ownership classes above are peers from `docs/policy-authoring.md` and are
+reviewed as one set:
+
+1. Shared policy;
+2. Context policy;
+3. Repository-local policy;
+4. Artifact contract;
+5. Adapter/renderer requirement; and
+6. Explanatory material.
+
+They classify where a requirement or piece of documentation belongs. They do not
+replace the runtime/configuration concept `Policy context`. A Policy context is a
+named semantic authority boundary that selects policy inputs and a renderer for
+an output; Context policy is one class of policy content that may be selected for
+an operational context. The canonical entries should relate those concepts so
+search and review do not treat the reversed names as synonyms.
 
 ## Deferred repository candidates
 
 These concepts are meaningful but are intentionally deferred until the first
-expansion above is reviewed. Deferral keeps the first content PRs small and makes
-concept boundaries easier to review.
+expansion above is reviewed. Deferral is based on semantic grouping or unresolved
+boundaries rather than pull-request size alone.
 
 | Candidate term | Proposed ID | Likely owner | Reason to defer |
 | --- | --- | --- | --- |
 | Stable release | `templates-policy-stable-release` | policy | Important lifecycle concept, but its boundary with release descriptor and promoted toolchain revision should be reviewed together. |
 | Bootstrap trust seed | `templates-policy-bootstrap-trust-seed` | policy | Security-sensitive concept; should be added with release/trust terminology as one coherent group. |
 | Managed repository | `templates-policy-managed-repository` | policy | Widely used in Policy docs, but the exact transition boundary from unmanaged/prepared/finalized should be stated precisely first. |
-| Product mode | `templates-webapp-product-mode` | webapp | Natural counterpart to Template mode, but should be reviewed with evidence contract mode semantics across all contract families. |
 | Candidate revision | `templates-webapp-candidate-revision` | webapp | `release-bundle.md` defines several revision roles; they should be added as one related set rather than piecemeal. |
 | Merge-test revision | `templates-webapp-merge-test-revision` | webapp | Same revision-role group as Candidate revision. |
 | Released revision | `templates-webapp-released-revision` | webapp | Same revision-role group as Candidate revision. |
 | Deployed revision | `templates-webapp-deployed-revision` | webapp | Same revision-role group as Candidate revision. |
-| Guided navigation | `templates-guided-navigation` | site | Useful Site term, but less likely than publication ownership terms to change provider implementation decisions. |
+| Index-guided navigation | `templates-index-guided-navigation` | site | `PUBLISHING.md` defines this specifically as the projection driven by provider-owned `index.md` structure. It is deferred because publication ownership terms are the higher-priority Site expansion, not because its boundary is unclear. |
 
 ## External terminology candidates
 
 External terms are not repository-owned definitions. They require a stable
 external semantic domain plus upstream, normative, or conventional authority.
 They should be added only when their presence materially improves discovery of a
-repository-specific concept.
+repository-specific concept. Each external term has exactly one local curator so
+its provenance is unambiguous and duplicate stable IDs cannot be authored by
+multiple provider glossaries.
 
 | Candidate term | Proposed ID | Curator | Initial decision | Notes |
 | --- | --- | --- | --- | --- |
-| Model Context Protocol | `external-mcp-model-context-protocol` | skill/site | defer | Skill uses MCP extensively, but authority/version selection should be curated from current official MCP specifications before creating the entry. |
+| Model Context Protocol | `external-mcp-model-context-protocol` | skill | defer | Skill is the single local curator because its canonical contracts define MCP-enabled Skill behavior and already own the repository-specific MCP-extension concept. Authority/version selection must still be curated from current official MCP specifications before creating the external entry. |
 | Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the first terminology expansion. |
 | Progressive Web App | `external-web-progressive-web-app` | site | defer | Same reason as Service Worker; add when PWA terminology becomes a glossary navigation need. |
 
