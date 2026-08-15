@@ -52,6 +52,16 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("!pendingLink.contains(target)", source)
         self.assertIn("!activeLink.contains(target)", source)
 
+    def test_detached_active_link_closes_dialog_after_instant_navigation(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("function closeDetachedDialog()", source)
+        self.assertIn("activeLink && !activeLink.isConnected", source)
+        self.assertIn("navigationObserver = new MutationObserver(closeDetachedDialog);", source)
+        self.assertIn("navigationObserver.observe(document.body", source)
+        self.assertIn("childList: true", source)
+        self.assertIn("subtree: true", source)
+
     def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
