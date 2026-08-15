@@ -10,14 +10,18 @@ WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
 
 
 class PwaCommitRegressionTests(unittest.TestCase):
-    def test_checker_covers_same_url_retry_and_full_navigation_commit(self) -> None:
+    def test_checker_covers_commit_and_cache_order_regressions(self) -> None:
         source = CHECKER.read_text(encoding="utf-8")
         self.assertIn('evidence["same_url_fresh_retry_cleared_on_commit"] = True', source)
         self.assertIn('evidence["full_navigation_commit_retained_warning"] = True', source)
         self.assertIn('evidence["standalone_inline_warning_style"] = True', source)
+        self.assertIn('evidence["older_200_did_not_resurrect_after_newer_404"] = True', source)
         self.assertIn("globalThis.__pwaFixtureCommitDocument('/document/')", source)
         self.assertIn('data-templates-cached-fallback', source)
         self.assertIn("getComputedStyle(element).position", source)
+        self.assertIn("state.begin_race()", source)
+        self.assertIn("setTimeout(resolve, 50)", source)
+        self.assertIn("[200, 404]", source)
 
     def test_mobile_visual_workflow_runs_commit_checker(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
