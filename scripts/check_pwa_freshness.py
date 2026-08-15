@@ -207,6 +207,31 @@ def _wait_for_worker_version(page: Any, expected: int, timeout_seconds: float = 
     raise PwaFreshnessError(message)
 
 
+def _freshness_capabilities(page: Any) -> dict[str, Any] | None:
+    return page.evaluate(
+        """async () => {
+          const worker = navigator.serviceWorker.controller;
+          if (!worker) return null;
+          navigator.serviceWorker.startMessages();
+          return await new Promise((resolve) => {
+            const timer = setTimeout(() => {
+              navigator.serviceWorker.removeEventListener("message", onMessage);
+              resolve(null);
+            }, 1000);
+            const onMessage = (event) => {
+              if (event.data?.type === "templates:freshness-capabilities") {
+                clearTimeout(timer);
+                navigator.serviceWorker.removeEventListener("message", onMessage);
+                resolve(event.data);
+              }
+            };
+            navigator.serviceWorker.addEventListener("message", onMessage);
+            worker.postMessage({ type: "templates:get-freshness-capabilities" });
+          });
+        }"""
+    )
+
+
 def _fetch_text(page: Any, path: str) -> str:
     return page.evaluate(
         "async (path) => { const response = await fetch(path); return await response.text(); }",
@@ -285,6 +310,31 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             page.evaluate("() => navigator.serviceWorker.ready.then(() => undefined)")
             page.wait_for_function("() => navigator.serviceWorker.controller !== null")
             _wait_for_worker_version(page, 1)
+
+            capabilities = _freshness_capabilities(page)
+            expected_states = [
+                "verified-current",
+                "checking",
+                "cached-unverified",
+                "update-available",
+            ]
+            if capabilities is None:
+                raise PwaFreshnessError(
+                    "service worker freshness capability request timed out"
+                )
+            if capabilities.get("siteVersionUrl") != "/site-version.json":
+                raise PwaFreshnessError(
+                    f"unexpected freshness siteVersionUrl: {capabilities!r}"
+                )
+            if capabilities.get("documentCacheName") != "templates-portal-documents-v1":
+                raise PwaFreshnessError(
+                    f"unexpected freshness documentCacheName: {capabilities!r}"
+                )
+            if capabilities.get("states") != expected_states:
+                raise PwaFreshnessError(
+                    f"unexpected freshness state vocabulary: {capabilities!r}"
+                )
+            evidence["freshness_capabilities"] = capabilities
 
             first_document = _fetch_text(page, "/document/")
             if first_document.strip() != "document-v1":
