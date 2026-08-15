@@ -5,7 +5,7 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from scripts.glossary import TERM_ID
+from scripts.glossary import REPOSITORY_TERM_ID, TERM_ID
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -146,6 +146,32 @@ class GlossaryInventoryTests(unittest.TestCase):
             self.assertTrue(
                 row[rationale_column].strip(),
                 f"proposed term rationale must not be empty: {row}",
+            )
+
+    def test_glossary_inventory_proposed_expansion_metadata(self) -> None:
+        header, rows = self.table("Proposed first expansion")
+        for column in (
+            "Proposed ID",
+            "Origin",
+            "Japanese discovery label",
+            "Include next",
+        ):
+            self.assertIn(column, header)
+
+        for row in rows:
+            self.assertEqual(row["Origin"], "repository")
+            self.assertTrue(
+                row["Japanese discovery label"].strip(),
+                f"Japanese discovery label must not be empty: {row}",
+            )
+            self.assertIn(row["Include next"], {"yes", "no"})
+
+            match = ID_CELL.fullmatch(row["Proposed ID"])
+            self.assertIsNotNone(match)
+            assert match is not None
+            self.assertIsNotNone(
+                REPOSITORY_TERM_ID.fullmatch(match.group(1)),
+                f"first-expansion term must use a repository ID: {match.group(1)}",
             )
 
 
