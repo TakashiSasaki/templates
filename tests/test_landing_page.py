@@ -236,6 +236,7 @@ class LandingPageTests(unittest.TestCase):
                 "stylesheets/landing-shell.css",
                 "stylesheets/mobile-density.css",
                 "stylesheets/translation-reader.css",
+                "stylesheets/glossary-inline.css",
             ],
         )
 

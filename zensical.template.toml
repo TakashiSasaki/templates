@@ -11,11 +11,13 @@ extra_css = [
   "stylesheets/landing-cover.css",
   "stylesheets/landing-shell.css",
   "stylesheets/mobile-density.css",
-  "stylesheets/translation-reader.css"
+  "stylesheets/translation-reader.css",
+  "stylesheets/glossary-inline.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
-  "javascripts/pwa.js"
+  "javascripts/pwa.js",
+  "javascripts/glossary-inline.js"
 ]
 nav = __GENERATED_NAV__
 
