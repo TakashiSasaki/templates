@@ -32,7 +32,7 @@ def write_catalog(
     root: Path,
     *,
     documents: list[dict[str, object]] | None = None,
-    schema_version: object = 1,
+    schema_version: object = 3,
     extra: dict[str, object] | None = None,
 ) -> Path:
     catalog = {
@@ -85,7 +85,6 @@ def _write_symlinked_glossary(root: Path) -> Path:
     glossary.symlink_to(root / "README.md")
     return write_catalog(
         root,
-        schema_version=3,
         extra={"glossary": {"source": "docs/glossary.yml"}},
     )
 
@@ -120,22 +119,10 @@ def run() -> int:
     with prepare_repository() as directory:
         root = Path(directory)
         try:
-            documents = validate(write_catalog(root, schema_version=3), root=root)
-            if [document.id for document in documents] != ["overview", "guide"]:
-                failures.append("valid v3 catalog without glossary: unexpected documents")
-        except Exception as exc:  # noqa: BLE001 - record all harness failures.
-            failures.append(
-                f"valid v3 catalog without glossary: unexpected {type(exc).__name__}: {exc}"
-            )
-
-    with prepare_repository() as directory:
-        root = Path(directory)
-        try:
             source = write_glossary(root)
             documents = validate(
                 write_catalog(
                     root,
-                    schema_version=3,
                     extra={"glossary": {"source": source}},
                 ),
                 root=root,
@@ -149,8 +136,13 @@ def run() -> int:
 
     invalid_cases = [
         (
-            "rejects unsupported schema versions",
-            r"schema_version must be integer 1 or 3",
+            "rejects retired schema version 1",
+            r"schema_version must be integer 3",
+            lambda root: write_catalog(root, schema_version=1),
+        ),
+        (
+            "rejects retired schema version 2",
+            r"schema_version must be integer 3",
             lambda root: write_catalog(root, schema_version=2),
         ),
         (
@@ -159,29 +151,20 @@ def run() -> int:
             lambda root: write_catalog(root, extra={"navigation": []}),
         ),
         (
-            "rejects v1 glossary declarations",
-            r"unsupported: glossary",
-            lambda root: write_catalog(
-                root,
-                extra={"glossary": {"source": write_glossary(root)}},
-            ),
-        ),
-        (
             "rejects non-object glossary declarations",
             r"glossary must be an object",
-            lambda root: write_catalog(root, schema_version=3, extra={"glossary": []}),
+            lambda root: write_catalog(root, extra={"glossary": []}),
         ),
         (
             "rejects glossary declarations missing source",
             r"glossary fields are invalid \(missing: source\)",
-            lambda root: write_catalog(root, schema_version=3, extra={"glossary": {}}),
+            lambda root: write_catalog(root, extra={"glossary": {}}),
         ),
         (
             "rejects glossary declarations with extra fields",
             r"glossary fields are invalid \(unsupported: extra\)",
             lambda root: write_catalog(
                 root,
-                schema_version=3,
                 extra={
                     "glossary": {
                         "source": write_glossary(root),
@@ -195,7 +178,6 @@ def run() -> int:
             r"must identify a \.yml file",
             lambda root: write_catalog(
                 root,
-                schema_version=3,
                 extra={"glossary": {"source": "docs/guide.md"}},
             ),
         ),
@@ -204,7 +186,6 @@ def run() -> int:
             r"existing regular file",
             lambda root: write_catalog(
                 root,
-                schema_version=3,
                 extra={"glossary": {"source": "docs/missing.yml"}},
             ),
         ),
@@ -303,7 +284,7 @@ def run() -> int:
             print(failure, file=sys.stderr)
         return 1
 
-    print(f"Publication catalog tests passed ({len(invalid_cases) + 3} cases).")
+    print(f"Publication catalog tests passed ({len(invalid_cases) + 2} cases).")
     return 0
 
 
