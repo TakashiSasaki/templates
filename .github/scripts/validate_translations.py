@@ -74,6 +74,9 @@ def git_blob_sha(path: Path) -> str:
 
 def catalog_sources(root: Path) -> set[PurePosixPath]:
     catalog = read_json(root / "docs" / "publication-catalog.json", "publication catalog")
+    schema_version = catalog.get("schema_version")
+    if type(schema_version) is not int or schema_version != 3:
+        raise TranslationError("publication catalog schema_version must be integer 3")
     documents = catalog.get("documents")
     if not isinstance(documents, list):
         raise TranslationError("publication catalog documents must be an array")
