@@ -201,9 +201,11 @@ terms:
     origin: repository
     definition: >-
       The immutable source identity published by a release system. It may equal
-      the candidate revision or a later merge commit, but any mapping from the
-      accepted candidate bundle to this released identity is owned and audited
-      by the release system rather than inferred by the Webapp bundle contract.
+      the candidate revision or a later merge commit. The release system must
+      preserve an auditable mapping from the accepted bundle to this identity;
+      if that mapping changes the source revision, the prior candidate bundle
+      cannot be silently relabeled and new release evidence plus a new bundle
+      are required for the newly selected candidate.
     related_terms:
       - templates-webapp-candidate-revision
       - templates-webapp-deployed-revision
