@@ -138,9 +138,11 @@ progressive-disclosure path that agents can follow.
   revision, and verifies both outputs before artifact upload;
 - `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
   Playwright-managed Chromium and writes screenshot and metric evidence;
-- `scripts/check_pwa_freshness.py`: exercises document revalidation, static-shell
-  refresh, service-worker update propagation, freshness capability messaging,
-  and offline fallbacks in Chromium;
+- `scripts/check_pwa_freshness.py`: exercises network-first document
+  revalidation, runtime document-cache fallback, stale indication, authoritative
+  deletion, shell refresh, and Service Worker update propagation in Chromium;
+- `scripts/check_pwa_capabilities.py`: exercises the live Service Worker
+  freshness-capability message contract in Chromium;
 - `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
@@ -151,7 +153,7 @@ progressive-disclosure path that agents can follow.
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
 - `.github/workflows/mobile-visual-regression.yml`: same-repository pull-request
   check that consumes the built Pages artifact and validates mobile layout plus
-  the browser-level PWA freshness lifecycle;
+  the browser-level PWA freshness lifecycle and capability contract;
 - `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
   to `site`.
 
@@ -263,17 +265,23 @@ python site/scripts/check_mobile_layout.py \
 python site/scripts/check_pwa_freshness.py \
   --site-root build/site \
   --output build/mobile-visual/pwa-freshness.json
+python site/scripts/check_pwa_capabilities.py \
+  --site-root build/site \
+  --output build/mobile-visual/pwa-capabilities.json
 ```
 
 The mobile layout check uses the Chromium build matched to the pinned Playwright
 controller and writes 390×844 screenshots plus `metrics.json` under
 `build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
-The PWA freshness check uses the same browser installation and writes
-`pwa-freshness.json` while validating HTTP-cache revalidation, static-shell
-convergence, worker update propagation, the live freshness-capability message
-contract, and explicit offline 503 fallbacks. The provenance command above also
-writes and verifies `/site-version.json` plus the per-page
-`templates-site-revision` metadata described in `FRESHNESS.md`.
+The PWA freshness lifecycle check uses the same browser installation and writes
+`pwa-freshness.json` while validating HTTP-cache revalidation, runtime document
+cache update and persistence, explicit stale indication for cached fallbacks,
+ordinary 4xx non-fallback, 5xx fallback, authoritative deletion, cache-miss 503,
+static-shell convergence, and worker update propagation. The separate capability
+check writes `pwa-capabilities.json` and validates the live freshness-capability
+message contract. The provenance command above also writes and verifies
+`/site-version.json` plus the per-page `templates-site-revision` metadata
+described in `FRESHNESS.md`.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
 preview URLs, repository-browser snapshots, guided navigation, and glossary
