@@ -8,9 +8,10 @@ publication catalog. Canonical terms remain in the semantic owner's
 The inventory is a review aid, not a closed vocabulary. Terms may be added later
 without editing this file when their ownership and semantics are already clear.
 
-The original 14-term seed and the reviewed 17-term first expansion are now
-canonical. The integrated glossary therefore has a required 31-term baseline at
-this stage, while remaining open to later vocabulary growth.
+The original 14-term seed, the reviewed 17-term first expansion, and the reviewed
+10-term second expansion are canonical. The integrated glossary therefore has a
+required 41-term baseline at this stage, while remaining open to later vocabulary
+growth.
 
 ## Selection rules
 
@@ -131,7 +132,7 @@ term so the generic taxonomy does not become an open-ended instance registry.
 
 ### Completed first cross-provider relation pass
 
-The following reviewed relations complete the deferred step 7 of the first
+The following reviewed relations complete the deferred relation pass of the first
 expansion:
 
 | Source term | Related term | Relation rationale |
@@ -149,27 +150,47 @@ family` merely because they contain the word “contract”, publication catalog
 contract manifest based only on registry similarity, and Template mode ↔ Skill
 template scaffold based only on shared template vocabulary.
 
-## Proposed second expansion
+### Completed second cross-provider relation review
 
-The next repository-defined expansion is a coherent set of ten terms whose
-boundaries are already explicit in canonical documentation or executable
-classification logic. The Policy release/trust terms are reviewed together, the
-Webapp revision roles are reviewed together, and the Site navigation concept is
-independent. Cross-provider relations among these terms remain deferred until all
-new targets exist in the exact locked integrated set.
+After all ten second-expansion targets were available for exact-revision
+integration, the likely cross-provider pairs were reviewed again. **No additional
+cross-provider `related_terms` were added.** The vocabulary overlap is not strong
+enough to assert an untyped semantic edge:
 
-| Candidate term | Proposed ID | Owner | Origin | Japanese discovery label | Include next | Rationale / canonical source |
-| --- | --- | --- | --- | --- | --- | --- |
-| Stable release | `templates-policy-stable-release` | policy | repository | 安定版リリース | yes | `docs/architecture.md` explicitly separates the advancing `policy` development branch from the executable stable release selected by the stable descriptor. A stable release is therefore the currently selected executable Policy toolchain release, not the current branch tip or the later promotion-state commit. |
-| Stable release descriptor | `templates-policy-stable-release-descriptor` | policy | repository | 安定版リリース記述子 | yes | `docs/architecture.md` identifies `release/toolchain.json` as the stable release descriptor. The file records `channel: stable`, the toolchain repository and exact promoted revision, plus synchronized contract versions and verifier requirements. |
-| Promoted toolchain revision | `templates-policy-promoted-toolchain-revision` | policy | repository | 昇格済みツールチェーンリビジョン | yes | `docs/architecture.md` defines promotion as writing one reviewed candidate full SHA into both the stable release descriptor and bootstrap manifest. The promoted revision is a strict ancestor of the later promotion-state commit, preventing recursive self-reference. |
-| Bootstrap trust seed | `templates-policy-bootstrap-trust-seed` | policy | repository | ブートストラップ信頼シード | yes | `docs/architecture.md` and `skills/bootstrap-agent-policy/README.md` define `skills/bootstrap-agent-policy/` as the installable trust seed that invokes one immutable Policy toolchain revision through a closed route set. `bootstrap-manifest.yml` pins the same full SHA as the stable release descriptor and intentionally exposes no finalization route. |
-| Managed repository | `templates-policy-managed-repository` | policy | repository | 管理対象リポジトリ | yes | `docs/configuration.md` makes `.agent-policy.yml` the sole semantic configuration entry point in a managed product repository. `src/agent_policy/adoption.py::inspect_repository` classifies a repository as `managed` when that canonical config path resolves to an existing regular file; partial/conflicting generated state without a valid config is classified as `inconsistent`. Managed repositories use normal `validate`, `render`, and `check` rather than onboarding bootstrap. |
-| Candidate revision | `templates-webapp-candidate-revision` | webapp | repository | 候補リビジョン | yes | `template/docs/architecture/release-bundle.md` defines the candidate as the immutable source revision whose reviewed commands ran and whose approval is recorded by release evidence. Product-mode release bundle v1 binds this exact revision and requires equality with the explicit expected revision and release-evidence subject. |
-| Merge-test revision | `templates-webapp-merge-test-revision` | webapp | repository | マージテストリビジョン | yes | `template/docs/architecture/release-bundle.md` defines a temporary or synthetic revision used to test a proposed merge result. A pull-request merge ref is an example; it is useful validation evidence but is not automatically the release candidate unless selected explicitly. |
-| Released revision | `templates-webapp-released-revision` | webapp | repository | リリース済みリビジョン | yes | `template/docs/architecture/release-bundle.md` defines the immutable source identity published by a release system. It may equal the candidate or a later merge commit, and the release system must retain an auditable mapping rather than silently relabel an earlier candidate bundle. |
-| Deployed revision | `templates-webapp-deployed-revision` | webapp | repository | デプロイ済みリビジョン | yes | `template/docs/architecture/release-bundle.md` defines the immutable source identity observed in a target environment after deployment. It belongs to deployment/post-deployment verification rather than the pre-release handoff contract and should be compared with the released revision in product-owned deployment evidence. |
-| Index-guided navigation | `templates-index-guided-navigation` | site | repository | インデックス誘導ナビゲーション | yes | `PUBLISHING.md` defines `/guided/` as a bounded Site projection of provider-owned `index.md` navigation metadata from exact reviewed provider revisions. It preserves provider grouping/order/labels, is neither a second publication catalog nor a replacement for Site-authored reader navigation, and uses `/guided/graph.json` as its schema-versioned read model. |
+- `templates-policy-promoted-toolchain-revision` and
+  `templates-webapp-candidate-revision` are revision roles in different release
+  systems; neither is a generic or concrete instance of the other.
+- `templates-policy-stable-release` and `templates-webapp-released-revision`
+  distinguish a selected executable Policy release state from an immutable source
+  identity published by a release system.
+- `templates-policy-managed-repository` and
+  `templates-webapp-product-repository-artifact` are not equivalent states. The
+  former is an agent-policy adoption classification based on `.agent-policy.yml`;
+  the latter is an artifact class and does not imply that Policy management has
+  been adopted.
+
+These omissions are deliberate. Future cross-provider links may still be added
+when a stronger semantic or disambiguation need is established.
+
+## Completed second expansion
+
+The following ten terms were reviewed as the second repository-defined expansion,
+added to their semantic owners' canonical glossaries, validated by provider-local
+checks plus Site compatibility, and promoted through exact provider revisions
+into the integrated Site publication.
+
+| Canonical term | Canonical ID | Owner | Origin | Japanese discovery label | Rationale / canonical source |
+| --- | --- | --- | --- | --- | --- |
+| Stable release | `templates-policy-stable-release` | policy | repository | 安定版リリース | `docs/architecture.md` separates the advancing `policy` branch from the executable stable release selected by the stable descriptor. A stable release is the currently selected executable Policy toolchain release, not the branch tip or the later promotion-state commit. |
+| Stable release descriptor | `templates-policy-stable-release-descriptor` | policy | repository | 安定版リリース記述子 | `docs/architecture.md` identifies `release/toolchain.json` as the stable release descriptor. It records `channel: stable`, the toolchain repository and exact promoted revision, synchronized contract versions, and verifier requirements. |
+| Promoted toolchain revision | `templates-policy-promoted-toolchain-revision` | policy | repository | 昇格済みツールチェーンリビジョン | Policy promotion writes one reviewed candidate full SHA into both the stable release descriptor and bootstrap manifest. The promoted revision is a strict ancestor of the later promotion-state commit, preventing recursive self-reference. |
+| Bootstrap trust seed | `templates-policy-bootstrap-trust-seed` | policy | repository | ブートストラップ信頼シード | `docs/architecture.md` and `skills/bootstrap-agent-policy/README.md` define `skills/bootstrap-agent-policy/` as the installable trust seed that invokes one immutable Policy toolchain revision through a closed route set; its manifest pins the same promoted revision as the stable descriptor and exposes no finalization route. |
+| Managed repository | `templates-policy-managed-repository` | policy | repository | 管理対象リポジトリ | `docs/configuration.md` and `src/agent_policy/adoption.py::inspect_repository` classify a repository as `managed` when canonical `.agent-policy.yml` resolves to an existing regular file. This classification is distinct from later semantic validation; partial or conflicting generated state is `inconsistent`. |
+| Candidate revision | `templates-webapp-candidate-revision` | webapp | repository | 候補リビジョン | `template/docs/architecture/release-bundle.md` defines the immutable source revision whose reviewed commands ran and whose approval is recorded by release evidence. Product-mode release bundle v1 binds the same exact revision. |
+| Merge-test revision | `templates-webapp-merge-test-revision` | webapp | repository | マージテストリビジョン | `template/docs/architecture/release-bundle.md` defines a temporary or synthetic revision used to test a proposed merge result. It can provide validation evidence but is not automatically the release candidate. |
+| Released revision | `templates-webapp-released-revision` | webapp | repository | リリース済みリビジョン | `template/docs/architecture/release-bundle.md` defines the immutable source identity published by a release system. If mapping an accepted bundle to the released revision changes the source revision, the prior candidate bundle cannot be silently relabeled; fresh release evidence and a fresh bundle are required for the newly selected candidate. |
+| Deployed revision | `templates-webapp-deployed-revision` | webapp | repository | デプロイ済みリビジョン | `template/docs/architecture/release-bundle.md` defines the immutable source identity observed in a target environment after deployment. It belongs to deployment/post-deployment verification and should be compared with the released revision in product-owned deployment evidence. |
+| Index-guided navigation | `templates-index-guided-navigation` | site | repository | インデックス誘導ナビゲーション | `PUBLISHING.md` defines `/guided/` as a bounded Site projection of provider-owned `index.md` navigation metadata from exact reviewed provider revisions. It preserves provider grouping/order/labels, is neither a publication catalog nor a replacement for Site-authored reader navigation, and uses `/guided/graph.json` as its schema-versioned read model. |
 
 ### Second-expansion semantic groups
 
@@ -184,14 +205,14 @@ which normal configuration-driven operation replaces bootstrap onboarding.
 The four Webapp revision-role terms are peers and must not be collapsed. A
 `Candidate revision` is the explicitly approved source subject, a `Merge-test
 revision` is validation input that is not automatically the candidate, a
-`Released revision` is the source identity published by the release system, and
-a `Deployed revision` is the source identity observed in an environment after
+`Released revision` is the source identity published by the release system, and a
+`Deployed revision` is the source identity observed in an environment after
 deployment. Equality between roles is possible in a particular workflow but is
 never inferred from the role names themselves.
 
 `Index-guided navigation` is Site-owned because Site generates, validates, and
 publishes the projection, while the navigation semantics being projected remain
-provider-owned. Its stable identity must not imply that provider `index.md`
+provider-owned. Its stable identity does not imply that provider `index.md`
 becomes a publication catalog or that Site takes ownership of provider navigation
 semantics.
 
@@ -206,8 +227,8 @@ multiple provider glossaries.
 
 | Candidate term | Proposed ID | Curator | Initial decision | Notes |
 | --- | --- | --- | --- | --- |
-| Model Context Protocol | `external-mcp-model-context-protocol` | skill | defer | Skill is the single local curator because its canonical contracts define MCP-enabled Skill behavior and already own the repository-specific MCP-extension concept. Authority/version selection must still be curated from current official MCP specifications before creating the external entry. |
-| Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the repository-defined second expansion. |
+| Model Context Protocol | `external-mcp-model-context-protocol` | skill | defer | Skill is the single local curator because its canonical contracts define MCP-enabled Skill behavior and already own the repository-specific MCP-extension concept. Authority/version selection must be curated from current official MCP specifications before creating the external entry. |
+| Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the current repository-defined glossary baseline. |
 | Progressive Web App | `external-web-progressive-web-app` | site | defer | Same reason as Service Worker; add when PWA terminology becomes a glossary navigation need. |
 
 ## Japanese-label policy for this inventory
@@ -222,23 +243,24 @@ in repository documentation or standard Japanese technical usage. Alternative
 spellings may be stored as `localized_labels.ja.aliases` when they improve
 lookup. No Japanese definition is required.
 
-## Expansion implementation sequence
+## Expansion workflow
 
-The first expansion established the owner-first and exact-revision promotion
-model. The second repository-defined expansion should use the same dependency
-order:
+Future repository-defined expansions should preserve the owner-first and
+exact-revision promotion model:
 
-1. review this inventory change before editing any canonical provider glossary;
-2. add the Site-owned `Index-guided navigation` term;
-3. add the five Policy-owned release/trust/onboarding terms as one coherent set;
-4. add the four Webapp-owned revision-role terms as one coherent set;
-5. validate every provider revision through provider-local checks and the Site
-   compatibility workflow;
-6. promote the reviewed provider merge SHAs through a coordinated Site lock
-   update and verify the integrated JSON and human glossary viewer; and
-7. only after all new targets exist in the exact locked integrated set, review
-   any useful cross-provider `related_terms` rather than inferring them from
-   shared words.
+1. review ambiguous ownership or taxonomy groups before editing canonical data;
+2. add terms to the semantic owner's `docs/glossary.yml` without requiring a
+   central vocabulary edit;
+3. keep provider-authored relations provider-local until any cross-provider
+   targets exist in the exact integrated set;
+4. run provider-local checks and the Site compatibility workflow;
+5. merge provider changes and promote the reviewed full merge SHAs through
+   `publication-sources.json`;
+6. verify the integrated machine-readable glossary and human viewer while
+   treating the established canonical IDs as a required subset rather than a
+   closed vocabulary; and
+7. review useful cross-provider `related_terms` only after all referenced targets
+   exist in the locked integrated set.
 
 External-term expansion remains a separate curation pass because authority URLs
 and version-sensitive upstream semantics must be verified against current
