@@ -112,16 +112,17 @@ token. This avoids false placement caused by tag-like strings inside script or
 style content. Chromium regression verifies that the appended flow content is
 rendered in the body and that exactly one visible stale warning is present.
 
-### Instant-navigation stale indication and acknowledgement
+### Instant-navigation stale indication, acknowledgement, and commit boundary
 
 A document-like fetch used by instant navigation cannot assume that an indication
 embedded in fetched HTML will survive partial-DOM replacement. Before returning
 a cached response for such a request, the Service Worker sends the requesting
-client a `templates:freshness-state` message carrying `cached-unverified` and a
-`MessageChannel` acknowledgement port.
+client a `templates:freshness-state` message carrying `cached-unverified`, the
+exact request URL, and a `MessageChannel` acknowledgement port.
 
 Current `pwa.js` applies that state to persistent DOM by creating the same fixed
-status element as a direct body child, then replies through the port with
+status element as a direct body child, remembers the URL expected to receive the
+cached representation, then replies through the port with
 `templates:freshness-state-applied`. The Service Worker waits for that exact
 acknowledgement, with a bounded timeout, before returning cached HTML.
 
@@ -131,10 +132,20 @@ does not implement the freshness UI, no acknowledgement arrives. The worker then
 refuses to expose cached HTML: a network failure returns the explicit 503 and a
 transient HTTP 5xx returns the original 5xx.
 
-When a later document-like fetch is network-verified, the Service Worker sends
-`verified-current`; current `pwa.js` removes the persistent stale indicator.
-Failure to clear an old warning is treated conservatively and does not permit an
-unindicated stale response.
+Network response completion and document replacement are separate events under
+Zensical instant navigation. Therefore a later HTTP response, including a
+cacheable HTTP 200 or an ordinary 4xx, does not by itself clear a stale warning.
+`pwa.js` subscribes to Zensical's `document$` observable and treats that event as
+the document-commit boundary. If the committed URL is the cached-fallback URL it
+was waiting for, the stale warning is retained and only the pending marker is
+consumed. A later committed document that was not preceded by a cached fallback
+clears the persistent warning. A successful fetch that is prefetched, cancelled,
+or otherwise never committed cannot clear the warning merely by completing.
+
+This fail-safe ordering deliberately permits an old warning to remain longer than
+necessary if a non-Zensical surface cannot expose a document-commit signal. It
+never permits stale content to become unindicated merely because a network fetch
+finished before the caller replaced the visible DOM.
 
 ### Synthetic cached response
 
@@ -162,7 +173,10 @@ The Chromium freshness lifecycle verifies at least:
   rather than cached HTML during offline instant navigation;
 - a current client receives cached v2 only after the persistent stale warning is
   applied and acknowledged;
-- a later verified document-like response clears that persistent warning;
+- committing that cached fallback retains its persistent stale warning;
+- an uncommitted ordinary 4xx response does not clear the warning;
+- a later verified HTTP 200 response does not clear the warning before the
+  corresponding document commit, while the subsequent committed navigation does;
 - offline full navigation returns cached v2 with exactly one visible stale
   indication;
 - an uncached offline request retains explicit 503;
