@@ -29,6 +29,15 @@ When canonical documentation defines a peer taxonomy or an explicit pair of
 contrasting concepts, the inventory should review that set together rather than
 including only whichever members happen to fit a smaller pull request.
 
+Stable IDs follow `GLOSSARY.md`: repository-defined concepts use
+`templates-<slug>`, and the semantic owner is derived from the provider glossary
+that stores the entry rather than being mechanically encoded in the ID. A domain
+word such as `skill`, `policy`, or `webapp` belongs in a slug only when it is
+needed to identify the concept's semantic scope or avoid conflating a nearby
+concept, not merely because that branch currently owns the entry. Consequently,
+Policy ownership-taxonomy terms such as `templates-shared-policy` do not acquire
+an extra `policy-` segment solely for provider namespacing.
+
 ## Current canonical seed
 
 The following stable IDs are already canonical and remain required seed terms.
