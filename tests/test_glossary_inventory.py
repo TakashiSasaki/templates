@@ -24,9 +24,9 @@ REQUIRED_TABLES = {
         "id": "Canonical ID",
         "owner": "Owner",
     },
-    "Deferred repository candidates": {
+    "Proposed second expansion": {
         "id": "Proposed ID",
-        "owner": "Likely owner",
+        "owner": "Owner",
     },
     "External terminology candidates": {
         "id": "Proposed ID",
@@ -51,6 +51,30 @@ EXPECTED_FIRST_EXPANSION_IDS = {
     "templates-webapp-product-mode",
     "templates-webapp-release-bundle",
     "templates-webapp-contract-family",
+}
+EXPECTED_SECOND_EXPANSION_IDS = {
+    "templates-policy-stable-release",
+    "templates-policy-stable-release-descriptor",
+    "templates-policy-promoted-toolchain-revision",
+    "templates-policy-bootstrap-trust-seed",
+    "templates-policy-managed-repository",
+    "templates-webapp-candidate-revision",
+    "templates-webapp-merge-test-revision",
+    "templates-webapp-released-revision",
+    "templates-webapp-deployed-revision",
+    "templates-index-guided-navigation",
+}
+EXPECTED_SECOND_EXPANSION_OWNERS = {
+    "templates-policy-stable-release": "policy",
+    "templates-policy-stable-release-descriptor": "policy",
+    "templates-policy-promoted-toolchain-revision": "policy",
+    "templates-policy-bootstrap-trust-seed": "policy",
+    "templates-policy-managed-repository": "policy",
+    "templates-webapp-candidate-revision": "webapp",
+    "templates-webapp-merge-test-revision": "webapp",
+    "templates-webapp-released-revision": "webapp",
+    "templates-webapp-deployed-revision": "webapp",
+    "templates-index-guided-navigation": "site",
 }
 EXPECTED_CROSS_PROVIDER_RELATIONS = {
     ("templates-skill-profile", "templates-policy-profile"),
@@ -238,6 +262,52 @@ class GlossaryInventoryTests(unittest.TestCase):
 
         self.assertEqual(ids, EXPECTED_FIRST_EXPANSION_IDS)
         self.assertEqual(len(rows), len(EXPECTED_FIRST_EXPANSION_IDS))
+
+    def test_glossary_inventory_proposed_second_expansion_metadata(self) -> None:
+        header, rows = self.table("Proposed second expansion")
+        for column in (
+            "Candidate term",
+            "Proposed ID",
+            "Owner",
+            "Origin",
+            "Japanese discovery label",
+            "Include next",
+            "Rationale / canonical source",
+        ):
+            self.assertIn(column, header)
+
+        ids: set[str] = set()
+        owners: dict[str, str] = {}
+        for row in rows:
+            self.assertEqual(row["Origin"], "repository")
+            self.assertEqual(row["Include next"], "yes")
+            self.assertTrue(
+                row["Candidate term"].strip(),
+                f"candidate term must not be empty: {row}",
+            )
+            self.assertTrue(
+                row["Japanese discovery label"].strip(),
+                f"Japanese discovery label must not be empty: {row}",
+            )
+            self.assertTrue(
+                row["Rationale / canonical source"].strip(),
+                f"candidate rationale must not be empty: {row}",
+            )
+
+            term_id = _term_id(
+                row["Proposed ID"],
+                context="proposed second-expansion ID",
+            )
+            self.assertIsNotNone(
+                REPOSITORY_TERM_ID.fullmatch(term_id),
+                f"second-expansion term must use a repository ID: {term_id}",
+            )
+            ids.add(term_id)
+            owners[term_id] = row["Owner"]
+
+        self.assertEqual(ids, EXPECTED_SECOND_EXPANSION_IDS)
+        self.assertEqual(owners, EXPECTED_SECOND_EXPANSION_OWNERS)
+        self.assertEqual(len(rows), len(EXPECTED_SECOND_EXPANSION_IDS))
 
     def test_glossary_inventory_records_completed_relation_pass(self) -> None:
         header, rows = self.table(
