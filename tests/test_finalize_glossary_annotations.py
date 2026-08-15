@@ -12,6 +12,7 @@ from scripts.finalize_glossary_annotations import (
     GlossaryAnnotationFinalizeError,
     annotate_html,
     annotate_site,
+    main,
 )
 from scripts.glossary_annotation import GlossaryAnnotationError, build_annotation_index
 
@@ -212,6 +213,28 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
             2,
         )
 
+    def test_optional_end_tag_does_not_leak_content_scope(self) -> None:
+        source = (
+            '<html><body><div class="md-content__inner">'
+            '<p>Publication catalog'
+            '</div>'
+            '<footer><p>Publication catalog outside</p></footer>'
+            '</body></html>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn(
+            'data-glossary-id="templates-publication-catalog">Publication catalog</a>',
+            rendered,
+        )
+        self.assertIn("<footer><p>Publication catalog outside</p></footer>", rendered)
+        self.assertNotIn(
+            'data-glossary-id="templates-publication-catalog">Publication catalog</a> outside',
+            rendered,
+        )
+
     def test_existing_annotation_is_idempotent(self) -> None:
         source = '<main><p>Publication catalog.</p></main>'
         first, first_count = annotate_html(source, self.index)
@@ -284,6 +307,27 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
 
             self.assertEqual((changed, links), (0, 0))
             self.assertIn("skipped ambiguous labels: shared label", stderr.getvalue())
+
+    def test_main_returns_one_for_runtime_failure_without_argparse_usage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            missing_root = Path(directory) / "missing-site"
+            missing_glossary = Path(directory) / "missing-glossary.json"
+            stderr = io.StringIO()
+            argv = [
+                "finalize_glossary_annotations.py",
+                "--site-root",
+                str(missing_root),
+                "--glossary",
+                str(missing_glossary),
+            ]
+
+            with patch("sys.argv", argv), redirect_stderr(stderr):
+                result = main()
+
+            self.assertEqual(result, 1)
+            message = stderr.getvalue()
+            self.assertIn("finalize_glossary_annotations.py:", message)
+            self.assertNotIn("usage:", message)
 
     def test_new_glossary_term_is_annotated_without_html_specific_configuration(self) -> None:
         dynamic = model()
