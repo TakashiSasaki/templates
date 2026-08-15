@@ -8,7 +8,7 @@ from pathlib import Path
 from scripts.assemble_publications import assemble
 
 
-class LegacyPublicationAssetTests(unittest.TestCase):
+class ExplicitPublicationAssetTests(unittest.TestCase):
     @staticmethod
     def write_catalog(
         root: Path,
@@ -21,7 +21,7 @@ class LegacyPublicationAssetTests(unittest.TestCase):
         path.write_text(
             json.dumps(
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [
                         {
                             "id": document_id,
@@ -35,7 +35,7 @@ class LegacyPublicationAssetTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def test_legacy_assets_copy_only_non_markdown_files(self) -> None:
+    def test_undeclared_provider_assets_are_not_published(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             site = base / "site"
@@ -103,12 +103,7 @@ class LegacyPublicationAssetTests(unittest.TestCase):
 
             assemble({"site": site, "skill": skill}, site, output)
 
-            self.assertFalse(
-                (output / "docs" / "skill" / "assets" / "README.md").exists()
-            )
-            self.assertTrue(
-                (output / "docs" / "skill" / "assets" / "icon.svg").is_file()
-            )
+            self.assertFalse((output / "docs" / "skill" / "assets").exists())
 
 
 if __name__ == "__main__":

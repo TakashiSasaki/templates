@@ -16,7 +16,7 @@ class MultiPublicationAssemblyTests(unittest.TestCase):
         assets: list[dict[str, object]] | None = None,
     ) -> None:
         payload: dict[str, object] = {
-            "schema_version": 2 if assets is not None else 1,
+            "schema_version": 3,
             "documents": documents,
         }
         if assets is not None:
@@ -106,6 +106,13 @@ class MultiPublicationAssemblyTests(unittest.TestCase):
                         "source": "README.md",
                         "optional": False,
                         "home": True,
+                    }
+                ],
+                [
+                    {
+                        "source": "assets",
+                        "destination": "assets",
+                        "optional": False,
                     }
                 ],
             )

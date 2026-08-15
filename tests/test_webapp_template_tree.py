@@ -53,7 +53,7 @@ def initialize_webapp(root: Path, *, with_template: bool = True) -> str:
     write_json(
         root / "docs" / "publication-catalog.json",
         {
-            "schema_version": 2,
+            "schema_version": 3,
             "documents": [
                 {
                     "id": "overview",

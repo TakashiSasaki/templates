@@ -20,7 +20,7 @@ class RepositoryTreePreparationSymlinkTests(unittest.TestCase):
             (site_root / "docs/publication-catalog.json").write_text(
                 json.dumps(
                     {
-                        "schema_version": 1,
+                        "schema_version": 3,
                         "documents": [
                             {
                                 "id": "portal-home",

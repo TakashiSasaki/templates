@@ -545,16 +545,12 @@ def glossary_source_from_catalog(root: Path) -> PurePosixPath | None:
         raise GlossaryError("publication catalog must be an object")
 
     version = data.get("schema_version")
-    if type(version) is not int or version not in (1, 2, 3):
+    if type(version) is not int or version != 3:
         raise GlossaryError(
-            "publication catalog schema_version must be integer 1, 2, or 3"
+            "publication catalog schema_version must be integer 3"
         )
 
-    allowed = {"schema_version", "documents"}
-    if version >= 2:
-        allowed.add("assets")
-    if version == 3:
-        allowed.add("glossary")
+    allowed = {"schema_version", "documents", "assets", "glossary"}
     unknown = set(data) - allowed
     if unknown:
         raise GlossaryError(
@@ -562,8 +558,6 @@ def glossary_source_from_catalog(root: Path) -> PurePosixPath | None:
             + ", ".join(sorted(unknown))
         )
 
-    if version < 3:
-        return None
     if "glossary" not in data:
         return None
 

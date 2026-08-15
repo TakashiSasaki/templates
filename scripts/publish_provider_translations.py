@@ -9,14 +9,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from assemble_publications import load_manifest, pages, parse_publications
-from assemble_publications_v3 import load_catalog
-import publish_translations as translation_publisher
-from translation_manifest_surfaces import (
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts import publish_translations as translation_publisher
+from scripts.assemble_publications import load_manifest, pages, parse_publications
+from scripts.assemble_publications_v3 import load_catalog
+from scripts.translation_manifest_surfaces import (
     TranslationManifestSurfaceError,
     project_reader_manifest,
 )
-from translation_reader_metadata import exclude_translation_from_search
+from scripts.translation_reader_metadata import exclude_translation_from_search
 
 
 def install_reader_manifest_surface_adapter() -> None:
