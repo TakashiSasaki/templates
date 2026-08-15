@@ -11,6 +11,8 @@ terms:
       required structure and proof obligations without claiming concrete
       product source locations, commands, verified results, release gates, or
       release decisions.
+    related_terms:
+      - templates-webapp-product-mode
 
   - id: templates-webapp-contract-manifest
     term: Contract manifest
@@ -25,6 +27,9 @@ terms:
       every active Webapp contract family and schema and preserves the identity
       and version history of retired families. Contract files do not become
       part of the authoritative set merely by existing in the repository.
+    related_terms:
+      - templates-webapp-contract-family
+      - templates-webapp-release-bundle
 
   - id: templates-webapp-implementation-evidence
     term: Implementation evidence
@@ -42,6 +47,7 @@ terms:
       execution itself.
     related_terms:
       - templates-webapp-release-evidence
+      - templates-webapp-product-mode
 
   - id: templates-webapp-release-evidence
     term: Release evidence
@@ -59,3 +65,93 @@ terms:
       implementation evidence.
     related_terms:
       - templates-webapp-implementation-evidence
+      - templates-webapp-product-mode
+      - templates-webapp-release-bundle
+
+  - id: templates-webapp-template-source-artifact
+    term: Template source artifact
+    localized_labels:
+      ja:
+        term: テンプレートソースアーティファクト
+    origin: repository
+    definition: >-
+      The complete Webapp branch checkout used by template maintainers. It
+      contains the copyable template together with source-only tests,
+      publication integration, audits, policy, and distribution validation.
+    related_terms:
+      - templates-webapp-template-distribution-artifact
+      - templates-webapp-product-repository-artifact
+
+  - id: templates-webapp-template-distribution-artifact
+    term: Template distribution artifact
+    localized_labels:
+      ja:
+        term: テンプレート配布アーティファクト
+    origin: repository
+    definition: >-
+      The committed contents of the Webapp template/ subtree that are copied
+      without content transformation to the root of a newly created product
+      repository and form the canonical downstream repository template.
+    related_terms:
+      - templates-webapp-template-source-artifact
+      - templates-webapp-product-repository-artifact
+
+  - id: templates-webapp-product-repository-artifact
+    term: Product repository artifact
+    localized_labels:
+      ja:
+        term: プロダクトリポジトリアーティファクト
+    origin: repository
+    definition: >-
+      A repository created from the template distribution after product-specific
+      contracts, implementation, evidence, commands, CI, release results, and
+      deployment configuration are supplied.
+    related_terms:
+      - templates-webapp-template-source-artifact
+      - templates-webapp-template-distribution-artifact
+
+  - id: templates-webapp-product-mode
+    term: Product mode
+    localized_labels:
+      ja:
+        term: プロダクトモード
+    origin: repository
+    definition: >-
+      The concrete-product evidence state in which Webapp evidence contracts
+      require the repository-local implementation locations, commands, release
+      gates, immutable revisions, verified results, provenance, and decisions
+      governed by each contract. It is the counterpart to Template mode, which
+      records obligations without claiming those product values.
+    related_terms:
+      - templates-webapp-template-mode
+      - templates-webapp-implementation-evidence
+      - templates-webapp-release-evidence
+
+  - id: templates-webapp-release-bundle
+    term: Release bundle
+    localized_labels:
+      ja:
+        term: リリースバンドル
+    origin: repository
+    definition: >-
+      The provider-neutral Webapp handoff contract that binds one approved
+      candidate revision to the exact current bytes of the active contract set
+      being transferred. It complements release evidence rather than recording
+      command execution and approval itself.
+    related_terms:
+      - templates-webapp-contract-manifest
+      - templates-webapp-release-evidence
+
+  - id: templates-webapp-contract-family
+    term: Contract family
+    localized_labels:
+      ja:
+        term: コントラクトファミリー
+    origin: repository
+    definition: >-
+      A stable versioned identity for one Webapp contract concern in the
+      contract manifest, with active or retired state, version history,
+      migration ownership, registered paths, and evidence coverage maintained
+      across contract evolution.
+    related_terms:
+      - templates-webapp-contract-manifest
