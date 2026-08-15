@@ -11,6 +11,8 @@ const STATIC_ASSETS = [
   "/stylesheets/glossary-inline.css",
   "/stylesheets/freshness-status.css",
   "/javascripts/repository-tree-viewer.js",
+  "/javascripts/repository-browser.js",
+  "/javascripts/guided-copy.js",
   "/javascripts/pwa.js",
   "/javascripts/glossary-inline.js"
 ];
@@ -27,6 +29,7 @@ const CACHED_DOCUMENT_NOTICE =
   '<strong>Saved copy.</strong> The latest version could not be verified.' +
   "</aside>";
 const FRESHNESS_UI_ACK_TIMEOUT_MS = 500;
+const documentCacheMutationQueues = new Map();
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -43,6 +46,11 @@ function isDocumentRequest(request, url) {
 
   if (request.destination !== "") {
     return false;
+  }
+
+  const accept = request.headers.get("Accept") || "";
+  if (accept.toLowerCase().includes("text/html")) {
+    return true;
   }
 
   const pathname = url.pathname;
@@ -62,30 +70,59 @@ function isCacheableDocumentResponse(response) {
   if (response.status !== 200) {
     return false;
   }
-  if (!response.url || new URL(response.url).origin !== self.location.origin) {
+  if (!response.url) {
+    return false;
+  }
+  try {
+    if (new URL(response.url).origin !== self.location.origin) {
+      return false;
+    }
+  } catch (error) {
+    console.warn("PWA document response URL is invalid", error);
     return false;
   }
   const contentType = response.headers.get("Content-Type") || "";
   return contentType.toLowerCase().includes("text/html");
 }
 
+function enqueueDocumentCacheMutation(request, operation) {
+  const key = request.url;
+  const previous = documentCacheMutationQueues.get(key) || Promise.resolve();
+  const next = previous.catch(() => undefined).then(operation);
+  documentCacheMutationQueues.set(key, next);
+  return next.finally(() => {
+    if (documentCacheMutationQueues.get(key) === next) {
+      documentCacheMutationQueues.delete(key);
+    }
+  });
+}
+
 async function cacheVerifiedDocument(request, cachedResponse) {
   try {
-    const cache = await caches.open(DOCUMENT_CACHE_NAME);
-    await cache.put(request, cachedResponse);
+    await enqueueDocumentCacheMutation(request, async () => {
+      const cache = await caches.open(DOCUMENT_CACHE_NAME);
+      await cache.put(request, cachedResponse);
+    });
   } catch (error) {
     console.warn("PWA document cache update failed", error);
   }
 }
 
 async function deleteCachedDocument(request) {
-  const cache = await caches.open(DOCUMENT_CACHE_NAME);
-  await cache.delete(request);
+  await enqueueDocumentCacheMutation(request, async () => {
+    const cache = await caches.open(DOCUMENT_CACHE_NAME);
+    await cache.delete(request);
+  });
 }
 
-async function decorateCachedDocument(response) {
+async function decorateCachedDocument(response, request) {
   const contentType = response.headers.get("Content-Type") || "";
   if (!contentType.toLowerCase().includes("text/html")) {
+    return undefined;
+  }
+
+  if (response.url && response.url !== request.url) {
+    console.warn("PWA cached redirect fallback rejected", response.url, request.url);
     return undefined;
   }
 
@@ -118,7 +155,7 @@ async function cachedDocumentFallback(request) {
     if (!response) {
       return undefined;
     }
-    return await decorateCachedDocument(response);
+    return await decorateCachedDocument(response, request);
   } catch (error) {
     console.warn("PWA document cache lookup failed", error);
     return undefined;
