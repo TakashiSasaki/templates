@@ -142,6 +142,44 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertIn(RUNTIME_SCRIPT, rendered)
             self.assertIn(f'content="{GUIDED_RUNTIME_CSP}"', rendered)
 
+    def test_unannotated_guided_page_retains_original_csp(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided" / "skill" / "index.html"
+            page.parent.mkdir(parents=True)
+            original = guided_source("No matching vocabulary.")
+            page.write_text(original, encoding="utf-8")
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (0, 0))
+            self.assertEqual(page.read_text(encoding="utf-8"), original)
+
+    def test_guided_runtime_preserves_stricter_same_origin_style_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided" / "skill" / "index.html"
+            page.parent.mkdir(parents=True)
+            csp = "default-src 'none'; style-src 'self'; script-src 'self'"
+            page.write_text(
+                guided_source("Publication catalog", csp=csp),
+                encoding="utf-8",
+            )
+
+            changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (1, 1))
+            rendered = page.read_text(encoding="utf-8")
+            self.assertIn(
+                'content="default-src \'none\'; style-src \'self\'; script-src \'self\'; connect-src \'self\'"',
+                rendered,
+            )
+            self.assertNotIn("style-src 'unsafe-inline'", rendered)
+
     def test_guided_runtime_rejects_broader_script_policy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -165,6 +203,35 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
                 "guided script-src must be exactly",
             ):
                 annotate_site(root, glossary)
+
+    def test_guided_runtime_rejects_broader_style_and_connect_policies(self) -> None:
+        cases = (
+            (
+                "style",
+                "default-src 'none'; style-src *; script-src 'self'",
+                "guided style-src must remain limited",
+            ),
+            (
+                "connect",
+                "default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; "
+                "connect-src 'self' https://external.example",
+                "guided connect-src must be exactly",
+            ),
+        )
+        for name, csp, expected in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                glossary = root / "glossary-model.json"
+                glossary.write_text(json.dumps(model()), encoding="utf-8")
+                page = root / "guided" / "skill" / "index.html"
+                page.parent.mkdir(parents=True)
+                page.write_text(
+                    guided_source("Publication catalog", csp=csp),
+                    encoding="utf-8",
+                )
+
+                with self.assertRaisesRegex(GlossaryAnnotationFinalizeError, expected):
+                    annotate_site(root, glossary)
 
     def test_headless_document_keeps_static_glossary_link_without_runtime_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
