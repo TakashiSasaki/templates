@@ -221,8 +221,12 @@ class _AnnotationParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         self._flush_text()
         self.output.append(f"</{tag}>")
-        if tag not in VOID_TAGS and self.stack and self.stack[-1][0] == tag:
-            self.stack.pop()
+        if tag in VOID_TAGS:
+            return
+        for index in range(len(self.stack) - 1, -1, -1):
+            if self.stack[index][0] == tag:
+                del self.stack[index:]
+                break
 
     def handle_data(self, data: str) -> None:
         self._buffer_text(data, data)
@@ -342,7 +346,8 @@ def main() -> int:
     try:
         files_changed, links_added = annotate_site(args.site_root, args.glossary)
     except GlossaryAnnotationFinalizeError as exc:
-        parser.error(str(exc))
+        print(f"finalize_glossary_annotations.py: {exc}", file=sys.stderr)
+        return 1
     print(
         f"Annotated {files_changed} HTML files with {links_added} Glossary links."
     )
