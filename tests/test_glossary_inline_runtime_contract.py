@@ -20,6 +20,15 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         self.assertIn('trigger.setAttribute("aria-expanded", "false")', script)
         self.assertIn("enhanceGlossaryLinks(document)", script)
 
+    def test_runtime_preserves_inline_markup_when_promoting_links(self) -> None:
+        script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("while (link.firstChild)", script)
+        self.assertIn("trigger.appendChild(link.firstChild)", script)
+        self.assertNotIn("trigger.textContent = link.textContent", script)
+
     def test_runtime_never_uses_implicit_navigation_after_enhancement(self) -> None:
         script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
             encoding="utf-8"
