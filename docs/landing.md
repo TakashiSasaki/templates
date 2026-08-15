@@ -19,6 +19,9 @@
       <a class="portal-cover__button portal-cover__button--primary" href="overview/">
         Read portal overview <span aria-hidden="true">→</span>
       </a>
+      <a class="portal-cover__button portal-cover__button--secondary" href="/glossary/">
+        Browse glossary <span aria-hidden="true">→</span>
+      </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="/guided/">
         Browse by index.md <span aria-hidden="true">→</span>
       </a>
@@ -78,7 +81,7 @@
   </article>
   <article>
     <span class="portal-cover-features__mark" aria-hidden="true">03</span>
-    <div><h2>Validated for readers</h2><p>Assembly, navigation, links, provenance, and Pages output are checked.</p></div>
+    <div><h2>Validated for readers</h2><p>Assembly, navigation, glossary semantics, links, provenance, and Pages output are checked.</p></div>
   </article>
 </section>
 

@@ -2,7 +2,7 @@
 
 This document defines the canonical terminology contract used by the unrelated `site`, `skill`, `policy`, and `webapp` branch histories in `TakashiSasaki/templates`.
 
-The glossary is a machine-readable semantic contract. It is intentionally separate from any future glossary user interface. Provider branches own canonical terminology, while `site` validates and integrates the provider-owned sources into one deterministic read model.
+The glossary is a machine-readable semantic contract whose meaning is independent of any particular user interface. Provider branches own canonical terminology, while `site` validates and integrates the provider-owned sources into one deterministic read model. The Site publication also renders a non-authoritative human projection of that same integrated model at `/glossary/`.
 
 ## Canonical language and localized labels
 
@@ -154,11 +154,14 @@ Glossary YAML is treated as data, not executable configuration. The validator re
 
 ## Integrated publication
 
-The Site build reads glossary inputs from the same checked-out provider revisions used for the rest of the integrated publication. It produces:
+The Site build reads glossary inputs from the same checked-out provider revisions used for the rest of the integrated publication. It produces two stable representations of the same integrated glossary:
 
 ```text
 /glossary/index.json
+/glossary/
 ```
+
+`/glossary/index.json` is the schema-versioned machine-readable read model. `/glossary/` is a generated human-readable projection of that model. The HTML projection is not a second terminology authority and must not redefine, infer, or independently translate glossary semantics.
 
 Each integrated term records derived provenance including:
 
@@ -166,7 +169,23 @@ Each integrated term records derived provenance including:
 - `source_path`;
 - `source_revision` as a full lowercase Git commit SHA.
 
-Terms are emitted in stable ID order. Duplicate term IDs and unresolved `related_terms` fail the build closed. The generated JSON retains localized labels losslessly enough for a future search or user interface to build reverse lookups without changing the canonical glossary schema.
+Terms are emitted in stable ID order. Duplicate term IDs and unresolved `related_terms` fail the build closed. The generated JSON retains localized labels losslessly enough for search or later interactive presentation without changing the canonical glossary schema.
+
+## Human presentation
+
+The Site glossary viewer follows these presentation rules:
+
+- canonical English terms and definitions remain the semantic source shown to readers;
+- localized labels such as Japanese preferred terms and aliases are displayed as lexical lookup aids only;
+- repository-defined terms are separated from externally defined terms;
+- repository-defined terms are grouped by their canonical provider owner;
+- externally defined terms retain visible links to their declared external authority;
+- each term exposes its stable term ID and immutable provider-source provenance;
+- `related_terms` are rendered through stable term-ID links rather than label-based inference;
+- all glossary-provided text is escaped before HTML rendering;
+- the generated page executes no glossary-supplied JavaScript.
+
+The current viewer is intentionally static. Its existence does not make search normalization, fuzzy matching, filtering, or localization rules part of glossary schema version 1.
 
 ## Adding terminology later
 
@@ -176,11 +195,11 @@ Adding a new term or adding a Japanese label to an existing term does not normal
 
 - a glossary schema change;
 - a publication-catalog change;
-- a Site implementation change;
+- a Site implementation change; or
 - a user-interface change.
 
 The Site publication lock is updated through the normal reviewed provider-revision promotion process before the new terminology appears in the integrated publication.
 
 ## Out of scope for this contract
 
-This contract does not define the human glossary page, search normalization, fuzzy search, language filters, inline term linking, tooltips, localized explanatory prose, or online authority-link monitoring. Those features may be designed later on top of the stable term IDs and integrated machine-readable model.
+This contract does not define search normalization, fuzzy search, language filters, inline term linking outside the glossary page, tooltips, localized explanatory prose, or online authority-link monitoring. Those features may be designed later on top of the stable term IDs and integrated machine-readable model.

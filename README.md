@@ -73,8 +73,10 @@ Three complementary discovery surfaces are available:
 - `/files/` provides the bounded static browser for immutable source snapshots.
 
 The machine-readable integrated terminology registry is published at
-`/glossary/index.json`. A human glossary/search UI is deliberately separate from
-the glossary data contract and may be added later.
+`/glossary/index.json`. The Site also renders a static human-readable projection
+of that same validated model at `/glossary/`; the viewer does not create a
+second terminology authority or imply that search is part of glossary schema
+version 1.
 
 Cataloged Markdown files link to their Pages documentation. Eligible regular
 UTF-8 text files up to 256 KiB can be opened in a sandboxed inline frame, while
@@ -107,7 +109,11 @@ progressive-disclosure path that agents can follow.
 - `scripts/glossary.py`: strict glossary parsing, schema validation, and
   cross-provider integration logic;
 - `scripts/generate_glossary.py`: emits deterministic `/glossary/index.json`
-  source data with exact provider provenance;
+  source data with exact provider provenance and, in its CLI publication path,
+  renders the sibling `/glossary/index.html` viewer;
+- `scripts/generate_glossary_viewer.py`: validates the integrated glossary JSON
+  again at the rendering boundary and produces the static `/glossary/` human
+  projection;
 - `scripts/generate_repository_trees.py`: generates tracked-path trees and
   immutable GitHub links from `git ls-tree`;
 - `scripts/generate_repository_file_previews.py`: reads exact Git blob objects,
