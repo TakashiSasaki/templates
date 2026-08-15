@@ -39,6 +39,9 @@ terms:
     related_terms:
       - templates-policy-profile
       - templates-policy-renderer
+      - templates-context-policy
+      - templates-repository-local-policy
+      - templates-policy-override
 
   - id: templates-policy-renderer
     term: Policy renderer
@@ -52,3 +55,115 @@ terms:
       adding, removing, or overriding policy rules.
     related_terms:
       - templates-policy-context
+      - templates-adapter-renderer-requirement
+
+  - id: templates-shared-policy
+    term: Shared policy
+    localized_labels:
+      ja:
+        term: 共有ポリシー
+    origin: repository
+    definition: >-
+      Artifact- and engine-independent operating behavior that is generally
+      applicable and is authored in the policy branch as canonical shared
+      semantics rather than copied into consumer repositories as an independent
+      handwritten authority.
+    related_terms:
+      - templates-policy-module
+      - templates-policy-profile
+      - templates-context-policy
+      - templates-repository-local-policy
+
+  - id: templates-context-policy
+    term: Context policy
+    localized_labels:
+      ja:
+        term: コンテキストポリシー
+    origin: repository
+    definition: >-
+      Artifact- and engine-independent policy content selected only for a
+      particular operational context, such as pull-request review or external
+      artifact intake. It is policy content, not the Policy context selector:
+      a Policy context is the named semantic authority boundary that selects
+      profiles, repository-local policy, and overrides; each output separately
+      references both a context and a renderer.
+    related_terms:
+      - templates-policy-context
+      - templates-shared-policy
+
+  - id: templates-repository-local-policy
+    term: Repository-local policy
+    localized_labels:
+      ja:
+        term: リポジトリローカルポリシー
+    origin: repository
+    definition: >-
+      Policy owned by a managed repository for local facts, invariants,
+      justified extensions, or explicit permitted overrides. It supplements
+      shared semantics instead of restating shared rules merely for
+      convenience.
+    related_terms:
+      - templates-policy-context
+      - templates-shared-policy
+      - templates-policy-override
+
+  - id: templates-artifact-contract
+    term: Artifact contract
+    localized_labels:
+      ja:
+        term: アーティファクト契約
+    origin: repository
+    definition: >-
+      A requirement class that defines what a produced Skill, Web application,
+      CLI, library, service, or other artifact must contain or do. Artifact
+      contracts belong to the produced artifact rather than to shared
+      coding-agent operating policy.
+    related_terms:
+      - templates-adapter-renderer-requirement
+      - templates-explanatory-material
+
+  - id: templates-adapter-renderer-requirement
+    term: Adapter/renderer requirement
+    localized_labels:
+      ja:
+        term: アダプター／レンダラー要件
+    origin: repository
+    definition: >-
+      A requirement whose meaning depends on a particular agent, platform,
+      protocol, command surface, renderer, or output format. It adapts or
+      presents semantics instead of defining application-independent shared
+      policy.
+    related_terms:
+      - templates-policy-renderer
+      - templates-artifact-contract
+
+  - id: templates-explanatory-material
+    term: Explanatory material
+    localized_labels:
+      ja:
+        term: 説明資料
+    origin: repository
+    definition: >-
+      Rationale, examples, history, proposals, and other non-normative text that
+      explains policy or artifact decisions without itself establishing a
+      normative policy rule or artifact contract.
+    related_terms:
+      - templates-artifact-contract
+
+  - id: templates-policy-override
+    term: Policy override
+    localized_labels:
+      ja:
+        term: ポリシーオーバーライド
+    origin: repository
+    definition: >-
+      The mechanism by which a repository-local rule intentionally replaces an
+      overridable shared rule with the same stable rule ID. Schema version 2
+      requires the containing context to record that exception in an explicit
+      override declaration with a non-empty reason, while the repository-local
+      policy file remains the source of the replacement rule body. Schema
+      version 1 retains the legacy implicit override behavior.
+    related_terms:
+      - templates-policy-context
+      - templates-shared-policy
+      - templates-repository-local-policy
