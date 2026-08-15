@@ -59,6 +59,35 @@ class FreshnessReviewRegressionTests(unittest.TestCase):
 
         self.assertTrue(source[position:].startswith("</head>"))
 
+    def test_source_offset_matches_html_parser_with_nonstandard_newlines(self) -> None:
+        marker = (
+            '<meta name="templates-site-revision" '
+            f'content="{SITE_REVISION}">'
+        )
+        cases = {
+            "crlf-and-lone-cr": (
+                "<!doctype html>\r\n<html>\r\n<head>\r"
+                "<title>Test</title>\r\n</head><body></body></html>"
+            ),
+            "unicode-line-separator": (
+                "<!doctype html>\n<html>\n<head>\u2028"
+                "<title>Test</title>\u2028</head><body></body></html>"
+            ),
+        }
+
+        for name, source in cases.items():
+            with self.subTest(name=name):
+                updated = generate_freshness_metadata.annotate_site_revision(
+                    source,
+                    SITE_REVISION,
+                    Path("index.html"),
+                )
+                self.assertEqual(updated.count(marker), 1)
+                self.assertEqual(
+                    updated.index(marker) + len(marker) + 1,
+                    updated.index("</head>"),
+                )
+
     def test_service_worker_guards_capability_message_target(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
