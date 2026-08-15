@@ -13,6 +13,8 @@ terms:
       and contracts needed by a concrete Agent Skill. Profiles are not
       mandatory maturity levels, and compatible non-instruction-only profiles
       may be combined.
+    related_terms:
+      - templates-policy-profile
 
   - id: templates-skill-template-scaffold
     term: Skill template scaffold
@@ -75,3 +77,5 @@ terms:
     related_terms:
       - templates-skill-profile
       - templates-skill-runtime-decision-record
+      - templates-artifact-contract
+      - templates-adapter-renderer-requirement
