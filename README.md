@@ -12,7 +12,9 @@ path.
 The normative cross-branch publication rules are documented in
 [`PUBLISHING.md`](PUBLISHING.md). Canonical terminology ownership, glossary
 schema rules, localized lexical labels, and glossary integration are documented
-in [`GLOSSARY.md`](GLOSSARY.md).
+in [`GLOSSARY.md`](GLOSSARY.md). Build identity, per-document revision metadata,
+PWA freshness-state vocabulary, and cache/fallback invariants are documented in
+[`FRESHNESS.md`](FRESHNESS.md).
 
 ## Ownership model
 
@@ -49,7 +51,7 @@ The `site` branch owns:
 - the deterministic index-navigation graph and `/guided/` projection of
   provider-owned `index.md` navigation at the same locked revisions;
 - integrated assembly, strict site generation, link validation, provenance,
-  and Pages deployment.
+  freshness identity, and Pages deployment.
 
 A document is identified by the pair `publication:document`, such as
 `skill:overview`, `policy:overview`, or `webapp:overview`. A glossary concept is
@@ -98,6 +100,8 @@ progressive-disclosure path that agents can follow.
 - `docs/glossary.yml`: Site-owned canonical glossary entries;
 - `GLOSSARY.md`: normative glossary schema, authority, ownership, and
   localization contract;
+- `FRESHNESS.md`: normative build identity, per-document revision metadata,
+  runtime freshness-state, cache namespace, and stale-fallback contract;
 - `docs/repository-trees/*.md`: reviewed templates for generated tree pages;
 - `site-manifest.json`: canonical integrated navigation before generated
   inventory augmentation;
@@ -129,10 +133,14 @@ progressive-disclosure path that agents can follow.
   files from immutable Git blobs into a deterministic navigation graph;
 - `scripts/generate_index_navigation_viewer.py`: renders that graph as the
   static `/guided/` human navigation surface without reparsing Markdown;
+- `scripts/generate_freshness_metadata.py`: projects the exact build revisions
+  into `/site-version.json`, annotates eligible generated HTML with the Site
+  revision, and verifies both outputs before artifact upload;
 - `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
   Playwright-managed Chromium and writes screenshot and metric evidence;
 - `scripts/check_pwa_freshness.py`: exercises document revalidation, static-shell
-  refresh, service-worker update propagation, and offline fallbacks in Chromium;
+  refresh, service-worker update propagation, freshness capability messaging,
+  and offline fallbacks in Chromium;
 - `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
@@ -262,7 +270,10 @@ controller and writes 390×844 screenshots plus `metrics.json` under
 `build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
 The PWA freshness check uses the same browser installation and writes
 `pwa-freshness.json` while validating HTTP-cache revalidation, static-shell
-convergence, worker update propagation, and explicit offline 503 fallbacks.
+convergence, worker update propagation, the live freshness-capability message
+contract, and explicit offline 503 fallbacks. The provenance command above also
+writes and verifies `/site-version.json` plus the per-page
+`templates-site-revision` metadata described in `FRESHNESS.md`.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
 preview URLs, repository-browser snapshots, guided navigation, and glossary
