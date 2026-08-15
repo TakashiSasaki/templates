@@ -23,6 +23,10 @@ PAGE_PATH_PATTERN = re.compile(
     r'<p class="page-path"><span class="page-path-label">Page path:</span>\s*'
     r'<code>(?P<path>[^<]+)</code></p>'
 )
+PAGE_PATH_ROUTE_PATTERN = re.compile(
+    r'<p class="page-path"><span class="page-path-label">[^<]+</span>\s*'
+    r'<code>(?P<path>[^<]+)</code></p>'
+)
 IMMUTABLE_GITHUB_SOURCE_PATTERN = re.compile(
     r'<a\b[^>]*\bhref="(?P<href>[^"]+)"[^>]*>\s*'
     r'immutable GitHub source\s*</a>',
@@ -91,18 +95,25 @@ def validate_canonical_url(value: str) -> str:
     return value
 
 
-def validate_guided_page_path(value: str, path: Path) -> str:
+def validate_page_path_route(value: str, path: Path) -> str:
     parsed = urlsplit(value)
     if (
         parsed.scheme
         or parsed.netloc
         or parsed.query
         or parsed.fragment
-        or not value.startswith("/guided/")
+        or not value.startswith("/")
         or not value.endswith("/")
         or "\\" in value
         or "//" in value[1:]
     ):
+        raise SiteMetadataError(f"{path}: invalid page path route: {value!r}")
+    return value
+
+
+def validate_guided_page_path(value: str, path: Path) -> str:
+    validate_page_path_route(value, path)
+    if not value.startswith("/guided/"):
         raise SiteMetadataError(f"{path}: invalid guided page path: {value!r}")
     return value
 
@@ -287,10 +298,63 @@ def guided_copy_button(name: str, url: str) -> str:
     )
 
 
+def discover_page_path_routes(html_files: list[Path]) -> set[str]:
+    """Return the public directory routes declared by generated Page path markers."""
+    routes: dict[str, Path] = {}
+    for path in html_files:
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise SiteMetadataError(f"unable to read generated HTML {path}: {exc}") from exc
+        matches = list(PAGE_PATH_ROUTE_PATTERN.finditer(source))
+        if len(matches) > 1:
+            raise SiteMetadataError(f"{path}: multiple page path markers")
+        if not matches:
+            continue
+        route = validate_page_path_route(
+            html.unescape(matches[0].group("path")),
+            path,
+        )
+        previous = routes.get(route)
+        if previous is not None:
+            raise SiteMetadataError(
+                f"{path}: page path route {route!r} is also declared by {previous}"
+            )
+        routes[route] = path
+    return set(routes)
+
+
+def render_page_path_breadcrumb(page_path: str, page_routes: set[str]) -> str:
+    """Render only generated route prefixes as links, leaving gaps as plain text."""
+    segments = page_path.strip("/").split("/")
+    pieces = ['<span class="page-path-separator" aria-hidden="true">/</span><wbr>']
+    prefix: list[str] = []
+    for segment in segments:
+        prefix.append(segment)
+        target = "/" + "/".join(prefix) + "/"
+        escaped_segment = html.escape(segment)
+        escaped_target = html.escape(target, quote=True)
+        if target == page_path:
+            pieces.append(
+                f'<span class="page-path-segment" aria-current="page">{escaped_segment}</span>'
+            )
+        elif target in page_routes:
+            pieces.append(
+                f'<a class="page-path-segment" href="{escaped_target}">{escaped_segment}</a>'
+            )
+        else:
+            pieces.append(f'<span class="page-path-segment">{escaped_segment}</span>')
+        pieces.append(
+            '<span class="page-path-separator" aria-hidden="true">/</span><wbr>'
+        )
+    return "".join(pieces)
+
+
 def enhance_guided_copy_controls(
     source: str,
     canonical_url: str,
     path: Path,
+    page_routes: set[str] | None = None,
 ) -> str:
     page_path_matches = list(PAGE_PATH_PATTERN.finditer(source))
     if not page_path_matches:
@@ -302,6 +366,12 @@ def enhance_guided_copy_controls(
     page_path_match = page_path_matches[0]
     escaped_page_path = page_path_match.group("path")
     page_path = validate_guided_page_path(html.unescape(escaped_page_path), path)
+    if page_routes is None:
+        page_routes = {page_path}
+    if page_path not in page_routes:
+        raise SiteMetadataError(
+            f"{path}: guided page path is not declared by a generated page: {page_path!r}"
+        )
     public_url = urljoin(canonical_url, page_path.lstrip("/"))
 
     github_matches = list(IMMUTABLE_GITHUB_SOURCE_PATTERN.finditer(source))
@@ -318,12 +388,13 @@ def enhance_guided_copy_controls(
     buttons.append(guided_copy_button("public URL", public_url))
 
     replacement = (
-        '<p class="page-path"><span class="page-path-label">Page path:</span> '
-        f'<code>{html.escape(page_path)}</code> '
+        '<nav class="page-path" aria-label="Page path">'
+        '<span class="page-path-label">Page path:</span> '
+        f'<code>{render_page_path_breadcrumb(page_path, page_routes)}</code> '
         '<span class="page-path-actions">'
         + " ".join(buttons)
         + ' <span class="copy-status" role="status" aria-live="polite"></span>'
-        "</span></p>"
+        "</span></nav>"
     )
     updated = (
         source[: page_path_match.start()]
@@ -386,6 +457,7 @@ def normalize_site_metadata(
 ) -> tuple[int, int]:
     canonical_url = validate_canonical_url(canonical_url)
     resolved_root, html_files = generated_html_files(site_root)
+    page_routes = discover_page_path_routes(html_files)
 
     updates: dict[Path, str] = {}
     pwa_pages = 0
@@ -398,7 +470,12 @@ def normalize_site_metadata(
         if not is_inline_preview(path, resolved_root):
             updated = ensure_pwa_metadata(updated, path)
             pwa_pages += 1
-        updated = enhance_guided_copy_controls(updated, canonical_url, path)
+        updated = enhance_guided_copy_controls(
+            updated,
+            canonical_url,
+            path,
+            page_routes,
+        )
         updates[path] = updated
 
     for path, source in updates.items():
