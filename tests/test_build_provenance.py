@@ -20,6 +20,7 @@ SITE_COMMIT = "a" * 40
 SKILL_COMMIT = "b" * 40
 POLICY_COMMIT = "c" * 40
 WEBAPP_COMMIT = "d" * 40
+DEPLOYMENT_TIMESTAMP = "2026-08-15 22:07:00 JST"
 
 
 class BuildProvenanceTests(unittest.TestCase):
@@ -84,6 +85,39 @@ class BuildProvenanceTests(unittest.TestCase):
                     "webapp": WEBAPP_COMMIT,
                 },
             },
+        )
+
+    def test_cli_projects_freshness_identity_when_index_exists(self) -> None:
+        index = self.output_directory / "index.html"
+        index.write_text(
+            "<html><head><title>Test</title></head>"
+            f"<body>Deployment time: {DEPLOYMENT_TIMESTAMP}</body></html>",
+            encoding="utf-8",
+        )
+
+        result = self.run_writer()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Wrote build provenance to", result.stdout)
+        self.assertIn("Wrote freshness identity to", result.stdout)
+        site_version = self.output_directory / "site-version.json"
+        self.assertTrue(site_version.is_file())
+        self.assertEqual(
+            {
+                "schema_version": 1,
+                "site_revision": SITE_COMMIT,
+                "deployed_at": DEPLOYMENT_TIMESTAMP,
+                "publications": {
+                    "skill": SKILL_COMMIT,
+                    "policy": POLICY_COMMIT,
+                    "webapp": WEBAPP_COMMIT,
+                },
+            },
+            json.loads(site_version.read_text(encoding="utf-8")),
+        )
+        self.assertIn(
+            f'<meta name="templates-site-revision" content="{SITE_COMMIT}">',
+            index.read_text(encoding="utf-8"),
         )
 
     def test_rejects_non_full_or_non_lowercase_site_commit(self) -> None:
