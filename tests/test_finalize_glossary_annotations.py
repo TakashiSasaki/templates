@@ -145,6 +145,19 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
                     rendered,
                 )
 
+    def test_semicolonless_ampersand_text_keeps_visible_text_when_neighbor_is_annotated(self) -> None:
+        source = "<main><p>AT&T Branch</p></main>"
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn("AT&amp;T ", rendered)
+        self.assertNotIn("AT&amp;T;", rendered)
+        self.assertIn(
+            'data-glossary-id="external-git-branch">Branch</a>',
+            rendered,
+        )
+
     def test_code_links_navigation_and_specialized_containers_are_not_annotated(self) -> None:
         source = (
             '<main><nav>Branch</nav><p><code>Branch</code> Branch '
