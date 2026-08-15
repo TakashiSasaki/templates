@@ -341,10 +341,7 @@ async function fetchDocumentNetworkFirst(event, registerBackgroundTask) {
     if (response.status === 404 || response.status === 410) {
       recordAuthoritativeDeletion(request, generation);
       try {
-        const deleted = await deleteCachedDocument(request, generation);
-        if (deleted === false && documentCacheMutationGenerations.get(request.url) === generation) {
-          await caches.delete(DOCUMENT_CACHE_NAME);
-        }
+        await deleteCachedDocument(request, generation);
       } catch (error) {
         console.warn("PWA authoritative document cache deletion failed", error);
         try {
