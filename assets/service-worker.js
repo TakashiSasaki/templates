@@ -471,7 +471,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  const url = new URL(event.request.url);
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch (error) {
+    console.warn("PWA fetch request URL is invalid", error);
+    return;
+  }
   if (url.origin !== self.location.origin) {
     return;
   }
