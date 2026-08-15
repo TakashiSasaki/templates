@@ -83,7 +83,8 @@ terms:
       particular operational context, such as pull-request review or external
       artifact intake. It is policy content, not the Policy context selector:
       a Policy context is the named semantic authority boundary that selects
-      profiles, repository-local policy, overrides, and a renderer for output.
+      profiles, repository-local policy, and overrides; each output separately
+      references both a context and a renderer.
     related_terms:
       - templates-policy-context
       - templates-shared-policy
@@ -154,10 +155,12 @@ terms:
         term: ポリシーオーバーライド
     origin: repository
     definition: >-
-      An explicit context-local exception record that identifies an overridable
-      shared rule and gives a non-empty reason for replacing it. The replacement
-      rule body remains in repository-local policy rather than in the override
-      declaration itself.
+      The mechanism by which a repository-local rule intentionally replaces an
+      overridable shared rule with the same stable rule ID. Schema version 2
+      requires the containing context to record that exception in an explicit
+      override declaration with a non-empty reason, while the repository-local
+      policy file remains the source of the replacement rule body. Schema
+      version 1 retains the legacy implicit override behavior.
     related_terms:
       - templates-policy-context
       - templates-shared-policy
