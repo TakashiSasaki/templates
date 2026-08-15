@@ -10,7 +10,7 @@ from scripts.glossary import TERM_ID
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "GLOSSARY_INVENTORY.md"
-ID_CELL = re.compile(r"^`((?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*)`$")
+ID_CELL = re.compile(r"^`((?:templates|external)-[^`]+)`$")
 
 
 class GlossaryInventoryTests(unittest.TestCase):
