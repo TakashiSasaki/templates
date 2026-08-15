@@ -309,6 +309,22 @@ class GlossaryInventoryTests(unittest.TestCase):
         self.assertEqual(owners, EXPECTED_SECOND_EXPANSION_OWNERS)
         self.assertEqual(len(rows), len(EXPECTED_SECOND_EXPANSION_IDS))
 
+    def test_glossary_inventory_external_candidates_metadata(self) -> None:
+        header, rows = self.table("External terminology candidates")
+        for column in (
+            "Candidate term",
+            "Proposed ID",
+            "Curator",
+            "Initial decision",
+            "Notes",
+        ):
+            self.assertIn(column, header)
+
+        for row in rows:
+            self.assertTrue(row["Candidate term"].strip())
+            self.assertIn(row["Initial decision"], {"defer", "include"})
+            self.assertTrue(row["Notes"].strip())
+
     def test_glossary_inventory_records_completed_relation_pass(self) -> None:
         header, rows = self.table(
             "Completed first cross-provider relation pass",
