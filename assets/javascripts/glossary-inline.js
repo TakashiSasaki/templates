@@ -14,6 +14,7 @@
     webapp: "Webapp",
   };
   let glossaryPromise;
+  let glossaryFreshness = "verified-current";
   let dialog;
   let activeTrigger;
   let pendingTrigger;
@@ -50,7 +51,8 @@
             }
             terms.set(term.id, term);
           }
-          return { terms, freshness };
+          glossaryFreshness = freshness;
+          return terms;
         })
         .catch((error) => {
           glossaryPromise = undefined;
@@ -305,9 +307,9 @@
     }
     setPendingTrigger(trigger);
 
-    let glossary;
+    let terms;
     try {
-      glossary = await loadGlossary();
+      terms = await loadGlossary();
     } catch (error) {
       const canPresent = pendingTrigger === trigger && trigger.isConnected;
       clearPendingTrigger(trigger);
@@ -324,7 +326,7 @@
       clearPendingTrigger(trigger);
       return;
     }
-    const term = glossary.terms.get(termId);
+    const term = terms.get(termId);
     if (!term) {
       clearPendingTrigger(trigger);
       const panel = ensureDialog();
@@ -335,7 +337,7 @@
 
     const panel = ensureDialog();
     clearPendingTrigger(trigger);
-    fillDialog(panel, term, trigger, glossary.freshness);
+    fillDialog(panel, term, trigger, glossaryFreshness);
     presentDialog(trigger, panel);
   }
 
