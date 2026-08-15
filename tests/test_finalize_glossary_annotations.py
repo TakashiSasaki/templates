@@ -145,19 +145,28 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
                     rendered,
                 )
 
-    def test_code_links_and_navigation_are_not_annotated(self) -> None:
+    def test_code_links_navigation_and_specialized_containers_are_not_annotated(self) -> None:
         source = (
             '<main><nav>Branch</nav><p><code>Branch</code> Branch '
-            '<a href="/x">Branch</a></p></main>'
+            '<a href="/x">Branch</a></p>'
+            '<svg><text>Publication catalog</text></svg>'
+            '<math><mtext>Publication catalog</mtext></math>'
+            '<template><p>Publication catalog</p></template>'
+            '<option>Publication catalog</option></main>'
         )
 
         rendered, count = annotate_html(source, self.index)
 
         self.assertEqual(count, 1)
         self.assertEqual(rendered.count('data-glossary-id="external-git-branch"'), 1)
+        self.assertEqual(rendered.count('data-glossary-id='), 1)
         self.assertIn("<nav>Branch</nav>", rendered)
         self.assertIn("<code>Branch</code>", rendered)
         self.assertIn('<a href="/x">Branch</a>', rendered)
+        self.assertIn("<text>Publication catalog</text>", rendered)
+        self.assertIn("<mtext>Publication catalog</mtext>", rendered)
+        self.assertIn("<template><p>Publication catalog</p></template>", rendered)
+        self.assertIn("<option>Publication catalog</option>", rendered)
 
     def test_void_elements_do_not_corrupt_content_state(self) -> None:
         source = (
@@ -175,6 +184,20 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
         self.assertEqual(rendered.count('data-glossary-id="external-git-branch"'), 1)
         self.assertIn('<meta charset="utf-8">', rendered)
         self.assertIn('<img src="/x.png" alt="Branch">', rendered)
+
+    def test_unmatched_end_tag_after_self_closing_nonvoid_does_not_pop_parent_state(self) -> None:
+        source = (
+            '<main><p>Before <span class="icon" /></span> Publication catalog</p>'
+            '<p>Publication catalog</p></main>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 2)
+        self.assertEqual(
+            rendered.count('data-glossary-id="templates-publication-catalog"'),
+            2,
+        )
 
     def test_existing_annotation_is_idempotent(self) -> None:
         source = '<main><p>Publication catalog.</p></main>'
@@ -194,7 +217,11 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
             files = root / "files" / "site" / "content" / "x.html"
             glossary_page = root / "glossary" / "index.html"
             tree = root / "repository-trees" / "site" / "index.html"
-            for path in (normal, files, glossary_page, tree):
+            root_glossary = root / "glossary.html"
+            root_files = root / "files.html"
+            root_tree = root / "repository-trees.html"
+            excluded = (files, glossary_page, tree, root_glossary, root_files, root_tree)
+            for path in (normal, *excluded):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(
                     '<html><body><main>Publication catalog</main></body></html>',
@@ -205,7 +232,7 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
 
             self.assertEqual((changed, links), (1, 1))
             self.assertIn("data-glossary-id", normal.read_text(encoding="utf-8"))
-            for path in (files, glossary_page, tree):
+            for path in excluded:
                 self.assertNotIn("data-glossary-id", path.read_text(encoding="utf-8"))
 
     def test_annotation_index_errors_are_wrapped_at_finalizer_boundary(self) -> None:
