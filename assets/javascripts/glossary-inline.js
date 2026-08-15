@@ -6,6 +6,7 @@
   const CONTROL_SELECTOR = ".glossary-term[data-glossary-id]";
   const DIALOG_ID = "glossary-inline-dialog";
   const GLOSSARY_URL = "/glossary/index.json";
+  const CACHED_FRESHNESS = "cached-unverified";
   const PROVIDER_LABELS = {
     site: "Site",
     skill: "Skill",
@@ -25,13 +26,20 @@
         credentials: "same-origin",
         cache: "no-cache",
       })
-        .then((response) => {
+        .then(async (response) => {
           if (!response.ok) {
             throw new Error(`Glossary request failed: ${response.status}`);
           }
-          return response.json();
+          const freshness =
+            response.headers.get("X-Templates-Freshness") === CACHED_FRESHNESS
+              ? CACHED_FRESHNESS
+              : "verified-current";
+          return {
+            model: await response.json(),
+            freshness,
+          };
         })
-        .then((model) => {
+        .then(({ model, freshness }) => {
           if (!model || !Array.isArray(model.terms)) {
             throw new Error("Glossary response is invalid");
           }
@@ -42,7 +50,7 @@
             }
             terms.set(term.id, term);
           }
-          return terms;
+          return { terms, freshness };
         })
         .catch((error) => {
           glossaryPromise = undefined;
@@ -168,6 +176,7 @@
       </div>
       <p class="glossary-inline-dialog__definition" id="glossary-inline-definition"></p>
       <p class="glossary-inline-dialog__meta"></p>
+      <p class="glossary-inline-dialog__freshness" role="status" hidden></p>
       <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
     `;
     document.body.appendChild(dialog);
@@ -244,12 +253,24 @@
     return PROVIDER_LABELS[provider] || provider;
   }
 
-  function fillDialog(panel, term, trigger) {
+  function setFreshness(panel, freshness) {
+    const status = panel.querySelector(".glossary-inline-dialog__freshness");
+    if (freshness === CACHED_FRESHNESS) {
+      status.hidden = false;
+      status.textContent = "Saved glossary data · latest version not verified.";
+      return;
+    }
+    status.hidden = true;
+    status.textContent = "";
+  }
+
+  function fillDialog(panel, term, trigger, freshness) {
     panel.querySelector("#glossary-inline-title").textContent = term.term;
     panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term);
     const meta = panel.querySelector(".glossary-inline-dialog__meta");
     const owner = providerLabel(term.provider);
     meta.textContent = term.origin === "external" ? `External term · curated by ${owner}` : `Templates-defined · ${owner}`;
+    setFreshness(panel, freshness);
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
@@ -258,6 +279,7 @@
     panel.querySelector("#glossary-inline-title").textContent = label || "Glossary";
     panel.querySelector(".glossary-inline-dialog__definition").textContent = message;
     panel.querySelector(".glossary-inline-dialog__meta").textContent = "Glossary data unavailable.";
+    setFreshness(panel, "unavailable");
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
@@ -283,9 +305,9 @@
     }
     setPendingTrigger(trigger);
 
-    let terms;
+    let glossary;
     try {
-      terms = await loadGlossary();
+      glossary = await loadGlossary();
     } catch (error) {
       const canPresent = pendingTrigger === trigger && trigger.isConnected;
       clearPendingTrigger(trigger);
@@ -302,7 +324,7 @@
       clearPendingTrigger(trigger);
       return;
     }
-    const term = terms.get(termId);
+    const term = glossary.terms.get(termId);
     if (!term) {
       clearPendingTrigger(trigger);
       const panel = ensureDialog();
@@ -313,7 +335,7 @@
 
     const panel = ensureDialog();
     clearPendingTrigger(trigger);
-    fillDialog(panel, term, trigger);
+    fillDialog(panel, term, trigger, glossary.freshness);
     presentDialog(trigger, panel);
   }
 
