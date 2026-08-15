@@ -325,9 +325,9 @@ def discover_page_path_routes(html_files: list[Path]) -> set[str]:
 
 
 def render_page_path_breadcrumb(page_path: str, page_routes: set[str]) -> str:
-    """Render only generated route prefixes as links, leaving gaps as plain text."""
+    """Render Home plus only generated route prefixes as links, leaving gaps as text."""
     segments = page_path.strip("/").split("/")
-    pieces = ['<span class="page-path-separator" aria-hidden="true">/</span><wbr>']
+    pieces = ['<a class="page-path-home" href="/" aria-label="Home">/</a><wbr>']
     prefix: list[str] = []
     for segment in segments:
         prefix.append(segment)
