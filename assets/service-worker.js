@@ -1,5 +1,12 @@
 const CACHE_NAME = "templates-portal-shell-v3";
+const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
 const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"];
+const FRESHNESS_STATES = Object.freeze([
+  "verified-current",
+  "checking",
+  "cached-unverified",
+  "update-available",
+]);
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -62,6 +69,22 @@ self.addEventListener("activate", (event) => {
       )
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (
+    event.data?.type !== "templates:get-freshness-capabilities" ||
+    !event.source ||
+    typeof event.source.postMessage !== "function"
+  ) {
+    return;
+  }
+  event.source.postMessage({
+    type: "templates:freshness-capabilities",
+    states: FRESHNESS_STATES,
+    siteVersionUrl: "/site-version.json",
+    documentCacheName: DOCUMENT_CACHE_NAME,
+  });
 });
 
 self.addEventListener("fetch", (event) => {
