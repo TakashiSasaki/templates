@@ -26,6 +26,36 @@ terms:
     related_terms:
       - templates-publication-catalog
 
+  - id: templates-integrated-publication
+    term: Integrated publication
+    localized_labels:
+      ja:
+        term: 統合公開
+    origin: repository
+    definition: >-
+      The Site-owned human-readable publication assembled from reviewed exact
+      revisions of independently owned provider histories without merging those
+      histories or transferring ownership of their canonical content.
+    related_terms:
+      - templates-provider-branch
+      - templates-publication-catalog
+      - templates-publication-source-lock
+
+  - id: templates-publication-source-lock
+    term: Publication source lock
+    localized_labels:
+      ja:
+        term: 公開ソースロック
+    origin: repository
+    definition: >-
+      A Site-owned binding in publication-sources.json from a provider
+      publication to a reviewed full 40-character commit SHA used as an
+      immutable build input. Mutable branch names, tags, and abbreviated SHAs
+      are not valid publication source locks.
+    related_terms:
+      - templates-provider-branch
+      - templates-integrated-publication
+
   - id: external-git-branch
     term: Branch
     localized_labels:
