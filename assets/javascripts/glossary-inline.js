@@ -113,7 +113,7 @@
       if (
         !pointerDismissal &&
         restore instanceof HTMLElement &&
-        document.contains(restore)
+        restore.isConnected
       ) {
         restore.focus({ preventScroll: true });
       }
@@ -192,10 +192,11 @@
     try {
       terms = await loadGlossary();
     } catch (error) {
-      if (pendingLink !== link || !link.isConnected) {
+      const canFallback = pendingLink === link && link.isConnected;
+      clearPendingLink(link);
+      if (!canFallback) {
         return;
       }
-      clearPendingLink(link);
       console.warn("Glossary definition loading failed", error);
       window.location.assign(link.href);
       return;
