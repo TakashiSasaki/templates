@@ -2,6 +2,7 @@ const CACHE_NAME = "templates-portal-shell-v4";
 const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
 const GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1";
 const GLOSSARY_MODEL_PATH = "/glossary/index.json";
+const GLOSSARY_CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
 const STATIC_ASSETS = [
   "/app.webmanifest",
   "/icon.svg",
@@ -521,6 +522,9 @@ async function decorateCachedGlossaryModel(response, request) {
 
 async function cachedGlossaryFallback(request) {
   try {
+    if (request.headers.get(GLOSSARY_CACHED_ACCEPT_HEADER) !== "1") {
+      return undefined;
+    }
     if (authoritativeGlossaryDeletionGeneration > 0) {
       return undefined;
     }
