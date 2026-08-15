@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "72364eb7b2ea73e817a50bec786ec33d7c5a5b8a"
+POLICY_REVISION = "9828b81de2d10da492369170a5918677622ef3a4"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -94,7 +94,7 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                 ),
                 (
                     "Consumer effective policy",
-                    "consumer-policy-navigation",
+                    "consumer-navigation",
                     "policy/consumer/index.md",
                 ),
             ],
