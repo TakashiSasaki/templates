@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterator
 
 
 class GlossaryAnnotationError(RuntimeError):
@@ -18,12 +18,6 @@ class AnnotationLabel:
 
     normalized: str
     term_id: str
-
-    @property
-    def requires_word_boundaries(self) -> bool:
-        return bool(self.normalized) and _ascii_word(self.normalized[0]) and _ascii_word(
-            self.normalized[-1]
-        )
 
 
 @dataclass(frozen=True)
@@ -54,11 +48,41 @@ def _ascii_word(char: str) -> bool:
     return char == "_" or "a" <= char <= "z" or "0" <= char <= "9"
 
 
-def _term_labels(term: dict[str, Any]) -> list[str]:
-    labels = [term["term"], *term.get("aliases", [])]
-    for localized in term.get("localized_labels", {}).values():
-        labels.append(localized["term"])
-        labels.extend(localized.get("aliases", []))
+def _label_list(value: Any, field: str) -> list[str]:
+    if not isinstance(value, list):
+        raise GlossaryAnnotationError(f"{field} must be an array")
+    result: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item:
+            raise GlossaryAnnotationError(
+                f"{field}[{index}] must be a non-empty string"
+            )
+        result.append(item)
+    return result
+
+
+def _term_labels(term: dict[str, Any], field: str) -> list[str]:
+    preferred = term.get("term")
+    if not isinstance(preferred, str) or not preferred:
+        raise GlossaryAnnotationError(f"{field}.term must be a non-empty string")
+    labels = [preferred, *_label_list(term.get("aliases", []), f"{field}.aliases")]
+
+    localized_labels = term.get("localized_labels", {})
+    if not isinstance(localized_labels, dict):
+        raise GlossaryAnnotationError(f"{field}.localized_labels must be an object")
+    for language, localized in localized_labels.items():
+        localized_field = f"{field}.localized_labels.{language}"
+        if not isinstance(localized, dict):
+            raise GlossaryAnnotationError(f"{localized_field} must be an object")
+        localized_term = localized.get("term")
+        if not isinstance(localized_term, str) or not localized_term:
+            raise GlossaryAnnotationError(
+                f"{localized_field}.term must be a non-empty string"
+            )
+        labels.append(localized_term)
+        labels.extend(
+            _label_list(localized.get("aliases", []), f"{localized_field}.aliases")
+        )
     return labels
 
 
@@ -74,21 +98,13 @@ def build_annotation_index(model: dict[str, Any]) -> AnnotationIndex:
 
     owners: dict[str, set[str]] = {}
     for index, raw_term in enumerate(model["terms"]):
+        field = f"terms[{index}]"
         if not isinstance(raw_term, dict):
-            raise GlossaryAnnotationError(f"terms[{index}] must be an object")
+            raise GlossaryAnnotationError(f"{field} must be an object")
         term_id = raw_term.get("id")
-        preferred = raw_term.get("term")
         if not isinstance(term_id, str) or not term_id:
-            raise GlossaryAnnotationError(f"terms[{index}].id must be a non-empty string")
-        if not isinstance(preferred, str) or not preferred:
-            raise GlossaryAnnotationError(f"terms[{index}].term must be a non-empty string")
-        try:
-            raw_labels = _term_labels(raw_term)
-        except (KeyError, TypeError) as exc:
-            raise GlossaryAnnotationError(
-                f"terms[{index}] contains invalid localized label data"
-            ) from exc
-        for label in raw_labels:
+            raise GlossaryAnnotationError(f"{field}.id must be a non-empty string")
+        for label in _term_labels(raw_term, field):
             normalized = normalize_label(label)
             owners.setdefault(normalized, set()).add(term_id)
 
@@ -110,46 +126,85 @@ def build_annotation_index(model: dict[str, Any]) -> AnnotationIndex:
     return AnnotationIndex(labels=labels, ambiguous=ambiguous)
 
 
-def _normalized_boundaries(text: str) -> tuple[str, dict[int, int], dict[int, int]]:
-    """Return normalized text plus normalized-offset to source-boundary maps.
+def _normalization_segments(text: str) -> Iterator[tuple[int, int]]:
+    """Yield source spans that can be NFC-normalized independently.
 
-    Most site text is already NFC and case-folding preserves length, so the fast
-    path is linear. The slower prefix map is only needed for uncommon expansion
-    or composition cases such as German sharp-s or decomposed accents.
+    Canonical combining sequences stay together. A class-zero character is also
+    retained when NFC composes it with the preceding segment, covering Hangul
+    Jamo composition without requiring a second normalization pass over prefixes.
+    Each source character is consumed once; composition probes are bounded by the
+    current normalization segment rather than by the full text prefix.
     """
-    normalized = unicodedata.normalize("NFC", text).casefold()
-    if len(normalized) == len(text):
-        direct = {index: index for index in range(len(text) + 1)}
-        return normalized, direct, direct
+    start = 0
+    length = len(text)
+    while start < length:
+        end = start + 1
+        while end < length:
+            char = text[end]
+            if unicodedata.combining(char) != 0:
+                end += 1
+                continue
+            segment = text[start:end]
+            if unicodedata.normalize("NFC", segment + char) != (
+                unicodedata.normalize("NFC", segment)
+                + unicodedata.normalize("NFC", char)
+            ):
+                end += 1
+                continue
+            break
+        yield start, end
+        start = end
 
-    first_boundary: dict[int, int] = {}
-    last_boundary: dict[int, int] = {}
-    for source_offset in range(len(text) + 1):
-        normalized_offset = len(
-            unicodedata.normalize("NFC", text[:source_offset]).casefold()
+
+def _normalized_boundaries(text: str) -> tuple[str, dict[int, int], dict[int, int]]:
+    """Return normalized text plus exact normalized-to-source boundary maps."""
+    normalized_parts: list[str] = []
+    first_boundary: dict[int, int] = {0: 0}
+    last_boundary: dict[int, int] = {0: 0}
+    normalized_offset = 0
+
+    for source_start, source_end in _normalization_segments(text):
+        part = unicodedata.normalize("NFC", text[source_start:source_end]).casefold()
+        first_boundary.setdefault(normalized_offset, source_start)
+        last_boundary[normalized_offset] = source_start
+        normalized_parts.append(part)
+        normalized_offset += len(part)
+        first_boundary.setdefault(normalized_offset, source_end)
+        last_boundary[normalized_offset] = source_end
+
+    normalized = "".join(normalized_parts)
+    expected = unicodedata.normalize("NFC", text).casefold()
+    if normalized != expected:
+        raise GlossaryAnnotationError(
+            "unable to preserve source boundaries during Unicode normalization"
         )
-        first_boundary.setdefault(normalized_offset, source_offset)
-        last_boundary[normalized_offset] = source_offset
     return normalized, first_boundary, last_boundary
 
 
+def _source_ascii_word(char: str) -> bool:
+    folded = unicodedata.normalize("NFC", char).casefold()
+    return bool(folded) and _ascii_word(folded[0])
+
+
 def _has_valid_boundaries(text: str, start: int, end: int, label: AnnotationLabel) -> bool:
-    if not label.requires_word_boundaries:
+    if not label.normalized:
         return True
-    if start > 0 and _ascii_word(text[start - 1].casefold()[:1]):
-        return False
-    if end < len(text) and _ascii_word(text[end].casefold()[:1]):
-        return False
+    if _ascii_word(label.normalized[0]):
+        if start > 0 and _source_ascii_word(text[start - 1]):
+            return False
+    if _ascii_word(label.normalized[-1]):
+        if end < len(text) and _source_ascii_word(text[end]):
+            return False
     return True
 
 
 def find_annotation_matches(text: str, index: AnnotationIndex) -> list[AnnotationMatch]:
     """Return deterministic non-overlapping matches using longest-match-first.
 
-    Labels that start/end with ASCII word characters require ASCII word
-    boundaries. This prevents English identifiers such as ``Branch`` from
-    matching inside ``branching`` while allowing Japanese labels to match inside
-    ordinary Japanese prose where whitespace is not a lexical boundary.
+    ASCII word boundaries are enforced independently on whichever side of a
+    label begins or ends with an ASCII word character. Non-ASCII labels do not
+    require whitespace boundaries, allowing Japanese labels to match ordinary
+    Japanese prose.
     """
     if not isinstance(text, str):
         raise GlossaryAnnotationError("annotation source text must be a string")
