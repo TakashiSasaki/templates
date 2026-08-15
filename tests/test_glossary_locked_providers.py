@@ -22,6 +22,7 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-skill-mcp-extension": "skill",
     "templates-skill-runtime-decision-record": "skill",
     "templates-skill-public-interface-selection-contract": "skill",
+    "external-mcp-model-context-protocol": "skill",
     "templates-policy-module": "policy",
     "templates-policy-profile": "policy",
     "templates-policy-context": "policy",
@@ -59,6 +60,7 @@ EXPECTED_JA_LABELS = {
     "templates-integrated-publication": "統合公開",
     "templates-index-guided-navigation": "インデックス誘導ナビゲーション",
     "templates-skill-runtime-decision-record": "ランタイム決定記録",
+    "external-mcp-model-context-protocol": "モデルコンテキストプロトコル",
     "templates-context-policy": "コンテキストポリシー",
     "templates-policy-stable-release": "安定版リリース",
     "templates-policy-stable-release-descriptor": "安定版リリース記述子",
@@ -90,6 +92,11 @@ EXPECTED_CROSS_PROVIDER_RELATED_TERMS = {
     },
     "templates-webapp-release-bundle": {
         "templates-artifact-contract",
+    },
+}
+EXPECTED_PROVIDER_LOCAL_EXTERNAL_RELATED_TERMS = {
+    "templates-skill-mcp-extension": {
+        "external-mcp-model-context-protocol",
     },
 }
 
@@ -148,6 +155,21 @@ class LockedProviderGlossaryTests(unittest.TestCase):
                     expected_label,
                 )
 
+        mcp = by_id["external-mcp-model-context-protocol"]
+        self.assertEqual(mcp["origin"], "external")
+        self.assertEqual(mcp["aliases"], ["MCP"])
+        self.assertEqual(mcp["authority"]["kind"], "normative")
+        self.assertEqual(
+            mcp["authority"]["sources"],
+            [
+                {
+                    "title": "Model Context Protocol Specification",
+                    "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+                    "version": "2026-07-28",
+                }
+            ],
+        )
+
         for term_id, expected_related in EXPECTED_CROSS_PROVIDER_RELATED_TERMS.items():
             with self.subTest(term_id=term_id, relation_scope="cross-provider"):
                 self.assertTrue(
@@ -158,6 +180,23 @@ class LockedProviderGlossaryTests(unittest.TestCase):
                         by_id[term_id]["provider"],
                         by_id[related_id]["provider"],
                     )
+
+        for term_id, expected_related in (
+            EXPECTED_PROVIDER_LOCAL_EXTERNAL_RELATED_TERMS.items()
+        ):
+            with self.subTest(
+                term_id=term_id,
+                relation_scope="provider-local-external",
+            ):
+                self.assertTrue(
+                    expected_related <= set(by_id[term_id].get("related_terms", []))
+                )
+                for related_id in expected_related:
+                    self.assertEqual(
+                        by_id[term_id]["provider"],
+                        by_id[related_id]["provider"],
+                    )
+                    self.assertEqual(by_id[related_id]["origin"], "external")
 
 
 if __name__ == "__main__":

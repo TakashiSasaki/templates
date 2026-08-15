@@ -8,10 +8,10 @@ publication catalog. Canonical terms remain in the semantic owner's
 The inventory is a review aid, not a closed vocabulary. Terms may be added later
 without editing this file when their ownership and semantics are already clear.
 
-The original 14-term seed, the reviewed 17-term first expansion, and the reviewed
-10-term second expansion are canonical. The integrated glossary therefore has a
-required 41-term baseline at this stage, while remaining open to later vocabulary
-growth.
+The original 14-term seed, the reviewed 17-term first expansion, the reviewed
+10-term second expansion, and the first reviewed external-term expansion are
+canonical. The integrated glossary therefore has a required 42-term baseline at
+this stage, while remaining open to later vocabulary growth.
 
 ## Selection rules
 
@@ -216,6 +216,17 @@ provider-owned. Its stable identity does not imply that provider `index.md`
 becomes a publication catalog or that Site takes ownership of provider navigation
 semantics.
 
+## Completed external terminology expansion
+
+The first external-term curation pass adds the generic protocol concept needed to
+navigate from the repository-defined Skill MCP extension to its external semantic
+basis. External semantic authority remains outside this repository even though
+Skill is the single local curator of the entry.
+
+| Canonical term | Canonical ID | Curator | Origin | Japanese discovery label | Authority / rationale |
+| --- | --- | --- | --- | --- | --- |
+| Model Context Protocol | `external-mcp-model-context-protocol` | skill | external | モデルコンテキストプロトコル | The official Model Context Protocol specification dated `2026-07-28` is the version-pinned normative authority. Skill already uses that core protocol revision as its current baseline. `templates-skill-mcp-extension` links one-way to this generic external concept; the reverse relation is deliberately omitted so the external term does not become an open-ended registry of repository-specific concepts. |
+
 ## External terminology candidates
 
 External terms are not repository-owned definitions. They require a stable
@@ -227,7 +238,6 @@ multiple provider glossaries.
 
 | Candidate term | Proposed ID | Curator | Initial decision | Notes |
 | --- | --- | --- | --- | --- |
-| Model Context Protocol | `external-mcp-model-context-protocol` | skill | defer | Skill is the single local curator because its canonical contracts define MCP-enabled Skill behavior and already own the repository-specific MCP-extension concept. Authority/version selection must be curated from current official MCP specifications before creating the external entry. |
 | Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the current repository-defined glossary baseline. |
 | Progressive Web App | `external-web-progressive-web-app` | site | defer | Same reason as Service Worker; add when PWA terminology becomes a glossary navigation need. |
 
@@ -264,4 +274,4 @@ exact-revision promotion model:
 
 External-term expansion remains a separate curation pass because authority URLs
 and version-sensitive upstream semantics must be verified against current
-official sources when the entry is created.
+official sources when each external entry is created.
