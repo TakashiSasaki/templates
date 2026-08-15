@@ -222,7 +222,7 @@ def head_close_offset(source: str, path: Path) -> int:
     parser.close()
     if parser.head_starts != 1 or len(parser.head_ends) != 1:
         raise FreshnessMetadataError(
-            f"{path}: expected exactly one head element with one closing tag, "
+            f"{path}: expected exactly one closing head tag for exactly one head element, "
             f"found {parser.head_starts} start tag(s) and {len(parser.head_ends)} closing tag(s)"
         )
     return source_offset(source, parser.head_ends[0])
