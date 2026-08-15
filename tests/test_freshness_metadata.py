@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,14 @@ class FreshnessMetadataTests(unittest.TestCase):
                 preview_page.read_text(encoding="utf-8"),
             )
 
+            _, second_annotated = generate_freshness_metadata.generate_freshness_metadata(
+                site_root,
+                SITE_REVISION,
+                DEPLOYMENT_TIMESTAMP,
+                PUBLICATIONS,
+            )
+            self.assertEqual(0, second_annotated)
+
     def test_preview_build_records_unknown_deployment_time(self) -> None:
         payload = generate_freshness_metadata.build_payload(
             SITE_REVISION,
@@ -92,6 +101,39 @@ class FreshnessMetadataTests(unittest.TestCase):
                 Path("index.html"),
             )
 
+    def test_duplicate_revision_metadata_is_rejected(self) -> None:
+        marker = (
+            '<meta name="templates-site-revision" '
+            f'content="{SITE_REVISION}">'
+        )
+        source = f"<html><head>{marker}{marker}</head><body></body></html>"
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "expected at most one",
+        ):
+            generate_freshness_metadata.annotate_site_revision(
+                source,
+                SITE_REVISION,
+                Path("index.html"),
+            )
+
+    def test_missing_or_duplicate_head_close_is_rejected(self) -> None:
+        cases = (
+            "<html><head><title>Test</title><body></body></html>",
+            "<html><head></head></head><body></body></html>",
+        )
+        for source in cases:
+            with self.subTest(source=source):
+                with self.assertRaisesRegex(
+                    generate_freshness_metadata.FreshnessMetadataError,
+                    "expected exactly one closing head tag",
+                ):
+                    generate_freshness_metadata.annotate_site_revision(
+                        source,
+                        SITE_REVISION,
+                        Path("index.html"),
+                    )
+
     def test_missing_provider_revision_is_rejected(self) -> None:
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
@@ -101,6 +143,17 @@ class FreshnessMetadataTests(unittest.TestCase):
                 SITE_REVISION,
                 DEPLOYMENT_TIMESTAMP,
                 {"skill": PUBLICATIONS["skill"]},
+            )
+
+    def test_unexpected_provider_revision_is_rejected(self) -> None:
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "unsupported publication",
+        ):
+            generate_freshness_metadata.build_payload(
+                SITE_REVISION,
+                DEPLOYMENT_TIMESTAMP,
+                {**PUBLICATIONS, "other": "e" * 40},
             )
 
     def test_reads_deployed_and_preview_notices_from_rendered_index(self) -> None:
@@ -121,6 +174,63 @@ class FreshnessMetadataTests(unittest.TestCase):
                 "",
                 generate_freshness_metadata.deployment_timestamp_from_index(site_root),
             )
+
+    def test_script_and_style_text_do_not_create_false_deployment_notices(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(
+                "<html><head>"
+                f"<style>/* Deployment time: {DEPLOYMENT_TIMESTAMP} */</style>"
+                "</head><body>Preview build (not deployed)"
+                f"<script>const notice = 'Deployment time: {DEPLOYMENT_TIMESTAMP}';</script>"
+                "</body></html>",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                "",
+                generate_freshness_metadata.deployment_timestamp_from_index(site_root),
+            )
+
+    def test_ambiguous_deployment_notice_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(
+                page(
+                    f"Deployment time: {DEPLOYMENT_TIMESTAMP} "
+                    "Preview build (not deployed)"
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                generate_freshness_metadata.FreshnessMetadataError,
+                "rendered deployment notice is ambiguous",
+            ):
+                generate_freshness_metadata.deployment_timestamp_from_index(site_root)
+
+    def test_cli_omitted_timestamp_derives_rendered_deployment_notice(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(
+                page(f"Deployment time: {DEPLOYMENT_TIMESTAMP}"),
+                encoding="utf-8",
+            )
+            argv = [
+                "generate_freshness_metadata.py",
+                "--site-root",
+                str(site_root),
+                "--site-revision",
+                SITE_REVISION,
+            ]
+            for name, revision in PUBLICATIONS.items():
+                argv.extend(("--publication", f"{name}={revision}"))
+
+            with mock.patch.object(sys, "argv", argv):
+                self.assertEqual(0, generate_freshness_metadata.main())
+
+            payload = json.loads(
+                (site_root / "site-version.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(DEPLOYMENT_TIMESTAMP, payload["deployed_at"])
 
     def test_provenance_projection_generates_client_freshness_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
