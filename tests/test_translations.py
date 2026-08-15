@@ -17,7 +17,7 @@ def blob_sha(data: bytes) -> str:
 
 def write_catalog(root: Path) -> None:
     (root / "docs" / "publication-catalog.json").write_text(
-        json.dumps({"schema_version": 2, "documents": [], "assets": []}),
+        json.dumps({"schema_version": 3, "documents": [], "assets": []}),
         encoding="utf-8",
     )
 

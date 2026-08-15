@@ -63,12 +63,12 @@ class PublicationCatalogV3Tests(unittest.TestCase):
         self.assertEqual(["overview"], [item.document_id for item in documents])
         self.assertEqual([], assets)
 
-    def test_glossary_rejected_on_version_2(self) -> None:
+    def test_retired_version_2_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             catalog = self.prepare(root)
             self.rewrite(catalog, schema_version=2)
-            with self.assertRaisesRegex(CatalogError, "requires schema_version 3"):
+            with self.assertRaisesRegex(CatalogError, "schema_version must be the integer 3"):
                 validate_catalog(catalog, root)
 
     def test_glossary_must_be_object(self) -> None:
