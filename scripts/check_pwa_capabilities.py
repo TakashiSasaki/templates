@@ -37,7 +37,7 @@ def _read_capabilities(page: Any) -> dict[str, Any] | None:
             const timer = setTimeout(() => {
               navigator.serviceWorker.removeEventListener("message", onMessage);
               resolve(null);
-            }, 1000);
+            }, 5000);
             const onMessage = (event) => {
               if (event.data?.type === "templates:freshness-capabilities") {
                 clearTimeout(timer);
@@ -57,6 +57,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
         site_root / "service-worker.js",
         site_root / "javascripts/pwa.js",
         site_root / "icon.svg",
+        site_root / "app.webmanifest",
         site_root / "stylesheets/freshness-status.css",
     )
     missing = [path for path in required if not path.is_file()]
