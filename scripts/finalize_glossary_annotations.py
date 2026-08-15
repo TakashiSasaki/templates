@@ -281,15 +281,16 @@ def annotate_html(source: str, index: AnnotationIndex) -> tuple[str, int]:
 
 
 def inject_runtime_assets(source: str) -> str:
-    """Load Glossary behavior only on pages that contain inline annotations."""
+    """Enhance annotated full documents while preserving static-link fallback."""
     missing = [asset for asset in (RUNTIME_STYLE, RUNTIME_SCRIPT) if asset not in source]
     if not missing:
         return source
     marker = "</head>"
     if marker not in source:
-        raise GlossaryAnnotationFinalizeError(
-            "annotated generated HTML must contain a closing head element"
-        )
+        # Build-time annotation remains useful without JavaScript. Generated Site
+        # pages normally contain a head element, while reduced fixtures or other
+        # HTML fragments retain the stable Glossary links without enhancement.
+        return source
     return source.replace(marker, "\n".join(missing) + "\n" + marker, 1)
 
 
