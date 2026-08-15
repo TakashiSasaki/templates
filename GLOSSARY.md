@@ -197,7 +197,23 @@ The Site glossary viewer follows these presentation rules:
 - all glossary-provided text is escaped before HTML rendering;
 - the generated page executes no glossary-supplied JavaScript.
 
-The current viewer is intentionally static. Its existence does not make search normalization, fuzzy matching, filtering, or localization rules part of glossary schema version 1.
+The current viewer is intentionally static. Its existence does not make fuzzy matching, filtering, or localization rules part of glossary schema version 1.
+
+## Inline annotation matching
+
+Site presentation may derive inline annotation candidates from the integrated glossary without changing glossary schema version 1. The annotation matcher is a presentation-layer consumer of the canonical read model; stable term IDs remain the only semantic identities.
+
+Automatic annotation follows these deterministic rules:
+
+- candidate labels come only from canonical `term`, canonical `aliases`, and every `localized_labels.*.term` and `localized_labels.*.aliases` value;
+- label identity uses Unicode NFC normalization followed by case-folding, consistent with glossary label validation;
+- if one normalized label belongs to more than one stable term ID, that label is ambiguous and is excluded from automatic annotation rather than guessed;
+- if multiple labels can match at the same source position, the longest normalized label wins;
+- the left boundary is enforced when the normalized label begins with an ASCII word character, and the right boundary is enforced independently when it ends with an ASCII word character;
+- non-ASCII labels do not require whitespace-delimited word boundaries, allowing Japanese labels to resolve inside ordinary Japanese prose;
+- Unicode normalization and case-folding must preserve an exact source span before an annotation is emitted; a match that cannot be mapped to source boundaries is not fabricated.
+
+These matching rules are derived presentation semantics. They do not make labels globally unique and do not add a new identity layer beside the stable term ID. A later Glossary term, alias, or localized label therefore enters the candidate set automatically after its provider revision is promoted into the integrated publication.
 
 ## Adding terminology later
 
@@ -214,4 +230,4 @@ The Site publication lock is updated through the normal reviewed provider-revisi
 
 ## Out of scope for this contract
 
-This contract does not define search normalization, fuzzy search, language filters, inline term linking outside the glossary page, tooltips, localized explanatory prose, or online authority-link monitoring. Those features may be designed later on top of the stable term IDs and integrated machine-readable model.
+This contract does not define fuzzy search, language filters, localized explanatory prose, automatic resolution of ambiguous labels, manual per-document annotation overrides, or online authority-link monitoring. Inline presentation such as popovers may consume the stable annotation result, but its visual interaction design is a Site UI concern rather than glossary schema semantics.
