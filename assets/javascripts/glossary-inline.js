@@ -73,8 +73,24 @@
     }
   }
 
+  function observeNavigationBody() {
+    if (!navigationObserver) {
+      navigationObserver = new MutationObserver(closeDetachedDialog);
+    } else {
+      navigationObserver.disconnect();
+    }
+    navigationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
   function ensureDialog() {
     if (dialog) {
+      if (!dialog.isConnected) {
+        document.body.appendChild(dialog);
+        observeNavigationBody();
+      }
       return dialog;
     }
 
@@ -95,12 +111,7 @@
       <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
     `;
     document.body.appendChild(dialog);
-
-    navigationObserver = new MutationObserver(closeDetachedDialog);
-    navigationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    observeNavigationBody();
 
     dialog.querySelector(".glossary-inline-dialog__close").addEventListener("click", () => {
       pointerDismissal = false;
