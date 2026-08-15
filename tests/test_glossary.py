@@ -332,6 +332,44 @@ class IntegratedGlossaryTests(unittest.TestCase):
             )
             self.assertEqual(len(value["terms"]), 2)
 
+    def test_cross_provider_related_terms_resolve_in_integrated_glossary(self) -> None:
+        skill_term = REPO_TERM.replace(
+            "templates-provider-branch",
+            "templates-skill-profile",
+        ).replace("Provider branch", "Skill profile")
+        policy_term = REPO_TERM.replace(
+            "templates-provider-branch",
+            "templates-policy-profile",
+        ).replace("Provider branch", "Policy profile")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = self.make_provider(
+                root,
+                "skill",
+                skill_term,
+                related="templates-policy-profile",
+            )
+            policy = self.make_provider(root, "policy", policy_term)
+            value = integrate_glossaries(
+                {"skill": skill, "policy": policy},
+                {"skill": "1" * 40, "policy": "2" * 40},
+                "TakashiSasaki/templates",
+            )
+            by_id = {term["id"]: term for term in value["terms"]}
+            self.assertEqual(
+                by_id["templates-skill-profile"]["related_terms"],
+                ["templates-policy-profile"],
+            )
+            self.assertEqual(
+                by_id["templates-skill-profile"]["provider"],
+                "skill",
+            )
+            self.assertEqual(
+                by_id["templates-policy-profile"]["provider"],
+                "policy",
+            )
+
     def test_duplicate_ids_across_providers_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

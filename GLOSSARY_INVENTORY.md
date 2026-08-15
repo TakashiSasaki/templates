@@ -8,6 +8,10 @@ publication catalog. Canonical terms remain in the semantic owner's
 The inventory is a review aid, not a closed vocabulary. Terms may be added later
 without editing this file when their ownership and semantics are already clear.
 
+The original 14-term seed and the reviewed 17-term first expansion are now
+canonical. The integrated glossary therefore has a required 31-term baseline at
+this stage, while remaining open to later vocabulary growth.
+
 ## Selection rules
 
 A term is a strong candidate for the canonical glossary when one or more of the
@@ -38,10 +42,9 @@ concept, not merely because that branch currently owns the entry. Consequently,
 Policy ownership-taxonomy terms such as `templates-shared-policy` do not acquire
 an extra `policy-` segment solely for provider namespacing.
 
-## Current canonical seed
+## Original canonical seed
 
-The following stable IDs are already canonical and remain required seed terms.
-The set is required as a subset, not as the complete glossary vocabulary.
+The original seed remains a required subset of the canonical vocabulary.
 
 | Canonical ID | Owner / curator | Origin | English term |
 | --- | --- | --- | --- |
@@ -60,35 +63,36 @@ The set is required as a subset, not as the complete glossary vocabulary.
 | `templates-webapp-implementation-evidence` | webapp | repository | Implementation evidence |
 | `templates-webapp-release-evidence` | webapp | repository | Release evidence |
 
-## Proposed first expansion
+## Completed first expansion
 
-The following terms are recommended for the next glossary expansion. Definitions
-must be derived from the cited canonical source documents rather than invented in
-this inventory.
+The following 17 terms were reviewed, added to their semantic owner's canonical
+glossary, and promoted through exact provider revisions into the integrated Site
+publication. The definitions were derived from the cited canonical source
+material rather than from this inventory.
 
-| Candidate term | Proposed ID | Owner | Origin | Japanese discovery label | Include next | Rationale / canonical source |
-| --- | --- | --- | --- | --- | --- | --- |
-| Integrated publication | `templates-integrated-publication` | site | repository | 統合公開 | yes | `PUBLISHING.md` defines one Site-owned publication assembled from independently owned provider histories. The distinction affects ownership and deployment decisions. |
-| Publication source lock | `templates-publication-source-lock` | site | repository | 公開ソースロック | yes | `PUBLISHING.md` and `publication-sources.json` require reviewed full-SHA provider inputs rather than mutable refs. |
-| Runtime decision record | `templates-skill-runtime-decision-record` | skill | repository | ランタイム決定記録 | yes | `template/RUNTIME.md` is a maintained authority for runtime, exact commands, package/distribution choices, protocol selections, and deployment lifecycle. |
-| Public interface selection contract | `templates-skill-public-interface-selection-contract` | skill | repository | 公開インターフェース選択契約 | yes | `template/INTERFACES.md` owns preferred agent route and deterministic fallback order while detailed caller-visible behavior belongs elsewhere. |
-| Shared policy | `templates-shared-policy` | policy | repository | 共有ポリシー | yes | `docs/policy-authoring.md` defines this ownership class as generally applicable, artifact- and engine-independent operating behavior authored canonically in the Policy corpus. It is one member of the six-class policy-ownership taxonomy reviewed together here. |
-| Context policy | `templates-context-policy` | policy | repository | コンテキストポリシー | yes | `docs/policy-authoring.md` defines this ownership class as artifact- and engine-independent policy content selected only for an operational context such as review. It is distinct from `templates-policy-context`: **Context policy is selected policy content; Policy context is the named semantic selector/authority boundary in `.agent-policy.yml` that selects profiles, repository-local policy, and overrides for an output.** |
-| Repository-local policy | `templates-repository-local-policy` | policy | repository | リポジトリローカルポリシー | yes | `docs/policy-authoring.md` assigns repository-specific facts, invariants, justified extensions, and explicit permitted overrides to this ownership class. |
-| Artifact contract | `templates-artifact-contract` | policy | repository | アーティファクト契約 | yes | `docs/policy-authoring.md` uses this ownership class for requirements that define what a produced Skill, Web application, CLI, library, service, or other artifact must contain or do, separating artifact semantics from coding-agent policy. |
-| Adapter/renderer requirement | `templates-adapter-renderer-requirement` | policy | repository | アダプター／レンダラー要件 | yes | `docs/policy-authoring.md` uses this ownership class when behavior depends on a particular agent, platform, protocol, command surface, renderer, or output format rather than shared policy semantics. |
-| Explanatory material | `templates-explanatory-material` | policy | repository | 説明資料 | yes | `docs/policy-authoring.md` separates rationale, examples, history, proposals, and other non-normative text from policy and artifact-contract authority. |
-| Policy override | `templates-policy-override` | policy | repository | ポリシーオーバーライド | yes | `docs/configuration.md` makes override declarations explicit exception records and separates them from replacement policy text. |
-| Template source artifact | `templates-webapp-template-source-artifact` | webapp | repository | テンプレートソースアーティファクト | yes | `docs/architecture/distribution-boundary.md` distinguishes the complete maintainer checkout from the copyable distribution. Confusing the two changes repository ownership. |
-| Template distribution artifact | `templates-webapp-template-distribution-artifact` | webapp | repository | テンプレート配布アーティファクト | yes | `docs/architecture/distribution-boundary.md` defines the committed `template/` subtree copied byte-for-byte to a new product repository. |
-| Product repository artifact | `templates-webapp-product-repository-artifact` | webapp | repository | プロダクトリポジトリアーティファクト | yes | `docs/architecture/distribution-boundary.md` distinguishes a generated/customized product repository from both source and distribution artifacts. |
-| Product mode | `templates-webapp-product-mode` | webapp | repository | プロダクトモード | yes | `template/docs/architecture/implementation-evidence.md` section **Template and product modes** defines when concrete implementation boundaries, proofs, commands, and release gates become required. `template/docs/architecture/release-evidence.md` distinguishes product-mode revision binding, execution provenance, command/gate results, and approval from template residue. `template/docs/architecture/release-bundle.md` likewise defines template/product handoff semantics for the exact candidate and active contract bytes. Together these documents define the product-mode boundary paired with the canonical `templates-webapp-template-mode`. |
-| Release bundle | `templates-webapp-release-bundle` | webapp | repository | リリースバンドル | yes | `template/docs/architecture/release-bundle.md` separates exact handoff bytes from release evidence and defines deterministic artifact closure. |
-| Contract family | `templates-webapp-contract-family` | webapp | repository | コントラクトファミリー | yes | `template/docs/architecture/contract-completeness.md` and release-bundle guidance use stable contract-family identity, version history, migrations, active/retired state, and evidence coverage. |
+| Canonical term | Canonical ID | Owner | Origin | Japanese discovery label | Rationale / canonical source |
+| --- | --- | --- | --- | --- | --- |
+| Integrated publication | `templates-integrated-publication` | site | repository | 統合公開 | `PUBLISHING.md` defines one Site-owned publication assembled from independently owned provider histories. The distinction affects ownership and deployment decisions. |
+| Publication source lock | `templates-publication-source-lock` | site | repository | 公開ソースロック | `PUBLISHING.md` and `publication-sources.json` require reviewed full-SHA provider inputs rather than mutable refs. |
+| Runtime decision record | `templates-skill-runtime-decision-record` | skill | repository | ランタイム決定記録 | `template/RUNTIME.md` is a maintained authority for runtime, exact commands, package/distribution choices, protocol selections, and deployment lifecycle. |
+| Public interface selection contract | `templates-skill-public-interface-selection-contract` | skill | repository | 公開インターフェース選択契約 | `template/INTERFACES.md` owns preferred agent route and deterministic fallback order while detailed caller-visible behavior belongs elsewhere. |
+| Shared policy | `templates-shared-policy` | policy | repository | 共有ポリシー | `docs/policy-authoring.md` defines this ownership class as generally applicable, artifact- and engine-independent operating behavior authored canonically in the Policy corpus. It is one member of the six-class policy-ownership taxonomy reviewed together here. |
+| Context policy | `templates-context-policy` | policy | repository | コンテキストポリシー | `docs/policy-authoring.md` defines this ownership class as artifact- and engine-independent policy content selected only for an operational context such as review. It is distinct from `templates-policy-context`: **Context policy is selected policy content; Policy context is the named semantic selector/authority boundary in `.agent-policy.yml` that selects profiles, repository-local policy, and overrides for an output.** |
+| Repository-local policy | `templates-repository-local-policy` | policy | repository | リポジトリローカルポリシー | `docs/policy-authoring.md` assigns repository-specific facts, invariants, justified extensions, and explicit permitted overrides to this ownership class. |
+| Artifact contract | `templates-artifact-contract` | policy | repository | アーティファクト契約 | `docs/policy-authoring.md` uses this ownership class for requirements that define what a produced Skill, Web application, CLI, library, service, or other artifact must contain or do, separating artifact semantics from coding-agent policy. |
+| Adapter/renderer requirement | `templates-adapter-renderer-requirement` | policy | repository | アダプター／レンダラー要件 | `docs/policy-authoring.md` uses this ownership class when behavior depends on a particular agent, platform, protocol, command surface, renderer, or output format rather than shared policy semantics. |
+| Explanatory material | `templates-explanatory-material` | policy | repository | 説明資料 | `docs/policy-authoring.md` separates rationale, examples, history, proposals, and other non-normative text from policy and artifact-contract authority. |
+| Policy override | `templates-policy-override` | policy | repository | ポリシーオーバーライド | `docs/configuration.md` makes override declarations explicit exception records and separates them from replacement policy text. |
+| Template source artifact | `templates-webapp-template-source-artifact` | webapp | repository | テンプレートソースアーティファクト | `docs/architecture/distribution-boundary.md` distinguishes the complete maintainer checkout from the copyable distribution. Confusing the two changes repository ownership. |
+| Template distribution artifact | `templates-webapp-template-distribution-artifact` | webapp | repository | テンプレート配布アーティファクト | `docs/architecture/distribution-boundary.md` defines the committed `template/` subtree copied byte-for-byte to a new product repository. |
+| Product repository artifact | `templates-webapp-product-repository-artifact` | webapp | repository | プロダクトリポジトリアーティファクト | `docs/architecture/distribution-boundary.md` distinguishes a generated/customized product repository from both source and distribution artifacts. |
+| Product mode | `templates-webapp-product-mode` | webapp | repository | プロダクトモード | `template/docs/architecture/implementation-evidence.md` section **Template and product modes** defines when concrete implementation boundaries, proofs, commands, and release gates become required. `template/docs/architecture/release-evidence.md` distinguishes product-mode revision binding, execution provenance, command/gate results, and approval from template residue. `template/docs/architecture/release-bundle.md` likewise defines template/product handoff semantics for the exact candidate and active contract bytes. Together these documents define the product-mode boundary paired with the canonical `templates-webapp-template-mode`. |
+| Release bundle | `templates-webapp-release-bundle` | webapp | repository | リリースバンドル | `template/docs/architecture/release-bundle.md` separates exact handoff bytes from release evidence and defines deterministic artifact closure. |
+| Contract family | `templates-webapp-contract-family` | webapp | repository | コントラクトファミリー | `template/docs/architecture/contract-completeness.md` and release-bundle guidance use stable contract-family identity, version history, migrations, active/retired state, and evidence coverage. |
 
 ### Policy ownership-taxonomy boundary
 
-The six ownership classes above are peers from `docs/policy-authoring.md` and are
+The six ownership classes above are peers from `docs/policy-authoring.md` and were
 reviewed as one set:
 
 1. Shared policy;
@@ -102,14 +106,54 @@ They classify where a requirement or piece of documentation belongs. They do not
 replace the runtime/configuration concept `Policy context`. A Policy context is a
 named semantic authority boundary that selects policy inputs and a renderer for
 an output; Context policy is one class of policy content that may be selected for
-an operational context. The canonical entries should relate those concepts so
-search and review do not treat the reversed names as synonyms.
+an operational context. The canonical entries relate those concepts so search
+and review do not treat the reversed names as synonyms.
+
+## Cross-provider relation policy
+
+`related_terms` is untyped stable-ID navigation metadata rather than a formal
+ontology. Provider-local glossary files are federated inputs and are not required
+to contain definitions for every related ID they reference. Cross-provider
+targets remain defined by exactly one canonical owner and are resolved by the
+Site parser only after the exact provider revisions are integrated.
+
+A cross-provider relation is appropriate only when at least one of these is true:
+
+1. two canonical concepts have similar labels and an explicit relation materially
+   reduces the risk of conflating them; or
+2. a concrete provider concept is clearly an instance or application of a
+   canonical cross-provider classification and the link improves navigation.
+
+Shared words alone are insufficient. Relations need not be symmetric. Peer
+concepts may link reciprocally for disambiguation, while concrete-to-generic
+classification links normally point only from the concrete term to the generic
+term so the generic taxonomy does not become an open-ended instance registry.
+
+### Completed first cross-provider relation pass
+
+The following reviewed relations complete the deferred step 7 of the first
+expansion:
+
+| Source term | Related term | Relation rationale |
+| --- | --- | --- |
+| `templates-skill-profile` | `templates-policy-profile` | Reciprocal peer link between two distinct profile systems that share the lexical head “profile”. |
+| `templates-policy-profile` | `templates-skill-profile` | Reciprocal peer link for the same disambiguation boundary. |
+| `templates-skill-public-interface-selection-contract` | `templates-artifact-contract` | The Skill contract is a concrete artifact-level contract governed by the generic Policy ownership classification. |
+| `templates-skill-public-interface-selection-contract` | `templates-adapter-renderer-requirement` | Its semantics depend on the retained public interface/agent surface and therefore intersect the adapter/interface-specific requirement class. |
+| `templates-webapp-implementation-evidence` | `templates-artifact-contract` | The Webapp implementation-evidence contract defines artifact-level proof obligations. |
+| `templates-webapp-release-evidence` | `templates-artifact-contract` | The revision-specific release-evidence contract is part of the produced Webapp artifact contract system. |
+| `templates-webapp-release-bundle` | `templates-artifact-contract` | The handoff bundle is explicitly a Webapp contract governing exact artifact bytes. |
+
+Deliberately omitted weak relations include `Contract manifest` or `Contract
+family` merely because they contain the word “contract”, publication catalog ↔
+contract manifest based only on registry similarity, and Template mode ↔ Skill
+template scaffold based only on shared template vocabulary.
 
 ## Deferred repository candidates
 
-These concepts are meaningful but are intentionally deferred until the first
-expansion above is reviewed. Deferral is based on semantic grouping or unresolved
-boundaries rather than pull-request size alone.
+These concepts remain meaningful candidates for later expansion. Deferral is
+based on semantic grouping or unresolved boundaries rather than pull-request
+size alone.
 
 | Candidate term | Proposed ID | Likely owner | Reason to defer |
 | --- | --- | --- | --- |
@@ -122,7 +166,7 @@ boundaries rather than pull-request size alone.
 | Merge-test revision | `templates-webapp-merge-test-revision` | webapp | Same revision-role group as Candidate revision. |
 | Released revision | `templates-webapp-released-revision` | webapp | Same revision-role group as Candidate revision. |
 | Deployed revision | `templates-webapp-deployed-revision` | webapp | Same revision-role group as Candidate revision. |
-| Index-guided navigation | `templates-index-guided-navigation` | site | `PUBLISHING.md` defines this specifically as the projection driven by provider-owned `index.md` structure. It is deferred because publication ownership terms are the higher-priority Site expansion, not because its boundary is unclear. |
+| Index-guided navigation | `templates-index-guided-navigation` | site | `PUBLISHING.md` defines this specifically as the projection driven by provider-owned `index.md` structure. It was deferred because publication ownership terms were the higher-priority Site expansion, not because its boundary is unclear. |
 
 ## External terminology candidates
 
@@ -141,7 +185,7 @@ multiple provider glossaries.
 
 ## Japanese-label policy for this inventory
 
-Japanese text in the table is discovery metadata only. The canonical entry must
+Japanese text in the tables is discovery metadata only. The canonical entry must
 still use English `term` plus English repository `definition`, or English
 external `summary` plus `authority`.
 
@@ -151,22 +195,22 @@ in repository documentation or standard Japanese technical usage. Alternative
 spellings may be stored as `localized_labels.ja.aliases` when they improve
 lookup. No Japanese definition is required.
 
-## Implementation order after inventory review
+## Completed first-expansion implementation sequence
 
-During steps 1–4, provider entries must contain only provider-local
-`related_terms`; cross-provider relations are deferred to step 7 after every
-target exists in the locked integrated set.
+The first expansion was completed in the following dependency order:
 
-1. Add the Site-owned terms to `site/docs/glossary.yml`.
-2. Add Skill-owned terms to `skill/docs/glossary.yml`.
-3. Add Policy-owned terms to `policy/docs/glossary.yml`.
-4. Add Webapp-owned terms to `webapp/docs/glossary.yml`.
-5. For every provider PR, run the provider-local checks and the Site compatibility
-   workflow against the exact proposed revision.
-6. After provider merges, promote their exact full SHAs through a coordinated
-   Site lock update and verify the integrated JSON and human glossary viewer.
-7. Add cross-provider `related_terms` only after every referenced term exists in
-   the locked integrated set.
+1. add the Site-owned terms to `site/docs/glossary.yml`;
+2. add Skill-owned terms to `skill/docs/glossary.yml`;
+3. add Policy-owned terms to `policy/docs/glossary.yml`;
+4. add Webapp-owned terms to `webapp/docs/glossary.yml`;
+5. validate every provider revision through provider-local checks and the Site
+   compatibility workflow;
+6. promote the reviewed provider merge SHAs through a coordinated Site lock
+   update and verify the integrated JSON and human glossary viewer; and
+7. after every target existed in the locked integrated set, add the reviewed
+   cross-provider `related_terms` and promote those exact provider revisions.
 
-External-term expansion is a separate curation pass because its authority URLs
-and version sensitivity require current upstream verification.
+Future repository-defined expansions should follow the same owner-first and
+exact-revision promotion model. External-term expansion remains a separate
+curation pass because authority URLs and version-sensitive upstream semantics
+must be verified against current official sources when the entry is created.

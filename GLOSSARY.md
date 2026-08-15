@@ -108,6 +108,18 @@ Externally defined entries:
 
 Optional common metadata includes `aliases`, `localized_labels`, `repository_usage`, and `related_terms`. A term must not list itself in `related_terms`; all related IDs must resolve in the integrated glossary.
 
+### Cross-provider related terms
+
+`related_terms` is federated stable-ID navigation metadata, not a provider-local ownership declaration and not a typed ontology. A provider-local `docs/glossary.yml` may therefore reference a stable term ID canonically owned by another provider. Provider-local glossary files are not required to be closed under `related_terms`.
+
+A cross-provider target must remain defined only by its canonical owner. The referring provider must not copy the target term definition into its own glossary merely to make the reference locally resolvable; doing so would create a duplicate global term ID and violate single-owner terminology semantics.
+
+Provider-local publication-catalog validators continue to validate declaration and path boundaries rather than duplicating the repository-wide glossary semantic parser. The Site integration step resolves every `related_terms` ID against the exact locked provider revisions and fails closed when a target is absent, duplicated, malformed, or self-referential.
+
+Cross-provider relations should remain sparse. A relation is appropriate when it materially helps distinguish easily confused peer concepts or connects a concrete provider concept to a clearly applicable canonical classification. Relations need not be symmetric: peer disambiguation may be reciprocal, while concrete-to-generic classification links normally point from the concrete concept to the generic one so generic taxonomy terms do not become open-ended instance registries.
+
+These directionality and symmetry guidelines are maintainer authoring conventions, not additional parser semantics. The Site integration parser resolves the stable IDs exactly as declared and does not infer, add, remove, reverse, or otherwise normalize relation directionality.
+
 ## External authority
 
 External authority is represented as:
