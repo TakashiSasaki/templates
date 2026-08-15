@@ -24,6 +24,7 @@ terms:
       input.
     related_terms:
       - templates-policy-module
+      - templates-skill-profile
 
   - id: templates-policy-context
     term: Policy context
