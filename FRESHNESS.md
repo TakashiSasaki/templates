@@ -111,11 +111,13 @@ Network outcomes have distinct semantics:
 ### Full-navigation stale indication
 
 For a full browser navigation, the cached HTML response itself carries the
-freshness indication. The Service Worker inserts an element with
-`id="templates-freshness-status"` and
-`data-freshness-state="cached-unverified"` immediately before the document's
-single unambiguous closing `</body>` tag. If that boundary cannot be established,
-the cached representation fails closed and is not exposed.
+freshness indication. The Service Worker requires one unambiguous `<html>` start
+tag, one `<body>` start tag, and one closing `</body>` tag. It marks the cached
+representation with `data-templates-cached-fallback="true"` on `<html>` and
+inserts the `templates-freshness-status` element immediately after the opening
+`<body>` tag, before later page scripts can execute. If those boundaries cannot
+be established consistently, the cached representation fails closed and is not
+exposed.
 
 The decorated representation also includes a minimal inline fallback style for
 the status element. This makes the warning fixed at the top of standalone pages
@@ -125,9 +127,11 @@ shared stylesheet. The inline fallback contains only fixed Site-owned CSS and no
 content-derived values.
 
 A full-navigation page may emit Zensical's `document$` event during initial page
-setup. `pwa.js` therefore recognizes an already embedded `cached-unverified`
-status as belonging to the initial cached representation and preserves it across
-that initial commit rather than interpreting the event as proof of fresh content.
+setup. `pwa.js` therefore reads the explicit `<html>` cached-representation marker
+(and accepts an already present `cached-unverified` status as a defensive
+fallback), preserves the warning across the initial commit, and consumes the
+marker only when that cached commit boundary is observed. The initial event is
+not interpreted as proof of fresh content.
 
 ### Instant-navigation stale indication, acknowledgement, and commit boundary
 
@@ -177,9 +181,10 @@ Cached fallback responses carry
 Because the cached HTML body is modified, `Content-Encoding`, `Content-Length`,
 `ETag`, and `Last-Modified` are removed. A cached response that is not HTML,
 cannot be read, has a redirected final URL different from the exact request URL,
-or lacks one unambiguous closing body boundary is not used as fallback. Redirects
-fail closed because constructing a synthetic decorated `Response` cannot preserve
-the original response URL needed for canonical relative-URL resolution.
+or lacks the single unambiguous `<html>`/`<body>` structure required for safe
+marking and insertion is not used as fallback. Redirects fail closed because
+constructing a synthetic decorated `Response` cannot preserve the original
+response URL needed for canonical relative-URL resolution.
 
 ## Shell cache behavior
 
@@ -212,6 +217,8 @@ The Chromium freshness lifecycle verifies at least:
   correlated to the fresh representation rather than the stale URL alone;
 - offline full navigation returns cached v2 with exactly one visible stale
   indication and preserves it across the initial document commit;
+- the standalone/full-navigation warning remains fixed in the viewport using its
+  CSP-compatible inline fallback style even without the shared warning stylesheet;
 - an uncached offline request retains explicit 503;
 - ordinary 4xx responses never fall back to stale documentation;
 - transient 5xx may fall back only with acknowledged stale indication;
