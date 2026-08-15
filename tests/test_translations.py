@@ -17,11 +17,16 @@ def blob_sha(data: bytes) -> str:
     return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
 
 
-def write_catalog(root: Path, *, source: str = "docs/overview.md") -> None:
+def write_catalog(
+    root: Path,
+    *,
+    source: str = "docs/overview.md",
+    schema_version: object = 3,
+) -> None:
     (root / "docs" / "publication-catalog.json").write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": schema_version,
                 "documents": [
                     {
                         "id": "overview",
@@ -85,6 +90,24 @@ class TranslationContractTests(unittest.TestCase):
         self.assertIn("translations validated: 15", result)
         self.assertIn("reader translations: 14", result)
         self.assertIn("guided translations: 5", result)
+
+    def test_publication_catalog_schema_version_is_strictly_v3(self) -> None:
+        for version in (1, 2, 4, "3", 3.0, True, None, [3]):
+            with self.subTest(version=version), tempfile.TemporaryDirectory(
+                prefix="translation-test-"
+            ) as directory:
+                root = Path(directory)
+                canonical = prepare_single_translation(root)
+                write_catalog(root, schema_version=version)
+                write_manifest(
+                    root,
+                    [translation_entry(canonical_blob_sha=blob_sha(canonical))],
+                )
+                with self.assertRaisesRegex(
+                    TranslationError,
+                    "publication catalog schema_version must be integer 3",
+                ):
+                    validate(root)
 
     def test_guided_index_may_be_outside_reader_catalog(self) -> None:
         with tempfile.TemporaryDirectory(prefix="translation-test-") as directory:
