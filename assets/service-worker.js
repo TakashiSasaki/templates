@@ -333,7 +333,7 @@ async function notifyInstantNavigationState(
   });
 }
 
-async function fetchDocumentNetworkFirst(event) {
+async function fetchDocumentNetworkFirst(event, registerBackgroundTask) {
   const request = event.request;
   const generation = beginDocumentRequest();
   try {
@@ -377,7 +377,7 @@ async function fetchDocumentNetworkFirst(event) {
     }
     if (isCacheableDocumentResponse(response)) {
       const cachedResponse = response.clone();
-      event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation));
+      registerBackgroundTask(cacheVerifiedDocument(request, cachedResponse, generation));
     }
     await notifyInstantNavigationCommit(event, "network", generation);
     return response;
@@ -400,6 +400,24 @@ async function fetchDocumentNetworkFirst(event) {
     }
     return cached;
   }
+}
+
+function respondWithDocumentNetworkFirst(event) {
+  let backgroundTask = Promise.resolve();
+  const registerBackgroundTask = (task) => {
+    backgroundTask = Promise.resolve(task);
+  };
+  const responsePromise = fetchDocumentNetworkFirst(event, registerBackgroundTask);
+  const lifetimePromise = responsePromise
+    .then(
+      () => backgroundTask,
+      () => backgroundTask
+    )
+    .catch((error) => {
+      console.warn("PWA document lifetime task failed", error);
+    });
+  event.waitUntil(lifetimePromise);
+  event.respondWith(responsePromise);
 }
 
 async function refreshStaticAsset(request) {
@@ -462,7 +480,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isDocumentRequest(event.request, url)) {
-    event.respondWith(fetchDocumentNetworkFirst(event));
+    respondWithDocumentNetworkFirst(event);
     return;
   }
 
