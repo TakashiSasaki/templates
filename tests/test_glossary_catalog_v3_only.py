@@ -40,8 +40,8 @@ class GlossaryCatalogV3OnlyTests(unittest.TestCase):
                 ):
                     glossary_source_from_catalog(root)
 
-    def test_boolean_and_future_catalog_versions_are_rejected(self) -> None:
-        for version in (True, 4):
+    def test_invalid_catalog_versions_are_rejected(self) -> None:
+        for version in (True, 4, "3", 3.0, None):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 self.write_catalog(root, version)
