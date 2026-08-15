@@ -33,11 +33,15 @@ EXCLUDED_TAGS = {
     "form",
     "header",
     "kbd",
+    "math",
     "nav",
+    "option",
     "pre",
     "samp",
     "script",
     "style",
+    "svg",
+    "template",
     "textarea",
 }
 VOID_TAGS = {
@@ -123,7 +127,7 @@ class _AnnotationParser(HTMLParser):
         self.index = index
         self.target_main = target_main
         self.output: list[str] = []
-        self.stack: list[tuple[bool, bool]] = []
+        self.stack: list[tuple[str, bool, bool]] = []
         self.annotation_count = 0
         self._text_raw: list[str] = []
         self._text_decoded: list[str] = []
@@ -131,7 +135,8 @@ class _AnnotationParser(HTMLParser):
     def _parent_state(self) -> tuple[bool, bool]:
         if not self.stack:
             return False, False
-        return self.stack[-1]
+        _, target, excluded = self.stack[-1]
+        return target, excluded
 
     def _state_for_start(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -173,7 +178,8 @@ class _AnnotationParser(HTMLParser):
         self._flush_text()
         self.output.append(self.get_starttag_text())
         if tag not in VOID_TAGS:
-            self.stack.append(self._state_for_start(tag, attrs))
+            target, excluded = self._state_for_start(tag, attrs)
+            self.stack.append((tag, target, excluded))
 
     def handle_startendtag(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -184,7 +190,7 @@ class _AnnotationParser(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         self._flush_text()
         self.output.append(f"</{tag}>")
-        if tag not in VOID_TAGS and self.stack:
+        if tag not in VOID_TAGS and self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
 
     def handle_data(self, data: str) -> None:
@@ -236,7 +242,9 @@ def annotate_html(source: str, index: AnnotationIndex) -> tuple[str, int]:
 
 
 def _excluded_route(relative: Path) -> bool:
-    return any(part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1])
+    return relative.stem in EXCLUDED_ROUTE_COMPONENTS or any(
+        part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
+    )
 
 
 def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
