@@ -221,14 +221,24 @@ def is_sandbox_preview(path: Path, site_root: Path) -> bool:
     return relative.parts[:2] == ("repository-trees", "previews")
 
 
+def generated_html_files(site_root: Path) -> list[Path]:
+    html_files: list[Path] = []
+    for path in sorted(site_root.rglob("*.html")):
+        relative = path.relative_to(site_root)
+        if path.is_symlink() or not path.is_file():
+            raise FreshnessMetadataError(
+                f"generated HTML must be a regular file: {relative}"
+            )
+        html_files.append(path)
+    if not html_files:
+        raise FreshnessMetadataError(f"no generated HTML files found under {site_root}")
+    return html_files
+
+
 def annotate_generated_html(site_root: Path, site_revision: str) -> int:
     resolved_root = site_root.resolve(strict=True)
-    html_files = sorted(path for path in resolved_root.rglob("*.html") if path.is_file())
-    if not html_files:
-        raise FreshnessMetadataError(f"no generated HTML files found under {resolved_root}")
-
-    modified = 0
-    for path in html_files:
+    updates: dict[Path, str] = {}
+    for path in generated_html_files(resolved_root):
         if is_sandbox_preview(path, resolved_root):
             continue
         try:
@@ -238,11 +248,12 @@ def annotate_generated_html(site_root: Path, site_revision: str) -> int:
                 f"unable to read generated HTML {path}: {exc}"
             ) from exc
         updated = annotate_site_revision(source, site_revision, path)
-        if updated == source:
-            continue
+        if updated != source:
+            updates[path] = updated
+
+    for path, updated in updates.items():
         path.write_text(updated, encoding="utf-8")
-        modified += 1
-    return modified
+    return len(updates)
 
 
 def build_payload(
@@ -258,6 +269,17 @@ def build_payload(
     }
 
 
+def validate_output_path(output: Path) -> None:
+    if output.is_symlink():
+        raise FreshnessMetadataError(
+            f"output path must not be a symbolic link: {output}"
+        )
+    if output.exists() and not output.is_file():
+        raise FreshnessMetadataError(
+            f"output path must be a regular file: {output}"
+        )
+
+
 def generate_freshness_metadata(
     site_root: Path,
     site_revision: str,
@@ -266,8 +288,9 @@ def generate_freshness_metadata(
 ) -> tuple[Path, int]:
     resolved_root = site_root.resolve(strict=True)
     payload = build_payload(site_revision, deployment_timestamp, publications)
-    annotated = annotate_generated_html(resolved_root, site_revision)
     output = resolved_root / "site-version.json"
+    validate_output_path(output)
+    annotated = annotate_generated_html(resolved_root, site_revision)
     output.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
