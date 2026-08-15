@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
 COMPATIBILITY = WORKFLOWS / "pages.yml"
 CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+PINNED_SITE_SHA = "e95959f5a47b071fb1178565893ea0d572f4ff97"
 
 
 def abort(message: str) -> None:
@@ -45,8 +46,8 @@ def main() -> int:
 
     compatibility = COMPATIBILITY.read_text(encoding="utf-8")
     required = [
-        "uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site",
-        "site_ref: site",
+        f"uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@{PINNED_SITE_SHA}",
+        f"site_ref: {PINNED_SITE_SHA}",
         "source_ref: ${{ github.event_name == 'pull_request' && github.sha || 'skill' }}",
         "contents: read",
         "- README.md",
@@ -56,6 +57,13 @@ def main() -> int:
     for token in required:
         if token not in compatibility:
             abort(f"compatibility workflow is missing {token!r}")
+
+    if "build-pages.yml@site" in compatibility or re.search(
+        r"^\s*site_ref:\s*site\s*$", compatibility, re.MULTILINE
+    ):
+        abort("compatibility workflow uses a floating Site revision")
+    if re.fullmatch(r"[0-9a-f]{40}", PINNED_SITE_SHA) is None:
+        abort("Site compatibility pin is not a full commit SHA")
 
     for removed_filter in ("CLI_INTERFACE.md", "MCP_INTERFACE.md", "assets/**"):
         if any(
