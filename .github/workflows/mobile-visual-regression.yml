@@ -107,6 +107,12 @@ jobs:
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
 
+      - name: Check PWA document commit correlation
+        run: |
+          python scripts/check_pwa_commit_regressions.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-document-commit.json
+
       - name: Check PWA freshness capability messaging
         run: |
           python scripts/check_pwa_capabilities.py \
