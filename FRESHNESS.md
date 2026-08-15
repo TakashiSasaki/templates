@@ -45,7 +45,7 @@ The value must equal `/site-version.json`'s `site_revision`. Existing conflictin
 or duplicate metadata fails the build. Generated HTML with malformed or ambiguous
 `<head>` boundaries also fails rather than being heuristically rewritten.
 Sandboxed repository-tree previews under `/repository-trees/previews/` are
-excluded.
+excluded from both build-time freshness annotation and PWA document handling.
 
 After writing the projection, the build re-reads `/site-version.json` and every
 eligible generated HTML page. It verifies the complete canonical JSON payload and
@@ -84,13 +84,23 @@ The runtime document cache is `templates-portal-documents-v1`, independent of th
 versioned shell cache. Service Worker activation removes incompatible shell
 namespaces but preserves the compatible document namespace.
 
+Cache mutations for one exact request URL are both serialized and ordered by a
+request generation allocated before that request begins network I/O. A mutation
+from an older generation is discarded after a newer generation has already been
+applied. An authoritative 404/410 records its generation before deletion begins,
+so a slower HTTP 200 request that started earlier cannot later resurrect the
+deleted document. The worker also retains an in-memory authoritative-deletion
+tombstone until a newer successful cache write supersedes it; if physical cache
+deletion fails, the stale entry therefore remains ineligible for fallback.
+
 Network outcomes have distinct semantics:
 
 - cacheable HTTP 200: return the network response and update the exact document
-  cache entry;
-- HTTP 404 or 410: remove the exact cached document before returning the network
-  response; if entry deletion fails, attempt to delete the entire document-cache
-  namespace rather than knowingly preserve an authoritative stale copy;
+  cache entry when its request generation is not stale;
+- HTTP 404 or 410: mark the request generation authoritative, remove the exact
+  cached document before returning the network response, and if entry deletion
+  fails attempt to delete the entire document-cache namespace rather than
+  knowingly preserve an authoritative stale copy;
 - ordinary non-transient 4xx such as 403: return the network response and do not
   fall back to stale documentation;
 - HTTP 5xx: return cached documentation only when stale indication can be proven;
@@ -101,16 +111,23 @@ Network outcomes have distinct semantics:
 ### Full-navigation stale indication
 
 For a full browser navigation, the cached HTML response itself carries the
-freshness indication. The Service Worker appends an element with
+freshness indication. The Service Worker inserts an element with
 `id="templates-freshness-status"` and
-`data-freshness-state="cached-unverified"`, stating that a saved copy is shown
-because the latest version could not be verified. The freshness stylesheet fixes
-that element to the top of the viewport.
+`data-freshness-state="cached-unverified"` immediately before the document's
+single unambiguous closing `</body>` tag. If that boundary cannot be established,
+the cached representation fails closed and is not exposed.
 
-The element is appended rather than inserted by scanning raw HTML for a `<body>`
-token. This avoids false placement caused by tag-like strings inside script or
-style content. Chromium regression verifies that the appended flow content is
-rendered in the body and that exactly one visible stale warning is present.
+The decorated representation also includes a minimal inline fallback style for
+the status element. This makes the warning fixed at the top of standalone pages
+whose CSP permits their existing inline styles but which do not load the shared
+`freshness-status.css`; ordinary Site pages continue to receive the equivalent
+shared stylesheet. The inline fallback contains only fixed Site-owned CSS and no
+content-derived values.
+
+A full-navigation page may emit Zensical's `document$` event during initial page
+setup. `pwa.js` therefore recognizes an already embedded `cached-unverified`
+status as belonging to the initial cached representation and preserves it across
+that initial commit rather than interpreting the event as proof of fresh content.
 
 ### Instant-navigation stale indication, acknowledgement, and commit boundary
 
@@ -118,12 +135,13 @@ A document-like fetch used by instant navigation cannot assume that an indicatio
 embedded in fetched HTML will survive partial-DOM replacement. Before returning
 a cached response for such a request, the Service Worker sends the requesting
 client a `templates:freshness-state` message carrying `cached-unverified`, the
-exact request URL, and a `MessageChannel` acknowledgement port.
+exact request URL, the request generation, and a `MessageChannel`
+acknowledgement port.
 
 Current `pwa.js` applies that state to persistent DOM by creating the same fixed
-status element as a direct body child, remembers the URL expected to receive the
-cached representation, then replies through the port with
-`templates:freshness-state-applied`. The Service Worker waits for that exact
+status element and records a pending commit whose representation is `cached`.
+It then replies through the port with `templates:freshness-state-applied`,
+echoing the state and request generation. The Service Worker waits for that exact
 acknowledgement, with a bounded timeout, before returning cached HTML.
 
 This acknowledgement is a safety condition, not an optimization. If an older
@@ -133,14 +151,19 @@ refuses to expose cached HTML: a network failure returns the explicit 503 and a
 transient HTTP 5xx returns the original 5xx.
 
 Network response completion and document replacement are separate events under
-Zensical instant navigation. Therefore a later HTTP response, including a
-cacheable HTTP 200 or an ordinary 4xx, does not by itself clear a stale warning.
-`pwa.js` subscribes to Zensical's `document$` observable and treats that event as
-the document-commit boundary. If the committed URL is the cached-fallback URL it
-was waiting for, the stale warning is retained and only the pending marker is
-consumed. A later committed document that was not preceded by a cached fallback
-clears the persistent warning. A successful fetch that is prefetched, cancelled,
-or otherwise never committed cannot clear the warning merely by completing.
+Zensical instant navigation. The worker therefore sends a separate
+`templates:document-commit` intent for non-cached network representations. That
+message carries the exact URL, representation kind, and request generation, but
+does not clear an existing warning. `pwa.js` retains only the newest observed
+commit generation and waits for Zensical's `document$` event before acting on the
+pending representation.
+
+At the document-commit boundary, a committed `cached` representation keeps the
+warning and consumes its pending marker. A committed `network` representation
+clears the warning. This representation-aware correlation prevents two opposite
+failures: a successful fetch that is prefetched or cancelled cannot clear a stale
+warning before it is rendered, and a later fresh retry to the same URL cannot be
+mistaken for an earlier cancelled cached fallback merely because the URLs match.
 
 This fail-safe ordering deliberately permits an old warning to remain longer than
 necessary if a non-Zensical surface cannot expose a document-commit signal. It
@@ -152,8 +175,11 @@ finished before the caller replaced the visible DOM.
 Cached fallback responses carry
 `X-Templates-Freshness: cached-unverified` and `Cache-Control: no-store`.
 Because the cached HTML body is modified, `Content-Encoding`, `Content-Length`,
-`ETag`, and `Last-Modified` are removed. A cached response that is not HTML or
-cannot be read is not used as fallback.
+`ETag`, and `Last-Modified` are removed. A cached response that is not HTML,
+cannot be read, has a redirected final URL different from the exact request URL,
+or lacks one unambiguous closing body boundary is not used as fallback. Redirects
+fail closed because constructing a synthetic decorated `Response` cannot preserve
+the original response URL needed for canonical relative-URL resolution.
 
 ## Shell cache behavior
 
@@ -162,6 +188,11 @@ assets needed to render previously viewed documentation, including the manifest,
 icon, common stylesheets, freshness-status stylesheet, and common local
 JavaScript. Exact shell assets continue to use background `cache: "no-cache"`
 revalidation when requested.
+
+The Chromium capability checker derives its install-asset preflight directly from
+the Service Worker's `STATIC_ASSETS` declaration. A newly added precache asset
+therefore cannot be omitted silently from the preflight and leave the browser
+waiting on a Service Worker installation that has already failed.
 
 ## Browser regression contract
 
@@ -177,13 +208,15 @@ The Chromium freshness lifecycle verifies at least:
 - an uncommitted ordinary 4xx response does not clear the warning;
 - a later verified HTTP 200 response does not clear the warning before the
   corresponding document commit, while the subsequent committed navigation does;
+- a cancelled cached navigation followed by a fresh retry to the same URL is
+  correlated to the fresh representation rather than the stale URL alone;
 - offline full navigation returns cached v2 with exactly one visible stale
-  indication;
+  indication and preserves it across the initial document commit;
 - an uncached offline request retains explicit 503;
 - ordinary 4xx responses never fall back to stale documentation;
 - transient 5xx may fall back only with acknowledged stale indication;
 - authoritative 404 removes the cached document so later offline access cannot
-  resurrect it;
+  resurrect it, including when an older delayed 200 completes afterward;
 - Service Worker update propagation, manifest convergence, and the live
   freshness-capability message contract remain valid.
 
