@@ -23,7 +23,7 @@ class AssemblyReviewRegressionTests(unittest.TestCase):
         (root / "docs").mkdir(parents=True)
         (root / "docs" / "index.md").write_text("# Home\n", encoding="utf-8")
         catalog: dict[str, object] = {
-            "schema_version": 2 if assets is not None else 1,
+            "schema_version": 3,
             "documents": [
                 {
                     "id": "home",
