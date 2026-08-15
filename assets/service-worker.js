@@ -1,4 +1,4 @@
-const CACHE_NAME = "templates-portal-shell-v5";
+const CACHE_NAME = "templates-portal-shell-v4";
 const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
 const GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1";
 const GLOSSARY_MODEL_PATH = "/glossary/index.json";
