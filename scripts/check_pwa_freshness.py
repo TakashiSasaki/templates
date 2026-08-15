@@ -62,11 +62,7 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
             cache_control: str = "no-store",
             etag: str | None = None,
         ) -> None:
-            if (
-                status == 200
-                and etag
-                and self.headers.get("If-None-Match") == etag
-            ):
+            if status == 200 and etag and self.headers.get("If-None-Match") == etag:
                 self.send_response(304)
                 self.send_header("Cache-Control", cache_control)
                 self.send_header("ETag", etag)
@@ -91,7 +87,6 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
                 return False
             if not candidate.is_file():
                 return False
-
             content_types = {
                 ".css": "text/css; charset=utf-8",
                 ".js": "text/javascript; charset=utf-8",
@@ -101,11 +96,10 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
                 ".woff": "font/woff",
                 ".woff2": "font/woff2",
             }
-            content_type = content_types.get(
-                candidate.suffix.lower(),
-                "application/octet-stream",
+            self._send(
+                candidate.read_bytes(),
+                content_types.get(candidate.suffix.lower(), "application/octet-stream"),
             )
-            self._send(candidate.read_bytes(), content_type)
             return True
 
         def do_GET(self) -> None:
@@ -114,19 +108,25 @@ def _fixture_handler(site_root: Path, state: FixtureState) -> type[BaseHTTPReque
             if path == "/":
                 body = b"""<!doctype html>
 <html>
-<head><meta charset=\"utf-8\"><title>PWA freshness fixture</title></head>
+<head><meta charset=\"utf-8\"><title>PWA freshness fixture</title><link rel=\"stylesheet\" href=\"/stylesheets/freshness-status.css\"></head>
 <body><main id=\"fixture\">fixture</main><script src=\"/javascripts/pwa.js\"></script></body>
 </html>
 """
                 self._send(body, "text/html; charset=utf-8")
                 return
 
+            if path == "/legacy/":
+                body = b"""<!doctype html>
+<html>
+<head><meta charset=\"utf-8\"><title>Legacy client fixture</title></head>
+<body><main id=\"legacy\">legacy-client-without-freshness-ui</main></body>
+</html>
+"""
+                self._send(body, "text/html; charset=utf-8")
+                return
+
             if path == "/javascripts/pwa.js":
-                self._send(
-                    registration_source,
-                    "text/javascript; charset=utf-8",
-                    cache_control="no-store",
-                )
+                self._send(registration_source, "text/javascript; charset=utf-8")
                 return
 
             if path == "/service-worker.js":
@@ -185,8 +185,10 @@ self.addEventListener("message", (event) => {{
                 state.record_hit("document")
                 body = (
                     "<!doctype html><html><head><meta charset=\"utf-8\">"
+                    '<link rel="stylesheet" href="/stylesheets/freshness-status.css">'
                     "<title>Document fixture</title></head><body>"
                     f"<main>document-v{state.document_version}</main>"
+                    '<script src="/javascripts/pwa.js"></script>'
                     "</body></html>"
                 ).encode("utf-8")
                 self._send(
@@ -277,11 +279,7 @@ def _fetch_manifest_version(page: Any) -> int:
     )
 
 
-def _wait_for_manifest_version(
-    page: Any,
-    expected: int,
-    timeout_seconds: float = 10.0,
-) -> list[int]:
+def _wait_for_manifest_version(page: Any, expected: int, timeout_seconds: float = 10.0) -> list[int]:
     deadline = time.monotonic() + timeout_seconds
     observed_versions: list[int] = []
     last_error: Exception | None = None
@@ -295,7 +293,6 @@ def _wait_for_manifest_version(
         except Exception as exc:
             last_error = exc
         time.sleep(0.1)
-
     message = f"cached manifest did not converge to fixture version {expected}"
     if last_error is not None:
         raise PwaFreshnessError(message) from last_error
@@ -314,12 +311,7 @@ def _document_is_cached(page: Any, path: str) -> bool:
     )
 
 
-def _wait_for_document_cache(
-    page: Any,
-    path: str,
-    expected: bool,
-    timeout_seconds: float = 5.0,
-) -> None:
+def _wait_for_document_cache(page: Any, path: str, expected: bool, timeout_seconds: float = 5.0) -> None:
     deadline = time.monotonic() + timeout_seconds
     last_error: Exception | None = None
     while time.monotonic() < deadline:
@@ -361,8 +353,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     base_url = f"http://127.0.0.1:{server.server_port}"
-
     evidence: dict[str, Any] = {"base_url": base_url}
+
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
@@ -375,15 +367,11 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
 
             first_document = _fetch_response(page, "/document/")
             if first_document["status"] != 200 or "document-v1" not in first_document["body"]:
-                raise PwaFreshnessError(
-                    f"initial document mismatch: {first_document!r}"
-                )
+                raise PwaFreshnessError(f"initial document mismatch: {first_document!r}")
             state.document_version = 2
             second_document = _fetch_response(page, "/document/")
             if second_document["status"] != 200 or "document-v2" not in second_document["body"]:
-                raise PwaFreshnessError(
-                    "document request reused stale HTTP cache instead of revalidating"
-                )
+                raise PwaFreshnessError("document request reused stale HTTP cache instead of revalidating")
             if second_document["freshness"] is not None:
                 raise PwaFreshnessError("network document was incorrectly marked as cached")
             _wait_for_document_cache(page, "/document/", True)
@@ -391,12 +379,9 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
 
             initial_manifest = _fetch_manifest_version(page)
             if initial_manifest != 1:
-                raise PwaFreshnessError(
-                    f"initial cached manifest version is {initial_manifest}, expected 1"
-                )
+                raise PwaFreshnessError(f"initial cached manifest version is {initial_manifest}, expected 1")
             state.manifest_version = 2
-            observed_manifest_versions = _wait_for_manifest_version(page, 2)
-            evidence["manifest_versions"] = [initial_manifest, *observed_manifest_versions]
+            evidence["manifest_versions"] = [initial_manifest, *_wait_for_manifest_version(page, 2)]
 
             state.worker_version = 2
             page.reload(wait_until="load")
@@ -405,6 +390,17 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             evidence["worker_version"] = 2
             evidence["document_cache_survived_worker_update"] = True
 
+            legacy_page = context.new_page()
+            legacy_page.goto(base_url + "/legacy/", wait_until="load")
+            legacy_page.wait_for_function("() => navigator.serviceWorker.controller !== null")
+            context.set_offline(True)
+            legacy_fallback = _fetch_response(legacy_page, "/document/")
+            if legacy_fallback["status"] != 503:
+                raise PwaFreshnessError("instant-navigation client without stale UI acknowledgement received cached HTML")
+            evidence["legacy_instant_navigation_status"] = 503
+            context.set_offline(False)
+            legacy_page.close()
+
             context.set_offline(True)
             offline_cached = _fetch_response(page, "/document/")
             if (
@@ -412,44 +408,44 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 or offline_cached["freshness"] != "cached-unverified"
                 or "document-v2" not in offline_cached["body"]
                 or "Saved copy." not in offline_cached["body"]
-                or "latest version could not be verified" not in offline_cached["body"]
             ):
-                raise PwaFreshnessError(
-                    f"offline cached document was not explicitly marked stale: {offline_cached!r}"
-                )
+                raise PwaFreshnessError(f"offline cached document was not explicitly marked stale: {offline_cached!r}")
+            page.wait_for_selector("#templates-freshness-status")
+            if "Saved copy." not in page.locator("#templates-freshness-status").inner_text():
+                raise PwaFreshnessError("instant-navigation fallback did not expose the persistent stale warning")
+            position = page.locator("#templates-freshness-status").evaluate("element => getComputedStyle(element).position")
+            if position != "fixed":
+                raise PwaFreshnessError(f"stale warning was not fixed in the viewport: {position!r}")
             evidence["offline_cached_status"] = 200
+            evidence["instant_navigation_indicator"] = True
 
-            response = page.goto(base_url + "/document/", wait_until="load")
-            if response is None or response.status != 200:
-                status = None if response is None else response.status
-                raise PwaFreshnessError(
-                    f"offline cached document navigation returned {status}, expected 200"
-                )
-            offline_body = page.locator("body").inner_text()
-            if "Saved copy." not in offline_body or "document-v2" not in offline_body:
-                raise PwaFreshnessError(
-                    "offline navigation omitted cached-document freshness warning"
-                )
-            evidence["offline_navigation_status"] = 200
-
-            offline_miss = _fetch_response(page, "/uncached/")
-            if (
-                offline_miss["status"] != 503
-                or "unavailable while offline" not in offline_miss["body"]
-            ):
-                raise PwaFreshnessError(
-                    f"offline cache miss did not retain the explicit 503 fallback: {offline_miss!r}"
-                )
-            evidence["offline_cache_miss_status"] = 503
             context.set_offline(False)
-
             state.document_status = 403
             forbidden = _fetch_response(page, "/document/")
             if forbidden["status"] != 403 or forbidden["freshness"] is not None:
-                raise PwaFreshnessError(
-                    "ordinary 4xx response incorrectly fell back to cached documentation"
-                )
+                raise PwaFreshnessError("ordinary 4xx response incorrectly fell back to cached documentation")
+            page.wait_for_selector("#templates-freshness-status", state="detached")
             evidence["ordinary_4xx_status"] = 403
+            evidence["verified_navigation_cleared_indicator"] = True
+
+            state.document_status = 200
+            context.set_offline(True)
+            response = page.goto(base_url + "/document/", wait_until="load")
+            if response is None or response.status != 200:
+                status = None if response is None else response.status
+                raise PwaFreshnessError(f"offline cached document navigation returned {status}, expected 200")
+            offline_body = page.locator("body").inner_text()
+            if "Saved copy." not in offline_body or "document-v2" not in offline_body:
+                raise PwaFreshnessError("offline navigation omitted cached-document freshness warning")
+            if page.locator("#templates-freshness-status").count() != 1:
+                raise PwaFreshnessError("offline full navigation did not render exactly one stale warning")
+            evidence["offline_navigation_status"] = 200
+
+            offline_miss = _fetch_response(page, "/uncached/")
+            if offline_miss["status"] != 503 or "unavailable while offline" not in offline_miss["body"]:
+                raise PwaFreshnessError(f"offline cache miss did not retain the explicit 503 fallback: {offline_miss!r}")
+            evidence["offline_cache_miss_status"] = 503
+            context.set_offline(False)
 
             state.document_status = 503
             server_error = _fetch_response(page, "/document/")
@@ -458,29 +454,22 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 or server_error["freshness"] != "cached-unverified"
                 or "document-v2" not in server_error["body"]
             ):
-                raise PwaFreshnessError(
-                    "transient 5xx response did not fall back to the verified cached document"
-                )
+                raise PwaFreshnessError("transient 5xx response did not fall back to the verified cached document")
             evidence["server_error_cached_status"] = 200
 
             state.document_status = 404
             deleted = _fetch_response(page, "/document/")
             if deleted["status"] != 404 or deleted["freshness"] is not None:
-                raise PwaFreshnessError(
-                    "authoritative deletion incorrectly returned cached documentation"
-                )
+                raise PwaFreshnessError("authoritative deletion incorrectly returned cached documentation")
             _wait_for_document_cache(page, "/document/", False)
             evidence["authoritative_deletion_status"] = 404
 
             context.set_offline(True)
             deleted_offline = _fetch_response(page, "/document/")
             if deleted_offline["status"] != 503:
-                raise PwaFreshnessError(
-                    "deleted document remained available from cache after authoritative 404"
-                )
+                raise PwaFreshnessError("deleted document remained available from cache after authoritative 404")
             evidence["deleted_document_offline_status"] = 503
             context.set_offline(False)
-
             browser.close()
     finally:
         server.shutdown()
@@ -499,7 +488,6 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
     return evidence
 
 
@@ -508,7 +496,6 @@ def main() -> int:
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-
     evidence = run_check(args.site_root.resolve(), args.output)
     print(json.dumps(evidence, sort_keys=True))
     return 0
