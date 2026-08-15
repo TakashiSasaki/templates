@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
-from scripts.finalize_glossary_annotations import annotate_html, annotate_site
-from scripts.glossary_annotation import build_annotation_index
+from scripts.finalize_glossary_annotations import (
+    GlossaryAnnotationFinalizeError,
+    annotate_html,
+    annotate_site,
+)
+from scripts.glossary_annotation import GlossaryAnnotationError, build_annotation_index
 
 
 REVISION = "a" * 40
@@ -72,6 +79,17 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
             'data-glossary-id="templates-publication-catalog">Publication catalog</a> inside.',
             rendered,
         )
+
+    def test_duplicate_class_attributes_are_aggregated_for_content_detection(self) -> None:
+        source = (
+            '<html><body><div class="wrapper" class="md-content__inner">'
+            '<p>Publication catalog</p></div></body></html>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
 
     def test_generated_main_is_fallback_content_region(self) -> None:
         source = '<html><body><main><p>この公開カタログを確認する。</p></main></body></html>'
@@ -148,9 +166,48 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
             for path in (files, glossary_page, tree):
                 self.assertNotIn("data-glossary-id", path.read_text(encoding="utf-8"))
 
+    def test_annotation_index_errors_are_wrapped_at_finalizer_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "index.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            with patch(
+                "scripts.finalize_glossary_annotations.build_annotation_index",
+                side_effect=GlossaryAnnotationError("invalid annotation model"),
+            ):
+                with self.assertRaisesRegex(
+                    GlossaryAnnotationFinalizeError,
+                    "unable to prepare Glossary annotation data",
+                ):
+                    annotate_site(root, glossary)
+
+    def test_ambiguous_label_warning_is_emitted_to_stderr(self) -> None:
+        ambiguous_model = model()
+        terms = ambiguous_model["terms"]
+        assert isinstance(terms, list)
+        first = terms[0]
+        second = terms[1]
+        assert isinstance(first, dict) and isinstance(second, dict)
+        first["aliases"] = ["Shared label"]
+        second["aliases"] = ["SHARED LABEL"]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "index.json"
+            glossary.write_text(json.dumps(ambiguous_model), encoding="utf-8")
+            stderr = io.StringIO()
+
+            with redirect_stderr(stderr):
+                changed, links = annotate_site(root, glossary)
+
+            self.assertEqual((changed, links), (0, 0))
+            self.assertIn("skipped ambiguous labels: shared label", stderr.getvalue())
+
     def test_new_glossary_term_is_annotated_without_html_specific_configuration(self) -> None:
         dynamic = model()
-        dynamic["terms"].append(
+        terms = dynamic["terms"]
+        assert isinstance(terms, list)
+        terms.append(
             {
                 "id": "templates-future-term",
                 "term": "Future term",
