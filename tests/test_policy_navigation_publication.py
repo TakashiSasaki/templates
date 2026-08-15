@@ -94,7 +94,7 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                 ),
                 (
                     "Consumer effective policy",
-                    "consumer-navigation",
+                    "consumer-policy-navigation",
                     "policy/consumer/index.md",
                 ),
             ],
