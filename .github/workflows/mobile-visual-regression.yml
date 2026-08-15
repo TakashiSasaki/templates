@@ -87,7 +87,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
@@ -106,6 +106,18 @@ jobs:
           python scripts/check_pwa_freshness.py \
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
+
+      - name: Check PWA document commit correlation
+        run: |
+          python scripts/check_pwa_commit_regressions.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-document-commit.json
+
+      - name: Check PWA freshness capability messaging
+        run: |
+          python scripts/check_pwa_capabilities.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-capabilities.json
 
       - name: Upload mobile visual evidence
         if: ${{ always() }}

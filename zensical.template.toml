@@ -12,7 +12,8 @@ extra_css = [
   "stylesheets/landing-shell.css",
   "stylesheets/mobile-density.css",
   "stylesheets/translation-reader.css",
-  "stylesheets/glossary-inline.css"
+  "stylesheets/glossary-inline.css",
+  "stylesheets/freshness-status.css"
 ]
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
