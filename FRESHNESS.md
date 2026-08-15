@@ -80,6 +80,13 @@ A successful same-origin HTTP 200 response is cacheable only when its
 cache work begins, so returning the network response does not race with Cache
 Storage consumption of the same body stream.
 
+The fetch event registers its document-lifetime promise synchronously inside the
+Service Worker event callback, before asynchronous network completion. The
+response promise later binds any cache-write task into that already-registered
+lifetime. Code must not make its first `waitUntil()` call only after awaiting the
+network response; background cache work must remain covered by the original
+trusted event lifetime.
+
 The runtime document cache is `templates-portal-documents-v1`, independent of the
 versioned shell cache. Service Worker activation removes incompatible shell
 namespaces but preserves the compatible document namespace.
