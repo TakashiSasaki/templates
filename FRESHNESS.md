@@ -1,22 +1,24 @@
 # Freshness identity and cache contract
 
 This document is the normative Site-side contract for identifying the exact
-published documentation revision and for communicating document freshness to
-browser clients. It complements `PUBLISHING.md` for publication provenance and
-`MAINTENANCE.md` for PWA operation.
+published documentation revision and for communicating document and integrated
+Glossary-model freshness to browser clients. It complements `PUBLISHING.md` for
+publication provenance and `MAINTENANCE.md` for PWA operation.
 
 ## Objective
 
-The documentation portal must distinguish three different facts:
+The documentation portal must distinguish four different facts:
 
 1. which reviewed Git revisions produced a Pages artifact;
-2. which Site revision produced a particular generated HTML document; and
-3. whether a browser has verified that a document response is current.
+2. which Site revision produced a particular generated HTML document;
+3. whether a browser has verified that a document response is current; and
+4. whether an inline Glossary definition came from the currently verified
+   integrated read model or from an explicitly unverified saved copy.
 
-A cached or offline document must never be represented as network-verified merely
-because its build revision is known. Build identity is evidence about the content
-that was generated; runtime freshness is evidence about whether the current
-published response was successfully revalidated.
+A cached or offline document or Glossary model must never be represented as
+network-verified merely because its build revision is known. Build identity is
+evidence about the content that was generated; runtime freshness is evidence
+about whether the current published response was successfully revalidated.
 
 ## Build-time freshness identity
 
@@ -55,19 +57,20 @@ exactly one matching revision meta element before artifact upload can proceed.
 
 The Site reserves the following runtime state vocabulary:
 
-- `verified-current`: the current document request was successfully obtained or
-  revalidated from the network;
+- `verified-current`: the current document or supported read-model request was
+  successfully obtained or revalidated from the network;
 - `checking`: a stored document is visible while network freshness verification
   is still pending;
-- `cached-unverified`: a stored document is visible because current network
-  freshness could not be verified;
+- `cached-unverified`: a stored document or explicitly supported read model is
+  being used because current network freshness could not be verified;
 - `update-available`: a newer verified response has been obtained while an older
   stored document remains visible.
 
 The Service Worker exposes this vocabulary through the
 `templates:get-freshness-capabilities` / `templates:freshness-capabilities`
-message contract together with `/site-version.json` and the document cache
-namespace. Matching build identity alone never establishes `verified-current`.
+message contract together with `/site-version.json`, the document-cache
+namespace, the Glossary-cache namespace, and the integrated Glossary model URL.
+Matching build identity alone never establishes `verified-current`.
 
 ## Runtime document-cache behavior
 
@@ -181,9 +184,9 @@ necessary if a non-Zensical surface cannot expose a document-commit signal. It
 never permits stale content to become unindicated merely because a network fetch
 finished before the caller replaced the visible DOM.
 
-### Synthetic cached response
+### Synthetic cached document response
 
-Cached fallback responses carry
+Cached document fallback responses carry
 `X-Templates-Freshness: cached-unverified` and `Cache-Control: no-store`.
 Because the cached HTML body is modified, `Content-Encoding`, `Content-Length`,
 `ETag`, and `Last-Modified` are removed. A cached response that is not HTML,
@@ -192,6 +195,60 @@ or lacks the single unambiguous `<html>`/`<body>` structure required for safe
 marking and insertion is not used as fallback. Redirects fail closed because
 constructing a synthetic decorated `Response` cannot preserve the original
 response URL needed for canonical relative-URL resolution.
+
+## Runtime Glossary-model cache behavior
+
+The integrated `/glossary/index.json` read model has a separate runtime cache,
+`templates-portal-glossary-v1`. It is deliberately not part of `STATIC_ASSETS`:
+online Glossary activation remains network-first and uses `cache: "no-cache"`,
+so a previously saved definition is never preferred merely because the shell is
+available.
+
+A Glossary response is cacheable only when it is same-origin HTTP 200 and its
+`Content-Type` is JSON (`application/json` or a `+json` media type). Successful
+responses are cloned for asynchronous cache writes while the original network
+response is returned immediately. The fetch event binds any resulting cache
+mutation to an already-registered lifetime promise, matching the document-cache
+lifetime rule.
+
+Because the integrated model has one stable URL, its mutations use one serialized
+request-generation sequence. An older cache mutation cannot overwrite a newer
+one. HTTP 404/410 is authoritative: its deletion is recorded only if its request
+generation is not older than the newest applied cache mutation, and physical
+entry deletion is generation-ordered. This prevents both a delayed old 200 from
+resurrecting a deleted model and a delayed old 404 from invalidating a newer
+verified model. If authoritative deletion cannot remove the entry, the worker
+attempts to remove the entire Glossary cache namespace and retains an in-memory
+tombstone until a newer successful write supersedes it.
+
+Network outcomes are intentionally analogous to documents but narrower:
+
+- cacheable HTTP 200: return the network model and update the Glossary cache;
+- HTTP 404 or 410: treat the absence as authoritative and remove the saved model;
+- ordinary non-transient 4xx: return the network response without stale fallback;
+- HTTP 5xx: use a saved model only for a freshness-aware Glossary runtime;
+  otherwise return the original 5xx;
+- network/DNS/TLS/connection failure: use a saved model only for a
+  freshness-aware Glossary runtime; otherwise let the request fail so the
+  runtime presents its ordinary unavailable-definition state.
+
+A saved Glossary response keeps the exact cached JSON bytes rather than rewriting
+the model. The synthetic response carries
+`X-Templates-Freshness: cached-unverified` and `Cache-Control: no-store`, and
+removes `Content-Encoding`, `Content-Length`, `ETag`, and `Last-Modified` because
+a new `Response` object is constructed around those bytes. The inline Glossary
+runtime reads the freshness header before displaying a definition and exposes
+`Saved glossary data · latest version not verified.` in the same dialog.
+
+Cached Glossary fallback is fail-closed across Service Worker/client-version
+boundaries. The current runtime opts in on its same-origin model request with
+`X-Templates-Glossary-Accepts-Cached: 1`. The Service Worker refuses cached
+Glossary fallback when that request header is absent. Consequently an older open
+page that is claimed by the new worker but still runs a runtime that cannot show
+the cached-unverified warning receives no saved model. This is the Glossary
+counterpart of the document cache's stale-UI acknowledgement requirement, but it
+does not require a `MessageChannel`: the Glossary dialog is constructed and its
+freshness text is populated before that definition is presented.
 
 ## Shell cache behavior
 
@@ -205,6 +262,13 @@ The Chromium capability checker derives its install-asset preflight directly fro
 the Service Worker's `STATIC_ASSETS` declaration. A newly added precache asset
 therefore cannot be omitted silently from the preflight and leave the browser
 waiting on a Service Worker installation that has already failed.
+
+The Glossary cache is versioned independently of both shell and document caches.
+Activation may delete older `templates-portal-glossary-*` namespaces when the
+Glossary storage/representation contract changes, while preserving the compatible
+`templates-portal-documents-v1` document cache. Adding Glossary caching does not
+by itself change the shell namespace because the shell cache strategy and stored
+shell representation are unchanged.
 
 ## Browser regression contract
 
@@ -234,6 +298,12 @@ The Chromium freshness lifecycle verifies at least:
 - Service Worker update propagation, manifest convergence, and the live
   freshness-capability message contract remain valid.
 
+Glossary-specific regression coverage additionally preserves the dedicated
+network-first cache route, generation-ordered authoritative deletion, exact-byte
+cached response decoration, freshness-aware client opt-in, and visible
+`cached-unverified` dialog state. A future browser-level Glossary cache lifecycle
+checker may extend this list without changing the freshness semantics above.
+
 ## Evolution rule
 
 `checking` and `update-available` remain reserved for the later slow-network
@@ -241,6 +311,7 @@ convergence phase. A future soft timeout may reveal cached content while a netwo
 request remains pending, but it must not cancel the request or be treated as proof
 that the cached copy is current.
 
-Any future change must preserve the central invariant: a document whose current
-network freshness has not been verified is visibly identified as unverified
-before it is presented as ordinary readable content.
+Any future change must preserve the central invariant: a document or reader-visible
+semantic read model whose current network freshness has not been verified is
+visibly identified as unverified before it is presented as ordinary readable
+content.
