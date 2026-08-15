@@ -59,10 +59,10 @@ global site home. Glossary terms use their own stable repository-wide term IDs.
 
 ## Schema contract
 
-Schema version `1` declares only Markdown documents. Schema version `2` retains
-the same document contract and adds explicit non-Markdown asset roots. Schema
-version `3` retains the version 2 document and asset contract and additionally
-permits a canonical glossary declaration.
+The provider validator accepts only integer publication-catalog schema version
+`3`. Legacy schema versions `1` and `2` are retired and fail closed. Schema
+version `3` defines the current Markdown document and explicit non-Markdown
+asset contracts and additionally permits a canonical glossary declaration.
 
 A representative version 3 catalog is:
 
@@ -96,12 +96,12 @@ optional document source may be absent, but when present it must also be a
 regular Markdown file. Exactly one non-optional document is the publication
 landing page.
 
-Each version 2 or 3 asset contains exactly `source`, `destination`, and
-`optional`. A required asset source must exist. An optional asset source may be
-absent. Asset destinations are relative to the `webapp` namespace in the
-generated site.
+Each schema-v3 asset contains exactly `source`, `destination`, and `optional`.
+A required asset source must exist. An optional asset source may be absent.
+Asset destinations are relative to the `webapp` namespace in the generated
+site.
 
-The optional version 3 `glossary` object contains exactly `source`. When
+The optional schema-v3 `glossary` object contains exactly `source`. When
 present, it identifies an existing regular `.yml` file inside the provider
 source root. The path may not traverse a symbolic link or overlap any declared
 asset source. The glossary is semantic input, not a raw published asset.
@@ -141,8 +141,9 @@ python -m scripts.validate_publication_catalog
 
 The validator rejects duplicate JSON members, unsupported fields, unsafe paths,
 symbolic-link traversal, duplicate IDs or destinations, invalid home
-declarations, missing required documents or assets, malformed glossary
-declarations, and glossary/asset source overlap.
+declarations, missing required documents or assets, any publication-catalog
+schema version other than integer `3`, malformed glossary declarations, and
+glossary/asset source overlap.
 
 The Site build independently validates glossary content semantics, stable term
 IDs, localized labels, external authority metadata, related-term resolution,
