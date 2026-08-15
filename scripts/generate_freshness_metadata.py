@@ -210,10 +210,10 @@ def source_offset(source: str, position: tuple[int, int]) -> int:
     line_number, column = position
     if line_number < 1 or column < 0:
         raise FreshnessMetadataError("invalid HTML parser source position")
-    lines = source.splitlines(keepends=True)
-    if line_number > len(lines):
+    line_starts = [0] + [match.start() + 1 for match in re.finditer(r"\n", source)]
+    if line_number > len(line_starts):
         raise FreshnessMetadataError("HTML parser source position exceeds document")
-    return sum(len(line) for line in lines[: line_number - 1]) + column
+    return line_starts[line_number - 1] + column
 
 
 def head_close_offset(source: str, path: Path) -> int:
@@ -318,6 +318,10 @@ def validate_output_path(output: Path) -> None:
         )
 
 
+def canonical_payload_text(payload: dict[str, object]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
 def verify_freshness_contract(
     site_root: Path,
     output: Path,
@@ -327,12 +331,12 @@ def verify_freshness_contract(
     """Fail if the on-disk freshness identity or annotated HTML is inconsistent."""
     validate_output_path(output)
     try:
-        on_disk_payload = json.loads(output.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        on_disk_text = output.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
         raise FreshnessMetadataError(
             f"unable to verify freshness identity {output}: {exc}"
         ) from exc
-    if on_disk_payload != payload:
+    if on_disk_text != canonical_payload_text(payload):
         raise FreshnessMetadataError(
             f"freshness identity payload verification failed: {output}"
         )
@@ -370,7 +374,7 @@ def generate_freshness_metadata(
     validate_output_path(output)
     annotated = annotate_generated_html(resolved_root, site_revision)
     output.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        canonical_payload_text(payload),
         encoding="utf-8",
     )
     verify_freshness_contract(
