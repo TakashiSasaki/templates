@@ -73,7 +73,9 @@
     const trigger = document.createElement("button");
     trigger.type = "button";
     trigger.className = link.className;
-    trigger.textContent = link.textContent;
+    while (link.firstChild) {
+      trigger.appendChild(link.firstChild);
+    }
     trigger.dataset.glossaryId = termId;
     trigger.dataset.glossaryHref = link.getAttribute("href") || `/glossary/#${encodeURIComponent(termId)}`;
     trigger.setAttribute("aria-haspopup", "dialog");
