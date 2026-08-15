@@ -76,6 +76,24 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertIn("if (recordAuthoritativeGlossaryDeletion(generation))", worker)
         self.assertIn("glossaryCacheMutationGeneration = generation", worker)
 
+    def test_cached_glossary_fallback_requires_freshness_aware_runtime_opt_in(self) -> None:
+        worker = WORKER.read_text(encoding="utf-8")
+        runtime = RUNTIME.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'const GLOSSARY_CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";',
+            worker,
+        )
+        self.assertIn(
+            'if (request.headers.get(GLOSSARY_CACHED_ACCEPT_HEADER) !== "1")',
+            worker,
+        )
+        self.assertIn(
+            'const CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";',
+            runtime,
+        )
+        self.assertIn('headers: { [CACHED_ACCEPT_HEADER]: "1" }', runtime)
+
     def test_cached_glossary_response_is_marked_unverified_without_rewriting_json(self) -> None:
         worker = WORKER.read_text(encoding="utf-8")
 
