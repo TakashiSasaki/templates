@@ -83,6 +83,15 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("childList: true", source)
         self.assertIn("subtree: true", source)
 
+    def test_detached_dialog_is_reattached_on_subsequent_activation(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("function observeNavigationBody()", source)
+        self.assertIn("if (!dialog.isConnected)", source)
+        self.assertGreaterEqual(source.count("document.body.appendChild(dialog);"), 2)
+        self.assertIn("navigationObserver.disconnect();", source)
+        self.assertGreaterEqual(source.count("observeNavigationBody();"), 2)
+
     def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
