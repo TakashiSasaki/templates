@@ -112,10 +112,10 @@ terms:
     origin: repository
     definition: >-
       The concrete-product evidence state in which Webapp evidence contracts
-      may assert the repository-local implementation locations, commands,
-      release gates, immutable revisions, verified results, provenance, and
-      decisions required by each contract. It is the counterpart to Template
-      mode, which records obligations without claiming those product values.
+      require the repository-local implementation locations, commands, release
+      gates, immutable revisions, verified results, provenance, and decisions
+      governed by each contract. It is the counterpart to Template mode, which
+      records obligations without claiming those product values.
     related_terms:
       - templates-webapp-template-mode
       - templates-webapp-implementation-evidence
