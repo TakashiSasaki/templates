@@ -27,6 +27,11 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertNotIn("/glossary/index.json", static_assets)
         self.assertIn("caches.open(GLOSSARY_CACHE_NAME)", worker)
 
+    def test_glossary_capabilities_are_exposed_by_service_worker(self) -> None:
+        worker = WORKER.read_text(encoding="utf-8")
+        self.assertIn("glossaryCacheName: GLOSSARY_CACHE_NAME", worker)
+        self.assertIn("glossaryModelUrl: GLOSSARY_MODEL_PATH", worker)
+
     def test_glossary_fetch_route_precedes_document_and_static_routing(self) -> None:
         worker = WORKER.read_text(encoding="utf-8")
 
