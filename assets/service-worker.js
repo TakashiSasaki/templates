@@ -161,19 +161,38 @@ async function deleteCachedDocument(request, generation) {
 }
 
 function injectCachedDocumentNotice(source) {
+  const htmlOpenings = [...source.matchAll(/<html\b[^>]*>/gi)];
   const bodyOpenings = [...source.matchAll(/<body\b[^>]*>/gi)];
   const bodyClosures = [...source.matchAll(/<\/body\s*>/gi)];
-  if (bodyOpenings.length !== 1 || bodyClosures.length !== 1) {
+  if (
+    htmlOpenings.length !== 1 ||
+    bodyOpenings.length !== 1 ||
+    bodyClosures.length !== 1
+  ) {
     console.warn("PWA cached document body boundary is ambiguous");
     return undefined;
   }
-  const opening = bodyOpenings[0];
-  const openingEnd = opening.index + opening[0].length;
-  if (openingEnd > bodyClosures[0].index) {
+
+  const htmlOpening = htmlOpenings[0];
+  const bodyOpening = bodyOpenings[0];
+  const bodyOpeningEnd = bodyOpening.index + bodyOpening[0].length;
+  if (bodyOpeningEnd > bodyClosures[0].index || htmlOpening.index > bodyOpening.index) {
     console.warn("PWA cached document body boundary is invalid");
     return undefined;
   }
-  return source.slice(0, openingEnd) + CACHED_DOCUMENT_NOTICE + source.slice(openingEnd);
+
+  const htmlOpeningEnd = htmlOpening.index + htmlOpening[0].length;
+  const withMarker =
+    source.slice(0, htmlOpeningEnd - 1) +
+    ' data-templates-cached-fallback="true">' +
+    source.slice(htmlOpeningEnd);
+  const shiftedBodyOpeningEnd =
+    bodyOpeningEnd + ' data-templates-cached-fallback="true"'.length;
+  return (
+    withMarker.slice(0, shiftedBodyOpeningEnd) +
+    CACHED_DOCUMENT_NOTICE +
+    withMarker.slice(shiftedBodyOpeningEnd)
+  );
 }
 
 async function decorateCachedDocument(response, request) {
