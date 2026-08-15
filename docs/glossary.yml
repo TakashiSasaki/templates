@@ -98,7 +98,7 @@ terms:
       sources:
         - title: Model Context Protocol Specification
           url: https://modelcontextprotocol.io/specification/2026-07-28
-          version: 2026-07-28
+          version: "2026-07-28"
     repository_usage: >-
       The Skill template uses MCP 2026-07-28 as its current core protocol
       baseline and records optional MCP extension identifiers separately from
