@@ -22,6 +22,8 @@ EXPECTED_STATES = [
 ]
 EXPECTED_SITE_VERSION_URL = "/site-version.json"
 EXPECTED_DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"
+EXPECTED_GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1"
+EXPECTED_GLOSSARY_MODEL_URL = "/glossary/index.json"
 STATIC_ASSETS_PATTERN = re.compile(r"const STATIC_ASSETS = (\[[^;]+\]);", re.DOTALL)
 
 
@@ -121,6 +123,10 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
         raise PwaCapabilityError(f"unexpected freshness siteVersionUrl: {capabilities!r}")
     if capabilities.get("documentCacheName") != EXPECTED_DOCUMENT_CACHE_NAME:
         raise PwaCapabilityError(f"unexpected freshness documentCacheName: {capabilities!r}")
+    if capabilities.get("glossaryCacheName") != EXPECTED_GLOSSARY_CACHE_NAME:
+        raise PwaCapabilityError(f"unexpected freshness glossaryCacheName: {capabilities!r}")
+    if capabilities.get("glossaryModelUrl") != EXPECTED_GLOSSARY_MODEL_URL:
+        raise PwaCapabilityError(f"unexpected freshness glossaryModelUrl: {capabilities!r}")
 
     evidence = {"base_url": base_url, "capabilities": capabilities}
     if output is not None:
