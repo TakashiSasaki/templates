@@ -280,6 +280,46 @@ def validate_output_path(output: Path) -> None:
         )
 
 
+def verify_freshness_contract(
+    site_root: Path,
+    output: Path,
+    site_revision: str,
+    payload: dict[str, object],
+) -> int:
+    """Fail if the on-disk freshness identity or annotated HTML is inconsistent."""
+    validate_output_path(output)
+    try:
+        on_disk_payload = json.loads(output.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise FreshnessMetadataError(
+            f"unable to verify freshness identity {output}: {exc}"
+        ) from exc
+    if on_disk_payload != payload:
+        raise FreshnessMetadataError(
+            f"freshness identity payload verification failed: {output}"
+        )
+
+    verified = 0
+    for path in generated_html_files(site_root):
+        if is_sandbox_preview(path, site_root):
+            continue
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            raise FreshnessMetadataError(
+                f"unable to verify generated HTML {path}: {exc}"
+            ) from exc
+        metas = freshness_revision_metas(source)
+        if len(metas) != 1 or metas[0].get("content") != site_revision:
+            raise FreshnessMetadataError(
+                f"{path}: freshness revision metadata verification failed"
+            )
+        verified += 1
+    if verified == 0:
+        raise FreshnessMetadataError("no cache-eligible HTML freshness metadata verified")
+    return verified
+
+
 def generate_freshness_metadata(
     site_root: Path,
     site_revision: str,
@@ -294,6 +334,12 @@ def generate_freshness_metadata(
     output.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+    )
+    verify_freshness_contract(
+        resolved_root,
+        output,
+        payload["site_revision"],
+        payload,
     )
     return output, annotated
 
@@ -315,7 +361,7 @@ def main() -> int:
         print(f"generate_freshness_metadata.py: {exc}", file=sys.stderr)
         return 1
     print(
-        f"wrote {output} and annotated {annotated} generated HTML file(s) "
+        f"wrote and verified {output}; annotated {annotated} generated HTML file(s) "
         f"with {SITE_REVISION_META_NAME}"
     )
     return 0
