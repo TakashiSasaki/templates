@@ -91,6 +91,20 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
 
+    def test_content_class_mentions_outside_attributes_do_not_disable_main_fallback(self) -> None:
+        source = (
+            '<html><body><!-- md-content__inner -->'
+            '<main><p>Publication catalog</p>'
+            '<script>const example = "md-content__inner";</script></main>'
+            '</body></html>'
+        )
+
+        rendered, count = annotate_html(source, self.index)
+
+        self.assertEqual(count, 1)
+        self.assertIn('data-glossary-id="templates-publication-catalog"', rendered)
+        self.assertIn('const example = "md-content__inner";', rendered)
+
     def test_generated_main_is_fallback_content_region(self) -> None:
         source = '<html><body><main><p>この公開カタログを確認する。</p></main></body></html>'
 
@@ -102,6 +116,34 @@ class FinalizeGlossaryAnnotationTests(unittest.TestCase):
             'data-glossary-id="templates-publication-catalog">公開カタログ</a>',
             rendered,
         )
+
+    def test_character_references_are_matched_as_decoded_text_and_reescaped(self) -> None:
+        dynamic = model()
+        terms = dynamic["terms"]
+        assert isinstance(terms, list)
+        terms.append(
+            {
+                "id": "templates-r-and-d",
+                "term": "R&D",
+                "aliases": [],
+                "origin": "repository",
+                "definition": "Research and development.",
+                "provider": "site",
+                "source_path": "docs/glossary.yml",
+                "source_revision": REVISION,
+            }
+        )
+        index = build_annotation_index(dynamic)
+
+        for encoded in ("R&amp;D", "R&#38;D", "R&#x26;D"):
+            with self.subTest(encoded=encoded):
+                source = f"<main><p>{encoded} guidance</p></main>"
+                rendered, count = annotate_html(source, index)
+                self.assertEqual(count, 1)
+                self.assertIn(
+                    'data-glossary-id="templates-r-and-d">R&amp;D</a> guidance',
+                    rendered,
+                )
 
     def test_code_links_and_navigation_are_not_annotated(self) -> None:
         source = (
