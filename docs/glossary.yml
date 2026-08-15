@@ -40,6 +40,8 @@ terms:
       - templates-policy-profile
       - templates-policy-renderer
       - templates-context-policy
+      - templates-repository-local-policy
+      - templates-policy-override
 
   - id: templates-policy-renderer
     term: Policy renderer
@@ -114,8 +116,8 @@ terms:
     definition: >-
       A requirement class that defines what a produced Skill, Web application,
       CLI, library, service, or other artifact must contain or do. Artifact
-      contracts belong to the produced artifact rather than to shared coding-
-      agent operating policy.
+      contracts belong to the produced artifact rather than to shared
+      coding-agent operating policy.
     related_terms:
       - templates-adapter-renderer-requirement
       - templates-explanatory-material
