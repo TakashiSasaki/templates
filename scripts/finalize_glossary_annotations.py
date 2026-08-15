@@ -15,6 +15,7 @@ if __package__ in (None, ""):
 from scripts.generate_glossary_viewer import GlossaryViewerError, load_model
 from scripts.glossary_annotation import (
     AnnotationIndex,
+    GlossaryAnnotationError,
     build_annotation_index,
     find_annotation_matches,
 )
@@ -99,10 +100,11 @@ class _AnnotationParser(HTMLParser):
 
     @staticmethod
     def _class_tokens(attrs: list[tuple[str, str | None]]) -> set[str]:
+        tokens: set[str] = set()
         for name, value in attrs:
             if name == "class" and value:
-                return set(value.split())
-        return set()
+                tokens.update(value.split())
+        return tokens
 
     def _state_for_start(
         self, tag: str, attrs: list[tuple[str, str | None]]
@@ -184,9 +186,11 @@ def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
 
     try:
         model = load_model(glossary_path)
-    except GlossaryViewerError as exc:
-        raise GlossaryAnnotationFinalizeError(str(exc)) from exc
-    index = build_annotation_index(model)
+        index = build_annotation_index(model)
+    except (GlossaryViewerError, GlossaryAnnotationError) as exc:
+        raise GlossaryAnnotationFinalizeError(
+            f"unable to prepare Glossary annotation data: {exc}"
+        ) from exc
 
     files_changed = 0
     links_added = 0
