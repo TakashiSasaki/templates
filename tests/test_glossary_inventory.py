@@ -44,16 +44,22 @@ class GlossaryInventoryTests(unittest.TestCase):
 
     def table(self, section: str) -> tuple[list[str], list[dict[str, str]]]:
         heading = f"## {section}"
-        try:
-            heading_index = self.lines.index(heading)
-        except ValueError as exc:
+        if heading not in self.lines:
             self.fail(f"missing inventory section: {heading}")
-            raise exc
+        heading_index = self.lines.index(heading)
+        section_end = next(
+            (
+                index
+                for index in range(heading_index + 1, len(self.lines))
+                if self.lines[index].startswith("## ")
+            ),
+            len(self.lines),
+        )
 
         table_index = next(
             (
                 index
-                for index in range(heading_index + 1, len(self.lines))
+                for index in range(heading_index + 1, section_end)
                 if self.lines[index].startswith("|")
             ),
             None,
@@ -62,7 +68,7 @@ class GlossaryInventoryTests(unittest.TestCase):
         assert table_index is not None
 
         header = _cells(self.lines[table_index])
-        self.assertLess(table_index + 1, len(self.lines))
+        self.assertLess(table_index + 1, section_end)
         separator = _cells(self.lines[table_index + 1])
         self.assertEqual(len(separator), len(header))
         self.assertTrue(
@@ -71,7 +77,7 @@ class GlossaryInventoryTests(unittest.TestCase):
         )
 
         rows: list[dict[str, str]] = []
-        for line in self.lines[table_index + 2 :]:
+        for line in self.lines[table_index + 2 : section_end]:
             if not line.startswith("|"):
                 break
             values = _cells(line)
