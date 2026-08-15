@@ -66,6 +66,7 @@
     ".agent-policy.lock",
     ".agent-policy.yml",
     ".github/workflows/check-agent-policy.yml",
+    ".github/workflows/site-compatibility.yml",
     "AGENTS.md",
     "docs/architecture/completion-roadmap.md",
     "docs/architecture/distribution-boundary.md",
