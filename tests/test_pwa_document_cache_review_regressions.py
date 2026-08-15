@@ -95,6 +95,15 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn('console.warn("PWA document response URL is invalid", error)', self.worker)
         self.assertIn("new URL(response.url).origin !== self.location.origin", self.worker)
 
+    def test_malformed_fetch_request_urls_are_ignored_without_throwing(self) -> None:
+        self.assertIn("let url;", self.worker)
+        self.assertIn("url = new URL(event.request.url);", self.worker)
+        self.assertIn('console.warn("PWA fetch request URL is invalid", error)', self.worker)
+        self.assertLess(
+            self.worker.index("url = new URL(event.request.url);"),
+            self.worker.index("if (url.origin !== self.location.origin)"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
