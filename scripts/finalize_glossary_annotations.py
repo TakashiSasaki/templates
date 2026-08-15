@@ -62,6 +62,8 @@ VOID_TAGS = {
 }
 EXCLUDED_ROUTE_COMPONENTS = {"files", "glossary", "repository-trees"}
 CONTENT_CLASS = "md-content__inner"
+RUNTIME_STYLE = '<link rel="stylesheet" href="/stylesheets/glossary-inline.css">'
+RUNTIME_SCRIPT = '<script src="/javascripts/glossary-inline.js" defer></script>'
 
 
 def _class_tokens(attrs: list[tuple[str, str | None]]) -> set[str]:
@@ -278,6 +280,19 @@ def annotate_html(source: str, index: AnnotationIndex) -> tuple[str, int]:
     return "".join(parser.output), parser.annotation_count
 
 
+def inject_runtime_assets(source: str) -> str:
+    """Load Glossary behavior only on pages that contain inline annotations."""
+    missing = [asset for asset in (RUNTIME_STYLE, RUNTIME_SCRIPT) if asset not in source]
+    if not missing:
+        return source
+    marker = "</head>"
+    if marker not in source:
+        raise GlossaryAnnotationFinalizeError(
+            "annotated generated HTML must contain a closing head element"
+        )
+    return source.replace(marker, "\n".join(missing) + "\n" + marker, 1)
+
+
 def _excluded_route(relative: Path) -> bool:
     return relative.stem in EXCLUDED_ROUTE_COMPONENTS or any(
         part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
@@ -318,7 +333,9 @@ def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
                 f"unable to read generated HTML {relative.as_posix()}: {exc}"
             ) from exc
         rendered, count = annotate_html(source, index)
-        if count == 0:
+        if count > 0 or 'class="glossary-term"' in rendered:
+            rendered = inject_runtime_assets(rendered)
+        if rendered == source:
             continue
         try:
             path.write_text(rendered, encoding="utf-8")
