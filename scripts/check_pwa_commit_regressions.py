@@ -246,6 +246,14 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 raise PwaCommitRegressionError(f"initial document mismatch: {initial!r}")
             _wait_for_cached_text(page, "/document/", "document-v1")
 
+            uncached_missing = _fetch_path(page, "/uncached-404/")
+            if uncached_missing["status"] != 404:
+                raise PwaCommitRegressionError(
+                    f"uncached authoritative miss returned {uncached_missing['status']}, expected 404"
+                )
+            _wait_for_cached_text(page, "/document/", "document-v1")
+            evidence["uncached_404_preserved_other_documents"] = True
+
             context.set_offline(True)
             cached = _fetch_document(page)
             if (
@@ -296,6 +304,13 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 )
             evidence["full_navigation_commit_retained_warning"] = True
             evidence["standalone_inline_warning_style"] = True
+
+            page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/document/#heading')")
+            if page.locator("#templates-freshness-status").count() != 1:
+                raise PwaCommitRegressionError(
+                    "in-page anchor document event cleared the cached-unverified warning"
+                )
+            evidence["anchor_event_retained_cached_warning"] = True
 
             context.set_offline(False)
             seed = _fetch_path(page, "/race/")
