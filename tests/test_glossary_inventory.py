@@ -28,6 +28,10 @@ REQUIRED_TABLES = {
         "id": "Canonical ID",
         "owner": "Owner",
     },
+    "Completed external terminology expansion": {
+        "id": "Canonical ID",
+        "owner": "Curator",
+    },
     "External terminology candidates": {
         "id": "Proposed ID",
         "owner": "Curator",
@@ -75,6 +79,12 @@ EXPECTED_SECOND_EXPANSION_OWNERS = {
     "templates-webapp-released-revision": "webapp",
     "templates-webapp-deployed-revision": "webapp",
     "templates-index-guided-navigation": "site",
+}
+EXPECTED_COMPLETED_EXTERNAL_IDS = {
+    "external-mcp-model-context-protocol",
+}
+EXPECTED_COMPLETED_EXTERNAL_CURATORS = {
+    "external-mcp-model-context-protocol": "skill",
 }
 EXPECTED_CROSS_PROVIDER_RELATIONS = {
     ("templates-skill-profile", "templates-policy-profile"),
@@ -296,6 +306,39 @@ class GlossaryInventoryTests(unittest.TestCase):
             EXPECTED_SECOND_EXPANSION_IDS,
             expected_owners=EXPECTED_SECOND_EXPANSION_OWNERS,
         )
+
+    def test_glossary_inventory_completed_external_metadata(self) -> None:
+        header, rows = self.table("Completed external terminology expansion")
+        for column in (
+            "Canonical term",
+            "Canonical ID",
+            "Curator",
+            "Origin",
+            "Japanese discovery label",
+            "Authority / rationale",
+        ):
+            self.assertIn(column, header)
+
+        ids: set[str] = set()
+        curators: dict[str, str] = {}
+        for row in rows:
+            self.assertEqual(row["Origin"], "external")
+            self.assertTrue(row["Canonical term"].strip())
+            self.assertTrue(row["Japanese discovery label"].strip())
+            self.assertTrue(row["Authority / rationale"].strip())
+
+            term_id = _term_id(
+                row["Canonical ID"],
+                context="Completed external terminology expansion ID",
+            )
+            self.assertTrue(term_id.startswith("external-"))
+            self.assertIsNotNone(TERM_ID.fullmatch(term_id))
+            ids.add(term_id)
+            curators[term_id] = row["Curator"]
+
+        self.assertEqual(ids, EXPECTED_COMPLETED_EXTERNAL_IDS)
+        self.assertEqual(len(rows), len(EXPECTED_COMPLETED_EXTERNAL_IDS))
+        self.assertEqual(curators, EXPECTED_COMPLETED_EXTERNAL_CURATORS)
 
     def test_glossary_inventory_external_candidates_metadata(self) -> None:
         header, rows = self.table("External terminology candidates")
