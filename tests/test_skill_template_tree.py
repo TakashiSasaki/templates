@@ -54,7 +54,7 @@ def initialize_skill(root: Path, *, with_template: bool = True) -> str:
     write_json(
         root / "docs" / "publication-catalog.json",
         {
-            "schema_version": 1,
+            "schema_version": 3,
             "documents": [
                 {
                     "id": "overview",
@@ -189,7 +189,7 @@ class SkillTemplateTreeTests(unittest.TestCase):
             write_json(
                 site_root / "docs" / "publication-catalog.json",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [
                         {
                             "id": "portal-home",
