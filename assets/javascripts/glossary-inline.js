@@ -118,9 +118,12 @@
     );
     const belowTop = rect.bottom + gap;
     const aboveTop = rect.top - panelHeight - gap;
-    const preferredTop = belowTop + panelHeight <= window.innerHeight - viewportPadding
-      ? belowTop
-      : Math.max(viewportPadding, aboveTop);
+    const preferredTop = Math.max(
+      viewportPadding,
+      belowTop + panelHeight <= window.innerHeight - viewportPadding
+        ? belowTop
+        : aboveTop,
+    );
 
     panel.style.setProperty("--glossary-inline-left", `${preferredLeft}px`);
     panel.style.setProperty("--glossary-inline-top", `${preferredTop}px`);
