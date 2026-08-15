@@ -3,10 +3,17 @@
 
   const SELECTOR = "a.glossary-term[data-glossary-id]";
   const GLOSSARY_URL = "/glossary/index.json";
+  const PROVIDER_LABELS = {
+    site: "Site",
+    skill: "Skill",
+    policy: "Policy",
+    webapp: "Webapp",
+  };
   let glossaryPromise;
   let dialog;
   let activeLink;
   let pendingLink;
+  let pointerDismissal = false;
 
   function loadGlossary() {
     if (!glossaryPromise) {
@@ -32,6 +39,10 @@
             terms.set(term.id, term);
           }
           return terms;
+        })
+        .catch((error) => {
+          glossaryPromise = undefined;
+          throw error;
         });
     }
     return glossaryPromise;
@@ -61,15 +72,21 @@
     document.body.appendChild(dialog);
 
     dialog.querySelector(".glossary-inline-dialog__close").addEventListener("click", () => {
+      pointerDismissal = false;
       dialog.close();
     });
     dialog.addEventListener("close", () => {
       const restore = activeLink;
       activeLink = null;
       pendingLink = null;
-      if (restore instanceof HTMLElement && document.contains(restore)) {
+      if (
+        !pointerDismissal &&
+        restore instanceof HTMLElement &&
+        document.contains(restore)
+      ) {
         restore.focus({ preventScroll: true });
       }
+      pointerDismissal = false;
     });
     return dialog;
   }
@@ -96,7 +113,7 @@
   }
 
   function repositionOpenDialog() {
-    if (dialog && dialog.open && activeLink && document.contains(activeLink)) {
+    if (dialog && dialog.open && activeLink && activeLink.isConnected) {
       positionDialog(activeLink, dialog);
     }
   }
@@ -111,11 +128,18 @@
     return "Definition unavailable.";
   }
 
+  function providerLabel(provider) {
+    if (typeof provider !== "string") {
+      return "Glossary";
+    }
+    return PROVIDER_LABELS[provider] || provider;
+  }
+
   function fillDialog(panel, term, link) {
     panel.querySelector("#glossary-inline-title").textContent = term.term;
     panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term);
     const meta = panel.querySelector(".glossary-inline-dialog__meta");
-    const owner = typeof term.provider === "string" ? term.provider : "Glossary";
+    const owner = providerLabel(term.provider);
     meta.textContent = term.origin === "external" ? `External term · curated by ${owner}` : `Templates-defined · ${owner}`;
     panel.querySelector(".glossary-inline-dialog__actions a").href = link.href;
   }
@@ -133,7 +157,7 @@
     try {
       terms = await loadGlossary();
     } catch (error) {
-      if (pendingLink !== link) {
+      if (pendingLink !== link || !link.isConnected) {
         return;
       }
       pendingLink = null;
@@ -141,7 +165,10 @@
       window.location.assign(link.href);
       return;
     }
-    if (pendingLink !== link) {
+    if (pendingLink !== link || !link.isConnected) {
+      if (pendingLink === link) {
+        pendingLink = null;
+      }
       return;
     }
     const term = terms.get(termId);
@@ -153,6 +180,7 @@
 
     const panel = ensureDialog();
     pendingLink = null;
+    pointerDismissal = false;
     activeLink = link;
     fillDialog(panel, term, link);
     if (!panel.open) {
@@ -199,16 +227,26 @@
       !dialog.contains(target) &&
       (!activeLink || !activeLink.contains(target))
     ) {
+      pointerDismissal = true;
       dialog.close();
     }
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && dialog && dialog.open) {
+    if (event.key !== "Escape") {
+      return;
+    }
+    pendingLink = null;
+    pointerDismissal = false;
+    if (dialog && dialog.open) {
       event.preventDefault();
       dialog.close();
     }
   });
 
   window.addEventListener("resize", repositionOpenDialog);
+  document.addEventListener("scroll", repositionOpenDialog, {
+    capture: true,
+    passive: true,
+  });
 })();
