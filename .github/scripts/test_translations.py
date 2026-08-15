@@ -16,9 +16,9 @@ def blob_sha(data: bytes) -> str:
     return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()  # noqa: S324
 
 
-def write_catalog(root: Path) -> None:
+def write_catalog(root: Path, schema_version: object = 3) -> None:
     (root / "docs" / "publication-catalog.json").write_text(
-        json.dumps({"schema_version": 1, "documents": []}), encoding="utf-8"
+        json.dumps({"schema_version": schema_version, "documents": []}), encoding="utf-8"
     )
 
 
@@ -79,6 +79,21 @@ class TranslationContractTests(unittest.TestCase):
         self.assertIn("translations validated: 3", result)
         self.assertIn("reader translations: 0", result)
         self.assertIn("guided translations: 3", result)
+
+    def test_publication_catalog_schema_version_is_strictly_v3(self) -> None:
+        for version in (1, 2, 4, "3", 3.0, True, None, [3]):
+            with self.subTest(version=version), tempfile.TemporaryDirectory(
+                prefix="skill-translation-"
+            ) as directory:
+                root = Path(directory)
+                canonical = prepare_guided_translation(root)
+                write_catalog(root, version)
+                write_manifest(root, guided_entry(canonical))
+                with self.assertRaisesRegex(
+                    TranslationError,
+                    "publication catalog schema_version must be integer 3",
+                ):
+                    validate(root)
 
     def test_guided_index_outside_reader_catalog_is_valid(self) -> None:
         with tempfile.TemporaryDirectory(prefix="skill-translation-") as directory:
