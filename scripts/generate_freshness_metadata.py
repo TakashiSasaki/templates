@@ -50,11 +50,11 @@ class MetaParser(HTMLParser):
 
 
 class HeadBoundaryParser(HTMLParser):
-    """Locate the actual parsed </head> tag rather than raw string lookalikes."""
+    """Locate actual parsed head boundaries rather than raw string lookalikes."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
-        self.head_starts = 0
+        self.head_starts: list[tuple[int, int]] = []
         self.head_ends: list[tuple[int, int]] = []
 
     def handle_starttag(
@@ -64,7 +64,7 @@ class HeadBoundaryParser(HTMLParser):
     ) -> None:
         del attrs
         if tag.casefold() == "head":
-            self.head_starts += 1
+            self.head_starts.append(self.getpos())
 
     def handle_endtag(self, tag: str) -> None:
         if tag.casefold() == "head":
@@ -220,16 +220,23 @@ def head_close_offset(source: str, path: Path) -> int:
     parser = HeadBoundaryParser()
     parser.feed(source)
     parser.close()
-    if parser.head_starts != 1 or len(parser.head_ends) != 1:
+    if len(parser.head_starts) != 1 or len(parser.head_ends) != 1:
         raise FreshnessMetadataError(
             f"{path}: expected exactly one closing head tag for exactly one head element, "
-            f"found {parser.head_starts} start tag(s) and {len(parser.head_ends)} closing tag(s)"
+            f"found {len(parser.head_starts)} start tag(s) and {len(parser.head_ends)} closing tag(s)"
         )
-    return source_offset(source, parser.head_ends[0])
+    start_offset = source_offset(source, parser.head_starts[0])
+    end_offset = source_offset(source, parser.head_ends[0])
+    if end_offset <= start_offset:
+        raise FreshnessMetadataError(
+            f"{path}: closing head tag precedes head start tag"
+        )
+    return end_offset
 
 
 def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     revision = validate_revision(revision, "site")
+    position = head_close_offset(source, path)
     metas = freshness_revision_metas(source)
     if len(metas) > 1:
         raise FreshnessMetadataError(
@@ -242,7 +249,6 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
             )
         return source
 
-    position = head_close_offset(source, path)
     tag = (
         f'<meta name="{SITE_REVISION_META_NAME}" '
         f'content="{html.escape(revision, quote=True)}">\n'
