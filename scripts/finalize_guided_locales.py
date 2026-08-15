@@ -19,8 +19,11 @@ try:
         GUIDED_COPY_SCRIPT_TAG,
         SiteMetadataError,
         allow_guided_copy_script,
+        discover_page_path_routes,
         ensure_pwa_metadata,
+        generated_html_files,
         guided_copy_button,
+        render_page_path_breadcrumb,
         rewrite_canonical_link,
         validate_canonical_url,
         validate_github_source_url,
@@ -39,8 +42,11 @@ except ModuleNotFoundError:
         GUIDED_COPY_SCRIPT_TAG,
         SiteMetadataError,
         allow_guided_copy_script,
+        discover_page_path_routes,
         ensure_pwa_metadata,
+        generated_html_files,
         guided_copy_button,
+        render_page_path_breadcrumb,
         rewrite_canonical_link,
         validate_canonical_url,
         validate_github_source_url,
@@ -240,6 +246,7 @@ def enhance_localized_guided_copy_controls(
     canonical_base: str,
     language: str,
     path: Path,
+    page_routes: set[str] | None = None,
 ) -> str:
     """Apply the canonical guided copy-control contract to one localized page."""
     page_path_matches = list(LOCALIZED_PAGE_PATH_PATTERN.finditer(source))
@@ -252,6 +259,12 @@ def enhance_localized_guided_copy_controls(
     page_path = validate_localized_guided_page_path(
         html.unescape(page_path_match.group("path")), language, path
     )
+    if page_routes is None:
+        page_routes = {page_path}
+    if page_path not in page_routes:
+        raise GuidedLocaleFinalizeError(
+            f"{path}: localized guided page path is not declared by a generated page: {page_path!r}"
+        )
     public_url = urljoin(canonical_base, page_path.lstrip("/"))
 
     github_matches = list(LOCALIZED_IMMUTABLE_GITHUB_SOURCE_PATTERN.finditer(source))
@@ -266,15 +279,17 @@ def enhance_localized_guided_copy_controls(
         buttons.append(guided_copy_button("GitHub URL", github_url))
     buttons.append(guided_copy_button("public URL", public_url))
 
+    label = html.unescape(page_path_match.group("label"))
     replacement = (
-        '<p class="page-path"><span class="page-path-label">'
-        f'{html.escape(html.unescape(page_path_match.group("label")))}'
-        '</span> '
-        f'<code>{html.escape(page_path)}</code> '
+        f'<nav class="page-path" aria-label="{html.escape(label, quote=True)}">'
+        '<span class="page-path-label">'
+        f"{html.escape(label)}"
+        "</span> "
+        f'<code>{render_page_path_breadcrumb(page_path, page_routes)}</code> '
         '<span class="page-path-actions">'
         + " ".join(buttons)
         + ' <span class="copy-status" role="status" aria-live="polite"></span>'
-        "</span></p>"
+        "</span></nav>"
     )
     updated = source[: page_path_match.start()] + replacement + source[page_path_match.end() :]
     updated = allow_guided_copy_script(updated, path)
@@ -297,6 +312,8 @@ def finalize(
 ) -> list[str]:
     canonical_base = validate_canonical_url(canonical_base)
     pairs = load_pairs(pair_map)
+    _resolved_root, html_files = generated_html_files(site_root)
+    page_routes = discover_page_path_routes(html_files)
     groups: dict[PurePosixPath, list[dict[str, Any]]] = defaultdict(list)
     for pair in pairs:
         groups[pair["canonical"]].append(pair)
@@ -333,6 +350,7 @@ def finalize(
                 canonical_base,
                 record["language"],
                 translation_file,
+                page_routes,
             )
             source = ensure_pwa_metadata(source, translation_file)
             source = rewrite_canonical_link(source, canonical_url, translation_file)
