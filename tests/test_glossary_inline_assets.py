@@ -25,46 +25,62 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertNotIn("DOMContentLoaded", source)
         self.assertNotIn("requestIdleCallback", source)
 
+    def test_failed_fetch_can_retry_on_later_activation(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("glossaryPromise = undefined;", source)
+        self.assertIn("throw error;", source)
+
     def test_runtime_preserves_link_fallbacks_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertGreaterEqual(source.count("window.location.assign(link.href);"), 3)
         for modifier in ("event.metaKey", "event.ctrlKey", "event.shiftKey", "event.altKey"):
             self.assertIn(modifier, source)
-        self.assertIn('event.key === "Escape"', source)
+        self.assertIn('event.key !== "Escape"', source)
         self.assertIn('dialog.setAttribute("aria-labelledby"', source)
         self.assertIn('dialog.setAttribute("aria-describedby"', source)
         self.assertIn("restore.focus({ preventScroll: true })", source)
 
-    def test_runtime_guards_pending_selection_and_active_link_containment(self) -> None:
+    def test_runtime_guards_navigation_races_and_active_link_containment(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("let pendingLink;", source)
         self.assertIn("pendingLink = link;", source)
         self.assertGreaterEqual(source.count("pendingLink !== link"), 2)
+        self.assertGreaterEqual(source.count("!link.isConnected"), 2)
         self.assertIn("!pendingLink.contains(target)", source)
         self.assertIn("!activeLink.contains(target)", source)
 
-    def test_open_dialog_repositions_after_desktop_viewport_resize(self) -> None:
+    def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("let pointerDismissal = false;", source)
+        self.assertIn("pointerDismissal = true;", source)
+        self.assertIn("!pointerDismissal", source)
+        self.assertIn("pendingLink = null;", source)
+
+    def test_open_dialog_repositions_after_viewport_and_scroll_changes(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("function repositionOpenDialog()", source)
         self.assertIn("positionDialog(activeLink, dialog);", source)
-        self.assertIn(
-            'window.addEventListener("resize", repositionOpenDialog);',
-            source,
-        )
+        self.assertIn('window.addEventListener("resize", repositionOpenDialog);', source)
+        self.assertIn('document.addEventListener("scroll", repositionOpenDialog, {', source)
+        self.assertIn("capture: true", source)
+        self.assertIn("passive: true", source)
 
-    def test_explanation_and_metadata_follow_glossary_origin_contract(self) -> None:
+    def test_explanation_metadata_and_provider_labels_follow_glossary_contract(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
-        self.assertIn(
-            'term.origin === "repository" && typeof term.definition === "string"',
-            source,
-        )
+        self.assertIn('term.origin === "repository" && typeof term.definition === "string"', source)
         self.assertIn('typeof term.summary === "string"', source)
         self.assertIn("return term.definition;", source)
         self.assertIn("return term.summary;", source)
+        self.assertIn('site: "Site"', source)
+        self.assertIn('skill: "Skill"', source)
+        self.assertIn('policy: "Policy"', source)
+        self.assertIn('webapp: "Webapp"', source)
         self.assertIn("`External term · curated by ${owner}`", source)
         self.assertIn("`Templates-defined · ${owner}`", source)
 
@@ -91,11 +107,13 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertTrue(JS.is_file())
         self.assertTrue(CSS.is_file())
 
-    def test_runtime_assets_are_not_configured_globally(self) -> None:
+    def test_runtime_assets_are_global_for_instant_navigation_but_data_remains_lazy(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
 
-        self.assertNotIn("glossary-inline.js", template)
-        self.assertNotIn("glossary-inline.css", template)
+        self.assertIn('"stylesheets/glossary-inline.css"', template)
+        self.assertIn('"javascripts/glossary-inline.js"', template)
+        self.assertIn('"navigation.instant"', template)
+        self.assertNotIn("/glossary/index.json", template)
 
 
 if __name__ == "__main__":
