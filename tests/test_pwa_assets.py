@@ -79,17 +79,20 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_registration_acknowledges_stale_state_and_clears_only_after_commit(self) -> None:
         registration = (ROOT / "assets/javascripts/pwa.js").read_text(encoding="utf-8")
-        self.assertIn('event.data?.type !== "templates:freshness-state"', registration)
-        self.assertIn('event.data.state !== "cached-unverified"', registration)
-        self.assertIn("pendingCachedCommitUrl", registration)
+        self.assertIn('data?.type !== "templates:freshness-state"', registration)
+        self.assertIn('data.state !== "cached-unverified"', registration)
+        self.assertIn("pendingDocumentCommit", registration)
+        self.assertIn("lastCommitGeneration", registration)
         self.assertIn("globalThis.document$", registration)
         self.assertIn("documentObservable.subscribe(handleCommittedDocument)", registration)
-        self.assertIn("committedUrl === pendingCachedCommitUrl", registration)
+        self.assertIn("committedUrl === pending.url", registration)
+        self.assertIn('pending.representation === "cached"', registration)
         self.assertIn('status.id = freshnessStatusId', registration)
-        self.assertIn('document.body.prepend(status)', registration)
+        self.assertIn('document.body || document.documentElement', registration)
         self.assertIn('document.getElementById(freshnessStatusId)?.remove()', registration)
         self.assertIn('const acknowledgementPort = event.ports?.[0]', registration)
         self.assertIn('type: "templates:freshness-state-applied"', registration)
+        self.assertIn('type === "templates:document-commit"', registration)
 
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -149,8 +152,10 @@ class PwaAssetTests(unittest.TestCase):
     def test_service_worker_document_network_first_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
         self.assertIn("async function fetchDocumentNetworkFirst(event)", worker)
+        self.assertIn("const generation = beginDocumentRequest()", worker)
         self.assertIn("if (response.status === 404 || response.status === 410)", worker)
-        self.assertIn("await deleteCachedDocument(request)", worker)
+        self.assertIn("recordAuthoritativeDeletion(request, generation)", worker)
+        self.assertIn("deleteCachedDocument(request, generation)", worker)
         self.assertIn("await caches.delete(DOCUMENT_CACHE_NAME)", worker)
         self.assertIn("if (response.status >= 500)", worker)
         self.assertIn("cachedDocumentFallback(request)", worker)
@@ -158,12 +163,12 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn("response.status !== 200", worker)
         self.assertIn('includes("text/html")', worker)
         self.assertIn("const cachedResponse = response.clone();", worker)
-        self.assertIn("event.waitUntil(cacheVerifiedDocument(request, cachedResponse))", worker)
+        self.assertIn("event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation))", worker)
         self.assertIn("await cache.put(request, cachedResponse)", worker)
         self.assertIn("await cache.delete(request)", worker)
         self.assertLess(
             worker.index("const cachedResponse = response.clone();"),
-            worker.index("event.waitUntil(cacheVerifiedDocument(request, cachedResponse))"),
+            worker.index("event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation))"),
         )
 
     def test_cached_document_fallback_is_always_marked_unverified(self) -> None:
@@ -176,23 +181,26 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('headers.set("Cache-Control", "no-store")', worker)
         for header in ("Content-Encoding", "Content-Length", "ETag", "Last-Modified"):
             self.assertIn(f'"{header}"', worker)
-        self.assertIn("const decorated = source + CACHED_DOCUMENT_NOTICE", worker)
-        self.assertNotIn("bodyMatch", worker)
+        self.assertIn("const decorated = injectCachedDocumentNotice(source)", worker)
+        self.assertIn("bodyClosures.length !== 1", worker)
+        self.assertIn('id="templates-freshness-status-inline-style"', worker)
         self.assertIn("position: fixed", stylesheet)
         self.assertIn("inset-block-start: 0", stylesheet)
 
     def test_instant_navigation_cached_fallback_requires_ui_acknowledgement(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn("async function notifyInstantNavigationState(event, state, requireAcknowledgement = false)", worker)
+        self.assertIn("async function notifyInstantNavigationState(", worker)
         self.assertIn("new MessageChannel()", worker)
         self.assertIn("FRESHNESS_UI_ACK_TIMEOUT_MS", worker)
         self.assertIn('type === "templates:freshness-state-applied"', worker)
         self.assertIn('url: event.request.url', worker)
-        self.assertIn('notifyInstantNavigationState(event, "cached-unverified", true)', worker)
+        self.assertIn('requestGeneration: generation', worker)
+        self.assertIn('"cached-unverified",\n          true,\n          generation', worker)
         self.assertNotIn('notifyInstantNavigationState(event, "verified-current")', worker)
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+        self.assertIn('url.pathname.startsWith("/repository-trees/previews/")', worker)
         self.assertIn('if (request.destination !== "")', worker)
         self.assertIn('const accept = request.headers.get("Accept") || ""', worker)
         self.assertIn('accept.toLowerCase().includes("text/html")', worker)
