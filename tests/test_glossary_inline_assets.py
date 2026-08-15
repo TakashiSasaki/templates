@@ -19,10 +19,11 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
         self.assertEqual(source.count("fetch(GLOSSARY_URL"), 1)
         self.assertEqual(source.count("loadGlossary("), 2)
-        self.assertEqual(source.count("ensureDialog("), 2)
         self.assertIn("terms = await loadGlossary();", source)
-        self.assertIn("const panel = ensureDialog();", source)
-        self.assertIn("void openDefinition(link);", source)
+        self.assertIn('dialog = document.createElement("dialog");', source)
+        self.assertIn("void openDefinition(trigger);", source)
+        self.assertIn("void openDefinition(control);", source)
+        self.assertLess(source.index("async function openDefinition"), source.index("terms = await loadGlossary();"))
         self.assertNotIn("DOMContentLoaded", source)
         self.assertNotIn("requestIdleCallback", source)
 
@@ -36,49 +37,59 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         source = JS.read_text(encoding="utf-8")
         css = CSS.read_text(encoding="utf-8")
 
-        self.assertIn("function setPendingLink(link)", source)
-        self.assertIn('link.setAttribute("aria-busy", "true");', source)
-        self.assertIn("function clearPendingLink(link)", source)
+        self.assertIn("function setPendingTrigger(trigger)", source)
+        self.assertIn('trigger.setAttribute("aria-busy", "true");', source)
+        self.assertIn("function clearPendingTrigger(trigger)", source)
         self.assertIn('current.removeAttribute("aria-busy");', source)
-        self.assertGreaterEqual(source.count("clearPendingLink("), 8)
+        self.assertGreaterEqual(source.count("clearPendingTrigger("), 7)
         self.assertIn('.glossary-term[aria-busy="true"]', css)
         self.assertIn("cursor: progress", css)
 
-    def test_failed_fetch_clears_disconnected_current_pending_link(self) -> None:
+    def test_failed_fetch_clears_disconnected_current_pending_trigger(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
-        self.assertIn("const canFallback = pendingLink === link && link.isConnected;", source)
-        self.assertIn("clearPendingLink(link);\n      if (!canFallback)", source)
+        self.assertIn(
+            "const canPresent = pendingTrigger === trigger && trigger.isConnected;",
+            source,
+        )
+        self.assertIn("clearPendingTrigger(trigger);\n      if (!canPresent)", source)
         self.assertIn("restore.isConnected", source)
         self.assertNotIn("document.contains(restore)", source)
 
-    def test_runtime_preserves_link_fallbacks_and_modified_clicks(self) -> None:
+    def test_runtime_preserves_static_link_fallback_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
-        self.assertGreaterEqual(source.count("window.location.assign(link.href);"), 3)
+        self.assertIn('const FALLBACK_SELECTOR = "a.glossary-term[data-glossary-id]";', source)
+        self.assertIn('trigger.dataset.glossaryHref = link.getAttribute("href")', source)
+        self.assertIn('panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);', source)
+        self.assertNotIn("window.location.assign", source)
         for modifier in ("event.metaKey", "event.ctrlKey", "event.shiftKey", "event.altKey"):
             self.assertIn(modifier, source)
+        modifier_guard = "if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {\n        return;\n      }"
+        self.assertIn(modifier_guard, source)
         self.assertIn('event.key !== "Escape"', source)
         self.assertIn('dialog.setAttribute("aria-labelledby"', source)
         self.assertIn('dialog.setAttribute("aria-describedby"', source)
         self.assertIn("restore.focus({ preventScroll: true })", source)
 
-    def test_runtime_guards_navigation_races_and_active_link_containment(self) -> None:
+    def test_runtime_guards_navigation_races_and_active_trigger_containment(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
-        self.assertIn("let pendingLink;", source)
-        self.assertIn("setPendingLink(link);", source)
-        self.assertGreaterEqual(source.count("pendingLink !== link"), 1)
-        self.assertGreaterEqual(source.count("!link.isConnected"), 1)
-        self.assertIn("!pendingLink.contains(target)", source)
-        self.assertIn("!activeLink.contains(target)", source)
+        self.assertIn("let pendingTrigger;", source)
+        self.assertIn("setPendingTrigger(trigger);", source)
+        self.assertGreaterEqual(source.count("pendingTrigger !== trigger"), 1)
+        self.assertGreaterEqual(source.count("!trigger.isConnected"), 1)
+        self.assertIn("!pendingTrigger.contains(target)", source)
+        self.assertIn("!activeTrigger.contains(target)", source)
 
-    def test_detached_active_link_closes_dialog_after_instant_navigation(self) -> None:
+    def test_detached_active_trigger_closes_dialog_after_instant_navigation(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("function closeDetachedDialog()", source)
-        self.assertIn("activeLink && !activeLink.isConnected", source)
-        self.assertIn("navigationObserver = new MutationObserver(closeDetachedDialog);", source)
+        self.assertIn("activeTrigger && !activeTrigger.isConnected", source)
+        self.assertIn("navigationObserver = new MutationObserver((records) => {", source)
+        self.assertIn("closeDetachedDialog();", source)
+        self.assertIn("enhanceGlossaryLinks(node);", source)
         self.assertIn("navigationObserver.observe(document.body", source)
         self.assertIn("childList: true", source)
         self.assertIn("subtree: true", source)
@@ -90,7 +101,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("if (!dialog.isConnected)", source)
         self.assertGreaterEqual(source.count("document.body.appendChild(dialog);"), 2)
         self.assertIn("navigationObserver.disconnect();", source)
-        self.assertGreaterEqual(source.count("observeNavigationBody();"), 2)
+        self.assertGreaterEqual(source.count("observeNavigationBody();"), 3)
 
     def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
         source = JS.read_text(encoding="utf-8")
@@ -98,13 +109,13 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("let pointerDismissal = false;", source)
         self.assertIn("pointerDismissal = true;", source)
         self.assertIn("!pointerDismissal", source)
-        self.assertIn("clearPendingLink();", source)
+        self.assertIn("clearPendingTrigger();", source)
 
     def test_open_dialog_repositions_and_clamps_within_viewport(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("function repositionOpenDialog()", source)
-        self.assertIn("positionDialog(activeLink, dialog);", source)
+        self.assertIn("positionDialog(activeTrigger, dialog);", source)
         self.assertIn('window.addEventListener("resize", repositionOpenDialog);', source)
         self.assertIn('document.addEventListener("scroll", repositionOpenDialog, {', source)
         self.assertIn("capture: true", source)
@@ -126,18 +137,57 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("`External term · curated by ${owner}`", source)
         self.assertIn("`Templates-defined · ${owner}`", source)
 
-    def test_annotation_style_does_not_change_text_metrics(self) -> None:
+    def test_enhanced_trigger_uses_native_button_dialog_semantics(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn('const trigger = document.createElement("button");', source)
+        self.assertIn('trigger.type = "button";', source)
+        self.assertIn('trigger.setAttribute("aria-haspopup", "dialog");', source)
+        self.assertIn('trigger.setAttribute("aria-controls", DIALOG_ID);', source)
+        self.assertIn('trigger.setAttribute("aria-expanded", "false");', source)
+        self.assertIn('trigger.setAttribute("aria-expanded", "true");', source)
+        self.assertIn('restore.setAttribute("aria-expanded", "false");', source)
+        self.assertIn("link.replaceWith(trigger);", source)
+
+    def test_runtime_failure_stays_in_place_and_exposes_explicit_navigation(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn('fillErrorDialog(panel, trigger, "Definition could not be loaded.");', source)
+        self.assertIn('fillErrorDialog(panel, trigger, "Definition could not be found.");', source)
+        self.assertIn("Glossary data unavailable.", source)
+        self.assertIn("Open in Glossary", source)
+        self.assertNotIn("window.location", source)
+
+    def test_annotation_style_does_not_change_static_link_text_metrics(self) -> None:
         source = CSS.read_text(encoding="utf-8")
         annotation_rule = source.split(".glossary-term {", 1)[1].split("}", 1)[0]
         busy_rule = source.split('.glossary-term[aria-busy="true"] {', 1)[1].split("}", 1)[0]
 
         self.assertIn("text-decoration", annotation_rule)
+        self.assertIn("cursor: help", annotation_rule)
         for rule in (annotation_rule, busy_rule):
             self.assertNotIn("font-size", rule)
             self.assertNotIn("font-weight", rule)
             self.assertNotIn("line-height", rule)
             self.assertNotIn("padding", rule)
             self.assertNotIn("margin", rule)
+
+    def test_enhanced_button_resets_user_agent_metrics(self) -> None:
+        source = CSS.read_text(encoding="utf-8")
+        button_rule = source.split("button.glossary-term {", 1)[1].split("}", 1)[0]
+
+        for declaration in (
+            "appearance: none",
+            "display: inline",
+            "margin: 0",
+            "padding: 0",
+            "border: 0",
+            "background: none",
+            "font: inherit",
+            "line-height: inherit",
+            "vertical-align: baseline",
+        ):
+            self.assertIn(declaration, button_rule)
 
     def test_runtime_paths_match_published_assets(self) -> None:
         self.assertEqual(
