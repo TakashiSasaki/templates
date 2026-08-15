@@ -55,8 +55,9 @@ terms:
     definition: >-
       A maintained Skill authority that records implementation runtime,
       dependencies, exact shared commands, package and distribution choices,
-      selected protocol and extension revisions, and deployment lifecycle for
-      profiles that need a separate runtime record.
+      selected core protocol revision, extension identifiers, transport
+      selections, and deployment lifecycle for profiles that need a separate
+      runtime record.
     related_terms:
       - templates-skill-profile
 
