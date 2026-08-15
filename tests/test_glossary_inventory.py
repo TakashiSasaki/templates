@@ -5,14 +5,16 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from scripts.glossary import REPOSITORY_TERM_ID, TERM_ID
+from scripts.glossary import ORIGINS, REPOSITORY_TERM_ID, TERM_ID
 
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "GLOSSARY_INVENTORY.md"
 ID_CELL = re.compile(r"^`([^`]+)`$")
-OWNER_CELL = re.compile(r"^(site|skill|policy|webapp)(?: curator)?$")
 PROVIDERS = {"site", "skill", "policy", "webapp"}
+OWNER_CELL = re.compile(
+    rf"^({'|'.join(re.escape(provider) for provider in sorted(PROVIDERS))})(?: curator)?$"
+)
 REQUIRED_TABLES = {
     "Current canonical seed": {
         "id": "Canonical ID",
@@ -139,6 +141,13 @@ class GlossaryInventoryTests(unittest.TestCase):
                         f"invalid owner/curator in {section}: {owner!r}",
                     )
 
+                if "Origin" in row:
+                    self.assertIn(
+                        row["Origin"],
+                        ORIGINS,
+                        f"invalid origin in {section}: {row['Origin']!r}",
+                    )
+
         proposed_header, proposed_rows = self.table("Proposed first expansion")
         rationale_column = "Rationale / canonical source"
         self.assertIn(rationale_column, proposed_header)
@@ -164,7 +173,11 @@ class GlossaryInventoryTests(unittest.TestCase):
                 row["Japanese discovery label"].strip(),
                 f"Japanese discovery label must not be empty: {row}",
             )
-            self.assertIn(row["Include next"], {"yes", "no"})
+            self.assertEqual(
+                row["Include next"],
+                "yes",
+                f"first-expansion term must be explicitly selected: {row}",
+            )
 
             match = ID_CELL.fullmatch(row["Proposed ID"])
             self.assertIsNotNone(match)
