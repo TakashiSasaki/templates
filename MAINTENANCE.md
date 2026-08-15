@@ -4,20 +4,21 @@ This file applies only to the unrelated `site` branch.
 
 ## Branch responsibilities
 
-- `skill`, `policy`, and `webapp` own their canonical documentation, their provider-owned `index.md` navigation, and their own `docs/publication-catalog.json` files. They do not own or initiate GitHub Pages deployment.
-- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, the bounded static repository browser, the deterministic index-navigation graph and `/guided/` projection of the exact provider inputs, explicit translation-reader publication/finalization, generated-site validation, build provenance, and the only Pages deployment workflow.
-- Generated Markdown, translation publication maps, preview HTML, repository-browser HTML, guided-navigation JSON/HTML, and final site HTML are temporary build artifacts and must not be committed.
+- `skill`, `policy`, and `webapp` own their canonical documentation, their provider-owned `index.md` navigation, their own `docs/publication-catalog.json` files, and any canonical `docs/glossary.yml` terminology assigned to that provider. They do not own or initiate GitHub Pages deployment.
+- `site` is the repository default branch and owns the integrated portal home, cross-publication navigation, source locking, assembly, deterministic glossary integration and `/glossary/` projection, generated complete-source repository trees, generated copyable-template trees, bounded inline file previews, the bounded static repository browser, the deterministic index-navigation graph and `/guided/` projection of the exact provider inputs, explicit translation-reader publication/finalization, generated-site validation, build provenance, and the only Pages deployment workflow.
+- Generated Markdown, integrated glossary JSON/HTML, translation publication maps, preview HTML, repository-browser HTML, guided-navigation JSON/HTML, and final site HTML are temporary build artifacts and must not be committed.
 
 The four major branches have unrelated histories. Do not merge, rebase, or cherry-pick between them merely to publish documentation. The site build checks out each publication independently at the full commit recorded in `publication-sources.json`.
 
 ## Change process
 
-1. Make canonical documentation, provider-owned index navigation, catalog changes, and provider-owned translation metadata on the provider branch that owns them.
-2. Merge the provider pull request and record its actual merge commit SHA.
-3. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
-4. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
-5. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change. Do not derive this reader-oriented manifest from provider `index.md` files. Translation routes remain a separate derivative projection and are not added to the canonical navigation manifest.
-6. Require the integrated documentation build, explicit translation publication and reader finalization, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, static repository-browser generation, index-navigation graph generation, guided-viewer generation and metadata normalization, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
+1. Make canonical documentation, provider-owned index navigation, glossary terminology, catalog changes, and provider-owned translation metadata on the provider branch that owns them.
+2. Validate the provider pull request locally and in CI. Glossary-bearing provider changes should also run the reusable Site compatibility build against the proposed provider revision so the canonical glossary parser checks term IDs, origin-specific fields, localized labels, authority metadata, related-term references, and cross-provider conflicts before merge.
+3. Merge the provider pull request and record its actual merge commit SHA.
+4. Branch the coordinated portal change from `site` and open a pull request whose base is `site`.
+5. Update `publication-sources.json` to the reviewed provider merge commit using a lowercase full 40-character SHA.
+6. Update `site-manifest.json` whenever a publication document is added or removed, or when reader-facing titles, hierarchy, ordering, or generated destinations change. Do not derive this reader-oriented manifest from provider `index.md` files. Translation routes remain a separate derivative projection and are not added to the canonical navigation manifest. A glossary-term addition does not by itself require a navigation-manifest change.
+7. Require the integrated documentation build, glossary integration and viewer generation, explicit translation publication and reader finalization, complete repository-tree generation, Skill and Webapp copyable-template tree generation, inline-preview generation, static repository-browser generation, index-navigation graph generation, guided-viewer generation and metadata normalization, build provenance, and generated-link validation to succeed against the exact locked commits before merging the site pull request.
 
 Provider catalog and site navigation coverage must be exact. A coordinated change can therefore fail intentionally between the provider merge and the corresponding site update.
 
@@ -25,12 +26,12 @@ Provider catalog and site navigation coverage must be exact. A coordinated chang
 
 Each publication root contains `docs/publication-catalog.json`.
 
-Catalog schema version 1 contains:
+The current canonical catalog contract is schema version 3. It contains:
 
-- `schema_version`, the integer `1`;
-- a non-empty `documents` array.
-
-Catalog schema version 2 additionally permits an `assets` array for explicit non-Markdown asset roots.
+- `schema_version`, the integer `3`;
+- a non-empty `documents` array;
+- an optional `assets` array for explicit non-Markdown asset roots;
+- an optional `glossary` object containing exactly one `source` field.
 
 Each document entry contains exactly:
 
@@ -41,7 +42,26 @@ Each document entry contains exactly:
 
 Each catalog defines exactly one non-optional home document. Document IDs and source paths are unique within the publication. Catalog paths reject absolute paths, backslashes, colon-bearing Windows or NTFS-ambiguous forms, empty or dot components, parent traversal, `.git` components in any case, and symlink traversal.
 
-Schema version 2 asset entries contain exactly `source`, `destination`, and `optional`. Asset source and destination roots must be unique and non-overlapping. Asset trees may not contain symlinks, `.git` subtrees, or Markdown files. Schema version 1 retains the legacy top-level `assets/` convention for non-Markdown files only; Markdown under that directory is not published implicitly.
+Asset entries contain exactly `source`, `destination`, and `optional`. Asset source and destination roots must be unique and non-overlapping. Asset trees may not contain symlinks, `.git` subtrees, or Markdown files.
+
+When `glossary` is present, `glossary.source` must be a safe relative `.yml` path to an existing regular file that does not traverse symlinks and does not overlap an asset source. Individual terms are not listed in the publication catalog, so adding a term to an already declared glossary does not require a catalog change.
+
+## Glossary maintenance
+
+`GLOSSARY.md` is the normative glossary contract. Canonical provider terminology lives in the semantic owner's `docs/glossary.yml`; `site` integrates those sources from the same exact provider revisions used for the rest of the publication.
+
+Normal glossary maintenance should preserve these boundaries:
+
+- English `term`, `definition`, and external-term `summary` remain canonical semantic prose;
+- `localized_labels`, including Japanese preferred labels and aliases, are lexical discovery metadata only;
+- repository-defined concepts use stable globally unique `templates-*` IDs and have one provider owner;
+- externally defined concepts use `external-*` IDs and retain explicit external authority metadata;
+- `related_terms` may reference only existing stable term IDs and may not self-reference;
+- adding a valid term must not require updating a Site-side exhaustive list of all term IDs;
+- provider pull requests should run the reusable Site compatibility build before merge, while the later Site lock promotion verifies the exact merged provider SHA again;
+- `/glossary/index.json` is the machine-readable integrated model and `/glossary/` is its non-authoritative human projection.
+
+The initial seed terms are representative test fixtures, not a closed vocabulary. Integration tests may require representative terms and provenance invariants but must permit additional valid terms.
 
 ## Navigation manifest
 
@@ -175,7 +195,7 @@ Asset traversal explicitly rejects file and directory symlinks before descending
 
 ## Generated link integrity
 
-The build validates links after Zensical generates final HTML, after the standalone repository browser is added, after guided navigation is generated and normalized, and after translation reader metadata is finalized. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages, landing-page links to `/files/` and `/guided/`, guided index-to-index fragment links, and per-document translation switcher links.
+The build validates links after Zensical generates final HTML, after the integrated glossary viewer, the standalone repository browser, and guided navigation are added, and after translation reader metadata is finalized. `scripts/validate_site_links.py` reads `project.site_url`, checks generated pages and assets, validates same-site paths and fragments, and rejects links that escape the configured Pages path or target missing generated content. This includes repository-tree links to generated same-origin preview pages, landing-page links to `/glossary/`, `/files/`, and `/guided/`, glossary related-term links, guided index-to-index fragment links, and per-document translation switcher links.
 
 External origins, non-HTTP schemes, same-origin URLs outside the configured project path, and browser text fragments are outside the generated artifact and are not validated as local content. Repository source links are external immutable GitHub links; their URL construction is covered by unit tests rather than network requests during the build.
 
@@ -221,7 +241,7 @@ Do not precache the portal home or generated documentation pages. Provider publi
 
 ## Build and deployment policy
 
-`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, publishes explicitly declared synchronized translations and their temporary reader map, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, normalizes canonical and PWA metadata, generates the bounded static repository browser, generates the immutable provider index-navigation graph and `/guided/` viewer, normalizes guided metadata, finalizes per-page canonical URLs and translation-reader metadata from the explicit translation publication map, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests targeting `site` or through `workflow_call`. It has `contents: read`, pins Python before executing repository Python code, resolves the locked publication revisions, checks out all publications, runs tests, prepares the temporary tree-page publication, assembles the portal, publishes explicitly declared synchronized translations and their temporary reader map, generates complete provider trees, generates Skill and Webapp copyable-template trees, generates bounded inline previews, strictly builds the site, generates the integrated glossary JSON and human viewer, normalizes canonical and PWA metadata, generates the bounded static repository browser, generates the immutable provider index-navigation graph and `/guided/` viewer, normalizes guided metadata, finalizes per-page canonical URLs and translation-reader metadata from the explicit translation publication map, verifies the generated public-URL boundary and Pages entry points, records provenance, validates links, and uploads a Pages artifact. It contains no deployment job or Pages write authority.
 
 `.github/workflows/mobile-visual-regression.yml` is a pull-request-only consumer of that build artifact for same-repository pull requests targeting `site`. It has only `contents: read` and `actions: read`, waits for the matching successful `build-pages.yml` run at the exact pull-request head SHA, downloads that run's `github-pages` artifact, installs the controller pinned by `requirements-visual.txt` plus its matching Playwright Chromium build, then runs both `scripts/check_mobile_layout.py` and `scripts/check_pwa_freshness.py` against the already-built site. The layout checker measures 360×800, 390×844, and 412×915 viewports, rejects page-wide horizontal overflow and mobile-density regressions, verifies full repository revisions remain on one line inside their local table scroll container, and enforces the 48 px portal-action floor. The PWA checker verifies document revalidation, static-shell convergence, Service Worker update propagation, and offline document fallbacks in a real browser Service Worker context. The workflow uploads screenshots, `metrics.json`, and `pwa-freshness.json` as short-lived review evidence. It does not build or deploy Pages and does not run repository code from fork pull requests.
 
@@ -253,7 +273,7 @@ For same-repository pull requests targeting `site`, the mobile visual regression
 
 ## Dependency updates
 
-`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. `requirements-visual.txt` separately pins the Playwright controller used only by the mobile visual regression workflow; its matching Chromium build is installed by Playwright rather than committed to the repository. Update either dependency set intentionally, run the relevant full build, mobile layout, and PWA freshness checks, and review generated navigation, translation-reader routes and switchers, complete repository trees, both copyable-template trees, inline previews, the static repository browser, the guided navigation surface, canonical URLs, provenance, link-validation results, mobile geometry, PWA lifecycle evidence, and screenshots before merging.
+`requirements.txt` pins Zensical and build-time syntax-highlighting dependencies, including Pygments. `requirements-visual.txt` separately pins the Playwright controller used only by the mobile visual regression workflow; its matching Chromium build is installed by Playwright rather than committed to the repository. Update either dependency set intentionally, run the relevant full build, mobile layout, and PWA freshness checks, and review generated navigation, glossary output, translation-reader routes and switchers, complete repository trees, both copyable-template trees, inline previews, the static repository browser, the guided navigation surface, canonical URLs, provenance, link-validation results, mobile geometry, PWA lifecycle evidence, and screenshots before merging.
 
 ## Local validation
 
@@ -264,7 +284,7 @@ python -m unittest discover --start-directory site/tests --verbose
 python site/scripts/prepare_repository_tree_publication.py \
   --site-root site \
   --output-root site-publication
-python site/scripts/assemble_publications.py \
+python site/scripts/assemble_publications_v3.py \
   --publication site=site-publication \
   --publication skill=sources/skill \
   --publication policy=sources/policy \
@@ -303,6 +323,17 @@ python site/scripts/generate_repository_file_previews.py \
   --publication policy=sources/policy \
   --publication webapp=sources/webapp
 zensical build --config-file build/zensical.toml --clean --strict
+python site/scripts/generate_glossary.py \
+  --repository TakashiSasaki/templates \
+  --output build/site/glossary/index.json \
+  --publication site=site-publication \
+  --revision "site=$(git -C site rev-parse HEAD)" \
+  --publication skill=sources/skill \
+  --revision "skill=$(git -C sources/skill rev-parse HEAD)" \
+  --publication policy=sources/policy \
+  --revision "policy=$(git -C sources/policy rev-parse HEAD)" \
+  --publication webapp=sources/webapp \
+  --revision "webapp=$(git -C sources/webapp rev-parse HEAD)"
 python site/scripts/finalize_site_metadata.py \
   --site-root build/site \
   --canonical-url https://templates.moukaeritai.work/
@@ -354,4 +385,4 @@ python site/scripts/check_pwa_freshness.py \
   --output build/mobile-visual/pwa-freshness.json
 ```
 
-The mobile layout command uses the Chromium build matched to the pinned Playwright controller and writes screenshots plus `metrics.json` under `build/mobile-visual`. The PWA freshness command uses the same Chromium installation and writes `pwa-freshness.json` while validating HTTP-cache revalidation, static-shell convergence, worker update propagation, and explicit offline 503 fallbacks. Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, repository-browser snapshots, guided-navigation graph/viewer output, and translation reader routes always use the actual checked-out commits.
+The mobile layout command uses the Chromium build matched to the pinned Playwright controller and writes screenshots plus `metrics.json` under `build/mobile-visual`. The PWA freshness command uses the same Chromium installation and writes `pwa-freshness.json` while validating HTTP-cache revalidation, static-shell convergence, worker update propagation, and explicit offline 503 fallbacks. Use workflow-call revision overrides only for deliberate compatibility testing. Normal builds use the reviewed full-SHA lock file. Repository-tree links, preview URLs, repository-browser snapshots, guided-navigation graph/viewer output, glossary output, and translation reader routes always use the actual checked-out commits.

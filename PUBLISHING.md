@@ -9,8 +9,9 @@ The `site` branch publishes one human-readable GitHub Pages portal that includes
 reviewed documentation from the `skill`, `policy`, and `webapp` branches without
 combining their Git histories or transferring ownership of their canonical
 content. The same Pages artifact may also expose a bounded source-oriented file
-browser for the exact build inputs and a bounded index-guided navigation surface
-that projects provider-owned `index.md` structure under the rules below.
+browser for the exact build inputs, a bounded index-guided navigation surface
+that projects provider-owned `index.md` structure under the rules below, and an
+integrated terminology surface backed by provider-owned canonical glossaries.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
@@ -21,7 +22,10 @@ Provider branches (`skill`, `policy`, and `webapp`) own:
 
 - canonical documentation and supporting public assets;
 - `docs/publication-catalog.json`, which defines the provider's public boundary;
+- `docs/glossary.yml` when the provider owns canonical terminology;
 - stable document IDs and canonical source paths;
+- stable glossary term IDs and repository-owned definitions for concepts whose
+  semantic owner is that provider;
 - whether a cataloged document or asset is required or optional;
 - one required publication home document;
 - provider-owned `index.md` files and the semantic navigation paths expressed by
@@ -36,6 +40,8 @@ The `site` branch owns:
   cataloged documentation;
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
+- deterministic glossary integration, the schema-versioned `/glossary/index.json`
+  read model, and the non-authoritative human projection at `/glossary/`;
 - generated repository inventories and bounded inline file previews;
 - the bounded static file-browser snapshots for `site`, `skill`, `policy`, and
   `webapp` build inputs;
@@ -46,14 +52,16 @@ The `site` branch owns:
 - the sole repository workflow authorized to deploy GitHub Pages.
 
 A document is globally identified by the pair `publication:document`, for
-example `policy:overview` or `webapp:implementation-evidence`.
+example `policy:overview` or `webapp:implementation-evidence`. Glossary concepts
+use their own stable global term IDs as defined by `GLOSSARY.md`.
 
 ## Public boundary
 
-Publication catalogs are explicit allowlists for rendered documentation and
-supporting publication assets. The assembler must not infer that a file is a
-published document from its directory, extension, Git tracking status, or
-presence in a provider branch.
+Publication catalogs are explicit allowlists for rendered documentation,
+supporting publication assets, and declared canonical glossary input. The
+assembler must not infer that a file is a published document, asset, or glossary
+source from its directory, extension, Git tracking status, or presence in a
+provider branch.
 
 The following rules apply:
 
@@ -61,29 +69,64 @@ The following rules apply:
    documentation pages.
 2. Only non-Markdown assets declared by the applicable catalog schema are copied
    as provider publication assets.
-3. Tests, workflows, scripts, generated output, working notes, and newly added
+3. A provider glossary participates in integrated terminology only when a schema
+   version 3 publication catalog explicitly declares its `glossary.source`.
+4. Tests, workflows, scripts, generated output, working notes, and newly added
    files do not become cataloged documentation merely because they are tracked.
-4. Branch-wide copies and unrestricted glob-based publication are prohibited for
+5. Branch-wide copies and unrestricted glob-based publication are prohibited for
    cataloged documentation and provider assets. The separate repository inventory,
-   inline-preview, static file-browser, and index-guided navigation surfaces may
-   expose only the bounded Git-object representations or navigation metadata
-   explicitly permitted below.
-5. Machine-readable contracts and schemas may be published as supporting
+   inline-preview, static file-browser, index-guided navigation, and glossary
+   surfaces may expose only the bounded representations explicitly permitted
+   below and by `GLOSSARY.md`.
+6. Machine-readable contracts and schemas may be published as supporting
    assets, but the navigation should lead readers through explanatory Markdown.
-6. Catalog paths and asset traversal must reject parent traversal, unsafe path
-   forms, `.git` components, and symbolic-link traversal.
-7. Repository inventory previews, static file-browser pages, and index-guided
-   navigation pages are separate bounded rendering surfaces and must satisfy
-   every applicable constraint in the following sections.
+7. Catalog paths, glossary paths, and asset traversal must reject parent
+   traversal, unsafe path forms, `.git` components, and symbolic-link traversal.
+8. Repository inventory previews, static file-browser pages, index-guided
+   navigation pages, and glossary projections are separate bounded rendering
+   surfaces and must satisfy every applicable constraint in the following
+   sections and in `GLOSSARY.md`.
 
 Adding a file to a provider branch does not publish it as a cataloged document or
-provider asset. Adding or changing a catalog entry is a public-interface change
-and requires review as such. A tracked regular file can nevertheless become
-visible in the separate file-browser snapshot when it satisfies the bounded
-browser rules below; this does not make it a cataloged document or asset.
+provider asset and does not make it glossary authority. Adding or changing a
+catalog entry is a public-interface change and requires review as such. Adding a
+term to an already declared provider glossary is a terminology-contract change,
+not a publication-catalog schema change. A tracked regular file can nevertheless
+become visible in the separate file-browser snapshot when it satisfies the
+bounded browser rules below; this does not make it a cataloged document or asset.
 Likewise, a path referenced by a provider-owned `index.md` may be represented as
 navigation metadata or linked to the file browser without becoming a cataloged
 documentation page.
+
+## Glossary publication
+
+`GLOSSARY.md` is the normative glossary contract. Provider-owned
+`docs/glossary.yml` files are canonical semantic inputs, while `site` integrates
+them from the exact reviewed provider revisions used by the rest of the build.
+
+The integrated glossary must satisfy all of the following rules:
+
+- English remains the canonical terminology and explanatory language;
+- localized labels such as Japanese preferred terms and aliases are lexical
+  discovery metadata, not independent definitions;
+- repository-defined concepts use globally unique stable `templates-*` term IDs
+  and have one canonical provider owner;
+- externally defined concepts use `external-*` IDs and retain explicit external
+  authority metadata;
+- duplicate IDs, unresolved related-term references, invalid origin-specific
+  fields, unsafe source paths, malformed authority URLs, and invalid localized
+  labels fail the build closed;
+- every integrated entry records its provider, canonical glossary source path,
+  and exact full-SHA source revision;
+- `/glossary/index.json` is the deterministic schema-versioned machine-readable
+  read model;
+- `/glossary/` is a generated human-readable projection of that same model and
+  must not redefine or translate glossary semantics independently.
+
+The initial terminology is a seed rather than a closed vocabulary. Adding a
+valid term to a declared provider glossary must not require editing a Site-side
+allowlist of every term ID. Integration tests may pin representative concepts
+and semantic invariants, but they must permit additional valid terms.
 
 ## Repository inventory
 
@@ -270,12 +313,18 @@ The index-guided surface has stable entry points:
 - `/guided/graph.json` for the schema-versioned machine-readable representation
   used by the human viewer.
 
-The Site-authored navigation and provider-owned guided navigation are
-complementary. Site navigation is organized by reader task and conceptual
-hierarchy, while the guided surface intentionally preserves provider-owned index
-order, grouping, labels, and descriptions. The Site must not silently derive or
-replace its primary navigation from arbitrary Markdown parsing merely because a
-guided graph exists.
+The glossary surface has stable entry points:
+
+- `/glossary/` for the generated human-readable terminology projection;
+- `/glossary/index.json` for the schema-versioned integrated glossary read model.
+
+The Site-authored navigation, provider-owned guided navigation, and glossary
+surface are complementary. Site navigation is organized by reader task and
+conceptual hierarchy, the guided surface intentionally preserves provider-owned
+index order, grouping, labels, and descriptions, and the glossary preserves
+stable concept identity and canonical terminology. The Site must not silently
+derive or replace its primary navigation from arbitrary Markdown parsing merely
+because a guided graph or glossary model exists.
 
 Overview, adoption, operation, architecture, evidence, release, ADR, and
 migration material should be grouped under descriptive titles in Site-authored
@@ -305,10 +354,10 @@ The build artifact contains `build-provenance.json` with:
 - the exact `skill`, `policy`, and `webapp` commits.
 
 Repository-tree links, preview URLs, file-browser pages, the index-navigation
-graph, and guided-navigation pages must use the corresponding checked-out
-commit. Workflow-call revision overrides therefore produce inventory, preview,
-browser, graph, and guided output for the overridden commit rather than the
-normal lock value.
+graph, guided-navigation pages, and glossary entries must use the corresponding
+checked-out commit. Workflow-call revision overrides therefore produce
+inventory, preview, browser, graph, guided, and glossary output for the
+overridden commit rather than the normal lock value.
 
 The provenance file identifies deterministic source inputs. It is not a digital
 signature, software bill of materials, or artifact attestation.
@@ -320,19 +369,24 @@ checks. They do not replace the reviewed lock file for normal publication.
 
 A provider publication change uses this sequence:
 
-1. Change canonical documentation and, when applicable, the publication catalog
-   on the owning provider branch.
-2. Validate the provider publication locally and in CI.
+1. Change canonical documentation, provider-owned index navigation, glossary
+   terminology, and when applicable the publication catalog on the owning
+   provider branch.
+2. Validate the provider publication locally and in CI. Provider branches should
+   use the Site reusable compatibility build for glossary-bearing changes so
+   proposed terms are checked by the canonical glossary parser before merge.
 3. Merge the provider pull request and record the actual merge commit full SHA.
 4. Create a coordinated branch from the current `site` head.
 5. Update `publication-sources.json` to the reviewed provider merge commit.
 6. Update `site-manifest.json` when documents, reader-facing titles, hierarchy,
-   order, or generated destinations change.
+   order, or generated destinations change. Glossary term additions do not by
+   themselves require a navigation-manifest change.
 7. Build the integrated site against the exact locked commits.
-8. Require tests, repository-tree generation, inline-preview generation, strict
-   site generation, static file-browser generation, index-navigation graph and
-   guided-viewer generation, entry-point checks, provenance generation, and
-   generated-link validation to pass.
+8. Require tests, glossary integration and viewer generation, repository-tree
+   generation, inline-preview generation, strict site generation, static
+   file-browser generation, index-navigation graph and guided-viewer generation,
+   entry-point checks, provenance generation, and generated-link validation to
+   pass.
 9. Merge the `site` pull request. A push to `site` is the only deployment event.
 
 Provider and `site` changes remain separate pull requests because they have
@@ -376,6 +430,8 @@ verify that:
 - obsolete `main` authorization has been removed;
 - the `site` push workflow completes its build and deploy jobs successfully;
 - `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;
+- `/glossary/` and `/glossary/index.json` are reachable and represent the same
+  integrated terminology model;
 - all four `/repository-trees/` entry points are reachable;
 - `/files/` and all four branch browser entry points are reachable;
 - `/guided/` and `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` are
@@ -402,6 +458,11 @@ A publication update is complete only when all of the following hold:
 
 - each required catalog document appears exactly once in integrated navigation;
 - unknown and uncataloged files are not rendered as cataloged documentation;
+- declared provider glossaries integrate without duplicate term IDs, unresolved
+  related terms, invalid authority metadata, or provenance disagreement;
+- `/glossary/index.json` and `/glossary/` are generated from the same reviewed
+  provider snapshots and preserve canonical English semantics plus localized
+  lexical labels;
 - required provider entry points are generated;
 - repository inventories cover all tracked entries without following symlinks
   or gitlinks;
@@ -424,7 +485,7 @@ A publication update is complete only when all of the following hold:
 - graph diagnostics record cycles, multiple-parent indexes, and maximum depth
   without converting those observations into unsupported policy limits;
 - internal links, fragments, assets, preview targets, browser targets, guided
-  targets, and canonical URLs validate;
+  targets, glossary targets, and canonical URLs validate;
 - provenance records exact full-SHA inputs;
 - no provider branch can deploy Pages;
 - a `site` push successfully deploys the reviewed artifact.
