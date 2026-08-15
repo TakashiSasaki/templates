@@ -122,8 +122,15 @@ class _ContentClassDetector(HTMLParser):
 
 
 class _AnnotationParser(HTMLParser):
-    def __init__(self, index: AnnotationIndex, *, target_main: bool) -> None:
+    def __init__(
+        self,
+        source: str,
+        index: AnnotationIndex,
+        *,
+        target_main: bool,
+    ) -> None:
         super().__init__(convert_charrefs=False)
+        self.source = source
         self.index = index
         self.target_main = target_main
         self.output: list[str] = []
@@ -131,6 +138,10 @@ class _AnnotationParser(HTMLParser):
         self.annotation_count = 0
         self._text_raw: list[str] = []
         self._text_decoded: list[str] = []
+        self._line_starts = [0]
+        for offset, char in enumerate(source):
+            if char == "\n":
+                self._line_starts.append(offset + 1)
 
     def _parent_state(self) -> tuple[bool, bool]:
         if not self.stack:
@@ -151,6 +162,26 @@ class _AnnotationParser(HTMLParser):
     def _buffer_text(self, raw: str, decoded: str) -> None:
         self._text_raw.append(raw)
         self._text_decoded.append(decoded)
+
+    def _source_offset(self) -> int:
+        line, column = self.getpos()
+        if line < 1 or line > len(self._line_starts):
+            raise GlossaryAnnotationFinalizeError(
+                "HTML parser reported an invalid source position"
+            )
+        return self._line_starts[line - 1] + column
+
+    def _raw_reference(self, prefix: str, name: str) -> str:
+        expected = prefix + name
+        start = self._source_offset()
+        if not self.source.startswith(expected, start):
+            raise GlossaryAnnotationFinalizeError(
+                "unable to preserve an HTML character-reference source span"
+            )
+        end = start + len(expected)
+        if end < len(self.source) and self.source[end] == ";":
+            end += 1
+        return self.source[start:end]
 
     def _flush_text(self) -> None:
         if not self._text_raw:
@@ -197,11 +228,11 @@ class _AnnotationParser(HTMLParser):
         self._buffer_text(data, data)
 
     def handle_entityref(self, name: str) -> None:
-        raw = f"&{name};"
+        raw = self._raw_reference("&", name)
         self._buffer_text(raw, html.unescape(raw))
 
     def handle_charref(self, name: str) -> None:
-        raw = f"&#{name};"
+        raw = self._raw_reference("&#", name)
         self._buffer_text(raw, html.unescape(raw))
 
     def handle_comment(self, data: str) -> None:
@@ -232,10 +263,12 @@ def annotate_html(source: str, index: AnnotationIndex) -> tuple[str, int]:
     """Annotate one HTML document without changing text outside content regions."""
     try:
         target_main = not _has_content_class(source)
-        parser = _AnnotationParser(index, target_main=target_main)
+        parser = _AnnotationParser(source, index, target_main=target_main)
         parser.feed(source)
         parser.close()
         parser.finish()
+    except GlossaryAnnotationFinalizeError:
+        raise
     except (ValueError, TypeError) as exc:
         raise GlossaryAnnotationFinalizeError(f"unable to parse generated HTML: {exc}") from exc
     return "".join(parser.output), parser.annotation_count
