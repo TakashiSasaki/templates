@@ -23,6 +23,13 @@ const FRESHNESS_STATES = Object.freeze([
   "update-available",
 ]);
 const CACHED_DOCUMENT_NOTICE =
+  '<style id="templates-freshness-status-inline-style">' +
+  '#templates-freshness-status{position:fixed;inset-block-start:0;inset-inline:0;z-index:1000;' +
+  'box-sizing:border-box;width:100%;margin:0;padding:.55rem .8rem;border-block:.125rem solid currentColor;' +
+  'background:Canvas;color:CanvasText;font:normal .8rem/1.35 system-ui,sans-serif;text-align:center}' +
+  '#templates-freshness-status strong{font-weight:700}' +
+  '@media(max-width:800px){#templates-freshness-status{padding-inline:.55rem;font-size:.75rem}}' +
+  '</style>' +
   '<aside id="templates-freshness-status" ' +
   'class="freshness-status freshness-status--cached" ' +
   'data-freshness-state="cached-unverified" role="status" aria-live="polite">' +
@@ -30,6 +37,9 @@ const CACHED_DOCUMENT_NOTICE =
   "</aside>";
 const FRESHNESS_UI_ACK_TIMEOUT_MS = 500;
 const documentCacheMutationQueues = new Map();
+const documentCacheMutationGenerations = new Map();
+const authoritativeDocumentDeletions = new Map();
+let nextDocumentRequestGeneration = 0;
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -40,6 +50,10 @@ function offlineResponse() {
 }
 
 function isDocumentRequest(request, url) {
+  if (url.pathname.startsWith("/repository-trees/previews/")) {
+    return false;
+  }
+
   if (request.mode === "navigate") {
     return true;
   }
@@ -85,10 +99,34 @@ function isCacheableDocumentResponse(response) {
   return contentType.toLowerCase().includes("text/html");
 }
 
-function enqueueDocumentCacheMutation(request, operation) {
+function beginDocumentRequest() {
+  nextDocumentRequestGeneration += 1;
+  return nextDocumentRequestGeneration;
+}
+
+function recordAuthoritativeDeletion(request, generation) {
+  const key = request.url;
+  const appliedGeneration = documentCacheMutationGenerations.get(key) || 0;
+  if (generation < appliedGeneration) {
+    return false;
+  }
+  documentCacheMutationGenerations.set(key, generation);
+  authoritativeDocumentDeletions.set(key, generation);
+  return true;
+}
+
+function enqueueDocumentCacheMutation(request, generation, operation) {
   const key = request.url;
   const previous = documentCacheMutationQueues.get(key) || Promise.resolve();
-  const next = previous.catch(() => undefined).then(operation);
+  const next = previous.catch(() => undefined).then(async () => {
+    const appliedGeneration = documentCacheMutationGenerations.get(key) || 0;
+    if (generation < appliedGeneration) {
+      return false;
+    }
+    const result = await operation();
+    documentCacheMutationGenerations.set(key, generation);
+    return result;
+  });
   documentCacheMutationQueues.set(key, next);
   return next.finally(() => {
     if (documentCacheMutationQueues.get(key) === next) {
@@ -97,22 +135,39 @@ function enqueueDocumentCacheMutation(request, operation) {
   });
 }
 
-async function cacheVerifiedDocument(request, cachedResponse) {
+async function cacheVerifiedDocument(request, cachedResponse, generation) {
   try {
-    await enqueueDocumentCacheMutation(request, async () => {
+    const written = await enqueueDocumentCacheMutation(request, generation, async () => {
       const cache = await caches.open(DOCUMENT_CACHE_NAME);
       await cache.put(request, cachedResponse);
+      return true;
     });
+    if (written) {
+      const deletionGeneration = authoritativeDocumentDeletions.get(request.url) || 0;
+      if (generation >= deletionGeneration) {
+        authoritativeDocumentDeletions.delete(request.url);
+      }
+    }
   } catch (error) {
     console.warn("PWA document cache update failed", error);
   }
 }
 
-async function deleteCachedDocument(request) {
-  await enqueueDocumentCacheMutation(request, async () => {
+async function deleteCachedDocument(request, generation) {
+  return await enqueueDocumentCacheMutation(request, generation, async () => {
     const cache = await caches.open(DOCUMENT_CACHE_NAME);
-    await cache.delete(request);
+    return await cache.delete(request);
   });
+}
+
+function injectCachedDocumentNotice(source) {
+  const bodyClosures = [...source.matchAll(/<\/body\s*>/gi)];
+  if (bodyClosures.length !== 1) {
+    console.warn("PWA cached document body boundary is ambiguous");
+    return undefined;
+  }
+  const boundary = bodyClosures[0].index;
+  return source.slice(0, boundary) + CACHED_DOCUMENT_NOTICE + source.slice(boundary);
 }
 
 async function decorateCachedDocument(response, request) {
@@ -134,7 +189,10 @@ async function decorateCachedDocument(response, request) {
     return undefined;
   }
 
-  const decorated = source + CACHED_DOCUMENT_NOTICE;
+  const decorated = injectCachedDocumentNotice(source);
+  if (decorated === undefined) {
+    return undefined;
+  }
   const headers = new Headers(response.headers);
   for (const name of ["Content-Encoding", "Content-Length", "ETag", "Last-Modified"]) {
     headers.delete(name);
@@ -150,6 +208,9 @@ async function decorateCachedDocument(response, request) {
 
 async function cachedDocumentFallback(request) {
   try {
+    if (authoritativeDocumentDeletions.has(request.url)) {
+      return undefined;
+    }
     const cache = await caches.open(DOCUMENT_CACHE_NAME);
     const response = await cache.match(request);
     if (!response) {
@@ -162,7 +223,32 @@ async function cachedDocumentFallback(request) {
   }
 }
 
-async function notifyInstantNavigationState(event, state, requireAcknowledgement = false) {
+async function notifyInstantNavigationCommit(event, representation, generation) {
+  if (event.request.mode === "navigate" || !event.clientId) {
+    return;
+  }
+  try {
+    const client = await self.clients.get(event.clientId);
+    if (!client || typeof client.postMessage !== "function") {
+      return;
+    }
+    client.postMessage({
+      type: "templates:document-commit",
+      representation,
+      url: event.request.url,
+      requestGeneration: generation,
+    });
+  } catch (error) {
+    console.warn("PWA document commit notification failed", error);
+  }
+}
+
+async function notifyInstantNavigationState(
+  event,
+  state,
+  requireAcknowledgement = false,
+  generation = 0
+) {
   if (event.request.mode === "navigate") {
     return true;
   }
@@ -185,6 +271,7 @@ async function notifyInstantNavigationState(event, state, requireAcknowledgement
     type: "templates:freshness-state",
     state,
     url: event.request.url,
+    requestGeneration: generation,
   };
   if (!requireAcknowledgement) {
     client.postMessage(message);
@@ -208,7 +295,8 @@ async function notifyInstantNavigationState(event, state, requireAcknowledgement
       const data = messageEvent.data;
       finish(
         data?.type === "templates:freshness-state-applied" &&
-          data.state === state
+          data.state === state &&
+          data.requestGeneration === generation
       );
     };
     try {
@@ -222,11 +310,16 @@ async function notifyInstantNavigationState(event, state, requireAcknowledgement
 
 async function fetchDocumentNetworkFirst(event) {
   const request = event.request;
+  const generation = beginDocumentRequest();
   try {
     const response = await fetchFreshDocument(request);
     if (response.status === 404 || response.status === 410) {
+      recordAuthoritativeDeletion(request, generation);
       try {
-        await deleteCachedDocument(request);
+        const deleted = await deleteCachedDocument(request, generation);
+        if (deleted === false && documentCacheMutationGenerations.get(request.url) === generation) {
+          await caches.delete(DOCUMENT_CACHE_NAME);
+        }
       } catch (error) {
         console.warn("PWA authoritative document cache deletion failed", error);
         try {
@@ -235,33 +328,49 @@ async function fetchDocumentNetworkFirst(event) {
           console.warn("PWA document cache namespace cleanup failed", cleanupError);
         }
       }
+      await notifyInstantNavigationCommit(event, "network", generation);
       return response;
     }
     if (response.status >= 500) {
       const cached = await cachedDocumentFallback(request);
       if (!cached) {
+        await notifyInstantNavigationCommit(event, "network", generation);
         return response;
       }
       if (
-        !(await notifyInstantNavigationState(event, "cached-unverified", true))
+        !(await notifyInstantNavigationState(
+          event,
+          "cached-unverified",
+          true,
+          generation
+        ))
       ) {
+        await notifyInstantNavigationCommit(event, "network", generation);
         return response;
       }
       return cached;
     }
     if (isCacheableDocumentResponse(response)) {
       const cachedResponse = response.clone();
-      event.waitUntil(cacheVerifiedDocument(request, cachedResponse));
+      event.waitUntil(cacheVerifiedDocument(request, cachedResponse, generation));
     }
+    await notifyInstantNavigationCommit(event, "network", generation);
     return response;
   } catch (error) {
     const cached = await cachedDocumentFallback(request);
     if (!cached) {
+      await notifyInstantNavigationCommit(event, "network", generation);
       return offlineResponse();
     }
     if (
-      !(await notifyInstantNavigationState(event, "cached-unverified", true))
+      !(await notifyInstantNavigationState(
+        event,
+        "cached-unverified",
+        true,
+        generation
+      ))
     ) {
+      await notifyInstantNavigationCommit(event, "network", generation);
       return offlineResponse();
     }
     return cached;
