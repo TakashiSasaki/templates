@@ -11,6 +11,11 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterator
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.glossary import GlossaryError, glossary_source_from_catalog
+
 NAV_PLACEHOLDER = "__GENERATED_NAV__"
 NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 OUTPUT_MARKER = ".publication-assembly-root"
@@ -113,14 +118,10 @@ def load_catalog(
     )
     data = read_json(catalog_path, f"{name} catalog")
     version = data.get("schema_version")
-    if type(version) is not int or version not in (1, 2):
-        raise AssemblyError(
-            f"{name} catalog schema_version must be integer 1 or 2"
-        )
+    if type(version) is not int or version != 3:
+        raise AssemblyError(f"{name} catalog schema_version must be integer 3")
 
-    allowed = {"schema_version", "documents"}
-    if version == 2:
-        allowed.add("assets")
+    allowed = {"schema_version", "documents", "assets", "glossary"}
     unknown = set(data) - allowed
     if unknown:
         raise AssemblyError(
@@ -212,6 +213,20 @@ def load_catalog(
         asset_destinations,
         f"{name} catalog asset destinations",
     )
+
+    try:
+        glossary_source = glossary_source_from_catalog(root)
+    except GlossaryError as exc:
+        raise AssemblyError(f"{name} catalog glossary is invalid: {exc}") from exc
+
+    if glossary_source is not None and any(
+        paths_overlap(glossary_source, asset_source)
+        for asset_source in asset_sources
+    ):
+        raise AssemblyError(
+            f"{name} catalog glossary source must not overlap asset sources"
+        )
+
     return documents, assets
 
 
@@ -560,18 +575,6 @@ def assemble(
                     f"{asset['destination']}"
                 ) from exc
             copy_asset(source, destination, f"{name} asset")
-
-        # Catalog v1 predates explicit asset roots. Preserve its established
-        # convention for non-Markdown files only. Markdown remains catalog-only
-        # and is omitted rather than becoming an implicit page or build failure.
-        legacy_assets = root / "assets"
-        if name != "site" and not assets and legacy_assets.is_dir():
-            copy_asset(
-                legacy_assets,
-                docs_root / name / "assets",
-                f"{name} legacy assets",
-                skip_markdown=True,
-            )
 
     site_assets = site_root / "assets"
     if site_assets.is_dir():
