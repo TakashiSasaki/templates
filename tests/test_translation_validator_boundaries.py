@@ -21,6 +21,7 @@ def prepare_root(
     canonical: str = "docs/index.md",
     translation: str | None = None,
     translation_text: str = "# ナビゲーション\n\n> **参考訳（非正本）:** test\n",
+    publication_schema_version: object = 3,
 ) -> tuple[bytes, dict[str, object]]:
     if translation is None:
         translation = f"translations/{language}/{canonical}"
@@ -32,7 +33,13 @@ def prepare_root(
     canonical_path.write_bytes(canonical_bytes)
     translation_path.write_text(translation_text, encoding="utf-8")
     (root / "docs" / "publication-catalog.json").write_text(
-        json.dumps({"schema_version": 2, "documents": [], "assets": []}),
+        json.dumps(
+            {
+                "schema_version": publication_schema_version,
+                "documents": [],
+                "assets": [],
+            }
+        ),
         encoding="utf-8",
     )
     entry: dict[str, object] = {
@@ -67,6 +74,22 @@ class TranslationValidatorBoundaryTests(unittest.TestCase):
                     write_manifest(root, [entry], schema_version=version)
                     with self.assertRaisesRegex(
                         TranslationError, "schema_version must be integer 2"
+                    ):
+                        validate(root)
+
+    def test_publication_catalog_schema_version_is_strictly_v3(self) -> None:
+        for version in (1, 2, 4, "3", 3.0, True, None, [3]):
+            with self.subTest(version=version):
+                with tempfile.TemporaryDirectory(prefix="webapp-translation-") as directory:
+                    root = Path(directory)
+                    _, entry = prepare_root(
+                        root,
+                        publication_schema_version=version,
+                    )
+                    write_manifest(root, [entry])
+                    with self.assertRaisesRegex(
+                        TranslationError,
+                        "publication catalog schema_version must be integer 3",
                     ):
                         validate(root)
 
