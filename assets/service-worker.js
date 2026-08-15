@@ -1,5 +1,7 @@
-const CACHE_NAME = "templates-portal-shell-v4";
+const CACHE_NAME = "templates-portal-shell-v5";
 const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
+const GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1";
+const GLOSSARY_MODEL_PATH = "/glossary/index.json";
 const STATIC_ASSETS = [
   "/app.webmanifest",
   "/icon.svg",
@@ -40,6 +42,10 @@ const documentCacheMutationQueues = new Map();
 const documentCacheMutationGenerations = new Map();
 const authoritativeDocumentDeletions = new Map();
 let nextDocumentRequestGeneration = 0;
+let nextGlossaryRequestGeneration = 0;
+let glossaryCacheMutationGeneration = 0;
+let glossaryCacheMutationQueue = Promise.resolve();
+let authoritativeGlossaryDeletionGeneration = 0;
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -417,6 +423,165 @@ function respondWithDocumentNetworkFirst(event) {
   event.respondWith(responsePromise);
 }
 
+function beginGlossaryRequest() {
+  nextGlossaryRequestGeneration += 1;
+  return nextGlossaryRequestGeneration;
+}
+
+function isCacheableGlossaryResponse(response) {
+  if (response.status !== 200 || !response.url) {
+    return false;
+  }
+  try {
+    if (new URL(response.url).origin !== self.location.origin) {
+      return false;
+    }
+  } catch (error) {
+    console.warn("PWA Glossary response URL is invalid", error);
+    return false;
+  }
+  const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+  return contentType.includes("application/json") || contentType.includes("+json");
+}
+
+function enqueueGlossaryCacheMutation(generation, operation) {
+  const next = glossaryCacheMutationQueue.catch(() => undefined).then(async () => {
+    if (generation < glossaryCacheMutationGeneration) {
+      return false;
+    }
+    const result = await operation();
+    glossaryCacheMutationGeneration = generation;
+    return result;
+  });
+  glossaryCacheMutationQueue = next;
+  return next;
+}
+
+async function cacheVerifiedGlossaryModel(request, response, generation) {
+  try {
+    const written = await enqueueGlossaryCacheMutation(generation, async () => {
+      const cache = await caches.open(GLOSSARY_CACHE_NAME);
+      await cache.put(request, response);
+      return true;
+    });
+    if (written && generation >= authoritativeGlossaryDeletionGeneration) {
+      authoritativeGlossaryDeletionGeneration = 0;
+    }
+  } catch (error) {
+    console.warn("PWA Glossary cache update failed", error);
+  }
+}
+
+async function deleteCachedGlossaryModel(request, generation) {
+  return await enqueueGlossaryCacheMutation(generation, async () => {
+    const cache = await caches.open(GLOSSARY_CACHE_NAME);
+    return await cache.delete(request);
+  });
+}
+
+async function decorateCachedGlossaryModel(response, request) {
+  if (!isCacheableGlossaryResponse(response)) {
+    return undefined;
+  }
+  if (response.url && response.url !== request.url) {
+    console.warn("PWA cached Glossary redirect fallback rejected", response.url, request.url);
+    return undefined;
+  }
+
+  let body;
+  try {
+    body = await response.arrayBuffer();
+  } catch (error) {
+    console.warn("PWA cached Glossary read failed", error);
+    return undefined;
+  }
+  const headers = new Headers(response.headers);
+  for (const name of ["Content-Encoding", "Content-Length", "ETag", "Last-Modified"]) {
+    headers.delete(name);
+  }
+  headers.set("Cache-Control", "no-store");
+  headers.set("X-Templates-Freshness", "cached-unverified");
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function cachedGlossaryFallback(request) {
+  try {
+    if (authoritativeGlossaryDeletionGeneration > 0) {
+      return undefined;
+    }
+    const cache = await caches.open(GLOSSARY_CACHE_NAME);
+    const response = await cache.match(request);
+    if (!response) {
+      return undefined;
+    }
+    return await decorateCachedGlossaryModel(response, request);
+  } catch (error) {
+    console.warn("PWA Glossary cache lookup failed", error);
+    return undefined;
+  }
+}
+
+async function fetchGlossaryNetworkFirst(request, registerBackgroundTask) {
+  const generation = beginGlossaryRequest();
+  try {
+    const response = await fetch(request, { cache: "no-cache" });
+    if (response.status === 404 || response.status === 410) {
+      authoritativeGlossaryDeletionGeneration = Math.max(
+        authoritativeGlossaryDeletionGeneration,
+        generation
+      );
+      registerBackgroundTask(
+        deleteCachedGlossaryModel(request, generation).catch(async (error) => {
+          console.warn("PWA authoritative Glossary cache deletion failed", error);
+          try {
+            await caches.delete(GLOSSARY_CACHE_NAME);
+          } catch (cleanupError) {
+            console.warn("PWA Glossary cache namespace cleanup failed", cleanupError);
+          }
+        })
+      );
+      return response;
+    }
+    if (response.status >= 500) {
+      return (await cachedGlossaryFallback(request)) || response;
+    }
+    if (isCacheableGlossaryResponse(response)) {
+      registerBackgroundTask(
+        cacheVerifiedGlossaryModel(request, response.clone(), generation)
+      );
+    }
+    return response;
+  } catch (error) {
+    const cached = await cachedGlossaryFallback(request);
+    if (cached) {
+      return cached;
+    }
+    throw error;
+  }
+}
+
+function respondWithGlossaryNetworkFirst(event) {
+  let backgroundTask = Promise.resolve();
+  const registerBackgroundTask = (task) => {
+    backgroundTask = Promise.resolve(task);
+  };
+  const responsePromise = fetchGlossaryNetworkFirst(event.request, registerBackgroundTask);
+  const lifetimePromise = responsePromise
+    .then(
+      () => backgroundTask,
+      () => backgroundTask
+    )
+    .catch((error) => {
+      console.warn("PWA Glossary lifetime task failed", error);
+    });
+  event.waitUntil(lifetimePromise);
+  event.respondWith(responsePromise);
+}
+
 async function refreshStaticAsset(request) {
   const response = await fetch(request, { cache: "no-cache" });
   if (response.ok) {
@@ -442,7 +607,12 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("templates-portal-shell-") && key !== CACHE_NAME)
+            .filter(
+              (key) =>
+                (key.startsWith("templates-portal-shell-") && key !== CACHE_NAME) ||
+                (key.startsWith("templates-portal-glossary-") &&
+                  key !== GLOSSARY_CACHE_NAME)
+            )
             .map((key) => caches.delete(key))
         )
       )
@@ -463,6 +633,8 @@ self.addEventListener("message", (event) => {
     states: FRESHNESS_STATES,
     siteVersionUrl: "/site-version.json",
     documentCacheName: DOCUMENT_CACHE_NAME,
+    glossaryCacheName: GLOSSARY_CACHE_NAME,
+    glossaryModelUrl: GLOSSARY_MODEL_PATH,
   });
 });
 
@@ -479,6 +651,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (url.pathname === GLOSSARY_MODEL_PATH) {
+    respondWithGlossaryNetworkFirst(event);
     return;
   }
 
