@@ -101,7 +101,6 @@
 
     pendingDocumentCommit = null;
     clearInitialCachedMarker();
-    clearFreshnessStatus();
   }
 
   if (!document.querySelector('link[rel="manifest"]')) {
