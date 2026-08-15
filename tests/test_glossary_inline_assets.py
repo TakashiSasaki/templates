@@ -70,7 +70,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("!pointerDismissal", source)
         self.assertIn("pendingLink = null;", source)
 
-    def test_open_dialog_repositions_after_viewport_and_scroll_changes(self) -> None:
+    def test_open_dialog_repositions_and_clamps_within_viewport(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("function repositionOpenDialog()", source)
@@ -79,6 +79,8 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn('document.addEventListener("scroll", repositionOpenDialog, {', source)
         self.assertIn("capture: true", source)
         self.assertIn("passive: true", source)
+        self.assertIn("const preferredTop = Math.max(", source)
+        self.assertIn("viewportPadding,", source)
 
     def test_explanation_metadata_and_provider_labels_follow_glossary_contract(self) -> None:
         source = JS.read_text(encoding="utf-8")
