@@ -7,6 +7,8 @@ on:
     paths:
       - docs/**
       - template/**
+      - distribution-manifest.json
+      - tests/test_workflow_configuration.py
       - .github/workflows/site-compatibility.yml
   workflow_dispatch:
 
@@ -20,13 +22,13 @@ concurrency:
 jobs:
   compatibility:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@site
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@4af6fd6989cfff1ec11ab5da6e9bd79ec38b51fd
     with:
-      site_ref: site
-      webapp_ref: ${{ github.event_name == 'pull_request' && github.sha || 'webapp' }}
-    # Pull-request runs validate GitHub's proposed merge commit against the
-    # current Site integration contract. Manually dispatched runs validate the
-    # current webapp branch. The called workflow is build-only and cannot
-    # deploy Pages.
+      site_ref: 4af6fd6989cfff1ec11ab5da6e9bd79ec38b51fd
+      webapp_ref: ${{ github.sha }}
+    # The reusable workflow and Site source are pinned to the reviewed glossary
+    # readiness merge commit. For pull requests, github.sha is GitHub's proposed
+    # merge commit; for workflow_dispatch it is the selected ref's exact commit.
+    # The called workflow is build-only and cannot deploy Pages.
     permissions:
       contents: read
