@@ -13,6 +13,7 @@
   let dialog;
   let activeLink;
   let pendingLink;
+  let navigationObserver;
   let pointerDismissal = false;
 
   function loadGlossary() {
@@ -48,6 +49,13 @@
     return glossaryPromise;
   }
 
+  function closeDetachedDialog() {
+    if (dialog && dialog.open && activeLink && !activeLink.isConnected) {
+      pointerDismissal = true;
+      dialog.close();
+    }
+  }
+
   function ensureDialog() {
     if (dialog) {
       return dialog;
@@ -70,6 +78,12 @@
       <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
     `;
     document.body.appendChild(dialog);
+
+    navigationObserver = new MutationObserver(closeDetachedDialog);
+    navigationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
 
     dialog.querySelector(".glossary-inline-dialog__close").addEventListener("click", () => {
       pointerDismissal = false;
@@ -113,6 +127,7 @@
   }
 
   function repositionOpenDialog() {
+    closeDetachedDialog();
     if (dialog && dialog.open && activeLink && activeLink.isConnected) {
       positionDialog(activeLink, dialog);
     }
