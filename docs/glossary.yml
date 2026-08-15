@@ -47,6 +47,7 @@ terms:
       the io.modelcontextprotocol/ui extension identifier.
     related_terms:
       - templates-skill-profile
+      - external-mcp-model-context-protocol
 
   - id: templates-skill-runtime-decision-record
     term: Runtime decision record
@@ -79,3 +80,26 @@ terms:
       - templates-skill-runtime-decision-record
       - templates-artifact-contract
       - templates-adapter-renderer-requirement
+
+  - id: external-mcp-model-context-protocol
+    term: Model Context Protocol
+    aliases:
+      - MCP
+    localized_labels:
+      ja:
+        term: モデルコンテキストプロトコル
+    origin: external
+    summary: >-
+      An open protocol that standardizes how LLM applications connect to
+      external context sources, tools, and capabilities through a host, client,
+      and server architecture.
+    authority:
+      kind: normative
+      sources:
+        - title: Model Context Protocol Specification
+          url: https://modelcontextprotocol.io/specification/2026-07-28
+          version: "2026-07-28"
+    repository_usage: >-
+      The Skill template uses MCP 2026-07-28 as its current core protocol
+      baseline and records optional MCP extension identifiers separately from
+      the core protocol revision.
