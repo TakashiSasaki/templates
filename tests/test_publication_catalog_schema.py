@@ -42,16 +42,28 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-    def test_boolean_schema_version_is_rejected(self) -> None:
-        catalog = self.base_catalog(True)
+    def assert_schema_version_rejected(self, version: object) -> None:
+        catalog = self.base_catalog(version)  # type: ignore[arg-type]
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
             root = Path(directory)
             self.write_catalog(root, catalog)
             with self.assertRaisesRegex(
                 AssemblyError,
-                "test catalog schema_version must be integer 1, 2, or 3",
+                "test catalog schema_version must be integer 3",
             ):
                 load_catalog("test", root)
+
+    def test_boolean_schema_version_is_rejected(self) -> None:
+        self.assert_schema_version_rejected(True)
+
+    def test_schema_v1_is_rejected(self) -> None:
+        self.assert_schema_version_rejected(1)
+
+    def test_schema_v2_is_rejected(self) -> None:
+        self.assert_schema_version_rejected(2)
+
+    def test_unknown_future_schema_version_is_rejected(self) -> None:
+        self.assert_schema_version_rejected(4)
 
     def test_schema_v3_accepts_declared_glossary(self) -> None:
         catalog = self.base_catalog(3)
@@ -72,15 +84,6 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
             documents, assets = load_catalog("test", root)
             self.assertIn("overview", documents)
             self.assertEqual(assets, [])
-
-    def test_schema_v2_rejects_glossary_field(self) -> None:
-        catalog = self.base_catalog(2)
-        catalog["glossary"] = {"source": "docs/glossary.yml"}
-        with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
-            root = Path(directory)
-            self.write_catalog(root, catalog)
-            with self.assertRaisesRegex(AssemblyError, "unsupported fields: glossary"):
-                load_catalog("test", root)
 
     def test_schema_v3_rejects_null_glossary(self) -> None:
         catalog = self.base_catalog(3)
