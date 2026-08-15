@@ -28,6 +28,20 @@ def page(body: str = "page") -> str:
     return f"<html><head><title>Test</title></head><body>{body}</body></html>"
 
 
+def cli_argv(site_root: Path, *extra: str) -> list[str]:
+    argv = [
+        "generate_freshness_metadata.py",
+        "--site-root",
+        str(site_root),
+        "--site-revision",
+        SITE_REVISION,
+    ]
+    for name, revision in PUBLICATIONS.items():
+        argv.extend(("--publication", f"{name}={revision}"))
+    argv.extend(extra)
+    return argv
+
+
 class FreshnessMetadataTests(unittest.TestCase):
     def test_generates_identity_and_annotates_non_preview_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -134,7 +148,7 @@ class FreshnessMetadataTests(unittest.TestCase):
                         Path("index.html"),
                     )
 
-    def test_missing_provider_revision_is_rejected(self) -> None:
+    def test_publication_validation_rejects_missing_unexpected_and_duplicate_entries(self) -> None:
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
             "missing publication revision",
@@ -145,7 +159,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                 {"skill": PUBLICATIONS["skill"]},
             )
 
-    def test_unexpected_provider_revision_is_rejected(self) -> None:
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
             "unsupported publication",
@@ -154,6 +167,42 @@ class FreshnessMetadataTests(unittest.TestCase):
                 SITE_REVISION,
                 DEPLOYMENT_TIMESTAMP,
                 {**PUBLICATIONS, "other": "e" * 40},
+            )
+
+        duplicate = [f"{name}={revision}" for name, revision in PUBLICATIONS.items()]
+        duplicate.append(f"skill={PUBLICATIONS['skill']}")
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "duplicate publication",
+        ):
+            generate_freshness_metadata.parse_publications(duplicate)
+
+    def test_revision_and_publication_syntax_validation_rejects_bad_boundaries(self) -> None:
+        for revision in ("a" * 39, "A" * 40, "g" * 40):
+            with self.subTest(revision=revision):
+                with self.assertRaisesRegex(
+                    generate_freshness_metadata.FreshnessMetadataError,
+                    "lowercase full 40-character Git SHA",
+                ):
+                    generate_freshness_metadata.validate_revision(revision, "site")
+
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "NAME=REVISION",
+        ):
+            generate_freshness_metadata.parse_publications(["skill"])
+
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "unsupported publication",
+        ):
+            generate_freshness_metadata.parse_publications(
+                [
+                    f"skill={PUBLICATIONS['skill']}",
+                    f"policy={PUBLICATIONS['policy']}",
+                    f"webapp={PUBLICATIONS['webapp']}",
+                    f"unknown={'e' * 40}",
+                ]
             )
 
     def test_reads_deployed_and_preview_notices_from_rendered_index(self) -> None:
@@ -214,23 +263,97 @@ class FreshnessMetadataTests(unittest.TestCase):
                 page(f"Deployment time: {DEPLOYMENT_TIMESTAMP}"),
                 encoding="utf-8",
             )
-            argv = [
-                "generate_freshness_metadata.py",
-                "--site-root",
-                str(site_root),
-                "--site-revision",
-                SITE_REVISION,
-            ]
-            for name, revision in PUBLICATIONS.items():
-                argv.extend(("--publication", f"{name}={revision}"))
-
-            with mock.patch.object(sys, "argv", argv):
+            with mock.patch.object(sys, "argv", cli_argv(site_root)):
                 self.assertEqual(0, generate_freshness_metadata.main())
 
             payload = json.loads(
                 (site_root / "site-version.json").read_text(encoding="utf-8")
             )
             self.assertEqual(DEPLOYMENT_TIMESTAMP, payload["deployed_at"])
+
+    def test_cli_explicit_timestamp_overrides_rendered_preview_notice(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site_root = Path(directory)
+            (site_root / "index.html").write_text(
+                page("Preview build (not deployed)"),
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                sys,
+                "argv",
+                cli_argv(
+                    site_root,
+                    "--deployment-timestamp",
+                    DEPLOYMENT_TIMESTAMP,
+                ),
+            ):
+                self.assertEqual(0, generate_freshness_metadata.main())
+
+            payload = json.loads(
+                (site_root / "site-version.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(DEPLOYMENT_TIMESTAMP, payload["deployed_at"])
+
+    def test_rejects_symbolic_link_freshness_output_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            site_root = root / "site"
+            site_root.mkdir()
+            index = site_root / "index.html"
+            original_index = page()
+            index.write_text(original_index, encoding="utf-8")
+            target = root / "target.json"
+            target.write_text("do not overwrite\n", encoding="utf-8")
+            output = site_root / "site-version.json"
+            try:
+                output.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symbolic links unavailable: {exc}")
+
+            with self.assertRaisesRegex(
+                generate_freshness_metadata.FreshnessMetadataError,
+                "must not be a symbolic link",
+            ):
+                generate_freshness_metadata.generate_freshness_metadata(
+                    site_root,
+                    SITE_REVISION,
+                    DEPLOYMENT_TIMESTAMP,
+                    PUBLICATIONS,
+                )
+
+            self.assertEqual("do not overwrite\n", target.read_text(encoding="utf-8"))
+            self.assertEqual(original_index, index.read_text(encoding="utf-8"))
+
+    def test_rejects_symbolic_link_generated_html_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            site_root = root / "site"
+            site_root.mkdir()
+            index = site_root / "index.html"
+            index.write_text(page(), encoding="utf-8")
+            target = root / "target.html"
+            target_source = page("outside")
+            target.write_text(target_source, encoding="utf-8")
+            linked = site_root / "linked.html"
+            try:
+                linked.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symbolic links unavailable: {exc}")
+
+            with self.assertRaisesRegex(
+                generate_freshness_metadata.FreshnessMetadataError,
+                "generated HTML must be a regular file",
+            ):
+                generate_freshness_metadata.generate_freshness_metadata(
+                    site_root,
+                    SITE_REVISION,
+                    DEPLOYMENT_TIMESTAMP,
+                    PUBLICATIONS,
+                )
+
+            self.assertEqual(target_source, target.read_text(encoding="utf-8"))
+            self.assertNotIn("templates-site-revision", index.read_text(encoding="utf-8"))
+            self.assertFalse((site_root / "site-version.json").exists())
 
     def test_provenance_projection_generates_client_freshness_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
