@@ -157,6 +157,57 @@ class GlossaryInlineInjectionTests(unittest.TestCase):
             self.assertEqual((changed, links), (0, 0))
             self.assertEqual(page.read_text(encoding="utf-8"), original)
 
+    def test_annotated_guided_page_requires_exactly_one_csp_meta(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            glossary = root / "glossary-model.json"
+            glossary.write_text(json.dumps(model()), encoding="utf-8")
+            page = root / "guided" / "skill" / "index.html"
+            page.parent.mkdir(parents=True)
+            page.write_text(
+                "<html><head></head><body><main>Publication catalog</main></body></html>",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                GlossaryAnnotationFinalizeError,
+                "exactly one Content-Security-Policy",
+            ):
+                annotate_site(root, glossary)
+
+    def test_annotated_guided_page_requires_exact_default_none(self) -> None:
+        cases = (
+            (
+                "missing-default",
+                "style-src 'unsafe-inline'; script-src 'self'",
+                "guided default-src must be exactly",
+            ),
+            (
+                "broader-default",
+                "default-src 'self'; style-src 'unsafe-inline'; script-src 'self'",
+                "guided default-src must be exactly",
+            ),
+            (
+                "duplicate-default",
+                "default-src 'none'; default-src 'none'; style-src 'unsafe-inline'; script-src 'self'",
+                "duplicate default-src directives",
+            ),
+        )
+        for name, csp, expected in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                glossary = root / "glossary-model.json"
+                glossary.write_text(json.dumps(model()), encoding="utf-8")
+                page = root / "guided" / "skill" / "index.html"
+                page.parent.mkdir(parents=True)
+                page.write_text(
+                    guided_source("Publication catalog", csp=csp),
+                    encoding="utf-8",
+                )
+
+                with self.assertRaisesRegex(GlossaryAnnotationFinalizeError, expected):
+                    annotate_site(root, glossary)
+
     def test_guided_runtime_preserves_stricter_same_origin_style_policy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

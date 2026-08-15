@@ -362,16 +362,19 @@ def _allow_guided_self_source(directives: list[str], name: str) -> None:
 def allow_guided_glossary_runtime(source: str) -> str:
     """Permit only the same-origin resources required by the guided Glossary runtime."""
     matches = list(CSP_META_PATTERN.finditer(source))
-    if not matches:
-        return source
     if len(matches) != 1:
         raise GlossaryAnnotationFinalizeError(
-            "guided page must contain at most one Content-Security-Policy meta element"
+            "guided page must contain exactly one Content-Security-Policy meta element"
         )
 
     match = matches[0]
     policy = html.unescape(match.group("policy"))
     directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
+    default_index = _single_directive_index(directives, "default-src")
+    if default_index is None or directives[default_index] != "default-src 'none'":
+        raise GlossaryAnnotationFinalizeError(
+            "guided default-src must be exactly default-src 'none'"
+        )
     _allow_guided_style_source(directives)
     _allow_guided_self_source(directives, "script-src")
     _allow_guided_self_source(directives, "connect-src")
