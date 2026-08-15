@@ -88,6 +88,36 @@ class FreshnessReviewRegressionTests(unittest.TestCase):
                     updated.index("</head>"),
                 )
 
+    def test_head_annotation_rejects_closing_tag_before_start_tag(self) -> None:
+        source = "<html></head><body></body><head></html>"
+
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "closing head tag precedes head start tag",
+        ):
+            generate_freshness_metadata.annotate_site_revision(
+                source,
+                SITE_REVISION,
+                Path("index.html"),
+            )
+
+    def test_matching_revision_meta_does_not_bypass_head_structure_validation(self) -> None:
+        marker = (
+            '<meta name="templates-site-revision" '
+            f'content="{SITE_REVISION}">'
+        )
+        source = f"<html></head><body>{marker}</body><head></html>"
+
+        with self.assertRaisesRegex(
+            generate_freshness_metadata.FreshnessMetadataError,
+            "closing head tag precedes head start tag",
+        ):
+            generate_freshness_metadata.annotate_site_revision(
+                source,
+                SITE_REVISION,
+                Path("index.html"),
+            )
+
     def test_service_worker_guards_capability_message_target(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
 
