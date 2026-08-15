@@ -23,37 +23,14 @@ published response was successfully revalidated.
 After every human-readable and generated Site surface has been finalized, the
 build-provenance step writes `build-provenance.json` and projects the same exact
 checked-out revisions into the client-facing `/site-version.json` read model.
-The Site and provider revisions are the full lowercase 40-character Git commit
-SHAs from the actual build checkouts, not mutable branch names, tags, or abbreviated
+The Site and provider revisions are full lowercase 40-character Git commit SHAs
+from the actual build checkouts, not mutable branch names, tags, or abbreviated
 revisions.
 
-`/site-version.json` uses schema version 1:
-
-```json
-{
-  "schema_version": 1,
-  "site_revision": "<full Site commit SHA>",
-  "deployed_at": "YYYY-MM-DD HH:MM:SS JST",
-  "publications": {
-    "skill": "<full Skill commit SHA>",
-    "policy": "<full Policy commit SHA>",
-    "webapp": "<full Webapp commit SHA>"
-  }
-}
-```
-
-`publications` contains exactly `skill`, `policy`, and `webapp`; missing or
-unexpected provider keys fail the build. All revisions must be lowercase full
-40-character Git SHAs.
-
-`deployed_at` is the exact JST deployment timestamp already rendered by the Site
-metadata pipeline. A non-deploying preview build records JSON `null`. The
-freshness projection must not introduce a second clock or independently generate
-a deployment timestamp.
-
-The generator rejects a symbolic-link `/site-version.json` output and any
-non-regular output path. It also rejects symbolic-link or non-regular generated
-HTML paths rather than following them.
+`/site-version.json` uses schema version 1 and records `site_revision`, the
+existing deployment timestamp (or null for preview builds), and exact `skill`,
+`policy`, and `webapp` revisions. The generator rejects symbolic-link or
+non-regular outputs and generated HTML paths.
 
 ## Per-document build identity
 
@@ -65,28 +42,14 @@ exactly one element in its `<head>`:
 ```
 
 The value must equal `/site-version.json`'s `site_revision`. Existing conflicting
-or duplicate metadata fails the build. Generated HTML with a malformed or
-ambiguous closing `</head>` also fails rather than being heuristically rewritten.
-
-Sandboxed repository-tree preview documents under
-`/repository-trees/previews/` are excluded. They are bounded source previews,
-not normal PWA document surfaces.
+or duplicate metadata fails the build. Generated HTML with malformed or ambiguous
+`<head>` boundaries also fails rather than being heuristically rewritten.
+Sandboxed repository-tree previews under `/repository-trees/previews/` are
+excluded.
 
 After writing the projection, the build re-reads `/site-version.json` and every
-eligible generated HTML page. It verifies the complete JSON payload and exactly
-one matching revision meta element before the Pages artifact can continue toward
-link validation and upload.
-
-## Provenance relationship
-
-`build-provenance.json` remains the build-oriented source-input record.
-`site-version.json` is a browser-readable projection of the same exact revisions.
-Neither file is a digital signature, software bill of materials, or artifact
-attestation.
-
-The two files must not be populated from separate revision-resolution paths. The
-existing provenance step receives the actual checked-out Site, Skill, Policy, and
-Webapp revisions and supplies those same values to the freshness projection.
+eligible generated HTML page. It verifies the complete canonical JSON payload and
+exactly one matching revision meta element before artifact upload can proceed.
 
 ## Runtime freshness states
 
@@ -104,103 +67,119 @@ The Site reserves the following runtime state vocabulary:
 The Service Worker exposes this vocabulary through the
 `templates:get-freshness-capabilities` / `templates:freshness-capabilities`
 message contract together with `/site-version.json` and the document cache
-namespace.
-
-The vocabulary is a compatibility contract, not permission to claim a state
-without evidence. In particular, matching build revision metadata does not by
-itself establish `verified-current`.
+namespace. Matching build identity alone never establishes `verified-current`.
 
 ## Runtime document-cache behavior
 
 Normal browser navigations and same-origin document-like instant-navigation
 requests remain network-first. Every online document request uses
-`fetch(request, { cache: "no-cache" })`, preserving HTTP-cache revalidation rather
-than treating a stored document as authoritative.
+`fetch(request, { cache: "no-cache" })`, preserving HTTP-cache revalidation.
 
-A successful same-origin HTTP 200 response is eligible for the runtime document
-cache only when its response `Content-Type` contains `text/html`. The response is
-cloned before asynchronous cache work begins, so returning the network response
-does not race with Cache Storage consumption of the same body stream.
+A successful same-origin HTTP 200 response is cacheable only when its
+`Content-Type` contains `text/html`. The response is cloned before asynchronous
+cache work begins, so returning the network response does not race with Cache
+Storage consumption of the same body stream.
 
-The document cache uses the independent namespace
-`templates-portal-documents-v1`. Service Worker activation removes incompatible
-`templates-portal-shell-*` caches but does not delete the document namespace.
-This allows verified documents that were previously viewed to remain available
-through a shell-worker update.
+The runtime document cache is `templates-portal-documents-v1`, independent of the
+versioned shell cache. Service Worker activation removes incompatible shell
+namespaces but preserves the compatible document namespace.
 
-Network and HTTP outcomes have distinct semantics:
+Network outcomes have distinct semantics:
 
-- successful cacheable HTTP 200: return the network response and update the exact
-  document cache entry;
-- HTTP 404 or 410: treat the response as authoritative deletion, remove the exact
-  cached document, and return the network response;
+- cacheable HTTP 200: return the network response and update the exact document
+  cache entry;
+- HTTP 404 or 410: remove the exact cached document before returning the network
+  response; if entry deletion fails, attempt to delete the entire document-cache
+  namespace rather than knowingly preserve an authoritative stale copy;
 - ordinary non-transient 4xx such as 403: return the network response and do not
-  resurrect a cached document;
-- HTTP 5xx: return a cached document when one exists, otherwise return the server
-  error response;
-- network/DNS/TLS/connection failure: return a cached document when one exists,
-  otherwise return the explicit HTTP 503 offline fallback.
+  fall back to stale documentation;
+- HTTP 5xx: return cached documentation only when stale indication can be proven;
+  otherwise return the original 5xx;
+- network/DNS/TLS/connection failure: return cached documentation only when stale
+  indication can be proven; otherwise return the explicit HTTP 503 fallback.
 
-A cache fallback is never returned as if it were current. Before a cached HTML
-response is exposed, the Service Worker injects a visible status element directly
-inside the document body with `data-freshness-state="cached-unverified"` and text
-stating that the saved copy is being shown because the latest version could not
-be verified. The synthetic response also carries
+### Full-navigation stale indication
+
+For a full browser navigation, the cached HTML response itself carries the
+freshness indication. The Service Worker appends an element with
+`id="templates-freshness-status"` and
+`data-freshness-state="cached-unverified"`, stating that a saved copy is shown
+because the latest version could not be verified. The freshness stylesheet fixes
+that element to the top of the viewport.
+
+The element is appended rather than inserted by scanning raw HTML for a `<body>`
+token. This avoids false placement caused by tag-like strings inside script or
+style content. Chromium regression verifies that the appended flow content is
+rendered in the body and that exactly one visible stale warning is present.
+
+### Instant-navigation stale indication and acknowledgement
+
+A document-like fetch used by instant navigation cannot assume that an indication
+embedded in fetched HTML will survive partial-DOM replacement. Before returning
+a cached response for such a request, the Service Worker sends the requesting
+client a `templates:freshness-state` message carrying `cached-unverified` and a
+`MessageChannel` acknowledgement port.
+
+Current `pwa.js` applies that state to persistent DOM by creating the same fixed
+status element as a direct body child, then replies through the port with
+`templates:freshness-state-applied`. The Service Worker waits for that exact
+acknowledgement, with a bounded timeout, before returning cached HTML.
+
+This acknowledgement is a safety condition, not an optimization. If an older
+open page is controlled by the updated worker but still runs a client script that
+does not implement the freshness UI, no acknowledgement arrives. The worker then
+refuses to expose cached HTML: a network failure returns the explicit 503 and a
+transient HTTP 5xx returns the original 5xx.
+
+When a later document-like fetch is network-verified, the Service Worker sends
+`verified-current`; current `pwa.js` removes the persistent stale indicator.
+Failure to clear an old warning is treated conservatively and does not permit an
+unindicated stale response.
+
+### Synthetic cached response
+
+Cached fallback responses carry
 `X-Templates-Freshness: cached-unverified` and `Cache-Control: no-store`.
-
-Because cached HTML is modified before return, representation-specific headers
-that are no longer valid after decoration (`Content-Encoding`, `Content-Length`,
-`ETag`, and `Last-Modified`) are removed from the synthetic response. If a cached
-response is not HTML, cannot be read, or has no usable `<body>` insertion point,
-it is not used as a fallback; the request instead follows the applicable network
-or explicit offline response path. This fail-closed rule prevents stale content
-from appearing without the required indication.
+Because the cached HTML body is modified, `Content-Encoding`, `Content-Length`,
+`ETag`, and `Last-Modified` are removed. A cached response that is not HTML or
+cannot be read is not used as fallback.
 
 ## Shell cache behavior
 
-The shell cache is versioned independently from the document cache. It precaches
-the Site-owned common assets needed to render previously viewed documentation,
-including the manifest, icon, global stylesheets, the freshness-status stylesheet,
-and common local JavaScript files. Those exact static resources continue to use
-background `cache: "no-cache"` revalidation when requested.
-
-The shell and document cache lifetimes must remain independent: a shell cache
-version transition may remove older `templates-portal-shell-*` namespaces, while
-the compatible runtime document namespace is preserved.
+The shell cache is versioned independently and precaches the Site-owned common
+assets needed to render previously viewed documentation, including the manifest,
+icon, common stylesheets, freshness-status stylesheet, and common local
+JavaScript. Exact shell assets continue to use background `cache: "no-cache"`
+revalidation when requested.
 
 ## Browser regression contract
 
-The Chromium freshness lifecycle exercises both freshness and availability. It
-verifies at least the following state transitions and invariants:
+The Chromium freshness lifecycle verifies at least:
 
-- document v1 is fetched online, then a server-side v2 replaces it and the next
-  online request obtains v2 rather than an HTTP-cache-stale v1;
-- the verified v2 response reaches the runtime document cache;
-- a Service Worker version update does not remove the compatible document cache;
-- offline fetch and full navigation of the previously viewed document return v2
-  with the visible `cached-unverified` indication;
-- an offline request for a never-cached document retains the explicit HTTP 503
-  fallback;
-- ordinary 4xx responses do not fall back to stale documentation;
-- transient 5xx responses may fall back to the verified cached document;
-- an authoritative 404 removes the cached document, after which offline access
-  returns the explicit fallback rather than resurrecting deleted content.
-
-The same browser fixture continues to verify Service Worker update propagation,
-manifest convergence, and the live freshness-capability message contract.
+- online v1 -> v2 document revalidation and runtime cache update;
+- document-cache survival across a Service Worker shell update;
+- an old/unaware controlled client without stale-UI acknowledgement receives 503
+  rather than cached HTML during offline instant navigation;
+- a current client receives cached v2 only after the persistent stale warning is
+  applied and acknowledged;
+- a later verified document-like response clears that persistent warning;
+- offline full navigation returns cached v2 with exactly one visible stale
+  indication;
+- an uncached offline request retains explicit 503;
+- ordinary 4xx responses never fall back to stale documentation;
+- transient 5xx may fall back only with acknowledged stale indication;
+- authoritative 404 removes the cached document so later offline access cannot
+  resurrect it;
+- Service Worker update propagation, manifest convergence, and the live
+  freshness-capability message contract remain valid.
 
 ## Evolution rule
 
 `checking` and `update-available` remain reserved for the later slow-network
-convergence phase. A future soft timeout may reveal a cached document while a
-network request remains pending, but the timeout must not cancel that network
-request or be treated as proof that the cached copy is current.
+convergence phase. A future soft timeout may reveal cached content while a network
+request remains pending, but it must not cancel the request or be treated as proof
+that the cached copy is current.
 
-A later implementation of those states must preserve the central invariant: any
-document whose current network freshness has not been verified is visibly marked
-as unverified before it is presented as ordinary readable content.
-
-Changes to `/site-version.json` schema semantics, the HTML revision-meta name,
-the runtime freshness-state vocabulary, cache namespace compatibility, or the
-fallback status policy are public Site contract changes and require review with
-the PWA freshness tests.
+Any future change must preserve the central invariant: a document whose current
+network freshness has not been verified is visibly identified as unverified
+before it is presented as ordinary readable content.
