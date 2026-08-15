@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -31,6 +32,26 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("glossaryPromise = undefined;", source)
         self.assertIn("throw error;", source)
 
+    def test_pending_activation_exposes_and_clears_accessible_busy_state(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+        css = CSS.read_text(encoding="utf-8")
+
+        self.assertIn("function setPendingLink(link)", source)
+        self.assertIn('link.setAttribute("aria-busy", "true");', source)
+        self.assertIn("function clearPendingLink(link)", source)
+        self.assertIn('current.removeAttribute("aria-busy");', source)
+        self.assertGreaterEqual(source.count("clearPendingLink("), 8)
+        self.assertIn('.glossary-term[aria-busy="true"]', css)
+        self.assertIn("cursor: progress", css)
+
+    def test_failed_fetch_clears_disconnected_current_pending_link(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("const canFallback = pendingLink === link && link.isConnected;", source)
+        self.assertIn("clearPendingLink(link);\n      if (!canFallback)", source)
+        self.assertIn("restore.isConnected", source)
+        self.assertNotIn("document.contains(restore)", source)
+
     def test_runtime_preserves_link_fallbacks_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
@@ -46,9 +67,9 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("let pendingLink;", source)
-        self.assertIn("pendingLink = link;", source)
-        self.assertGreaterEqual(source.count("pendingLink !== link"), 2)
-        self.assertGreaterEqual(source.count("!link.isConnected"), 2)
+        self.assertIn("setPendingLink(link);", source)
+        self.assertGreaterEqual(source.count("pendingLink !== link"), 1)
+        self.assertGreaterEqual(source.count("!link.isConnected"), 1)
         self.assertIn("!pendingLink.contains(target)", source)
         self.assertIn("!activeLink.contains(target)", source)
 
@@ -62,13 +83,22 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("childList: true", source)
         self.assertIn("subtree: true", source)
 
+    def test_detached_dialog_is_reattached_on_subsequent_activation(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("function observeNavigationBody()", source)
+        self.assertIn("if (!dialog.isConnected)", source)
+        self.assertGreaterEqual(source.count("document.body.appendChild(dialog);"), 2)
+        self.assertIn("navigationObserver.disconnect();", source)
+        self.assertGreaterEqual(source.count("observeNavigationBody();"), 2)
+
     def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
         self.assertIn("let pointerDismissal = false;", source)
         self.assertIn("pointerDismissal = true;", source)
         self.assertIn("!pointerDismissal", source)
-        self.assertIn("pendingLink = null;", source)
+        self.assertIn("clearPendingLink();", source)
 
     def test_open_dialog_repositions_and_clamps_within_viewport(self) -> None:
         source = JS.read_text(encoding="utf-8")
@@ -99,13 +129,15 @@ class GlossaryInlineAssetTests(unittest.TestCase):
     def test_annotation_style_does_not_change_text_metrics(self) -> None:
         source = CSS.read_text(encoding="utf-8")
         annotation_rule = source.split(".glossary-term {", 1)[1].split("}", 1)[0]
+        busy_rule = source.split('.glossary-term[aria-busy="true"] {', 1)[1].split("}", 1)[0]
 
         self.assertIn("text-decoration", annotation_rule)
-        self.assertNotIn("font-size", annotation_rule)
-        self.assertNotIn("font-weight", annotation_rule)
-        self.assertNotIn("line-height", annotation_rule)
-        self.assertNotIn("padding", annotation_rule)
-        self.assertNotIn("margin", annotation_rule)
+        for rule in (annotation_rule, busy_rule):
+            self.assertNotIn("font-size", rule)
+            self.assertNotIn("font-weight", rule)
+            self.assertNotIn("line-height", rule)
+            self.assertNotIn("padding", rule)
+            self.assertNotIn("margin", rule)
 
     def test_runtime_paths_match_published_assets(self) -> None:
         self.assertEqual(
@@ -121,9 +153,27 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_runtime_assets_are_global_for_instant_navigation_but_data_remains_lazy(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
+        project = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))["project"]
 
-        self.assertIn('"stylesheets/glossary-inline.css"', template)
-        self.assertIn('"javascripts/glossary-inline.js"', template)
+        self.assertEqual(
+            project["extra_css"],
+            [
+                "stylesheets/extra.css",
+                "stylesheets/landing-cover.css",
+                "stylesheets/landing-shell.css",
+                "stylesheets/mobile-density.css",
+                "stylesheets/translation-reader.css",
+                "stylesheets/glossary-inline.css",
+            ],
+        )
+        self.assertEqual(
+            project["extra_javascript"],
+            [
+                "javascripts/repository-tree-viewer.js",
+                "javascripts/pwa.js",
+                "javascripts/glossary-inline.js",
+            ],
+        )
         self.assertIn('"navigation.instant"', template)
         self.assertNotIn("/glossary/index.json", template)
 

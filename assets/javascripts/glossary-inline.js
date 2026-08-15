@@ -49,6 +49,23 @@
     return glossaryPromise;
   }
 
+  function setPendingLink(link) {
+    if (pendingLink && pendingLink !== link) {
+      pendingLink.removeAttribute("aria-busy");
+    }
+    pendingLink = link;
+    link.setAttribute("aria-busy", "true");
+  }
+
+  function clearPendingLink(link) {
+    if (!pendingLink || (link && pendingLink !== link)) {
+      return;
+    }
+    const current = pendingLink;
+    pendingLink = null;
+    current.removeAttribute("aria-busy");
+  }
+
   function closeDetachedDialog() {
     if (dialog && dialog.open && activeLink && !activeLink.isConnected) {
       pointerDismissal = true;
@@ -56,8 +73,24 @@
     }
   }
 
+  function observeNavigationBody() {
+    if (!navigationObserver) {
+      navigationObserver = new MutationObserver(closeDetachedDialog);
+    } else {
+      navigationObserver.disconnect();
+    }
+    navigationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
   function ensureDialog() {
     if (dialog) {
+      if (!dialog.isConnected) {
+        document.body.appendChild(dialog);
+        observeNavigationBody();
+      }
       return dialog;
     }
 
@@ -78,12 +111,7 @@
       <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
     `;
     document.body.appendChild(dialog);
-
-    navigationObserver = new MutationObserver(closeDetachedDialog);
-    navigationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    observeNavigationBody();
 
     dialog.querySelector(".glossary-inline-dialog__close").addEventListener("click", () => {
       pointerDismissal = false;
@@ -92,11 +120,11 @@
     dialog.addEventListener("close", () => {
       const restore = activeLink;
       activeLink = null;
-      pendingLink = null;
+      clearPendingLink();
       if (
         !pointerDismissal &&
         restore instanceof HTMLElement &&
-        document.contains(restore)
+        restore.isConnected
       ) {
         restore.focus({ preventScroll: true });
       }
@@ -163,41 +191,40 @@
   }
 
   async function openDefinition(link) {
-    pendingLink = link;
     const termId = link.dataset.glossaryId;
     if (!termId) {
-      pendingLink = null;
+      clearPendingLink();
       window.location.assign(link.href);
       return;
     }
+    setPendingLink(link);
 
     let terms;
     try {
       terms = await loadGlossary();
     } catch (error) {
-      if (pendingLink !== link || !link.isConnected) {
+      const canFallback = pendingLink === link && link.isConnected;
+      clearPendingLink(link);
+      if (!canFallback) {
         return;
       }
-      pendingLink = null;
       console.warn("Glossary definition loading failed", error);
       window.location.assign(link.href);
       return;
     }
     if (pendingLink !== link || !link.isConnected) {
-      if (pendingLink === link) {
-        pendingLink = null;
-      }
+      clearPendingLink(link);
       return;
     }
     const term = terms.get(termId);
     if (!term) {
-      pendingLink = null;
+      clearPendingLink(link);
       window.location.assign(link.href);
       return;
     }
 
     const panel = ensureDialog();
-    pendingLink = null;
+    clearPendingLink(link);
     pointerDismissal = false;
     activeLink = link;
     fillDialog(panel, term, link);
@@ -218,7 +245,7 @@
     }
     const link = target.closest(SELECTOR);
     if (!(link instanceof HTMLAnchorElement)) {
-      pendingLink = null;
+      clearPendingLink();
       return;
     }
     event.preventDefault();
@@ -236,7 +263,7 @@
       !pendingLink.contains(target) &&
       (!dialog || !dialog.contains(target))
     ) {
-      pendingLink = null;
+      clearPendingLink();
     }
 
     if (
@@ -254,7 +281,7 @@
     if (event.key !== "Escape") {
       return;
     }
-    pendingLink = null;
+    clearPendingLink();
     pointerDismissal = false;
     if (dialog && dialog.open) {
       event.preventDefault();

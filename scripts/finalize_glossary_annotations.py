@@ -305,7 +305,9 @@ def _excluded_route(relative: Path) -> bool:
 
 
 def _runtime_excluded_route(relative: Path) -> bool:
-    return any(part in RUNTIME_EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1])
+    return relative.stem in RUNTIME_EXCLUDED_ROUTE_COMPONENTS or any(
+        part in RUNTIME_EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
+    )
 
 
 def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
