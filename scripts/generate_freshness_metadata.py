@@ -20,7 +20,6 @@ DEPLOYMENT_NOTICE_PATTERN = re.compile(
     r"Deployment time:\s*(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} JST)"
 )
 PREVIEW_NOTICE = "Preview build (not deployed)"
-HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
 SITE_REVISION_META_NAME = "templates-site-revision"
 EXPECTED_PUBLICATIONS = ("skill", "policy", "webapp")
 
@@ -48,6 +47,28 @@ class MetaParser(HTMLParser):
         attrs: list[tuple[str, str | None]],
     ) -> None:
         self.handle_starttag(tag, attrs)
+
+
+class HeadBoundaryParser(HTMLParser):
+    """Locate the actual parsed </head> tag rather than raw string lookalikes."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.head_starts = 0
+        self.head_ends: list[tuple[int, int]] = []
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        del attrs
+        if tag.casefold() == "head":
+            self.head_starts += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "head":
+            self.head_ends.append(self.getpos())
 
 
 class TextParser(HTMLParser):
@@ -185,6 +206,28 @@ def freshness_revision_metas(source: str) -> list[dict[str, str | None]]:
     ]
 
 
+def source_offset(source: str, position: tuple[int, int]) -> int:
+    line_number, column = position
+    if line_number < 1 or column < 0:
+        raise FreshnessMetadataError("invalid HTML parser source position")
+    lines = source.splitlines(keepends=True)
+    if line_number > len(lines):
+        raise FreshnessMetadataError("HTML parser source position exceeds document")
+    return sum(len(line) for line in lines[: line_number - 1]) + column
+
+
+def head_close_offset(source: str, path: Path) -> int:
+    parser = HeadBoundaryParser()
+    parser.feed(source)
+    parser.close()
+    if parser.head_starts != 1 or len(parser.head_ends) != 1:
+        raise FreshnessMetadataError(
+            f"{path}: expected exactly one head element with one closing tag, "
+            f"found {parser.head_starts} start tag(s) and {len(parser.head_ends)} closing tag(s)"
+        )
+    return source_offset(source, parser.head_ends[0])
+
+
 def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     revision = validate_revision(revision, "site")
     metas = freshness_revision_metas(source)
@@ -199,12 +242,7 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
             )
         return source
 
-    head_closes = list(HEAD_CLOSE_PATTERN.finditer(source))
-    if len(head_closes) != 1:
-        raise FreshnessMetadataError(
-            f"{path}: expected exactly one closing head tag, found {len(head_closes)}"
-        )
-    position = head_closes[0].start()
+    position = head_close_offset(source, path)
     tag = (
         f'<meta name="{SITE_REVISION_META_NAME}" '
         f'content="{html.escape(revision, quote=True)}">\n'
