@@ -168,3 +168,86 @@ terms:
       - templates-policy-context
       - templates-shared-policy
       - templates-repository-local-policy
+
+  - id: templates-policy-stable-release
+    term: Stable release
+    localized_labels:
+      ja:
+        term: 安定版リリース
+    origin: repository
+    definition: >-
+      The executable Policy toolchain release currently selected by the stable
+      release descriptor. It may intentionally lag the advancing policy branch
+      and is identified by the promoted toolchain revision rather than by the
+      later promotion-state commit.
+    related_terms:
+      - templates-policy-stable-release-descriptor
+      - templates-policy-promoted-toolchain-revision
+
+  - id: templates-policy-stable-release-descriptor
+    term: Stable release descriptor
+    localized_labels:
+      ja:
+        term: 安定版リリース記述子
+    origin: repository
+    definition: >-
+      The committed release/toolchain.json record for the stable channel that
+      binds the Policy toolchain repository and exact promoted revision together
+      with synchronized contract versions and verifier requirements.
+    related_terms:
+      - templates-policy-stable-release
+      - templates-policy-promoted-toolchain-revision
+      - templates-policy-bootstrap-trust-seed
+
+  - id: templates-policy-promoted-toolchain-revision
+    term: Promoted toolchain revision
+    localized_labels:
+      ja:
+        term: 昇格済みツールチェーンリビジョン
+    origin: repository
+    definition: >-
+      The reviewed candidate full commit SHA selected by Policy promotion and
+      written into both the stable release descriptor and the integrated
+      bootstrap manifest. It is a strict ancestor of the later promotion state,
+      avoiding recursive self-reference.
+    related_terms:
+      - templates-policy-stable-release
+      - templates-policy-stable-release-descriptor
+      - templates-policy-bootstrap-trust-seed
+
+  - id: templates-policy-bootstrap-trust-seed
+    term: Bootstrap trust seed
+    localized_labels:
+      ja:
+        term: ブートストラップ信頼シード
+    origin: repository
+    definition: >-
+      The installable skills/bootstrap-agent-policy package that provides the
+      reviewed entry route for onboarding a repository through one immutable
+      Policy toolchain revision and a closed route set. Its bootstrap manifest
+      pins the same promoted revision as the stable release descriptor and
+      intentionally exposes no adoption-finalization route.
+    related_terms:
+      - templates-policy-stable-release-descriptor
+      - templates-policy-promoted-toolchain-revision
+      - templates-policy-managed-repository
+
+  - id: templates-policy-managed-repository
+    term: Managed repository
+    localized_labels:
+      ja:
+        term: 管理対象リポジトリ
+    origin: repository
+    definition: >-
+      A product repository that Policy onboarding inspection classifies as
+      managed because the canonical .agent-policy.yml path resolves to an
+      existing regular file. Managed repositories use normal validate, render,
+      and check operations instead of bootstrap onboarding; the classification
+      itself does not assert that configuration semantics have already passed
+      those validations, and partial or conflicting generated state is
+      classified separately as inconsistent.
+    related_terms:
+      - templates-policy-profile
+      - templates-policy-context
+      - templates-repository-local-policy
+      - templates-policy-bootstrap-trust-seed
