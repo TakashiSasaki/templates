@@ -23,10 +23,11 @@ Each provider branch owns its public source boundary in
 - canonical Markdown source paths;
 - required versus optional documents;
 - its section landing document;
-- explicit non-Markdown asset roots when catalog schema version 2 or later is
-  used;
-- an optional canonical `docs/glossary.yml` source when catalog schema version 3
-  is used.
+- explicit non-Markdown asset roots under catalog schema version 3;
+- an optional canonical `docs/glossary.yml` source under catalog schema version 3.
+
+All live publication catalogs use schema version 3. Older catalog schemas are
+retired and are rejected by the supported Site publication consumer.
 
 The catalog is an explicit allowlist for rendered documentation, provider
 assets, and declared canonical glossary input. Individual glossary terms are
@@ -104,8 +105,9 @@ progressive-disclosure path that agents can follow.
 - `PUBLISHING.md`: normative public-boundary and deployment policy;
 - `scripts/prepare_repository_tree_publication.py`: creates a temporary site
   publication with validated tree-page catalog and navigation entries;
-- `scripts/assemble_publications_v3.py`: transitional catalog v1/v2/v3 consumer
-  used while the provider branches migrate to catalog schema version 3;
+- `scripts/assemble_publications_v3.py`: supported Site publication entry point;
+  it accepts publication-catalog schema version 3 only and rejects retired or
+  unknown catalog schemas;
 - `scripts/glossary.py`: strict glossary parsing, schema validation, and
   cross-provider integration logic;
 - `scripts/generate_glossary.py`: emits deterministic `/glossary/index.json`
@@ -133,8 +135,10 @@ progressive-disclosure path that agents can follow.
   viewer without rendering repository content in the parent document;
 - `assets/javascripts/repository-browser.js`: progressive-enhancement controller
   for narrow-viewport Files/Content switching in the static repository browser;
-- `scripts/assemble_publications.py`: legacy catalog v1/v2 assembly
-  implementation reused by the transitional v3 consumer;
+- `scripts/assemble_publications.py`: internal assembly engine for document,
+  navigation, asset, and output mechanics. Its historical catalog loader is not
+  a supported Site entry point; supported builds install the schema-v3 loader
+  before entering this engine;
 - `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
   generated HTML, including the post-generated `/guided/` tree;
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
@@ -148,8 +152,8 @@ progressive-disclosure path that agents can follow.
 
 Check out the four unrelated branches into separate directories, with provider
 commits matching `publication-sources.json`, then run the same material stages as
-the Pages build. During the catalog-v3 migration, use the transitional v3
-assembler rather than invoking the legacy v1/v2 assembler directly:
+the Pages build. All publication catalogs must use schema version 3; invoke the
+supported v3 entry point rather than the internal assembly engine directly:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
