@@ -84,7 +84,7 @@ version 1.
 Cataloged Markdown files link to their Pages documentation. Eligible regular
 UTF-8 text files up to 256 KiB can be opened in a sandboxed inline frame, while
 every file retains an immutable GitHub source link at the exact rendered full
-commit SHA. Binary, oversized, symlink, gitlink, invalid-UTF-8, and
+commit SHA. Binary, oversized, symlink, gitlink, invalid-UTF8, and
 control-character inputs remain GitHub-only.
 
 Primary navigation prioritizes explanatory Markdown. Explicitly published
@@ -141,8 +141,12 @@ progressive-disclosure path that agents can follow.
 - `scripts/check_pwa_freshness.py`: exercises network-first document
   revalidation, runtime document-cache fallback, stale indication, authoritative
   deletion, shell refresh, and Service Worker update propagation in Chromium;
+- `scripts/check_pwa_commit_regressions.py`: exercises representation-aware
+  instant-navigation commit correlation, same-URL fresh retries, full-navigation
+  cached markers, and standalone fixed warning presentation in Chromium;
 - `scripts/check_pwa_capabilities.py`: exercises the live Service Worker
-  freshness-capability message contract in Chromium;
+  freshness-capability message contract in Chromium and derives install-asset
+  preflight from the worker's `STATIC_ASSETS` declaration;
 - `requirements-visual.txt`: pins the visual-regression browser controller;
 - `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
   viewer without rendering repository content in the parent document;
@@ -153,7 +157,8 @@ progressive-disclosure path that agents can follow.
 - `.github/workflows/build-pages.yml`: build-only reusable workflow;
 - `.github/workflows/mobile-visual-regression.yml`: same-repository pull-request
   check that consumes the built Pages artifact and validates mobile layout plus
-  the browser-level PWA freshness lifecycle and capability contract;
+  the browser-level PWA freshness lifecycle, document-commit regressions, and
+  capability contract;
 - `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
   to `site`.
 
@@ -265,6 +270,9 @@ python site/scripts/check_mobile_layout.py \
 python site/scripts/check_pwa_freshness.py \
   --site-root build/site \
   --output build/mobile-visual/pwa-freshness.json
+python site/scripts/check_pwa_commit_regressions.py \
+  --site-root build/site \
+  --output build/mobile-visual/pwa-document-commit.json
 python site/scripts/check_pwa_capabilities.py \
   --site-root build/site \
   --output build/mobile-visual/pwa-capabilities.json
@@ -277,11 +285,15 @@ The PWA freshness lifecycle check uses the same browser installation and writes
 `pwa-freshness.json` while validating HTTP-cache revalidation, runtime document
 cache update and persistence, explicit stale indication for cached fallbacks,
 ordinary 4xx non-fallback, 5xx fallback, authoritative deletion, cache-miss 503,
-static-shell convergence, and worker update propagation. The separate capability
+static-shell convergence, and worker update propagation. The document-commit
+regression check writes `pwa-document-commit.json` and verifies that a cancelled
+cached navigation followed by a fresh retry to the same URL clears its warning
+only when the fresh representation commits, while full-navigation cached pages
+retain their fixed warning through the initial commit. The separate capability
 check writes `pwa-capabilities.json` and validates the live freshness-capability
-message contract. The provenance command above also writes and verifies
-`/site-version.json` plus the per-page `templates-site-revision` metadata
-described in `FRESHNESS.md`.
+message contract plus complete Service Worker install-asset preflight. The
+provenance command above also writes and verifies `/site-version.json` plus the
+per-page `templates-site-revision` metadata described in `FRESHNESS.md`.
 Use workflow-call revision overrides only for deliberate compatibility testing.
 Normal builds use the reviewed full-SHA lock file. Repository-tree links,
 preview URLs, repository-browser snapshots, guided navigation, and glossary
