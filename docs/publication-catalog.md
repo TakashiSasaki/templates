@@ -60,7 +60,7 @@ contracts and additionally permits one canonical glossary declaration:
   "documents": [
     {
       "id": "overview",
-      "source": "docs/index.md",
+      "source": "docs/overview.md",
       "optional": false,
       "home": true
     }
