@@ -44,6 +44,14 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn('.glossary-term[aria-busy="true"]', css)
         self.assertIn("cursor: progress", css)
 
+    def test_failed_fetch_clears_disconnected_current_pending_link(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+
+        self.assertIn("const canFallback = pendingLink === link && link.isConnected;", source)
+        self.assertIn("clearPendingLink(link);\n      if (!canFallback)", source)
+        self.assertIn("restore.isConnected", source)
+        self.assertNotIn("document.contains(restore)", source)
+
     def test_runtime_preserves_link_fallbacks_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
 
@@ -60,8 +68,8 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
         self.assertIn("let pendingLink;", source)
         self.assertIn("setPendingLink(link);", source)
-        self.assertGreaterEqual(source.count("pendingLink !== link"), 2)
-        self.assertGreaterEqual(source.count("!link.isConnected"), 2)
+        self.assertGreaterEqual(source.count("pendingLink !== link"), 1)
+        self.assertGreaterEqual(source.count("!link.isConnected"), 1)
         self.assertIn("!pendingLink.contains(target)", source)
         self.assertIn("!activeLink.contains(target)", source)
 
