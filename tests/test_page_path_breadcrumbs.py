@@ -34,6 +34,19 @@ def guided_page(page_path: str, *, label: str = "Page path:") -> str:
 
 
 class PagePathBreadcrumbTests(unittest.TestCase):
+    def test_root_is_home_link_without_route_declaration(self) -> None:
+        rendered = finalize_site_metadata.render_page_path_breadcrumb(
+            "/guided/",
+            {"/guided/"},
+        )
+
+        self.assertTrue(
+            rendered.startswith(
+                '<a class="page-path-home" href="/" aria-label="Home">/</a><wbr>'
+            )
+        )
+        self.assertNotIn('class="page-path-separator" aria-hidden="true">/</span><wbr>guided', rendered)
+
     def test_only_generated_route_prefixes_become_links(self) -> None:
         with tempfile.TemporaryDirectory(prefix="page-path-") as directory:
             root = Path(directory)
@@ -52,6 +65,10 @@ class PagePathBreadcrumbTests(unittest.TestCase):
                 encoding="utf-8"
             )
 
+            self.assertIn(
+                '<a class="page-path-home" href="/" aria-label="Home">/</a><wbr>',
+                rendered,
+            )
             self.assertIn(
                 '<a class="page-path-segment" href="/guided/">guided</a>',
                 rendered,
@@ -87,6 +104,7 @@ class PagePathBreadcrumbTests(unittest.TestCase):
             finalize_site_metadata.normalize_site_metadata(root, PUBLIC_SITE_URL)
             rendered = repository_root.read_text(encoding="utf-8")
 
+            self.assertIn('href="/" aria-label="Home"', rendered)
             self.assertIn('href="/guided/"', rendered)
             self.assertNotIn('href="/guided/_repository-root/"', rendered)
             self.assertIn(
@@ -113,6 +131,10 @@ class PagePathBreadcrumbTests(unittest.TestCase):
             },
         )
 
+        self.assertIn(
+            '<a class="page-path-home" href="/" aria-label="Home">/</a><wbr>',
+            rendered,
+        )
         self.assertNotIn('href="/ja/"', rendered)
         self.assertIn(
             '<span class="page-path-segment">ja</span>',
