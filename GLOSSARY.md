@@ -118,6 +118,8 @@ Provider-local publication-catalog validators continue to validate declaration a
 
 Cross-provider relations should remain sparse. A relation is appropriate when it materially helps distinguish easily confused peer concepts or connects a concrete provider concept to a clearly applicable canonical classification. Relations need not be symmetric: peer disambiguation may be reciprocal, while concrete-to-generic classification links normally point from the concrete concept to the generic one so generic taxonomy terms do not become open-ended instance registries.
 
+These directionality and symmetry guidelines are maintainer authoring conventions, not additional parser semantics. The Site integration parser resolves the stable IDs exactly as declared and does not infer, add, remove, reverse, or otherwise normalize relation directionality.
+
 ## External authority
 
 External authority is represented as:
