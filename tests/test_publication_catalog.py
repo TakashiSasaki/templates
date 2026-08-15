@@ -43,9 +43,9 @@ class PublicationCatalogTests(unittest.TestCase):
             "optional": optional,
         }
 
-    def valid_v1_catalog(self) -> dict[str, object]:
+    def valid_v3_catalog(self) -> dict[str, object]:
         return {
-            "schema_version": 1,
+            "schema_version": 3,
             "documents": [self.valid_document()],
         }
 
@@ -68,16 +68,16 @@ class PublicationCatalogTests(unittest.TestCase):
         self.assertEqual(1, len(home))
         self.assertEqual("template/README.md", home[0].source.as_posix())
 
-    def test_valid_version_1_catalog(self) -> None:
+    def test_valid_version_3_catalog_without_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "README.md").write_text("# Home\n", encoding="utf-8")
-            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            catalog = self.write_catalog(root, self.valid_v3_catalog())
             documents, assets = validate_catalog(catalog, root)
             self.assertEqual(["overview"], [item.document_id for item in documents])
             self.assertEqual([], assets)
 
-    def test_valid_version_2_catalog(self) -> None:
+    def test_valid_version_3_catalog_with_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "README.md").write_text("# Home\n", encoding="utf-8")
@@ -85,7 +85,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [self.valid_asset()],
                 },
@@ -101,7 +101,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [
                         self.valid_document(),
                         self.valid_document(
@@ -130,28 +130,22 @@ class PublicationCatalogTests(unittest.TestCase):
             path = root / "docs" / "publication-catalog.json"
             path.parent.mkdir(parents=True)
             path.write_text(
-                '{"schema_version":2,"schema_version":1,"documents":[]}',
+                '{"schema_version":3,"schema_version":3,"documents":[]}',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(CatalogError, "duplicate object member"):
                 validate_catalog(path, root)
 
-    def test_version_1_assets_are_rejected_with_dedicated_error(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            catalog = self.write_catalog(
-                root,
-                {
-                    "schema_version": 1,
-                    "documents": [self.valid_document()],
-                    "assets": [],
-                },
-            )
-            with self.assertRaisesRegex(
-                CatalogError,
-                "schema_version 1 does not support assets",
-            ):
-                validate_catalog(catalog, root)
+    def test_retired_and_non_integer_schema_versions_are_rejected(self) -> None:
+        for version in (1, 2, 4, True, "3", 3.0, None, [3]):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                catalog = self.write_catalog(
+                    root,
+                    {"schema_version": version, "documents": []},
+                )
+                with self.assertRaisesRegex(CatalogError, "integer 3"):
+                    validate_catalog(catalog, root)
 
     def test_overlapping_asset_destinations_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -162,7 +156,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [
                         self.valid_asset(source="one"),
@@ -176,23 +170,13 @@ class PublicationCatalogTests(unittest.TestCase):
             with self.assertRaisesRegex(CatalogError, "destinations must not overlap"):
                 validate_catalog(catalog, root)
 
-    def test_boolean_schema_version_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            catalog = self.write_catalog(
-                root,
-                {"schema_version": True, "documents": []},
-            )
-            with self.assertRaisesRegex(CatalogError, "integer 1 or 2"):
-                validate_catalog(catalog, root)
-
     def test_duplicate_document_ids_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [
                         self.valid_document(source="one.md"),
                         self.valid_document(source="two.md", home=False),
@@ -208,7 +192,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [
                         self.valid_document(),
                         self.valid_document(document_id="second", home=False),
@@ -228,7 +212,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [self.valid_asset()],
                 },
@@ -246,7 +230,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [self.valid_asset()],
                 },
@@ -265,7 +249,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 catalog = self.write_catalog(
                     root,
                     {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "documents": [self.valid_document()],
                         "assets": [self.valid_asset()],
                     },
@@ -276,7 +260,7 @@ class PublicationCatalogTests(unittest.TestCase):
     def test_missing_required_document_source_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            catalog = self.write_catalog(root, self.valid_v1_catalog())
+            catalog = self.write_catalog(root, self.valid_v3_catalog())
             with self.assertRaisesRegex(CatalogError, "not a regular file"):
                 validate_catalog(catalog, root)
 
@@ -287,7 +271,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [self.valid_asset(source="missing-assets")],
                 },
@@ -310,7 +294,7 @@ class PublicationCatalogTests(unittest.TestCase):
                 catalog = self.write_catalog(
                     root,
                     {
-                        "schema_version": 1,
+                        "schema_version": 3,
                         "documents": [self.valid_document(source=source)],
                     },
                 )
@@ -322,7 +306,7 @@ class PublicationCatalogTests(unittest.TestCase):
             (
                 "invalid document ID",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [self.valid_document(document_id="Overview")],
                 },
                 "lowercase kebab-case",
@@ -330,7 +314,7 @@ class PublicationCatalogTests(unittest.TestCase):
             (
                 "non-Markdown source",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [self.valid_document(source="README.txt")],
                 },
                 "Markdown file",
@@ -338,7 +322,7 @@ class PublicationCatalogTests(unittest.TestCase):
             (
                 "missing home",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [self.valid_document(home=False)],
                 },
                 "exactly one home",
@@ -346,7 +330,7 @@ class PublicationCatalogTests(unittest.TestCase):
             (
                 "multiple homes",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [
                         self.valid_document(),
                         self.valid_document(
@@ -360,7 +344,7 @@ class PublicationCatalogTests(unittest.TestCase):
             (
                 "optional home",
                 {
-                    "schema_version": 1,
+                    "schema_version": 3,
                     "documents": [self.valid_document(optional=True)],
                 },
                 "must not be optional",
@@ -379,7 +363,7 @@ class PublicationCatalogTests(unittest.TestCase):
             catalog = self.write_catalog(
                 root,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "documents": [self.valid_document()],
                     "assets": [],
                     "unexpected": True,
