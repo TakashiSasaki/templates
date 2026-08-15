@@ -145,12 +145,16 @@ class PwaAssetTests(unittest.TestCase):
 
         self.assertIn('const CACHE_NAME = "templates-portal-shell-v3"', worker)
         self.assertIn(
+            'const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"',
+            worker,
+        )
+        self.assertIn(
             'const STATIC_ASSETS = ["/app.webmanifest", "/icon.svg"]',
             worker,
         )
         self.assertNotIn("const APP_SHELL", worker)
         self.assertNotIn('caches.match("/")', worker)
-        for event in ("install", "activate", "fetch"):
+        for event in ("install", "activate", "message", "fetch"):
             self.assertIn(f'self.addEventListener("{event}"', worker)
         self.assertIn("function isDocumentRequest(request, url)", worker)
         self.assertIn('request.mode === "navigate"', worker)
@@ -162,6 +166,7 @@ class PwaAssetTests(unittest.TestCase):
         )
         self.assertEqual(worker.count("fetchFreshDocument(event.request)"), 1)
         self.assertIn("if (STATIC_ASSETS.includes(url.pathname))", worker)
+        self.assertNotIn("caches.open(DOCUMENT_CACHE_NAME)", worker)
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
@@ -199,6 +204,25 @@ class PwaAssetTests(unittest.TestCase):
         )
         self.assertIn("caches.delete(key)", worker)
         self.assertIn("self.clients.claim()", worker)
+        self.assertNotIn(
+            'key.startsWith("templates-portal-documents-")',
+            worker,
+        )
+
+    def test_service_worker_exposes_freshness_capability_contract(self) -> None:
+        worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+
+        for state in (
+            "verified-current",
+            "checking",
+            "cached-unverified",
+            "update-available",
+        ):
+            self.assertIn(f'"{state}"', worker)
+        self.assertIn('"templates:get-freshness-capabilities"', worker)
+        self.assertIn('type: "templates:freshness-capabilities"', worker)
+        self.assertIn('siteVersionUrl: "/site-version.json"', worker)
+        self.assertIn("documentCacheName: DOCUMENT_CACHE_NAME", worker)
 
     def test_service_worker_offline_response_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
