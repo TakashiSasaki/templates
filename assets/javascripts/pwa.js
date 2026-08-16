@@ -148,6 +148,15 @@
     lastFreshnessGeneration = data.requestGeneration;
 
     if (data.state === "verified-current") {
+      const pending = pendingDocumentCommit;
+      if (
+        pending &&
+        pending.representation === "cached" &&
+        pending.url === normalizedUrl &&
+        pending.generation === data.requestGeneration
+      ) {
+        return true;
+      }
       pendingDocumentCommit = null;
       clearInitialCachedMarker();
       clearFreshnessStatus();
@@ -184,6 +193,14 @@
         lastFreshnessGeneration,
         pending.generation
       );
+      clearFreshnessStatus();
+      requestCurrentFreshnessState();
+      return;
+    }
+
+    if (pending && committedUrl !== pending.url) {
+      pendingDocumentCommit = null;
+      clearInitialCachedMarker();
       clearFreshnessStatus();
       requestCurrentFreshnessState();
       return;
@@ -235,9 +252,11 @@
     if (!controller) {
       return;
     }
+    const currentState = document.getElementById(freshnessStatusId)?.dataset.freshnessState;
     controller.postMessage({
       type: "templates:get-current-freshness-state",
       url: window.location.href,
+      currentState: typeof currentState === "string" ? currentState : null,
     });
   }
 
