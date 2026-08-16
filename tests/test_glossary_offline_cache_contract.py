@@ -121,6 +121,17 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertIn("if (response.url && response.url !== request.url)", decorator)
         self.assertNotIn("isCacheableGlossaryResponse(response)", decorator)
 
+    def test_cached_glossary_decoration_rejects_non_json_media_types(self) -> None:
+        worker = WORKER.read_text(encoding="utf-8")
+        decorator = worker.split(
+            "async function decorateCachedGlossaryModel(response, request)",
+            1,
+        )[1].split("async function cachedGlossaryFallback(request)", 1)[0]
+
+        self.assertIn('contentType.includes("application/json")', decorator)
+        self.assertIn('contentType.includes("+json")', decorator)
+        self.assertIn("return undefined;", decorator)
+
     def test_glossary_runtime_surfaces_cached_unverified_state(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
         stylesheet = STYLE.read_text(encoding="utf-8")
@@ -130,7 +141,17 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertIn("Saved glossary data · latest version not verified.", runtime)
         self.assertIn('class="glossary-inline-dialog__freshness"', runtime)
         self.assertIn("setFreshness(panel, freshness)", runtime)
+        self.assertIn('setFreshness(panel, "unavailable")', runtime)
         self.assertIn(".glossary-inline-dialog__freshness", stylesheet)
+
+    def test_cached_unverified_runtime_retries_network_on_later_activation(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+
+        self.assertIn("if (freshness === CACHED_FRESHNESS) {", runtime)
+        self.assertIn(
+            "if (freshness === CACHED_FRESHNESS) {\n            glossaryPromise = undefined;\n          }",
+            runtime,
+        )
 
     def test_glossary_cache_version_cleanup_does_not_delete_document_cache(self) -> None:
         worker = WORKER.read_text(encoding="utf-8")
