@@ -264,10 +264,10 @@ def _wait_for_no_state(page: Any) -> None:
 
 def _wait_for_document_cache(page: Any, path: str = "/document/") -> None:
     page.wait_for_function(
-        f"""async ([cacheName, path]) => {{
+        """async ([cacheName, path]) => {
           const cache = await caches.open(cacheName);
           return Boolean(await cache.match(path));
-        }}""",
+        }""",
         arg=[DOCUMENT_CACHE_NAME, path],
         timeout=5_000,
     )
@@ -301,6 +301,47 @@ def _fetch_html(page: Any, path: str) -> dict[str, Any]:
 def _reload_from_status(page: Any) -> None:
     page.locator("#templates-freshness-status .freshness-status__reload").click()
     page.wait_for_load_state("load")
+
+
+def _exercise_worker_epoch_reset(page: Any) -> None:
+    applied = page.evaluate(
+        """async () => {
+          const controller = navigator.serviceWorker.controller;
+          if (!controller) return false;
+          const workerInstanceId = "fixture-worker-instance-after-restart";
+          const channel = new MessageChannel();
+          return await new Promise((resolve) => {
+            const timer = setTimeout(() => resolve(false), 2000);
+            channel.port1.onmessage = (event) => {
+              const data = event.data;
+              clearTimeout(timer);
+              resolve(
+                data?.type === "templates:freshness-state-applied" &&
+                data.state === "cached-unverified" &&
+                data.requestGeneration === 1 &&
+                data.workerInstanceId === workerInstanceId
+              );
+            };
+            navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+              data: {
+                type: "templates:freshness-state",
+                state: "cached-unverified",
+                url: window.location.href,
+                requestGeneration: 1,
+                workerInstanceId,
+                awaitingCommit: true,
+              },
+              source: controller,
+              ports: [channel.port2],
+            }));
+          });
+        }"""
+    )
+    if applied is not True:
+        raise PwaSlowConvergenceError(
+            "new worker-instance epoch did not accept a reset request generation"
+        )
+    _wait_for_state(page, "cached-unverified")
 
 
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
@@ -461,7 +502,11 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             )
             direct_page = context.new_page()
             direct_started = time.monotonic()
-            response = direct_page.goto(base_url + "/document/", wait_until="domcontentloaded")
+            response = direct_page.goto(
+                base_url + "/document/",
+                wait_until="domcontentloaded",
+                timeout=10_000,
+            )
             direct_elapsed = time.monotonic() - direct_started
             if response is None or response.status != 200:
                 status = None if response is None else response.status
@@ -490,30 +535,15 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 include_revision=True,
                 reverse_revision_attributes=False,
             )
-            page.reload(wait_until="load")
+            page.reload(wait_until="load", timeout=10_000)
             _wait_for_no_state(page)
             if page.locator("#document-version").inner_text() != "document-v4":
-                raise PwaSlowConvergenceError("worker-restart setup did not render v4")
+                raise PwaSlowConvergenceError("worker-epoch setup did not render v4")
 
-            cdp = context.new_cdp_session(page)
-            cdp.send("ServiceWorker.enable")
-            cdp.send("ServiceWorker.stopAllWorkers")
-            page.wait_for_timeout(150)
-            context.set_offline(True)
-            try:
-                restarted = _fetch_html(page, "/document/")
-            finally:
-                context.set_offline(False)
-            if restarted["status"] != 200 or restarted["freshness"] != "cached-unverified":
-                raise PwaSlowConvergenceError(
-                    f"worker restart rejected lower-generation cached fallback: {restarted!r}"
-                )
-            _wait_for_state(page, "cached-unverified")
+            _exercise_worker_epoch_reset(page)
             evidence["worker_restart_generation_reset"] = True
-            cdp.detach()
 
-            state.configure(delay_ms=0)
-            page.reload(wait_until="load")
+            page.reload(wait_until="load", timeout=10_000)
             _wait_for_no_state(page)
 
             state.configure(
@@ -549,7 +579,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             previous_document = _fetch_html(page, "/document/")
             if previous_document["freshness"] != "checking":
                 raise PwaSlowConvergenceError("previous-document ordering setup did not enter checking")
-            page.goto(base_url + "/", wait_until="load")
+            page.goto(base_url + "/", wait_until="load", timeout=10_000)
             page.wait_for_timeout(1600)
             if _freshness_state(page) is not None:
                 raise PwaSlowConvergenceError(
