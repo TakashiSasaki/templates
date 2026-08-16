@@ -54,6 +54,9 @@
             terms.set(term.id, term);
           }
           glossaryFreshness = freshness;
+          if (freshness === CACHED_FRESHNESS) {
+            glossaryPromise = undefined;
+          }
           return terms;
         })
         .catch((error) => {
