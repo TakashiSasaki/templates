@@ -8,7 +8,7 @@
   let lastFreshnessGeneration = 0;
   let preserveInitialEmbeddedCachedCommit =
     document.documentElement?.dataset.templatesCachedFallback === "true" ||
-    ["checking", "cached-unverified"].includes(
+    ["checking", "cached-unverified", "update-available"].includes(
       document.getElementById(freshnessStatusId)?.dataset.freshnessState
     );
 
