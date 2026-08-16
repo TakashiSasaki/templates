@@ -50,6 +50,20 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         self.assertIn("background: none", stylesheet)
         self.assertIn("font: inherit", stylesheet)
 
+    def test_glossary_dialog_maintains_progressive_background_fallback(self) -> None:
+        stylesheet = (ROOT / "assets/stylesheets/glossary-inline.css").read_text(
+            encoding="utf-8"
+        )
+        dialog_rule = stylesheet.split(".glossary-inline-dialog {", 1)[1].split("}", 1)[0]
+
+        fallback = "background: var(--md-default-bg-color, Canvas);"
+        tint = "background: color-mix("
+        self.assertIn(fallback, dialog_rule)
+        self.assertIn(tint, dialog_rule)
+        self.assertLess(dialog_rule.index(fallback), dialog_rule.index(tint))
+        self.assertIn("var(--md-default-bg-color, Canvas)", dialog_rule)
+        self.assertNotIn("var(--md-default-bg-color, #fff)", dialog_rule)
+
 
 if __name__ == "__main__":
     unittest.main()
