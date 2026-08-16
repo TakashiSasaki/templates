@@ -109,6 +109,18 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
         self.assertNotIn("JSON.parse", worker)
         self.assertNotIn("JSON.stringify", worker)
 
+    def test_cached_glossary_decoration_allows_missing_response_url(self) -> None:
+        worker = WORKER.read_text(encoding="utf-8")
+        decorator = worker.split(
+            "async function decorateCachedGlossaryModel(response, request)",
+            1,
+        )[1].split("async function cachedGlossaryFallback(request)", 1)[0]
+
+        self.assertIn("if (response.status !== 200)", decorator)
+        self.assertIn('response.headers.get("Content-Type")', decorator)
+        self.assertIn("if (response.url && response.url !== request.url)", decorator)
+        self.assertNotIn("isCacheableGlossaryResponse(response)", decorator)
+
     def test_glossary_runtime_surfaces_cached_unverified_state(self) -> None:
         runtime = RUNTIME.read_text(encoding="utf-8")
         stylesheet = STYLE.read_text(encoding="utf-8")
