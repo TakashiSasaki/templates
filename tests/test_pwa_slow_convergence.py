@@ -34,6 +34,15 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertNotIn("AbortController", self.worker)
         self.assertNotIn("controller.abort", self.worker)
 
+    def test_background_task_registration_chains_all_registered_work(self) -> None:
+        self.assertGreaterEqual(
+            self.worker.count(
+                "backgroundTask = Promise.all([backgroundTask, Promise.resolve(task)])"
+            ),
+            2,
+        )
+        self.assertNotIn("backgroundTask = Promise.resolve(task);", self.worker)
+
     def test_cache_miss_after_soft_timeout_waits_for_network(self) -> None:
         self.assertIn("if (!afterTimeout.response)", self.worker)
         self.assertIn("await networkOutcomePromise", self.worker)
@@ -90,6 +99,18 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         )
         self.assertIn('evidence["full_navigation_without_preexisting_client_ack"] = True', self.checker)
 
+    def test_fast_non_transient_4xx_never_records_verified_current(self) -> None:
+        start = self.worker.index("async function handleCompletedDocumentNetwork")
+        end = self.worker.index("async function convergeAfterChecking", start)
+        handler = self.worker[start:end]
+        fourxx_start = handler.index("if (response.status >= 400)")
+        cacheable_start = handler.index("if (isCacheableDocumentResponse(response))", fourxx_start)
+        branch = handler[fourxx_start:cacheable_start]
+        self.assertIn("forgetRequestFreshnessStateThroughGeneration(event, generation)", branch)
+        self.assertIn('notifyInstantNavigationCommit(event, "network", generation)', branch)
+        self.assertIn("return response;", branch)
+        self.assertNotIn('rememberFreshnessState(event, "verified-current"', branch)
+
     def test_background_completion_converges_by_robust_revision_extraction(self) -> None:
         self.assertIn("async function convergeAfterChecking(", self.worker)
         self.assertIn("function extractMetaAttributes(tag)", self.worker)
@@ -136,13 +157,14 @@ class PwaSlowConvergenceTests(unittest.TestCase):
 
     def test_older_authoritative_absence_cannot_delete_newer_freshness_state(self) -> None:
         self.assertIn("function forgetFreshnessStateThroughGeneration(", self.worker)
+        self.assertIn("function forgetRequestFreshnessStateThroughGeneration(", self.worker)
         self.assertIn("stored.generation <= generation", self.worker)
         self.assertIn(
-            "forgetFreshnessStateThroughGeneration(\n      clientFreshnessStates",
+            "forgetFreshnessStateThroughGeneration(\n    clientFreshnessStates",
             self.worker,
         )
         self.assertIn(
-            "forgetFreshnessStateThroughGeneration(\n      documentFreshnessStates",
+            "forgetFreshnessStateThroughGeneration(\n    documentFreshnessStates",
             self.worker,
         )
 
