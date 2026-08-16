@@ -6,6 +6,8 @@
   const CONTROL_SELECTOR = ".glossary-term[data-glossary-id]";
   const DIALOG_ID = "glossary-inline-dialog";
   const GLOSSARY_URL = "/glossary/index.json";
+  const CACHED_FRESHNESS = "cached-unverified";
+  const CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
   const PROVIDER_LABELS = {
     site: "Site",
     skill: "Skill",
@@ -13,6 +15,7 @@
     webapp: "Webapp",
   };
   let glossaryPromise;
+  let glossaryFreshness = "verified-current";
   let dialog;
   let activeTrigger;
   let pendingTrigger;
@@ -24,14 +27,22 @@
       glossaryPromise = fetch(GLOSSARY_URL, {
         credentials: "same-origin",
         cache: "no-cache",
+        headers: { [CACHED_ACCEPT_HEADER]: "1" },
       })
-        .then((response) => {
+        .then(async (response) => {
           if (!response.ok) {
             throw new Error(`Glossary request failed: ${response.status}`);
           }
-          return response.json();
+          const freshness =
+            response.headers.get("X-Templates-Freshness") === CACHED_FRESHNESS
+              ? CACHED_FRESHNESS
+              : "verified-current";
+          return {
+            model: await response.json(),
+            freshness,
+          };
         })
-        .then((model) => {
+        .then(({ model, freshness }) => {
           if (!model || !Array.isArray(model.terms)) {
             throw new Error("Glossary response is invalid");
           }
@@ -41,6 +52,10 @@
               continue;
             }
             terms.set(term.id, term);
+          }
+          glossaryFreshness = freshness;
+          if (freshness === CACHED_FRESHNESS) {
+            glossaryPromise = undefined;
           }
           return terms;
         })
@@ -170,6 +185,7 @@
       </div>
       <p class="glossary-inline-dialog__definition" id="glossary-inline-definition"></p>
       <p class="glossary-inline-dialog__meta"></p>
+      <p class="glossary-inline-dialog__freshness" role="status" hidden></p>
       <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
     `;
     document.body.appendChild(dialog);
@@ -246,12 +262,24 @@
     return PROVIDER_LABELS[provider] || provider;
   }
 
-  function fillDialog(panel, term, trigger) {
+  function setFreshness(panel, freshness) {
+    const status = panel.querySelector(".glossary-inline-dialog__freshness");
+    if (freshness === CACHED_FRESHNESS) {
+      status.hidden = false;
+      status.textContent = "Saved glossary data · latest version not verified.";
+      return;
+    }
+    status.hidden = true;
+    status.textContent = "";
+  }
+
+  function fillDialog(panel, term, trigger, freshness) {
     panel.querySelector("#glossary-inline-title").textContent = term.term;
     panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term);
     const meta = panel.querySelector(".glossary-inline-dialog__meta");
     const owner = providerLabel(term.provider);
     meta.textContent = term.origin === "external" ? `External term · curated by ${owner}` : `Templates-defined · ${owner}`;
+    setFreshness(panel, freshness);
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
@@ -260,6 +288,7 @@
     panel.querySelector("#glossary-inline-title").textContent = label || "Glossary";
     panel.querySelector(".glossary-inline-dialog__definition").textContent = message;
     panel.querySelector(".glossary-inline-dialog__meta").textContent = "Glossary data unavailable.";
+    setFreshness(panel, "unavailable");
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
@@ -315,7 +344,7 @@
 
     const panel = ensureDialog();
     clearPendingTrigger(trigger);
-    fillDialog(panel, term, trigger);
+    fillDialog(panel, term, trigger, glossaryFreshness);
     presentDialog(trigger, panel);
   }
 

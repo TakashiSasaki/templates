@@ -32,8 +32,23 @@ class PwaCapabilityRegressionTests(unittest.TestCase):
             'EXPECTED_DOCUMENT_CACHE_NAME = "templates-portal-documents-v1"',
             source,
         )
+        self.assertIn(
+            'EXPECTED_GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1"',
+            source,
+        )
+        self.assertIn(
+            'EXPECTED_GLOSSARY_MODEL_URL = "/glossary/index.json"',
+            source,
+        )
+        self.assertIn('capabilities.get("glossaryCacheName")', source)
+        self.assertIn('capabilities.get("glossaryModelUrl")', source)
         self.assertIn('service_workers="allow"', source)
         self.assertIn("}, 5000);", source)
+
+    def test_worker_exposes_glossary_capabilities_checked_by_browser(self) -> None:
+        worker = WORKER.read_text(encoding="utf-8")
+        self.assertIn("glossaryCacheName: GLOSSARY_CACHE_NAME", worker)
+        self.assertIn("glossaryModelUrl: GLOSSARY_MODEL_PATH", worker)
 
     def test_checker_validates_all_service_worker_install_assets_before_browser_start(self) -> None:
         source = CHECKER.read_text(encoding="utf-8")
