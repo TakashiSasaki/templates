@@ -192,15 +192,16 @@ function rememberFreshnessState(event, state, generation) {
     return false;
   }
   const value = { state, generation, urlKey };
-  const documentRemembered = rememberBounded(documentFreshnessStates, urlKey, value);
-  if (!documentRemembered) {
-    return false;
-  }
+  const documentRemembered = rememberBounded(
+    documentFreshnessStates,
+    urlKey,
+    value
+  );
   const clientId = freshnessClientId(event);
-  if (clientId) {
-    rememberBounded(clientFreshnessStates, clientId, value);
-  }
-  return true;
+  const clientRemembered = clientId
+    ? rememberBounded(clientFreshnessStates, clientId, value)
+    : false;
+  return documentRemembered || clientRemembered;
 }
 
 function forgetFreshnessStateThroughGeneration(map, key, urlKey, generation) {
@@ -394,22 +395,6 @@ function freshnessMessage(event, state, generation, awaitingCommit) {
   };
 }
 
-async function matchingWindowClients(requestUrl) {
-  const targetKey = documentStateKey(requestUrl);
-  if (!targetKey) {
-    return [];
-  }
-  try {
-    const clients = await self.clients.matchAll({ type: "window" });
-    return clients.filter(
-      (client) => documentStateKey(client.url) === targetKey
-    );
-  } catch (error) {
-    console.warn("PWA freshness window lookup failed", error);
-    return [];
-  }
-}
-
 async function postFreshnessState(event, state, generation, requireAcknowledgement) {
   const message = freshnessMessage(
     event,
@@ -435,14 +420,7 @@ async function postFreshnessState(event, state, generation, requireAcknowledgeme
     client = undefined;
   }
   if (!client || typeof client.postMessage !== "function") {
-    if (requireAcknowledgement) {
-      return false;
-    }
-    const clients = await matchingWindowClients(event.request.url);
-    for (const windowClient of clients) {
-      windowClient.postMessage(message);
-    }
-    return true;
+    return !requireAcknowledgement;
   }
   if (!requireAcknowledgement) {
     client.postMessage(message);
@@ -539,15 +517,13 @@ function extractMetaAttributes(tag) {
 async function readSiteRevision(response) {
   try {
     let source = await response.text();
-    const headMatch = source.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
-    source = (headMatch ? headMatch[1] : source).replace(
-      /<!--[\s\S]*?-->/g,
-      ""
-    );
     source = source.replace(
       /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
       ""
     );
+    source = source.replace(/<!--[\s\S]*?-->/g, "");
+    const headMatch = source.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+    source = headMatch ? headMatch[1] : source;
     const revisions = [];
     const tags = source.match(/<meta\b[^>]*>/gi) || [];
     for (const tag of tags) {
