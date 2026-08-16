@@ -1,7 +1,10 @@
 (() => {
   "use strict";
 
-  const SELECTOR = "a.glossary-term[data-glossary-id]";
+  const FALLBACK_SELECTOR = "a.glossary-term[data-glossary-id]";
+  const TRIGGER_SELECTOR = "button.glossary-term[data-glossary-id]";
+  const CONTROL_SELECTOR = ".glossary-term[data-glossary-id]";
+  const DIALOG_ID = "glossary-inline-dialog";
   const GLOSSARY_URL = "/glossary/index.json";
   const PROVIDER_LABELS = {
     site: "Site",
@@ -11,8 +14,8 @@
   };
   let glossaryPromise;
   let dialog;
-  let activeLink;
-  let pendingLink;
+  let activeTrigger;
+  let pendingTrigger;
   let navigationObserver;
   let pointerDismissal = false;
 
@@ -49,33 +52,91 @@
     return glossaryPromise;
   }
 
-  function setPendingLink(link) {
-    if (pendingLink && pendingLink !== link) {
-      pendingLink.removeAttribute("aria-busy");
+  function fallbackHref(trigger) {
+    const href = trigger.dataset.glossaryHref;
+    if (href) {
+      return href;
     }
-    pendingLink = link;
-    link.setAttribute("aria-busy", "true");
+    const termId = trigger.dataset.glossaryId;
+    return termId ? `/glossary/#${encodeURIComponent(termId)}` : "/glossary/";
   }
 
-  function clearPendingLink(link) {
-    if (!pendingLink || (link && pendingLink !== link)) {
+  function enhanceLink(link) {
+    if (!(link instanceof HTMLAnchorElement) || !link.matches(FALLBACK_SELECTOR)) {
+      return link;
+    }
+    const termId = link.dataset.glossaryId;
+    if (!termId) {
+      return link;
+    }
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = link.className;
+    while (link.firstChild) {
+      trigger.appendChild(link.firstChild);
+    }
+    trigger.dataset.glossaryId = termId;
+    trigger.dataset.glossaryHref = link.getAttribute("href") || `/glossary/#${encodeURIComponent(termId)}`;
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.setAttribute("aria-controls", DIALOG_ID);
+    trigger.setAttribute("aria-expanded", "false");
+    link.replaceWith(trigger);
+    return trigger;
+  }
+
+  function enhanceGlossaryLinks(root) {
+    if (root instanceof HTMLAnchorElement && root.matches(FALLBACK_SELECTOR)) {
+      enhanceLink(root);
       return;
     }
-    const current = pendingLink;
-    pendingLink = null;
+    if (!(root instanceof Document || root instanceof Element || root instanceof DocumentFragment)) {
+      return;
+    }
+    for (const link of root.querySelectorAll(FALLBACK_SELECTOR)) {
+      enhanceLink(link);
+    }
+  }
+
+  function setPendingTrigger(trigger) {
+    if (pendingTrigger && pendingTrigger !== trigger) {
+      pendingTrigger.removeAttribute("aria-busy");
+    }
+    pendingTrigger = trigger;
+    trigger.setAttribute("aria-busy", "true");
+  }
+
+  function clearPendingTrigger(trigger) {
+    if (!pendingTrigger || (trigger && pendingTrigger !== trigger)) {
+      return;
+    }
+    const current = pendingTrigger;
+    pendingTrigger = null;
     current.removeAttribute("aria-busy");
   }
 
   function closeDetachedDialog() {
-    if (dialog && dialog.open && activeLink && !activeLink.isConnected) {
+    if (dialog && dialog.open && activeTrigger && !activeTrigger.isConnected) {
       pointerDismissal = true;
       dialog.close();
     }
   }
 
   function observeNavigationBody() {
+    if (!document.body) {
+      return;
+    }
     if (!navigationObserver) {
-      navigationObserver = new MutationObserver(closeDetachedDialog);
+      navigationObserver = new MutationObserver((records) => {
+        closeDetachedDialog();
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node instanceof Element || node instanceof DocumentFragment) {
+              enhanceGlossaryLinks(node);
+            }
+          }
+        }
+      });
     } else {
       navigationObserver.disconnect();
     }
@@ -95,6 +156,7 @@
     }
 
     dialog = document.createElement("dialog");
+    dialog.id = DIALOG_ID;
     dialog.className = "glossary-inline-dialog";
     dialog.setAttribute("aria-labelledby", "glossary-inline-title");
     dialog.setAttribute("aria-describedby", "glossary-inline-definition");
@@ -118,9 +180,12 @@
       dialog.close();
     });
     dialog.addEventListener("close", () => {
-      const restore = activeLink;
-      activeLink = null;
-      clearPendingLink();
+      const restore = activeTrigger;
+      if (restore instanceof HTMLElement) {
+        restore.setAttribute("aria-expanded", "false");
+      }
+      activeTrigger = null;
+      clearPendingTrigger();
       if (
         !pointerDismissal &&
         restore instanceof HTMLElement &&
@@ -159,8 +224,8 @@
 
   function repositionOpenDialog() {
     closeDetachedDialog();
-    if (dialog && dialog.open && activeLink && activeLink.isConnected) {
-      positionDialog(activeLink, dialog);
+    if (dialog && dialog.open && activeTrigger && activeTrigger.isConnected) {
+      positionDialog(activeTrigger, dialog);
     }
   }
 
@@ -181,75 +246,110 @@
     return PROVIDER_LABELS[provider] || provider;
   }
 
-  function fillDialog(panel, term, link) {
+  function fillDialog(panel, term, trigger) {
     panel.querySelector("#glossary-inline-title").textContent = term.term;
     panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term);
     const meta = panel.querySelector(".glossary-inline-dialog__meta");
     const owner = providerLabel(term.provider);
     meta.textContent = term.origin === "external" ? `External term · curated by ${owner}` : `Templates-defined · ${owner}`;
-    panel.querySelector(".glossary-inline-dialog__actions a").href = link.href;
+    panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
-  async function openDefinition(link) {
-    const termId = link.dataset.glossaryId;
+  function fillErrorDialog(panel, trigger, message) {
+    const label = (trigger.textContent || "").trim();
+    panel.querySelector("#glossary-inline-title").textContent = label || "Glossary";
+    panel.querySelector(".glossary-inline-dialog__definition").textContent = message;
+    panel.querySelector(".glossary-inline-dialog__meta").textContent = "Glossary data unavailable.";
+    panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
+  }
+
+  function presentDialog(trigger, panel) {
+    if (activeTrigger && activeTrigger !== trigger) {
+      activeTrigger.setAttribute("aria-expanded", "false");
+    }
+    pointerDismissal = false;
+    activeTrigger = trigger;
+    trigger.setAttribute("aria-expanded", "true");
+    if (!panel.open) {
+      panel.show();
+    }
+    positionDialog(trigger, panel);
+    panel.querySelector(".glossary-inline-dialog__close").focus({ preventScroll: true });
+  }
+
+  async function openDefinition(trigger) {
+    const termId = trigger.dataset.glossaryId;
     if (!termId) {
-      clearPendingLink();
-      window.location.assign(link.href);
+      clearPendingTrigger();
       return;
     }
-    setPendingLink(link);
+    setPendingTrigger(trigger);
 
     let terms;
     try {
       terms = await loadGlossary();
     } catch (error) {
-      const canFallback = pendingLink === link && link.isConnected;
-      clearPendingLink(link);
-      if (!canFallback) {
+      const canPresent = pendingTrigger === trigger && trigger.isConnected;
+      clearPendingTrigger(trigger);
+      if (!canPresent) {
         return;
       }
       console.warn("Glossary definition loading failed", error);
-      window.location.assign(link.href);
+      const panel = ensureDialog();
+      fillErrorDialog(panel, trigger, "Definition could not be loaded.");
+      presentDialog(trigger, panel);
       return;
     }
-    if (pendingLink !== link || !link.isConnected) {
-      clearPendingLink(link);
+    if (pendingTrigger !== trigger || !trigger.isConnected) {
+      clearPendingTrigger(trigger);
       return;
     }
     const term = terms.get(termId);
     if (!term) {
-      clearPendingLink(link);
-      window.location.assign(link.href);
+      clearPendingTrigger(trigger);
+      const panel = ensureDialog();
+      fillErrorDialog(panel, trigger, "Definition could not be found.");
+      presentDialog(trigger, panel);
       return;
     }
 
     const panel = ensureDialog();
-    clearPendingLink(link);
-    pointerDismissal = false;
-    activeLink = link;
-    fillDialog(panel, term, link);
-    if (!panel.open) {
-      panel.show();
-    }
-    positionDialog(link, panel);
-    panel.querySelector(".glossary-inline-dialog__close").focus({ preventScroll: true });
+    clearPendingTrigger(trigger);
+    fillDialog(panel, term, trigger);
+    presentDialog(trigger, panel);
   }
 
   document.addEventListener("click", (event) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    if (event.defaultPrevented || event.button !== 0) {
       return;
     }
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
     }
-    const link = target.closest(SELECTOR);
-    if (!(link instanceof HTMLAnchorElement)) {
-      clearPendingLink();
+    const control = target.closest(CONTROL_SELECTOR);
+    if (!control) {
+      clearPendingTrigger();
+      return;
+    }
+
+    if (control instanceof HTMLAnchorElement) {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      const trigger = enhanceLink(control);
+      if (trigger instanceof HTMLButtonElement && trigger.matches(TRIGGER_SELECTOR)) {
+        void openDefinition(trigger);
+      }
+      return;
+    }
+
+    if (!(control instanceof HTMLButtonElement) || !control.matches(TRIGGER_SELECTOR)) {
       return;
     }
     event.preventDefault();
-    void openDefinition(link);
+    void openDefinition(control);
   });
 
   document.addEventListener("pointerdown", (event) => {
@@ -259,18 +359,18 @@
     }
 
     if (
-      pendingLink &&
-      !pendingLink.contains(target) &&
+      pendingTrigger &&
+      !pendingTrigger.contains(target) &&
       (!dialog || !dialog.contains(target))
     ) {
-      clearPendingLink();
+      clearPendingTrigger();
     }
 
     if (
       dialog &&
       dialog.open &&
       !dialog.contains(target) &&
-      (!activeLink || !activeLink.contains(target))
+      (!activeTrigger || !activeTrigger.contains(target))
     ) {
       pointerDismissal = true;
       dialog.close();
@@ -281,7 +381,7 @@
     if (event.key !== "Escape") {
       return;
     }
-    clearPendingLink();
+    clearPendingTrigger();
     pointerDismissal = false;
     if (dialog && dialog.open) {
       event.preventDefault();
@@ -289,6 +389,8 @@
     }
   });
 
+  enhanceGlossaryLinks(document);
+  observeNavigationBody();
   window.addEventListener("resize", repositionOpenDialog);
   document.addEventListener("scroll", repositionOpenDialog, {
     capture: true,

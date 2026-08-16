@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
@@ -61,12 +62,18 @@ VOID_TAGS = {
     "wbr",
 }
 EXCLUDED_ROUTE_COMPONENTS = {"files", "glossary", "repository-trees"}
-RUNTIME_EXCLUDED_ROUTE_COMPONENTS = {"guided"}
+GUIDED_ROUTE_COMPONENT = "guided"
 CONTENT_CLASS = "md-content__inner"
 RUNTIME_STYLE = '<link rel="stylesheet" href="/stylesheets/glossary-inline.css">'
 RUNTIME_SCRIPT = '<script src="/javascripts/glossary-inline.js" defer></script>'
 RUNTIME_STYLE_NAME = "glossary-inline.css"
 RUNTIME_SCRIPT_NAME = "glossary-inline.js"
+CSP_META_PATTERN = re.compile(
+    r'(?P<prefix><meta http-equiv="Content-Security-Policy" content=")'
+    r'(?P<policy>[^"]*)'
+    r'(?P<suffix>">)',
+    re.IGNORECASE,
+)
 
 
 def _class_tokens(attrs: list[tuple[str, str | None]]) -> set[str]:
@@ -298,15 +305,89 @@ def inject_runtime_assets(source: str) -> str:
     return source.replace(marker, "\n".join(missing) + "\n" + marker, 1)
 
 
-def _excluded_route(relative: Path) -> bool:
-    return relative.stem in EXCLUDED_ROUTE_COMPONENTS or any(
-        part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
+def _guided_route(relative: Path) -> bool:
+    return relative.stem == GUIDED_ROUTE_COMPONENT or any(
+        part == GUIDED_ROUTE_COMPONENT for part in relative.parts[:-1]
     )
 
 
-def _runtime_excluded_route(relative: Path) -> bool:
-    return relative.stem in RUNTIME_EXCLUDED_ROUTE_COMPONENTS or any(
-        part in RUNTIME_EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
+def _directive_indexes(directives: list[str], name: str) -> list[int]:
+    return [
+        index
+        for index, directive in enumerate(directives)
+        if directive.split(maxsplit=1)[0].casefold() == name.casefold()
+    ]
+
+
+def _single_directive_index(directives: list[str], name: str) -> int | None:
+    indexes = _directive_indexes(directives, name)
+    if len(indexes) > 1:
+        raise GlossaryAnnotationFinalizeError(
+            f"guided page contains duplicate {name} directives"
+        )
+    return indexes[0] if indexes else None
+
+
+def _allow_guided_style_source(directives: list[str]) -> None:
+    index = _single_directive_index(directives, "style-src")
+    if index is None:
+        directives.append("style-src 'self'")
+        return
+    allowed = {
+        "style-src 'self'",
+        "style-src 'unsafe-inline'",
+        "style-src 'unsafe-inline' 'self'",
+        "style-src 'self' 'unsafe-inline'",
+    }
+    if directives[index] not in allowed:
+        raise GlossaryAnnotationFinalizeError(
+            "guided style-src must remain limited to inline and same-origin styles"
+        )
+    if directives[index] == "style-src 'unsafe-inline'":
+        directives[index] = "style-src 'unsafe-inline' 'self'"
+
+
+def _allow_guided_self_source(directives: list[str], name: str) -> None:
+    index = _single_directive_index(directives, name)
+    expected = f"{name} 'self'"
+    if index is None:
+        directives.append(expected)
+        return
+    if directives[index] != expected:
+        raise GlossaryAnnotationFinalizeError(
+            f"guided {name} must be exactly {expected}"
+        )
+
+
+def allow_guided_glossary_runtime(source: str) -> str:
+    """Permit only the same-origin resources required by the guided Glossary runtime."""
+    matches = list(CSP_META_PATTERN.finditer(source))
+    if len(matches) != 1:
+        raise GlossaryAnnotationFinalizeError(
+            "guided page must contain exactly one Content-Security-Policy meta element"
+        )
+
+    match = matches[0]
+    policy = html.unescape(match.group("policy"))
+    directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
+    default_index = _single_directive_index(directives, "default-src")
+    if default_index is None or directives[default_index] != "default-src 'none'":
+        raise GlossaryAnnotationFinalizeError(
+            "guided default-src must be exactly default-src 'none'"
+        )
+    _allow_guided_style_source(directives)
+    _allow_guided_self_source(directives, "script-src")
+    _allow_guided_self_source(directives, "connect-src")
+
+    updated_policy = "; ".join(directives)
+    escaped_policy = html.escape(updated_policy, quote=True).replace("&#x27;", "'")
+    replacement = match.group("prefix") + escaped_policy + match.group("suffix")
+    return source[: match.start()] + replacement + source[match.end() :]
+
+
+def _excluded_route(relative: Path) -> bool:
+    return relative.stem in EXCLUDED_ROUTE_COMPONENTS or any(
+        part in EXCLUDED_ROUTE_COMPONENTS for part in relative.parts[:-1]
     )
 
 
@@ -344,10 +425,9 @@ def annotate_site(site_root: Path, glossary_path: Path) -> tuple[int, int]:
                 f"unable to read generated HTML {relative.as_posix()}: {exc}"
             ) from exc
         rendered, count = annotate_html(source, index)
-        if (
-            not _runtime_excluded_route(relative)
-            and (count > 0 or 'class="glossary-term"' in rendered)
-        ):
+        if count > 0 or 'class="glossary-term"' in rendered:
+            if _guided_route(relative):
+                rendered = allow_guided_glossary_runtime(rendered)
             rendered = inject_runtime_assets(rendered)
         if rendered == source:
             continue
