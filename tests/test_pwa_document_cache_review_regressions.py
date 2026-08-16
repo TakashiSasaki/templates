@@ -49,18 +49,22 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn("authoritativeDocumentDeletions.delete(request.url)", self.worker)
 
     def test_redirected_cached_documents_fail_closed(self) -> None:
-        self.assertIn("async function decorateCachedDocument(response, request)", self.worker)
+        self.assertIn(
+            "async function decorateCachedDocument(response, request, state)",
+            self.worker,
+        )
         self.assertIn("response.url && response.url !== request.url", self.worker)
         self.assertIn('console.warn("PWA cached redirect fallback rejected"', self.worker)
-        self.assertIn("return await decorateCachedDocument(response, request)", self.worker)
+        self.assertIn("return await decorateCachedDocument(response, request, state)", self.worker)
 
     def test_cached_notice_is_inserted_after_an_unambiguous_body_open(self) -> None:
-        self.assertIn("function injectCachedDocumentNotice(source)", self.worker)
+        self.assertIn("function injectCachedDocumentNotice(source, state)", self.worker)
         self.assertIn("source.matchAll(/<html\\b[^>]*>/gi)", self.worker)
         self.assertIn("source.matchAll(/<body\\b[^>]*>/gi)", self.worker)
         self.assertIn("source.matchAll(/<\\/body\\s*>/gi)", self.worker)
         self.assertIn("bodyOpenings.length !== 1", self.worker)
         self.assertIn('data-templates-cached-fallback="true"', self.worker)
+        self.assertIn('data-templates-freshness-state="${state}"', self.worker)
         self.assertIn('id="templates-freshness-status-inline-style"', self.worker)
         self.assertIn("position:fixed", self.worker)
         self.assertIn("shiftedBodyOpeningEnd", self.worker)
@@ -70,8 +74,20 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn('representation,', self.worker)
         self.assertIn('requestGeneration: generation', self.worker)
         self.assertIn("let pendingDocumentCommit = null", self.client)
-        self.assertIn('setPendingDocumentCommit(url, "cached", generation)', self.client)
-        self.assertIn('setPendingDocumentCommit(data.url, "network", data.requestGeneration)', self.client)
+        self.assertRegex(
+            self.client,
+            re.compile(
+                r"setPendingDocumentCommit\(\s*data\.url,\s*\"cached\",\s*data\.requestGeneration\s*\)",
+                re.MULTILINE,
+            ),
+        )
+        self.assertRegex(
+            self.client,
+            re.compile(
+                r"setPendingDocumentCommit\(\s*data\.url,\s*\"network\",\s*data\.requestGeneration\s*\)",
+                re.MULTILINE,
+            ),
+        )
         self.assertIn('pending.representation === "cached"', self.client)
         self.assertIn("preserveInitialEmbeddedCachedCommit", self.client)
         self.assertIn('dataset.templatesCachedFallback === "true"', self.client)
@@ -80,6 +96,23 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
     def test_early_freshness_message_does_not_require_document_body(self) -> None:
         self.assertIn("const target = document.body || document.documentElement", self.client)
         self.assertIn("if (!target)", self.client)
+
+    def test_completed_full_navigation_fallback_does_not_wait_for_client_message(self) -> None:
+        start = self.worker.index("async function fallbackForCompletedFailure")
+        end = self.worker.index("async function handleCompletedDocumentNetwork", start)
+        fallback = self.worker[start:end]
+        navigate_guard = fallback.index('event.request.mode === "navigate"')
+        remember_state = fallback.index(
+            'rememberFreshnessState(event, "cached-unverified", generation)'
+        )
+        publish_state = fallback.index("await publishFreshnessState(")
+        self.assertLess(navigate_guard, remember_state)
+        self.assertLess(remember_state, publish_state)
+        self.assertIn("return cached;", fallback[navigate_guard:publish_state])
+        self.assertIn(
+            '"cached-unverified",\n    generation,\n    true',
+            fallback[publish_state:],
+        )
 
     def test_sandbox_previews_are_not_pwa_document_surfaces(self) -> None:
         self.assertIn('url.pathname.startsWith("/repository-trees/previews/")', self.worker)
@@ -96,13 +129,15 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn("new URL(response.url).origin !== self.location.origin", self.worker)
 
     def test_malformed_fetch_request_urls_are_ignored_without_throwing(self) -> None:
-        self.assertIn("let url;", self.worker)
-        self.assertIn("url = new URL(event.request.url);", self.worker)
-        self.assertIn('console.warn("PWA fetch request URL is invalid", error)', self.worker)
-        self.assertLess(
-            self.worker.index("url = new URL(event.request.url);"),
-            self.worker.index("if (url.origin !== self.location.origin)"),
-        )
+        fetch_listener = self.worker[self.worker.index('self.addEventListener("fetch"') :]
+        self.assertIn("let url;", fetch_listener)
+        self.assertIn("url = new URL(event.request.url);", fetch_listener)
+        self.assertIn('console.warn("PWA fetch request URL is invalid", error)', fetch_listener)
+        parse_position = fetch_listener.index("url = new URL(event.request.url);")
+        origin_guard = fetch_listener.index("if (url.origin !== self.location.origin)")
+        document_dispatch = fetch_listener.index("if (isDocumentRequest(event.request, url))")
+        self.assertLess(parse_position, origin_guard)
+        self.assertLess(origin_guard, document_dispatch)
 
 
 if __name__ == "__main__":

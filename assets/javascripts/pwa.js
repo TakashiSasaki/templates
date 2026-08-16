@@ -3,11 +3,14 @@
   const themeColor = "#3f51b5";
   const freshnessStatusId = "templates-freshness-status";
   let pendingDocumentCommit = null;
+  let workerInstanceId = null;
   let lastCommitGeneration = 0;
+  let lastFreshnessGeneration = 0;
   let preserveInitialEmbeddedCachedCommit =
     document.documentElement?.dataset.templatesCachedFallback === "true" ||
-    document.getElementById(freshnessStatusId)?.dataset.freshnessState ===
-      "cached-unverified";
+    ["checking", "cached-unverified"].includes(
+      document.getElementById(freshnessStatusId)?.dataset.freshnessState
+    );
 
   function normalizedDocumentUrl(url) {
     try {
@@ -19,26 +22,54 @@
     }
   }
 
-  function showCachedUnverifiedStatus() {
+  function ensureFreshnessStatus() {
     let status = document.getElementById(freshnessStatusId);
     if (!status) {
       status = document.createElement("aside");
       status.id = freshnessStatusId;
-      status.className = "freshness-status freshness-status--cached";
       status.setAttribute("role", "status");
       status.setAttribute("aria-live", "polite");
       const target = document.body || document.documentElement;
       if (!target) {
-        return false;
+        return null;
       }
       target.prepend(status);
     }
-    status.dataset.freshnessState = "cached-unverified";
+    return status;
+  }
+
+  function showFreshnessStatus(state) {
+    const status = ensureFreshnessStatus();
+    if (!status) {
+      return false;
+    }
+    status.className = `freshness-status freshness-status--${state}`;
+    status.dataset.freshnessState = state;
     status.replaceChildren();
+
     const label = document.createElement("strong");
-    label.textContent = "Saved copy.";
-    status.append(label, " The latest version could not be verified.");
-    return true;
+    if (state === "checking") {
+      label.textContent = "Saved copy.";
+      status.append(label, " Checking for the latest version…");
+      return true;
+    }
+    if (state === "cached-unverified") {
+      label.textContent = "Saved copy.";
+      status.append(label, " The latest version could not be verified.");
+      return true;
+    }
+    if (state === "update-available") {
+      label.textContent = "Update available.";
+      status.append(label, " The published page changed. ");
+      const reload = document.createElement("button");
+      reload.type = "button";
+      reload.className = "freshness-status__reload";
+      reload.textContent = "Reload";
+      reload.addEventListener("click", () => window.location.reload());
+      status.append(reload);
+      return true;
+    }
+    return false;
   }
 
   function clearFreshnessStatus() {
@@ -48,16 +79,45 @@
   function clearInitialCachedMarker() {
     if (document.documentElement) {
       delete document.documentElement.dataset.templatesCachedFallback;
+      delete document.documentElement.dataset.templatesFreshnessState;
     }
     preserveInitialEmbeddedCachedCommit = false;
   }
 
-  function setPendingDocumentCommit(url, representation, generation) {
-    const normalizedUrl = normalizedDocumentUrl(url);
-    if (!normalizedUrl || !Number.isSafeInteger(generation) || generation <= 0) {
+  function resetWorkerOrdering(nextWorkerInstanceId = null) {
+    workerInstanceId = nextWorkerInstanceId;
+    pendingDocumentCommit = null;
+    lastCommitGeneration = 0;
+    lastFreshnessGeneration = 0;
+  }
+
+  function adoptWorkerInstance(nextWorkerInstanceId) {
+    if (
+      typeof nextWorkerInstanceId !== "string" ||
+      nextWorkerInstanceId.length === 0
+    ) {
       return false;
     }
-    if (generation < lastCommitGeneration) {
+    if (workerInstanceId !== nextWorkerInstanceId) {
+      resetWorkerOrdering(nextWorkerInstanceId);
+    }
+    return true;
+  }
+
+  function acceptGeneration(generation, current) {
+    return (
+      Number.isSafeInteger(generation) &&
+      generation > 0 &&
+      generation >= current
+    );
+  }
+
+  function setPendingDocumentCommit(url, representation, generation) {
+    const normalizedUrl = normalizedDocumentUrl(url);
+    if (
+      !normalizedUrl ||
+      !acceptGeneration(generation, lastCommitGeneration)
+    ) {
       return false;
     }
     lastCommitGeneration = generation;
@@ -69,11 +129,45 @@
     return true;
   }
 
-  function applyCachedFreshnessState(url, generation) {
-    if (!setPendingDocumentCommit(url, "cached", generation)) {
+  function applyFreshnessState(data) {
+    const normalizedUrl = normalizedDocumentUrl(data.url);
+    if (!normalizedUrl) {
       return false;
     }
-    return showCachedUnverifiedStatus();
+    if (
+      data.awaitingCommit !== true &&
+      normalizedUrl !== normalizedDocumentUrl(window.location.href)
+    ) {
+      return false;
+    }
+    if (
+      !acceptGeneration(data.requestGeneration, lastFreshnessGeneration)
+    ) {
+      return false;
+    }
+    lastFreshnessGeneration = data.requestGeneration;
+
+    if (data.state === "verified-current") {
+      pendingDocumentCommit = null;
+      clearInitialCachedMarker();
+      clearFreshnessStatus();
+      return true;
+    }
+    if (
+      data.awaitingCommit === true &&
+      (data.state === "checking" || data.state === "cached-unverified")
+    ) {
+      if (
+        !setPendingDocumentCommit(
+          data.url,
+          "cached",
+          data.requestGeneration
+        )
+      ) {
+        return false;
+      }
+    }
+    return showFreshnessStatus(data.state);
   }
 
   function handleCommittedDocument() {
@@ -83,9 +177,15 @@
       pendingDocumentCommit = null;
       clearInitialCachedMarker();
       if (pending.representation === "cached") {
+        requestCurrentFreshnessState();
         return;
       }
+      lastFreshnessGeneration = Math.max(
+        lastFreshnessGeneration,
+        pending.generation
+      );
       clearFreshnessStatus();
+      requestCurrentFreshnessState();
       return;
     }
 
@@ -93,14 +193,18 @@
     if (
       !pending &&
       preserveInitialEmbeddedCachedCommit &&
-      embeddedStatus?.dataset.freshnessState === "cached-unverified"
+      ["checking", "cached-unverified", "update-available"].includes(
+        embeddedStatus?.dataset.freshnessState
+      )
     ) {
       clearInitialCachedMarker();
+      requestCurrentFreshnessState();
       return;
     }
 
     pendingDocumentCommit = null;
     clearInitialCachedMarker();
+    requestCurrentFreshnessState();
   }
 
   if (!document.querySelector('link[rel="manifest"]')) {
@@ -127,36 +231,67 @@
     return;
   }
 
+  function requestCurrentFreshnessState() {
+    const controller = navigator.serviceWorker.controller;
+    if (!controller) {
+      return;
+    }
+    controller.postMessage({
+      type: "templates:get-current-freshness-state",
+      url: window.location.href,
+    });
+  }
+
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    lastCommitGeneration = 0;
+    resetWorkerOrdering();
+    requestCurrentFreshnessState();
   });
 
   navigator.serviceWorker.addEventListener("message", (event) => {
     const data = event.data;
-    if (data?.type === "templates:document-commit") {
-      if (data.representation !== "network") {
-        return;
-      }
-      setPendingDocumentCommit(data.url, "network", data.requestGeneration);
-      return;
-    }
-
+    const controller = navigator.serviceWorker.controller;
     if (
-      data?.type !== "templates:freshness-state" ||
-      data.state !== "cached-unverified"
+      controller &&
+      event.source &&
+      event.source !== controller
     ) {
       return;
     }
-    const applied = applyCachedFreshnessState(data.url, data.requestGeneration);
+    if (
+      data?.type !== "templates:document-commit" &&
+      data?.type !== "templates:freshness-state"
+    ) {
+      return;
+    }
+    if (!adoptWorkerInstance(data.workerInstanceId)) {
+      return;
+    }
+
+    if (data.type === "templates:document-commit") {
+      if (data.representation !== "network") {
+        return;
+      }
+      setPendingDocumentCommit(
+        data.url,
+        "network",
+        data.requestGeneration
+      );
+      return;
+    }
+
+    const applied = applyFreshnessState(data);
     const acknowledgementPort = event.ports?.[0];
     if (applied && acknowledgementPort) {
       acknowledgementPort.postMessage({
         type: "templates:freshness-state-applied",
         state: data.state,
         requestGeneration: data.requestGeneration,
+        workerInstanceId: data.workerInstanceId,
       });
     }
   });
+
+  requestCurrentFreshnessState();
 
   const register = async () => {
     let registration;
@@ -174,6 +309,7 @@
       return;
     }
 
+    requestCurrentFreshnessState();
     try {
       await registration.update();
     } catch (error) {

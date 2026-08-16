@@ -77,10 +77,13 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('console.warn("Service worker registration failed", error)', registration)
         self.assertIn('console.warn("Service worker update check failed", error)', registration)
 
-    def test_registration_acknowledges_stale_state_and_clears_only_after_commit(self) -> None:
+    def test_registration_applies_freshness_states_and_clears_only_after_commit(self) -> None:
         registration = (ROOT / "assets/javascripts/pwa.js").read_text(encoding="utf-8")
         self.assertIn('data?.type !== "templates:freshness-state"', registration)
-        self.assertIn('data.state !== "cached-unverified"', registration)
+        self.assertIn("applyFreshnessState(data)", registration)
+        self.assertIn("lastFreshnessGeneration", registration)
+        for state in ("checking", "cached-unverified", "update-available", "verified-current"):
+            self.assertIn(f'"{state}"', registration)
         self.assertIn("pendingDocumentCommit", registration)
         self.assertIn("lastCommitGeneration", registration)
         self.assertIn("globalThis.document$", registration)
@@ -93,6 +96,8 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('const acknowledgementPort = event.ports?.[0]', registration)
         self.assertIn('type: "templates:freshness-state-applied"', registration)
         self.assertIn('type === "templates:document-commit"', registration)
+        self.assertIn('type: "templates:get-current-freshness-state"', registration)
+        self.assertIn("requestCurrentFreshnessState()", registration)
 
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -157,20 +162,18 @@ class PwaAssetTests(unittest.TestCase):
         )
         self.assertIn("function respondWithDocumentNetworkFirst(event)", worker)
         self.assertIn("const generation = beginDocumentRequest()", worker)
+        self.assertIn("const networkOutcomePromise = startDocumentNetworkRequest(event.request)", worker)
+        self.assertIn("softTimeoutSignal()", worker)
         self.assertIn("if (response.status === 404 || response.status === 410)", worker)
         self.assertIn("recordAuthoritativeDeletion(request, generation)", worker)
         self.assertIn("deleteCachedDocument(request, generation)", worker)
         self.assertIn("await caches.delete(DOCUMENT_CACHE_NAME)", worker)
         self.assertIn("if (response.status >= 500)", worker)
-        self.assertIn("cachedDocumentFallback(request)", worker)
+        self.assertIn("cachedDocumentFallback(", worker)
         self.assertIn("isCacheableDocumentResponse(response)", worker)
         self.assertIn("response.status !== 200", worker)
         self.assertIn('includes("text/html")', worker)
-        self.assertIn("const cachedResponse = response.clone();", worker)
-        self.assertIn(
-            "registerBackgroundTask(cacheVerifiedDocument(request, cachedResponse, generation))",
-            worker,
-        )
+        self.assertIn("cacheVerifiedDocument(request, response.clone(), generation)", worker)
         self.assertIn("const lifetimePromise = responsePromise", worker)
         self.assertIn("event.waitUntil(lifetimePromise)", worker)
         self.assertIn("event.respondWith(responsePromise)", worker)
@@ -185,17 +188,19 @@ class PwaAssetTests(unittest.TestCase):
             worker,
         )
 
-    def test_cached_document_fallback_is_always_marked_unverified(self) -> None:
+    def test_cached_document_fallback_is_explicitly_marked_by_state(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
         stylesheet = (ROOT / "assets/stylesheets/freshness-status.css").read_text(encoding="utf-8")
         self.assertIn('id="templates-freshness-status"', worker)
-        self.assertIn('data-freshness-state="cached-unverified"', worker)
+        self.assertIn('data-freshness-state="${state}"', worker)
+        self.assertIn("Checking for the latest version…", worker)
         self.assertIn("The latest version could not be verified.", worker)
-        self.assertIn('headers.set("X-Templates-Freshness", "cached-unverified")', worker)
+        self.assertIn('headers.set("X-Templates-Freshness", state)', worker)
         self.assertIn('headers.set("Cache-Control", "no-store")', worker)
         for header in ("Content-Encoding", "Content-Length", "ETag", "Last-Modified"):
             self.assertIn(f'"{header}"', worker)
-        self.assertIn("const decorated = injectCachedDocumentNotice(source)", worker)
+        self.assertIn("const decorated = injectCachedDocumentNotice(source, state)", worker)
+        self.assertIn('state !== "checking" && state !== "cached-unverified"', worker)
         self.assertIn("bodyClosures.length !== 1", worker)
         self.assertIn('id="templates-freshness-status-inline-style"', worker)
         self.assertIn("position: fixed", stylesheet)
@@ -203,14 +208,28 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_instant_navigation_cached_fallback_requires_ui_acknowledgement(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn("async function notifyInstantNavigationState(", worker)
+        self.assertIn("async function postFreshnessState(", worker)
+        self.assertIn("async function publishFreshnessState(", worker)
         self.assertIn("new MessageChannel()", worker)
         self.assertIn("FRESHNESS_UI_ACK_TIMEOUT_MS", worker)
         self.assertIn('type === "templates:freshness-state-applied"', worker)
         self.assertIn('url: event.request.url', worker)
         self.assertIn('requestGeneration: generation', worker)
-        self.assertIn('"cached-unverified",\n          true,\n          generation', worker)
-        self.assertNotIn('notifyInstantNavigationState(event, "verified-current")', worker)
+        self.assertIn('"checking",\n      generation,\n      true', worker)
+
+        start = worker.index("async function fallbackForCompletedFailure")
+        end = worker.index("async function handleCompletedDocumentNetwork", start)
+        fallback = worker[start:end]
+        navigation_start = fallback.index('if (event.request.mode === "navigate")')
+        acknowledgement_start = fallback.index("const acknowledged = await publishFreshnessState(")
+        self.assertIn(
+            'rememberFreshnessState(event, "cached-unverified", generation)',
+            fallback[navigation_start:acknowledgement_start],
+        )
+        self.assertIn(
+            '"cached-unverified",\n    generation,\n    true',
+            fallback[acknowledgement_start:],
+        )
 
     def test_service_worker_classifies_instant_navigation_document_paths(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
@@ -239,7 +258,8 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_service_worker_activation_cleanup_preserves_document_cache(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn('key.startsWith("templates-portal-shell-") && key !== CACHE_NAME', worker)
+        self.assertIn('key.startsWith("templates-portal-shell-")', worker)
+        self.assertIn("key !== CACHE_NAME", worker)
         self.assertIn("caches.delete(key)", worker)
         self.assertIn("self.clients.claim()", worker)
         self.assertNotIn('key.startsWith("templates-portal-documents-")', worker)
@@ -252,6 +272,8 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('type: "templates:freshness-capabilities"', worker)
         self.assertIn('siteVersionUrl: "/site-version.json"', worker)
         self.assertIn("documentCacheName: DOCUMENT_CACHE_NAME", worker)
+        self.assertIn("softTimeoutMs: DOCUMENT_SOFT_TIMEOUT_MS", worker)
+        self.assertIn("const DOCUMENT_SOFT_TIMEOUT_MS = 1500", worker)
 
     def test_service_worker_cache_miss_offline_response_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
@@ -265,6 +287,8 @@ class PwaAssetTests(unittest.TestCase):
         checker = (ROOT / "scripts/check_pwa_freshness.py").read_text(encoding="utf-8")
         self.assertIn("Check PWA freshness lifecycle", workflow)
         self.assertIn("python scripts/check_pwa_freshness.py", workflow)
+        self.assertIn("Check PWA slow-network convergence", workflow)
+        self.assertIn("python scripts/check_pwa_slow_convergence.py", workflow)
         self.assertIn('service_workers="allow"', checker)
         self.assertIn('worker_source + "\\n" + marker', checker)
         self.assertIn("state.record_hit", checker)

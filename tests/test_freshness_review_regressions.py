@@ -118,17 +118,22 @@ class FreshnessReviewRegressionTests(unittest.TestCase):
                 Path("index.html"),
             )
 
-    def test_service_worker_guards_capability_message_target(self) -> None:
+    def test_service_worker_guards_freshness_message_target(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
+        message_listener = worker[worker.index('self.addEventListener("message"') :]
 
-        self.assertIn(
-            'typeof event.source.postMessage !== "function"',
-            worker,
+        source_guard = message_listener.index(
+            'typeof event.source.postMessage !== "function"'
         )
-        self.assertIn(
-            'event.data?.type !== "templates:get-freshness-capabilities"',
-            worker,
+        capability_dispatch = message_listener.index(
+            'event.data?.type === "templates:get-freshness-capabilities"'
         )
+        current_state_dispatch = message_listener.index(
+            'event.data?.type === "templates:get-current-freshness-state"'
+        )
+        self.assertLess(source_guard, capability_dispatch)
+        self.assertLess(source_guard, current_state_dispatch)
+        self.assertIn("return;", message_listener[:capability_dispatch])
 
 
 if __name__ == "__main__":
