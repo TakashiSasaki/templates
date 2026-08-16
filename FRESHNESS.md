@@ -55,7 +55,7 @@ exactly one matching revision meta element before artifact upload can proceed.
 
 ## Runtime freshness states
 
-The Site reserves the following runtime state vocabulary:
+The Site uses the following runtime state vocabulary:
 
 - `verified-current`: the current document or supported read-model request was
   successfully obtained or revalidated from the network;
@@ -63,14 +63,17 @@ The Site reserves the following runtime state vocabulary:
   is still pending;
 - `cached-unverified`: a stored document or explicitly supported read model is
   being used because current network freshness could not be verified;
-- `update-available`: a newer verified response has been obtained while an older
-  stored document remains visible.
+- `update-available`: a newer or materially different verified response has been
+  obtained while an older stored document remains visible.
 
 The Service Worker exposes this vocabulary through the
 `templates:get-freshness-capabilities` / `templates:freshness-capabilities`
 message contract together with `/site-version.json`, the document-cache
-namespace, the Glossary-cache namespace, and the integrated Glossary model URL.
-Matching build identity alone never establishes `verified-current`.
+namespace, the Glossary-cache namespace, the integrated Glossary model URL, and
+`softTimeoutMs: 1500`. The capability response also identifies the current
+Service Worker instance so request-generation ordering cannot be confused across
+a normal worker restart. Matching build identity alone never establishes
+`verified-current`.
 
 ## Runtime document-cache behavior
 
@@ -85,10 +88,11 @@ Storage consumption of the same body stream.
 
 The fetch event registers its document-lifetime promise synchronously inside the
 Service Worker event callback, before asynchronous network completion. The
-response promise later binds any cache-write task into that already-registered
-lifetime. Code must not make its first `waitUntil()` call only after awaiting the
-network response; background cache work must remain covered by the original
-trusted event lifetime.
+response promise later binds any cache-write or slow-network convergence task
+into that already-registered lifetime. Code must not make its first `waitUntil()`
+call only after awaiting the network response or the soft timeout; background
+cache and convergence work must remain covered by the original trusted event
+lifetime.
 
 The runtime document cache is `templates-portal-documents-v1`, independent of the
 versioned shell cache. Service Worker activation removes incompatible shell
@@ -109,38 +113,81 @@ Network outcomes have distinct semantics:
   cache entry when its request generation is not stale;
 - HTTP 404 or 410: mark the request generation authoritative, remove the exact
   cached document before returning the network response, and if entry deletion
-  fails attempt to delete the entire document-cache namespace rather than
+  throws attempt to delete the entire document-cache namespace rather than
   knowingly preserve an authoritative stale copy;
 - ordinary non-transient 4xx such as 403: return the network response and do not
-  fall back to stale documentation;
+  fall back to stale documentation when it completes before cached content has
+  been exposed;
 - HTTP 5xx: return cached documentation only when stale indication can be proven;
   otherwise return the original 5xx;
 - network/DNS/TLS/connection failure: return cached documentation only when stale
   indication can be proven; otherwise return the explicit HTTP 503 fallback.
+
+### Slow-network convergence
+
+A document request has a 1500 ms soft timeout. The timeout does not abort, cancel,
+or replace the original network request. If the network completes before the
+soft timeout, ordinary network-first behavior applies. If no safe stored document
+exists when the timeout expires, the browser continues waiting for the original
+network result rather than synthesizing an early failure.
+
+If a safe stored document does exist after the timeout, the Site may expose that
+stored representation with the explicit `checking` state while the original
+network request continues. Full navigation carries `checking` in the decorated
+HTML itself. Instant navigation must first apply and acknowledge the persistent
+`checking` UI through the same generation-bound `MessageChannel` safety gate used
+for `cached-unverified` fallback.
+
+Background completion never replaces the visible document automatically. It
+converges the freshness state instead:
+
+- matching cached and network `templates-site-revision` values become
+  `verified-current`;
+- a different revision, a cache-ineligible successful response, an unextractable
+  or ambiguous revision, or authoritative 404/410 becomes `update-available`;
+- a network failure or other completed result that cannot verify the visible
+  saved representation becomes `cached-unverified`.
+
+`update-available` exposes an explicit Reload action. The user remains in control
+of the representation change. The Service Worker reads revision metadata without
+assuming HTML attribute order, accepts ordinary quoted or unquoted attribute
+values, ignores commented-out metadata, requires one unambiguous valid full SHA,
+and fails conservatively to `update-available` when identity cannot be established.
+
+The worker retains a bounded amount of per-document and per-client freshness state
+so a page that starts listening after an earlier message can request the current
+state with `templates:get-current-freshness-state`. Each state is ordered by the
+request generation and scoped to a randomly generated Service Worker instance ID.
+A worker restart therefore establishes a new ordering epoch rather than causing a
+new low generation to be rejected by an already-open page. Client code also checks
+the exact document URL before applying a non-commit freshness update, and a newer
+committed network representation retires older convergence for that visible
+document. These rules prevent late slow requests from adding or clearing warnings
+on a different or newer page.
 
 ### Full-navigation stale indication
 
 For a full browser navigation, the cached HTML response itself carries the
 freshness indication. The Service Worker requires one unambiguous `<html>` start
 tag, one `<body>` start tag, and one closing `</body>` tag. It marks the cached
-representation with `data-templates-cached-fallback="true"` on `<html>` and
-inserts the `templates-freshness-status` element immediately after the opening
-`<body>` tag, before later page scripts can execute. If those boundaries cannot
-be established consistently, the cached representation fails closed and is not
-exposed.
+representation with `data-templates-cached-fallback="true"` and its current
+freshness state on `<html>`, and inserts the `templates-freshness-status` element
+immediately after the opening `<body>` tag, before later page scripts can execute.
+If those boundaries cannot be established consistently, the cached representation
+fails closed and is not exposed.
 
 The decorated representation also includes a minimal inline fallback style for
-the status element. This makes the warning fixed at the top of standalone pages
-whose CSP permits their existing inline styles but which do not load the shared
-`freshness-status.css`; ordinary Site pages continue to receive the equivalent
-shared stylesheet. The inline fallback contains only fixed Site-owned CSS and no
-content-derived values.
+the status element and Reload action. This makes the warning fixed at the top of
+standalone pages whose CSP permits their existing inline styles but which do not
+load the shared `freshness-status.css`; ordinary Site pages continue to receive
+the equivalent shared stylesheet. The inline fallback contains only fixed
+Site-owned CSS and no content-derived values.
 
 A full-navigation page may emit Zensical's `document$` event during initial page
 setup. `pwa.js` therefore reads the explicit `<html>` cached-representation marker
-(and accepts an already present `cached-unverified` status as a defensive
-fallback), preserves the warning across the initial commit, and consumes the
-marker only when that cached commit boundary is observed. The initial event is
+(and accepts an already present `checking` or `cached-unverified` status as a
+defensive fallback), preserves the warning across the initial commit, and consumes
+the marker only when that cached commit boundary is observed. The initial event is
 not interpreted as proof of fresh content.
 
 ### Instant-navigation stale indication, acknowledgement, and commit boundary
@@ -148,29 +195,32 @@ not interpreted as proof of fresh content.
 A document-like fetch used by instant navigation cannot assume that an indication
 embedded in fetched HTML will survive partial-DOM replacement. Before returning
 a cached response for such a request, the Service Worker sends the requesting
-client a `templates:freshness-state` message carrying `cached-unverified`, the
-exact request URL, the request generation, and a `MessageChannel`
-acknowledgement port.
+client a `templates:freshness-state` message carrying `checking` or
+`cached-unverified`, the exact request URL, the request generation, the current
+worker-instance ID, and a `MessageChannel` acknowledgement port.
 
 Current `pwa.js` applies that state to persistent DOM by creating the same fixed
 status element and records a pending commit whose representation is `cached`.
 It then replies through the port with `templates:freshness-state-applied`,
-echoing the state and request generation. The Service Worker waits for that exact
-acknowledgement, with a bounded timeout, before returning cached HTML.
+echoing the state, request generation, and worker-instance ID. The Service Worker
+waits for that exact acknowledgement, with a bounded timeout, before returning
+cached HTML.
 
 This acknowledgement is a safety condition, not an optimization. If an older
 open page is controlled by the updated worker but still runs a client script that
 does not implement the freshness UI, no acknowledgement arrives. The worker then
 refuses to expose cached HTML: a network failure returns the explicit 503 and a
-transient HTTP 5xx returns the original 5xx.
+transient HTTP 5xx returns the original 5xx. A slow request whose `checking`
+acknowledgement cannot be established keeps waiting for the original network
+result instead of exposing an unindicated stored document.
 
 Network response completion and document replacement are separate events under
 Zensical instant navigation. The worker therefore sends a separate
 `templates:document-commit` intent for non-cached network representations. That
-message carries the exact URL, representation kind, and request generation, but
-does not clear an existing warning. `pwa.js` retains only the newest observed
-commit generation and waits for Zensical's `document$` event before acting on the
-pending representation.
+message carries the exact URL, representation kind, request generation, and
+worker-instance ID, but does not clear an existing warning. `pwa.js` retains only
+the newest observed commit generation and waits for Zensical's `document$` event
+before acting on the pending representation.
 
 At the document-commit boundary, a committed `cached` representation keeps the
 warning and consumes its pending marker. A committed `network` representation
@@ -178,6 +228,8 @@ clears the warning. This representation-aware correlation prevents two opposite
 failures: a successful fetch that is prefetched or cancelled cannot clear a stale
 warning before it is rendered, and a later fresh retry to the same URL cannot be
 mistaken for an earlier cancelled cached fallback merely because the URLs match.
+An uncorrelated `document$` event alone is never authority to clear the freshness
+warning.
 
 This fail-safe ordering deliberately permits an old warning to remain longer than
 necessary if a non-Zensical surface cannot expose a document-commit signal. It
@@ -186,8 +238,8 @@ finished before the caller replaced the visible DOM.
 
 ### Synthetic cached document response
 
-Cached document fallback responses carry
-`X-Templates-Freshness: cached-unverified` and `Cache-Control: no-store`.
+Cached document fallback responses carry `X-Templates-Freshness` with either
+`checking` or `cached-unverified`, as appropriate, and `Cache-Control: no-store`.
 Because the cached HTML body is modified, `Content-Encoding`, `Content-Length`,
 `ETag`, and `Last-Modified` are removed. A cached response that is not HTML,
 cannot be read, has a redirected final URL different from the exact request URL,
@@ -202,7 +254,8 @@ The integrated `/glossary/index.json` read model has a separate runtime cache,
 `templates-portal-glossary-v1`. It is deliberately not part of `STATIC_ASSETS`:
 online Glossary activation remains network-first and uses `cache: "no-cache"`,
 so a previously saved definition is never preferred merely because the shell is
-available.
+available. The document soft timeout does not implicitly apply to this independent
+Glossary route.
 
 A Glossary response is cacheable only when it is same-origin HTTP 200 and its
 `Content-Type` is JSON (`application/json` or a `+json` media type). Successful
@@ -295,8 +348,21 @@ The Chromium freshness lifecycle verifies at least:
 - transient 5xx may fall back only with acknowledged stale indication;
 - authoritative 404 removes the cached document so later offline access cannot
   resurrect it, including when an older delayed 200 completes afterward;
+- a slow cache miss continues waiting for the original network response after the
+  1500 ms soft timeout;
+- a slow cache hit can expose `checking` without aborting the original network
+  request, and background completion converges without replacing visible DOM;
+- matching and reversed-order revision metadata converge to `verified-current`,
+  while missing/ambiguous revision metadata or a non-HTML success converges to
+  `update-available`;
+- slow network failure or transient failure after `checking` converges to
+  `cached-unverified`;
+- direct full navigation can expose its self-marked stored representation without
+  requiring a pre-existing client acknowledgement;
+- Service Worker restart, previous-document completion, and newer same-URL network
+  commit races cannot apply an older freshness conclusion to the visible page;
 - Service Worker update propagation, manifest convergence, and the live
-  freshness-capability message contract remain valid.
+  freshness-capability message contract, including `softTimeoutMs`, remain valid.
 
 Glossary-specific regression coverage additionally preserves the dedicated
 network-first cache route, generation-ordered authoritative deletion, exact-byte
@@ -306,10 +372,12 @@ checker may extend this list without changing the freshness semantics above.
 
 ## Evolution rule
 
-`checking` and `update-available` remain reserved for the later slow-network
-convergence phase. A future soft timeout may reveal cached content while a network
-request remains pending, but it must not cancel the request or be treated as proof
-that the cached copy is current.
+Slow-network convergence is part of the active runtime contract. Future tuning may
+change timeout values or extend supported read models only if the capability
+contract and browser regression evidence are updated together. Such changes must
+not turn a soft timeout into cancellation, must not infer freshness from build
+identity alone, and must not replace visible document content automatically after
+background verification.
 
 Any future change must preserve the central invariant: a document or reader-visible
 semantic read model whose current network freshness has not been verified is
