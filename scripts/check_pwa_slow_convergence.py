@@ -304,30 +304,126 @@ def _reload_from_status(page: Any) -> None:
 
 
 def _exercise_worker_epoch_reset(page: Any) -> None:
-    applied = page.evaluate(
+    result = page.evaluate(
         """async () => {
           const controller = navigator.serviceWorker.controller;
-          if (!controller) return false;
-          const workerInstanceId = "fixture-worker-instance-after-restart";
+          if (!controller) return { priorApplied: false, resetApplied: false };
+          const dispatchState = async (workerInstanceId, requestGeneration) => {
+            const channel = new MessageChannel();
+            return await new Promise((resolve) => {
+              const timer = setTimeout(() => resolve(false), 2000);
+              channel.port1.onmessage = (event) => {
+                const data = event.data;
+                clearTimeout(timer);
+                resolve(
+                  data?.type === "templates:freshness-state-applied" &&
+                  data.state === "cached-unverified" &&
+                  data.requestGeneration === requestGeneration &&
+                  data.workerInstanceId === workerInstanceId
+                );
+              };
+              navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+                data: {
+                  type: "templates:freshness-state",
+                  state: "cached-unverified",
+                  url: window.location.href,
+                  requestGeneration,
+                  workerInstanceId,
+                  awaitingCommit: true,
+                },
+                source: controller,
+                ports: [channel.port2],
+              }));
+            });
+          };
+          const priorApplied = await dispatchState(
+            "fixture-worker-instance-before-restart",
+            9
+          );
+          const resetApplied = await dispatchState(
+            "fixture-worker-instance-after-restart",
+            1
+          );
+          return { priorApplied, resetApplied };
+        }"""
+    )
+    if result != {"priorApplied": True, "resetApplied": True}:
+        raise PwaSlowConvergenceError(
+            f"worker-instance epoch did not reset request generation ordering: {result!r}"
+        )
+    _wait_for_state(page, "cached-unverified")
+
+
+def _exercise_verified_current_commit_deferral(page: Any) -> None:
+    state = page.evaluate(
+        """async () => {
+          const controller = navigator.serviceWorker.controller;
+          if (!controller) return null;
+          const workerInstanceId = "fixture-verified-current-deferral";
+          const generation = 11;
           const channel = new MessageChannel();
-          return await new Promise((resolve) => {
+          const applied = await new Promise((resolve) => {
             const timer = setTimeout(() => resolve(false), 2000);
             channel.port1.onmessage = (event) => {
-              const data = event.data;
               clearTimeout(timer);
-              resolve(
-                data?.type === "templates:freshness-state-applied" &&
-                data.state === "cached-unverified" &&
-                data.requestGeneration === 1 &&
-                data.workerInstanceId === workerInstanceId
-              );
+              resolve(event.data?.type === "templates:freshness-state-applied");
             };
             navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
               data: {
                 type: "templates:freshness-state",
-                state: "cached-unverified",
+                state: "checking",
                 url: window.location.href,
-                requestGeneration: 1,
+                requestGeneration: generation,
+                workerInstanceId,
+                awaitingCommit: true,
+              },
+              source: controller,
+              ports: [channel.port2],
+            }));
+          });
+          if (!applied) return "ack-failed";
+          navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+            data: {
+              type: "templates:freshness-state",
+              state: "verified-current",
+              url: window.location.href,
+              requestGeneration: generation,
+              workerInstanceId,
+              awaitingCommit: false,
+            },
+            source: controller,
+          }));
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return document.getElementById("templates-freshness-status")?.dataset.freshnessState ?? null;
+        }"""
+    )
+    if state != "checking":
+        raise PwaSlowConvergenceError(
+            f"verified-current cleared warning before cached commit: {state!r}"
+        )
+    page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/document/')")
+    _wait_for_no_state(page)
+
+
+def _exercise_interrupted_commit_cleanup(page: Any) -> None:
+    applied = page.evaluate(
+        """async () => {
+          const controller = navigator.serviceWorker.controller;
+          if (!controller) return false;
+          const channel = new MessageChannel();
+          const workerInstanceId = "fixture-interrupted-commit";
+          return await new Promise((resolve) => {
+            const timer = setTimeout(() => resolve(false), 2000);
+            channel.port1.onmessage = (event) => {
+              clearTimeout(timer);
+              resolve(event.data?.type === "templates:freshness-state-applied");
+            };
+            navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+              data: {
+                type: "templates:freshness-state",
+                state: "checking",
+                url: window.location.href,
+                requestGeneration: 13,
                 workerInstanceId,
                 awaitingCommit: true,
               },
@@ -338,10 +434,49 @@ def _exercise_worker_epoch_reset(page: Any) -> None:
         }"""
     )
     if applied is not True:
-        raise PwaSlowConvergenceError(
-            "new worker-instance epoch did not accept a reset request generation"
-        )
+        raise PwaSlowConvergenceError("interrupted-commit setup was not acknowledged")
+    _wait_for_state(page, "checking")
+    page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/interrupted/')")
+    _wait_for_no_state(page)
+    page.evaluate("() => history.replaceState({}, '', '/document/')")
+
+
+def _exercise_controllerchange_missing_state_recovery(page: Any) -> None:
+    applied = page.evaluate(
+        """async () => {
+          history.pushState({}, "", "/recovery-only/");
+          const controller = navigator.serviceWorker.controller;
+          if (!controller) return false;
+          const channel = new MessageChannel();
+          const workerInstanceId = "fixture-controllerchange-before-recovery";
+          const acknowledged = await new Promise((resolve) => {
+            const timer = setTimeout(() => resolve(false), 2000);
+            channel.port1.onmessage = (event) => {
+              clearTimeout(timer);
+              resolve(event.data?.type === "templates:freshness-state-applied");
+            };
+            navigator.serviceWorker.dispatchEvent(new MessageEvent("message", {
+              data: {
+                type: "templates:freshness-state",
+                state: "checking",
+                url: window.location.href,
+                requestGeneration: 15,
+                workerInstanceId,
+                awaitingCommit: true,
+              },
+              source: controller,
+              ports: [channel.port2],
+            }));
+          });
+          if (!acknowledged) return false;
+          navigator.serviceWorker.dispatchEvent(new Event("controllerchange"));
+          return true;
+        }"""
+    )
+    if applied is not True:
+        raise PwaSlowConvergenceError("controllerchange recovery setup failed")
     _wait_for_state(page, "cached-unverified")
+    page.evaluate("() => history.replaceState({}, '', '/document/')")
 
 
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
@@ -538,11 +673,25 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             page.reload(wait_until="load", timeout=10_000)
             _wait_for_no_state(page)
             if page.locator("#document-version").inner_text() != "document-v4":
-                raise PwaSlowConvergenceError("worker-epoch setup did not render v4")
+                raise PwaSlowConvergenceError("race-regression setup did not render v4")
+
+            _exercise_verified_current_commit_deferral(page)
+            evidence["verified_current_waited_for_cached_commit"] = True
+            page.reload(wait_until="load", timeout=10_000)
+            _wait_for_no_state(page)
+
+            _exercise_interrupted_commit_cleanup(page)
+            evidence["interrupted_commit_warning_cleared"] = True
+            page.reload(wait_until="load", timeout=10_000)
+            _wait_for_no_state(page)
+
+            _exercise_controllerchange_missing_state_recovery(page)
+            evidence["controllerchange_missing_state_downgraded"] = True
+            page.reload(wait_until="load", timeout=10_000)
+            _wait_for_no_state(page)
 
             _exercise_worker_epoch_reset(page)
             evidence["worker_restart_generation_reset"] = True
-
             page.reload(wait_until="load", timeout=10_000)
             _wait_for_no_state(page)
 
@@ -579,7 +728,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             previous_document = _fetch_html(page, "/document/")
             if previous_document["freshness"] != "checking":
                 raise PwaSlowConvergenceError("previous-document ordering setup did not enter checking")
-            page.goto(base_url + "/", wait_until="load", timeout=10_000)
+            page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/')")
+            _wait_for_no_state(page)
             page.wait_for_timeout(1600)
             if _freshness_state(page) is not None:
                 raise PwaSlowConvergenceError(
