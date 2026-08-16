@@ -44,6 +44,8 @@ class PwaCapabilityRegressionTests(unittest.TestCase):
         self.assertIn('capabilities.get("glossaryCacheName")', source)
         self.assertIn('capabilities.get("glossaryModelUrl")', source)
         self.assertIn('capabilities.get("softTimeoutMs")', source)
+        self.assertIn('capabilities.get("workerInstanceId")', source)
+        self.assertIn('not isinstance(worker_instance_id, str) or not worker_instance_id', source)
         self.assertIn('service_workers="allow"', source)
         self.assertIn("}, 5000);", source)
 
@@ -52,6 +54,7 @@ class PwaCapabilityRegressionTests(unittest.TestCase):
         self.assertIn("glossaryCacheName: GLOSSARY_CACHE_NAME", worker)
         self.assertIn("glossaryModelUrl: GLOSSARY_MODEL_PATH", worker)
         self.assertIn("softTimeoutMs: DOCUMENT_SOFT_TIMEOUT_MS", worker)
+        self.assertIn("workerInstanceId: WORKER_INSTANCE_ID", worker)
 
     def test_checker_validates_all_service_worker_install_assets_before_browser_start(self) -> None:
         source = CHECKER.read_text(encoding="utf-8")
