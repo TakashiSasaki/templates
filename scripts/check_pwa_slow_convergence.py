@@ -273,6 +273,23 @@ def _wait_for_document_cache(page: Any, path: str = "/document/") -> None:
     )
 
 
+def _wait_for_cached_document_text(
+    page: Any,
+    expected_text: str,
+    path: str = "/document/",
+) -> None:
+    page.wait_for_function(
+        """async ([cacheName, path, expectedText]) => {
+          const cache = await caches.open(cacheName);
+          const response = await cache.match(path);
+          if (!response) return false;
+          return (await response.text()).includes(expectedText);
+        }""",
+        arg=[DOCUMENT_CACHE_NAME, path, expected_text],
+        timeout=10_000,
+    )
+
+
 def _fetch_html(page: Any, path: str) -> dict[str, Any]:
     result = page.evaluate(
         """async ([path, timeoutMs]) => await Promise.race([
@@ -569,7 +586,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 raise PwaSlowConvergenceError("verified v2 retained a freshness warning")
 
             state.configure(
-                version=2,
+                version=22,
                 revision=REVISION_V2.upper(),
                 delay_ms=2600,
                 reverse_revision_attributes=True,
@@ -577,7 +594,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             same_revision = _fetch_html(page, "/document/")
             if same_revision["freshness"] != "checking" or "document-v2" not in same_revision["body"]:
                 raise PwaSlowConvergenceError("reordered revision-meta path did not begin in checking")
-            page.wait_for_timeout(1600)
+            _wait_for_cached_document_text(page, "document-v22")
             if _freshness_state(page) != "checking":
                 raise PwaSlowConvergenceError(
                     "matching revision cleared checking before cached document commit"
