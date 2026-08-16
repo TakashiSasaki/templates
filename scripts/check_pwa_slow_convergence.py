@@ -24,6 +24,7 @@ REVISION_V4 = "4" * 40
 REVISION_V5 = "5" * 40
 REVISION_V6 = "6" * 40
 REVISION_V7 = "7" * 40
+FETCH_CHECK_TIMEOUT_MS = 10_000
 DOCUMENT_OBSERVABLE_FIXTURE = """<script>
 globalThis.__pwaDocumentSubscribers = [];
 globalThis.document$ = {
@@ -273,17 +274,28 @@ def _wait_for_document_cache(page: Any, path: str = "/document/") -> None:
 
 
 def _fetch_html(page: Any, path: str) -> dict[str, Any]:
-    return page.evaluate(
-        """async (path) => {
-          const response = await fetch(path, { headers: { Accept: "text/html" } });
-          return {
-            status: response.status,
-            freshness: response.headers.get("X-Templates-Freshness"),
-            body: await response.text(),
-          };
-        }""",
-        path,
+    result = page.evaluate(
+        """async ([path, timeoutMs]) => await Promise.race([
+          (async () => {
+            const response = await fetch(path, { headers: { Accept: "text/html" } });
+            return {
+              status: response.status,
+              freshness: response.headers.get("X-Templates-Freshness"),
+              body: await response.text(),
+            };
+          })(),
+          new Promise((resolve) => setTimeout(
+            () => resolve({ timedOut: true, path }),
+            timeoutMs
+          )),
+        ])""",
+        [path, FETCH_CHECK_TIMEOUT_MS],
     )
+    if result.get("timedOut"):
+        raise PwaSlowConvergenceError(
+            f"document fetch did not settle within {FETCH_CHECK_TIMEOUT_MS} ms: {path}"
+        )
+    return result
 
 
 def _reload_from_status(page: Any) -> None:
