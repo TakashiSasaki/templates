@@ -203,6 +203,22 @@ function rememberFreshnessState(event, state, generation) {
   return true;
 }
 
+function forgetFreshnessStateThroughGeneration(map, key, urlKey, generation) {
+  if (!key || !urlKey) {
+    return;
+  }
+  const stored = map.get(key);
+  if (!stored || stored.urlKey !== urlKey) {
+    return;
+  }
+  if (
+    !Number.isSafeInteger(stored.generation) ||
+    stored.generation <= generation
+  ) {
+    map.delete(key);
+  }
+}
+
 function recordAuthoritativeDeletion(request, generation) {
   const key = request.url;
   const appliedGeneration = documentCacheMutationGenerations.get(key) || 0;
@@ -528,6 +544,10 @@ async function readSiteRevision(response) {
       /<!--[\s\S]*?-->/g,
       ""
     );
+    source = source.replace(
+      /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+      ""
+    );
     const revisions = [];
     const tags = source.match(/<meta\b[^>]*>/gi) || [];
     for (const tag of tags) {
@@ -603,8 +623,19 @@ async function handleCompletedDocumentNetwork(
   const response = outcome.response;
   if (response.status === 404 || response.status === 410) {
     await clearAuthoritativeCachedDocument(request, generation);
-    clientFreshnessStates.delete(freshnessClientId(event));
-    documentFreshnessStates.delete(documentStateKey(request.url));
+    const stateKey = documentStateKey(request.url);
+    forgetFreshnessStateThroughGeneration(
+      clientFreshnessStates,
+      freshnessClientId(event),
+      stateKey,
+      generation
+    );
+    forgetFreshnessStateThroughGeneration(
+      documentFreshnessStates,
+      stateKey,
+      stateKey,
+      generation
+    );
     await notifyInstantNavigationCommit(event, "network", generation);
     return response;
   }
@@ -1050,12 +1081,25 @@ self.addEventListener("message", (event) => {
     const sourceId = event.source.id || "";
     const stateKey = documentStateKey(event.data.url || "");
     const clientState = clientFreshnessStates.get(sourceId);
-    const state =
+    let state =
       clientState && clientState.urlKey === stateKey
         ? clientState
         : stateKey
           ? documentFreshnessStates.get(stateKey)
           : undefined;
+    if (!state && stateKey && event.data.currentState === "checking") {
+      const recoveryGeneration = Math.max(nextDocumentRequestGeneration, 1);
+      nextDocumentRequestGeneration = recoveryGeneration;
+      state = {
+        state: "cached-unverified",
+        generation: recoveryGeneration,
+        urlKey: stateKey,
+      };
+      rememberBounded(documentFreshnessStates, stateKey, state);
+      if (sourceId) {
+        rememberBounded(clientFreshnessStates, sourceId, state);
+      }
+    }
     if (state) {
       event.source.postMessage({
         type: "templates:freshness-state",
