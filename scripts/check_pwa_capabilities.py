@@ -130,6 +130,9 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
         raise PwaCapabilityError(f"unexpected freshness glossaryModelUrl: {capabilities!r}")
     if capabilities.get("softTimeoutMs") != EXPECTED_SOFT_TIMEOUT_MS:
         raise PwaCapabilityError(f"unexpected freshness softTimeoutMs: {capabilities!r}")
+    worker_instance_id = capabilities.get("workerInstanceId")
+    if not isinstance(worker_instance_id, str) or not worker_instance_id:
+        raise PwaCapabilityError(f"unexpected freshness workerInstanceId: {capabilities!r}")
 
     evidence = {"base_url": base_url, "capabilities": capabilities}
     if output is not None:
