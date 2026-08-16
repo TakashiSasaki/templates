@@ -19,6 +19,22 @@
   font-weight: 700;
 }
 
+.freshness-status__reload {
+  margin-inline-start: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 0.0625rem solid currentColor;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.freshness-status__reload:focus-visible {
+  outline: 0.125rem solid currentColor;
+  outline-offset: 0.125rem;
+}
+
 @media (max-width: 800px) {
   .freshness-status {
     padding-inline: 0.55rem;

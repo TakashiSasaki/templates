@@ -113,6 +113,12 @@ jobs:
             --site-root build/site \
             --output build/mobile-visual/pwa-document-commit.json
 
+      - name: Check PWA slow-network convergence
+        run: |
+          python scripts/check_pwa_slow_convergence.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-slow-convergence.json
+
       - name: Check PWA freshness capability messaging
         run: |
           python scripts/check_pwa_capabilities.py \

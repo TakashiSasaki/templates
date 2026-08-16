@@ -26,8 +26,20 @@ class PwaFreshReviewRegressionTests(unittest.TestCase):
         handler_end = self.client.index("\n\n  if (!document.querySelector", handler_start)
         handler = self.client[handler_start:handler_end]
         self.assertIn('pending.representation === "cached"', handler)
-        self.assertIn("clearFreshnessStatus();", handler)
-        self.assertEqual(handler.count("clearFreshnessStatus();"), 1)
+        self.assertIn("if (pending && committedUrl !== pending.url)", handler)
+
+        mismatch_start = handler.index("if (pending && committedUrl !== pending.url)")
+        embedded_start = handler.index("const embeddedStatus", mismatch_start)
+        mismatch_branch = handler[mismatch_start:embedded_start]
+        self.assertIn("clearFreshnessStatus();", mismatch_branch)
+        self.assertIn("requestCurrentFreshnessState();", mismatch_branch)
+
+        unmatched_tail_start = handler.index(
+            "    pendingDocumentCommit = null;",
+            embedded_start,
+        )
+        unmatched_tail = handler[unmatched_tail_start:]
+        self.assertNotIn("clearFreshnessStatus();", unmatched_tail)
         self.assertTrue(handler.rstrip().endswith("clearInitialCachedMarker();\n  }"))
 
 

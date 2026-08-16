@@ -25,28 +25,59 @@ const FRESHNESS_STATES = Object.freeze([
   "cached-unverified",
   "update-available",
 ]);
-const CACHED_DOCUMENT_NOTICE =
-  '<style id="templates-freshness-status-inline-style">' +
-  '#templates-freshness-status{position:fixed;inset-block-start:0;inset-inline:0;z-index:1000;' +
-  'box-sizing:border-box;width:100%;margin:0;padding:.55rem .8rem;border-block:.125rem solid currentColor;' +
-  'background:Canvas;color:CanvasText;font:normal .8rem/1.35 system-ui,sans-serif;text-align:center}' +
-  '#templates-freshness-status strong{font-weight:700}' +
-  '@media(max-width:800px){#templates-freshness-status{padding-inline:.55rem;font-size:.75rem}}' +
-  '</style>' +
-  '<aside id="templates-freshness-status" ' +
-  'class="freshness-status freshness-status--cached" ' +
-  'data-freshness-state="cached-unverified" role="status" aria-live="polite">' +
-  '<strong>Saved copy.</strong> The latest version could not be verified.' +
-  "</aside>";
+const WORKER_INSTANCE_ID = self.crypto.randomUUID();
+const DOCUMENT_SOFT_TIMEOUT_MS = 1500;
 const FRESHNESS_UI_ACK_TIMEOUT_MS = 500;
+const MAX_REMEMBERED_FRESHNESS_STATES = 64;
+
 const documentCacheMutationQueues = new Map();
 const documentCacheMutationGenerations = new Map();
 const authoritativeDocumentDeletions = new Map();
+const clientFreshnessStates = new Map();
+const documentFreshnessStates = new Map();
 let nextDocumentRequestGeneration = 0;
+
 let nextGlossaryRequestGeneration = 0;
 let glossaryCacheMutationGeneration = 0;
 let glossaryCacheMutationQueue = Promise.resolve();
 let authoritativeGlossaryDeletionGeneration = 0;
+
+function freshnessInlineStyle() {
+  return (
+    '<style id="templates-freshness-status-inline-style">' +
+    '#templates-freshness-status{position:fixed;inset-block-start:0;inset-inline:0;z-index:1000;' +
+    'box-sizing:border-box;width:100%;margin:0;padding:.55rem .8rem;border-block:.125rem solid currentColor;' +
+    'background:Canvas;color:CanvasText;font:normal .8rem/1.35 system-ui,sans-serif;text-align:center}' +
+    '#templates-freshness-status strong{font-weight:700}' +
+    '#templates-freshness-status .freshness-status__reload{margin-inline-start:.35rem;padding:.15rem .5rem;' +
+    'border:.0625rem solid currentColor;border-radius:.25rem;background:transparent;color:inherit;font:inherit;cursor:pointer}' +
+    '#templates-freshness-status .freshness-status__reload:focus-visible{outline:.125rem solid currentColor;outline-offset:.125rem}' +
+    '@media(max-width:800px){#templates-freshness-status{padding-inline:.55rem;font-size:.75rem}}' +
+    '</style>'
+  );
+}
+
+function freshnessNoticeHtml(state) {
+  let className;
+  let message;
+  if (state === "checking") {
+    className = "freshness-status freshness-status--checking";
+    message = '<strong>Saved copy.</strong> Checking for the latest version…';
+  } else if (state === "cached-unverified") {
+    className = "freshness-status freshness-status--cached-unverified";
+    message = '<strong>Saved copy.</strong> The latest version could not be verified.';
+  } else {
+    return undefined;
+  }
+  return (
+    freshnessInlineStyle() +
+    '<aside id="templates-freshness-status" ' +
+    `class="${className}" data-freshness-state="${state}" ` +
+    'role="status" aria-live="polite">' +
+    message +
+    "</aside>"
+  );
+}
 
 function offlineResponse() {
   return new Response("This page is unavailable while offline.\n", {
@@ -60,25 +91,20 @@ function isDocumentRequest(request, url) {
   if (url.pathname.startsWith("/repository-trees/previews/")) {
     return false;
   }
-
   if (request.mode === "navigate") {
     return true;
   }
-
   if (request.destination !== "") {
     return false;
   }
-
   const accept = request.headers.get("Accept") || "";
   if (accept.toLowerCase().includes("text/html")) {
     return true;
   }
-
   const pathname = url.pathname;
   if (pathname.endsWith("/") || pathname.endsWith(".html")) {
     return true;
   }
-
   const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
   return lastSegment.length > 0 && !lastSegment.includes(".");
 }
@@ -88,10 +114,7 @@ function fetchFreshDocument(request) {
 }
 
 function isCacheableDocumentResponse(response) {
-  if (response.status !== 200) {
-    return false;
-  }
-  if (!response.url) {
+  if (response.status !== 200 || !response.url) {
     return false;
   }
   try {
@@ -109,6 +132,108 @@ function isCacheableDocumentResponse(response) {
 function beginDocumentRequest() {
   nextDocumentRequestGeneration += 1;
   return nextDocumentRequestGeneration;
+}
+
+function documentStateKey(urlString) {
+  try {
+    const url = new URL(urlString);
+    if (url.origin !== self.location.origin) {
+      return undefined;
+    }
+    url.hash = "";
+    return url.href;
+  } catch (error) {
+    return undefined;
+  }
+}
+
+function rememberBounded(map, key, value) {
+  if (!key) {
+    return false;
+  }
+  const previous = map.get(key);
+  if (
+    previous &&
+    Number.isSafeInteger(previous.generation) &&
+    previous.generation > value.generation
+  ) {
+    return false;
+  }
+  map.delete(key);
+  map.set(key, value);
+  while (map.size > MAX_REMEMBERED_FRESHNESS_STATES) {
+    map.delete(map.keys().next().value);
+  }
+  return true;
+}
+
+function freshnessClientId(event) {
+  if (event.request.mode === "navigate") {
+    return event.resultingClientId || event.clientId || "";
+  }
+  return event.clientId || "";
+}
+
+function rememberDocumentFreshnessState(event, state, generation) {
+  const urlKey = documentStateKey(event.request.url);
+  if (!urlKey) {
+    return false;
+  }
+  return rememberBounded(documentFreshnessStates, urlKey, {
+    state,
+    generation,
+    urlKey,
+  });
+}
+
+function rememberFreshnessState(event, state, generation) {
+  const urlKey = documentStateKey(event.request.url);
+  if (!urlKey) {
+    return false;
+  }
+  const value = { state, generation, urlKey };
+  const documentRemembered = rememberBounded(
+    documentFreshnessStates,
+    urlKey,
+    value
+  );
+  const clientId = freshnessClientId(event);
+  const clientRemembered = clientId
+    ? rememberBounded(clientFreshnessStates, clientId, value)
+    : false;
+  return documentRemembered || clientRemembered;
+}
+
+function forgetFreshnessStateThroughGeneration(map, key, urlKey, generation) {
+  if (!key || !urlKey) {
+    return;
+  }
+  const stored = map.get(key);
+  if (!stored || stored.urlKey !== urlKey) {
+    return;
+  }
+  if (
+    !Number.isSafeInteger(stored.generation) ||
+    stored.generation <= generation
+  ) {
+    map.delete(key);
+  }
+}
+
+function forgetRequestFreshnessStateThroughGeneration(event, generation) {
+  const stateKey = documentStateKey(event.request.url);
+  forgetFreshnessStateThroughGeneration(
+    clientFreshnessStates,
+    freshnessClientId(event),
+    stateKey,
+    generation
+  );
+  forgetFreshnessStateThroughGeneration(
+    documentFreshnessStates,
+    stateKey,
+    stateKey,
+    generation
+  );
 }
 
 function recordAuthoritativeDeletion(request, generation) {
@@ -155,8 +280,10 @@ async function cacheVerifiedDocument(request, cachedResponse, generation) {
         authoritativeDocumentDeletions.delete(request.url);
       }
     }
+    return written;
   } catch (error) {
     console.warn("PWA document cache update failed", error);
+    return false;
   }
 }
 
@@ -167,7 +294,38 @@ async function deleteCachedDocument(request, generation) {
   });
 }
 
-function injectCachedDocumentNotice(source) {
+async function clearAuthoritativeCachedDocument(request, generation) {
+  recordAuthoritativeDeletion(request, generation);
+  try {
+    await deleteCachedDocument(request, generation);
+  } catch (error) {
+    console.warn("PWA authoritative document cache deletion failed", error);
+    try {
+      await caches.delete(DOCUMENT_CACHE_NAME);
+    } catch (cleanupError) {
+      console.warn("PWA document cache namespace cleanup failed", cleanupError);
+    }
+  }
+}
+
+async function lookupCachedDocument(request) {
+  try {
+    if (authoritativeDocumentDeletions.has(request.url)) {
+      return undefined;
+    }
+    const cache = await caches.open(DOCUMENT_CACHE_NAME);
+    return await cache.match(request);
+  } catch (error) {
+    console.warn("PWA document cache lookup failed", error);
+    return undefined;
+  }
+}
+
+function injectCachedDocumentNotice(source, state) {
+  const notice = freshnessNoticeHtml(state);
+  if (!notice) {
+    return undefined;
+  }
   const htmlOpenings = [...source.matchAll(/<html\b[^>]*>/gi)];
   const bodyOpenings = [...source.matchAll(/<body\b[^>]*>/gi)];
   const bodyClosures = [...source.matchAll(/<\/body\s*>/gi)];
@@ -179,7 +337,6 @@ function injectCachedDocumentNotice(source) {
     console.warn("PWA cached document body boundary is ambiguous");
     return undefined;
   }
-
   const htmlOpening = htmlOpenings[0];
   const bodyOpening = bodyOpenings[0];
   const bodyOpeningEnd = bodyOpening.index + bodyOpening[0].length;
@@ -187,32 +344,30 @@ function injectCachedDocumentNotice(source) {
     console.warn("PWA cached document body boundary is invalid");
     return undefined;
   }
-
   const htmlOpeningEnd = htmlOpening.index + htmlOpening[0].length;
+  const marker = ` data-templates-cached-fallback="true" data-templates-freshness-state="${state}"`;
   const withMarker =
-    source.slice(0, htmlOpeningEnd - 1) +
-    ' data-templates-cached-fallback="true">' +
-    source.slice(htmlOpeningEnd);
-  const shiftedBodyOpeningEnd =
-    bodyOpeningEnd + ' data-templates-cached-fallback="true"'.length;
+    source.slice(0, htmlOpeningEnd - 1) + marker + ">" + source.slice(htmlOpeningEnd);
+  const shiftedBodyOpeningEnd = bodyOpeningEnd + marker.length;
   return (
     withMarker.slice(0, shiftedBodyOpeningEnd) +
-    CACHED_DOCUMENT_NOTICE +
+    notice +
     withMarker.slice(shiftedBodyOpeningEnd)
   );
 }
 
-async function decorateCachedDocument(response, request) {
+async function decorateCachedDocument(response, request, state) {
   const contentType = response.headers.get("Content-Type") || "";
   if (!contentType.toLowerCase().includes("text/html")) {
     return undefined;
   }
-
   if (response.url && response.url !== request.url) {
     console.warn("PWA cached redirect fallback rejected", response.url, request.url);
     return undefined;
   }
-
+  if (state !== "checking" && state !== "cached-unverified") {
+    return undefined;
+  }
   let source;
   try {
     source = await response.text();
@@ -220,8 +375,7 @@ async function decorateCachedDocument(response, request) {
     console.warn("PWA cached document read failed", error);
     return undefined;
   }
-
-  const decorated = injectCachedDocumentNotice(source);
+  const decorated = injectCachedDocumentNotice(source, state);
   if (decorated === undefined) {
     return undefined;
   }
@@ -230,7 +384,7 @@ async function decorateCachedDocument(response, request) {
     headers.delete(name);
   }
   headers.set("Cache-Control", "no-store");
-  headers.set("X-Templates-Freshness", "cached-unverified");
+  headers.set("X-Templates-Freshness", state);
   return new Response(decorated, {
     status: response.status,
     statusText: response.statusText,
@@ -238,78 +392,56 @@ async function decorateCachedDocument(response, request) {
   });
 }
 
-async function cachedDocumentFallback(request) {
-  try {
-    if (authoritativeDocumentDeletions.has(request.url)) {
-      return undefined;
-    }
-    const cache = await caches.open(DOCUMENT_CACHE_NAME);
-    const response = await cache.match(request);
-    if (!response) {
-      return undefined;
-    }
-    return await decorateCachedDocument(response, request);
-  } catch (error) {
-    console.warn("PWA document cache lookup failed", error);
+async function cachedDocumentFallback(request, state) {
+  const response = await lookupCachedDocument(request);
+  if (!response) {
     return undefined;
   }
+  return await decorateCachedDocument(response, request, state);
 }
 
-async function notifyInstantNavigationCommit(event, representation, generation) {
-  if (event.request.mode === "navigate" || !event.clientId) {
-    return;
-  }
-  try {
-    const client = await self.clients.get(event.clientId);
-    if (!client || typeof client.postMessage !== "function") {
-      return;
-    }
-    client.postMessage({
-      type: "templates:document-commit",
-      representation,
-      url: event.request.url,
-      requestGeneration: generation,
-    });
-  } catch (error) {
-    console.warn("PWA document commit notification failed", error);
-  }
-}
-
-async function notifyInstantNavigationState(
-  event,
-  state,
-  requireAcknowledgement = false,
-  generation = 0
-) {
-  if (event.request.mode === "navigate") {
-    return true;
-  }
-  if (!event.clientId) {
-    return !requireAcknowledgement;
-  }
-
-  let client;
-  try {
-    client = await self.clients.get(event.clientId);
-  } catch (error) {
-    console.warn("PWA freshness client lookup failed", error);
-    return !requireAcknowledgement;
-  }
-  if (!client || typeof client.postMessage !== "function") {
-    return !requireAcknowledgement;
-  }
-
-  const message = {
+function freshnessMessage(event, state, generation, awaitingCommit) {
+  return {
     type: "templates:freshness-state",
     state,
     url: event.request.url,
     requestGeneration: generation,
+    workerInstanceId: WORKER_INSTANCE_ID,
+    awaitingCommit,
   };
+}
+
+async function postFreshnessState(event, state, generation, requireAcknowledgement) {
+  const message = freshnessMessage(
+    event,
+    state,
+    generation,
+    requireAcknowledgement
+  );
+  const targetKey = documentStateKey(event.request.url);
+  const clientId = freshnessClientId(event);
+  let client;
+  if (clientId) {
+    try {
+      client = await self.clients.get(clientId);
+    } catch (error) {
+      console.warn("PWA freshness client lookup failed", error);
+    }
+  }
+  if (
+    !requireAcknowledgement &&
+    client &&
+    documentStateKey(client.url) !== targetKey
+  ) {
+    client = undefined;
+  }
+  if (!client || typeof client.postMessage !== "function") {
+    return !requireAcknowledgement;
+  }
   if (!requireAcknowledgement) {
     client.postMessage(message);
     return true;
   }
-
   return await new Promise((resolve) => {
     const channel = new MessageChannel();
     let settled = false;
@@ -328,7 +460,8 @@ async function notifyInstantNavigationState(
       finish(
         data?.type === "templates:freshness-state-applied" &&
           data.state === state &&
-          data.requestGeneration === generation
+          data.requestGeneration === generation &&
+          data.workerInstanceId === WORKER_INSTANCE_ID
       );
     };
     try {
@@ -340,78 +473,352 @@ async function notifyInstantNavigationState(
   });
 }
 
-async function fetchDocumentNetworkFirst(event, registerBackgroundTask) {
-  const request = event.request;
-  const generation = beginDocumentRequest();
+async function publishFreshnessState(
+  event,
+  state,
+  generation,
+  requireAcknowledgement = false
+) {
+  if (!rememberFreshnessState(event, state, generation)) {
+    return !requireAcknowledgement;
+  }
+  if (event.request.mode === "navigate" && requireAcknowledgement) {
+    return true;
+  }
+  return await postFreshnessState(
+    event,
+    state,
+    generation,
+    requireAcknowledgement
+  );
+}
+
+async function notifyInstantNavigationCommit(event, representation, generation) {
+  if (event.request.mode === "navigate" || !event.clientId) {
+    return;
+  }
   try {
-    const response = await fetchFreshDocument(request);
-    if (response.status === 404 || response.status === 410) {
-      recordAuthoritativeDeletion(request, generation);
-      try {
-        await deleteCachedDocument(request, generation);
-      } catch (error) {
-        console.warn("PWA authoritative document cache deletion failed", error);
-        try {
-          await caches.delete(DOCUMENT_CACHE_NAME);
-        } catch (cleanupError) {
-          console.warn("PWA document cache namespace cleanup failed", cleanupError);
-        }
-      }
-      await notifyInstantNavigationCommit(event, "network", generation);
-      return response;
+    const client = await self.clients.get(event.clientId);
+    if (!client || typeof client.postMessage !== "function") {
+      return;
     }
-    if (response.status >= 500) {
-      const cached = await cachedDocumentFallback(request);
-      if (!cached) {
-        await notifyInstantNavigationCommit(event, "network", generation);
-        return response;
-      }
-      if (
-        !(await notifyInstantNavigationState(
-          event,
-          "cached-unverified",
-          true,
-          generation
-        ))
-      ) {
-        await notifyInstantNavigationCommit(event, "network", generation);
-        return response;
-      }
-      return cached;
-    }
-    if (isCacheableDocumentResponse(response)) {
-      const cachedResponse = response.clone();
-      registerBackgroundTask(cacheVerifiedDocument(request, cachedResponse, generation));
-    }
-    await notifyInstantNavigationCommit(event, "network", generation);
-    return response;
+    client.postMessage({
+      type: "templates:document-commit",
+      representation,
+      url: event.request.url,
+      requestGeneration: generation,
+      workerInstanceId: WORKER_INSTANCE_ID,
+    });
   } catch (error) {
-    const cached = await cachedDocumentFallback(request);
-    if (!cached) {
-      await notifyInstantNavigationCommit(event, "network", generation);
-      return offlineResponse();
+    console.warn("PWA document commit notification failed", error);
+  }
+}
+
+function extractMetaAttributes(tag) {
+  const attributes = new Map();
+  const pattern = /([^\s=/>]+)\s*=\s*(?:(["'])(.*?)\2|([^\s/>]+))/g;
+  let match;
+  while ((match = pattern.exec(tag)) !== null) {
+    const name = match[1].toLowerCase();
+    const value = match[3] ?? match[4];
+    if (!attributes.has(name)) {
+      attributes.set(name, value);
+    } else {
+      attributes.set(name, undefined);
     }
-    if (
-      !(await notifyInstantNavigationState(
-        event,
-        "cached-unverified",
-        true,
-        generation
-      ))
-    ) {
-      await notifyInstantNavigationCommit(event, "network", generation);
-      return offlineResponse();
+  }
+  return attributes;
+}
+
+async function readSiteRevision(response) {
+  try {
+    let source = await response.text();
+    source = source.replace(
+      /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+      ""
+    );
+    source = source.replace(/<!--[\s\S]*?-->/g, "");
+    const headMatch = source.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+    source = headMatch ? headMatch[1] : source;
+    const revisions = [];
+    const tags = source.match(/<meta\b[^>]*>/gi) || [];
+    for (const tag of tags) {
+      const attributes = extractMetaAttributes(tag);
+      if (attributes.get("name")?.toLowerCase() !== "templates-site-revision") {
+        continue;
+      }
+      const content = attributes.get("content");
+      if (typeof content !== "string" || !/^[0-9a-f]{40}$/i.test(content)) {
+        return undefined;
+      }
+      revisions.push(content.toLowerCase());
     }
+    return revisions.length === 1 ? revisions[0] : undefined;
+  } catch (error) {
+    console.warn("PWA document revision read failed", error);
+    return undefined;
+  }
+}
+
+function startDocumentNetworkRequest(request) {
+  return fetchFreshDocument(request).then(
+    (response) => ({ kind: "response", response }),
+    (error) => ({ kind: "error", error })
+  );
+}
+
+function softTimeoutSignal() {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve({ kind: "soft-timeout" }), DOCUMENT_SOFT_TIMEOUT_MS);
+  });
+}
+
+async function fallbackForCompletedFailure(event, generation, response) {
+  const cached = await cachedDocumentFallback(
+    event.request,
+    "cached-unverified"
+  );
+  if (!cached) {
+    return response || offlineResponse();
+  }
+  if (event.request.mode === "navigate") {
+    rememberFreshnessState(event, "cached-unverified", generation);
     return cached;
   }
+  const acknowledged = await publishFreshnessState(
+    event,
+    "cached-unverified",
+    generation,
+    true
+  );
+  if (!acknowledged) {
+    return response || offlineResponse();
+  }
+  return cached;
+}
+
+async function handleCompletedDocumentNetwork(
+  event,
+  outcome,
+  generation,
+  registerBackgroundTask
+) {
+  const request = event.request;
+  if (outcome.kind === "error") {
+    return await fallbackForCompletedFailure(
+      event,
+      generation,
+      undefined
+    );
+  }
+
+  const response = outcome.response;
+  if (response.status === 404 || response.status === 410) {
+    await clearAuthoritativeCachedDocument(request, generation);
+    forgetRequestFreshnessStateThroughGeneration(event, generation);
+    await notifyInstantNavigationCommit(event, "network", generation);
+    return response;
+  }
+  if (response.status >= 500) {
+    return await fallbackForCompletedFailure(
+      event,
+      generation,
+      response
+    );
+  }
+  if (response.status >= 400) {
+    forgetRequestFreshnessStateThroughGeneration(event, generation);
+    await notifyInstantNavigationCommit(event, "network", generation);
+    return response;
+  }
+  if (isCacheableDocumentResponse(response)) {
+    registerBackgroundTask(
+      cacheVerifiedDocument(request, response.clone(), generation)
+    );
+    rememberFreshnessState(event, "verified-current", generation);
+  }
+  await notifyInstantNavigationCommit(event, "network", generation);
+  return response;
+}
+
+async function convergeAfterChecking(
+  event,
+  networkOutcomePromise,
+  previousCachedResponse,
+  generation
+) {
+  const request = event.request;
+  const outcome = await networkOutcomePromise;
+  if (outcome.kind === "error") {
+    await publishFreshnessState(
+      event,
+      "cached-unverified",
+      generation,
+      false
+    );
+    return;
+  }
+
+  const response = outcome.response;
+  if (response.status === 404 || response.status === 410) {
+    await clearAuthoritativeCachedDocument(request, generation);
+    await publishFreshnessState(
+      event,
+      "update-available",
+      generation,
+      false
+    );
+    return;
+  }
+  if (response.status >= 400) {
+    await publishFreshnessState(
+      event,
+      "cached-unverified",
+      generation,
+      false
+    );
+    return;
+  }
+  if (!isCacheableDocumentResponse(response)) {
+    await publishFreshnessState(
+      event,
+      "update-available",
+      generation,
+      false
+    );
+    return;
+  }
+
+  const previousRevisionPromise = readSiteRevision(
+    previousCachedResponse.clone()
+  );
+  const nextRevisionPromise = readSiteRevision(response.clone());
+  const cacheTask = cacheVerifiedDocument(request, response.clone(), generation);
+  const [previousRevision, nextRevision] = await Promise.all([
+    previousRevisionPromise,
+    nextRevisionPromise,
+    cacheTask,
+  ]);
+  const state =
+    previousRevision &&
+    nextRevision &&
+    previousRevision === nextRevision
+      ? "verified-current"
+      : "update-available";
+  await publishFreshnessState(event, state, generation, false);
+}
+
+async function fetchDocumentNetworkFirst(event, registerBackgroundTask) {
+  const generation = beginDocumentRequest();
+  const networkOutcomePromise = startDocumentNetworkRequest(event.request);
+  const first = await Promise.race([
+    networkOutcomePromise,
+    softTimeoutSignal(),
+  ]);
+  if (first.kind !== "soft-timeout") {
+    return await handleCompletedDocumentNetwork(
+      event,
+      first,
+      generation,
+      registerBackgroundTask
+    );
+  }
+
+  const cachedLookupPromise = lookupCachedDocument(event.request).then(
+    (response) => ({ kind: "cached", response })
+  );
+  const afterTimeout = await Promise.race([
+    networkOutcomePromise,
+    cachedLookupPromise,
+  ]);
+  if (afterTimeout.kind !== "cached") {
+    return await handleCompletedDocumentNetwork(
+      event,
+      afterTimeout,
+      generation,
+      registerBackgroundTask
+    );
+  }
+  if (!afterTimeout.response) {
+    return await handleCompletedDocumentNetwork(
+      event,
+      await networkOutcomePromise,
+      generation,
+      registerBackgroundTask
+    );
+  }
+
+  const checkingResponse = await decorateCachedDocument(
+    afterTimeout.response.clone(),
+    event.request,
+    "checking"
+  );
+  if (!checkingResponse) {
+    return await handleCompletedDocumentNetwork(
+      event,
+      await networkOutcomePromise,
+      generation,
+      registerBackgroundTask
+    );
+  }
+
+  if (event.request.mode === "navigate") {
+    rememberFreshnessState(event, "checking", generation);
+  } else {
+    const checkingAcknowledgement = publishFreshnessState(
+      event,
+      "checking",
+      generation,
+      true
+    );
+    const gate = await Promise.race([
+      networkOutcomePromise.then((outcome) => ({
+        kind: "network",
+        outcome,
+      })),
+      checkingAcknowledgement.then((acknowledged) => ({
+        kind: "acknowledgement",
+        acknowledged,
+      })),
+    ]);
+    if (gate.kind === "network") {
+      return await handleCompletedDocumentNetwork(
+        event,
+        gate.outcome,
+        generation,
+        registerBackgroundTask
+      );
+    }
+    if (!gate.acknowledged) {
+      return await handleCompletedDocumentNetwork(
+        event,
+        await networkOutcomePromise,
+        generation,
+        registerBackgroundTask
+      );
+    }
+  }
+
+  registerBackgroundTask(
+    convergeAfterChecking(
+      event,
+      networkOutcomePromise,
+      afterTimeout.response.clone(),
+      generation
+    )
+  );
+  return checkingResponse;
 }
 
 function respondWithDocumentNetworkFirst(event) {
   let backgroundTask = Promise.resolve();
   const registerBackgroundTask = (task) => {
-    backgroundTask = Promise.resolve(task);
+    backgroundTask = Promise.all([backgroundTask, Promise.resolve(task)]);
   };
-  const responsePromise = fetchDocumentNetworkFirst(event, registerBackgroundTask);
+  const responsePromise = fetchDocumentNetworkFirst(
+    event,
+    registerBackgroundTask
+  );
   const lifetimePromise = responsePromise
     .then(
       () => backgroundTask,
@@ -503,7 +910,6 @@ async function decorateCachedGlossaryModel(response, request) {
     console.warn("PWA cached Glossary redirect fallback rejected", response.url, request.url);
     return undefined;
   }
-
   let body;
   try {
     body = await response.arrayBuffer();
@@ -584,7 +990,7 @@ async function fetchGlossaryNetworkFirst(request, registerBackgroundTask) {
 function respondWithGlossaryNetworkFirst(event) {
   let backgroundTask = Promise.resolve();
   const registerBackgroundTask = (task) => {
-    backgroundTask = Promise.resolve(task);
+    backgroundTask = Promise.all([backgroundTask, Promise.resolve(task)]);
   };
   const responsePromise = fetchGlossaryNetworkFirst(event.request, registerBackgroundTask);
   const lifetimePromise = responsePromise
@@ -613,7 +1019,9 @@ async function refreshStaticAsset(request) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+  );
   self.skipWaiting();
 });
 
@@ -638,21 +1046,56 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (
-    event.data?.type !== "templates:get-freshness-capabilities" ||
-    !event.source ||
-    typeof event.source.postMessage !== "function"
-  ) {
+  if (!event.source || typeof event.source.postMessage !== "function") {
     return;
   }
-  event.source.postMessage({
-    type: "templates:freshness-capabilities",
-    states: FRESHNESS_STATES,
-    siteVersionUrl: "/site-version.json",
-    documentCacheName: DOCUMENT_CACHE_NAME,
-    glossaryCacheName: GLOSSARY_CACHE_NAME,
-    glossaryModelUrl: GLOSSARY_MODEL_PATH,
-  });
+  if (event.data?.type === "templates:get-freshness-capabilities") {
+    event.source.postMessage({
+      type: "templates:freshness-capabilities",
+      states: FRESHNESS_STATES,
+      siteVersionUrl: "/site-version.json",
+      documentCacheName: DOCUMENT_CACHE_NAME,
+      glossaryCacheName: GLOSSARY_CACHE_NAME,
+      glossaryModelUrl: GLOSSARY_MODEL_PATH,
+      softTimeoutMs: DOCUMENT_SOFT_TIMEOUT_MS,
+      workerInstanceId: WORKER_INSTANCE_ID,
+    });
+    return;
+  }
+  if (event.data?.type === "templates:get-current-freshness-state") {
+    const sourceId = event.source.id || "";
+    const stateKey = documentStateKey(event.data.url || "");
+    const clientState = clientFreshnessStates.get(sourceId);
+    let state =
+      clientState && clientState.urlKey === stateKey
+        ? clientState
+        : stateKey
+          ? documentFreshnessStates.get(stateKey)
+          : undefined;
+    if (!state && stateKey && event.data.currentState === "checking") {
+      const recoveryGeneration = Math.max(nextDocumentRequestGeneration, 1);
+      nextDocumentRequestGeneration = recoveryGeneration;
+      state = {
+        state: "cached-unverified",
+        generation: recoveryGeneration,
+        urlKey: stateKey,
+      };
+      rememberBounded(documentFreshnessStates, stateKey, state);
+      if (sourceId) {
+        rememberBounded(clientFreshnessStates, sourceId, state);
+      }
+    }
+    if (state) {
+      event.source.postMessage({
+        type: "templates:freshness-state",
+        state: state.state,
+        url: event.data.url || "",
+        requestGeneration: state.generation,
+        workerInstanceId: WORKER_INSTANCE_ID,
+        awaitingCommit: false,
+      });
+    }
+  }
 });
 
 self.addEventListener("fetch", (event) => {
