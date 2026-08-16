@@ -492,7 +492,11 @@ async function deleteCachedGlossaryModel(request, generation) {
 }
 
 async function decorateCachedGlossaryModel(response, request) {
-  if (!isCacheableGlossaryResponse(response)) {
+  if (response.status !== 200) {
+    return undefined;
+  }
+  const contentType = (response.headers.get("Content-Type") || "").toLowerCase();
+  if (!contentType.includes("application/json") && !contentType.includes("+json")) {
     return undefined;
   }
   if (response.url && response.url !== request.url) {
