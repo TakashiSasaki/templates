@@ -577,6 +577,12 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             same_revision = _fetch_html(page, "/document/")
             if same_revision["freshness"] != "checking" or "document-v2" not in same_revision["body"]:
                 raise PwaSlowConvergenceError("reordered revision-meta path did not begin in checking")
+            page.wait_for_timeout(1600)
+            if _freshness_state(page) != "checking":
+                raise PwaSlowConvergenceError(
+                    "matching revision cleared checking before cached document commit"
+                )
+            page.evaluate("() => globalThis.__pwaFixtureCommitDocument('/document/')")
             _wait_for_no_state(page)
             evidence["reordered_meta_verified_current"] = True
 
