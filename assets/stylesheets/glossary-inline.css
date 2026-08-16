@@ -53,10 +53,11 @@ button.glossary-term:focus-visible {
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   border-radius: 0.75rem;
   color: var(--md-default-fg-color, CanvasText);
+  background: var(--md-default-bg-color, Canvas);
   background: color-mix(
     in srgb,
     var(--md-primary-fg-color, #3f51b5) 7%,
-    var(--md-default-bg-color, #fff)
+    var(--md-default-bg-color, Canvas)
   );
   box-shadow: 0 0.8rem 2.2rem rgba(0, 0, 0, 0.2);
   z-index: 50;
