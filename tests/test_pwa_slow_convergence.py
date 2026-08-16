@@ -138,6 +138,7 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn("pendingDocumentCommit", self.client)
         self.assertIn('pending.representation === "cached"', self.client)
         self.assertIn("document.body || document.documentElement", self.client)
+        self.assertIn("navigator.serviceWorker?.controller", self.client)
 
     def test_chromium_checker_covers_convergence_edge_cases(self) -> None:
         self.assertIn('evidence["instant_checking"] = True', self.checker)
@@ -145,6 +146,8 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn('evidence["slow_failure_cached_unverified"] = True', self.checker)
         self.assertIn("background convergence replaced visible DOM without reload", self.checker)
         self.assertIn("reverse_revision_attributes=True", self.checker)
+        self.assertIn("FETCH_CHECK_TIMEOUT_MS = 10_000", self.checker)
+        self.assertIn("document fetch did not settle within", self.checker)
 
     def test_checker_fails_before_browser_start_when_assets_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
