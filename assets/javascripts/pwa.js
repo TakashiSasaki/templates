@@ -231,7 +231,7 @@
   }
 
   function requestCurrentFreshnessState() {
-    const controller = navigator.serviceWorker.controller;
+    const controller = navigator.serviceWorker?.controller;
     if (!controller) {
       return;
     }
