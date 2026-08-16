@@ -57,6 +57,8 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn("resetWorkerOrdering(nextWorkerInstanceId)", self.client)
         self.assertIn("if (!adoptWorkerInstance(data.workerInstanceId))", self.client)
         self.assertIn("resetWorkerOrdering();", self.client)
+        self.assertIn('"fixture-worker-instance-before-restart",\n            9', self.checker)
+        self.assertIn('"fixture-worker-instance-after-restart",\n            1', self.checker)
         self.assertIn('evidence["worker_restart_generation_reset"] = True', self.checker)
 
     def test_full_navigation_never_requires_ui_acknowledgement(self) -> None:
@@ -92,6 +94,7 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn("async function convergeAfterChecking(", self.worker)
         self.assertIn("function extractMetaAttributes(tag)", self.worker)
         self.assertIn("source.match(/<meta\\b[^>]*>/gi)", self.worker)
+        self.assertIn("<(script|style)\\b", self.worker)
         self.assertIn("previousRevision === nextRevision", self.worker)
         self.assertIn('"verified-current"', self.worker)
         self.assertIn('"update-available"', self.worker)
@@ -119,6 +122,40 @@ class PwaSlowConvergenceTests(unittest.TestCase):
             self.client,
         )
         self.assertIn('evidence["newer_commit_retired_old_convergence"] = True', self.checker)
+
+    def test_older_authoritative_absence_cannot_delete_newer_freshness_state(self) -> None:
+        self.assertIn("function forgetFreshnessStateThroughGeneration(", self.worker)
+        self.assertIn("stored.generation <= generation", self.worker)
+        self.assertIn(
+            "forgetFreshnessStateThroughGeneration(\n      clientFreshnessStates",
+            self.worker,
+        )
+        self.assertIn(
+            "forgetFreshnessStateThroughGeneration(\n      documentFreshnessStates",
+            self.worker,
+        )
+
+    def test_controllerchange_without_remembered_state_downgrades_checking(self) -> None:
+        self.assertIn("currentState: typeof currentState === \"string\" ? currentState : null", self.client)
+        self.assertIn('event.data.currentState === "checking"', self.worker)
+        self.assertIn('state: "cached-unverified"', self.worker)
+        self.assertIn("nextDocumentRequestGeneration = recoveryGeneration", self.worker)
+        self.assertIn('evidence["controllerchange_missing_state_downgraded"] = True', self.checker)
+
+    def test_verified_current_waits_for_correlated_cached_commit(self) -> None:
+        self.assertIn('data.state === "verified-current"', self.client)
+        self.assertIn('pending.representation === "cached"', self.client)
+        self.assertIn("pending.generation === data.requestGeneration", self.client)
+        self.assertIn('evidence["verified_current_waited_for_cached_commit"] = True', self.checker)
+
+    def test_interrupted_pending_commit_clears_previous_warning(self) -> None:
+        self.assertIn("if (pending && committedUrl !== pending.url)", self.client)
+        mismatch_start = self.client.index("if (pending && committedUrl !== pending.url)")
+        mismatch_end = self.client.index("const embeddedStatus", mismatch_start)
+        mismatch_branch = self.client[mismatch_start:mismatch_end]
+        self.assertIn("clearFreshnessStatus();", mismatch_branch)
+        self.assertIn("requestCurrentFreshnessState();", mismatch_branch)
+        self.assertIn('evidence["interrupted_commit_warning_cleared"] = True', self.checker)
 
     def test_remembered_states_are_bounded_and_generation_ordered(self) -> None:
         self.assertIn("const MAX_REMEMBERED_FRESHNESS_STATES = 64", self.worker)
