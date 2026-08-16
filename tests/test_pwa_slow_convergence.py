@@ -94,7 +94,14 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn("async function convergeAfterChecking(", self.worker)
         self.assertIn("function extractMetaAttributes(tag)", self.worker)
         self.assertIn("source.match(/<meta\\b[^>]*>/gi)", self.worker)
-        self.assertIn("<(script|style)\\b", self.worker)
+        read_start = self.worker.index("async function readSiteRevision(response)")
+        read_end = self.worker.index("function startDocumentNetworkRequest", read_start)
+        reader = self.worker[read_start:read_end]
+        raw_text_index = reader.index("<(script|style)\\b")
+        comment_index = reader.index("/<!--[\\s\\S]*?-->/g")
+        head_index = reader.index("const headMatch")
+        self.assertLess(raw_text_index, head_index)
+        self.assertLess(comment_index, head_index)
         self.assertIn("previousRevision === nextRevision", self.worker)
         self.assertIn('"verified-current"', self.worker)
         self.assertIn('"update-available"', self.worker)
@@ -103,11 +110,13 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn('evidence["missing_revision_update_available"] = True', self.checker)
         self.assertIn('evidence["non_html_update_available"] = True', self.checker)
 
-    def test_background_state_delivery_targets_current_document(self) -> None:
-        self.assertIn('self.clients.matchAll({ type: "window" })', self.worker)
-        self.assertIn("documentStateKey(client.url) === targetKey", self.worker)
+    def test_background_state_delivery_is_client_scoped(self) -> None:
+        self.assertNotIn('self.clients.matchAll({ type: "window" })', self.worker)
         self.assertIn("documentStateKey(client.url) !== targetKey", self.worker)
-        self.assertIn("if (requireAcknowledgement) {\n      return false;", self.worker)
+        self.assertIn(
+            'if (!client || typeof client.postMessage !== "function") {\n    return !requireAcknowledgement;',
+            self.worker,
+        )
         self.assertIn(
             'normalizedUrl !== normalizedDocumentUrl(window.location.href)',
             self.client,
@@ -115,8 +124,10 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn("requestCurrentFreshnessState();", self.client)
         self.assertIn('evidence["previous_document_convergence_ignored"] = True', self.checker)
 
-    def test_newer_network_commit_retires_older_convergence(self) -> None:
-        self.assertIn("if (!documentRemembered) {\n    return false;", self.worker)
+    def test_client_specific_state_is_independent_of_document_generation(self) -> None:
+        self.assertIn("const documentRemembered = rememberBounded(", self.worker)
+        self.assertIn("const clientRemembered = clientId", self.worker)
+        self.assertIn("return documentRemembered || clientRemembered;", self.worker)
         self.assertIn(
             "lastFreshnessGeneration = Math.max(\n        lastFreshnessGeneration,\n        pending.generation",
             self.client,
@@ -147,6 +158,8 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn('pending.representation === "cached"', self.client)
         self.assertIn("pending.generation === data.requestGeneration", self.client)
         self.assertIn('evidence["verified_current_waited_for_cached_commit"] = True', self.checker)
+        self.assertIn("def _wait_for_cached_document_text(", self.checker)
+        self.assertIn('_wait_for_cached_document_text(page, "document-v22")', self.checker)
 
     def test_interrupted_pending_commit_clears_previous_warning(self) -> None:
         self.assertIn("if (pending && committedUrl !== pending.url)", self.client)
@@ -176,6 +189,7 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn('pending.representation === "cached"', self.client)
         self.assertIn("document.body || document.documentElement", self.client)
         self.assertIn("navigator.serviceWorker?.controller", self.client)
+        self.assertIn('["checking", "cached-unverified", "update-available"].includes(', self.client)
 
     def test_chromium_checker_covers_convergence_edge_cases(self) -> None:
         self.assertIn('evidence["instant_checking"] = True', self.checker)
