@@ -220,6 +220,22 @@ function forgetFreshnessStateThroughGeneration(map, key, urlKey, generation) {
   }
 }
 
+function forgetRequestFreshnessStateThroughGeneration(event, generation) {
+  const stateKey = documentStateKey(event.request.url);
+  forgetFreshnessStateThroughGeneration(
+    clientFreshnessStates,
+    freshnessClientId(event),
+    stateKey,
+    generation
+  );
+  forgetFreshnessStateThroughGeneration(
+    documentFreshnessStates,
+    stateKey,
+    stateKey,
+    generation
+  );
+}
+
 function recordAuthoritativeDeletion(request, generation) {
   const key = request.url;
   const appliedGeneration = documentCacheMutationGenerations.get(key) || 0;
@@ -599,19 +615,7 @@ async function handleCompletedDocumentNetwork(
   const response = outcome.response;
   if (response.status === 404 || response.status === 410) {
     await clearAuthoritativeCachedDocument(request, generation);
-    const stateKey = documentStateKey(request.url);
-    forgetFreshnessStateThroughGeneration(
-      clientFreshnessStates,
-      freshnessClientId(event),
-      stateKey,
-      generation
-    );
-    forgetFreshnessStateThroughGeneration(
-      documentFreshnessStates,
-      stateKey,
-      stateKey,
-      generation
-    );
+    forgetRequestFreshnessStateThroughGeneration(event, generation);
     await notifyInstantNavigationCommit(event, "network", generation);
     return response;
   }
@@ -622,12 +626,17 @@ async function handleCompletedDocumentNetwork(
       response
     );
   }
+  if (response.status >= 400) {
+    forgetRequestFreshnessStateThroughGeneration(event, generation);
+    await notifyInstantNavigationCommit(event, "network", generation);
+    return response;
+  }
   if (isCacheableDocumentResponse(response)) {
     registerBackgroundTask(
       cacheVerifiedDocument(request, response.clone(), generation)
     );
+    rememberFreshnessState(event, "verified-current", generation);
   }
-  rememberFreshnessState(event, "verified-current", generation);
   await notifyInstantNavigationCommit(event, "network", generation);
   return response;
 }
@@ -804,7 +813,7 @@ async function fetchDocumentNetworkFirst(event, registerBackgroundTask) {
 function respondWithDocumentNetworkFirst(event) {
   let backgroundTask = Promise.resolve();
   const registerBackgroundTask = (task) => {
-    backgroundTask = Promise.resolve(task);
+    backgroundTask = Promise.all([backgroundTask, Promise.resolve(task)]);
   };
   const responsePromise = fetchDocumentNetworkFirst(
     event,
@@ -981,7 +990,7 @@ async function fetchGlossaryNetworkFirst(request, registerBackgroundTask) {
 function respondWithGlossaryNetworkFirst(event) {
   let backgroundTask = Promise.resolve();
   const registerBackgroundTask = (task) => {
-    backgroundTask = Promise.resolve(task);
+    backgroundTask = Promise.all([backgroundTask, Promise.resolve(task)]);
   };
   const responsePromise = fetchGlossaryNetworkFirst(event.request, registerBackgroundTask);
   const lifetimePromise = responsePromise
