@@ -127,27 +127,57 @@ def find_repository_root(start: Path | None = None) -> Path:
 def lock_toolchain(path: Path) -> tuple[str, str]:
     lines = path.read_text(encoding="utf-8").splitlines()
     in_toolchain = False
-    repository: str | None = None
-    revision: str | None = None
+    found_toolchain = False
+    fields: dict[str, str] = {}
+    allowed = {"repository", "revision"}
+
     for raw in lines:
         stripped = raw.strip()
         if not stripped or stripped.startswith("#"):
             continue
         indent = len(raw) - len(raw.lstrip(" "))
         if indent == 0:
-            in_toolchain = stripped == "toolchain:"
+            if in_toolchain:
+                break
+            if stripped == "toolchain:":
+                if found_toolchain:
+                    raise ValueError(
+                        ".agent-policy.lock must contain exactly one toolchain mapping"
+                    )
+                found_toolchain = True
+                in_toolchain = True
             continue
-        if not in_toolchain or indent < 2 or ":" not in stripped:
+        if not in_toolchain:
             continue
-        key, value = stripped.split(":", 1)
-        value = value.strip().strip("'\"")
-        if key == "repository":
-            repository = value
-        elif key == "revision":
-            revision = value
+        if indent != 2 or ":" not in stripped:
+            raise ValueError(
+                ".agent-policy.lock toolchain must be a flat two-space mapping"
+            )
+        key, raw_value = stripped.split(":", 1)
+        if key not in allowed:
+            raise ValueError(f".agent-policy.lock toolchain has unsupported key: {key}")
+        if key in fields:
+            raise ValueError(f".agent-policy.lock toolchain key is duplicated: {key}")
+        value = raw_value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        elif not value or value[0] in {'"', "'"} or value[-1:] in {'"', "'"}:
+            raise ValueError(
+                f".agent-policy.lock toolchain {key} must be a plain scalar"
+            )
+        fields[key] = value
+
+    if not found_toolchain:
+        raise ValueError(".agent-policy.lock is missing the toolchain mapping")
+    if set(fields) != allowed:
+        missing = ", ".join(sorted(allowed - set(fields)))
+        raise ValueError(f".agent-policy.lock toolchain is missing keys: {missing}")
+
+    repository = fields["repository"]
+    revision = fields["revision"]
     if repository != "TakashiSasaki/templates":
         raise ValueError(".agent-policy.lock has an unsupported toolchain repository")
-    if revision is None or FULL_SHA.fullmatch(revision) is None:
+    if FULL_SHA.fullmatch(revision) is None:
         raise ValueError(
             ".agent-policy.lock toolchain revision must be a full lowercase commit SHA"
         )
