@@ -79,13 +79,13 @@ jobs:
       - name: Check formatting and static rules
         run: |
           .venv/bin/python -m ruff --version
-          .venv/bin/python -m ruff check src tests scripts skills/bootstrap-agent-policy/scripts
+          .venv/bin/python -m ruff check src tests scripts skills/agent-policy/scripts
 
       - name: Run tests
         run: .venv/bin/python -m pytest
 
       - name: Compile Python sources
-        run: .venv/bin/python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
+        run: .venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts
 
       - name: Verify installed command
         run: .venv/bin/agent-policy --help
