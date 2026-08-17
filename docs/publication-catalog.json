@@ -20,6 +20,12 @@
       "home": false
     },
     {
+      "id": "policy-profiles",
+      "source": "docs/shared-policy/profiles.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "consumer-policy-navigation",
       "source": "docs/consumer/index.md",
       "optional": false,
