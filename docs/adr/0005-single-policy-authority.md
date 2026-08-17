@@ -35,6 +35,14 @@ Repository-local policy may extend shared policy. It may override a shared rule 
 
 Documentation may explain or reference canonical rules but must not silently create a competing normative authority. Generated instructions must identify the canonical origin of shared rules and the repository-local origin of local rules.
 
+### Configuration contract consequence
+
+The accepted `agent-policy` configuration contract is schema version 2 only. Its named `contexts` are the semantic authority boundaries that select profiles, repository-local policy, and explicit overrides; named outputs separately bind one context to one renderer. `init` and `adopt prepare` use the same contract by emitting an explicit `default` context when only one semantic context is required.
+
+Schema version 1 is retired rather than retained as a compatibility mode. Its top-level single-context representation and implicit shared-rule override behavior would preserve a second, weaker authority path beside the explicit context and override model adopted here. The validator therefore rejects schema version 1, manifest generators emit only schema version 2, and both validation and rendering require explicit override declarations. This retirement changes only the `agent-policy` configuration contract; independently versioned contracts such as adoption state, generated lock data, renderer response formats, and publication or glossary schemas keep their own version lifecycles.
+
+Because this repository is still pre-release, no configuration migration or backward-compatibility adapter is maintained. Historical schema-version-1 behavior remains available through Git history rather than through the active runtime contract.
+
 ## Ownership classification
 
 Every normative statement discovered during consolidation is classified into exactly one of these ownership classes:
@@ -55,6 +63,7 @@ A statement is not duplicated merely because it is useful in more than one conte
 - Skill profile contracts, Webapp surface/route/state contracts, and other artifact architecture remain outside the shared corpus.
 - Consumer branches adopt reviewed stable policy revisions by full SHA; unrelated branch histories remain unrelated and are not merged, rebased, or cherry-picked to share policy.
 - Consolidation is staged so that a shared canonical rule exists and is consumable before handwritten duplicates are removed from another branch.
+- Active `agent-policy` configurations have one schema-version-2 authority model; no runtime branch preserves schema-version-1 implicit override semantics.
 
 ## Migration order
 
@@ -68,7 +77,10 @@ A statement is not duplicated merely because it is useful in more than one conte
 8. Migrate `webapp` source-maintainer policy without adding shared coding-agent policy to the Webapp artifact contract.
 9. Self-host `policy` repository-maintainer rules separately from the shared corpus.
 10. Treat policy adoption inside copyable consumer artifacts such as `skill/template/` as a separate distribution-contract decision.
+11. Retire the transitional schema-version-1 configuration path once schema version 2 is the maintained self-hosted and generated configuration contract.
 
 ## Verification
 
 The consolidation is complete only when every shared semantic rule has one canonical rule ID and source, repository-local exceptions are explicit, generated projections are traceable to their source revision, and no branch contains an independently maintained handwritten duplicate that can conflict with the canonical shared rule.
+
+For the configuration-contract consequence above, verification additionally requires the schema to declare version 2 with `const`, `init` and `adopt prepare` to generate schema-version-2 configurations, schema version 1 to be rejected, and validation and rendering to enforce the same explicit-override semantics.
