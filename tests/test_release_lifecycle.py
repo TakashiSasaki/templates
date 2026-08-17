@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -19,7 +20,7 @@ RELEASE = ROOT / "release/toolchain.json"
 RELEASE_SCHEMA = ROOT / "schemas/toolchain-release.schema.json"
 CONFIG_SCHEMA = ROOT / "schemas/agent-policy.schema.json"
 ADOPTION_SCHEMA = ROOT / "schemas/adoption-state.schema.json"
-BOOTSTRAP = ROOT / "skills/bootstrap-agent-policy/bootstrap-manifest.yml"
+RUNTIME_MANIFEST = ROOT / "skills/agent-policy/runtime-manifest.json"
 WORKFLOW = ROOT / ".github/workflows/ci.yml"
 VERIFIER_REQUIREMENTS = ROOT / "release/verifier-requirements.lock"
 
@@ -51,17 +52,30 @@ def non_comment_lines(path: Path) -> list[str]:
     ]
 
 
-def test_stable_release_descriptor_is_valid_and_matches_bootstrap() -> None:
+def test_stable_release_descriptor_is_valid_and_matches_runtime_manifest() -> None:
     release = load_object(RELEASE)
     schema = load_object(RELEASE_SCHEMA)
-    bootstrap = load_object(BOOTSTRAP)
+    runtime_manifest = load_object(RUNTIME_MANIFEST)
 
     Draft202012Validator(schema).validate(release)
-    assert release["toolchain"] == bootstrap["toolchain"]
+    assert release["toolchain"] == runtime_manifest["toolchain"]
     assert release["channel"] == "stable"
     assert release["verifier"] == {
         "requirements": "release/verifier-requirements.lock"
     }
+    assert runtime_manifest["schema_version"] == release["contracts"][  # type: ignore[index]
+        "skill_runtime_manifest"
+    ]
+
+
+def test_runtime_manifest_digest_matches_promoted_runtime_lock() -> None:
+    runtime_manifest = load_object(RUNTIME_MANIFEST)
+    runtime_lock = runtime_manifest["runtime_lock"]
+    assert isinstance(runtime_lock, dict)
+    assert runtime_lock["path"] == "requirements-runtime.lock"
+    assert runtime_lock["sha256"] == hashlib.sha256(
+        (ROOT / "requirements-runtime.lock").read_bytes()
+    ).hexdigest()
 
 
 def test_release_schema_allows_prior_stable_contract_versions() -> None:
@@ -72,7 +86,7 @@ def test_release_schema_allows_prior_stable_contract_versions() -> None:
     for name in (
         "agent_policy_schema",
         "adoption_state_schema",
-        "bootstrap_manifest",
+        "skill_runtime_manifest",
         "lock",
     ):
         assert contract_properties[name] == {"type": "integer", "minimum": 1}
