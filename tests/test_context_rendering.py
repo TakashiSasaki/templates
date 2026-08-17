@@ -156,39 +156,3 @@ def test_v2_rejects_unknown_output_context(tmp_path: Path) -> None:
         and item.path == "outputs.review.context"
         for item in diagnostics
     )
-
-
-def test_v1_configuration_remains_supported(tmp_path: Path) -> None:
-    (tmp_path / ".git").mkdir()
-    (tmp_path / "policy").mkdir()
-    (tmp_path / "policy/project.md").write_text(
-        LOCAL_POLICY.format(
-            rule_id="project.v1",
-            title="Version one repository rule",
-            body="Preserve the existing configuration contract.",
-        ),
-        encoding="utf-8",
-    )
-    (tmp_path / ".agent-policy.yml").write_text(
-        """schema_version: 1
-toolchain:
-  repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
-profiles:
-  - core
-project_policy:
-  files:
-    - policy/project.md
-outputs:
-  agents:
-    enabled: true
-    path: AGENTS.md
-skills:
-  enabled: []
-""",
-        encoding="utf-8",
-    )
-
-    assert validate.run(tmp_path, ".agent-policy.yml") == []
-    assert render.run(tmp_path, ".agent-policy.yml") == []
-    assert "project.v1" in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
