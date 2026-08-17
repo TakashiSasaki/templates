@@ -177,7 +177,7 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 list(context.profiles),
                 list(context.project_policy_files),
                 declared_overrides=context.override_reasons,
-                require_explicit_overrides=config.schema_version >= 2,
+                require_explicit_overrides=True,
             )
             content = render_output(
                 output.renderer,

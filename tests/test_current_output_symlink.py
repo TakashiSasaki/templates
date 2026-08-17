@@ -22,19 +22,23 @@ def _write_repository(repository: Path) -> None:
     (repository / "policy").mkdir()
     (repository / "policy/project.md").write_text(PROJECT_POLICY, encoding="utf-8")
     (repository / ".agent-policy.yml").write_text(
-        """schema_version: 1
+        """schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
-profiles:
-  - core
-project_policy:
-  files:
-    - policy/project.md
+contexts:
+  default:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/project.md
 outputs:
   agents:
     enabled: true
     path: AGENTS.md
+    context: default
+    renderer: agents-md
 skills:
   enabled: []
 """,

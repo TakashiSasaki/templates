@@ -23,19 +23,23 @@ def _write_repository(repository: Path, *, output_path: str = "AGENTS.md") -> No
         encoding="utf-8",
     )
     (repository / ".agent-policy.yml").write_text(
-        f"""schema_version: 1
+        f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
-profiles:
-  - core
-project_policy:
-  files:
-    - policy/project.md
+contexts:
+  default:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/project.md
 outputs:
   agents:
     enabled: true
     path: {output_path}
+    context: default
+    renderer: agents-md
 skills:
   enabled:
     - validate-agent-policy

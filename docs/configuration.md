@@ -1,6 +1,8 @@
 # Configuration
 
-`.agent-policy.yml` is the sole semantic configuration entry point in a managed product repository. It selects a full-SHA toolchain revision, policy profiles, project-specific policy files, output targets, and generated skills. Unknown keys are rejected. Input and output paths must remain inside the repository and must not overlap.
+`.agent-policy.yml` is the sole semantic configuration entry point in a managed product repository. It selects a full-SHA toolchain revision, named policy contexts, output targets, and generated skills. Unknown keys are rejected. Input and output paths must remain inside the repository and must not overlap.
+
+The current configuration contract is schema version 2. Schema version 1 is retired and is rejected rather than normalized or migrated implicitly.
 
 ## Optional verification command
 
@@ -13,35 +15,9 @@ verification:
 
 Repositories with tiered or task-dependent verification may omit this field and express the detailed rules in repository-local policy until the configuration schema supports richer verification tiers.
 
-## Schema version 1
+## Policy contexts and outputs
 
-Schema version 1 preserves the original single-context model. Top-level `profiles` and `project_policy.files` define one implicit `default` policy context, and `outputs.agents` is rendered through the `agents-md` renderer.
-
-```yaml
-schema_version: 1
-toolchain:
-  repository: TakashiSasaki/templates
-  revision: 0123456789abcdef0123456789abcdef01234567
-profiles:
-  - core
-  - security-baseline
-project_policy:
-  files:
-    - policy/project.md
-outputs:
-  agents:
-    enabled: true
-    path: AGENTS.md
-skills:
-  enabled:
-    - validate-agent-policy
-```
-
-The `init` and `adopt` commands continue to emit schema version 1 in this phase. Existing managed repositories therefore do not need a configuration migration merely because the toolchain learns schema version 2.
-
-## Schema version 2 policy contexts
-
-Schema version 2 separates semantic policy selection from output presentation. Each named entry under `contexts` selects shared profiles and repository-local policy files. Each named output then references exactly one context and one renderer.
+Schema version 2 separates semantic policy selection from output presentation. Each named entry under `contexts` selects shared profiles and repository-local policy files. Each named output references exactly one context and one renderer.
 
 ```yaml
 schema_version: 2
@@ -82,6 +58,8 @@ skills:
 
 The context is the semantic authority boundary. A renderer does not select, add, remove, or override policy rules; it only presents the rules selected by its referenced context.
 
+`init` and `adopt prepare` also emit schema version 2. For their single-context configuration they use an explicit `default` context and bind the `agents` output to that context through the `agents-md` renderer. The `default` name is ordinary schema-v2 context data, not a compatibility projection of an older schema.
+
 `agents-md` preserves the established repository-agent instruction surface. `policy-context-md` produces a provider-neutral context document for uses such as pull-request review.
 
 `github-review-json-v1` is an additive renderer available to `.agent-policy.yml` configuration schema version 2 for a GitHub-oriented blocking-review transport. The configuration schema version and the adapter response schema are independent: this adapter currently emits JSON with `schema_version: 1`. It renders exactly the same semantic rules selected by the referenced context, then adds only the output protocol: review completeness fields, GitHub event mapping, `path`/`line`/`LEFT`/`RIGHT` inline anchors, numeric confidence serialization, and the version-1 JSON response shape. These adapter requirements are not shared review semantics and must not be copied into `policy/review/*.md`.
@@ -103,28 +81,28 @@ All configured repository-local policy inputs are included in the generated lock
 
 ## Agent output
 
-In schema version 1 the agent instruction output keeps both an enable flag and a path.
+Every named output keeps an enable flag and path and additionally requires `context` and `renderer`.
 
 ```yaml
 outputs:
   agents:
     enabled: true
     path: AGENTS.md
+    context: default
+    renderer: agents-md
 ```
 
-When `enabled` is `false`, the path remains declarative but no agent instruction file is rendered. This permits a later explicit cutover without losing the intended destination. Adoption preparation instead enables output at a shadow path such as `.agent-policy/preview/AGENTS.md`. Finalization rewrites this path to the retained primary instruction path and regenerates the lock.
-
-Schema version 2 generalizes the same enable/path semantics to every named output and additionally requires `context` and `renderer`.
+When `enabled` is `false`, the path remains declarative but no output file is rendered. This permits a later explicit cutover without losing the intended destination. Adoption preparation instead enables the `agents` output at a shadow path such as `.agent-policy/preview/AGENTS.md`. Finalization rewrites this path to the retained primary instruction path and regenerates the lock while preserving the explicit `default` context and `agents-md` renderer binding.
 
 ## Project policy files
 
-In schema version 1, `project_policy.files` accepts an ordered list of repository-local policy files. In schema version 2, each `contexts.<name>.project_policy.files` list has the same meaning but is scoped to that context.
+Each `contexts.<name>.project_policy.files` member accepts an ordered list of repository-local policy files scoped to that context.
 
 The low-level manifest builder supports multiple files. The `init` command intentionally scaffolds exactly one placeholder file; adoption of an existing repository can preserve multiple existing policy files through `adopt prepare`.
 
 ## Explicit shared-policy overrides
 
-Schema version 2 requires repository-local replacement of a shared rule to be declared explicitly. Reusing an overridable shared rule ID in a context-local policy file is not sufficient by itself. The same context must declare the exact rule ID under `overrides` and provide a non-empty reason.
+Repository-local replacement of a shared rule must be declared explicitly. Reusing an overridable shared rule ID in a context-local policy file is not sufficient by itself. The same context must declare the exact rule ID under `overrides` and provide a non-empty reason.
 
 ```yaml
 contexts:
@@ -141,7 +119,7 @@ contexts:
 
 An override declaration is an exception record, not a second source of policy text. The repository-local policy file supplies the replacement rule body; `overrides` records which canonical shared rule is intentionally being replaced and why.
 
-Validation rejects all of the following in schema version 2:
+Validation rejects all of the following:
 
 - a repository-local rule that reuses a shared rule ID without a matching override declaration;
 - an override declaration for a rule that is not actually replaced in that context;
@@ -149,7 +127,7 @@ Validation rejects all of the following in schema version 2:
 - duplicate repository-local rule IDs within one context; and
 - duplicate override declarations for the same rule ID within one context.
 
-Schema version 1 keeps its legacy implicit override behavior for compatibility. New multi-context configurations should use schema version 2 and explicit override declarations so that exceptions to shared normative authority are reviewable and machine-checkable.
+Explicit override declarations make exceptions to shared normative authority reviewable and machine-checkable for every accepted configuration.
 
 ## Adoption state
 

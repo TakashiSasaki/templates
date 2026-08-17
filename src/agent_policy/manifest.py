@@ -17,14 +17,20 @@ def build_manifest(
         raise ValueError("Verification command must not be empty")
 
     manifest: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "toolchain": toolchain_reference(toolchain_revision),
-        "profiles": list(profiles),
-        "project_policy": {"files": list(project_policy_files)},
+        "contexts": {
+            "default": {
+                "profiles": list(profiles),
+                "project_policy": {"files": list(project_policy_files)},
+            }
+        },
         "outputs": {
             "agents": {
                 "enabled": agents_output_enabled,
                 "path": agents_output_path,
+                "context": "default",
+                "renderer": "agents-md",
             }
         },
         "skills": {"enabled": list(enabled_skills)},

@@ -25,13 +25,20 @@ def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
     project_policy_files.clear()
     enabled_skills.append("validate-agent-policy")
 
-    assert manifest["profiles"] == ["core"]
-    assert manifest["project_policy"] == {"files": ["policy/a.md", "policy/b.md"]}
+    assert manifest["schema_version"] == 2
+    assert manifest["contexts"] == {
+        "default": {
+            "profiles": ["core"],
+            "project_policy": {"files": ["policy/a.md", "policy/b.md"]},
+        }
+    }
     assert "verification" not in manifest
     assert manifest["outputs"] == {
         "agents": {
             "enabled": True,
             "path": ".agent-policy/preview/AGENTS.md",
+            "context": "default",
+            "renderer": "agents-md",
         }
     }
     assert manifest["skills"] == {"enabled": []}
@@ -50,13 +57,26 @@ def test_manifest_builder_rejects_empty_verification_command() -> None:
         )
 
 
-def test_init_defaults_remain_compatible() -> None:
+def test_init_defaults_emit_schema_v2() -> None:
     manifest = init.proposed_manifest("LOCAL-DEVELOPMENT", ["core"])
     args = parser().parse_args(["init"])
 
-    assert manifest["project_policy"] == {"files": ["policy/project.md"]}
+    assert manifest["schema_version"] == 2
+    assert manifest["contexts"] == {
+        "default": {
+            "profiles": ["core"],
+            "project_policy": {"files": ["policy/project.md"]},
+        }
+    }
     assert manifest["verification"] == {"command": "./scripts/verify.sh"}
-    assert manifest["outputs"] == {"agents": {"enabled": True, "path": "AGENTS.md"}}
+    assert manifest["outputs"] == {
+        "agents": {
+            "enabled": True,
+            "path": "AGENTS.md",
+            "context": "default",
+            "renderer": "agents-md",
+        }
+    }
     assert manifest["skills"] == {"enabled": ["validate-agent-policy"]}
     assert args.verification_command == "./scripts/verify.sh"
 
@@ -84,12 +104,20 @@ def test_init_applies_custom_manifest_options(tmp_path: Path) -> None:
 
     config = load_yaml(tmp_path / ".agent-policy.yml")
     assert isinstance(config, dict)
-    assert config["project_policy"] == {"files": ["config/agent-policy.md"]}
+    assert config["schema_version"] == 2
+    assert config["contexts"] == {
+        "default": {
+            "profiles": ["core"],
+            "project_policy": {"files": ["config/agent-policy.md"]},
+        }
+    }
     assert "verification" not in config
     assert config["outputs"] == {
         "agents": {
             "enabled": False,
             "path": ".agent-policy/preview/AGENTS.md",
+            "context": "default",
+            "renderer": "agents-md",
         }
     }
     assert config["skills"] == {"enabled": []}

@@ -8,12 +8,14 @@ description: 外部archive、historical source、vendor bundle、生成物など
 
 `external-artifact-intake` profileは、別repository、外部生成工程、配布archive、historical snapshot、vendor bundleなどからartifactを受け取り、destination repositoryへ導入する作業に適用します。
 
-このprofileは`core`へ暗黙には含めません。外部artifactを扱う製品repositoryが`.agent-policy.yml`で明示的に選択します。
+このprofileは`core`へ暗黙には含めません。外部artifactを扱う製品repositoryが`.agent-policy.yml`の適用対象policy contextで明示的に選択します。
 
 ```yaml
-profiles:
-  - core
-  - external-artifact-intake
+contexts:
+  default:
+    profiles:
+      - core
+      - external-artifact-intake
 ```
 
 ## 収録する規則

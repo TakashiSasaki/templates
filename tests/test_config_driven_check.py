@@ -29,19 +29,23 @@ def _write_repository(
     (repository / "policy/project.md").write_text(PROJECT_POLICY, encoding="utf-8")
     enabled = "true" if output_enabled else "false"
     (repository / ".agent-policy.yml").write_text(
-        f"""schema_version: 1
+        f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
   revision: LOCAL-DEVELOPMENT
-profiles:
-  - core
-project_policy:
-  files:
-    - policy/project.md
+contexts:
+  default:
+    profiles:
+      - core
+    project_policy:
+      files:
+        - policy/project.md
 outputs:
   agents:
     enabled: {enabled}
     path: {output_path}
+    context: default
+    renderer: agents-md
 skills:
   enabled:
     - validate-agent-policy

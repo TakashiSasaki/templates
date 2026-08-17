@@ -142,7 +142,21 @@ def test_finalize_cuts_over_and_preserves_original_backup(tmp_path: Path) -> Non
 
     config = load_yaml(tmp_path / ".agent-policy.yml")
     assert isinstance(config, dict)
-    assert config["outputs"] == {"agents": {"enabled": True, "path": "AGENTS.md"}}
+    assert config["schema_version"] == 2
+    assert config["contexts"] == {
+        "default": {
+            "profiles": ["core", "security-baseline"],
+            "project_policy": {"files": ["policy/project.md"]},
+        }
+    }
+    assert config["outputs"] == {
+        "agents": {
+            "enabled": True,
+            "path": "AGENTS.md",
+            "context": "default",
+            "renderer": "agents-md",
+        }
+    }
 
     state = json.loads(state_path.read_text(encoding="utf-8"))
     assert state["status"] == "finalized"
