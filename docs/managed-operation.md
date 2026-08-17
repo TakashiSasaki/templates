@@ -1,16 +1,17 @@
 # Managed repository operation
 
-After `agent-policy` has been adopted, the generated `AGENTS.md` in a product repository becomes the normal entry point for general coding agents. This page defines an operating sequence that both an agent opening the repository for the first time and a human maintaining policy can follow consistently.
+After `agent-policy` has been adopted, the generated `AGENTS.md` in a product repository becomes the normal instruction entry point for general coding agents. The installed `agent-policy` skill remains the execution entry point for policy-toolchain commands and follows the repository's `.agent-policy.lock` full-SHA pin through the persistent runtime cache.
 
 ## Initial discovery order
 
 Before changing a product repository, inspect it in this order:
 
 1. Read the root `AGENTS.md` to identify applicable shared policy, product-specific policy, and required verification commands.
-2. Read `.agent-policy.yml` to identify the pinned toolchain repository and full commit SHA, project-policy inputs, generated outputs, and generated skills.
-3. If a repository-local skill catalog such as `.agents/skills/manifest.json` exists, read it and identify skills relevant to the change surface.
-4. Read the generated skills listed under `Policy system` in `AGENTS.md`.
-5. Edit project-policy files referenced by `.agent-policy.yml` only when changing product-specific semantics.
+2. Read `.agent-policy.yml` to identify semantic configuration, project-policy inputs, generated outputs, and generated skills.
+3. Read `.agent-policy.lock` to identify the immutable toolchain repository/revision and generated-state hashes.
+4. If a repository-local skill catalog such as `.agents/skills/manifest.json` exists, read it and identify skills relevant to the change surface.
+5. Read the generated skills listed under `Policy system` in `AGENTS.md`.
+6. Edit project-policy files referenced by `.agent-policy.yml` only when changing product-specific semantics.
 
 Do not edit generated `AGENTS.md` directly. Rule sources originating from shared profiles are shown as `repository@revision:path` using the pinned toolchain revision. Repository-local policy is shown as a path in the current product repository.
 
@@ -18,18 +19,24 @@ Do not edit generated `AGENTS.md` directly. Rule sources originating from shared
 
 Use `.agents/skills/validate-agent-policy/SKILL.md` for changes involving `.agent-policy.yml`, project policy, generated instructions, generated skills, or the lock file.
 
-Even when no installed `agent-policy` command is available, do not switch to a mutable branch or an unpinned release. Use the `toolchain.repository` and `toolchain.revision` from `.agent-policy.yml` and run that pinned revision in a temporary environment.
+For direct toolchain execution, use the installed single skill:
 
 ```bash
-uvx --from "git+https://github.com/<repository>.git@<revision>" \
-  agent-policy --repository . validate --config .agent-policy.yml
-uvx --from "git+https://github.com/<repository>.git@<revision>" \
-  agent-policy --repository . check --config .agent-policy.yml
+python /path/to/agent-skills/agent-policy/scripts/run.py \
+  --repository . \
+  validate --config .agent-policy.yml
+python /path/to/agent-skills/agent-policy/scripts/run.py \
+  --repository . \
+  check --config .agent-policy.yml
 ```
 
-If `uvx` is unavailable, install the same full-SHA Git reference into a temporary virtual environment. Do not install an unversioned toolchain into a global environment.
+`scripts/run.py` reads `.agent-policy.lock`, requires `TakashiSasaki/templates` and a full lowercase commit SHA, and selects a validated persistent runtime for that revision. A malformed or mutable lock fails closed rather than falling back to the skill's stable default.
 
-When semantic inputs change and generated outputs become stale, run `render` through the pinned toolchain as an explicit synchronization operation, then rerun `validate` and `check`.
+A valid runtime cache entry is reused without network access. If the repository pins another full SHA and no compatible cache entry exists, the skill fetches that revision's runtime lock, derives the cache identity, builds the runtime in a staging directory, verifies it, and only then makes it active.
+
+Do not bypass this path by invoking the mutable `policy` branch, an unpinned release, or a globally installed toolchain of unknown provenance.
+
+When semantic inputs change and generated outputs become stale, run `render` through the same repository-pinned runtime as an explicit synchronization operation, then rerun `validate` and `check`.
 
 ## Consumer CI
 
