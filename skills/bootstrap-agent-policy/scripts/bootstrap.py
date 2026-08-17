@@ -17,9 +17,9 @@ EXPECTED_REPOSITORY = "TakashiSasaki/templates"
 EXPECTED_EXECUTABLE = "agent-policy"
 EXPECTED_ROUTES = {
     "inspect": ["adopt", "inspect"],
-    "init": ["init"],
-    "adopt_prepare": ["adopt", "prepare"],
-    "adopt_preview": ["adopt", "preview"],
+    "fresh_prepare": ["init"],
+    "migration_prepare": ["adopt", "prepare"],
+    "migration_preview": ["adopt", "preview"],
     "validate": ["validate"],
     "check": ["check"],
 }
@@ -46,7 +46,6 @@ def load_manifest() -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or value.get("schema_version") != 2:
         raise ValueError("Manifest schema_version must be 2")
-
     toolchain = value.get("toolchain")
     if not isinstance(toolchain, dict):
         raise ValueError("Manifest toolchain must be an object")
@@ -55,7 +54,6 @@ def load_manifest() -> dict[str, Any]:
         raise ValueError("Manifest revision must be a full lowercase Git commit SHA")
     if toolchain.get("repository") != EXPECTED_REPOSITORY:
         raise ValueError("Unexpected toolchain repository")
-
     entrypoint = value.get("entrypoint")
     if entrypoint != {"executable": EXPECTED_EXECUTABLE}:
         raise ValueError("Unexpected manifest entrypoint")
@@ -89,14 +87,8 @@ class Toolchain:
 
     def __enter__(self) -> Toolchain:
         if shutil.which("uvx"):
-            self._prefix = [
-                "uvx",
-                "--from",
-                self.requirement,
-                self.executable,
-            ]
+            self._prefix = ["uvx", "--from", self.requirement, self.executable]
             return self
-
         self._temporary = tempfile.TemporaryDirectory(prefix="bootstrap-agent-policy-")
         venv = Path(self._temporary.name) / "venv"
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
@@ -107,14 +99,7 @@ class Toolchain:
             python = venv / "bin" / "python"
             executable = venv / "bin" / self.executable
         subprocess.run(
-            [
-                str(python),
-                "-m",
-                "pip",
-                "install",
-                "--disable-pip-version-check",
-                self.requirement,
-            ],
+            [str(python), "-m", "pip", "install", "--disable-pip-version-check", self.requirement],
             check=True,
         )
         self._prefix = [str(executable)]
@@ -124,12 +109,7 @@ class Toolchain:
         if self._temporary is not None:
             self._temporary.cleanup()
 
-    def run(
-        self,
-        arguments: list[str],
-        *,
-        capture_output: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
+    def run(self, arguments: list[str], *, capture_output: bool = False) -> subprocess.CompletedProcess[str]:
         if self._prefix is None:
             raise RuntimeError("Toolchain is not active")
         return subprocess.run(
@@ -145,50 +125,89 @@ def root_arguments(root: Path) -> list[str]:
 
 
 def inspect_arguments(manifest: dict[str, Any], root: Path) -> list[str]:
-    return [
-        *root_arguments(root),
-        "--format",
-        "json",
-        *manifest["routes"]["inspect"],
-    ]
+    return [*root_arguments(root), "--format", "json", *manifest["routes"]["inspect"]]
+
+
+def adoption_strategy(state: str) -> str:
+    if state == "unmanaged-empty":
+        return "fresh"
+    if state == "unmanaged-existing":
+        return "migration"
+    if state == "managed":
+        raise ValueError("Repository is already managed by agent-policy")
+    if state == "inconsistent":
+        raise ValueError("Repository contains inconsistent agent-policy artifacts")
+    raise ValueError(f"Unknown repository adoption state: {state}")
+
+
+def available_primary_instructions(inspection: Inspection) -> tuple[str, ...]:
+    return tuple(path for path in inspection.sources if path in KNOWN_INSTRUCTION_FILES)
+
+
+def select_primary_instructions(
+    inspection: Inspection,
+    requested: str | None,
+    *,
+    apply: bool,
+) -> str | None:
+    strategy = adoption_strategy(inspection.state)
+    if strategy == "fresh":
+        if requested is not None:
+            raise ValueError("Fresh adoption has no existing primary instructions")
+        return None
+
+    available = available_primary_instructions(inspection)
+    if requested is not None:
+        if requested not in available:
+            detail = ", ".join(available) if available else "none"
+            raise ValueError(
+                "Adoption primary instructions must be a discovered instruction file; "
+                f"available: {detail}"
+            )
+        return requested
+    if len(available) == 1:
+        return available[0]
+    if apply:
+        detail = ", ".join(available) if available else "none"
+        raise ValueError(
+            "Adoption requires --primary-instructions when discovery is ambiguous; "
+            f"available: {detail}"
+        )
+    return None
 
 
 def action_arguments(
     manifest: dict[str, Any],
     root: Path,
-    route: str,
+    strategy: str,
     revision: str,
     *,
     apply: bool,
     primary_instructions: str | None,
 ) -> list[str]:
-    route_key = "init" if route == "init" else "adopt_prepare"
+    route_key = "fresh_prepare" if strategy == "fresh" else "migration_prepare"
     arguments = [
         *root_arguments(root),
         *manifest["routes"][route_key],
         "--toolchain-revision",
         revision,
     ]
-    if route == "adopt":
+    if strategy == "migration":
         if primary_instructions is None:
-            raise ValueError("Adoption requires explicit or unambiguous primary instructions")
+            raise ValueError("Migration adoption requires explicit or unambiguous primary instructions")
         arguments.extend(["--primary-instructions", primary_instructions])
     if apply:
         arguments.append("--apply")
     return arguments
 
 
-def post_apply_arguments(
-    manifest: dict[str, Any],
-    root: Path,
-    route: str,
-) -> list[list[str]]:
-    if route == "init":
+def post_apply_arguments(manifest: dict[str, Any], root: Path, strategy: str) -> list[list[str]]:
+    if strategy == "fresh":
         return [
             [*root_arguments(root), *manifest["routes"]["validate"]],
             [*root_arguments(root), *manifest["routes"]["check"]],
         ]
-    return [[*root_arguments(root), *manifest["routes"]["adopt_preview"]]]
+    return [[*root_arguments(root), *manifest["routes"]["migration_preview"]]]
 
 
 def parse_inspection(output: str) -> Inspection:
@@ -214,79 +233,16 @@ def parse_inspection(output: str) -> Inspection:
     return Inspection(state=states[0], sources=sources)
 
 
-def recommended_route(state: str) -> str:
-    if state == "unmanaged-empty":
-        return "init"
-    if state == "unmanaged-existing":
-        return "adopt"
-    if state == "managed":
-        raise ValueError("Repository is already managed by agent-policy")
-    if state == "inconsistent":
-        raise ValueError("Repository contains inconsistent agent-policy artifacts")
-    raise ValueError(f"Unknown repository adoption state: {state}")
-
-
-def select_route(state: str, requested: str, *, apply: bool) -> str:
-    recommended = recommended_route(state)
-    if requested == "auto":
-        if apply:
-            raise ValueError("--apply requires an explicit --route init or --route adopt")
-        return recommended
-    if requested != recommended:
-        raise ValueError(
-            f"Requested route {requested} does not match repository state; "
-            f"recommended route is {recommended}"
-        )
-    return requested
-
-
-def available_primary_instructions(inspection: Inspection) -> tuple[str, ...]:
-    return tuple(path for path in inspection.sources if path in KNOWN_INSTRUCTION_FILES)
-
-
-def select_primary_instructions(
-    inspection: Inspection,
-    route: str,
-    requested: str | None,
-    *,
-    apply: bool,
-) -> str | None:
-    if route != "adopt":
-        return None
-
-    available = available_primary_instructions(inspection)
-    if requested is not None:
-        if requested not in available:
-            detail = ", ".join(available) if available else "none"
-            raise ValueError(
-                "Adoption primary instructions must be a discovered instruction file; "
-                f"available: {detail}"
-            )
-        return requested
-
-    if len(available) == 1:
-        return available[0]
-
-    if apply:
-        detail = ", ".join(available) if available else "none"
-        raise ValueError(
-            "Adoption requires --primary-instructions when discovery is ambiguous; "
-            f"available: {detail}"
-        )
-    return None
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bootstrap the TakashiSasaki/templates policy toolchain"
+        description="Adopt the TakashiSasaki/templates policy toolchain"
     )
     parser.add_argument("--repository", type=Path, default=Path.cwd())
-    parser.add_argument("--route", choices=["auto", "init", "adopt"], default="auto")
     parser.add_argument("--primary-instructions")
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Apply the explicitly selected route after dry-run inspection",
+        help="Apply the inspected adoption strategy after dry-run review",
     )
     return parser.parse_args(argv)
 
@@ -295,16 +251,11 @@ def _relay_completed(result: subprocess.CompletedProcess[str]) -> None:
     if result.stdout:
         print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
     if result.stderr:
-        print(
-            result.stderr,
-            end="" if result.stderr.endswith("\n") else "\n",
-            file=sys.stderr,
-        )
+        print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-
     try:
         manifest = load_manifest()
         root = repository_root(args.repository)
@@ -322,10 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Mode: {'apply' if args.apply else 'dry-run'}")
 
         with Toolchain(requirement, executable, root) as runner:
-            inspection_result = runner.run(
-                inspect_arguments(manifest, root),
-                capture_output=True,
-            )
+            inspection_result = runner.run(inspect_arguments(manifest, root), capture_output=True)
             if inspection_result.returncode:
                 _relay_completed(inspection_result)
                 return inspection_result.returncode
@@ -336,17 +284,14 @@ def main(argv: list[str] | None = None) -> int:
                 for source in inspection.sources:
                     print(f"- {source}")
 
-            recommended = recommended_route(inspection.state)
-            print(f"Recommended route: {recommended}")
-            route = select_route(inspection.state, args.route, apply=args.apply)
+            strategy = adoption_strategy(inspection.state)
+            print(f"Adoption strategy: {strategy}")
             primary_instructions = select_primary_instructions(
                 inspection,
-                route,
                 args.primary_instructions,
                 apply=args.apply,
             )
-            print(f"Selected route: {route}")
-            if route == "adopt" and primary_instructions is None:
+            if strategy == "migration" and primary_instructions is None:
                 available = available_primary_instructions(inspection)
                 detail = ", ".join(available) if available else "none"
                 print(
@@ -362,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
                 action_arguments(
                     manifest,
                     root,
-                    route,
+                    strategy,
                     revision,
                     apply=args.apply,
                     primary_instructions=primary_instructions,
@@ -373,14 +318,16 @@ def main(argv: list[str] | None = None) -> int:
             if not args.apply:
                 return 0
 
-            for arguments in post_apply_arguments(manifest, root, route):
+            for arguments in post_apply_arguments(manifest, root, strategy):
                 result = runner.run(arguments)
                 if result.returncode:
                     return result.returncode
 
-            if route == "adopt":
+            if strategy == "migration":
                 print("Adoption preparation and preview completed.")
                 print("Finalization was not run and requires a separate explicit instruction.")
+            else:
+                print("Fresh adoption completed and managed validation succeeded.")
             return 0
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"bootstrap error: {exc}", file=sys.stderr)
