@@ -139,6 +139,35 @@ toolchain:
         runtime.select_pin(root)
 
 
+def test_managed_lock_toolchain_parser_rejects_nested_and_duplicate_keys(
+    tmp_path: Path,
+) -> None:
+    lock = tmp_path / ".agent-policy.lock"
+    lock.write_text(
+        """lock_version: 1
+toolchain:
+  repository: TakashiSasaki/templates
+    revision: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="flat two-space mapping"):
+        runtime.lock_toolchain(lock)
+
+    lock.write_text(
+        """lock_version: 1
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  revision: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="duplicated"):
+        runtime.lock_toolchain(lock)
+
+
 def test_unmanaged_repository_uses_runtime_manifest_pin(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     (root / ".git").mkdir(parents=True)
