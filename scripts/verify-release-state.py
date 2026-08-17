@@ -447,7 +447,10 @@ def verify_runtime_manifest(
     if runtime_lock.get("path") != "requirements-runtime.lock":
         raise ValueError("Skill runtime manifest runtime lock path is inconsistent")
     declared_digest = runtime_lock.get("sha256")
-    if not isinstance(declared_digest, str) or re.fullmatch(r"[0-9a-f]{64}", declared_digest) is None:
+    if (
+        not isinstance(declared_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", declared_digest) is None
+    ):
         raise ValueError("Skill runtime manifest runtime lock digest must be lowercase SHA-256")
     actual_digest = hashlib.sha256(
         (stable_tree / "requirements-runtime.lock").read_bytes()
