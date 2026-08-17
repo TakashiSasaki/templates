@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from pathlib import Path
 
 from packaging.requirements import Requirement
 
+from scripts.smoke_test_runtime_distribution import environment as smoke_environment
 from scripts.verify_ci_environment import load_locked_requirements as load_ci_lock
 from scripts.verify_runtime_environment import (
     compare_distribution_sets,
@@ -34,6 +36,49 @@ def test_runtime_lock_covers_declared_project_dependencies() -> None:
     locked = load_locked_requirements(ROOT / "requirements-runtime.lock")
 
     assert declared <= set(locked)
+
+
+def test_smoke_environment_removes_external_python_and_pip_inputs() -> None:
+    cleaned = smoke_environment(
+        {
+            "PATH": "runtime-path",
+            "OTHER_INPUT": "preserved",
+            "PYTHONHOME": "host-python",
+            "pythonpath": "host-imports",
+            "PYTHONUSERBASE": "host-user-base",
+            "PIP_INDEX_URL": "https://example.invalid/simple",
+            "pip_constraint": "host-constraint.txt",
+            "PIP_CONFIG_FILE": "host-pip.conf",
+        }
+    )
+
+    assert cleaned["PATH"] == "runtime-path"
+    assert cleaned["OTHER_INPUT"] == "preserved"
+    assert cleaned["PYTHONNOUSERSITE"] == "1"
+    assert cleaned["PIP_CONFIG_FILE"] == os.devnull
+    assert cleaned["PIP_DISABLE_PIP_VERSION_CHECK"] == "1"
+    assert not {
+        key
+        for key in cleaned
+        if key.upper().startswith("PYTHON") and key != "PYTHONNOUSERSITE"
+    }
+    assert not {
+        key
+        for key in cleaned
+        if key.upper().startswith("PIP_")
+        and key not in {"PIP_CONFIG_FILE", "PIP_DISABLE_PIP_VERSION_CHECK"}
+    }
+
+
+def test_runtime_workflow_does_not_use_pip_cache_before_sanitization() -> None:
+    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "cache: pip" not in workflow
+    assert "PIP_CONFIG_FILE:" in workflow
+    assert "PYTHONHOME:" in workflow
+    assert "PYTHONPATH:" in workflow
 
 
 def test_runtime_verifier_accepts_exact_locked_distribution_set() -> None:
