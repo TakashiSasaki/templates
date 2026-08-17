@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -28,6 +30,7 @@ def load_script(name: str, relative: str) -> ModuleType:
 
 runtime = load_script("agent_policy_skill_runtime", "scripts/runtime.py")
 bootstrap = load_script("agent_policy_skill_bootstrap", "scripts/bootstrap.py")
+runner = load_script("agent_policy_skill_runner", "scripts/run.py")
 installer = load_script("agent_policy_skill_install", "scripts/install.py")
 uninstaller = load_script("agent_policy_skill_uninstall", "scripts/uninstall.py")
 
@@ -37,6 +40,21 @@ def stable_toolchain() -> dict[str, str]:
     toolchain = release["toolchain"]
     assert isinstance(toolchain, dict)
     return toolchain
+
+
+def identity(
+    revision: str = "a" * 40,
+    lock_sha256: str = "b" * 64,
+    python: str = "3.12",
+    platform: str = "linux-x86_64",
+) -> object:
+    return runtime.RuntimeIdentity(
+        "TakashiSasaki/templates",
+        revision,
+        lock_sha256,
+        python,
+        platform,
+    )
 
 
 def test_single_skill_layout_and_release_pin() -> None:
@@ -53,7 +71,9 @@ def test_single_skill_layout_and_release_pin() -> None:
     actual = {
         path.relative_to(SKILL_ROOT).as_posix()
         for path in SKILL_ROOT.rglob("*")
-        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix != ".pyc"
     }
     assert actual == expected
 
@@ -76,8 +96,6 @@ def test_skill_is_the_single_public_repository_entry_point() -> None:
 def test_runtime_lock_digest_matches_promoted_revision_lock() -> None:
     manifest = runtime.load_manifest()
     lock = (ROOT / "requirements-runtime.lock").read_bytes()
-    import hashlib
-
     assert hashlib.sha256(lock).hexdigest() == manifest["runtime_lock"]["sha256"]
 
 
@@ -91,7 +109,9 @@ def test_runtime_lock_parser_requires_exact_unique_distribution_set() -> None:
         runtime.parse_runtime_lock("PyYAML===6.0.3\npyyaml===6.0.3\n")
 
 
-def test_managed_repository_lock_takes_precedence_and_fails_closed(tmp_path: Path) -> None:
+def test_managed_repository_lock_takes_precedence_and_fails_closed(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     (root / ".git").mkdir(parents=True)
     (root / ".agent-policy.lock").write_text(
@@ -105,6 +125,7 @@ toolchain:
     pin = runtime.select_pin(root)
     assert pin.revision == "a" * 40
     assert pin.expected_lock_sha256 is None
+    assert pin.project_version is None
 
     (root / ".agent-policy.lock").write_text(
         """lock_version: 1
@@ -124,37 +145,40 @@ def test_unmanaged_repository_uses_runtime_manifest_pin(tmp_path: Path) -> None:
     pin = runtime.select_pin(root)
     assert pin.revision == stable_toolchain()["revision"]
     assert pin.expected_lock_sha256 == runtime.load_manifest()["runtime_lock"]["sha256"]
+    assert pin.project_version == "0.1.0"
 
 
 def test_runtime_identity_separates_revision_lock_python_and_platform() -> None:
-    base = runtime.RuntimeIdentity("TakashiSasaki/templates", "a" * 40, "b" * 64, "3.12", "linux-x86_64")
+    base = identity()
     variants = [
-        runtime.RuntimeIdentity("TakashiSasaki/templates", "c" * 40, "b" * 64, "3.12", "linux-x86_64"),
-        runtime.RuntimeIdentity("TakashiSasaki/templates", "a" * 40, "d" * 64, "3.12", "linux-x86_64"),
-        runtime.RuntimeIdentity("TakashiSasaki/templates", "a" * 40, "b" * 64, "3.13", "linux-x86_64"),
-        runtime.RuntimeIdentity("TakashiSasaki/templates", "a" * 40, "b" * 64, "3.12", "win32-amd64"),
+        identity(revision="c" * 40),
+        identity(lock_sha256="d" * 64),
+        identity(python="3.13"),
+        identity(platform="win32-amd64"),
     ]
     assert len({base.digest(), *(item.digest() for item in variants)}) == 5
 
 
 def test_valid_default_cache_hit_requires_no_network(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     pin = runtime.pin_from_manifest(runtime.load_manifest())
-    identity = runtime.RuntimeIdentity(
+    cache_identity = runtime.RuntimeIdentity(
         pin.repository,
         pin.revision,
         pin.expected_lock_sha256,
         runtime.python_token(),
         runtime.platform_token(),
     )
-    target = tmp_path / identity.digest()
+    target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)
     executable = runtime.executable_path(target, pin.executable)
     executable.parent.mkdir(parents=True)
     executable.write_text("cached", encoding="utf-8")
     runtime.marker_path(target).write_text(
-        json.dumps(runtime.expected_marker(identity, pin)), encoding="utf-8"
+        json.dumps(runtime.expected_marker(cache_identity, pin)),
+        encoding="utf-8",
     )
 
     def network_forbidden(_pin: object) -> bytes:
@@ -172,23 +196,24 @@ def test_cached_nondefault_revision_can_be_reused_offline(tmp_path: Path) -> Non
         default.lock_path,
         None,
         default.project_distribution,
-        default.project_version,
+        None,
         default.executable,
     )
-    identity = runtime.RuntimeIdentity(
+    cache_identity = runtime.RuntimeIdentity(
         pin.repository,
         pin.revision,
         "c" * 64,
         runtime.python_token(),
         runtime.platform_token(),
     )
-    target = tmp_path / identity.digest()
+    target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)
     executable = runtime.executable_path(target, pin.executable)
     executable.parent.mkdir(parents=True)
     executable.write_text("cached", encoding="utf-8")
     runtime.marker_path(target).write_text(
-        json.dumps(runtime.expected_marker(identity, pin)), encoding="utf-8"
+        json.dumps(runtime.expected_marker(cache_identity, pin, "9.9.9")),
+        encoding="utf-8",
     )
     assert runtime.ensure_runtime(pin, root=tmp_path) == target
 
@@ -210,11 +235,54 @@ def test_runtime_environment_removes_external_python_and_pip_inputs() -> None:
     assert "PYTHONPATH" not in env
 
 
+def test_cached_runner_places_global_repository_option_before_command(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    executable = tmp_path / "agent-policy"
+    executable.write_text("", encoding="utf-8")
+    observed: dict[str, object] = {}
+
+    monkeypatch.setattr(runner, "find_repository_root", lambda _value: repository)
+    monkeypatch.setattr(runner, "runtime_executable", lambda _value: executable)
+    monkeypatch.setattr(
+        runner,
+        "sanitized_environment",
+        lambda: {"PATH": os.environ.get("PATH", "")},
+    )
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed["cwd"] = kwargs["cwd"]
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run.py", "--repository", str(repository), "validate"],
+    )
+
+    assert runner.main() == 0
+    assert observed["command"] == [
+        str(executable),
+        "--repository",
+        str(repository),
+        "validate",
+    ]
+    assert observed["cwd"] == repository
+
+
 @pytest.mark.parametrize(
     ("state", "strategy"),
     [("unmanaged-empty", "fresh"), ("unmanaged-existing", "migration")],
 )
-def test_bootstrap_selects_state_derived_adoption_strategy(state: str, strategy: str) -> None:
+def test_bootstrap_selects_state_derived_adoption_strategy(
+    state: str,
+    strategy: str,
+) -> None:
     assert bootstrap.adoption_strategy(state) == strategy
 
 
@@ -244,13 +312,15 @@ def test_migration_bootstrap_never_exposes_finalize(tmp_path: Path) -> None:
 def write_skill_marker(directory: Path, name: str = "agent-policy") -> None:
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "SKILL.md").write_text(
-        f"---\nname: {name}\n---\n\nBody.\n", encoding="utf-8"
+        f"---\nname: {name}\n---\n\nBody.\n",
+        encoding="utf-8",
     )
 
 
 @pytest.mark.parametrize("module", [installer, uninstaller])
 def test_destructive_guards_require_agent_policy_front_matter(
-    module: ModuleType, tmp_path: Path
+    module: ModuleType,
+    tmp_path: Path,
 ) -> None:
     target = tmp_path / "different"
     write_skill_marker(target, "different-skill")
@@ -259,7 +329,8 @@ def test_destructive_guards_require_agent_policy_front_matter(
 
 
 def test_installer_replacement_is_staged_atomically(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     source = tmp_path / "source"
     write_skill_marker(source)
