@@ -90,7 +90,10 @@ def safe_relative_member(member: tarfile.TarInfo) -> PurePosixPath | None:
     relative_parts = parts[3:]
     if not relative_parts:
         return PurePosixPath(".")
-    if any(part in {"", ".", ".."} for part in relative_parts):
+    if any(
+        part in {"", ".", ".."} or "\\" in part or ":" in part
+        for part in relative_parts
+    ):
         raise RuntimeError(f"unsafe path in skill archive: {member.name}")
     return PurePosixPath(*relative_parts)
 
