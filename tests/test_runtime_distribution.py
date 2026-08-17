@@ -98,6 +98,26 @@ def test_runtime_verifier_accepts_exact_locked_distribution_set() -> None:
     assert errors == ()
 
 
+def test_runtime_verifier_rejects_project_duplicated_in_lock() -> None:
+    errors = compare_distribution_sets(
+        {
+            "takashisasaki-agent-policy": "0.1.0",
+            "Jinja2": "3.1.6",
+        },
+        {
+            "takashisasaki-agent-policy": "0.1.0",
+            "Jinja2": "3.1.6",
+        },
+        project_name="takashisasaki-agent-policy",
+        project_version="0.1.0",
+    )
+
+    assert errors == (
+        "runtime lock must not contain the local project distribution: "
+        "takashisasaki-agent-policy",
+    )
+
+
 def test_runtime_verifier_rejects_missing_locked_distribution() -> None:
     errors = compare_distribution_sets(
         {"Jinja2": "3.1.6", "MarkupSafe": "3.0.3"},
