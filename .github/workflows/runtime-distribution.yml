@@ -50,4 +50,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install and verify runtime distribution in a clean environment
-        run: python scripts/smoke_test_runtime_distribution.py
+        run: python -I scripts/smoke_test_runtime_distribution.py
