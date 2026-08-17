@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "8ae560d083a0f2650681892740c02026c0da4278"
+POLICY_REVISION = "037dcf2dbd24650e8115fb76c0fa8cf582c7bdd1"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -57,6 +57,10 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                 "Consumer effective policy",
                 "policy/consumer/index.md",
             ),
+            "policy-profiles": (
+                "Policy profiles",
+                "policy/shared-policy/profiles.md",
+            ),
         }
         for document_id, (title, destination) in expected.items():
             with self.subTest(document_id=document_id):
@@ -98,6 +102,18 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
                     "policy/consumer/index.md",
                 ),
             ],
+        )
+
+        design_node = next(
+            child
+            for child in policy_section["children"]
+            if child.get("title") == "Design"
+        )
+        design_documents = [child["document"] for child in design_node["children"]]
+        configuration_index = design_documents.index("configuration")
+        self.assertEqual(
+            design_documents[configuration_index : configuration_index + 3],
+            ["configuration", "policy-profiles", "policy-authoring"],
         )
 
     def test_policy_layer_documents_have_distinct_destinations(self) -> None:

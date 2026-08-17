@@ -256,6 +256,12 @@
               "destination": "policy/configuration.md"
             },
             {
+              "title": "Policy profiles",
+              "publication": "policy",
+              "document": "policy-profiles",
+              "destination": "policy/shared-policy/profiles.md"
+            },
+            {
               "title": "Policy authoring",
               "publication": "policy",
               "document": "policy-authoring",
