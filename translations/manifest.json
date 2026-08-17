@@ -6,21 +6,21 @@
       "canonical": "docs/overview.md",
       "language": "ja",
       "translation": "translations/ja/docs/overview.md",
-      "canonical_blob_sha": "612a73dc0ebb835156655ee48b716e78189d0ce7",
+      "canonical_blob_sha": "9171014aae215c6fbeec06d2f07cf37283aa7161",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/getting-started.md",
       "language": "ja",
       "translation": "translations/ja/docs/getting-started.md",
-      "canonical_blob_sha": "65b24708733473f053a44a2be7fa0853b380380a",
+      "canonical_blob_sha": "92ee6df3099cd42a1eb6eca0e9776ca645311a80",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/managed-operation.md",
       "language": "ja",
       "translation": "translations/ja/docs/managed-operation.md",
-      "canonical_blob_sha": "c3943184f814fe4d6efaf4cfe518f6853d91dd2e",
+      "canonical_blob_sha": "da5f3fbc0d41db9f01ba890a7d5664cdd8145872",
       "surfaces": ["reader"]
     },
     {
@@ -34,7 +34,7 @@
       "canonical": "docs/bootstrap.md",
       "language": "ja",
       "translation": "translations/ja/docs/bootstrap.md",
-      "canonical_blob_sha": "ecd3041fc1a931c08df948c596d69d15bda25b0b",
+      "canonical_blob_sha": "1a1ec2621fe57181983678f939d0195eaaa41629",
       "surfaces": ["reader"]
     },
     {
@@ -55,7 +55,7 @@
       "canonical": "docs/repository-structure.md",
       "language": "ja",
       "translation": "translations/ja/docs/repository-structure.md",
-      "canonical_blob_sha": "e52c969e66d00851181594f8f4a55379b2661bfb",
+      "canonical_blob_sha": "67f5329d17a3940ba937ffb7f9a1164145e24a5b",
       "surfaces": ["reader"]
     },
     {
@@ -104,7 +104,7 @@
       "canonical": "docs/adr/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/adr/index.md",
-      "canonical_blob_sha": "daac56b7f841a60003f1184985af6b50cc98a300",
+      "canonical_blob_sha": "8aad97936ee059c5e52d10de51a5a3d78b2e5f7d",
       "surfaces": ["reader", "guided"]
     }
   ]

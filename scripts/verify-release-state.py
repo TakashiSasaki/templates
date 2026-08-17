@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -27,7 +28,7 @@ from agent_policy.identity import (
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE = ROOT / "release/toolchain.json"
 RELEASE_SCHEMA = ROOT / "schemas/toolchain-release.schema.json"
-BOOTSTRAP_MANIFEST = ROOT / "skills/bootstrap-agent-policy/bootstrap-manifest.yml"
+RUNTIME_MANIFEST = ROOT / "skills/agent-policy/runtime-manifest.json"
 CURRENT_WORKFLOW_TEMPLATE = ROOT / "templates/workflows/check-agent-policy.yml.j2"
 PINNED_PROBE_REQUIREMENTS = ROOT / "release/verifier-requirements.lock"
 EXACT_REQUIREMENT = re.compile(
@@ -36,6 +37,7 @@ EXACT_REQUIREMENT = re.compile(
 REQUIRED_RELEASE_PATHS = (
     "action.yml",
     "pyproject.toml",
+    "requirements-runtime.lock",
     "schemas/adoption-state.schema.json",
     "schemas/agent-policy.schema.json",
     "src/agent_policy/adoption.py",
@@ -428,6 +430,50 @@ def verify_git_ancestry(revision: str, git_ref: str) -> None:
         )
 
 
+def verify_runtime_manifest(
+    runtime_manifest: dict[str, Any],
+    toolchain: dict[str, Any],
+    contracts: dict[str, Any],
+    stable_tree: Path,
+) -> None:
+    if runtime_manifest.get("schema_version") != contracts["skill_runtime_manifest"]:
+        raise ValueError("Skill runtime manifest schema version differs from release state")
+    if runtime_manifest.get("toolchain") != toolchain:
+        raise ValueError("Skill runtime manifest and stable release pin differ")
+
+    runtime_lock = runtime_manifest.get("runtime_lock")
+    if not isinstance(runtime_lock, dict):
+        raise ValueError("Skill runtime manifest runtime_lock must be an object")
+    if runtime_lock.get("path") != "requirements-runtime.lock":
+        raise ValueError("Skill runtime manifest runtime lock path is inconsistent")
+    declared_digest = runtime_lock.get("sha256")
+    if (
+        not isinstance(declared_digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", declared_digest) is None
+    ):
+        raise ValueError("Skill runtime manifest runtime lock digest must be lowercase SHA-256")
+    actual_digest = hashlib.sha256(
+        (stable_tree / "requirements-runtime.lock").read_bytes()
+    ).hexdigest()
+    if declared_digest != actual_digest:
+        raise ValueError("Skill runtime manifest runtime lock digest differs from stable revision")
+
+    project = runtime_manifest.get("project")
+    if not isinstance(project, dict):
+        raise ValueError("Skill runtime manifest project metadata must be an object")
+    pyproject = (stable_tree / "pyproject.toml").read_text(encoding="utf-8")
+    expected_name = f'name = "{project.get("distribution")}"'
+    expected_version = f'version = "{project.get("version")}"'
+    if expected_name not in pyproject or expected_version not in pyproject:
+        raise ValueError("Skill runtime manifest project metadata differs from stable revision")
+    if project.get("executable") != "agent-policy":
+        raise ValueError("Skill runtime manifest executable is inconsistent")
+
+    routes = runtime_manifest.get("routes")
+    if not isinstance(routes, dict) or "finalize" in json.dumps(routes):
+        raise ValueError("Skill runtime manifest routes must not expose finalization")
+
+
 def verify_pinned_release(
     tree: Path,
     revision: str,
@@ -514,7 +560,7 @@ def verify_pinned_release(
 def verify_release_state(git_ref: str | None) -> str:
     release = load_object(RELEASE)
     release_schema = load_object(RELEASE_SCHEMA)
-    bootstrap = load_object(BOOTSTRAP_MANIFEST)
+    runtime_manifest = load_object(RUNTIME_MANIFEST)
     validate_schema(release, release_schema, "stable release descriptor")
 
     toolchain = release["toolchain"]
@@ -531,10 +577,6 @@ def verify_release_state(git_ref: str | None) -> str:
         raise ValueError("Stable release revision must be a full lowercase commit SHA")
     if toolchain != immutable_toolchain_reference(revision):
         raise ValueError("Stable release toolchain identity is inconsistent")
-    if bootstrap.get("toolchain") != toolchain:
-        raise ValueError("Bootstrap manifest and stable release pin differ")
-    if bootstrap.get("schema_version") != contracts["bootstrap_manifest"]:
-        raise ValueError("Bootstrap manifest schema version differs from release state")
 
     requirements_path = verifier.get("requirements")
     expected_requirements = PINNED_PROBE_REQUIREMENTS.relative_to(ROOT).as_posix()
@@ -549,6 +591,7 @@ def verify_release_state(git_ref: str | None) -> str:
 
     with pinned_probe_environment() as probe_python:
         with extracted_revision(revision) as tree:
+            verify_runtime_manifest(runtime_manifest, toolchain, contracts, tree)
             verify_pinned_release(
                 tree,
                 revision,

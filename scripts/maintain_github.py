@@ -12,7 +12,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-DEFAULT_PROTECTED_BRANCHES = frozenset({"main", "bootstrap-agent-policy"})
+DEFAULT_PROTECTED_BRANCHES = frozenset({"site", "webapp", "policy", "skill"})
 COMMENT_MARKER = "<!-- agent-policy-repository-hygiene -->"
 
 

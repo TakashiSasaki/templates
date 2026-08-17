@@ -10,8 +10,11 @@ Repository-maintainer operating authority for this branch is declared by `.agent
 
 ## Commands
 
+The public onboarding operation is adoption. The hidden `init` command is an implementation primitive used for fresh adoption and is not a separate user-facing onboarding model.
+
 ```bash
-agent-policy init
+agent-policy adopt inspect
+agent-policy adopt prepare
 agent-policy validate
 agent-policy render
 agent-policy check
@@ -19,22 +22,35 @@ agent-policy check
 
 A product repository keeps a single semantic configuration entry point, `.agent-policy.yml`. Project-specific policy text remains in files referenced by that manifest. Generated agent instructions and `.agent-policy.lock` are committed so cloud agents and historical checkouts remain self-contained.
 
-## Bootstrap skill
+## Single agent-policy skill
 
-The repository-maintainer rule governing stable release identity and promotion mechanics is `repository-policy/release-trust.md`; the following describes the current bootstrap implementation of that rule.
+`skills/agent-policy/` is the single installable repository-facing skill. It handles both initial adoption and normal operation; there is no separate bootstrap skill.
 
-The onboarding trust seed is maintained at `skills/bootstrap-agent-policy/` in this branch. Its manifest pins one reviewed full commit SHA from `TakashiSasaki/templates`; it does not execute the mutable `policy` branch tip.
+For an unmanaged repository, `scripts/bootstrap.py` inspects repository state and chooses the fresh or migration adoption strategy. Fresh adoption may complete directly to managed state. Migration adoption may prepare and preview only; bootstrap never finalizes migration.
 
-`release/toolchain.json` records the stable toolchain pin and contract versions. The bootstrap manifest carries exactly the same repository and revision. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
+For a managed repository, `scripts/run.py` reads `.agent-policy.lock` and runs the repository-pinned full-SHA toolchain. Malformed, mutable, or unsupported lock pins fail closed rather than falling back to the skill default.
 
-Install the bootstrap skill from a reviewed checkout:
+Install the skill from a reviewed checkout:
 
 ```bash
-python skills/bootstrap-agent-policy/scripts/install.py \
-  /path/to/agent-skills/bootstrap-agent-policy
+python skills/agent-policy/scripts/install.py \
+  /path/to/agent-skills/agent-policy
 ```
 
-The bootstrap script may inspect, initialize, or prepare and preview adoption. It deliberately exposes no adoption-finalization route.
+`skills/agent-policy/runtime-manifest.json` records the stable default full SHA and the SHA-256 of that revision's `requirements-runtime.lock`. `release/toolchain.json` carries the same stable toolchain pin. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
+
+### Persistent runtime cache
+
+The skill does not reinstall the toolchain on every use. It reuses a validated persistent runtime identified by:
+
+- toolchain repository and full commit SHA;
+- SHA-256 of `requirements-runtime.lock`;
+- Python major/minor version; and
+- platform plus machine architecture.
+
+The default cache root is the platform cache directory under `agent-policy/runtime-v1`; `AGENT_POLICY_RUNTIME_CACHE` may override it for controlled environments and tests.
+
+A valid cache hit requires no network access. A cache miss downloads the runtime lock from the exact full SHA, creates an isolated virtual environment in a staging directory, installs the exact runtime distribution set with dependency resolution disabled, installs the same pinned `agent-policy` project with dependencies disabled, runs `pip check`, verifies the installed distribution set, and writes the cache marker only after validation succeeds. The staged runtime is then switched into place atomically.
 
 ## Development
 
@@ -52,17 +68,15 @@ python -m pip install --disable-pip-version-check --no-deps --no-build-isolation
 python scripts/verify_ci_environment.py
 python -m pip check
 python scripts/verify-release-state.py
-python -m ruff check src tests scripts skills/bootstrap-agent-policy/scripts
+python -m ruff check src tests scripts skills/agent-policy/scripts
 python -m pytest
-python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts
+python -m compileall -q src scripts skills/agent-policy/scripts
 agent-policy --help
 ```
 
 `requirements-ci.txt` records the reviewed direct test and build inputs. `requirements-ci.lock` records the complete dependency graph for the selected CI baseline. Both use arbitrary exact equality (`===`), so an unrequested local version such as `4.26.0+corp` does not satisfy a reviewed public version such as `4.26.0`. The local project is installed separately with dependency resolution and build isolation disabled. `scripts/verify_ci_environment.py` requires the installed distribution set to equal the lock plus the editable `takashisasaki-agent-policy` project, excluding only the virtual environment's bootstrap `pip`. It also requires the installed project's `direct_url.json` to identify this repository root with `dir_info.editable` set to true, so a same-name, same-version wheel cannot stand in for the checked-out source.
 
-Consumer-runtime validation has a separate, narrower contract. `requirements-runtime.lock` records the exact runtime-only distribution set, excluding development, test, and build-only packages and excluding the local `takashisasaki-agent-policy` distribution itself. `scripts/smoke_test_runtime_distribution.py` creates a fresh virtual environment, removes inherited Python and pip package-selection inputs, installs every locked runtime distribution with `--no-deps`, installs the local project separately with `--no-deps`, runs `pip check`, verifies the installed set, and invokes `agent-policy --help`. `scripts/verify_runtime_environment.py` is intended for that dedicated runtime environment: it requires the installed set to equal `requirements-runtime.lock` plus the local project, excluding only virtual-environment bootstrap distributions (`pip`, `setuptools`, and `wheel`), and reports any additional development packages as out-of-contract. `.github/workflows/runtime-distribution.yml` exercises this contract on Ubuntu and Windows across Python 3.11 through 3.14.
-
-The ordering is part of the implemented CI trust boundary. Policy CI neutralizes `PYTHONHOME`, `PIP_PYTHON`, `PIP_CACHE_DIR`, `PIP_NO_CACHE_DIR`, `PIP_QUIET`, and `PIP_LOG` in the job environment before `actions/setup-python` performs its cache lookup, so the action cannot redirect the pre-venv Python or pip invocation, select an external cache path, disable the cache command, suppress the cache-path output it relies on, or redirect pip's verbose log output. Isolated mode is then used before environment creation so user-site packages, `PYTHONUSERBASE`, `sitecustomize`, `usercustomize`, and other Python environment inputs cannot affect `venv` bootstrap. The existing `.venv` is cleared so packages from an earlier lock cannot remain. Pip configuration and requirement, runtime-constraint, build-constraint, hash-enforcement, dry-run, source-format, binary-only artifact-selection, wheel-compatibility, upload-time, package-source, installation-destination, interpreter-override, cache-location, cache-disable, quiet, editable, dependency-group, installation-report, build-backend configuration, Requires-Python compatibility, log-path, and script-metadata inputs are removed so additional packages, build rules, external hash requirements, skipped installation, forced sdist builds, foreign compatibility tags, time-filtered artifacts, alternate indexes or archive locations, writes outside the isolated environment, an external interpreter, backend-specific build settings, bypassed Requires-Python checks, altered cache behavior, or redirected pip log output cannot be injected into the validation paths. The same pip inputs remain absent while the stable-release verifier creates and populates its independent probe environment. The installed-set and editable-source comparisons run before `pip check`, release verification, linting, tests, compilation, and command smoke testing.
+Consumer-runtime validation has a separate, narrower contract. `requirements-runtime.lock` records the exact runtime-only distribution set, excluding development, test, and build-only packages and excluding the local `takashisasaki-agent-policy` distribution itself. `scripts/smoke_test_runtime_distribution.py` creates a fresh virtual environment, removes inherited Python and pip package-selection inputs, installs every locked runtime distribution with `--no-deps`, installs the local project separately with `--no-deps`, runs `pip check`, verifies the installed set, and invokes `agent-policy --help`. `scripts/verify_runtime_environment.py` requires that dedicated environment to equal `requirements-runtime.lock` plus the local project, excluding only virtual-environment bootstrap distributions (`pip`, `setuptools`, and `wheel`). `.github/workflows/runtime-distribution.yml` exercises this contract on Ubuntu and Windows across Python 3.11 through 3.14.
 
 The dependency locks fix exact distribution version strings. They do not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Dependency-input and lock changes are made through the repository's reviewed change process.
 
@@ -78,7 +92,7 @@ The maintained branch provides:
 - the application-type-independent policy boundary;
 - one canonical shared-policy authority model with explicit repository-local exceptions;
 - executable and generated toolchain identity rooted at `TakashiSasaki/templates`;
-- the integrated bootstrap trust seed under `skills/bootstrap-agent-policy/`;
+- the single cached `agent-policy` skill under `skills/agent-policy/`;
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
 - context-aware coding and review rendering, including the GitHub review JSON adapter;
 - a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job; and
@@ -90,6 +104,6 @@ Core capabilities or successful individual workflows do not, by themselves, decl
 
 Repository-maintainer trust-model operating requirements are canonical in `repository-policy/release-trust.md` and `repository-policy/toolchain-safety.md`; this section summarizes the current implementation and verification surface.
 
-Mutable branches are not used as executable toolchain references. The stable release descriptor, bootstrap metadata, product manifests, adoption state, generated lock files, and generated workflows identify the toolchain using a full Git commit SHA. `scripts/verify-release-state.py` checks the branch-local release contract, and Policy CI verifies that the stable revision is a strict ancestor of the reviewed `policy` source history.
+Mutable branches are not used as executable toolchain references. The stable release descriptor, skill runtime manifest, product manifests, adoption state, generated lock files, and generated workflows identify the toolchain using a full Git commit SHA. `scripts/verify-release-state.py` checks that synchronization and verifies that the runtime-manifest lock digest matches the stable revision. Policy CI also verifies that the stable revision is a strict ancestor of the reviewed `policy` source history.
 
-Bootstrap pin, release descriptor, route, script, or safety-constraint changes are treated as trust-anchor changes by the maintained contract and review process.
+Runtime-manifest pin, release descriptor, route, script, cache-identity, or safety-constraint changes are treated as trust-anchor changes by the maintained contract and review process.

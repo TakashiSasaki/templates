@@ -1,18 +1,18 @@
 ---
-description: templatesのpolicyブランチにおける規約ツールチェーン、統合済みbootstrap skill、および各ディレクトリの責務を説明します。
+description: templatesのpolicyブランチにおける規約ツールチェーン、単一agent-policy skill、persistent runtime cache、および各ディレクトリの責務を説明します。
 ---
 
 # リポジトリ構造
 
 > **参考訳（非正本）:** この文書は `docs/repository-structure.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
-`TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には、規約ツールチェーンと初回導入用trust seedの両方を配置します。
+`TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には規約ツールチェーンと、repository-facingな単一 `agent-policy` skillを配置します。
 
-bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifestがレビュー済みのfull commit SHAを固定するため、mutableな`policy`先端を実行しません。
+skillは `skills/agent-policy/` にあります。runtime manifestがレビュー済みfull commit SHAと、そのrevisionのruntime dependency lockのSHA-256を固定するため、mutableな `policy` 先端を実行しません。
 
 ## `policy` ブランチ
 
-以下は、`policy` でGitが追跡している完全なツリーを表示するためのplaceholderです。documentation publication時に同じcommitからpreview manifestを生成します。
+以下は `policy` でGitが追跡している完全なtreeを表示するplaceholderです。documentation publication時に同じcommitからpreview manifestを生成します。
 
 <!-- BEGIN VERIFIED TREE: policy -->
 <div class="repository-tree" data-repository-branch="policy">
@@ -25,62 +25,69 @@ bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifest�
 | パス | 役割 |
 |---|---|
 | `policy/` | 共有規約の正本。各規則はYAML front matter付きMarkdownとして管理する。 |
-| `profiles/` | agent operationまたはrisk context向けの共有ポリシーモジュールを名前付きで選択する。profileは含める共有ルールを決め、最終的なルール順序は各ルールのmetadataが決める。 |
-| `schemas/` | 製品リポジトリの `.agent-policy.yml` とadoption stateを検証するJSON Schema。toolchain repositoryは`TakashiSasaki/templates`。 |
-| `src/agent_policy/` | 統合された `adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するPython CLI。hiddenな`init`はfresh adoption用の内部primitiveとして残る。 |
-| `templates/` | `AGENTS.md`、製品固有規約、consumer workflowなどの生成template。 |
-| `skills/` | 通常運用skillの正本と、`skills/bootstrap-agent-policy/`に統合された初回導入trust seed。 |
-| `tests/` | 設定、adoption transaction、rendering、lock、path safety、repository identity、bootstrap trust boundaryを検査する。 |
-| `docs/` | 導入方法、設計、ADR、PWA資産、repository preview UI。 |
-| `scripts/` | repository preview生成・検証など、branchの保守とpublicationを支援するscript。 |
+| `profiles/` | agent operationまたはrisk context向けの共有policy moduleを名前付きで選択する。profileは含める共有ruleを決め、最終順序はrule metadataが決める。 |
+| `schemas/` | 製品repositoryの `.agent-policy.yml`、adoption state、stable release metadataを検証するJSON Schema。 |
+| `src/agent_policy/` | 統合された `adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するcanonical Python CLI。hiddenな `init` はfresh adoption用の内部primitive。 |
+| `templates/` | `AGENTS.md`、製品固有policy、consumer workflowなどのgeneration template。 |
+| `skills/agent-policy/` | unmanaged bootstrap、managed command dispatch、immutable pin selection、persistent runtime cache管理を担う単一installable skill。 |
+| `tests/` | configuration、adoption transaction、rendering、lock、path safety、release identity、runtime distribution、cache behavior、single-skill trust boundaryを検査する。 |
+| `docs/` | adoption guidance、architecture、ADR、PWA asset、repository preview UI。 |
+| `scripts/` | branch maintenance、release verification、runtime-distribution verification、publication helper。 |
 | `.github/workflows/` | `policy`向けCIとbuild-only documentation validation。Pages deployment authorityは持たない。 |
 
-選択ガイドと現在の完全なprofileカタログについては、[Policyプロファイル](shared-policy/profiles.md)を参照してください。
+選択ガイドと現在の完全なprofile catalogについては、[Policyプロファイル](shared-policy/profiles.md)を参照してください。
 
-## 統合済みbootstrap skill
+## 単一agent-policy skill
 
 ```text
-skills/bootstrap-agent-policy/
+skills/agent-policy/
   SKILL.md
   README.md
-  bootstrap-manifest.yml
+  runtime-manifest.json
   scripts/
     bootstrap.py
     install.py
+    run.py
+    runtime.py
     uninstall.py
 ```
 
 | パス | 役割 |
 |---|---|
-| `SKILL.md` | 起動条件、inspection、repository stateから導出するfresh/migration adoption strategy、安全制約、migration finalizationの分離を定義する。 |
-| `bootstrap-manifest.yml` | `TakashiSasaki/templates`のfull SHAと許可された内部route集合を固定する。finalize routeは含まない。 |
-| `scripts/bootstrap.py` | 固定CLIを一時環境で取得し、repository stateをinspectionし、明示的に許可された場合に対応するadoption strategyを適用し、適用後検証を実行する。 |
-| `scripts/install.py` | レビュー済みcheckoutからskill directoryへ安全にコピーする。 |
-| `scripts/uninstall.py` | markerを確認して導入済みskillを削除する。 |
-| `tests/test_bootstrap_skill.py` | manifest、pin、strategy route、安全制約、state parsing、post-apply commandを検査する。 |
+| `SKILL.md` | unmanaged repositoryをbootstrapする条件、managed commandを実行する条件、cache/pin semantics、migration finalizationの安全制約を定義する。 |
+| `runtime-manifest.json` | `TakashiSasaki/templates` のstable full SHA、その `requirements-runtime.lock` のSHA-256、stable project identity、closed bootstrap route setを固定する。finalize routeは含まない。 |
+| `scripts/runtime.py` | stableまたはrepository-pinned full SHAを解決し、persistent runtime cacheを構築・再利用し、Python/pip inputをsanitizeし、exact installed distribution setを検証する。 |
+| `scripts/bootstrap.py` | unmanaged repositoryをinspectionし、許可された場合にstate-derived fresh adoptionまたはmigration adoption strategyを適用する。migration bootstrapはpreview後に停止する。 |
+| `scripts/run.py` | `.agent-policy.lock` から選択したcached runtimeでmanaged commandを実行する。 |
+| `scripts/install.py` | identity/path safetyを確認後、レビュー済みcheckoutからskillをatomicにinstall/replaceする。 |
+| `scripts/uninstall.py` | identity markerを確認してinstalled skillを削除する。 |
+| `tests/test_agent_policy_skill.py` | pin precedence、cache identity、offline cache hit、environment isolation、bootstrap safety、managed dispatch、install/uninstall guardを検査する。 |
 
-## 導入前後の制御移行
+## Runtimeと導入前後の制御
 
 ```text
 導入前
-  user environmentの bootstrap-agent-policy skill
-      ↓ bootstrap-manifest.yml の repository + full SHA
-  templates上の pinned agent-policy CLI
+  installed agent-policy skill
+      ↓ runtime-manifest.json の stable full SHA + runtime-lock digest
+  validated persistent runtime cache
       ↓ adopt inspect
   ├─ unmanaged-empty
-  │    └─ adopt prepare --apply による fresh adoption
+  │    └─ fresh adoption --apply
   │         └─ internal init primitive → managed
   │
   └─ unmanaged-existing
-       └─ adopt prepare --apply による migration adoption
-            ↓ previewと意味レビュー
+       └─ migration adoption prepare --apply
+            ↓ previewとsemantic review
           別の明示指示による adopt finalize --apply
 
-導入完了後
-  製品リポジトリの .agent-policy.yml
-  .agent-policy.lock
-  生成されたエージェント指示と通常運用skill
-  repository-local CI
+導入後
+  同じinstalled agent-policy skill
+      ↓ 製品repositoryの .agent-policy.lock にある full SHA
+  validated persistent runtime cache
+      ↓ normal managed commands
+  .agent-policy.yml + generated outputs + repository-local CI
 ```
 
-導入前のtrust seedはbootstrap packageです。fresh adoption完了後、またはmigration finalization完了後は、製品リポジトリに記録された設定、lock、生成物へ制御を引き渡します。
+adoption前は `runtime-manifest.json` がレビュー済みstable default toolchainを提供します。`.agent-policy.lock` が存在した後は同じskillがrepository自身のfull-SHA pinを優先します。malformedまたはmutableなmanaged pinはsilent fallbackせずfail closedします。
+
+runtime cache identityにはrepository、full revision、runtime-lock SHA-256、Python major/minor、platformを含めます。validなcacheはnetworkなしで再利用でき、cache missはstaging directoryで構築され、dependencyとinstalled-set validation成功後だけ正式位置へ移動します。

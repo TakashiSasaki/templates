@@ -6,7 +6,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-EXPECTED_SKILL_NAME = "bootstrap-agent-policy"
+EXPECTED_SKILL_NAME = "agent-policy"
 
 
 def skill_root() -> Path:
@@ -42,7 +42,7 @@ def read_front_matter_name(marker: Path) -> str | None:
     return None
 
 
-def is_bootstrap_skill_directory(target: Path) -> bool:
+def is_agent_policy_skill_directory(target: Path) -> bool:
     marker = target / "SKILL.md"
     return (
         not marker.is_symlink()
@@ -52,6 +52,7 @@ def is_bootstrap_skill_directory(target: Path) -> bool:
 
 
 def stage_and_install(source: Path, target: Path, *, replace: bool) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
     temporary_root = Path(
         tempfile.mkdtemp(prefix=f".{target.name}.install-", dir=target.parent)
     )
@@ -88,7 +89,7 @@ def stage_and_install(source: Path, target: Path, *, replace: bool) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install the bootstrap-agent-policy skill")
+    parser = argparse.ArgumentParser(description="Install the agent-policy skill")
     parser.add_argument("target", type=Path, help="Destination skill directory")
     parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
@@ -104,7 +105,7 @@ def main() -> int:
     if replace:
         if not args.replace:
             parser.error(f"target already exists: {target}")
-        if not is_bootstrap_skill_directory(target):
+        if not is_agent_policy_skill_directory(target):
             parser.error("refusing to replace a directory that is not this skill")
     stage_and_install(source, target, replace=replace)
     print(target)

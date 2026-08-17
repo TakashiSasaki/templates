@@ -5,7 +5,7 @@ import argparse
 import shutil
 from pathlib import Path
 
-EXPECTED_SKILL_NAME = "bootstrap-agent-policy"
+EXPECTED_SKILL_NAME = "agent-policy"
 
 
 def read_front_matter_name(marker: Path) -> str | None:
@@ -33,7 +33,7 @@ def read_front_matter_name(marker: Path) -> str | None:
     return None
 
 
-def is_bootstrap_skill_directory(target: Path) -> bool:
+def is_agent_policy_skill_directory(target: Path) -> bool:
     marker = target / "SKILL.md"
     return (
         not marker.is_symlink()
@@ -43,14 +43,14 @@ def is_bootstrap_skill_directory(target: Path) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Uninstall the bootstrap-agent-policy skill")
+    parser = argparse.ArgumentParser(description="Uninstall the agent-policy skill")
     parser.add_argument("target", type=Path)
     args = parser.parse_args()
     target = args.target.expanduser().absolute()
     if target.is_symlink():
         parser.error("target skill directory must not be a symbolic link")
-    if not is_bootstrap_skill_directory(target):
-        parser.error("target is not a bootstrap-agent-policy skill directory")
+    if not is_agent_policy_skill_directory(target):
+        parser.error("target is not an agent-policy skill directory")
     shutil.rmtree(target)
     return 0
 

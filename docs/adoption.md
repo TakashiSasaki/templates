@@ -138,22 +138,28 @@ Finalization requires unchanged immutable source hashes, matching configuration 
 
 Finalization is never performed by automatic classification or generic bootstrap `--apply`.
 
-## Integrated bootstrap skill behavior
+## Single skill behavior
 
-The onboarding skill is maintained at `skills/bootstrap-agent-policy/` in `TakashiSasaki/templates:policy`. Its manifest invokes one pinned full SHA from `TakashiSasaki/templates` and uses CLI inspection to select the safe strategy:
+The repository-facing skill is maintained at `skills/agent-policy/` in `TakashiSasaki/templates:policy`. For an unmanaged repository, its `runtime-manifest.json` selects one reviewed stable full SHA and the bootstrap operation uses CLI inspection to choose the safe strategy:
 
 ```text
 unmanaged-empty     -> fresh adoption
 unmanaged-existing  -> migration adoption
-managed             -> stop bootstrap and use normal validation
+managed             -> stop bootstrap and use scripts/run.py
 inconsistent        -> stop mutation and explain required repair
 ```
 
-Applying a change requires explicit `--apply`, not a route-selection flag. Fresh adoption may complete directly. Migration application stops at preparation and runs preview. The bootstrap manifest exposes no finalization route; migration finalization requires a separate explicit instruction using the same pinned repository and full SHA.
+Applying a change requires explicit `--apply`, not a route-selection flag. Fresh adoption may complete directly. Migration bootstrap stops at preparation and runs preview. The runtime manifest exposes no finalization route; migration finalization requires a separate explicit managed command through `scripts/run.py`.
+
+After `.agent-policy.lock` exists, the same installed skill prefers the repository's full-SHA toolchain pin. A malformed or mutable managed pin fails closed instead of silently falling back to the skill's stable default.
+
+The skill reuses a validated persistent runtime keyed by full revision, runtime-lock SHA-256, Python major/minor, and platform. A valid cache hit requires no network access; a cache miss is staged and verified before atomic activation.
 
 ## Trust-anchor updates
 
-Changing the bootstrap repository, pinned SHA, internal route declarations, invocation script, installer, or safety constraints is a trust-anchor change. The skill must never replace the full SHA with `policy`, `main`, another branch, a tag, a short SHA, or another mutable reference.
+Changing the stable repository/full SHA, runtime-lock digest, cache identity, internal route declarations, skill instructions, orchestration scripts, installer, or safety constraints is a trust-anchor change. The skill must never replace the full SHA with `policy`, `main`, another branch, a tag, a short SHA, or another mutable reference.
+
+The current trust-model decision is ADR-0007. ADR-0004 remains historical and is superseded.
 
 ## Non-goals
 

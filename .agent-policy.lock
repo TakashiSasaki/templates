@@ -14,13 +14,13 @@ inputs:
   repository-policy/history-boundary.md:
     sha256: 4de61b1a469770d12e1e66326cba5fadc242aaef63389b8a219bff52a701b910
   repository-policy/maintainer-validation.md:
-    sha256: fd627665af0d1f5863c378347b475e794b91826e761e0b7e51deb95c692f714c
+    sha256: 32726e455e4e307806916d2ea1ce44061a6a4a34ca24efedbfa8dd7e554c0960
   repository-policy/release-trust.md:
-    sha256: fc671b453c1033a8abf6851961c757e67190db523c4633a5a51d2194a739f1bd
+    sha256: c24b6508c1a1eef329c7892940d5a6aad1278a2cc0e9a9e056b650540734234c
   repository-policy/toolchain-safety.md:
     sha256: eb45d47fafa2e406dabb2536a818e206acede23f229eda19e8fdaa37d8445542
 outputs:
   .github/REVIEW_GUIDELINES.md:
-    sha256: e0cf34328233312cf474c7a450c00dd6707428637e8c3591247b2d517bc803e4
+    sha256: 4349bf1c84c655aaef49c016a16726ad5bdb1a0b20cebf21059df7d93613e5be
   AGENTS.md:
-    sha256: e2a1dc6e70a7c3901dc0b20cb3fa6a6c16dad42ef2fdd9d4c7a11115e579b46c
+    sha256: e4cb86e9918bc6caaab107d63a0f272d93c2aa3a2687b5f2931d54286208bdee

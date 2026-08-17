@@ -10,14 +10,15 @@
 - compose shared and product-specific policy deterministically;
 - generate and commit `AGENTS.md` and normal-operation skills;
 - record input and output hashes and the complete toolchain commit SHA in `.agent-policy.lock`;
-- detect inconsistencies among configuration, lock state, and generated outputs in CI; and
-- prepare adoption, preview the generated state, and perform explicit cutover without destructively replacing existing instructions.
+- detect inconsistencies among configuration, lock state, and generated outputs in CI;
+- prepare adoption, preview the generated state, and perform explicit cutover without destructively replacing existing instructions; and
+- use one installed `agent-policy` skill with a validated persistent full-SHA runtime before and after adoption.
 
 ## Three layers that must remain distinct
 
 The word `policy` can refer to the repository branch, the canonical shared rules stored in that branch, or the policy that is actually effective in a consumer repository. These are separate layers.
 
-1. **Provider / toolchain layer** — the entire `policy` branch of `TakashiSasaki/templates`. In addition to shared policy, it contains the `agent-policy` CLI, schemas, renderer templates, bootstrap support, tests, release machinery, and maintainer documentation. The branch itself does not become effective in a consumer repository by being merged into it.
+1. **Provider / toolchain layer** — the entire `policy` branch of `TakashiSasaki/templates`. In addition to shared policy, it contains the `agent-policy` CLI, schemas, renderer templates, the single repository-facing skill, tests, release machinery, and maintainer documentation. The branch itself does not become effective in a consumer repository by being merged into it.
 2. **Shared policy corpus layer** — the canonical shared rules under `policy/` and the selection sets under `profiles/`. This is the semantic source of truth for policy shared by multiple repositories. A rule does not become effective merely because it exists in the branch; the consumer configuration must select it.
 3. **Consumer effective-policy layer** — the state in which a consumer repository's `.agent-policy.yml` selects shared profiles and repository-local policy and the toolchain composes and renders them into `AGENTS.md`, context outputs, normal-operation skills, and related artifacts. `.agent-policy.lock` pins the selected inputs, toolchain revision, and generated results. Repository work is governed by this consumer-side selected, composed, and generated state.
 
@@ -34,16 +35,15 @@ The `policy` history is unrelated to the `skill`, `site`, and `webapp` histories
 | `policy/`, `profiles/` | Application-type-independent shared policy and selection sets |
 | `src/agent_policy/` | Python CLI and adoption transaction implementation |
 | `schemas/`, `templates/` | Schemas for consumer configuration and state, and generation templates |
-| `skills/` | Normal-operation skills and the integrated `bootstrap-agent-policy` trust seed |
-| `tests/` | Validation of the compiler, path safety, lock state, adoption, and bootstrap boundary |
+| `skills/agent-policy/` | Single repository-facing skill for unmanaged adoption, managed command dispatch, immutable pin selection, and persistent runtime-cache management |
+| `tests/` | Validation of the compiler, path safety, lock state, adoption, release identity, runtime distribution, and single-skill/cache boundary |
 | `docs/` | Adoption, architecture, ADR, and publication material |
 
-The bootstrap skill is under `skills/bootstrap-agent-policy/`. Its manifest pins a full commit SHA of `TakashiSasaki/templates` before invoking the CLI, so it never executes the mutable `policy` branch tip directly. After initialization or adoption finalization, control transfers to the product repository's `.agent-policy.yml`, `.agent-policy.lock`, generated instructions and skills, and CI.
+For an unmanaged repository, `skills/agent-policy/runtime-manifest.json` supplies the reviewed stable full-SHA trust seed and runtime-lock digest. After adoption, the same skill prefers the full SHA recorded by the consumer's `.agent-policy.lock`. A valid runtime cache entry can be reused without network access.
 
 ## Commands
 
 ```text
-agent-policy init
 agent-policy adopt inspect
 agent-policy adopt prepare
 agent-policy adopt preview
@@ -53,11 +53,15 @@ agent-policy render
 agent-policy check
 ```
 
-- `init`: initialize an unmanaged repository that has no conflicting existing instructions;
-- `adopt`: inspect, prepare, preview, and explicitly cut over while preserving existing instructions;
+- `adopt inspect`: classify repository state without mutation;
+- `adopt prepare`: execute the state-derived fresh or migration preparation, using hidden initialization internally for fresh adoption when needed;
+- `adopt preview`: regenerate and check staged migration output;
+- `adopt finalize`: perform the separately authorized migration cutover;
 - `validate`: validate configuration, references, rule IDs, path safety, and related constraints;
 - `render`: compose shared and product-specific policy and update generated outputs and lock state; and
 - `check`: verify read-only that configuration, inputs, lock state, and generated outputs agree.
+
+The installed skill's generic bootstrap operation never exposes migration finalization. Finalization is a separate explicit managed command.
 
 ## Read next
 

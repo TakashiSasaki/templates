@@ -12,7 +12,7 @@ The initial inventory is based on these exact branch revisions:
 | `skill` | `63a2ad7ff4ad6396daf269af1536aff53515180d` |
 | `webapp` | `1671c5b503377b87d157aeaa714bdf7c43797dc9` |
 
-Later audits must record a new snapshot instead of silently treating changed branch tips as part of this inventory.
+Later audits must record a new snapshot instead of silently treating changed branch tips as part of this inventory. Paths listed below are therefore paths at those frozen revisions, not statements about the current repository tree. In particular, the historical `skills/bootstrap-agent-policy/**` trust seed was later superseded by the single `skills/agent-policy/**` skill under ADR-0007.
 
 ## Classification test
 
@@ -36,7 +36,7 @@ The current `policy/core/*.md`, `policy/security/*.md`, and `policy/artifacts/*.
 
 The following sources contain normative material about maintaining the policy toolchain itself and therefore must not be mistaken for shared policy merely because they live on the `policy` branch:
 
-| Source | Initial disposition |
+| Source at frozen `policy` revision | Initial disposition |
 | --- | --- |
 | `README.md` | split explanatory material from `repository-policy` for policy CI, release promotion, bootstrap trust anchors, and publication ownership |
 | `docs/configuration.md` | mostly toolchain contract/explanation; extract only genuinely shared operating semantics if found |
@@ -44,7 +44,7 @@ The following sources contain normative material about maintaining the policy to
 | `docs/documentation-publication.md` | policy repository publication rules; `repository-policy` |
 | `docs/bootstrap-model.md` | bootstrap/toolchain trust model; toolchain contract plus repository-local maintenance rules |
 | `docs/threat-model.md` | explanatory security model plus possible shared-policy candidates to audit statement by statement |
-| `skills/bootstrap-agent-policy/**` | operational implementation and trust seed, not a shared-policy source merely because it contains instructions |
+| `skills/bootstrap-agent-policy/**` | historical operational implementation and trust seed at the frozen revision; not a shared-policy source merely because it contained instructions |
 
 ## `skill` branch
 

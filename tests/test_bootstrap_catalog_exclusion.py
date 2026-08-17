@@ -6,8 +6,8 @@ from agent_policy.config import package_root
 from agent_policy.renderer import NON_GENERATED_SKILLS, render_skill
 
 
-def test_bootstrap_trust_seed_is_excluded_from_generated_skill_catalog() -> None:
-    skill_name = "bootstrap-agent-policy"
+def test_agent_policy_runtime_skill_is_excluded_from_generated_skill_catalog() -> None:
+    skill_name = "agent-policy"
     assert (package_root() / "skills" / skill_name).is_dir()
     assert skill_name in NON_GENERATED_SKILLS
 

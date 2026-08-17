@@ -2,17 +2,18 @@
 
 > **参考訳（非正本）:** この文書は `docs/managed-operation.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
-`agent-policy` の導入後は、製品リポジトリ内の生成済み `AGENTS.md` が一般的なコーディングエージェントの入口になります。このページは、初めてリポジトリを開いたエージェントと、policyを保守する人間の双方が同じ探索順序を使うための運用規約です。
+`agent-policy` の導入後は、製品リポジトリ内の生成済み `AGENTS.md` が一般的なコーディングエージェントのinstruction entry pointになります。一方、policy toolchain commandの実行入口は導入済みの単一 `agent-policy` skillのままであり、persistent runtime cacheを通じてrepositoryの `.agent-policy.lock` full-SHA pinに従います。
 
 ## 初回探索順序
 
 製品リポジトリで変更を始める前に、次の順序で確認します。
 
 1. root `AGENTS.md` を読み、適用される共有規約、製品固有規約、必須検証コマンドを確認する。
-2. `.agent-policy.yml` を読み、固定されたtoolchain repositoryと完全なcommit SHA、project policy入力、生成出力、generated skillを確認する。
-3. `.agents/skills/manifest.json` などのrepository-local skill catalogが存在する場合は読み、変更面に該当するskillを確認する。
-4. `AGENTS.md` の `Policy system` に列挙されたgenerated skillを読む。
-5. 製品固有の意味を変更する場合だけ、`.agent-policy.yml` が参照するproject policyファイルを編集する。
+2. `.agent-policy.yml` を読み、semantic configuration、project policy入力、生成出力、generated skillを確認する。
+3. `.agent-policy.lock` を読み、immutable toolchain repository/revisionとgenerated-state hashを確認する。
+4. `.agents/skills/manifest.json` などのrepository-local skill catalogが存在する場合は読み、変更面に該当するskillを確認する。
+5. `AGENTS.md` の `Policy system` に列挙されたgenerated skillを読む。
+6. 製品固有の意味を変更する場合だけ、`.agent-policy.yml` が参照するproject policyファイルを編集する。
 
 生成`AGENTS.md`は直接編集しません。共有profile由来のrule sourceは、固定toolchainの `repository@revision:path` として表示されます。repository-local policyは、現在の製品リポジトリ内のpathとして表示されます。
 
@@ -20,18 +21,24 @@
 
 `.agent-policy.yml`、project policy、生成instructions、generated skill、lock fileのいずれかに関係する変更では、`.agents/skills/validate-agent-policy/SKILL.md`を使用します。
 
-利用可能な `agent-policy` コマンドがない場合でも、mutable branchや未固定releaseへ切り替えてはいけません。`.agent-policy.yml` の `toolchain.repository` と `toolchain.revision` を使用し、一時環境で固定revisionを実行します。
+直接toolchainを実行する場合は、導入済みの単一skillを使用します。
 
 ```bash
-uvx --from "git+https://github.com/<repository>.git@<revision>" \
-  agent-policy --repository . validate --config .agent-policy.yml
-uvx --from "git+https://github.com/<repository>.git@<revision>" \
-  agent-policy --repository . check --config .agent-policy.yml
+python /path/to/agent-skills/agent-policy/scripts/run.py \
+  --repository . \
+  validate --config .agent-policy.yml
+python /path/to/agent-skills/agent-policy/scripts/run.py \
+  --repository . \
+  check --config .agent-policy.yml
 ```
 
-`uvx` がない場合は一時virtual environmentへ同じfull-SHA Git referenceをinstallします。global環境へunversioned toolchainをinstallしません。
+`scripts/run.py` は `.agent-policy.lock` を読み、`TakashiSasaki/templates` とfull lowercase commit SHAを要求し、そのrevision用の検証済みpersistent runtimeを選択します。malformedまたはmutableなlockは、skillのstable defaultへfallbackせずfail closedします。
 
-意味入力を変更して生成物がstaleになった場合は、明示的に同期する作業として固定toolchainの `render` を実行し、その後に `validate` と `check` を再実行します。
+validなruntime cache entryはnetworkなしで再利用できます。repositoryが別のfull SHAをpinし、compatibleなcacheが存在しない場合、skillはそのrevisionのruntime lockを取得してcache identityを導出し、staging directoryでruntimeを構築・検証した後だけactiveにします。
+
+mutableな `policy` ブランチ、unpinned release、provenance不明のglobal toolchainを直接実行してこの経路を迂回しないでください。
+
+意味入力を変更して生成物がstaleになった場合は、同じrepository-pinned runtimeで `render` を明示的に実行し、その後 `validate` と `check` を再実行します。
 
 ## Consumer CI
 

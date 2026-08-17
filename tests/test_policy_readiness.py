@@ -59,10 +59,9 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
         "generation": (
             "`candidate commit`",
             (
-                "`init --apply`",
-                "`render`",
+                "Fresh adoption and `render`",
                 "deterministically write",
-                "dry-run `init`",
+                "dry-run adoption",
                 "without mutation",
             ),
         ),
@@ -78,20 +77,26 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
         "adoption": (
             "`candidate commit`",
             (
-                "Inspection, preparation, preview",
-                "explicit transactional finalization",
+                "Inspection, state-derived fresh or migration preparation",
+                "explicit transactional migration finalization",
                 "safety boundary",
             ),
         ),
-        "bootstrap": (
+        "single-skill-runtime": (
             "`candidate commit`",
-            ("executes only the stable full SHA", "no adoption-finalization route"),
+            (
+                "single repository-facing entry point",
+                "immutable full-SHA toolchains",
+                "follows `.agent-policy.lock` for managed repositories",
+                "identity-matching validated runtime caches",
+                "no generic migration-finalization route",
+            ),
         ),
         "release-model": (
             "`candidate commit`",
             (
                 "schema-validated stable descriptor",
-                "synchronization verifier",
+                "runtime-manifest synchronization/digest verifier",
                 "separate candidate-and-promotion lifecycle",
                 "free of mutable release references",
             ),
@@ -103,22 +108,30 @@ def test_readiness_enforces_gate_conditions_and_evaluation_points() -> None:
                 "fixed baseline",
                 "neutralizes external Python and pip inputs",
                 "verifies the installed distribution set",
+                "runtime-distribution matrix",
             ),
         ),
         "documentation": (
             "`candidate commit`",
-            ("builds strictly", "without any Pages upload or deployment authority on `policy`"),
+            (
+                "builds strictly",
+                "without any Pages upload or deployment authority on `policy`",
+            ),
         ),
         "consistency": (
             "`candidate commit`",
-            ("README, architecture, ADRs", "in the candidate do not contradict one another"),
+            (
+                "README, architecture, ADRs",
+                "in the candidate do not contradict one another",
+            ),
         ),
         "release-alignment": (
             "`completion sequence`",
             (
                 "remains on its current full SHA with an explicit no-promotion rationale",
                 "separate promotion commit synchronizes",
-                "to the frozen candidate",
+                "skills/agent-policy/runtime-manifest.json",
+                "matching runtime-lock digest",
                 "retaining the existing verifier lock when compatible",
                 "updating it when the candidate requires a different probe environment",
             ),
