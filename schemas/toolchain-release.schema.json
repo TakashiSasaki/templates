@@ -1,15 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/TakashiSasaki/templates/schemas/toolchain-release.schema.json",
+  "$id": "https://templates.moukaeritai.work/schemas/toolchain-release.schema.json",
+  "title": "agent-policy stable toolchain release",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "channel",
-    "toolchain",
-    "contracts",
-    "verifier"
-  ],
+  "required": ["schema_version", "channel", "toolchain", "contracts", "verifier"],
   "properties": {
     "schema_version": {
       "const": 1
@@ -20,10 +15,7 @@
     "toolchain": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "repository",
-        "revision"
-      ],
+      "required": ["repository", "revision"],
       "properties": {
         "repository": {
           "const": "TakashiSasaki/templates"
@@ -40,7 +32,7 @@
       "required": [
         "agent_policy_schema",
         "adoption_state_schema",
-        "bootstrap_manifest",
+        "skill_runtime_manifest",
         "lock"
       ],
       "properties": {
@@ -52,7 +44,7 @@
           "type": "integer",
           "minimum": 1
         },
-        "bootstrap_manifest": {
+        "skill_runtime_manifest": {
           "type": "integer",
           "minimum": 1
         },
@@ -65,9 +57,7 @@
     "verifier": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "requirements"
-      ],
+      "required": ["requirements"],
       "properties": {
         "requirements": {
           "const": "release/verifier-requirements.lock"
