@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/site-compatibility.yml"
-PINNED_SITE_SHA = "84060d76e68103c709f55ffb4e90daa42dce23ce"
+PINNED_SITE_SHA = "ccc9f9789ba0f745a9cd30a7c49c89ef5ab57ff7"
 
 
 def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
@@ -21,7 +21,9 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     assert "policy_ref: ${{ github.sha }}" in text
     assert "build-pages.yml@site" not in text
     assert "policy_ref: policy" not in text
-    assert "PR #251 Site merge commit" in text
-    assert "policy-profiles publication" in text
+    assert "PR #260 Site merge commit" in text
+    assert "Policy profiles" in text
+    assert "publishes ADR-0007" in text
+    assert "canonical/translation navigation graph" in text
     assert len(PINNED_SITE_SHA) == 40
     assert all(character in "0123456789abcdef" for character in PINNED_SITE_SHA)
