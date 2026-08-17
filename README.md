@@ -1,9 +1,19 @@
-# Integrated documentation site
+# TakashiSasaki/templates
 
-The `site` branch is the only GitHub Pages build and deployment implementation
-for `TakashiSasaki/templates`. It assembles one reader-oriented documentation
-portal from branch-owned publication catalogs in the unrelated `skill`,
-`policy`, and `webapp` histories.
+This repository maintains three independently versioned development systems and
+one integration branch:
+
+| Branch | What it provides | Start here when you need to |
+|---|---|---|
+| `skill` | Contracts, runtime guidance, and caller interfaces for reusable Agent Skills | Build or adapt a reusable agent capability |
+| `policy` | Shared agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
+| `webapp` | A copyable Web application template plus application contracts, validation, evidence, and migration guidance | Build a Web application from a reviewed template contract |
+| `site` | The integrated documentation portal and its deterministic publication, glossary, source-browser, and PWA tooling | Read or publish the three systems together |
+
+The `skill`, `policy`, and `webapp` branches have unrelated Git histories and
+remain independently owned. The `site` branch does not merge those histories;
+it selects reviewed full-commit revisions and publishes their documentation as
+one reader-oriented portal.
 
 The public portal is `https://templates.moukaeritai.work/`. The custom domain is
 served from the domain root rather than from the former `/templates/` project
@@ -16,9 +26,16 @@ in [`GLOSSARY.md`](GLOSSARY.md). Build identity, per-document revision metadata,
 PWA freshness-state vocabulary, and cache/fallback invariants are documented in
 [`FRESHNESS.md`](FRESHNESS.md).
 
-## Ownership model
+## Publication ownership model
 
-Each provider branch owns its public source boundary in
+In Site publication terminology, `skill`, `policy`, and `webapp` are **Provider
+branches**: repository-internal Git branches that own canonical content supplied
+as independently versioned inputs to the integrated Site publication. This term
+does not mean a cloud provider, LLM or API provider, identity provider, or other
+external service provider. The `site` branch is the integration and publication
+branch, not a Provider branch.
+
+Each Provider branch owns its public source boundary in
 `docs/publication-catalog.json`:
 
 - stable document IDs within its publication namespace;
@@ -31,7 +48,7 @@ Each provider branch owns its public source boundary in
 All live publication catalogs use schema version 3. Older catalog schemas are
 retired and are rejected by the Site publication assembler.
 
-The catalog is an explicit allowlist for rendered documentation, provider
+The catalog is an explicit allowlist for rendered documentation, Provider branch
 assets, and declared canonical glossary input. Individual glossary terms are
 not catalog entries; adding a term to a declared glossary does not require a
 catalog change. Repository inventory previews are a separate bounded surface:
@@ -43,13 +60,13 @@ The `site` branch owns:
 - the global portal home;
 - cross-publication navigation, titles, ordering, and generated destinations;
 - full-commit source locking in `publication-sources.json`;
-- deterministic integration of declared provider glossaries into
+- deterministic integration of declared Provider branch glossaries into
   `/glossary/index.json`, with provider/path/full-SHA provenance;
 - generated repository-tree inventories and sandboxed text previews for the
   exact checked-out revisions;
 - the bounded static repository browser for immutable source inspection;
 - the deterministic index-navigation graph and `/guided/` projection of
-  provider-owned `index.md` navigation at the same locked revisions;
+  Provider-branch-owned `index.md` navigation at the same locked revisions;
 - integrated assembly, strict site generation, link validation, provenance,
   freshness identity, and Pages deployment.
 
@@ -62,17 +79,17 @@ identified independently by its stable glossary term ID.
 The generated site exposes stable top-level entry points for all major
 publications:
 
-- `/skill/` for reusable skill and caller-interface contracts;
-- `/policy/` for application-neutral agent policy and operation;
-- `/webapp/` for Web application templates, evidence, release, and migration
-  guidance.
+- `/skill/` for reusable Skill contracts and caller interfaces;
+- `/policy/` for shared agent policy and the `agent-policy` toolchain;
+- `/webapp/` for Web application templates, contracts, evidence, release, and
+  migration guidance.
 
 Three complementary discovery surfaces are available:
 
-- `/guided/` follows provider-owned `index.md` navigation from the exact locked
-  Skill, Policy, and Webapp revisions;
+- `/guided/` follows Provider-branch-owned `index.md` navigation from the exact
+  locked Skill, Policy, and Webapp revisions;
 - `/repository-trees/` presents complete tracked-path inventories for the three
-  provider revisions;
+  Provider branch revisions;
 - `/files/` provides the bounded static browser for immutable source snapshots.
 
 The machine-readable integrated terminology registry is published at
@@ -90,7 +107,7 @@ control-character inputs remain GitHub-only.
 Primary navigation prioritizes explanatory Markdown. Explicitly published
 contracts, schemas, and other machine-readable assets remain supporting material
 reachable from their explanatory pages. The `/guided/` surface does not replace
-that reader-oriented navigation; it lets humans retrace the provider-owned
+that reader-oriented navigation; it lets humans retrace the Provider-branch-owned
 progressive-disclosure path that agents can follow.
 
 ## Key files
@@ -105,7 +122,7 @@ progressive-disclosure path that agents can follow.
 - `docs/repository-trees/*.md`: reviewed templates for generated tree pages;
 - `site-manifest.json`: canonical integrated navigation before generated
   inventory augmentation;
-- `publication-sources.json`: reviewed full-SHA provider inputs;
+- `publication-sources.json`: reviewed full-SHA Provider branch inputs;
 - `PUBLISHING.md`: normative public-boundary and deployment policy;
 - `scripts/prepare_repository_tree_publication.py`: creates a temporary site
   publication with validated tree-page catalog and navigation entries;
@@ -167,11 +184,11 @@ progressive-disclosure path that agents can follow.
 
 ## Local validation
 
-Check out the four unrelated branches into separate directories, with provider
-commits matching `publication-sources.json`, then run the same material stages as
-the Pages build. All publication catalogs must use schema version 3. The stable
-`assemble_publications_v3.py` path used below delegates to the same canonical
-schema-v3 engine exposed by `assemble_publications.py`:
+Check out the four unrelated branches into separate directories, with Provider
+branch commits matching `publication-sources.json`, then run the same material
+stages as the Pages build. All publication catalogs must use schema version 3.
+The stable `assemble_publications_v3.py` path used below delegates to the same
+canonical schema-v3 engine exposed by `assemble_publications.py`:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
@@ -327,7 +344,7 @@ Enforce HTTPS must be enabled after GitHub has approved the certificate. The
 deployment workflow verifies the configured Pages base URL, host, and empty base
 path before invoking `actions/deploy-pages`.
 
-A provider publication change requires a provider PR and a coordinated site PR.
-Merge the provider PR with a merge commit, update the site source lock to that
-merge commit's full SHA, verify the integrated build, and only then merge the
-site PR.
+A Provider branch publication change requires a Provider branch PR and a
+coordinated site PR. Merge the Provider branch PR with a merge commit, update the
+Site source lock to that merge commit's full SHA, verify the integrated build,
+and only then merge the Site PR.

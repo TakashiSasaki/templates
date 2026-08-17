@@ -9,8 +9,10 @@ terms:
           - パブリケーションカタログ
     origin: repository
     definition: >-
-      A provider-controlled declaration of canonical publication inputs that
-      the integrated site is permitted to consume.
+      A declaration owned by a Provider branch that lists the canonical
+      publication inputs the integrated Site is permitted to consume.
+    related_terms:
+      - templates-provider-branch
 
   - id: templates-provider-branch
     term: Provider branch
@@ -21,8 +23,20 @@ terms:
           - 提供ブランチ
     origin: repository
     definition: >-
-      A primary branch that owns canonical content consumed by the integrated
-      publication system.
+      A repository-internal primary Git branch, currently skill, policy, or
+      webapp, that owns canonical content supplied as an independently versioned
+      input to the Site integrated publication.
+    summary: >-
+      One of the repository's skill, policy, or webapp content-source branches
+      used as an input to the Site publication.
+    repository_usage: >-
+      In Site publication terminology, Provider branch refers only to these
+      internal Git content-source branches. It does not mean a cloud provider,
+      LLM or API provider, identity provider, or other external service
+      provider. The site branch integrates and publishes the sources; it is not
+      a Provider branch. Policy documentation also uses Provider / toolchain
+      layer in its own Policy-specific architecture, which is a separate use of
+      provider terminology.
     related_terms:
       - templates-publication-catalog
 
@@ -34,8 +48,9 @@ terms:
     origin: repository
     definition: >-
       The Site-owned human-readable publication assembled from reviewed exact
-      revisions of independently owned provider histories without merging those
-      histories or transferring ownership of their canonical content.
+      revisions of independently owned Provider branch histories without
+      merging those histories or transferring ownership of their canonical
+      content.
     related_terms:
       - templates-provider-branch
       - templates-publication-catalog
@@ -48,7 +63,7 @@ terms:
         term: 公開ソースロック
     origin: repository
     definition: >-
-      A Site-owned binding in publication-sources.json from a provider
+      A Site-owned binding in publication-sources.json from a Provider branch
       publication to a reviewed full 40-character commit SHA used as an
       immutable build input. Mutable branch names, tags, and abbreviated SHAs
       are not valid publication source locks.
@@ -63,12 +78,12 @@ terms:
         term: インデックス誘導ナビゲーション
     origin: repository
     definition: >-
-      The bounded Site-generated /guided/ projection of provider-owned index.md
-      navigation metadata from exact reviewed provider revisions. It preserves
-      provider grouping, order, labels, and descriptions without turning
-      provider indexes into a publication catalog or replacing Site-authored
-      reader navigation, and exposes /guided/graph.json as its schema-versioned
-      machine-readable model.
+      The bounded Site-generated /guided/ projection of Provider-branch-owned
+      index.md navigation metadata from exact reviewed Provider branch
+      revisions. It preserves Provider branch grouping, order, labels, and
+      descriptions without turning provider indexes into a publication catalog
+      or replacing Site-authored reader navigation, and exposes
+      /guided/graph.json as its schema-versioned machine-readable model.
     related_terms:
       - templates-integrated-publication
       - templates-provider-branch
