@@ -58,25 +58,6 @@ class Config:
 
     @property
     def contexts(self) -> dict[str, PolicyContext]:
-        if self.schema_version == 1:
-            profiles = self.data.get("profiles")
-            project_policy = self.data.get("project_policy")
-            if not isinstance(profiles, list) or not isinstance(project_policy, dict):
-                return {}
-            files = project_policy.get("files")
-            if not isinstance(files, list):
-                return {}
-            return {
-                "default": PolicyContext(
-                    name="default",
-                    profiles=tuple(item for item in profiles if isinstance(item, str)),
-                    project_policy_files=tuple(
-                        item for item in files if isinstance(item, str)
-                    ),
-                    overrides=(),
-                )
-            }
-
         raw_contexts = self.data.get("contexts")
         if not isinstance(raw_contexts, dict):
             return {}
@@ -139,24 +120,6 @@ class Config:
         raw_outputs = self.data.get("outputs")
         if not isinstance(raw_outputs, dict):
             return ()
-
-        if self.schema_version == 1:
-            item = raw_outputs.get("agents")
-            if not isinstance(item, dict):
-                return ()
-            path = item.get("path")
-            enabled = item.get("enabled")
-            if not isinstance(path, str) or not isinstance(enabled, bool):
-                return ()
-            return (
-                OutputSpec(
-                    name="agents",
-                    enabled=enabled,
-                    path=path,
-                    context="default",
-                    renderer="agents-md",
-                ),
-            )
 
         result: list[OutputSpec] = []
         for name, item in raw_outputs.items():
@@ -251,11 +214,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
     profiles_dir = package_root() / "profiles"
     invalid_policy_inputs = False
     for context in config.contexts.values():
-        profile_path = (
-            "profiles"
-            if config.schema_version == 1
-            else f"contexts.{context.name}.profiles"
-        )
+        profile_path = f"contexts.{context.name}.profiles"
         for profile in context.profiles:
             if not (profiles_dir / f"{profile}.yml").is_file():
                 invalid_policy_inputs = True
@@ -327,7 +286,7 @@ def validate_config(repository_root: Path, config: Config) -> list[Diagnostic]:
                     list(context.profiles),
                     list(context.project_policy_files),
                     declared_overrides=context.override_reasons,
-                    require_explicit_overrides=config.schema_version >= 2,
+                    require_explicit_overrides=True,
                 )
             except Exception as exc:
                 diagnostics.append(
