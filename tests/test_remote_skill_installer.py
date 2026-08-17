@@ -91,10 +91,19 @@ def test_extract_skill_archive_selects_only_the_skill_subtree(tmp_path: Path) ->
     assert not (tmp_path / "README.md").exists()
 
 
-def test_extract_skill_archive_rejects_path_traversal(tmp_path: Path) -> None:
-    traversal = tarfile.TarInfo(
-        "templates-source/skills/agent-policy/../outside.txt"
-    )
+@pytest.mark.parametrize(
+    "name",
+    [
+        "templates-source/skills/agent-policy/../outside.txt",
+        "templates-source/skills/agent-policy/..\\outside.txt",
+        "templates-source/skills/agent-policy/file:stream",
+    ],
+)
+def test_extract_skill_archive_rejects_cross_platform_unsafe_paths(
+    tmp_path: Path,
+    name: str,
+) -> None:
+    traversal = tarfile.TarInfo(name)
     traversal.size = 0
 
     with pytest.raises(RuntimeError, match="unsafe path"):
