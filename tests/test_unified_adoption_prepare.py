@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from agent_policy.commands import onboard
-from agent_policy.commands import check, validate
+from agent_policy.commands import check, onboard, validate
 
 
 def test_adopt_prepare_handles_unmanaged_empty_as_fresh_adoption(tmp_path: Path) -> None:
@@ -17,7 +16,10 @@ def test_adopt_prepare_handles_unmanaged_empty_as_fresh_adoption(tmp_path: Path)
 
     assert diagnostics
     assert all(item.level == "info" for item in diagnostics)
-    assert any(item.code == "CREATE" and item.message == ".agent-policy.yml" for item in diagnostics)
+    assert any(
+        item.code == "CREATE" and item.message == ".agent-policy.yml"
+        for item in diagnostics
+    )
     assert not (tmp_path / ".agent-policy.yml").exists()
 
 
