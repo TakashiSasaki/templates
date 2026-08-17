@@ -5,6 +5,7 @@ import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
 if __package__:
     from .verify_ci_environment import (
         installed_distribution_set,
@@ -12,13 +13,18 @@ if __package__:
         normalize_distribution_name,
     )
 else:
+    # ``python -I path/to/script.py`` intentionally omits the script directory
+    # from sys.path. Re-add only this reviewed repository-local directory so the
+    # runtime verifier can reuse the CI verifier's distribution helpers without
+    # re-enabling user or environment-controlled import paths.
+    sys.path.insert(0, str(SCRIPT_DIR))
     from verify_ci_environment import (
         installed_distribution_set,
         load_locked_requirements,
         normalize_distribution_name,
     )
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = SCRIPT_DIR.parent
 DEFAULT_LOCK = ROOT / "requirements-runtime.lock"
 DEFAULT_PYPROJECT = ROOT / "pyproject.toml"
 BOOTSTRAP_DISTRIBUTIONS = frozenset({"pip", "setuptools", "wheel"})
