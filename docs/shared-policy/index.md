@@ -14,5 +14,6 @@
 
 ## Selection, composition, and rendering
 
+* [Policy profiles](profiles.md) - Explains what profiles are, how they compose shared rules inside policy contexts, which profiles are available, and when to select each one.
 * [Configuration](../configuration.md) - Defines how a consumer selects shared profiles, adds repository-local policy, declares explicit overrides, and binds outputs to contexts.
 * [Architecture](../architecture.md) - Describes how selected shared and repository-local rules are loaded, composed, rendered, and recorded in lock state.
