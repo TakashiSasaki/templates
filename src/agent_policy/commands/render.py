@@ -1,25 +1,43 @@
 from __future__ import annotations
 
-import hashlib
+import os
+import tempfile
 from pathlib import Path
 
-from ..config import Config, load_config, validate_config
+from ..config import load_config, validate_config
 from ..diagnostics import Diagnostic
-from ..lockfile import LOCK_PATH, load_lock, sha256_file, write_lock
+from ..lockfile import (
+    LOCK_PATH,
+    create_lock,
+    load_lock_outputs,
+    resolve_lock_path,
+    sha256_file,
+)
 from ..paths import resolve_inside
 from ..policy_loader import load_rules
 from ..renderer import GENERATED_MARKER, render_output, render_skill
 
 
-def _is_generated_file(path: Path) -> bool:
-    try:
-        return GENERATED_MARKER in path.read_text(encoding="utf-8")
-    except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError):
-        return False
+def _write_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    ) as handle:
+        handle.write(content)
+        temporary = Path(handle.name)
+    os.replace(temporary, path)
 
 
-def _hash_bytes(content: str) -> str:
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+def _safe_generated_write(path: Path, content: str) -> None:
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if GENERATED_MARKER not in existing:
+            raise FileExistsError(f"Refusing to overwrite non-generated file: {path}")
+    _write_atomic(path, content)
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    return left == right or left in right.parents or right in left.parents
 
 
 def _add_planned_output(
@@ -28,106 +46,107 @@ def _add_planned_output(
     relative: str,
     content: str,
 ) -> None:
-    target = resolve_inside(repository_root, relative, allow_missing=True)
-    for existing_relative, (existing_target, _existing_content) in planned.items():
-        if target == existing_target:
+    target = resolve_inside(repository_root, relative)
+    lock_target = resolve_lock_path(repository_root)
+    if _paths_overlap(target, lock_target):
+        raise ValueError(
+            f"Generated output path overlaps reserved path: {relative} and {LOCK_PATH}"
+        )
+    for existing_relative, (existing_target, _) in planned.items():
+        if _paths_overlap(target, existing_target):
             raise ValueError(
                 "Generated output paths overlap: "
-                f"{relative} resolves to the same target as {existing_relative}"
-            )
-        if existing_target in target.parents or target in existing_target.parents:
-            raise ValueError(
-                "Generated output paths overlap: "
-                f"{relative} overlaps {existing_relative}"
+                f"{existing_relative} and {relative}"
             )
     planned[relative] = (target, content)
 
 
-def _load_previous_outputs(repository_root: Path) -> dict[str, dict[str, str]]:
-    lock_path = resolve_inside(repository_root, LOCK_PATH, allow_missing=True)
-    if not lock_path.exists():
-        return {}
-    lock = load_lock(repository_root)
-    outputs = lock.get("outputs", {})
-    if not isinstance(outputs, dict):
-        raise ValueError("Lock outputs must be a mapping")
-    result: dict[str, dict[str, str]] = {}
-    for relative, metadata in outputs.items():
-        if not isinstance(relative, str) or not isinstance(metadata, dict):
-            raise ValueError("Lock outputs are malformed")
-        digest = metadata.get("sha256")
-        if not isinstance(digest, str):
-            raise ValueError("Lock output hash is malformed")
-        result[relative] = {"sha256": digest}
-    return result
+def _literal_repository_path(repository_root: Path, relative: str | Path) -> Path:
+    root = repository_root.resolve()
+    literal = Path(os.path.abspath(root / relative))
+    try:
+        literal.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Path escapes repository root: {relative}") from exc
+    return literal
 
 
-def _normalize_previous_output_targets(
+def _literal_output_path(repository_root: Path, relative: str) -> Path:
+    root = repository_root.resolve()
+    literal = _literal_repository_path(root, relative)
+
+    for component in (literal, *literal.parents):
+        if component == root:
+            break
+        if component.is_symlink():
+            raise ValueError(
+                f"Obsolete generated output path must not contain symlinks: {relative}"
+            )
+
+    resolved = resolve_inside(root, relative, allow_missing=True)
+    if resolved != literal:
+        raise ValueError(
+            f"Obsolete generated output path resolves through a symlink: {relative}"
+        )
+    return literal
+
+
+def _obsolete_generated_outputs(
     repository_root: Path,
-    previous_outputs: dict[str, dict[str, str]],
-) -> dict[str, Path]:
-    normalized: dict[str, Path] = {}
-    by_target: dict[Path, str] = {}
-    for relative in previous_outputs:
-        target = resolve_inside(repository_root, relative, allow_missing=True)
-        existing = by_target.get(target)
-        if existing is not None:
+    planned: dict[str, tuple[Path, str]],
+    protected_inputs: set[Path],
+) -> list[Path]:
+    lock_path = resolve_lock_path(repository_root, allow_missing=True)
+    if not lock_path.exists():
+        return []
+
+    planned_targets = {target for target, _content in planned.values()}
+    locked_targets: dict[Path, str] = {}
+    obsolete: list[Path] = []
+    for relative, locked_digest in load_lock_outputs(lock_path).items():
+        if relative in planned:
+            continue
+
+        literal_target = _literal_repository_path(repository_root, relative)
+        if literal_target in protected_inputs:
+            continue
+
+        target = _literal_output_path(repository_root, relative)
+        previous_relative = locked_targets.get(target)
+        if previous_relative is not None:
             raise ValueError(
                 "Lock output paths normalize to the same target: "
-                f"{existing} and {relative}"
+                f"{previous_relative} and {relative}"
             )
-        by_target[target] = relative
-        normalized[relative] = target
-    return normalized
+        locked_targets[target] = relative
 
-
-def _remove_obsolete_outputs(
-    repository_root: Path,
-    previous_outputs: dict[str, dict[str, str]],
-    planned: dict[str, tuple[Path, str]],
-    current_inputs: set[Path],
-) -> None:
-    planned_targets = {target for target, _content in planned.values()}
-    previous_targets = _normalize_previous_output_targets(
-        repository_root,
-        previous_outputs,
-    )
-    for relative, metadata in previous_outputs.items():
-        target = previous_targets[relative]
-        if target in planned_targets or target in current_inputs:
-            continue
-        if target.is_symlink():
-            raise ValueError(
-                f"Refusing to remove obsolete generated path that must not contain symlinks: {relative}"
-            )
-        if not target.exists():
+        if target in planned_targets or target in protected_inputs or not target.exists():
             continue
         if not target.is_file():
-            raise ValueError(
-                f"Refusing to remove obsolete generated output that is not a file: {relative}"
+            raise FileExistsError(
+                f"Refusing to remove non-file obsolete generated output: {relative}"
             )
-        if sha256_file(target) != metadata["sha256"]:
+        if sha256_file(target) != locked_digest:
             raise ValueError(
                 f"Refusing to remove modified obsolete generated output: {relative}"
             )
-        target.unlink()
+        if GENERATED_MARKER not in target.read_text(encoding="utf-8"):
+            raise FileExistsError(
+                f"Refusing to remove non-generated obsolete output: {relative}"
+            )
+        obsolete.append(target)
+    return obsolete
 
 
-def _validate_obsolete_output_transitions(
+def _reject_obsolete_output_overlaps(
     repository_root: Path,
-    previous_outputs: dict[str, dict[str, str]],
+    obsolete: list[Path],
     planned: dict[str, tuple[Path, str]],
-    current_inputs: set[Path],
 ) -> None:
-    planned_by_target = {target: relative for relative, (target, _content) in planned.items()}
-    previous_targets = _normalize_previous_output_targets(
-        repository_root,
-        previous_outputs,
-    )
-    for obsolete_relative, obsolete_target in previous_targets.items():
-        if obsolete_target in planned_by_target or obsolete_target in current_inputs:
-            continue
-        for planned_target, planned_relative in planned_by_target.items():
+    root = repository_root.resolve()
+    for obsolete_target in obsolete:
+        obsolete_relative = obsolete_target.relative_to(root).as_posix()
+        for planned_relative, (planned_target, _content) in planned.items():
             if obsolete_target in planned_target.parents:
                 raise ValueError(
                     "Refusing to replace obsolete generated file with nested output: "
@@ -189,41 +208,33 @@ def run(repository_root: Path, config_path: str) -> list[Diagnostic]:
                 for relative in config.project_policy_files
             }
         )
-        current_inputs = set(inputs.values())
-        previous_outputs = _load_previous_outputs(repository_root)
-        _validate_obsolete_output_transitions(
-            repository_root,
-            previous_outputs,
-            planned,
-            current_inputs,
+        protected_inputs = set(inputs.values())
+        protected_inputs.update(
+            _literal_repository_path(repository_root, relative)
+            for relative in (config_path, *config.project_policy_files)
         )
+        obsolete = _obsolete_generated_outputs(
+            repository_root,
+            planned,
+            protected_inputs,
+        )
+        _reject_obsolete_output_overlaps(repository_root, obsolete, planned)
 
+        outputs: dict[str, Path] = {}
         for relative, (target, content) in planned.items():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8")
+            _safe_generated_write(target, content)
+            outputs[relative] = target
+        for target in obsolete:
+            target.unlink()
 
-        _remove_obsolete_outputs(
-            repository_root,
-            previous_outputs,
-            planned,
-            current_inputs,
-        )
-
-        outputs = {
-            relative: {"sha256": _hash_bytes(content)}
-            for relative, (_target, content) in planned.items()
-        }
-        input_hashes = {
-            relative: {"sha256": sha256_file(path)}
-            for relative, path in inputs.items()
-        }
-        write_lock(
-            repository_root,
-            toolchain=config.data["toolchain"],
-            inputs=input_hashes,
+        toolchain = config.data["toolchain"]
+        lock_content = create_lock(
+            toolchain_repository=toolchain["repository"],
+            toolchain_revision=toolchain["revision"],
+            inputs=inputs,
             outputs=outputs,
-            skills=config.enabled_skills,
         )
+        _write_atomic(resolve_lock_path(repository_root), lock_content)
         return []
     except Exception as exc:
         return [Diagnostic("error", "RENDER", str(exc))]
