@@ -4,6 +4,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LINK_TARGET = re.compile(r"\]\(([^)#]+)(?:#[^)]+)?\)")
+PROFILE_MARKER = re.compile(r"<!-- PROFILE: ([a-z0-9][a-z0-9-]*) -->")
+PROFILE_FILE_ENTRY = re.compile(r"^  - (policy/\S+\.md)$", re.MULTILINE)
+MODULE_ENTRY = re.compile(r"^- `([^`]+)`$", re.MULTILINE)
 
 
 def test_root_navigation_separates_policy_layers() -> None:
@@ -94,3 +97,39 @@ def test_provider_environment_link_targets_a_document() -> None:
 
     assert "[Google AI Studio Build mode](../agent-environments/google-ai-studio.md)" in text
     assert "(../agent-environments/)" not in text
+
+
+def test_policy_profile_catalog_matches_profile_definitions() -> None:
+    guide = (ROOT / "docs" / "shared-policy" / "profiles.md").read_text(encoding="utf-8")
+    markers = PROFILE_MARKER.findall(guide)
+    profile_files = sorted((ROOT / "profiles").glob("*.yml"))
+
+    assert len(markers) == len(set(markers))
+    assert set(markers) == {path.stem for path in profile_files}
+
+    matches = list(PROFILE_MARKER.finditer(guide))
+    sections = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(guide)
+        sections[match.group(1)] = guide[match.end() : end]
+
+    for profile_file in profile_files:
+        expected = PROFILE_FILE_ENTRY.findall(profile_file.read_text(encoding="utf-8"))
+        documented = MODULE_ENTRY.findall(sections[profile_file.stem])
+        assert documented == expected
+
+
+def test_policy_profile_catalog_is_published_and_linked() -> None:
+    catalog = json.loads(
+        (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
+    )
+    documents = {document["id"]: document for document in catalog["documents"]}
+    assert documents["policy-profiles"] == {
+        "id": "policy-profiles",
+        "source": "docs/shared-policy/profiles.md",
+        "optional": False,
+        "home": False,
+    }
+
+    navigation = (ROOT / "docs" / "shared-policy" / "index.md").read_text(encoding="utf-8")
+    assert "[Policy profiles](profiles.md)" in navigation
