@@ -3,12 +3,42 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..adoption import inspect_repository
+from ..adoption import KNOWN_INSTRUCTION_FILES, AdoptionInspection, inspect_repository
 from ..diagnostics import Diagnostic
 from . import adopt as adopt_command
 from . import init as init_command
 
 UNSET: Any = object()
+
+
+def _migration_primary_instructions(
+    inspection: AdoptionInspection,
+    requested: str | None,
+) -> tuple[str | None, Diagnostic | None]:
+    available = tuple(
+        source.path
+        for source in inspection.sources
+        if source.path in KNOWN_INSTRUCTION_FILES
+    )
+    if requested is not None:
+        if requested not in available:
+            detail = ", ".join(available) if available else "none"
+            return None, Diagnostic(
+                "error",
+                "PRIMARY_INSTRUCTIONS",
+                f"Primary instructions must be a discovered instruction file; available: {detail}",
+                requested,
+            )
+        return requested, None
+    if len(available) == 1:
+        return available[0], None
+    detail = ", ".join(available) if available else "none"
+    return None, Diagnostic(
+        "error",
+        "PRIMARY_INSTRUCTIONS",
+        "Migration adoption requires --primary-instructions when discovery is "
+        f"ambiguous; available: {detail}",
+    )
 
 
 def prepare_run(
@@ -80,7 +110,13 @@ def prepare_run(
 
     if inspection.state == "unmanaged-existing":
         verification = None if verification_command is UNSET else verification_command
-        primary = primary_instructions or adopt_command.DEFAULT_PRIMARY_INSTRUCTIONS
+        primary, primary_error = _migration_primary_instructions(
+            inspection,
+            primary_instructions,
+        )
+        if primary_error is not None:
+            return [primary_error]
+        assert primary is not None
         return adopt_command.prepare_run(
             repository_root,
             config_path,
