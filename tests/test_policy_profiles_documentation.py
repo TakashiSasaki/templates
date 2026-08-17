@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -68,8 +69,6 @@ def test_shared_policy_navigation_links_to_profile_catalog() -> None:
 
 
 def test_profile_catalog_is_published() -> None:
-    import json
-
     catalog = json.loads(
         (ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8")
     )
