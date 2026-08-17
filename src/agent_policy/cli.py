@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .commands import adopt as adopt_command
 from .commands import check as check_command
+from .commands import init as init_command
 from .commands import onboard as onboard_command
 from .commands import render as render_command
 from .commands import validate as validate_command
@@ -34,6 +35,32 @@ def parser() -> argparse.ArgumentParser:
     for name in ["validate", "render", "check"]:
         item = sub.add_parser(name)
         item.add_argument("--config", default=".agent-policy.yml")
+
+    # Internal primitive retained for the pinned bootstrap trust seed and direct
+    # tests. New onboarding documentation and bootstrap UX expose only adopt.
+    init = sub.add_parser("init", help=argparse.SUPPRESS)
+    init.add_argument("--config", default=".agent-policy.yml")
+    init.add_argument("--apply", action="store_true")
+    init.add_argument("--toolchain-revision", default=current_revision())
+    init.add_argument("--profile", action="append", dest="profiles")
+    init.add_argument("--project-policy")
+    verification = init.add_mutually_exclusive_group()
+    verification.add_argument(
+        "--verification-command",
+        default=init_command.DEFAULT_VERIFICATION_COMMAND,
+    )
+    verification.add_argument(
+        "--no-verification",
+        action="store_const",
+        dest="verification_command",
+        const=None,
+    )
+    init.add_argument(
+        "--agents-output-path",
+        default=init_command.DEFAULT_AGENTS_OUTPUT_PATH,
+    )
+    init.add_argument("--disable-agents-output", action="store_true")
+    init.add_argument("--skill", action="append", dest="enabled_skills")
 
     adopt = sub.add_parser("adopt")
     adopt_sub = adopt.add_subparsers(dest="adopt_command", required=True)
@@ -130,7 +157,19 @@ def main(argv: list[str] | None = None) -> int:
                 apply=args.apply,
             )
     else:
-        raise AssertionError(f"Unhandled command: {args.command}")
+        project_policy_files = [args.project_policy] if args.project_policy else None
+        diagnostics = init_command.run(
+            repository_root,
+            args.config,
+            apply=args.apply,
+            toolchain_revision=args.toolchain_revision,
+            profiles=args.profiles or ["core", "security-baseline"],
+            project_policy_files=project_policy_files,
+            verification_command=args.verification_command,
+            agents_output_enabled=not args.disable_agents_output,
+            agents_output_path=args.agents_output_path,
+            enabled_skills=args.enabled_skills,
+        )
     print_diagnostics(diagnostics, args.format)
     return 1 if any(item.level == "error" for item in diagnostics) else 0
 
