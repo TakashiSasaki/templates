@@ -55,7 +55,7 @@
       "canonical": "docs/repository-structure.md",
       "language": "ja",
       "translation": "translations/ja/docs/repository-structure.md",
-      "canonical_blob_sha": "28a7f6b1455961a83f25aedd18857f0732dd44c6",
+      "canonical_blob_sha": "04bda665236f60626419c586f28f77dcf6188440",
       "surfaces": ["reader"]
     },
     {
@@ -90,7 +90,7 @@
       "canonical": "docs/shared-policy/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/shared-policy/index.md",
-      "canonical_blob_sha": "f1b93088a7c7f202dfd90247c1a10df124d9e02a",
+      "canonical_blob_sha": "b59fc0df9b97cc28dbda130ec54140052f902477",
       "surfaces": ["reader", "guided"]
     },
     {

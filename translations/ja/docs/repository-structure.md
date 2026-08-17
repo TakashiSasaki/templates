@@ -25,7 +25,7 @@ bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifest�
 | パス | 役割 |
 |---|---|
 | `policy/` | 共有規約の正本。各規則はYAML front matter付きMarkdownとして管理する。 |
-| `profiles/` | 適用する規約ファイルの集合と順序を宣言する。artifact categoryではなくagent operationやrisk contextを分類する。 |
+| `profiles/` | agent operationまたはrisk context向けの共有ポリシーモジュールを名前付きで選択する。profileは含める共有ルールを決め、最終的なルール順序は各ルールのmetadataが決める。 |
 | `schemas/` | 製品リポジトリの `.agent-policy.yml` とadoption stateを検証するJSON Schema。toolchain repositoryは`TakashiSasaki/templates`。 |
 | `src/agent_policy/` | `init`、`adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するPython CLI。 |
 | `templates/` | `AGENTS.md`、製品固有規約、consumer workflowなどの生成template。 |
@@ -34,6 +34,8 @@ bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifest�
 | `docs/` | 導入方法、設計、ADR、PWA資産、repository preview UI。 |
 | `scripts/` | repository preview生成・検証など、branchの保守とpublicationを支援するscript。 |
 | `.github/workflows/` | `policy`向けCIとbuild-only documentation validation。Pages deployment authorityは持たない。 |
+
+選択ガイドと現在の完全なprofileカタログについては、[Policyプロファイル](shared-policy/profiles.md)を参照してください。
 
 ## 統合済みbootstrap skill
 
