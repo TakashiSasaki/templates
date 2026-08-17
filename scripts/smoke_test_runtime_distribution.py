@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,11 +12,15 @@ RUNTIME_LOCK = ROOT / "requirements-runtime.lock"
 VERIFY_SCRIPT = ROOT / "scripts" / "verify_runtime_environment.py"
 
 
-def environment() -> dict[str, str]:
-    result = os.environ.copy()
-    result["PYTHONHOME"] = ""
-    result["PYTHONPATH"] = ""
+def environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
+    supplied = os.environ if source is None else source
+    result = {
+        key: value
+        for key, value in supplied.items()
+        if not key.upper().startswith(("PIP_", "PYTHON"))
+    }
     result["PYTHONNOUSERSITE"] = "1"
+    result["PIP_CONFIG_FILE"] = os.devnull
     result["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     return result
 
