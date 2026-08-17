@@ -6,7 +6,7 @@
       "canonical": "docs/overview.md",
       "language": "ja",
       "translation": "translations/ja/docs/overview.md",
-      "canonical_blob_sha": "612a73dc0ebb835156655ee48b716e78189d0ce7",
+      "canonical_blob_sha": "9171014aae215c6fbeec06d2f07cf37283aa7161",
       "surfaces": ["reader"]
     },
     {
@@ -104,7 +104,7 @@
       "canonical": "docs/adr/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/adr/index.md",
-      "canonical_blob_sha": "daac56b7f841a60003f1184985af6b50cc98a300",
+      "canonical_blob_sha": "8aad97936ee059c5e52d10de51a5a3d78b2e5f7d",
       "surfaces": ["reader", "guided"]
     }
   ]
