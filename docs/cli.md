@@ -8,45 +8,16 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 Specify `--repository` and `--format` before the subcommand. If `--repository` is omitted, the CLI searches upward from the current location for the Git repository root.
 
-## `init`
+## Onboarding model
 
-Create an initialization plan for an unmanaged repository that has no existing policy instructions. Files are not modified by default. To adopt a repository while preserving existing instructions, use the `adopt` workflow rather than trying to bypass conflicts with `init`.
+Use `adopt` for all first-time onboarding. `adopt inspect` classifies an unmanaged repository, and `adopt prepare` selects the safe internal strategy from that state:
 
-```bash
-agent-policy --repository /path/to/repository init
-```
+- `unmanaged-empty`: fresh adoption, using the initialization primitive internally;
+- `unmanaged-existing`: migration adoption that preserves handwritten instructions;
+- `managed`: reject bootstrap because the repository is already managed; and
+- `inconsistent`: reject mutation until the inconsistent state is repaired.
 
-Specify `--apply` to apply the plan.
-
-```bash
-agent-policy --repository /path/to/repository init \
-  --toolchain-revision <FULL_COMMIT_SHA> \
-  --profile core \
-  --profile security-baseline \
-  --verification-command "npm run verify:pr" \
-  --apply
-```
-
-Main options:
-
-| Option | Description |
-| --- | --- |
-| `--config PATH` | Configuration-file path. Defaults to `.agent-policy.yml`. |
-| `--apply` | Actually apply the plan. |
-| `--toolchain-revision SHA` | Full toolchain commit SHA recorded in configuration and lock state. |
-| `--profile NAME` | Initial profile. May be specified multiple times. |
-| `--project-policy PATH` | Single project-policy scaffold to create. Defaults to `policy/project.md`. |
-| `--verification-command COMMAND` | Verification command recorded in generated instructions. Defaults to `./scripts/verify.sh`. |
-| `--no-verification` | Omit the `verification` section from the initial configuration. |
-| `--agents-output-path PATH` | Generated agent-instruction destination. Defaults to `AGENTS.md`. |
-| `--disable-agents-output` | Disable agent-instruction generation initially while retaining the path for later enablement. |
-| `--skill NAME` | Skill to generate initially. May be specified multiple times and must match `[a-z0-9][a-z0-9-]*`. Defaults to `validate-agent-policy` when omitted. |
-
-If profiles are omitted, `core` and `security-baseline` are selected. To avoid duplicate placeholder rule IDs, `init` creates exactly one project-policy scaffold. Adoption that preserves multiple existing project-policy files is the responsibility of `adopt prepare`.
-
-Before writing, `init` validates skill names against the schema-equivalent form and normalizes and compares every planned path for configuration, project policy, agent instructions, generated skills, and `.agent-policy.lock`. It rejects identical paths, parent/child path overlap, and any planned destination whose ancestor is an existing regular file, rather than performing partial initialization. Collisions among planned outputs are reported as `INIT_PATH_COLLISION`; blocking existing paths are reported as `FILE_CONFLICT`.
-
-For compatibility with existing behavior, omitting verification configures `./scripts/verify.sh`. In a repository without that command, specify the actual verification command or use `--no-verification`.
+The legacy `init` parser remains only as a hidden internal primitive for the pinned bootstrap trust seed and direct implementation tests. It is not a separate user-facing onboarding workflow. New callers should use `adopt prepare`.
 
 ## `adopt inspect`
 
@@ -66,7 +37,24 @@ For each source, diagnostics report its path, SHA-256, and whether it contains a
 
 ## `adopt prepare`
 
-Create a prepared state for migration to agent-policy management while preserving existing instructions as authoritative. The command is a dry run by default and does not write to the live repository.
+Prepare an unmanaged repository for agent-policy management. The command is a dry run by default and selects its behavior from the inspected repository state.
+
+For an `unmanaged-empty` repository, `adopt prepare` performs fresh adoption. It uses the existing initialization implementation internally, creates the normal managed files directly when `--apply` is supplied, and does not create an adoption-state transaction or require primary instructions.
+
+```bash
+agent-policy --repository . adopt prepare \
+  --profile core \
+  --profile security-baseline
+
+agent-policy --repository . adopt prepare \
+  --profile core \
+  --profile security-baseline \
+  --apply
+```
+
+Fresh adoption retains the initialization defaults: one project-policy scaffold at `policy/project.md`, generated instructions at `AGENTS.md`, generated `validate-agent-policy` skill, and `./scripts/verify.sh` as the verification command unless `--no-verification` is specified.
+
+For an `unmanaged-existing` repository, `adopt prepare` creates a staged migration state while preserving existing instructions as authoritative.
 
 ```bash
 agent-policy --repository . adopt prepare \
@@ -86,43 +74,45 @@ agent-policy --repository . adopt prepare \
   --apply
 ```
 
-`prepare` fully generates and validates the manifest, project policy, preview, generated skills, lock state, and adoption state in a temporary copy before creating only new files in the live repository. It does not overwrite the existing primary instructions or existing project policy. The default preview destination is `.agent-policy/preview/AGENTS.md`. Each file is created exclusively during application, and failure cleanup is limited to files that the current invocation successfully created.
+For migration adoption, `prepare` fully generates and validates the manifest, project policy, preview, generated skills, lock state, and adoption state in a temporary copy before creating only new files in the live repository. It does not overwrite the existing primary instructions or existing project policy. The default preview destination is `.agent-policy/preview/AGENTS.md`. Each file is created exclusively during application, and failure cleanup is limited to files that the current invocation successfully created.
 
 Main options:
 
 | Option | Description |
 | --- | --- |
 | `--config PATH` | Configuration file to create. Defaults to `.agent-policy.yml`. |
-| `--state PATH` | Adoption-state path. Defaults to `.agent-policy/adoption.json`. |
-| `--apply` | Actually create the validated prepared state. |
-| `--toolchain-revision SHA` | Toolchain revision recorded in configuration, lock state, and adoption state. |
+| `--state PATH` | Migration adoption-state path. Defaults to `.agent-policy/adoption.json`. |
+| `--apply` | Apply the state-derived adoption plan. |
+| `--toolchain-revision SHA` | Toolchain revision recorded in generated state. |
 | `--profile NAME` | Profile to select. May be specified multiple times. |
-| `--primary-instructions PATH` | Existing instruction file to preserve. Defaults to `AGENTS.md`. |
-| `--project-policy PATH` | Existing or newly created project-policy path. May be specified multiple times. |
-| `--verification-command COMMAND` | Repository verification command. |
-| `--no-verification` | Do not configure verification. This is effectively the adoption default. |
-| `--preview-output-path PATH` | Destination for shadow instructions. |
+| `--primary-instructions PATH` | Existing instruction file to preserve during migration adoption. Not valid for fresh adoption. |
+| `--project-policy PATH` | Project-policy path. Migration adoption may specify multiple existing paths; fresh adoption requires one scaffold. |
+| `--verification-command COMMAND` | Repository verification command. Fresh adoption defaults to `./scripts/verify.sh`; migration adoption defaults to no verification. |
+| `--no-verification` | Do not configure verification. |
+| `--preview-output-path PATH` | Shadow-instruction destination for migration adoption. |
 | `--skill NAME` | Skill to generate. May be specified multiple times. Defaults to `validate-agent-policy`. |
-| `--no-skills` | Do not create generated skills. Mutually exclusive with `--skill`. |
+| `--no-skills` | Do not create generated skills during migration adoption. Mutually exclusive with `--skill`. |
 
-`--primary-instructions` must name an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection. Sources under `.agents/policies` or `.agents/skills` are recorded in the inventory and adoption state but cannot be selected as primary instructions. A repository containing only policy or skills cannot run `adopt prepare` until a corresponding instruction file exists.
+During migration adoption, `--primary-instructions` must name an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection. Sources under `.agents/policies` or `.agents/skills` are recorded in the inventory and adoption state but cannot be selected as primary instructions. A repository containing only policy or skills cannot enter migration preparation until a corresponding instruction file exists.
 
-Multiple project-policy files may be supplied, but `prepare` can create at most one missing file as a new scaffold. Existing policy is left byte-for-byte unchanged and becomes a manifest input. When an existing skill conflicts with the default generated skill, for example a handwritten `.agents/skills/validate-agent-policy/SKILL.md`, specify `--no-skills`.
+Multiple project-policy files may be supplied for migration adoption, but `prepare` can create at most one missing file as a new scaffold. Existing policy is left byte-for-byte unchanged and becomes a manifest input. When an existing skill conflicts with the default generated skill, for example a handwritten `.agents/skills/validate-agent-policy/SKILL.md`, specify `--no-skills`.
+
+Fresh adoption validates skill names and all planned configuration, policy, instruction, generated-skill, and lock paths before writing. Identical paths, parent/child overlaps, blocking regular-file ancestors, and existing destination conflicts fail without partial initialization.
 
 ## `adopt preview`
 
-Validate the immutable-source hashes recorded in prepared state and the consistency of configuration, then regenerate shadow instructions, generated skills, and lock state from the current profiles and project policy. Project policy is an editable manifest input and may be changed after preparation before regenerating the preview.
+Validate the immutable-source hashes recorded in prepared migration state and the consistency of configuration, then regenerate shadow instructions, generated skills, and lock state from the current profiles and project policy. Project policy is an editable manifest input and may be changed after preparation before regenerating the preview.
 
 ```bash
 agent-policy --repository . adopt preview
 agent-policy --repository . adopt preview --state .agent-policy/adoption.json
 ```
 
-If an immutable source recorded during preparation, such as the primary instructions, has been changed or removed, preview stops with `ADOPTION_SOURCE_CHANGED`.
+If an immutable source recorded during preparation, such as the primary instructions, has been changed or removed, preview stops with `ADOPTION_SOURCE_CHANGED`. Fresh adoption does not create a staged adoption state and therefore does not use `adopt preview`.
 
 ## `adopt finalize`
 
-Switch a prepared state into the formal managed state. The command is a dry run by default: it validates source hashes, state/configuration agreement, preview freshness, the backup path, and final rendering in a temporary copy only.
+Switch a prepared migration state into the formal managed state. The command is a dry run by default: it validates source hashes, state/configuration agreement, preview freshness, the backup path, and final rendering in a temporary copy only.
 
 ```bash
 agent-policy --repository . adopt finalize
@@ -151,7 +141,7 @@ Main options:
 
 | Option | Description |
 | --- | --- |
-| `--state PATH` | Prepared adoption-state path. Defaults to `.agent-policy/adoption.json`. |
+| `--state PATH` | Prepared migration adoption-state path. Defaults to `.agent-policy/adoption.json`. |
 | `--backup-path PATH` | Destination for the handwritten primary instructions. |
 | `--apply` | Actually apply the validated cutover. |
 

@@ -1,59 +1,59 @@
 # Bootstrap model
 
-The onboarding trust seed is stored at `skills/bootstrap-agent-policy/` in `TakashiSasaki/templates:policy`. It contains no policy compiler, renderer, or adoption transaction implementation. It validates a manifest that pins one full commit SHA and invokes only the routes declared by that immutable trust record.
+The onboarding trust seed is stored at `skills/bootstrap-agent-policy/` in `TakashiSasaki/templates:policy`. It contains no policy compiler, renderer, or migration transaction implementation. It validates a manifest that pins one full commit SHA and invokes only routes declared by that immutable trust record.
 
-## Operational onboarding routes
+## One onboarding operation: adoption
 
-The bootstrap skill supports two routes through the same pinned CLI revision:
+Bootstrap exposes one user-facing onboarding operation: adopt the repository into agent-policy management. Repository inspection selects the safe internal strategy:
 
 ```text
 unmanaged repository
   |
-  +-- no existing instruction assets --> agent-policy init
+  +-- no existing instruction assets --> fresh adoption
   |
-  +-- existing instruction assets ----> agent-policy adopt prepare
+  +-- existing instruction assets ----> migration adoption
 ```
 
-Repository classification is performed by the read-only `agent-policy adopt inspect` command. Automatic route selection is advisory and available only for dry runs. Any mutation must explicitly select `--route init` or `--route adopt`.
+Repository classification is performed by the read-only `agent-policy adopt inspect` command. The user does not choose between `init` and `adopt`. `--apply` authorizes the transition shown by inspection and the dry-run plan.
 
 The bootstrap script refuses repositories classified as `managed` or `inconsistent`. It does not bypass handwritten-file conflicts, repair partial onboarding state, or infer a destructive operation from a successful inspection.
 
-## Initialization
+## Fresh adoption
 
-Initialization is used for an `unmanaged-empty` repository. The bootstrap script invokes pinned `agent-policy init` in dry-run mode, or with `--apply` after explicit route selection. Applied initialization creates the manifest, project-policy scaffold, generated instructions, lock file, and normal-operation skills, then requires `agent-policy validate` and `agent-policy check` to succeed.
+Fresh adoption is used for an `unmanaged-empty` repository. The pinned toolchain currently uses `agent-policy init` as an internal primitive to create the manifest, project-policy scaffold, generated instructions, lock file, and normal-operation skills. That primitive is an implementation detail, not a separate bootstrap route or user-facing onboarding concept.
 
-Existing non-generated instruction conflicts continue to stop initialization. They are not converted into adoption merely because `init` failed; the read-only inspection result determines the permitted route before mutation.
+After fresh adoption is applied, bootstrap requires `agent-policy validate` and `agent-policy check` to succeed. Existing conflicting paths still stop the operation rather than being overwritten.
 
-## Adoption preparation
+## Migration adoption
 
-Adoption is used for an `unmanaged-existing` repository. The bootstrap skill reports discovered instruction sources and requires one supported source to be selected as the primary instructions.
+Migration adoption is used for an `unmanaged-existing` repository. The bootstrap skill reports discovered instruction sources and requires one supported source to be selected as the primary instructions when discovery is ambiguous.
 
 The operational phases are:
 
 1. inspect repository state and sources;
-2. run `adopt prepare` in dry-run mode;
-3. apply preparation only after explicit `--route adopt --apply` authorization;
+2. run migration preparation in dry-run mode;
+3. apply preparation only after explicit `--apply` authorization;
 4. run `adopt preview` to regenerate and check the prepared preview;
 5. help migrate semantic requirements into shared profiles and project policy;
 6. review the generated preview against preserved handwritten sources;
 7. invoke `adopt finalize --apply` only after a separate explicit instruction.
 
-A generic bootstrap apply operation may apply adoption preparation and run preview. It never finalizes adoption. The bootstrap manifest deliberately declares no finalization route.
+A generic bootstrap apply operation may complete fresh adoption or apply migration-adoption preparation and run preview. It never finalizes migration adoption. The bootstrap manifest deliberately declares no finalization route.
 
 ## Repository-state routing
 
 | State | Bootstrap behavior |
 |---|---|
-| `unmanaged-empty` | Recommend `init`; allow explicit initialization apply |
-| `unmanaged-existing` | Recommend `adopt`; allow explicit preparation apply |
+| `unmanaged-empty` | Select fresh adoption; allow explicit `--apply` |
+| `unmanaged-existing` | Select migration adoption; allow explicit preparation `--apply` |
 | `managed` | Stop bootstrap and use managed-repository commands |
 | `inconsistent` | Stop mutation and require explicit repair |
 
-The route selected for mutation must match the inspection result. A mismatched explicit route is rejected.
+The selected strategy is derived from inspection state, not from a user-supplied route flag.
 
 ## Control transfer
 
-After initialization, or after adoption has been finalized separately, control transfers to the product repository's committed state:
+After fresh adoption, or after migration adoption has been finalized separately, control transfers to the product repository's committed state:
 
 - `.agent-policy.yml`;
 - `.agent-policy.lock`;
@@ -71,4 +71,4 @@ The specific stable SHA is intentionally not repeated in this document. `release
 
 Changing the stable descriptor, bootstrap repository, route declarations, skill instructions, orchestration script, installer, or bootstrap tests is a trust-anchor change and is reviewed independently from ordinary policy text changes.
 
-The manifest uses a full commit SHA rather than `policy`, `main`, a tag, a short SHA, or another mutable reference. Initialization and adoption use the same executable toolchain and differ only in repository state and the safe transition explicitly selected by the user.
+Fresh and migration adoption use the same executable toolchain. They differ only in repository state and the safe internal strategy selected from that state.

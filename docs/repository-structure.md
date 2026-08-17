@@ -25,7 +25,7 @@ The placeholder below displays the complete Git-tracked tree of the `policy` bra
 | `policy/` | Canonical shared policy. Each rule is maintained as Markdown with YAML front matter. |
 | `profiles/` | Declares named selections of shared policy modules for an agent operation or risk context. Profiles determine which shared rules are included; rule metadata determines final rule ordering. |
 | `schemas/` | JSON Schemas for product-repository `.agent-policy.yml` and adoption state. The toolchain repository is `TakashiSasaki/templates`. |
-| `src/agent_policy/` | Python CLI implementing `init`, `adopt inspect/prepare/preview/finalize`, `validate`, `render`, and `check`. |
+| `src/agent_policy/` | Python CLI implementing unified `adopt inspect/prepare/preview/finalize`, `validate`, `render`, and `check`; the hidden `init` command remains an internal fresh-adoption primitive. |
 | `templates/` | Generation templates for `AGENTS.md`, product-specific policy, consumer workflows, and related outputs. |
 | `skills/` | Canonical normal-operation skills and the first-adoption trust seed integrated at `skills/bootstrap-agent-policy/`. |
 | `tests/` | Validation for configuration, adoption transactions, rendering, lock state, path safety, repository identity, and bootstrap trust boundaries. |
@@ -50,12 +50,12 @@ skills/bootstrap-agent-policy/
 
 | Path | Responsibility |
 |---|---|
-| `SKILL.md` | Defines trigger conditions, inspection, `init`/`adopt` routing, safety constraints, and separation of finalization. |
-| `bootstrap-manifest.yml` | Pins the full SHA of `TakashiSasaki/templates` and the allowed route set. It does not include a finalize route. |
-| `scripts/bootstrap.py` | Acquires the pinned CLI in a temporary environment and performs read-only inspection, explicit initialization or adoption preparation, and post-apply verification. |
+| `SKILL.md` | Defines trigger conditions, inspection, state-derived fresh/migration adoption strategy, safety constraints, and separation of migration finalization. |
+| `bootstrap-manifest.yml` | Pins the full SHA of `TakashiSasaki/templates` and the allowed internal route set. It does not include a finalize route. |
+| `scripts/bootstrap.py` | Acquires the pinned CLI in a temporary environment, inspects repository state, applies the corresponding adoption strategy when authorized, and runs post-apply verification. |
 | `scripts/install.py` | Safely copies the skill from a reviewed checkout into a skill directory. |
 | `scripts/uninstall.py` | Removes an installed skill after checking its identity marker. |
-| `tests/test_bootstrap_skill.py` | Verifies the manifest, pin, routes, safety constraints, state parsing, and post-apply commands. |
+| `tests/test_bootstrap_skill.py` | Verifies the manifest, pin, strategy routes, safety constraints, state parsing, and post-apply commands. |
 
 ## Transfer of control before and after adoption
 
@@ -66,10 +66,11 @@ before adoption
   pinned agent-policy CLI from templates
       ↓ adopt inspect
   ├─ unmanaged-empty
-  │    └─ explicit init --apply
+  │    └─ fresh adoption via adopt prepare --apply
+  │         └─ internal init primitive → managed
   │
   └─ unmanaged-existing
-       └─ explicit adopt prepare --apply
+       └─ migration adoption via adopt prepare --apply
             ↓ preview and semantic review
           adopt finalize --apply by a separate explicit instruction
 
@@ -80,4 +81,4 @@ after adoption
   repository-local CI
 ```
 
-Before adoption, the bootstrap package is the trust seed. After initialization or adoption finalization, control transfers to the configuration, lock state, and generated outputs recorded in the product repository.
+Before adoption, the bootstrap package is the trust seed. After fresh adoption or migration finalization, control transfers to the configuration, lock state, and generated outputs recorded in the product repository.

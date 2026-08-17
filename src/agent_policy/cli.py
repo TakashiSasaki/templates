@@ -8,6 +8,7 @@ from pathlib import Path
 from .commands import adopt as adopt_command
 from .commands import check as check_command
 from .commands import init as init_command
+from .commands import onboard as onboard_command
 from .commands import render as render_command
 from .commands import validate as validate_command
 from .diagnostics import print_diagnostics
@@ -35,7 +36,9 @@ def parser() -> argparse.ArgumentParser:
         item = sub.add_parser(name)
         item.add_argument("--config", default=".agent-policy.yml")
 
-    init = sub.add_parser("init")
+    # Internal primitive retained for the pinned bootstrap trust seed and direct
+    # tests. New onboarding documentation and bootstrap UX expose only adopt.
+    init = sub.add_parser("init", help=argparse.SUPPRESS)
     init.add_argument("--config", default=".agent-policy.yml")
     init.add_argument("--apply", action="store_true")
     init.add_argument("--toolchain-revision", default=current_revision())
@@ -71,13 +74,13 @@ def parser() -> argparse.ArgumentParser:
     prepare.add_argument("--apply", action="store_true")
     prepare.add_argument("--toolchain-revision", default=current_revision())
     prepare.add_argument("--profile", action="append", dest="profiles")
-    prepare.add_argument(
-        "--primary-instructions",
-        default=adopt_command.DEFAULT_PRIMARY_INSTRUCTIONS,
-    )
+    prepare.add_argument("--primary-instructions", default=None)
     prepare.add_argument("--project-policy", action="append", dest="project_policy_files")
     adopt_verification = prepare.add_mutually_exclusive_group()
-    adopt_verification.add_argument("--verification-command", default=None)
+    adopt_verification.add_argument(
+        "--verification-command",
+        default=onboard_command.UNSET,
+    )
     adopt_verification.add_argument(
         "--no-verification",
         action="store_const",
@@ -128,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
                 state_path=args.state,
             )
         elif args.adopt_command == "prepare":
-            diagnostics = adopt_command.prepare_run(
+            diagnostics = onboard_command.prepare_run(
                 repository_root,
                 args.config,
                 apply=args.apply,

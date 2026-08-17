@@ -9,9 +9,9 @@
   },
   "routes": {
     "inspect": ["adopt", "inspect"],
-    "init": ["init"],
-    "adopt_prepare": ["adopt", "prepare"],
-    "adopt_preview": ["adopt", "preview"],
+    "fresh_prepare": ["init"],
+    "migration_prepare": ["adopt", "prepare"],
+    "migration_preview": ["adopt", "preview"],
     "validate": ["validate"],
     "check": ["check"]
   }

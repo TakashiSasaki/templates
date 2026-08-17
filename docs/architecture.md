@@ -9,14 +9,16 @@ The system separates policy authorship, compilation, distribution, onboarding, a
 - `.agent-policy.lock` records input and output hashes.
 - Machine-enforceable quality requirements remain in project tests and CI rather than natural-language rules alone.
 
-## Onboarding modes
+## Unified onboarding model
 
-An unmanaged repository enters the system through one of two modes:
+An unmanaged repository enters the system through one user-facing operation: adoption. Read-only inspection selects one of two internal strategies from repository state:
 
-- `init` creates the initial manifest and generated outputs when no conflicting handwritten instruction output exists.
-- `adopt` preserves existing handwritten instructions while project policy is prepared, previewed, and reviewed before an explicit cutover.
+- **fresh adoption** for `unmanaged-empty`, where no handwritten instruction assets need to be preserved;
+- **migration adoption** for `unmanaged-existing`, where existing instructions, repository-local policies, or skills must remain authoritative until reviewed.
 
-The two modes share configuration, rendering, path safety, lock generation, and deterministic diagnostics. They differ in their treatment of existing instructions: initialization rejects a conflict, while adoption records the existing file as a protected source and renders to a non-conflicting preview path.
+Both strategies share configuration, rendering, path safety, lock generation, and deterministic diagnostics. They differ only in how existing instructions are treated. Fresh adoption may reuse the hidden `init` command internally and can reach managed state directly. Migration adoption records existing files as protected sources, renders to a non-conflicting preview path, and requires a later explicit finalization step.
+
+`init` remains an internal primitive for the pinned bootstrap trust seed and direct primitive tests. It is not a separate user-facing onboarding mode.
 
 ## Adoption responsibility boundary
 
@@ -27,16 +29,17 @@ The CLI in `TakashiSasaki/templates:policy` owns deterministic operations:
 - repository classification and file inventory;
 - path and symbolic-link boundary checks;
 - source hashing and adoption-state validation;
+- state-derived selection of fresh or migration preparation;
 - scaffold and preview generation;
 - stale-source and stale-preview detection;
 - transactional backup, cutover, rollback, and lock generation.
 
 The integrated `skills/bootstrap-agent-policy/` package owns agent-assisted orchestration:
 
-- selecting initialization or adoption from inspection results;
-- interpreting existing instruction prose;
+- inspecting repository state and selecting the corresponding adoption strategy;
+- interpreting existing instruction prose during migration adoption;
 - proposing profiles and project-policy decomposition;
-- reviewing semantic coverage before finalization;
+- reviewing semantic coverage before migration finalization;
 - invoking only the explicitly authorized CLI phase.
 
 The CLI does not embed a language model and does not automatically convert free-form repository instructions into policy modules.
@@ -46,18 +49,24 @@ The CLI does not embed a language model and does not automatically convert free-
 ```text
 unmanaged
   |
-  +-- init --apply ------------------------------> managed
-  |
   +-- adopt inspect
         |
-        +-- adopt prepare --apply --> prepared
-                                      |
-                                      +-- adopt preview (repeatable)
-                                      |
-                                      +-- adopt finalize --apply --> finalized / managed
+        +-- unmanaged-empty
+        |     |
+        |     +-- adopt prepare --apply
+        |             |
+        |             +-- internal fresh-adoption primitive --> managed
+        |
+        +-- unmanaged-existing
+              |
+              +-- adopt prepare --apply --> prepared
+                                            |
+                                            +-- adopt preview (repeatable)
+                                            |
+                                            +-- adopt finalize --apply --> finalized / managed
 ```
 
-Inspection is always read-only. `init`, `adopt prepare`, and `adopt finalize` default to dry-run and require `--apply` for mutation. `adopt preview` is an explicit regeneration command for prepared generated artifacts and the lock; it does not introduce a separate persistent state. Preparation never replaces the primary handwritten instruction file. Finalization is a separate, explicitly authorized transactional operation.
+Inspection is always read-only. `adopt prepare` and `adopt finalize` default to dry-run and require `--apply` for mutation. For fresh adoption, applying `adopt prepare` completes onboarding directly and does not create persistent adoption state. For migration adoption, preparation never replaces the primary handwritten instruction file; `adopt preview` regenerates prepared artifacts and `adopt finalize` is a separate, explicitly authorized transaction.
 
 Repositories that already contain `.agent-policy.yml` use normal `validate`, `render`, and `check` operations. Partial or conflicting onboarding state is classified as inconsistent and is not automatically repaired.
 
@@ -71,7 +80,7 @@ The `policy` branch is an orphan history unrelated to the repository's `main`, `
 - product manifests, adoption state, locks, and generated workflow templates identify the executable repository as `TakashiSasaki/templates`;
 - the Python distribution and command are named `agent-policy`.
 
-Initialization and adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
+Fresh and migration adoption use the same trust seed, executable toolchain, configuration format, and lock semantics.
 
 ## Stable release promotion
 
@@ -85,8 +94,8 @@ Consumer repositories are not rewritten by promotion. Each consumer updates its 
 
 ## Trust-anchor isolation
 
-The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records the same full toolchain commit SHA as the stable release descriptor and a closed route set. The pinned candidate precedes the promotion commit, preventing recursive self-reference.
+The integrated bootstrap skill does not execute the mutable `policy` branch tip. Its manifest records the same full toolchain commit SHA as the stable release descriptor and a closed internal route set. The pinned candidate precedes the promotion commit, preventing recursive self-reference.
 
-The orchestration script may apply initialization or adoption preparation and preview. It cannot finalize adoption because no finalize route is present in the manifest or script.
+The orchestration script may complete fresh adoption or apply migration preparation and preview. It cannot finalize migration adoption because no finalize route is present in the manifest or script.
 
 A change to the stable release descriptor, bootstrap repository, full SHA, route set, skill instructions, orchestration script, installer, or bootstrap tests remains an independently reviewed trust-anchor change.

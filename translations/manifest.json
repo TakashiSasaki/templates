@@ -13,7 +13,7 @@
       "canonical": "docs/getting-started.md",
       "language": "ja",
       "translation": "translations/ja/docs/getting-started.md",
-      "canonical_blob_sha": "752c4f909976e51d7de9ed4e0b82a4afd34f804d",
+      "canonical_blob_sha": "65b24708733473f053a44a2be7fa0853b380380a",
       "surfaces": ["reader"]
     },
     {
@@ -27,14 +27,14 @@
       "canonical": "docs/cli.md",
       "language": "ja",
       "translation": "translations/ja/docs/cli.md",
-      "canonical_blob_sha": "eeb0f6c7fdbe84dcf7260b5d516988e25e810662",
+      "canonical_blob_sha": "77269d55237f3199ccbd735a9ad6adba42adbb7d",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/bootstrap.md",
       "language": "ja",
       "translation": "translations/ja/docs/bootstrap.md",
-      "canonical_blob_sha": "499491f0343a5bf9f1abb0882b7c8c72eb1f880e",
+      "canonical_blob_sha": "ecd3041fc1a931c08df948c596d69d15bda25b0b",
       "surfaces": ["reader"]
     },
     {
@@ -55,7 +55,7 @@
       "canonical": "docs/repository-structure.md",
       "language": "ja",
       "translation": "translations/ja/docs/repository-structure.md",
-      "canonical_blob_sha": "04bda665236f60626419c586f28f77dcf6188440",
+      "canonical_blob_sha": "e52c969e66d00851181594f8f4a55379b2661bfb",
       "surfaces": ["reader"]
     },
     {
