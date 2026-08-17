@@ -1,46 +1,27 @@
 from __future__ import annotations
 
-import re
 import sys
 import tomllib
 from collections.abc import Mapping
-from importlib import metadata
 from pathlib import Path
+
+if __package__:
+    from .verify_ci_environment import (
+        installed_distribution_set,
+        load_locked_requirements,
+        normalize_distribution_name,
+    )
+else:
+    from verify_ci_environment import (
+        installed_distribution_set,
+        load_locked_requirements,
+        normalize_distribution_name,
+    )
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCK = ROOT / "requirements-runtime.lock"
 DEFAULT_PYPROJECT = ROOT / "pyproject.toml"
 BOOTSTRAP_DISTRIBUTIONS = frozenset({"pip", "setuptools", "wheel"})
-ARBITRARY_EXACT_REQUIREMENT = re.compile(
-    r"^(?P<name>[A-Za-z0-9_.-]+)===(?P<version>[A-Za-z0-9][A-Za-z0-9._+!-]*)$"
-)
-
-
-def normalize_distribution_name(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-def load_locked_requirements(path: Path = DEFAULT_LOCK) -> dict[str, str]:
-    locked: dict[str, str] = {}
-    for line_number, raw_line in enumerate(
-        path.read_text(encoding="utf-8").splitlines(), start=1
-    ):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        match = ARBITRARY_EXACT_REQUIREMENT.fullmatch(line)
-        if match is None:
-            raise ValueError(
-                f"{path}:{line_number}: expected an arbitrary-exact name===version entry"
-            )
-
-        name = normalize_distribution_name(match.group("name"))
-        version = match.group("version")
-        if name in locked:
-            raise ValueError(f"{path}:{line_number}: duplicate distribution {name}")
-        locked[name] = version
-    return locked
 
 
 def load_local_project(path: Path = DEFAULT_PYPROJECT) -> tuple[str, str]:
@@ -56,23 +37,6 @@ def load_local_project(path: Path = DEFAULT_PYPROJECT) -> tuple[str, str]:
     if not isinstance(version, str) or not version:
         raise ValueError(f"{path}: project.version must be a non-empty string")
     return normalize_distribution_name(raw_name), version
-
-
-def installed_distribution_set() -> dict[str, str]:
-    installed: dict[str, str] = {}
-    for distribution in metadata.distributions():
-        raw_name = distribution.metadata.get("Name")
-        if not raw_name:
-            continue
-        name = normalize_distribution_name(raw_name)
-        version = distribution.version
-        previous = installed.get(name)
-        if previous is not None and previous != version:
-            raise RuntimeError(
-                f"multiple installed versions reported for {name}: {previous}, {version}"
-            )
-        installed[name] = version
-    return installed
 
 
 def compare_distribution_sets(
@@ -91,6 +55,17 @@ def compare_distribution_sets(
     normalized_project = normalize_distribution_name(project_name)
 
     errors: list[str] = []
+    if normalized_project in normalized_locked:
+        errors.append(
+            "runtime lock must not contain the local project distribution: "
+            f"{normalized_project}"
+        )
+        normalized_locked = {
+            name: version
+            for name, version in normalized_locked.items()
+            if name != normalized_project
+        }
+
     actual_project_version = normalized_installed.get(normalized_project)
     if actual_project_version is None:
         errors.append(f"local project distribution is missing: {normalized_project}")
@@ -134,7 +109,7 @@ def compare_distribution_sets(
 
 def main() -> int:
     try:
-        locked = load_locked_requirements()
+        locked = load_locked_requirements(DEFAULT_LOCK)
         project_name, project_version = load_local_project()
         installed = installed_distribution_set()
         errors = compare_distribution_sets(
