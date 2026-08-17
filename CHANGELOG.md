@@ -22,3 +22,4 @@
 - Document Policy profile selection, composition, and the complete branch-owned profile catalog for first-time readers.
 - Add an exact runtime-only dependency lock, clean consumer-style installation verifier, and Ubuntu/Windows Python 3.11–3.14 runtime-distribution matrix for `agent-policy`.
 - Replace the separate `bootstrap-agent-policy` trust seed with one `skills/agent-policy/` entry point for unmanaged adoption and managed operation, backed by a persistent full-SHA runtime cache.
+- Publish a full-SHA one-line remote installer for the single `agent-policy` skill, with a separately schema-validated installer/skill-source descriptor and CI history verification.

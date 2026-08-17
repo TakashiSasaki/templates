@@ -13,7 +13,7 @@
       "canonical": "docs/getting-started.md",
       "language": "ja",
       "translation": "translations/ja/docs/getting-started.md",
-      "canonical_blob_sha": "92ee6df3099cd42a1eb6eca0e9776ca645311a80",
+      "canonical_blob_sha": "bc81dfee8837e78b9debf6b891a1edf7c968e328",
       "surfaces": ["reader"]
     },
     {
@@ -34,7 +34,7 @@
       "canonical": "docs/bootstrap.md",
       "language": "ja",
       "translation": "translations/ja/docs/bootstrap.md",
-      "canonical_blob_sha": "1a1ec2621fe57181983678f939d0195eaaa41629",
+      "canonical_blob_sha": "1e8ab81727c610446978cf0ac94c54af1859d676",
       "surfaces": ["reader"]
     },
     {

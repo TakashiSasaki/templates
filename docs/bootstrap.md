@@ -6,16 +6,32 @@ Bootstrap is the unmanaged-repository operation of the single `skills/agent-poli
 
 The skill never executes the mutable `policy` branch tip. `runtime-manifest.json` pins a reviewed full commit SHA from `TakashiSasaki/templates` and the SHA-256 of that revision's `requirements-runtime.lock`. Bootstrap and managed operation share the same persistent runtime-cache implementation.
 
-## Install from a reviewed checkout
+## Install the published skill
 
-From a reviewed `policy` commit checkout, install the single skill:
+The recommended remote installation command executes an installer script from one immutable full-SHA URL:
+
+```bash
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+Append `--replace` only when replacing an existing `agent-policy` skill installation.
+
+The distribution uses three distinct revision roles:
+
+- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307` pins the remotely executed bootstrap script;
+- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72` pins the `skills/agent-policy/` subtree downloaded by that script; and
+- the **stable runtime revision** in `runtime-manifest.json` independently pins the canonical CLI runtime used after installation.
+
+`release/skill-installer.json` publishes the installer/skill-source pair. Neither the command nor the remote installer executes the mutable `policy` branch, a tag, or a short SHA.
+
+A reviewed checkout can also install the same skill:
 
 ```bash
 python skills/agent-policy/scripts/install.py \
   /path/to/agent-skills/agent-policy
 ```
 
-Use `--replace` only when replacing an existing skill with the same identity. The installer refuses a symlink target, an overlapping source/destination, or replacement of a directory whose `SKILL.md` does not identify `agent-policy`.
+Use `--replace` only when replacing an existing skill with the same identity. The local installer refuses a symlink target, an overlapping source/destination, or replacement of a directory whose `SKILL.md` does not identify `agent-policy`.
 
 ## Skill contents
 
@@ -104,14 +120,16 @@ Runtime identity includes repository, full revision, runtime-lock SHA-256, Pytho
 
 ## Trust boundary
 
-Review these components together as the installed skill trust seed:
+Review these components together as the installed skill trust seed and distribution surface:
 
+- the installer publication identity in `release/skill-installer.json`;
+- the full-SHA remote installer script `scripts/install_agent_policy_skill.py`;
 - the safety constraints in `SKILL.md`;
 - the repository, full SHA, runtime-lock digest, and internal routes in `runtime-manifest.json`;
 - runtime selection and cache construction in `scripts/runtime.py`;
 - inspection and state-derived adoption logic in `scripts/bootstrap.py`;
 - managed command dispatch in `scripts/run.py`;
 - installer and uninstaller behavior; and
-- single-skill and release-lifecycle tests.
+- single-skill, installer-publication, and release-lifecycle tests.
 
 The same skill remains the repository-facing entry point after adoption; authority for the managed toolchain revision transfers to `.agent-policy.lock`.

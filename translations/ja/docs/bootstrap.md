@@ -8,14 +8,32 @@ bootstrapは単一の `skills/agent-policy/` skillが提供するunmanaged repos
 
 skillはmutableな`policy`ブランチ先端を実行しません。`runtime-manifest.json` が `TakashiSasaki/templates` のレビュー済みfull commit SHAと、そのrevisionの `requirements-runtime.lock` のSHA-256を固定します。bootstrapとmanaged operationは同じpersistent runtime cacheを共有します。
 
-## レビュー済みcheckoutから導入する
+## 公開済みskillをinstallする
+
+remote installでは、installer script自体をfull SHAで固定したURLから実行します。
+
+```bash
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+既存の `agent-policy` skillを置換する場合だけ `--replace` を追加します。
+
+配布では3種類のrevisionを明確に分離します。
+
+- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307`: remoteで実行するbootstrap scriptを固定します。
+- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72`: installerが取得する `skills/agent-policy/` subtreeを固定します。
+- **stable runtime revision**: `runtime-manifest.json` 内の独立したfull SHAで、install後にcanonical CLIを実行するruntimeを固定します。
+
+`release/skill-installer.json` は最初の2つのidentityを公開します。commandもremote installerもmutableな `policy` branch、tag、短縮SHAを実行しません。
+
+レビュー済みcheckoutから直接installする方法も利用できます。
 
 ```bash
 python skills/agent-policy/scripts/install.py \
   /path/to/agent-skills/agent-policy
 ```
 
-`--replace` は同じidentityの既存skillを置き換える場合だけ使用します。installerはsymlink target、source/destinationの重複、`SKILL.md` が `agent-policy` を示さないdirectoryの置換を拒否します。
+`--replace` は同じidentityの既存skillを置き換える場合だけ使用します。local installerはsymlink target、source/destinationの重複、`SKILL.md` が `agent-policy` を示さないdirectoryの置換を拒否します。
 
 ## Skillの内容
 
@@ -102,6 +120,6 @@ runtime identityにはrepository、full revision、runtime-lock SHA-256、Python
 
 ## 信頼境界
 
-`SKILL.md`、`runtime-manifest.json`、`scripts/runtime.py`、`scripts/bootstrap.py`、`scripts/run.py`、installer/uninstaller、およびsingle-skill/release testsを一組のtrust boundaryとしてレビューします。
+`release/skill-installer.json`、full-SHA remote installer、`SKILL.md`、`runtime-manifest.json`、`scripts/runtime.py`、`scripts/bootstrap.py`、`scripts/run.py`、installer/uninstaller、およびsingle-skill/installer-publication/release testsを一組のtrust boundaryとしてレビューします。
 
 adoption後も同じskillがrepository-facing entry pointです。managed toolchain revisionのauthorityは `.agent-policy.lock` に移ります。
