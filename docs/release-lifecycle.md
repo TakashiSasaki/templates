@@ -9,30 +9,34 @@ The mutable `policy` branch is the development source. It is not an executable r
 - the executable repository and full commit SHA;
 - the highest agent-policy configuration schema version supported by that stable executable;
 - the adoption-state schema version;
-- the bootstrap-manifest schema version;
-- the generated lock format version;
+- the single-skill runtime-manifest schema version;
+- the generated lock format version; and
 - the exact dependency lock used to execute the pinned release probe.
 
 The descriptor is validated by `schemas/toolchain-release.schema.json`. It cannot contain `policy`, `main`, a tag, a short SHA, `LOCAL-DEVELOPMENT`, or another mutable reference. Contract-version fields accept earlier positive versions because they describe the pinned stable executable, not necessarily the candidate checkout's current contracts.
 
 A single-version schema can declare `schema_version` with `const`. A backward-compatible multi-version schema can declare the supported versions with `enum`. The release verifier interprets the highest positive integer in that declaration as the contract version recorded in `release/toolchain.json`. A verifier must explicitly understand that contract version before it can promote it; future schema versions are rejected until the verifier is extended.
 
-The integrated bootstrap manifest must contain exactly the same `toolchain` object as the stable release descriptor. Product configuration, adoption state, generated lock files, and rendered consumer workflows all carry that same repository and revision when they are created for the stable release.
+`skills/agent-policy/runtime-manifest.json` must contain exactly the same `toolchain` object as the stable release descriptor. It additionally records the path and SHA-256 of the stable revision's `requirements-runtime.lock`, plus the stable project identity. `scripts/verify-release-state.py` extracts the stable tree and verifies this digest rather than trusting the promotion checkout's runtime lock implicitly.
+
+Product configuration, adoption state, generated lock files, and rendered consumer workflows carry the same repository and revision when they are created for the stable release.
 
 `release/verifier-requirements.lock` is independent of `requirements-ci.lock`. It records the complete exact dependency graph needed to import and exercise the stable revision. Candidate development may change its own CI dependencies without deleting dependencies still required by the previous stable revision.
 
-`requirements-runtime.lock` is a third, separate dependency contract. It records the exact runtime-only distribution set expected beside the local `takashisasaki-agent-policy` project in a consumer-style clean environment; development, test, and build-only distributions and the project distribution itself are excluded. `scripts/smoke_test_runtime_distribution.py` installs that set and the local project separately with dependency resolution disabled, and `scripts/verify_runtime_environment.py` requires the resulting installed set to match the runtime lock plus the project. The runtime-distribution CI matrix verifies this contract on Ubuntu and Windows across Python 3.11 through 3.14. This candidate runtime lock does not replace `release/verifier-requirements.lock`, whose purpose is to execute the already-pinned stable revision during promotion verification.
+`requirements-runtime.lock` is a third, separate dependency contract. It records the exact runtime-only distribution set expected beside the `takashisasaki-agent-policy` project in a consumer-style clean environment; development, test, and build-only distributions and the project distribution itself are excluded. `scripts/smoke_test_runtime_distribution.py` installs that set and the local project separately with dependency resolution disabled, and `scripts/verify_runtime_environment.py` requires the resulting installed set to match the runtime lock plus the project. The runtime-distribution CI matrix verifies this contract on Ubuntu and Windows across Python 3.11 through 3.14.
+
+The single `agent-policy` skill consumes this runtime contract through a persistent cache keyed by stable repository/revision, runtime-lock SHA-256, Python major/minor, and platform. A validated cache entry may be reused without network access. This does not replace `release/verifier-requirements.lock`, whose purpose is to execute the already-pinned stable revision during promotion verification.
 
 ## Candidate and promotion commits
 
 A commit cannot contain its own SHA. Stable release movement therefore uses two distinct states:
 
 1. A candidate commit contains the intended toolchain code, schemas, templates, dependency locks, tests, and documentation. Its CI must pass before promotion.
-2. A later promotion change updates `release/toolchain.json` and `skills/bootstrap-agent-policy/bootstrap-manifest.yml` to the candidate commit SHA. If the candidate requires a different probe environment, the same promotion change updates `release/verifier-requirements.lock` to a fully resolved exact graph for that candidate.
+2. A later promotion change updates `release/toolchain.json` and `skills/agent-policy/runtime-manifest.json` to the candidate commit SHA. The runtime manifest also records the SHA-256 of the candidate's `requirements-runtime.lock`. If the candidate requires a different release-probe environment, the same promotion change updates `release/verifier-requirements.lock` to a fully resolved exact graph for that candidate.
 
 The promotion commit is not the released executable revision. The candidate is a strict ancestor of the promotion state. This avoids recursive self-reference while preserving an auditable relationship between reviewed code and its distributed pin.
 
-A rollback uses the same mechanism and points both pins to an earlier reviewed `policy` ancestor. It must also restore a verifier dependency graph compatible with that revision. Do not force-move a tag or replace the pin with a branch name.
+A rollback uses the same mechanism and points both stable pins to an earlier reviewed `policy` ancestor, with the matching runtime-lock digest. It must also restore a verifier dependency graph compatible with that revision. Do not force-move a tag or replace the pin with a branch name.
 
 ## Verification
 
@@ -43,7 +47,7 @@ python scripts/verify-release-state.py \
   --git-ref refs/remotes/origin/policy-source
 ```
 
-The verifier extracts the tree named by the stable revision. It then creates a temporary virtual environment, installs only the exact packages in `release/verifier-requirements.lock` with dependency resolution disabled, runs `pip check`, and executes the pinned tree with that environment. The candidate checkout's site-packages are not visible to the pinned probe.
+The verifier extracts the tree named by the stable revision. It verifies the single-skill runtime manifest against that tree, including the runtime-lock digest, then creates a temporary virtual environment, installs only the exact packages in `release/verifier-requirements.lock` with dependency resolution disabled, runs `pip check`, and executes the pinned tree with that environment. The candidate checkout's site-packages are not visible to the pinned probe.
 
 The pinned environment loads that revision's configuration and adoption schemas and executes that revision's manifest, adoption-state, lock, and consumer-workflow generators. Candidate-side source or dependency changes therefore do not rewrite or invalidate the descriptor for the previous stable executable.
 
@@ -52,7 +56,9 @@ For an agent-policy contract at schema version 2, the pinned probe additionally 
 The verifier requires:
 
 - a schema-valid stable release descriptor;
-- exact equality between the stable release and bootstrap toolchain pins;
+- exact equality between the stable release and single-skill runtime-manifest toolchain pins;
+- a runtime-manifest lock digest equal to `requirements-runtime.lock` in the stable revision;
+- stable project metadata consistent with the pinned tree;
 - an exact, duplicate-free stable verifier dependency graph;
 - matching toolchain definitions in the pinned configuration and adoption-state schemas;
 - pinned schema and generated-lock versions matching the descriptor;
@@ -60,8 +66,8 @@ The verifier requires:
 - pinned generated configuration, adoption state, lock data, and consumer workflow output that use one full SHA;
 - schema-v2 context validation/render/check behavior when contract version 2 is published;
 - a stable revision that is a strict ancestor of the reviewed source history;
-- the executable package, action, schemas, and workflow template at the pinned revision;
-- the additional context-rendering modules and template when schema version 2 is published;
+- the executable package, action, runtime lock, schemas, and workflow template at the pinned revision;
+- the additional context-rendering modules and template when schema version 2 is published; and
 - `TakashiSasaki/templates` and branch `policy` identity in the pinned revision.
 
 For a pull request, CI fetches the pull-request head. For a push, it fetches the current `github.ref`, allowing a candidate or promotion branch to validate its own ancestry before review. The workflow contains no fixed fetch of `main`, `site`, or `webapp`.
@@ -70,6 +76,8 @@ For a pull request, CI fetches the pull-request head. For a push, it fetches the
 
 Promoting the stable release does not rewrite existing product repositories. A consumer update is a separate reviewed operation that changes its `.agent-policy.yml` revision and then regenerates the lock, agent instructions, generated skills, and consumer workflow from the same new SHA.
 
+The installed `agent-policy` skill follows `.agent-policy.lock` for an already-managed repository. A full-SHA pin that differs from the skill's stable default may reuse an already validated cache entry for that revision; otherwise the skill fetches that revision's runtime lock once, computes its digest, constructs a new cache identity, and verifies the resulting runtime before use. Malformed or mutable managed-repository pins fail closed.
+
 During adoption preparation, `.agent-policy/adoption.json` must match the configuration toolchain exactly. Finalization refuses a mismatched adoption state. Consumer repositories must never combine a manifest pin from one release with generated artifacts or a workflow from another release.
 
-`LOCAL-DEVELOPMENT` remains available only for repository-local development and tests. It is not valid in the stable release descriptor or bootstrap manifest.
+`LOCAL-DEVELOPMENT` remains available only for repository-local development and tests. It is not valid in the stable release descriptor or single-skill runtime manifest.
