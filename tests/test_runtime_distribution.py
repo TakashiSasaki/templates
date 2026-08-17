@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -80,6 +82,19 @@ def test_runtime_workflow_does_not_use_pip_cache_before_sanitization() -> None:
     assert "PYTHONHOME:" in workflow
     assert "PYTHONPATH:" in workflow
     assert "run: python -I scripts/smoke_test_runtime_distribution.py" in workflow
+
+
+def test_runtime_verifier_imports_shared_helpers_under_isolated_python() -> None:
+    subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            "import runpy; runpy.run_path('scripts/verify_runtime_environment.py')",
+        ],
+        cwd=ROOT,
+        check=True,
+    )
 
 
 def test_runtime_verifier_accepts_exact_locked_distribution_set() -> None:
