@@ -21,3 +21,4 @@
 - Add the `github-review-json-v1` configuration-schema-v2 renderer for GitHub-oriented blocking-review JSON output.
 - Add the optional `pull-request` profile for target-branch freshness and review-thread closure before merge.
 - Document Policy profile selection, composition, and the complete branch-owned profile catalog for first-time readers.
+- Add an exact runtime-only dependency lock, clean consumer-style installation verifier, and Ubuntu/Windows Python 3.11–3.14 runtime-distribution matrix for `agent-policy`.

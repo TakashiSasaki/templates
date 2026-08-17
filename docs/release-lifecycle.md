@@ -21,6 +21,8 @@ The integrated bootstrap manifest must contain exactly the same `toolchain` obje
 
 `release/verifier-requirements.lock` is independent of `requirements-ci.lock`. It records the complete exact dependency graph needed to import and exercise the stable revision. Candidate development may change its own CI dependencies without deleting dependencies still required by the previous stable revision.
 
+`requirements-runtime.lock` is a third, separate dependency contract. It records the exact runtime-only distribution set expected beside the local `takashisasaki-agent-policy` project in a consumer-style clean environment; development, test, and build-only distributions and the project distribution itself are excluded. `scripts/smoke_test_runtime_distribution.py` installs that set and the local project separately with dependency resolution disabled, and `scripts/verify_runtime_environment.py` requires the resulting installed set to match the runtime lock plus the project. The runtime-distribution CI matrix verifies this contract on Ubuntu and Windows across Python 3.11 through 3.14. This candidate runtime lock does not replace `release/verifier-requirements.lock`, whose purpose is to execute the already-pinned stable revision during promotion verification.
+
 ## Candidate and promotion commits
 
 A commit cannot contain its own SHA. Stable release movement therefore uses two distinct states:
