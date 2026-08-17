@@ -38,6 +38,7 @@ nav:
       - リポジトリ構造: repository-structure.md
       - アーキテクチャ: architecture.md
       - 設定ファイル: configuration.md
+      - Policy profiles: shared-policy/profiles.md
       - 規約の作成: policy-authoring.md
       - Policy authority inventory: policy-authority-inventory.md
       - Shared review policy: review-policy.md
