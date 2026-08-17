@@ -27,6 +27,17 @@ jobs:
           - "3.14"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ runner.os == 'Windows' && 'NUL' || '/dev/null' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,8 +46,6 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: requirements-runtime.lock
 
       - name: Install and verify runtime distribution in a clean environment
         run: python scripts/smoke_test_runtime_distribution.py
