@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/skill-installer-release.schema.json",
+  "title": "agent-policy skill installer release",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "installer", "skill_source"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "installer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "path"],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"const": "scripts/install_agent_policy_skill.py"}
+      }
+    },
+    "skill_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "path"],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"const": "skills/agent-policy"}
+      }
+    }
+  }
+}
