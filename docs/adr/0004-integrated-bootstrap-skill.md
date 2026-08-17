@@ -1,41 +1,28 @@
 # ADR-0004: Integrate the bootstrap trust seed into the policy branch
 
-- Status: Accepted
+- Status: Superseded by ADR-0007
 - Date: 2026-08-01
 
 ## Context
 
-Repository onboarding requires a small, independently reviewable trust seed that can select a safe initialization or adoption route without executing a mutable branch tip or granting generic mutation authority.
+Repository onboarding required a small, independently reviewable trust seed that could select a safe initialization or adoption route without executing a mutable branch tip or granting generic mutation authority.
 
-The bootstrap trust boundary does not require a separate Git history. It requires an independently reviewable manifest, orchestration script, safety constraints, tests, and an immutable full-SHA reference to the executable policy toolchain.
+At the time of this decision, the bootstrap trust boundary was implemented as a separately installed skill under the same `policy` history. That architecture has since been replaced by ADR-0007, which preserves the immutable trust boundary while using one `agent-policy` skill and a persistent runtime cache before and after adoption.
 
-## Decision
+## Historical decision
 
-Store the bootstrap package at `skills/bootstrap-agent-policy/` in the `policy` branch.
+The original decision stored the bootstrap package at `skills/bootstrap-agent-policy/` in the `policy` branch and used `bootstrap-manifest.yml` to pin a reviewed full commit SHA. The manifest deliberately omitted adoption finalization and treated pin, route, script, installer, and test changes as trust-anchor changes.
 
-The integrated skill remains an independent trust seed by construction:
+The Python package and executable remained named `agent-policy`, and generated product state used immutable `TakashiSasaki/templates` full-SHA references.
 
-- `bootstrap-manifest.yml` pins `TakashiSasaki/templates` at one full Git commit SHA;
-- the pinned revision precedes the bootstrap-package promotion state and therefore does not depend recursively on itself;
-- only inspection, initialization, adoption preparation/preview, validation, and check routes are declared;
-- adoption finalization is deliberately absent from the manifest and orchestration script;
-- changes to the pin, routes, skill instructions, orchestration script, installer, or tests are treated as trust-anchor changes requiring explicit review.
+## Supersession
 
-The Python package and executable are named `agent-policy`. Product manifests, adoption state, generated workflow templates, and schemas identify the executable repository as `TakashiSasaki/templates`.
+ADR-0007 removes the separately installed bootstrap package and replaces its manifest with `skills/agent-policy/runtime-manifest.json`. The replacement keeps the important invariants of this ADR:
 
-## Distribution
+- immutable full-SHA execution;
+- a separately reviewable repository-facing trust surface;
+- state-derived onboarding rather than mutable branch execution;
+- no migration-finalize route in generic bootstrap; and
+- explicit review of trust-anchor changes.
 
-A reviewed checkout of `policy` may install the skill using:
-
-```bash
-python skills/bootstrap-agent-policy/scripts/install.py <destination>
-```
-
-Consumers may obtain only the skill directory through a sparse checkout, but the checkout itself must be pinned to a reviewed full commit SHA. Mutable branch tips are not executable trust references.
-
-## Consequences
-
-- Policy and bootstrap changes share one repository history while retaining separate review boundaries.
-- Repository previews and structure verification describe the `policy` tree as the source of the bootstrap package.
-- Bootstrap and ordinary managed-repository operation use the same stable toolchain identity while exposing different authorized routes.
-- Bootstrap consolidation does not weaken the separate explicit authorization required for adoption finalization.
+The current architecture and distribution model are defined by ADR-0007. This ADR remains as historical rationale for why onboarding trust is isolated from mutable branch tips.
