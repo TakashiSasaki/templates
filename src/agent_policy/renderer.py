@@ -82,34 +82,71 @@ def render_github_review_json(
     )
 
 
-def render_consumer_workflow(revision: str) -> str:
+def render_output(
+    renderer: str,
+    config: Config,
+    rules: Iterable[Rule],
+    *,
+    context_name: str,
+    project_policy_files: Iterable[str],
+) -> str:
+    if renderer == "agents-md":
+        return render_agents(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    if renderer == "policy-context-md":
+        return render_policy_context(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    if renderer == "github-review-json-v1":
+        return render_github_review_json(
+            config,
+            rules,
+            context_name=context_name,
+            project_policy_files=project_policy_files,
+        )
+    raise ValueError(f"Unknown output renderer: {renderer}")
+
+
+def render_consumer_workflow(toolchain_revision: str) -> str:
+    toolchain = toolchain_reference(toolchain_revision)
     template = environment().get_template("workflows/check-agent-policy.yml.j2")
-    return template.render(revision=revision)
+    return template.render(revision=toolchain["revision"])
 
 
-def render_skill(name: str, config_path: str = ".agent-policy.yml") -> str:
-    if not SKILL_NAME_PATTERN.fullmatch(name):
-        raise ValueError(f"Invalid generated skill name: {name}")
-    if name in NON_GENERATED_SKILLS:
-        raise ValueError(f"Unknown generated skill: {name}")
-    root = package_root() / "skills"
-    skill_path = root / name / "SKILL.md"
-    if not skill_path.is_file():
-        raise ValueError(f"Unknown generated skill: {name}")
-    content = skill_path.read_text(encoding="utf-8")
-    if GENERATED_MARKER in content:
-        raise ValueError(f"Generated skill source must not contain generated marker: {name}")
-    shell_path = shlex.quote(config_path)
-    yaml_path = json.dumps(config_path)
-    content = content.replace(SKILL_CONFIG_PATH_TOKEN, config_path)
-    content = content.replace(SKILL_CONFIG_PATH_SHELL_TOKEN, shell_path)
-    content = content.replace(SKILL_CONFIG_PATH_YAML_TOKEN, yaml_path)
-    return content.rstrip() + f"\n\n<!-- {GENERATED_MARKER} -->\n"
+def render_skill(
+    skill_name: str,
+    *,
+    config_path: str = ".agent-policy.yml",
+) -> dict[str, str]:
+    if SKILL_NAME_PATTERN.fullmatch(skill_name) is None:
+        raise ValueError(f"Invalid generated skill name: {skill_name}")
+    if skill_name in NON_GENERATED_SKILLS:
+        raise ValueError(f"Unknown generated skill: {skill_name}")
+    skill_root = package_root() / "skills" / skill_name
+    if not skill_root.is_dir():
+        raise ValueError(f"Unknown generated skill: {skill_name}")
+    replacements = {
+        SKILL_CONFIG_PATH_SHELL_TOKEN: shlex.quote(config_path),
+        SKILL_CONFIG_PATH_YAML_TOKEN: json.dumps(config_path),
+        SKILL_CONFIG_PATH_TOKEN: config_path,
+    }
+    result: dict[str, str] = {}
+    for path in sorted(skill_root.rglob("*")):
+        if path.is_file():
+            relative = str(path.relative_to(skill_root))
+            content = path.read_text(encoding="utf-8")
+            for token, value in replacements.items():
+                content = content.replace(token, value)
+            result[relative] = content
+    return result
 
 
-def hash_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def render_toolchain_reference(revision: str) -> str:
-    return toolchain_reference(revision)
+def content_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
