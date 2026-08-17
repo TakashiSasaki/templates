@@ -27,7 +27,7 @@ bootstrap skillは `skills/bootstrap-agent-policy/` にあります。manifest�
 | `policy/` | 共有規約の正本。各規則はYAML front matter付きMarkdownとして管理する。 |
 | `profiles/` | agent operationまたはrisk context向けの共有ポリシーモジュールを名前付きで選択する。profileは含める共有ルールを決め、最終的なルール順序は各ルールのmetadataが決める。 |
 | `schemas/` | 製品リポジトリの `.agent-policy.yml` とadoption stateを検証するJSON Schema。toolchain repositoryは`TakashiSasaki/templates`。 |
-| `src/agent_policy/` | `init`、`adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するPython CLI。 |
+| `src/agent_policy/` | 統合された `adopt inspect/prepare/preview/finalize`、`validate`、`render`、`check` を実装するPython CLI。hiddenな`init`はfresh adoption用の内部primitiveとして残る。 |
 | `templates/` | `AGENTS.md`、製品固有規約、consumer workflowなどの生成template。 |
 | `skills/` | 通常運用skillの正本と、`skills/bootstrap-agent-policy/`に統合された初回導入trust seed。 |
 | `tests/` | 設定、adoption transaction、rendering、lock、path safety、repository identity、bootstrap trust boundaryを検査する。 |
@@ -52,12 +52,12 @@ skills/bootstrap-agent-policy/
 
 | パス | 役割 |
 |---|---|
-| `SKILL.md` | 起動条件、inspection、`init`／`adopt`振り分け、安全制約、finalize分離を定義する。 |
-| `bootstrap-manifest.yml` | 実行を許可する`TakashiSasaki/templates`のfull SHAとroute集合を固定する。finalize routeは含まない。 |
-| `scripts/bootstrap.py` | 固定CLIを一時環境で取得し、read-only inspection、明示的なinitializationまたはadoption preparation、適用後検証を実行する。 |
+| `SKILL.md` | 起動条件、inspection、repository stateから導出するfresh/migration adoption strategy、安全制約、migration finalizationの分離を定義する。 |
+| `bootstrap-manifest.yml` | `TakashiSasaki/templates`のfull SHAと許可された内部route集合を固定する。finalize routeは含まない。 |
+| `scripts/bootstrap.py` | 固定CLIを一時環境で取得し、repository stateをinspectionし、明示的に許可された場合に対応するadoption strategyを適用し、適用後検証を実行する。 |
 | `scripts/install.py` | レビュー済みcheckoutからskill directoryへ安全にコピーする。 |
 | `scripts/uninstall.py` | markerを確認して導入済みskillを削除する。 |
-| `tests/test_bootstrap_skill.py` | manifest、pin、route、安全制約、state parsing、post-apply commandを検査する。 |
+| `tests/test_bootstrap_skill.py` | manifest、pin、strategy route、安全制約、state parsing、post-apply commandを検査する。 |
 
 ## 導入前後の制御移行
 
@@ -68,10 +68,11 @@ skills/bootstrap-agent-policy/
   templates上の pinned agent-policy CLI
       ↓ adopt inspect
   ├─ unmanaged-empty
-  │    └─ 明示的な init --apply
+  │    └─ adopt prepare --apply による fresh adoption
+  │         └─ internal init primitive → managed
   │
   └─ unmanaged-existing
-       └─ 明示的な adopt prepare --apply
+       └─ adopt prepare --apply による migration adoption
             ↓ previewと意味レビュー
           別の明示指示による adopt finalize --apply
 
@@ -82,4 +83,4 @@ skills/bootstrap-agent-policy/
   repository-local CI
 ```
 
-導入前のtrust seedはbootstrap packageです。初期化完了後、またはadoption finalization完了後は、製品リポジトリに記録された設定、lock、生成物へ制御を引き渡します。
+導入前のtrust seedはbootstrap packageです。fresh adoption完了後、またはmigration finalization完了後は、製品リポジトリに記録された設定、lock、生成物へ制御を引き渡します。
