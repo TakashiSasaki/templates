@@ -206,8 +206,8 @@ terms:
     origin: repository
     definition: >-
       The reviewed candidate full commit SHA selected by Policy promotion and
-      written into both the stable release descriptor and the integrated
-      bootstrap manifest. It is a strict ancestor of the later promotion state,
+      written into both the stable release descriptor and the single-skill
+      runtime manifest. It is a strict ancestor of the later promotion state,
       avoiding recursive self-reference.
     related_terms:
       - templates-policy-stable-release
@@ -221,11 +221,13 @@ terms:
         term: ブートストラップ信頼シード
     origin: repository
     definition: >-
-      The installable skills/bootstrap-agent-policy package that provides the
-      reviewed entry route for onboarding a repository through one immutable
-      Policy toolchain revision and a closed route set. Its bootstrap manifest
-      pins the same promoted revision as the stable release descriptor and
-      intentionally exposes no adoption-finalization route.
+      The trust-seed role of the installable skills/agent-policy package when it
+      is used to onboard an unmanaged repository. Its runtime manifest selects
+      one reviewed immutable Policy toolchain revision, binds that revision's
+      runtime dependency lock by SHA-256, and exposes a closed bootstrap route
+      set with no migration-finalization route. After adoption, the same skill
+      follows the managed repository's .agent-policy.lock instead of switching
+      to a separate bootstrap package.
     related_terms:
       - templates-policy-stable-release-descriptor
       - templates-policy-promoted-toolchain-revision
@@ -241,10 +243,11 @@ terms:
       A product repository that Policy onboarding inspection classifies as
       managed because the canonical .agent-policy.yml path resolves to an
       existing regular file. Managed repositories use normal validate, render,
-      and check operations instead of bootstrap onboarding; the classification
-      itself does not assert that configuration semantics have already passed
-      those validations, and partial or conflicting generated state is
-      classified separately as inconsistent.
+      and check operations through the same installed agent-policy skill, whose
+      runtime selection follows .agent-policy.lock. The classification itself
+      does not assert that configuration semantics have already passed those
+      validations, and partial or conflicting generated state is classified
+      separately as inconsistent.
     related_terms:
       - templates-policy-profile
       - templates-policy-context
