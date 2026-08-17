@@ -23,7 +23,7 @@ The placeholder below displays the complete Git-tracked tree of the `policy` bra
 | Path | Responsibility |
 |---|---|
 | `policy/` | Canonical shared policy. Each rule is maintained as Markdown with YAML front matter. |
-| `profiles/` | Declares sets and ordering of applicable policy files, classifying agent operation or risk context rather than artifact category. |
+| `profiles/` | Declares named selections of shared policy modules for an agent operation or risk context. Profiles determine which shared rules are included; rule metadata determines final rule ordering. |
 | `schemas/` | JSON Schemas for product-repository `.agent-policy.yml` and adoption state. The toolchain repository is `TakashiSasaki/templates`. |
 | `src/agent_policy/` | Python CLI implementing `init`, `adopt inspect/prepare/preview/finalize`, `validate`, `render`, and `check`. |
 | `templates/` | Generation templates for `AGENTS.md`, product-specific policy, consumer workflows, and related outputs. |
@@ -32,6 +32,8 @@ The placeholder below displays the complete Git-tracked tree of the `policy` bra
 | `docs/` | Adoption guidance, architecture, ADRs, PWA assets, and repository-preview UI. |
 | `scripts/` | Branch-maintenance and publication helpers such as repository-preview generation and validation. |
 | `.github/workflows/` | CI and build-only documentation validation for `policy`. This branch has no Pages deployment authority. |
+
+For a selection guide and the complete current profile catalog, see [Policy profiles](shared-policy/profiles.md).
 
 ## Integrated bootstrap skill
 
