@@ -264,9 +264,9 @@ _Source: `repository-policy/architecture-decisions.md` in this repository; rule 
 
 ### Preserve the immutable release trust model
 
-Keep `release/toolchain.json` and `skills/bootstrap-agent-policy/bootstrap-manifest.yml` synchronized to the same reviewed full toolchain commit SHA. Never replace that executable identity with a mutable branch or tag.
+Keep `release/toolchain.json` and `skills/agent-policy/runtime-manifest.json` synchronized to the same reviewed full toolchain commit SHA. Require the runtime manifest to bind that stable revision's `requirements-runtime.lock` by SHA-256. Never replace the executable identity with a mutable branch or tag.
 
-Stable movement uses a frozen reviewed candidate followed by a separate promotion change that records the candidate SHA. Do not attempt self-referential promotion in which a commit must contain its own SHA. Update verifier dependencies only when the promoted candidate actually requires a different probe environment.
+Stable movement uses a frozen reviewed candidate followed by a separate promotion change that records the candidate SHA and matching runtime-lock digest. Do not attempt self-referential promotion in which a commit must contain its own SHA. Update verifier dependencies only when the promoted candidate actually requires a different probe environment.
 
 _Source: `repository-policy/release-trust.md` in this repository; rule ID: `policy-repo.preserve-release-trust-model`; severity: `mandatory`._
 
@@ -282,9 +282,9 @@ _Source: `repository-policy/toolchain-safety.md` in this repository; rule ID: `p
 
 ### Run the policy-toolkit maintainer validation baseline
 
-For changes to the policy toolchain, run the repository's locked Policy CI-equivalent validation appropriate to the changed surface, including release-state verification, lint, tests, compilation, and command smoke tests. At minimum, do not report a source change complete without `python -m pytest` and `python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts` succeeding in a compatible validated environment.
+For changes to the policy toolchain, run the repository's locked Policy CI-equivalent validation appropriate to the changed surface, including release-state verification, lint, tests, compilation, and command smoke tests. At minimum, do not report a source change complete without `python -m pytest` and `python -m compileall -q src scripts skills/agent-policy/scripts` succeeding in a compatible validated environment.
 
-Treat the exact GitHub Actions `Policy CI` and `Policy documentation build` results for the current head as separate remote evidence. Do not substitute a generated-policy `check` for the toolchain's own implementation and documentation test suites.
+Treat the exact GitHub Actions `Policy CI`, `Policy documentation build`, and, when runtime behavior changes, `Policy runtime distribution` results for the current head as separate remote evidence. Do not substitute a generated-policy `check` for the toolchain's own implementation and documentation test suites.
 
 _Source: `repository-policy/maintainer-validation.md` in this repository; rule ID: `policy-repo.run-maintainer-validation`; severity: `mandatory`._
 
