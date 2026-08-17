@@ -79,3 +79,31 @@ skills:
 
     command_diagnostics = validate.run(tmp_path, ".agent-policy.yml")
     assert any(item.code == "SCHEMA" for item in command_diagnostics)
+
+
+def test_v2_rejects_top_level_profiles_and_project_policy(tmp_path: Path) -> None:
+    _write_project_policy(tmp_path)
+    (tmp_path / ".agent-policy.yml").write_text(
+        """schema_version: 2
+toolchain:
+  repository: TakashiSasaki/templates
+  revision: LOCAL-DEVELOPMENT
+profiles:
+  - core
+project_policy:
+  files:
+    - policy/project.md
+outputs:
+  agents:
+    enabled: true
+    path: AGENTS.md
+    context: default
+    renderer: agents-md
+skills:
+  enabled: []
+""",
+        encoding="utf-8",
+    )
+    config = load_config(tmp_path, ".agent-policy.yml")
+    diagnostics = validate_config(tmp_path, config)
+    assert any(item.code == "SCHEMA" for item in diagnostics)
