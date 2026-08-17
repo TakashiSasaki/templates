@@ -142,4 +142,8 @@ def test_policy_profile_catalog_is_in_mkdocs_design_navigation() -> None:
     authoring = "      - 規約の作成: policy-authoring.md"
 
     assert profiles in navigation
-    assert navigation.index(configuration) < navigation.index(profiles) < navigation.index(authoring)
+    assert (
+        navigation.index(configuration)
+        < navigation.index(profiles)
+        < navigation.index(authoring)
+    )
