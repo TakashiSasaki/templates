@@ -50,8 +50,21 @@ def main() -> int:
                     "-m",
                     "pip",
                     "install",
-                    "--constraint",
+                    "--disable-pip-version-check",
+                    "--no-deps",
+                    "--requirement",
                     str(RUNTIME_LOCK),
+                ],
+                env=env,
+            )
+            run(
+                [
+                    str(python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--disable-pip-version-check",
+                    "--no-deps",
                     str(ROOT),
                 ],
                 env=env,
