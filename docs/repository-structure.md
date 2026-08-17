@@ -55,7 +55,7 @@ skills/agent-policy/
 | `SKILL.md` | Defines when to bootstrap an unmanaged repository, when to run managed commands, cache/pin semantics, and migration-finalization safety. |
 | `runtime-manifest.json` | Pins the stable full SHA of `TakashiSasaki/templates`, the SHA-256 of its `requirements-runtime.lock`, stable project identity, and the closed bootstrap route set. It contains no finalize route. |
 | `scripts/runtime.py` | Resolves the stable or repository-pinned full SHA, constructs or reuses the persistent runtime cache, sanitizes Python/pip inputs, and verifies the exact installed distribution set. |
-| `scripts/bootstrap.py` | Inspects unmanaged repository state and applies the state-derived fresh or migration strategy when authorized. Migration bootstrap stops after preview. |
+| `scripts/bootstrap.py` | Inspects unmanaged repository state and applies either the state-derived fresh adoption or migration adoption strategy when authorized. Migration bootstrap stops after preview. |
 | `scripts/run.py` | Runs normal managed commands through the cached runtime selected from `.agent-policy.lock`. |
 | `scripts/install.py` | Atomically installs or replaces the skill from a reviewed checkout after identity and path-safety checks. |
 | `scripts/uninstall.py` | Removes an installed skill after checking its identity marker. |
@@ -74,7 +74,7 @@ before adoption
   │         └─ internal init primitive → managed
   │
   └─ unmanaged-existing
-       └─ migration prepare --apply
+       └─ migration adoption prepare --apply
             ↓ preview and semantic review
           separate explicit adopt finalize --apply
 
