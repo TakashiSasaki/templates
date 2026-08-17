@@ -36,7 +36,7 @@ def test_runtime_lock_covers_declared_project_dependencies() -> None:
     assert declared <= set(locked)
 
 
-def test_runtime_verifier_accepts_locked_distribution_set() -> None:
+def test_runtime_verifier_accepts_exact_locked_distribution_set() -> None:
     errors = compare_distribution_sets(
         {"Jinja2": "3.1.6", "MarkupSafe": "3.0.3"},
         {
@@ -52,6 +52,20 @@ def test_runtime_verifier_accepts_locked_distribution_set() -> None:
     assert errors == ()
 
 
+def test_runtime_verifier_rejects_missing_locked_distribution() -> None:
+    errors = compare_distribution_sets(
+        {"Jinja2": "3.1.6", "MarkupSafe": "3.0.3"},
+        {
+            "takashisasaki-agent-policy": "0.1.0",
+            "Jinja2": "3.1.6",
+        },
+        project_name="takashisasaki-agent-policy",
+        project_version="0.1.0",
+    )
+
+    assert errors == ("missing locked runtime distributions: markupsafe",)
+
+
 def test_runtime_verifier_rejects_unlocked_distribution() -> None:
     errors = compare_distribution_sets(
         {"Jinja2": "3.1.6"},
@@ -65,7 +79,7 @@ def test_runtime_verifier_rejects_unlocked_distribution() -> None:
     )
 
     assert errors == (
-        "installed runtime dependencies missing from lock: mystery-package==1.0.0",
+        "installed runtime distributions missing from lock: mystery-package==1.0.0",
     )
 
 
