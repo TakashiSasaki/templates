@@ -6,14 +6,30 @@ The target must be a Git repository. Python 3.11 or later and Git are required. 
 
 ## Recommended: install the single agent-policy skill
 
-The skill is maintained at `skills/agent-policy/` in the `policy` branch of `TakashiSasaki/templates`. From a reviewed checkout, install it into the agent's skill directory:
+Use the published installer whose script URL is pinned to a full immutable commit SHA:
+
+```bash
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+Append `--replace` only when replacing an existing `agent-policy` skill installation.
+
+Three full-SHA identities intentionally remain separate:
+
+- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307` identifies the remotely executed installer;
+- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72` identifies the installed `skills/agent-policy/` subtree; and
+- the **stable runtime revision** in the installed `runtime-manifest.json` identifies the canonical CLI runtime used by the skill.
+
+`release/skill-installer.json` records the first two identities. The command does not execute `policy`, a tag, or an abbreviated SHA.
+
+A reviewed checkout remains an alternative installation source:
 
 ```bash
 python skills/agent-policy/scripts/install.py \
   /path/to/agent-skills/agent-policy
 ```
 
-`runtime-manifest.json` pins the reviewed stable toolchain revision by full SHA and binds that revision's `requirements-runtime.lock` by SHA-256. Do not replace the full SHA with `policy`, a tag, or an abbreviated SHA.
+`runtime-manifest.json` pins the reviewed stable toolchain revision by full SHA and binds that revision's `requirements-runtime.lock` by SHA-256. Do not replace any of these full-SHA identities with `policy`, a tag, or an abbreviated SHA.
 
 ## 1. Inspect the repository and review the adoption plan
 
