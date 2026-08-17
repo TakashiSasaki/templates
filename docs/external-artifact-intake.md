@@ -6,12 +6,14 @@ description: Describes shared policy and operating boundaries for safely receivi
 
 The `external-artifact-intake` profile applies when artifacts are received from another repository, an external generation process, a distribution archive, a historical snapshot, a vendor bundle, or a similar source and are introduced into a destination repository.
 
-This profile is not implicitly included in `core`. Product repositories that handle external artifacts select it explicitly in `.agent-policy.yml`.
+This profile is not implicitly included in `core`. Product repositories that handle external artifacts select it explicitly in the applicable policy context in `.agent-policy.yml`.
 
 ```yaml
-profiles:
-  - core
-  - external-artifact-intake
+contexts:
+  default:
+    profiles:
+      - core
+      - external-artifact-intake
 ```
 
 ## Included rules
