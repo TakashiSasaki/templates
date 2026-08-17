@@ -30,7 +30,25 @@ For an unmanaged repository, `scripts/bootstrap.py` inspects repository state an
 
 For a managed repository, `scripts/run.py` reads `.agent-policy.lock` and runs the repository-pinned full-SHA toolchain. Malformed, mutable, or unsupported lock pins fail closed rather than falling back to the skill default.
 
-Install the skill from a reviewed checkout:
+### Immutable one-line installation
+
+Install the reviewed skill with an installer script whose URL is itself pinned to a full commit SHA:
+
+```bash
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+For an existing installation, append `--replace`; replacement is accepted only when the destination is already identified as this skill.
+
+The distribution has three distinct immutable roles:
+
+- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307` identifies the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72` identifies the `skills/agent-policy/` tree that the installer downloads and atomically installs; and
+- the skill's **stable runtime revision** remains the full SHA in `skills/agent-policy/runtime-manifest.json`, independently selected for CLI execution.
+
+`release/skill-installer.json` records the first two identities. The one-line command never executes the mutable `policy` branch or a tag.
+
+A reviewed checkout remains an alternative installation source:
 
 ```bash
 python skills/agent-policy/scripts/install.py \
@@ -68,6 +86,7 @@ python -m pip install --disable-pip-version-check --no-deps --no-build-isolation
 python scripts/verify_ci_environment.py
 python -m pip check
 python scripts/verify-release-state.py
+python scripts/verify_skill_installer_release.py
 python -m ruff check src tests scripts skills/agent-policy/scripts
 python -m pytest
 python -m compileall -q src scripts skills/agent-policy/scripts
@@ -93,6 +112,7 @@ The maintained branch provides:
 - one canonical shared-policy authority model with explicit repository-local exceptions;
 - executable and generated toolchain identity rooted at `TakashiSasaki/templates`;
 - the single cached `agent-policy` skill under `skills/agent-policy/`;
+- an immutable full-SHA remote installer publication descriptor;
 - a schema-validated stable release descriptor and full-SHA synchronization verifier;
 - context-aware coding and review rendering, including the GitHub review JSON adapter;
 - a `policy`-scoped strict documentation build with no Pages artifact upload, Pages write authority, or deployment job; and
@@ -104,6 +124,6 @@ Core capabilities or successful individual workflows do not, by themselves, decl
 
 Repository-maintainer trust-model operating requirements are canonical in `repository-policy/release-trust.md` and `repository-policy/toolchain-safety.md`; this section summarizes the current implementation and verification surface.
 
-Mutable branches are not used as executable toolchain references. The stable release descriptor, skill runtime manifest, product manifests, adoption state, generated lock files, and generated workflows identify the toolchain using a full Git commit SHA. `scripts/verify-release-state.py` checks that synchronization and verifies that the runtime-manifest lock digest matches the stable revision. Policy CI also verifies that the stable revision is a strict ancestor of the reviewed `policy` source history.
+Mutable branches are not used as executable toolchain references. The stable release descriptor, skill runtime manifest, skill-installer publication descriptor, product manifests, adoption state, generated lock files, and generated workflows identify executable or distributed components using full Git commit SHAs. `scripts/verify-release-state.py` checks runtime synchronization, while `scripts/verify_skill_installer_release.py` verifies that the pinned installer revision embeds the published skill source revision and that the required skill subtree exists at that revision. Policy CI also verifies ancestry against the reviewed `policy` source history.
 
-Runtime-manifest pin, release descriptor, route, script, cache-identity, or safety-constraint changes are treated as trust-anchor changes by the maintained contract and review process.
+Runtime-manifest pin, release descriptor, installer publication descriptor, route, script, cache-identity, or safety-constraint changes are treated as trust-anchor changes by the maintained contract and review process.
