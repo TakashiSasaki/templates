@@ -109,7 +109,12 @@ class Toolchain:
         if self._temporary is not None:
             self._temporary.cleanup()
 
-    def run(self, arguments: list[str], *, capture_output: bool = False) -> subprocess.CompletedProcess[str]:
+    def run(
+        self,
+        arguments: list[str],
+        *,
+        capture_output: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
         if self._prefix is None:
             raise RuntimeError("Toolchain is not active")
         return subprocess.run(
@@ -194,7 +199,9 @@ def action_arguments(
     ]
     if strategy == "migration":
         if primary_instructions is None:
-            raise ValueError("Migration adoption requires explicit or unambiguous primary instructions")
+            raise ValueError(
+                "Migration adoption requires explicit or unambiguous primary instructions"
+            )
         arguments.extend(["--primary-instructions", primary_instructions])
     if apply:
         arguments.append("--apply")
