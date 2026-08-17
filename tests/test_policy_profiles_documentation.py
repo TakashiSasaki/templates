@@ -4,23 +4,18 @@ import json
 import re
 from pathlib import Path
 
-import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_MARKER = re.compile(r"<!-- PROFILE: ([a-z0-9][a-z0-9-]*) -->")
+PROFILE_FILE_ENTRY = re.compile(r"^  - (policy/\S+\.md)$", re.MULTILINE)
 MODULE_ENTRY = re.compile(r"^- `([^`]+)`$", re.MULTILINE)
 
 
 def _profile_definitions() -> dict[str, list[str]]:
     definitions: dict[str, list[str]] = {}
     for path in sorted((ROOT / "profiles").glob("*.yml")):
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        assert isinstance(data, dict)
-        policy_files = data.get("policy_files")
-        assert isinstance(policy_files, list)
-        assert all(isinstance(item, str) for item in policy_files)
-        definitions[path.stem] = policy_files
+        text = path.read_text(encoding="utf-8")
+        definitions[path.stem] = PROFILE_FILE_ENTRY.findall(text)
     return definitions
 
 
