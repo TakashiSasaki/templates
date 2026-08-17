@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "037dcf2dbd24650e8115fb76c0fa8cf582c7bdd1"
+POLICY_REVISION = "1f07815c173e42517aae69af15e6fa9a46015c41"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -60,6 +60,10 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
             "policy-profiles": (
                 "Policy profiles",
                 "policy/shared-policy/profiles.md",
+            ),
+            "adr-single-agent-policy-skill-runtime-cache": (
+                "ADR-0007 Single agent-policy skill runtime cache",
+                "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
             ),
         }
         for document_id, (title, destination) in expected.items():
@@ -114,6 +118,16 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
         self.assertEqual(
             design_documents[configuration_index : configuration_index + 3],
             ["configuration", "policy-profiles", "policy-authoring"],
+        )
+
+        adr_node = next(
+            child
+            for child in policy_section["children"]
+            if child.get("title") == "Architecture decisions"
+        )
+        self.assertEqual(
+            adr_node["children"][-1]["document"],
+            "adr-single-agent-policy-skill-runtime-cache",
         )
 
     def test_policy_layer_documents_have_distinct_destinations(self) -> None:

@@ -343,6 +343,12 @@
               "publication": "policy",
               "document": "adr-copyable-artifact-policy-adoption",
               "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"
+            },
+            {
+              "title": "ADR-0007 Single agent-policy skill runtime cache",
+              "publication": "policy",
+              "document": "adr-single-agent-policy-skill-runtime-cache",
+              "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"
             }
           ]
         }
