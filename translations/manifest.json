@@ -13,7 +13,7 @@
       "canonical": "docs/getting-started.md",
       "language": "ja",
       "translation": "translations/ja/docs/getting-started.md",
-      "canonical_blob_sha": "65b24708733473f053a44a2be7fa0853b380380a",
+      "canonical_blob_sha": "92ee6df3099cd42a1eb6eca0e9776ca645311a80",
       "surfaces": ["reader"]
     },
     {
@@ -34,7 +34,7 @@
       "canonical": "docs/bootstrap.md",
       "language": "ja",
       "translation": "translations/ja/docs/bootstrap.md",
-      "canonical_blob_sha": "ecd3041fc1a931c08df948c596d69d15bda25b0b",
+      "canonical_blob_sha": "1a1ec2621fe57181983678f939d0195eaaa41629",
       "surfaces": ["reader"]
     },
     {
@@ -55,7 +55,7 @@
       "canonical": "docs/repository-structure.md",
       "language": "ja",
       "translation": "translations/ja/docs/repository-structure.md",
-      "canonical_blob_sha": "e52c969e66d00851181594f8f4a55379b2661bfb",
+      "canonical_blob_sha": "fce64cd01a3da4da1e74cbf73c2bdbef9c641089",
       "surfaces": ["reader"]
     },
     {
