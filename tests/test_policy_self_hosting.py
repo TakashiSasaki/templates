@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -8,6 +9,9 @@ from agent_policy.commands import check
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / ".agent-policy.yml"
+LOCK_PATH = ROOT / ".agent-policy.lock"
+RELEASE_PATH = ROOT / "release/toolchain.json"
+RUNTIME_MANIFEST_PATH = ROOT / "skills/agent-policy/runtime-manifest.json"
 
 
 def load_yaml(path: Path) -> dict[str, object]:
@@ -16,13 +20,34 @@ def load_yaml(path: Path) -> dict[str, object]:
     return value
 
 
-def test_self_host_uses_an_immutable_full_sha() -> None:
-    config = load_yaml(CONFIG_PATH)
+def load_json(path: Path) -> dict[str, object]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
 
-    revision = config["toolchain"]["revision"]
+
+def assert_immutable_toolchain(toolchain: object) -> None:
+    assert isinstance(toolchain, dict)
+    assert toolchain["repository"] == "TakashiSasaki/templates"
+    revision = toolchain["revision"]
     assert isinstance(revision, str)
     assert len(revision) == 40
     assert all(character in "0123456789abcdef" for character in revision)
+
+
+def test_self_host_and_stable_pins_follow_separate_authority_boundaries() -> None:
+    config = load_yaml(CONFIG_PATH)
+    lock = load_yaml(LOCK_PATH)
+    release = load_json(RELEASE_PATH)
+    runtime_manifest = load_json(RUNTIME_MANIFEST_PATH)
+
+    consumer_toolchain = config["toolchain"]
+    assert lock["toolchain"] == consumer_toolchain
+    assert_immutable_toolchain(consumer_toolchain)
+
+    stable_toolchain = release["toolchain"]
+    assert runtime_manifest["toolchain"] == stable_toolchain
+    assert_immutable_toolchain(stable_toolchain)
 
 
 def test_repository_self_hosting_check_passes() -> None:
