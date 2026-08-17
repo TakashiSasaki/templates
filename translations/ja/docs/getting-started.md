@@ -4,38 +4,40 @@
 
 ## 前提
 
-対象はGitリポジトリです。Python 3.11以降とGitが必要です。`uvx` が利用可能な場合は一時環境でCLIを実行し、利用できない場合はブートストラップスクリプトが一時的なPython仮想環境を作成します。
+対象はGitリポジトリです。Python 3.11以降とGitが必要です。単一の `agent-policy` skillを一度installし、その後は毎回新しい環境を作るのではなく、検証済みpersistent runtime cacheを再利用します。
 
-## 推奨: 統合済みブートストラップスキルから導入する
+## 推奨: 単一agent-policy skillを導入する
 
-ブートストラップスキルは `TakashiSasaki/templates` の `policy` ブランチ内、`skills/bootstrap-agent-policy/` にあります。レビュー済みfull commit SHAをcheckoutし、installerでエージェントのskill directoryへ配置します。
+skillは `TakashiSasaki/templates` の `policy` ブランチ内、`skills/agent-policy/` にあります。レビュー済みcheckoutからエージェントのskill directoryへinstallします。
 
 ```bash
-python skills/bootstrap-agent-policy/scripts/install.py \
-  /path/to/agent-skills/bootstrap-agent-policy
+python skills/agent-policy/scripts/install.py \
+  /path/to/agent-skills/agent-policy
 ```
 
-スキル自身の `bootstrap-manifest.yml` は実行するtoolchain revisionをfull SHAで固定しています。mutable referenceへ置き換えないでください。
+`runtime-manifest.json` はstable toolchain revisionをfull SHAで固定し、そのrevisionの `requirements-runtime.lock` をSHA-256で結び付けます。full SHAを `policy`、tag、短縮SHAなどmutableまたは曖昧なreferenceへ置き換えないでください。
 
-## 1. リポジトリを調査し、導入計画を確認する
+## 1. Repositoryを調査してadoption planを確認する
+
+unmanaged repositoryではbootstrapは既定でdry-runです。
 
 ```bash
 python scripts/bootstrap.py \
   --repository /path/to/product-repository
 ```
 
-bootstrapは既定でdry-runです。固定toolchainの `agent-policy adopt inspect` で対象を分類します。
+pinned cached runtimeの `agent-policy adopt inspect` により次のいずれかへ分類します。
 
 - `unmanaged-empty`: fresh adoption
 - `unmanaged-existing`: migration adoption
-- `managed`: bootstrap不要
-- `inconsistent`: 部分導入状態などを先に修復
+- `managed`: 既にmanaged stateなので `scripts/run.py` を使用
+- `inconsistent`: 部分導入、orphaned generated artifact、unsafe pathなどを先に修復
 
-adoption strategyはinspection結果から決まり、利用者が `init` と `adopt` のrouteを選択する必要はありません。
+adoption strategyはinspection結果から決まり、利用者が `init` と `adopt` のrouteを選ぶ必要はありません。
 
 ## 2A. Fresh adoptionを適用する
 
-`unmanaged-empty` ではdry-runを確認後、次のように適用します。
+`unmanaged-empty` ではdry-run確認後に適用します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -43,7 +45,7 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-bootstrapは現在 `agent-policy init` を内部primitiveとして使用し、その後同じ固定toolchainによる `validate` と `check` の成功を要求します。initializationは独立した利用者向け操作ではありません。
+pinned toolchainは `agent-policy init` を内部primitiveとして使用できます。その後、同じruntimeで `validate` と `check` の成功を要求します。initializationは独立した利用者向け操作ではありません。
 
 主に次のファイルが作成されます。
 
@@ -55,9 +57,11 @@ AGENTS.md
 .agents/skills/validate-agent-policy/SKILL.md
 ```
 
-## 2B. 既存instructionをmigration adoptionする
+`.agent-policy.yml` は人間が編集するconfiguration entry pointです。`.agent-policy.lock`、`AGENTS.md`、generated skillsはCLIが管理します。
 
-複数の対応instruction fileが発見された場合はprimary instructionを指定します。
+## 2B. 既存instructionをpreserveしたままmigration adoptionする
+
+複数の対応instruction fileが見つかった場合はprimary instructionを指定します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -65,7 +69,7 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md
 ```
 
-計画確認後に適用します。
+計画確認後に準備状態を適用します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -74,31 +78,47 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-既存primary instructionは置き換えられません。`.agent-policy/adoption.json` とshadow preview等を作成し、`adopt preview`まで実行します。手書きinstructionの意味をproject policyへ反映し、previewとの差分をレビューしてください。
+既存primary instructionは置き換えません。prepared adoption stateを作成し、`adopt preview` まで実行します。手書きinstructionのsemanticsをproject policyへ反映し、previewとの差分をレビューしてください。
 
-cutoverは別段階です。レビュー後に、manifestに固定された同じrepositoryとfull SHAのCLIで `agent-policy adopt finalize` をdry-runし、明示的な `--apply` でprimary instructionを生成物へ切り替えます。generic bootstrap `--apply`はmigration finalizationを実行しません。
-
-## 3. 製品固有規約を記述する
-
-`policy/project.md` に、その製品だけに適用する不変条件、互換性要件、検証方法を記述します。
-
-通常のmanaged stateでは次を実行します。
+cutoverは別段階です。同じinstalled skillとrepository-pinned toolchainを使います。
 
 ```bash
-agent-policy --repository . validate
-agent-policy --repository . render
-agent-policy --repository . check
+python scripts/run.py \
+  --repository /path/to/product-repository \
+  adopt finalize
 ```
 
-migration adoption準備中はproject policy編集後に次を実行します。
+このdry-runを確認後、明示的に `--apply` を追加します。generic bootstrap `--apply` はmigration finalizationを実行できません。
+
+## 3. Managed repositoryを運用する
+
+`.agent-policy.lock` が存在した後は `scripts/run.py` を使用します。runnerはskill defaultよりrepository自身のfull SHAを優先します。
 
 ```bash
-agent-policy --repository . adopt preview
+python scripts/run.py --repository . validate
+python scripts/run.py --repository . render
+python scripts/run.py --repository . check
 ```
 
-## 4. 変更をレビューしてコミットする
+migration preparation中のpreview更新は次のとおりです。
 
-fresh adoption、migration preparation、preview、finalization、再生成はGit commitやpushを自動実行しません。生成された差分を通常のレビューフローで確認してください。
+```bash
+python scripts/run.py --repository . adopt preview
+```
+
+`.agent-policy.lock` のtoolchain pinがmalformedまたはmutableならfail closedします。stable defaultへのsilent fallbackは行いません。
+
+## 4. Runtime cacheの動作
+
+runtime cache identityにはfull toolchain SHA、runtime-lock SHA-256、Python major/minor、platformを含めます。validなcache entryはnetworkなしで再利用できます。
+
+stable defaultでは `runtime-manifest.json` にlock digestがあるため、network access前にcache identityを判定できます。managed repositoryが別のfull SHAを選択した場合でも、同じrevision/Python/platformの検証済みcacheがあればoffline reuseできます。なければそのrevisionのruntime lockを一度取得し、digestを計算して新しいstaged runtimeを構築します。
+
+## 5. Policyを記述し、レビューしてcommitする
+
+`policy/project.md` には、その製品だけに適用するinvariant、compatibility requirement、verification methodを記述します。canonical shared policyを製品repositoryへコピーして編集しないでください。
+
+fresh adoption、migration preparation、preview、finalization、regenerationはGit commitやpushを自動実行しません。生成差分を通常のレビューフローで確認してください。
 
 !!! note
-    ブートストラップスキルは初回導入のtrust seedです。fresh adoption後またはmigration finalization後の通常運用では、製品リポジトリ内の `.agent-policy.yml` と `.agent-policy.lock` がツールチェーンと生成状態を固定します。
+    adoption前後で同じ `agent-policy` skillを使用します。adoption前はレビュー済みruntime manifestがdefault trust seedであり、adoption後は `.agent-policy.lock` がmanaged repositoryのtoolchain revisionについてauthoritativeになります。
