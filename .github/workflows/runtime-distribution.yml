@@ -1,0 +1,40 @@
+name: Policy runtime distribution
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-runtime-distribution-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-install:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2022
+        python-version:
+          - "3.11"
+          - "3.12"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-runtime.lock
+
+      - name: Install and verify runtime distribution in a clean environment
+        run: python scripts/smoke_test_runtime_distribution.py
