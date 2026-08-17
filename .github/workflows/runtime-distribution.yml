@@ -13,19 +13,21 @@ concurrency:
 
 jobs:
   clean-install:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
-          - windows-2022
+        platform:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+          - os: windows-2022
+            pip-config-file: NUL
         python-version:
           - "3.11"
           - "3.12"
           - "3.13"
           - "3.14"
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform.os }}
     timeout-minutes: 15
     env:
       PYTHONHOME: ""
@@ -37,7 +39,7 @@ jobs:
       PIP_NO_CACHE_DIR: ""
       PIP_QUIET: ""
       PIP_LOG: ""
-      PIP_CONFIG_FILE: ${{ runner.os == 'Windows' && 'NUL' || '/dev/null' }}
+      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
