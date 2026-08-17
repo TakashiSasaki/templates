@@ -9,7 +9,10 @@ from runtime import find_repository_root, runtime_executable, sanitized_environm
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(
-        description="Run the repository-pinned agent-policy toolchain from the persistent runtime cache."
+        description=(
+            "Run the repository-pinned agent-policy toolchain from the persistent "
+            "runtime cache."
+        )
     )
     value.add_argument("--repository", type=Path)
     value.add_argument("arguments", nargs=argparse.REMAINDER)
@@ -20,7 +23,12 @@ def main() -> int:
     args = parser().parse_args()
     repository = find_repository_root(args.repository)
     executable = runtime_executable(repository)
-    command = [str(executable), *args.arguments, "--repository", str(repository)]
+    command = [
+        str(executable),
+        "--repository",
+        str(repository),
+        *args.arguments,
+    ]
     return subprocess.run(
         command,
         cwd=repository,
