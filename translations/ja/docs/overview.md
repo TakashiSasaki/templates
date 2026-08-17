@@ -14,12 +14,13 @@
 - `.agent-policy.lock` に入力・出力ハッシュとツールチェーンの完全なコミットSHAを記録する
 - 設定、lock、生成物の不整合をCIで検出する
 - 既存instructionを破壊せずに導入準備・preview・明示的cutoverを行う
+- adoption前後で同じinstalled `agent-policy` skillと検証済みpersistent full-SHA runtimeを使用する
 
 ## 区別すべき3つの層
 
 `policy` という語は、リポジトリのbranch、branch内で正本として保持する共有規約、consumer repositoryで実際に有効になる規約を指し得ます。これらは別の層です。
 
-1. **Provider / toolchain layer** — `TakashiSasaki/templates` の `policy` ブランチ全体です。共有規約だけでなく、`agent-policy` CLI、schema、renderer template、bootstrap、test、release machinery、maintainer documentationを保持します。このbranch自体がconsumer repositoryへmergeされて効力を持つわけではありません。
+1. **Provider / toolchain layer** — `TakashiSasaki/templates` の `policy` ブランチ全体です。共有規約だけでなく、`agent-policy` CLI、schema、renderer template、単一repository-facing skill、test、release machinery、maintainer documentationを保持します。このbranch自体がconsumer repositoryへmergeされて効力を持つわけではありません。
 2. **Shared policy corpus layer** — `policy/` に置くcanonicalな共有規則と、`profiles/` に置く選択集合です。ここが複数repositoryで共有する規約意味論の正本です。規則はbranchに存在するだけではconsumerで有効にならず、consumer側の設定から選択されます。
 3. **Consumer effective-policy layer** — consumer repositoryの `.agent-policy.yml` がshared profileとrepository-local policyを選択し、toolchainがそれらをcomposeして `AGENTS.md`、context output、通常運用skillなどへrenderした状態です。`.agent-policy.lock` は選択入力、toolchain revision、生成結果を固定します。実際のrepository作業で効力を持つのはこのconsumer側の選択・合成・生成結果です。
 
@@ -36,16 +37,15 @@ Index-guided navigationでもこの境界を維持し、[Provider and toolchain]
 | `policy/`, `profiles/` | application-type-independentな共有規約と適用集合 |
 | `src/agent_policy/` | Python CLIとadoption transaction |
 | `schemas/`, `templates/` | consumer設定・stateのschemaと生成template |
-| `skills/` | 通常運用skillと統合済み`bootstrap-agent-policy` trust seed |
-| `tests/` | compiler、path safety、lock、adoption、bootstrap boundaryの検証 |
+| `skills/agent-policy/` | unmanaged adoption、managed command dispatch、immutable pin selection、persistent runtime-cache管理を担う単一repository-facing skill |
+| `tests/` | compiler、path safety、lock、adoption、release identity、runtime distribution、single-skill/cache boundaryの検証 |
 | `docs/` | 導入、設計、ADR、publication資産 |
 
-ブートストラップスキルは `skills/bootstrap-agent-policy/` にあります。manifestは `TakashiSasaki/templates` のfull commit SHAを固定してCLIを実行し、mutableな`policy`先端を直接信頼しません。初期化後またはadoption finalization後は、製品リポジトリ内の `.agent-policy.yml`、`.agent-policy.lock`、生成された指示・skill、CIへ制御を引き渡します。
+unmanaged repositoryでは `skills/agent-policy/runtime-manifest.json` がレビュー済みstable full-SHA trust seedとruntime-lock digestを提供します。adoption後は同じskillがconsumerの `.agent-policy.lock` に記録されたfull SHAを優先します。validなruntime cache entryはnetworkなしで再利用できます。
 
 ## 提供コマンド
 
 ```text
-agent-policy init
 agent-policy adopt inspect
 agent-policy adopt prepare
 agent-policy adopt preview
@@ -55,11 +55,15 @@ agent-policy render
 agent-policy check
 ```
 
-- `init`: 未導入で既存instruction競合のないリポジトリを初期化する
-- `adopt`: 既存instructionを保持したまま調査、準備、preview、明示的cutoverを行う
+- `adopt inspect`: repository stateをread-onlyで分類する
+- `adopt prepare`: state-derived fresh/migration preparationを実行し、fresh adoptionでは必要に応じてhidden initializationを内部利用する
+- `adopt preview`: staged migration outputを再生成・検査する
+- `adopt finalize`: 別途明示的に許可されたmigration cutoverを実行する
 - `validate`: 設定、参照、規則ID、path safetyなどを検査する
 - `render`: 共通規約と製品固有規約を合成して生成物とlockを更新する
 - `check`: 設定、入力、lock、生成物が一致しているかをread-onlyで確認する
+
+installed skillのgeneric bootstrap操作はmigration finalizationを公開しません。finalizationは別の明示的managed commandです。
 
 ## 次に読むページ
 
