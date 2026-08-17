@@ -133,3 +133,13 @@ def test_policy_profile_catalog_is_published_and_linked() -> None:
 
     navigation = (ROOT / "docs" / "shared-policy" / "index.md").read_text(encoding="utf-8")
     assert "[Policy profiles](profiles.md)" in navigation
+
+
+def test_policy_profile_catalog_is_in_mkdocs_design_navigation() -> None:
+    navigation = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+    configuration = "      - 設定ファイル: configuration.md"
+    profiles = "      - Policy profiles: shared-policy/profiles.md"
+    authoring = "      - 規約の作成: policy-authoring.md"
+
+    assert profiles in navigation
+    assert navigation.index(configuration) < navigation.index(profiles) < navigation.index(authoring)
