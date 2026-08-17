@@ -35,12 +35,30 @@ Construction occurs in a sibling staging directory and is renamed into place onl
 
 For a repository pin different from the skill default, an already validated cache entry for that revision can be reused offline. If no matching entry exists, the exact revision's runtime lock must be fetched once to determine its lock digest and build its runtime.
 
+## Immutable remote installation
+
+Install from the published immutable bootstrap script:
+
+```text
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+Append `--replace` to replace an existing installation after the local installer confirms that the destination is already an `agent-policy` skill.
+
+The distribution deliberately separates three revision roles:
+
+- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307` is the full SHA in the raw GitHub URL above;
+- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72` is embedded by that installer and identifies this skill tree; and
+- the **stable runtime revision** is the independent full SHA in `runtime-manifest.json` used to execute the canonical CLI.
+
+`release/skill-installer.json` publishes the installer and skill-source pair. The remote bootstrap downloads only the exact full-SHA archive, extracts only `skills/agent-policy/`, rejects unsafe archive members, and delegates final target replacement to this directory's `scripts/install.py`.
+
 ## Installation during repository development
 
-From a reviewed checkout:
+A reviewed checkout remains valid:
 
 ```text
 python skills/agent-policy/scripts/install.py /path/to/agent-skills/agent-policy
 ```
 
-Use `--replace` only when the existing destination is already an `agent-policy` skill installation. One-line remote installation is intentionally handled by the follow-up installer work rather than by this runtime-consolidation change.
+Use `--replace` only when the existing destination is already an `agent-policy` skill installation.
