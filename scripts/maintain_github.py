@@ -66,17 +66,11 @@ class GitHubApi:
         self,
         method: str,
         path: str,
-        *,
-        query: dict[str, str] | None = None,
-        body: object | None = None,
-    ) -> object:
-        url = f"{self.api_url}/repos/{self.repository}{path}"
-        if query:
-            url = f"{url}?{urllib.parse.urlencode(query)}"
-        data = None
-        if body is not None:
-            data = json.dumps(body).encode("utf-8")
-        request = urllib.request.Request(  # noqa: S310
+        payload: dict[str, Any] | None = None,
+    ) -> tuple[Any, dict[str, str]]:
+        url = f"{self.api_url}{path}"
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        request = urllib.request.Request(
             url,
             data=data,
             method=method,
@@ -84,247 +78,275 @@ class GitHubApi:
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {self.token}",
                 "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "agent-policy-repository-maintenance",
+                "User-Agent": "agent-policy-repository-hygiene",
             },
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-                content = response.read()
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            with urllib.request.urlopen(request) as response:
+                raw = response.read()
+                body = json.loads(raw) if raw else None
+                headers = {key.lower(): value for key, value in response.headers.items()}
+                return body, headers
+        except urllib.error.HTTPError as error:
+            details = error.read().decode("utf-8", errors="replace")
             raise MaintenanceError(
-                f"GitHub API {method} {path} failed with {exc.code}: {detail}"
-            ) from exc
-        if not content:
-            return None
-        return json.loads(content.decode("utf-8"))
+                f"GitHub API {method} {path} failed with HTTP {error.code}: {details}"
+            ) from error
+
+    def get_all(self, path: str) -> list[dict[str, Any]]:
+        separator = "&" if "?" in path else "?"
+        page = 1
+        values: list[dict[str, Any]] = []
+        while True:
+            body, _ = self.request("GET", f"{path}{separator}per_page=100&page={page}")
+            if not isinstance(body, list):
+                raise MaintenanceError(f"Expected list response from {path}")
+            values.extend(body)
+            if len(body) < 100:
+                return values
+            page += 1
+
+    def repository_metadata(self) -> dict[str, Any]:
+        body, _ = self.request("GET", f"/repos/{self.repository}")
+        if not isinstance(body, dict):
+            raise MaintenanceError("Expected repository metadata object")
+        return body
+
+    def open_pull_requests(self) -> list[PullRequest]:
+        values = self.get_all(f"/repos/{self.repository}/pulls?state=open")
+        return [PullRequest.from_api(value) for value in values]
+
+    def branches(self) -> list[dict[str, Any]]:
+        return self.get_all(f"/repos/{self.repository}/branches")
+
+    def pulls_for_commit(self, sha: str) -> list[PullRequest]:
+        values = self.get_all(f"/repos/{self.repository}/commits/{sha}/pulls")
+        return [PullRequest.from_api(value) for value in values]
+
+    def comment(self, number: int, body: str) -> None:
+        self.request(
+            "POST",
+            f"/repos/{self.repository}/issues/{number}/comments",
+            {"body": body},
+        )
+
+    def close_pull_request(self, number: int) -> None:
+        self.request(
+            "PATCH",
+            f"/repos/{self.repository}/pulls/{number}",
+            {"state": "closed"},
+        )
+
+    def delete_branch(self, branch: str) -> None:
+        encoded = urllib.parse.quote(branch, safe="/")
+        self.request("DELETE", f"/repos/{self.repository}/git/refs/heads/{encoded}")
 
 
-def git(*arguments: str, check: bool = True) -> str:
-    result = subprocess.run(
+def run_git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
         ["git", *arguments],
         check=check,
-        text=True,
         capture_output=True,
-    )
-    return result.stdout.strip()
-
-
-def repository_full_name() -> str:
-    value = os.environ.get("GITHUB_REPOSITORY")
-    if value:
-        return value
-    remote = git("remote", "get-url", "origin")
-    match = urllib.parse.urlparse(remote)
-    if match.scheme in {"http", "https", "ssh"}:
-        path = match.path
-    elif remote.startswith("git@") and ":" in remote:
-        path = remote.split(":", 1)[1]
-    else:
-        path = remote
-    path = path.removesuffix(".git").strip("/")
-    if "/" not in path:
-        raise MaintenanceError(f"Cannot derive repository name from origin: {remote}")
-    return path
-
-
-def default_branch(api: GitHubApi) -> str:
-    value = api.request("GET", "")
-    if not isinstance(value, dict) or not isinstance(value.get("default_branch"), str):
-        raise MaintenanceError("Repository response did not include default_branch")
-    return value["default_branch"]
-
-
-def branch_exists(api: GitHubApi, branch: str) -> bool:
-    encoded = urllib.parse.quote(branch, safe="")
-    try:
-        api.request("GET", f"/branches/{encoded}")
-    except MaintenanceError as exc:
-        if "failed with 404" in str(exc):
-            return False
-        raise
-    return True
-
-
-def local_branch_exists(branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def remote_branch_exists(branch: str) -> bool:
-    result = subprocess.run(
-        ["git", "show-ref", "--verify", "--quiet", f"refs/remotes/origin/{branch}"],
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def branch_merged_into(branch: str, target: str) -> bool:
-    branch_ref = f"refs/remotes/origin/{branch}"
-    target_ref = f"refs/remotes/origin/{target}"
-    result = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", branch_ref, target_ref],
-        check=False,
-    )
-    return result.returncode == 0
-
-
-def open_pull_requests(api: GitHubApi) -> tuple[PullRequest, ...]:
-    value = api.request("GET", "/pulls", query={"state": "open", "per_page": "100"})
-    if not isinstance(value, list):
-        raise MaintenanceError("Pull-request response was not a list")
-    return tuple(PullRequest.from_api(item) for item in value if isinstance(item, dict))
-
-
-def merged_pull_requests(api: GitHubApi) -> tuple[PullRequest, ...]:
-    value = api.request(
-        "GET",
-        "/pulls",
-        query={"state": "closed", "sort": "updated", "direction": "desc", "per_page": "100"},
-    )
-    if not isinstance(value, list):
-        raise MaintenanceError("Pull-request response was not a list")
-    return tuple(
-        pull_request
-        for item in value
-        if isinstance(item, dict)
-        for pull_request in (PullRequest.from_api(item),)
-        if pull_request.merged_at is not None
+        text=True,
     )
 
 
-def branches(api: GitHubApi) -> tuple[str, ...]:
-    value = api.request("GET", "/branches", query={"per_page": "100"})
-    if not isinstance(value, list):
-        raise MaintenanceError("Branch response was not a list")
-    result: list[str] = []
-    for item in value:
-        if isinstance(item, dict) and isinstance(item.get("name"), str):
-            result.append(item["name"])
-    return tuple(result)
+def fetch_pull_request(pr: PullRequest) -> None:
+    run_git(
+        "fetch",
+        "--no-tags",
+        "origin",
+        f"+refs/heads/{pr.base.branch}:refs/remotes/origin/{pr.base.branch}",
+        f"+refs/pull/{pr.number}/head:refs/remotes/pull/{pr.number}/head",
+    )
 
 
-def comment_body(branch: str, pull_request: int) -> str:
+def commit_tree(sha: str) -> str:
+    return run_git("show", "-s", "--format=%T", sha).stdout.strip()
+
+
+def merge_result_tree(base_sha: str, head_sha: str) -> str | None:
+    result = run_git("merge-tree", "--write-tree", base_sha, head_sha, check=False)
+    if result.returncode != 0:
+        return None
+    first_line = result.stdout.splitlines()[0] if result.stdout else ""
+    return first_line.strip() or None
+
+
+def pull_request_is_noop(pr: PullRequest, repository: str) -> bool:
+    if pr.head.repository != repository:
+        return False
+    fetch_pull_request(pr)
+    merged_tree = merge_result_tree(pr.base.sha, pr.head.sha)
+    return merged_tree is not None and merged_tree == commit_tree(pr.base.sha)
+
+
+def merged_pr_matches_branch(
+    pr: PullRequest,
+    repository: str,
+    branch: str,
+    sha: str,
+) -> bool:
     return (
-        f"{COMMENT_MARKER}\n"
-        f"Branch `{branch}` appears to be merged by PR #{pull_request} and is eligible "
-        "for deletion after confirming that it is no longer needed."
+        pr.merged_at is not None
+        and pr.head.repository == repository
+        and pr.head.branch == branch
+        and pr.head.sha == sha
     )
 
 
-def existing_comment_ids(api: GitHubApi, issue_number: int) -> tuple[int, ...]:
-    value = api.request(
-        "GET",
-        f"/issues/{issue_number}/comments",
-        query={"per_page": "100"},
-    )
-    if not isinstance(value, list):
-        raise MaintenanceError("Issue-comment response was not a list")
-    result: list[int] = []
-    for item in value:
-        if not isinstance(item, dict):
+def close_noop_pull_requests(
+    api: GitHubApi,
+    repository: str,
+    protected_branches: set[str],
+    apply: bool,
+) -> tuple[list[PullRequest], set[str]]:
+    open_prs = api.open_pull_requests()
+    closed_branches: set[str] = set()
+    for pr in open_prs:
+        if pr.head.branch in protected_branches:
+            print(f"Skipping PR #{pr.number}: protected head branch {pr.head.branch}.")
             continue
-        if COMMENT_MARKER in str(item.get("body", "")):
-            identifier = item.get("id")
-            if isinstance(identifier, int):
-                result.append(identifier)
-    return tuple(result)
+        if not pull_request_is_noop(pr, repository):
+            print(f"PR #{pr.number} changes the merge result; leaving it open.")
+            continue
+
+        print(
+            f"PR #{pr.number} is redundant: merging `{pr.head.branch}` into "
+            f"`{pr.base.branch}` produces the same Git tree as the base branch."
+        )
+        if apply:
+            api.comment(
+                pr.number,
+                (
+                    f"{COMMENT_MARKER}\n"
+                    "This pull request was closed automatically because its merge result "
+                    "would not change the base branch. This commonly occurs when a branch "
+                    "remains after a squash merge."
+                ),
+            )
+            api.close_pull_request(pr.number)
+        closed_branches.add(pr.head.branch)
+
+    remaining = [
+        pr for pr in open_prs if pr.head.branch not in closed_branches or not apply
+    ]
+    return remaining, closed_branches
 
 
-def add_comment(api: GitHubApi, issue_number: int, body: str) -> None:
-    api.request("POST", f"/issues/{issue_number}/comments", body={"body": body})
-
-
-def merged_pr_for_branch(
-    merged: tuple[PullRequest, ...], repository: str, branch: str
-) -> PullRequest | None:
-    for pull_request in merged:
-        if (
-            pull_request.head.repository == repository
-            and pull_request.head.branch == branch
-        ):
-            return pull_request
-    return None
-
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Identify and optionally delete merged feature branches."
-    )
-    parser.add_argument(
-        "--delete",
-        action="store_true",
-        help="Delete eligible remote and local feature branches.",
-    )
-    parser.add_argument(
-        "--comment",
-        action="store_true",
-        help="Leave an idempotent cleanup reminder on the merged pull request.",
-    )
-    parser.add_argument(
-        "--protected-branch",
-        action="append",
-        default=[],
-        help="Additional branch name that must never be deleted.",
-    )
-    return parser.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    token = os.environ.get("GITHUB_TOKEN")
-    if not token:
-        print("GITHUB_TOKEN is required", file=sys.stderr)
-        return 2
-    repository = repository_full_name()
-    api = GitHubApi(
-        os.environ.get("GITHUB_API_URL", "https://api.github.com"),
-        repository,
-        token,
-    )
-    default = default_branch(api)
-    protected = set(DEFAULT_PROTECTED_BRANCHES)
-    protected.add(default)
-    protected.update(args.protected_branch)
-
-    git("fetch", "--prune", "origin")
-    open_prs = open_pull_requests(api)
-    merged_prs = merged_pull_requests(api)
-    open_heads = {
-        pull_request.head.branch
-        for pull_request in open_prs
-        if pull_request.head.repository == repository
+def open_pull_request_branches(
+    open_prs: list[PullRequest],
+    repository: str,
+) -> set[str]:
+    return {
+        ref.branch
+        for pr in open_prs
+        for ref in (pr.base, pr.head)
+        if ref.repository == repository
     }
 
-    removed_any = False
-    for branch in branches(api):
-        if branch in protected or branch in open_heads:
+
+def delete_merged_branches(
+    api: GitHubApi,
+    repository: str,
+    default_branch: str,
+    protected_branches: set[str],
+    open_prs: list[PullRequest],
+    apply: bool,
+) -> list[str]:
+    open_branches = open_pull_request_branches(open_prs, repository)
+    deleted: list[str] = []
+    for branch in api.branches():
+        name = str(branch["name"])
+        sha = str(branch["commit"]["sha"])
+
+        if name == default_branch or name in protected_branches:
+            print(f"Keeping protected branch {name}.")
             continue
-        merged_pr = merged_pr_for_branch(merged_prs, repository, branch)
-        if merged_pr is None or not remote_branch_exists(branch):
+        if bool(branch.get("protected")):
+            print(f"Keeping GitHub-protected branch {name}.")
             continue
-        if not branch_merged_into(branch, default):
+        if name in open_branches:
+            print(f"Keeping branch {name}: it is used by an open pull request.")
             continue
 
-        if args.comment and not existing_comment_ids(api, merged_pr.number):
-            add_comment(api, merged_pr.number, comment_body(branch, merged_pr.number))
-            print(f"commented on PR #{merged_pr.number} for branch {branch}")
-
-        if not args.delete:
-            print(f"eligible: {branch} (PR #{merged_pr.number})")
+        pulls = api.pulls_for_commit(sha)
+        if not any(merged_pr_matches_branch(pr, repository, name, sha) for pr in pulls):
+            print(f"Keeping branch {name}: no matching merged pull request at its tip.")
             continue
 
-        encoded = urllib.parse.quote(branch, safe="")
-        api.request("DELETE", f"/git/refs/heads/{encoded}")
-        if local_branch_exists(branch):
-            git("branch", "-D", branch)
-        print(f"deleted: {branch} (PR #{merged_pr.number})")
-        removed_any = True
+        print(f"Deleting merged branch {name} at {sha}.")
+        if apply:
+            api.delete_branch(name)
+        deleted.append(name)
+    return deleted
 
-    return 0 if removed_any or not args.delete else 0
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Close no-op pull requests and delete safely merged branches."
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply changes. The default is a dry run.",
+    )
+    parser.add_argument(
+        "--repository",
+        default=os.environ.get("GITHUB_REPOSITORY"),
+        help="Repository in owner/name form.",
+    )
+    parser.add_argument(
+        "--api-url",
+        default=os.environ.get("GITHUB_API_URL", "https://api.github.com"),
+    )
+    parser.add_argument(
+        "--protect",
+        action="append",
+        default=[],
+        metavar="BRANCH",
+        help="Additional branch to protect from closure and deletion.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not args.repository:
+        print("--repository or GITHUB_REPOSITORY is required.", file=sys.stderr)
+        return 2
+    if not token:
+        print("GITHUB_TOKEN is required.", file=sys.stderr)
+        return 2
+
+    protected = set(DEFAULT_PROTECTED_BRANCHES)
+    protected.update(args.protect)
+
+    api = GitHubApi(args.api_url, args.repository, token)
+    metadata = api.repository_metadata()
+    default_branch = str(metadata["default_branch"])
+    protected.add(default_branch)
+
+    mode = "APPLY" if args.apply else "DRY RUN"
+    print(f"Repository hygiene mode: {mode}")
+    print(f"Protected branches: {', '.join(sorted(protected))}")
+
+    open_prs, _ = close_noop_pull_requests(
+        api,
+        args.repository,
+        protected,
+        args.apply,
+    )
+    delete_merged_branches(
+        api,
+        args.repository,
+        default_branch,
+        protected,
+        open_prs,
+        args.apply,
+    )
+    return 0
 
 
 if __name__ == "__main__":
