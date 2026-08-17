@@ -180,9 +180,9 @@ def test_policy_ci_runs_all_python_tooling_from_the_isolated_environment() -> No
 
     expected_commands = (
         ".venv/bin/python scripts/verify-release-state.py",
-        ".venv/bin/python -m ruff check src tests scripts skills/bootstrap-agent-policy/scripts",
+        ".venv/bin/python -m ruff check src tests scripts skills/agent-policy/scripts",
         ".venv/bin/python -m pytest",
-        ".venv/bin/python -m compileall -q src scripts skills/bootstrap-agent-policy/scripts",
+        ".venv/bin/python -m compileall -q src scripts skills/agent-policy/scripts",
         ".venv/bin/agent-policy --help",
     )
     for command in expected_commands:
