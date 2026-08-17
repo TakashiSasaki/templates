@@ -71,9 +71,24 @@ def test_parse_inspection_reads_state_and_sources() -> None:
     inspection = bootstrap.parse_inspection(
         json.dumps(
             [
-                {"level": "info", "code": "ADOPTION_STATE", "message": "unmanaged-existing", "path": None},
-                {"level": "info", "code": "ADOPTION_SOURCE", "message": "sha256=x; generated=false", "path": "CLAUDE.md"},
-                {"level": "info", "code": "ADOPTION_SOURCE", "message": "sha256=y; generated=false", "path": "AGENTS.md"},
+                {
+                    "level": "info",
+                    "code": "ADOPTION_STATE",
+                    "message": "unmanaged-existing",
+                    "path": None,
+                },
+                {
+                    "level": "info",
+                    "code": "ADOPTION_SOURCE",
+                    "message": "sha256=x; generated=false",
+                    "path": "CLAUDE.md",
+                },
+                {
+                    "level": "info",
+                    "code": "ADOPTION_SOURCE",
+                    "message": "sha256=y; generated=false",
+                    "path": "AGENTS.md",
+                },
             ]
         )
     )
@@ -138,7 +153,8 @@ def test_migration_requires_discovered_primary_instructions() -> None:
     inspection = bootstrap.Inspection("unmanaged-existing", ("CLAUDE.md",))
     with pytest.raises(ValueError, match="available: CLAUDE.md"):
         bootstrap.select_primary_instructions(inspection, "AGENTS.md", apply=False)
-    assert bootstrap.select_primary_instructions(inspection, "CLAUDE.md", apply=False) == "CLAUDE.md"
+    selected = bootstrap.select_primary_instructions(inspection, "CLAUDE.md", apply=False)
+    assert selected == "CLAUDE.md"
 
 
 def test_fresh_apply_uses_internal_init_primitive(tmp_path: Path) -> None:
