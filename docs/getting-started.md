@@ -26,23 +26,24 @@ python scripts/bootstrap.py \
 
 The bootstrap script executes `agent-policy adopt inspect` through the pinned toolchain and classifies the target as one of:
 
-- `unmanaged-empty`: no existing instructions; `init` can be used;
-- `unmanaged-existing`: existing instructions or policy are present; use `adopt prepare`;
+- `unmanaged-empty`: no existing instructions; use fresh adoption;
+- `unmanaged-existing`: existing instructions or policy are present; use migration adoption;
 - `managed`: `.agent-policy.yml` already exists; bootstrap is unnecessary; or
 - `inconsistent`: partial adoption, orphaned generated artifacts, unsafe paths, or another inconsistent state must be repaired first.
 
-Automatic routing is advisory during the dry run only. A write operation requires an explicit route.
+The adoption strategy is derived from inspection. Users do not select an `init` or `adopt` route.
 
-## 2A. Initialize an empty repository
+## 2A. Apply fresh adoption
+
+For `unmanaged-empty`, review the dry-run plan and then apply the inspected transition:
 
 ```bash
 python scripts/bootstrap.py \
   --repository /path/to/product-repository \
-  --route init \
   --apply
 ```
 
-After initialization, the bootstrap script requires `validate` and `check` to succeed through the same pinned toolchain.
+The bootstrap currently uses pinned `agent-policy init` internally as the fresh-adoption primitive, then requires `validate` and `check` to succeed through the same pinned toolchain. Initialization is not a separate user-facing onboarding operation.
 
 The main files created are:
 
@@ -56,16 +57,15 @@ AGENTS.md
 
 `.agent-policy.yml` is the human-edited configuration entry point. `.agent-policy.lock`, `AGENTS.md`, and generated skills are managed by the CLI.
 
-## 2B. Prepare adoption while preserving existing instructions
+## 2B. Prepare migration adoption while preserving existing instructions
 
-For `unmanaged-existing`, choose the primary instruction from an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection.
+For `unmanaged-existing`, choose the primary instruction from an `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` discovered during inspection when more than one candidate exists.
 
 Review the dry run first:
 
 ```bash
 python scripts/bootstrap.py \
   --repository /path/to/product-repository \
-  --route adopt \
   --primary-instructions AGENTS.md
 ```
 
@@ -74,7 +74,6 @@ After reviewing the plan, apply the prepared state:
 ```bash
 python scripts/bootstrap.py \
   --repository /path/to/product-repository \
-  --route adopt \
   --primary-instructions AGENTS.md \
   --apply
 ```
@@ -92,7 +91,7 @@ policy/project.md
 
 Represent the semantics of the handwritten instructions in project policy and review the semantic difference against the preview. The CLI does not automatically convert free-form instructions into policy.
 
-Cutover is a separate phase. After review, run `agent-policy adopt finalize` as a dry run using the CLI from the same repository and full SHA pinned by the manifest, and then explicitly use `--apply` to replace the primary instruction with the generated output. Generic bootstrap `--apply` does not perform finalization.
+Cutover is a separate phase. After review, run `agent-policy adopt finalize` as a dry run using the CLI from the same repository and full SHA pinned by the manifest, and then explicitly use `--apply` to replace the primary instruction with the generated output. Generic bootstrap `--apply` does not perform migration finalization.
 
 ## 3. Author product-specific policy
 
@@ -106,7 +105,7 @@ agent-policy --repository . render
 agent-policy --repository . check
 ```
 
-During adoption preparation, update the shadow preview after editing project policy:
+During migration adoption preparation, update the shadow preview after editing project policy:
 
 ```bash
 agent-policy --repository . adopt preview
@@ -114,7 +113,7 @@ agent-policy --repository . adopt preview
 
 ## 4. Review and commit the changes
 
-Initialization, adoption preparation, preview, finalization, and regeneration do not automatically create Git commits or push changes. Review the generated diff and commit it through the same normal review flow used for product code.
+Fresh adoption, migration preparation, preview, finalization, and regeneration do not automatically create Git commits or push changes. Review the generated diff and commit it through the same normal review flow used for product code.
 
 !!! note
-    The bootstrap skill is the first-adoption trust seed. After initialization or adoption finalization, normal operation is pinned by the product repository's `.agent-policy.yml` and `.agent-policy.lock`.
+    The bootstrap skill is the first-adoption trust seed. After fresh adoption or migration finalization, normal operation is pinned by the product repository's `.agent-policy.yml` and `.agent-policy.lock`.
