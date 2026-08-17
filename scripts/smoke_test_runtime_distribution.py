@@ -52,6 +52,7 @@ def main() -> int:
             run(
                 [
                     str(python),
+                    "-I",
                     "-m",
                     "pip",
                     "install",
@@ -65,6 +66,7 @@ def main() -> int:
             run(
                 [
                     str(python),
+                    "-I",
                     "-m",
                     "pip",
                     "install",
@@ -74,8 +76,8 @@ def main() -> int:
                 ],
                 env=env,
             )
-            run([str(python), "-m", "pip", "check"], env=env)
-            run([str(python), str(VERIFY_SCRIPT)], env=env)
+            run([str(python), "-I", "-m", "pip", "check"], env=env)
+            run([str(python), "-I", str(VERIFY_SCRIPT)], env=env)
             run([str(agent_policy_executable(venv)), "--help"], env=env)
     except subprocess.CalledProcessError as exc:
         print(
