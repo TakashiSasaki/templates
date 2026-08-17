@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.metadata
 import json
 import os
 import platform
@@ -11,10 +10,10 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
-import venv
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 EXACT_REQUIREMENT = re.compile(
@@ -33,7 +32,7 @@ class RuntimePin:
     lock_path: str
     expected_lock_sha256: str | None
     project_distribution: str
-    project_version: str
+    project_version: str | None
     executable: str
 
 
@@ -95,9 +94,15 @@ def pin_from_manifest(manifest: Mapping[str, Any]) -> RuntimePin:
         raise ValueError("Runtime manifest revision must be a full lowercase commit SHA")
     if lock_path != "requirements-runtime.lock":
         raise ValueError("Runtime manifest lock path is unsupported")
-    if not isinstance(lock_sha256, str) or re.fullmatch(r"[0-9a-f]{64}", lock_sha256) is None:
+    if (
+        not isinstance(lock_sha256, str)
+        or re.fullmatch(r"[0-9a-f]{64}", lock_sha256) is None
+    ):
         raise ValueError("Runtime manifest lock digest must be lowercase SHA-256")
-    if not all(isinstance(value, str) and value for value in (distribution, version, executable)):
+    if not all(
+        isinstance(value, str) and value
+        for value in (distribution, version, executable)
+    ):
         raise ValueError("Runtime manifest project metadata is invalid")
 
     return RuntimePin(
@@ -143,26 +148,30 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
     if repository != "TakashiSasaki/templates":
         raise ValueError(".agent-policy.lock has an unsupported toolchain repository")
     if revision is None or FULL_SHA.fullmatch(revision) is None:
-        raise ValueError(".agent-policy.lock toolchain revision must be a full lowercase commit SHA")
+        raise ValueError(
+            ".agent-policy.lock toolchain revision must be a full lowercase commit SHA"
+        )
     return repository, revision
 
 
-def select_pin(repository_root: Path, manifest: Mapping[str, Any] | None = None) -> RuntimePin:
+def select_pin(
+    repository_root: Path,
+    manifest: Mapping[str, Any] | None = None,
+) -> RuntimePin:
     manifest_value = load_manifest() if manifest is None else dict(manifest)
     default = pin_from_manifest(manifest_value)
     lock_path = repository_root / ".agent-policy.lock"
     if not lock_path.exists():
         return default
     repository, revision = lock_toolchain(lock_path)
+    is_default = revision == default.revision
     return RuntimePin(
         repository=repository,
         revision=revision,
         lock_path=default.lock_path,
-        expected_lock_sha256=(
-            default.expected_lock_sha256 if revision == default.revision else None
-        ),
+        expected_lock_sha256=(default.expected_lock_sha256 if is_default else None),
         project_distribution=default.project_distribution,
-        project_version=default.project_version,
+        project_version=(default.project_version if is_default else None),
         executable=default.executable,
     )
 
@@ -194,7 +203,8 @@ def sanitized_environment(source: Mapping[str, str] | None = None) -> dict[str, 
     result = {
         key: value
         for key, value in supplied.items()
-        if not key.upper().startswith("PIP_") and not key.upper().startswith("PYTHON")
+        if not key.upper().startswith("PIP_")
+        and not key.upper().startswith("PYTHON")
     }
     result["PYTHONNOUSERSITE"] = "1"
     result["PIP_CONFIG_FILE"] = os.devnull
@@ -267,26 +277,57 @@ def marker_path(root: Path) -> Path:
     return root / "runtime.json"
 
 
-def expected_marker(identity: RuntimeIdentity, pin: RuntimePin) -> dict[str, Any]:
+def marker_payload(
+    identity: RuntimeIdentity,
+    pin: RuntimePin,
+    project_version: str,
+) -> dict[str, Any]:
     return {
         "schema_version": CACHE_SCHEMA,
         "identity": identity.payload(),
         "project": {
             "distribution": pin.project_distribution,
-            "version": pin.project_version,
+            "version": project_version,
             "executable": pin.executable,
         },
     }
 
 
-def runtime_valid(root: Path, identity: RuntimeIdentity, pin: RuntimePin) -> bool:
+def expected_marker(
+    identity: RuntimeIdentity,
+    pin: RuntimePin,
+    project_version: str | None = None,
+) -> dict[str, Any]:
+    version = project_version if project_version is not None else pin.project_version
+    if version is None:
+        raise ValueError("Project version is unknown for this runtime pin")
+    return marker_payload(identity, pin, version)
+
+
+def marker_matches(root: Path, identity: RuntimeIdentity, pin: RuntimePin) -> bool:
     try:
         marker = json.loads(marker_path(root).read_text(encoding="utf-8"))
-    except (OSError, ValueError, json.JSONDecodeError):
+        project = marker["project"]
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
         return False
-    return marker == expected_marker(identity, pin) and executable_path(
-        root, pin.executable
-    ).is_file()
+    if not isinstance(project, dict):
+        return False
+    version = project.get("version")
+    if not isinstance(version, str) or not version:
+        return False
+    if pin.project_version is not None and version != pin.project_version:
+        return False
+    return (
+        marker.get("schema_version") == CACHE_SCHEMA
+        and marker.get("identity") == identity.payload()
+        and project.get("distribution") == pin.project_distribution
+        and project.get("executable") == pin.executable
+        and executable_path(root, pin.executable).is_file()
+    )
+
+
+def runtime_valid(root: Path, identity: RuntimeIdentity, pin: RuntimePin) -> bool:
+    return marker_matches(root, identity, pin)
 
 
 def cached_for_revision(root: Path, pin: RuntimePin) -> Path | None:
@@ -298,21 +339,23 @@ def cached_for_revision(root: Path, pin: RuntimePin) -> Path | None:
         try:
             marker = json.loads(marker_path(candidate).read_text(encoding="utf-8"))
             identity_value = marker["identity"]
-            project = marker["project"]
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
             continue
-        if not isinstance(identity_value, dict) or not isinstance(project, dict):
+        if not isinstance(identity_value, dict):
             continue
-        if (
-            identity_value.get("repository") == pin.repository
-            and identity_value.get("revision") == pin.revision
-            and identity_value.get("python") == python_token()
-            and identity_value.get("platform") == platform_token()
-            and project.get("distribution") == pin.project_distribution
-            and project.get("version") == pin.project_version
-            and project.get("executable") == pin.executable
-            and executable_path(candidate, pin.executable).is_file()
-        ):
+        lock_digest = identity_value.get("lock_sha256")
+        if not isinstance(lock_digest, str) or re.fullmatch(
+            r"[0-9a-f]{64}", lock_digest
+        ) is None:
+            continue
+        identity = RuntimeIdentity(
+            repository=pin.repository,
+            revision=pin.revision,
+            lock_sha256=lock_digest,
+            python=python_token(),
+            platform=platform_token(),
+        )
+        if candidate.name == identity.digest() and marker_matches(candidate, identity, pin):
             return candidate
     return None
 
@@ -321,7 +364,10 @@ def run(command: list[str], *, env: Mapping[str, str]) -> None:
     subprocess.run(command, check=True, env=dict(env))
 
 
-def installed_distributions(python: Path, env: Mapping[str, str]) -> dict[str, str]:
+def installed_distributions(
+    python: Path,
+    env: Mapping[str, str],
+) -> dict[str, str]:
     script = (
         "import importlib.metadata as m,json;"
         "print(json.dumps({d.metadata['Name']:d.version for d in m.distributions()}))"
@@ -339,7 +385,9 @@ def installed_distributions(python: Path, env: Mapping[str, str]) -> dict[str, s
         for key, version in value.items()
     ):
         raise RuntimeError("Cached runtime returned invalid distribution metadata")
-    return {normalize_distribution_name(key): version for key, version in value.items()}
+    return {
+        normalize_distribution_name(key): version for key, version in value.items()
+    }
 
 
 def verify_installed_set(
@@ -347,12 +395,17 @@ def verify_installed_set(
     requirements: Mapping[str, str],
     pin: RuntimePin,
     env: Mapping[str, str],
-) -> None:
+) -> str:
     installed = installed_distributions(python, env)
-    expected = {normalize_distribution_name(name): version for name, version in requirements.items()}
+    expected = {
+        normalize_distribution_name(name): version
+        for name, version in requirements.items()
+    }
     project_name = normalize_distribution_name(pin.project_distribution)
     actual_project = installed.get(project_name)
-    if actual_project != pin.project_version:
+    if actual_project is None:
+        raise RuntimeError("Cached project distribution is missing")
+    if pin.project_version is not None and actual_project != pin.project_version:
         raise RuntimeError(
             f"Cached project version mismatch: expected {pin.project_version}, "
             f"installed {actual_project!r}"
@@ -366,6 +419,7 @@ def verify_installed_set(
         raise RuntimeError(
             "Cached runtime distribution set does not match requirements-runtime.lock"
         )
+    return actual_project
 
 
 def build_runtime(
@@ -383,7 +437,10 @@ def build_runtime(
         lock = stage / "requirements-runtime.lock"
         lock.write_bytes(lock_data)
         requirements = parse_runtime_lock(lock_data.decode("utf-8"))
-        venv.EnvBuilder(with_pip=True, clear=True).create(stage / "venv")
+        run(
+            [sys.executable, "-I", "-m", "venv", str(stage / "venv")],
+            env=env,
+        )
         python = venv_python(stage)
         run(
             [
@@ -414,12 +471,17 @@ def build_runtime(
             env=env,
         )
         run([str(python), "-I", "-m", "pip", "check"], env=env)
-        verify_installed_set(python, requirements, pin, env)
+        project_version = verify_installed_set(python, requirements, pin, env)
         executable = executable_path(stage, pin.executable)
         if not executable.is_file():
             raise RuntimeError("Cached runtime executable was not installed")
         marker_path(stage).write_text(
-            json.dumps(expected_marker(identity, pin), indent=2, sort_keys=True) + "\n",
+            json.dumps(
+                marker_payload(identity, pin, project_version),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
             encoding="utf-8",
         )
 
