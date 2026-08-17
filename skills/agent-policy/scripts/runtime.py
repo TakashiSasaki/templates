@@ -137,8 +137,6 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
             continue
         indent = len(raw) - len(raw.lstrip(" "))
         if indent == 0:
-            if in_toolchain:
-                break
             if stripped == "toolchain:":
                 if found_toolchain:
                     raise ValueError(
@@ -146,6 +144,8 @@ def lock_toolchain(path: Path) -> tuple[str, str]:
                     )
                 found_toolchain = True
                 in_toolchain = True
+            else:
+                in_toolchain = False
             continue
         if not in_toolchain:
             continue
