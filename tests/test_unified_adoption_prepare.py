@@ -59,9 +59,9 @@ def test_fresh_adoption_rejects_primary_instructions_option(tmp_path: Path) -> N
     assert not (tmp_path / ".agent-policy.yml").exists()
 
 
-def test_existing_repository_still_uses_migration_preparation(tmp_path: Path) -> None:
+def test_existing_repository_auto_selects_single_migration_primary(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
-    (tmp_path / "AGENTS.md").write_text("handwritten\n", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("handwritten\n", encoding="utf-8")
 
     diagnostics = onboard.prepare_run(
         tmp_path,
@@ -69,10 +69,52 @@ def test_existing_repository_still_uses_migration_preparation(tmp_path: Path) ->
         apply=False,
         toolchain_revision="LOCAL-DEVELOPMENT",
         profiles=["core"],
-        primary_instructions="AGENTS.md",
     )
 
     assert diagnostics
     assert all(item.level == "info" for item in diagnostics)
-    assert any(item.code == "PRESERVE" and item.path == "AGENTS.md" for item in diagnostics)
+    assert any(item.code == "PRESERVE" and item.path == "CLAUDE.md" for item in diagnostics)
+    assert not (tmp_path / ".agent-policy.yml").exists()
+
+
+def test_existing_repository_requires_primary_when_discovery_is_ambiguous(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "AGENTS.md").write_text("agents\n", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("claude\n", encoding="utf-8")
+
+    diagnostics = onboard.prepare_run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].code == "PRIMARY_INSTRUCTIONS"
+    assert "ambiguous" in diagnostics[0].message
+    assert "AGENTS.md" in diagnostics[0].message
+    assert "CLAUDE.md" in diagnostics[0].message
+    assert not (tmp_path / ".agent-policy.yml").exists()
+
+
+def test_existing_repository_honors_explicit_discovered_primary(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "AGENTS.md").write_text("agents\n", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("claude\n", encoding="utf-8")
+
+    diagnostics = onboard.prepare_run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=False,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        primary_instructions="CLAUDE.md",
+    )
+
+    assert diagnostics
+    assert all(item.level == "info" for item in diagnostics)
+    assert any(item.code == "PRESERVE" and item.path == "CLAUDE.md" for item in diagnostics)
     assert not (tmp_path / ".agent-policy.yml").exists()
