@@ -1,0 +1,17 @@
+# Exact runtime dependency constraints for the agent-policy distribution.
+#
+# This file intentionally excludes development, test, and build-only dependencies.
+# It is a cross-platform constraint set: marker-dependent entries may be unused on
+# some supported Python versions, but every installed runtime dependency must be
+# present here at the exact recorded version.
+#
+# Update through a reviewed dependency-resolution change; do not edit incidentally.
+attrs===26.1.0
+Jinja2===3.1.6
+jsonschema===4.26.0
+jsonschema-specifications===2025.9.1
+MarkupSafe===3.0.3
+PyYAML===6.0.3
+referencing===0.37.0
+rpds-py===2026.6.3
+typing_extensions===4.16.0
