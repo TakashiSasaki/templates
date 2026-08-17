@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from agent_policy.commands import validate
 from agent_policy.config import load_config, validate_config
 
 
@@ -75,3 +76,6 @@ skills:
     config = load_config(tmp_path, ".agent-policy.yml")
     diagnostics = validate_config(tmp_path, config)
     assert any(item.code == "SCHEMA" for item in diagnostics)
+
+    command_diagnostics = validate.run(tmp_path, ".agent-policy.yml")
+    assert any(item.code == "SCHEMA" for item in command_diagnostics)
