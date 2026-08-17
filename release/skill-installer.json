@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "installer": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "ebadaf67234ddfbe372ef9f5b52ead2522621307",
+    "path": "scripts/install_agent_policy_skill.py"
+  },
+  "skill_source": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "e4a0ae84bdf6c68020747d13e1fcaee9865d9c72",
+    "path": "skills/agent-policy"
+  }
+}
