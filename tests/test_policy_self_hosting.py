@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from agent_policy.commands import check
+
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / ".agent-policy.yml"
 RELEASE_PATH = ROOT / "release/toolchain.json"
@@ -28,6 +30,10 @@ def test_self_host_uses_current_stable_full_sha() -> None:
     assert isinstance(revision, str)
     assert len(revision) == 40
     assert all(character in "0123456789abcdef" for character in revision)
+
+
+def test_repository_self_hosting_check_passes() -> None:
+    assert check.run(ROOT, ".agent-policy.yml") == []
 
 
 def test_coding_and_review_share_repository_local_authority() -> None:
