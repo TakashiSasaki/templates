@@ -24,6 +24,15 @@ def git(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def test_current_long_lived_branches_are_protected() -> None:
+    assert maintenance.DEFAULT_PROTECTED_BRANCHES == {
+        "site",
+        "webapp",
+        "policy",
+        "skill",
+    }
+
+
 def test_merge_result_tree_detects_squash_merged_branch(tmp_path, monkeypatch):
     git(tmp_path, "init", "-q")
     git(tmp_path, "config", "user.email", "test@example.com")
