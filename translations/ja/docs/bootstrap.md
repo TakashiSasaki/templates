@@ -1,42 +1,59 @@
-# ブートストラップスキル
+# ブートストラップ操作
 
 > **参考訳（非正本）:** この文書は `docs/bootstrap.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
 ## 役割
 
-`skills/bootstrap-agent-policy/` は、まだ `.agent-policy.yml` を持たないGitリポジトリを調査し、agent-policy管理下へ導入するエージェントスキルです。空のリポジトリにはfresh adoption、既存の手書き指示があるリポジトリにはmigration adoptionを使用します。
+bootstrapは単一の `skills/agent-policy/` skillが提供するunmanaged repository向け操作です。空のリポジトリにはfresh adoption、既存の手書き指示があるリポジトリにはmigration adoptionを使用します。独立したbootstrap skillはありません。
 
-スキルは `TakashiSasaki/templates` の `policy` ブランチ内で管理されますが、実行時にmutableなブランチ先端を信頼しません。`bootstrap-manifest.yml` がレビュー済みfull commit SHAと許可された内部CLI routeを固定します。
+skillはmutableな`policy`ブランチ先端を実行しません。`runtime-manifest.json` が `TakashiSasaki/templates` のレビュー済みfull commit SHAと、そのrevisionの `requirements-runtime.lock` のSHA-256を固定します。bootstrapとmanaged operationは同じpersistent runtime cacheを共有します。
 
 ## レビュー済みcheckoutから導入する
 
 ```bash
-python skills/bootstrap-agent-policy/scripts/install.py \
-  /path/to/agent-skills/bootstrap-agent-policy
+python skills/agent-policy/scripts/install.py \
+  /path/to/agent-skills/agent-policy
 ```
 
-既存の同一スキルを置き換える場合だけ `--replace` を指定します。
+`--replace` は同じidentityの既存skillを置き換える場合だけ使用します。installerはsymlink target、source/destinationの重複、`SKILL.md` が `agent-policy` を示さないdirectoryの置換を拒否します。
 
-## リポジトリ調査とdry-run
+## Skillの内容
+
+```text
+skills/agent-policy/
+  SKILL.md
+  README.md
+  runtime-manifest.json
+  scripts/
+    bootstrap.py
+    install.py
+    run.py
+    runtime.py
+    uninstall.py
+```
+
+`runtime.py` はimmutable toolchainの選択、persistent runtime cacheの構築・再利用、installed distribution setの検証を担当します。`bootstrap.py` は未導入repositoryを扱い、`run.py` は `.agent-policy.lock` に基づくmanaged operationを扱います。
+
+## Repository inspectionとdry-run
 
 ```bash
 python scripts/bootstrap.py --repository /path/to/product
 ```
 
-既定では変更しません。固定されたCLIの `agent-policy adopt inspect` を実行し、状態からadoption strategyを選択します。
+既定では変更しません。pinned runtimeで `agent-policy adopt inspect` を実行し、状態からstrategyを選びます。
 
 | 状態 | Adoption strategy |
 |---|---|
 | `unmanaged-empty` | fresh adoption |
 | `unmanaged-existing` | migration adoption |
-| `managed` | bootstrapを停止して通常運用へ移行 |
-| `inconsistent` | 変更せず、部分導入状態や危険なpathを修復 |
+| `managed` | bootstrapを停止して `scripts/run.py` を使用 |
+| `inconsistent` | 変更せず、部分導入状態やunsafe pathを先に修復 |
 
-利用者が `init` と `adopt` のrouteを選ぶ必要はありません。
+利用者が `init` routeを選択する必要はありません。
 
 ## Fresh adoptionを適用する
 
-`unmanaged-empty` ではdry-runを確認後、検査済みの遷移を `--apply` で許可します。
+`unmanaged-empty` ではdry-run確認後に `--apply` を追加します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -44,11 +61,11 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-bootstrapは現在、固定された `agent-policy init` をfresh-adoption用の内部primitiveとして使用し、その後 `validate` と `check` を実行します。initializationは独立したbootstrap操作ではありません。
+pinned toolchainは `agent-policy init` をfresh-adoption用の内部primitiveとして使用できます。適用後は同じruntimeで `validate` と `check` を実行します。initializationは独立した利用者向け操作ではありません。
 
 ## 既存指示をmigration adoptionする
 
-複数の対応instruction fileが見つかった場合だけprimary sourceを指定します。
+複数の対応instruction fileが見つかった場合はprimary sourceを指定します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -65,10 +82,26 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-適用時は `adopt prepare --apply` の後に `adopt preview` を実行し、既存primary instructionは置き換えません。`adopt finalize --apply` はレビュー後の別の明示的指示として実行します。bootstrap manifestはfinalize routeを公開しません。
+migration preparation後に `adopt preview` を実行し、既存primary instructionは置き換えません。
+
+finalizationはレビュー後の別の明示的managed operationです。
+
+```bash
+python scripts/run.py \
+  --repository /path/to/product \
+  adopt finalize --apply
+```
+
+`runtime-manifest.json` と `bootstrap.py` はfinalize routeを公開しません。したがってgeneric bootstrap `--apply` はmigrationをfinalizeできません。
+
+## Persistent runtimeとmanaged operation
+
+初回adoptionでは `runtime-manifest.json` のstable default full SHAを使用します。`.agent-policy.lock` が存在するmanaged repositoryでは `scripts/run.py` がrepository自身のfull-SHA pinを優先します。malformed、mutable、unsupportedなpinはdefaultへfallbackせずfail closedします。
+
+runtime identityにはrepository、full revision、runtime-lock SHA-256、Python major/minor、platformを含めます。validなcache hitはnetworkなしで再利用できます。cacheはstaging areaで構築・検証し、`pip check` とexact installed-set verification成功後だけ正式位置へ切り替えます。
 
 ## 信頼境界
 
-導入前は `SKILL.md`、`bootstrap-manifest.yml`、`scripts/bootstrap.py`、installer/uninstaller、bootstrap testsを一組のtrust seedとしてレビューします。
+`SKILL.md`、`runtime-manifest.json`、`scripts/runtime.py`、`scripts/bootstrap.py`、`scripts/run.py`、installer/uninstaller、およびsingle-skill/release testsを一組のtrust boundaryとしてレビューします。
 
-fresh adoption完了後、またはmigration adoption finalization完了後は `.agent-policy.yml`、`.agent-policy.lock`、生成されたagent instructionsとskills、repository-local CIが通常運用の記録になります。bootstrap skillはmanaged repositoryのruntime dependencyではありません。
+adoption後も同じskillがrepository-facing entry pointです。managed toolchain revisionのauthorityは `.agent-policy.lock` に移ります。
