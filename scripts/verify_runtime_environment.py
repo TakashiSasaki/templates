@@ -100,27 +100,31 @@ def compare_distribution_sets(
             f"expected {project_version}, installed {actual_project_version}"
         )
 
-    unexpected = sorted(
-        name
-        for name in normalized_installed
-        if name not in BOOTSTRAP_DISTRIBUTIONS
-        and name != normalized_project
-        and name not in normalized_locked
-    )
+    checked_installed = {
+        name: version
+        for name, version in normalized_installed.items()
+        if name not in BOOTSTRAP_DISTRIBUTIONS and name != normalized_project
+    }
+
+    missing = sorted(set(normalized_locked) - set(checked_installed))
+    if missing:
+        errors.append("missing locked runtime distributions: " + ", ".join(missing))
+
+    unexpected = sorted(set(checked_installed) - set(normalized_locked))
     if unexpected:
         rendered = ", ".join(
-            f"{name}=={normalized_installed[name]}" for name in unexpected
+            f"{name}=={checked_installed[name]}" for name in unexpected
         )
-        errors.append("installed runtime dependencies missing from lock: " + rendered)
+        errors.append("installed runtime distributions missing from lock: " + rendered)
 
     mismatched = sorted(
         name
-        for name in set(normalized_locked) & set(normalized_installed)
-        if normalized_locked[name] != normalized_installed[name]
+        for name in set(normalized_locked) & set(checked_installed)
+        if normalized_locked[name] != checked_installed[name]
     )
     if mismatched:
         rendered = ", ".join(
-            f"{name}: expected {normalized_locked[name]}, installed {normalized_installed[name]}"
+            f"{name}: expected {normalized_locked[name]}, installed {checked_installed[name]}"
             for name in mismatched
         )
         errors.append("runtime dependency version mismatches: " + rendered)
@@ -149,8 +153,8 @@ def main() -> int:
         return 1
 
     print(
-        "Installed agent-policy runtime is constrained by requirements-runtime.lock "
-        "and contains no unlocked runtime distributions."
+        "Installed distribution set matches requirements-runtime.lock plus the "
+        "local agent-policy project."
     )
     return 0
 
