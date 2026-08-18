@@ -237,7 +237,7 @@ class ProductionCatalogTests(unittest.TestCase):
                     shutil.copy2(component_root / material["source"], destination)
 
             lock_dir = target / ".template-composition"
-            lock_dir.mkdir()
+            lock_dir.mkdir(exist_ok=True)
             (lock_dir / "lock.json").write_text(
                 json.dumps(
                     {"resolved_components": [{"id": component_id} for component_id in selected]},
