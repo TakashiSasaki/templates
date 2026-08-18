@@ -158,8 +158,8 @@ It binds the result to:
 - a lowercase full 40-hex Git commit revision;
 - the selected recipe;
 - the SHA-256 of the exact validated consumer-configuration file bytes;
-- the resolved component set, serialized in ascending lexical order by component ID and including exact component versions and descriptor-byte digests; and
-- the materialized file inventory, ownership modes, and materialized byte digests.
+- the resolved component set, containing exactly one `artifact.*` entry and serialized in ascending lexical order by component ID, with exact component versions and descriptor-byte digests; and
+- the materialized file inventory, serialized in ascending lexical order by destination, with ownership modes and materialized byte digests.
 
 The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
 
@@ -167,7 +167,7 @@ A lock contains no generation timestamp or other intentionally nondeterministic 
 
 The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination.
 
-A future composer must fail closed when the lock is malformed, references an unsupported source identity, or cannot be reconciled with the consumer repository.
+A future composer must fail closed when the lock is malformed, uses the all-zero Git object ID, references an unsupported source identity, or cannot be reconciled with the consumer repository.
 
 ## File ownership
 
@@ -296,7 +296,7 @@ PR1 defines four JSON Schema Draft 2020-12 contracts:
 
 Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
 
-Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, unique destination ownership, lexically ordered/unique resolved component IDs, reserved lock-path exclusion, and lock references to resolved component owners.
+Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, exactly one resolved artifact, lexically ordered/unique resolved component IDs, lexically ordered/unique destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
 
 ## Explicit PR1 non-goals
 

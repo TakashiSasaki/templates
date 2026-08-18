@@ -73,10 +73,15 @@ def validate_lock_semantics(value: dict) -> None:
         raise ValueError("lock resolved component IDs must be unique")
     if component_ids != sorted(component_ids):
         raise ValueError("lock resolved component IDs must be lexically ordered")
+    artifact_ids = [component_id for component_id in component_ids if component_id.startswith("artifact.")]
+    if len(artifact_ids) != 1:
+        raise ValueError("lock must resolve exactly one artifact component")
     resolved = set(component_ids)
     destinations = [item["destination"] for item in value["files"]]
     if len(destinations) != len(set(destinations)):
         raise ValueError("a materialized destination must have one owner")
+    if destinations != sorted(destinations):
+        raise ValueError("lock file destinations must be lexically ordered")
     if LOCK_DESTINATION in destinations:
         raise ValueError("lock must not include its own reserved destination")
     unknown_owners = sorted(
@@ -205,12 +210,36 @@ class CompositionSchemaTests(unittest.TestCase):
             self.assert_schema_valid("lock", value)
 
     def test_lock_requires_full_lowercase_revision(self) -> None:
-        for revision in ("abc123", "A" * 40, "0" * 39, "0" * 41):
+        for revision in ("abc123", "A" * 40, "0" * 39, "0" * 40, "0" * 41):
             value = copy.deepcopy(self.examples["lock"])
             value["source"]["revision"] = revision
             with self.subTest(revision=revision):
                 with self.assertRaises(ValidationError):
                     self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_exactly_one_artifact_component(self) -> None:
+        without_artifact = copy.deepcopy(self.examples["lock"])
+        without_artifact["resolved_components"] = [
+            item
+            for item in without_artifact["resolved_components"]
+            if not item["id"].startswith("artifact.")
+        ]
+        with self.assertRaises(ValueError):
+            self.assert_schema_valid("lock", without_artifact)
+
+        with_two_artifacts = copy.deepcopy(self.examples["lock"])
+        with_two_artifacts["resolved_components"].append(
+            {
+                "id": "artifact.skill-core",
+                "version": 1,
+                "descriptor_sha256": "b" * 64,
+            }
+        )
+        with_two_artifacts["resolved_components"] = sorted(
+            with_two_artifacts["resolved_components"], key=lambda item: item["id"]
+        )
+        with self.assertRaises(ValueError):
+            self.assert_schema_valid("lock", with_two_artifacts)
 
     def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
@@ -231,6 +260,12 @@ class CompositionSchemaTests(unittest.TestCase):
         value = copy.deepcopy(self.examples["lock"])
         value["files"][0]["destination"] = LOCK_DESTINATION
         with self.assertRaises(ValidationError):
+            self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_lexically_ordered_destinations(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["files"][0], value["files"][1] = value["files"][1], value["files"][0]
+        with self.assertRaises(ValueError):
             self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
