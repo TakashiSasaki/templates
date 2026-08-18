@@ -13,7 +13,7 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Protocol
 
 TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"
-SKILL_SOURCE_REVISION = "e4a0ae84bdf6c68020747d13e1fcaee9865d9c72"
+SKILL_SOURCE_REVISION = "a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ARCHIVE_LIMIT = 16 * 1024 * 1024
 SKILL_LIMIT = 8 * 1024 * 1024
