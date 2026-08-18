@@ -23,7 +23,10 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertIn("  workflow_call:", trigger_block)
         self.assertNotIn("\n  push:\n", trigger_block)
-        self.assertIn("Deprecated compatibility alias for skill_ref", workflow)
+        self.assertIn("composition_ref:", workflow)
+        self.assertNotIn("skill_ref:", workflow)
+        self.assertNotIn("webapp_ref:", workflow)
+        self.assertNotIn("source_ref:", workflow)
         self.assertIn("actions/upload-pages-artifact@", workflow)
         self.assertNotIn("actions/configure-pages@", workflow)
         self.assertNotIn("actions/deploy-pages@", workflow)
@@ -32,35 +35,38 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("name: github-pages", workflow)
         self.assertNotIn("\n  deploy:\n", workflow)
 
-    def test_reusable_workflow_checks_out_all_locked_publications(self) -> None:
+    def test_reusable_workflow_checks_out_only_locked_external_providers(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("publication-sources.json", workflow)
-        self.assertIn("path: skill-source", workflow)
+        self.assertIn("path: composition-source", workflow)
         self.assertIn("path: policy-source", workflow)
-        self.assertIn("path: webapp-source", workflow)
+        self.assertNotIn("path: skill-source", workflow)
+        self.assertNotIn("path: webapp-source", workflow)
         self.assertIn(
             "python site-source/scripts/prepare_repository_tree_publication.py",
             workflow,
         )
         self.assertIn("--publication site=site-publication", workflow)
-        self.assertIn("--publication skill=skill-source", workflow)
+        self.assertIn("--publication composition=composition-source", workflow)
         self.assertIn("--publication policy=policy-source", workflow)
-        self.assertIn("--publication webapp=webapp-source", workflow)
-        self.assertNotIn("--publication site=site-source", workflow)
-        self.assertNotIn("path: canonical-source", workflow)
+        self.assertNotIn("--publication skill=", workflow)
+        self.assertNotIn("--publication webapp=", workflow)
+        self.assertNotIn("generate_skill_template_tree.py", workflow)
+        self.assertNotIn("generate_webapp_template_tree.py", workflow)
 
-        source_lock = SOURCE_LOCK.read_text(encoding="utf-8")
-        self.assertIn('"skill"', source_lock)
-        self.assertIn('"policy"', source_lock)
-        self.assertIn('"webapp"', source_lock)
+        source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(source_lock["publications"]),
+            {"composition", "policy"},
+        )
 
     def test_publication_resolver_runs_under_pinned_python(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
 
         setup_position = workflow.index("- name: Set up Python")
         resolver_position = workflow.index("- name: Resolve publication source revisions")
-        provider_checkout_position = workflow.index("- name: Check out skill publication")
+        provider_checkout_position = workflow.index("- name: Check out composition publication")
 
         self.assertLess(setup_position, resolver_position)
         self.assertLess(resolver_position, provider_checkout_position)
@@ -105,18 +111,21 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertLess(metadata, build)
         self.assertLess(build, deploy)
 
-    def test_machine_readable_deployment_state_is_active_for_final_skill(self) -> None:
+    def test_machine_readable_deployment_state_is_bound_to_composition(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
 
         self.assertEqual(1, state["schema_version"])
         self.assertEqual("active", state["status"])
-        self.assertIn("skill", state["reason"])
+        self.assertIn("composition", state["reason"])
         self.assertEqual(
-            source_lock["publications"]["skill"]["revision"],
-            state["locked_skill_revision"],
+            source_lock["publications"]["composition"]["revision"],
+            state["locked_composition_revision"],
         )
-        self.assertRegex(state["locked_skill_revision"], r"\A[0-9a-f]{40}\Z")
+        self.assertRegex(
+            state["locked_composition_revision"],
+            r"\A[0-9a-f]{40}\Z",
+        )
         conditions = state["completed_conditions"]
         self.assertIsInstance(conditions, list)
         self.assertGreaterEqual(len(conditions), 4)
