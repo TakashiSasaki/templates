@@ -14,6 +14,10 @@ class DuplicateKeyError(ValueError):
     pass
 
 
+class NonStandardJsonConstantError(ValueError):
+    pass
+
+
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -23,13 +27,24 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _reject_nonstandard_constant(value: str) -> Any:
+    raise NonStandardJsonConstantError(f"non-standard JSON numeric constant {value!r}")
+
+
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle, object_pairs_hook=_reject_duplicate_keys)
+        return json.load(
+            handle,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_reject_nonstandard_constant,
+        )
 
 
 def load_manifest(root: Path) -> dict[str, Any]:
-    value = load_json(root / "contracts/manifest.json")
+    path = root / "contracts/manifest.json"
+    if path.is_symlink():
+        raise ValueError("contracts/manifest.json must not be a symbolic link")
+    value = load_json(path)
     if not isinstance(value, dict):
         raise TypeError("contracts/manifest.json must contain an object")
     return value

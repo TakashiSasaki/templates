@@ -159,11 +159,13 @@ class ProductionCatalogTests(unittest.TestCase):
                     self.assertFalse(any(x.startswith("artifact.") for x in descriptor["requires"] + descriptor["conflicts"]))
                 component_root = component_path(cid).parent
                 declared = sorted(x["source"] for x in descriptor["materials"] if "source" in x)
-                actual = sorted(
-                    path.relative_to(component_root).as_posix()
-                    for path in (component_root / "files").rglob("*")
-                    if path.is_file()
-                )
+                actual_paths = [
+                    path for path in (component_root / "files").rglob("*")
+                    if path.is_file() or path.is_symlink()
+                ]
+                for path in actual_paths:
+                    self.assertFalse(path.is_symlink(), f"component source material must not be a symlink: {cid}/{path.relative_to(component_root)}")
+                actual = sorted(path.relative_to(component_root).as_posix() for path in actual_paths)
                 self.assertEqual(actual, declared)
 
     def test_dependency_graph_is_acyclic(self):
