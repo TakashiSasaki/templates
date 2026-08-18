@@ -3,9 +3,7 @@
   "id": "webapp",
   "summary": "Framework-neutral Web application artifact with required reusable lifecycle closure and optional application capabilities.",
   "artifact": "artifact.webapp-core",
-  "required_components": [
-    "lifecycle.composition-state"
-  ],
+  "required_components": [],
   "default_components": [],
   "optional_components": [
     "capability.cli",

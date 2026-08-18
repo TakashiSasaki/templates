@@ -4,7 +4,10 @@
   "kind": "artifact",
   "version": 1,
   "summary": "Framework-neutral browser application surfaces, routes, visible states, viewports, and Web-specific validation.",
-  "requires": ["lifecycle.release-bundle"],
+  "requires": [
+    "lifecycle.composition-state",
+    "lifecycle.release-bundle"
+  ],
   "conflicts": [],
   "contract_registrations": [
     {
