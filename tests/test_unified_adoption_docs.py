@@ -40,7 +40,7 @@ def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> No
     bootstrap = read_doc("docs/bootstrap.md")
     adoption = read_doc("docs/adoption.md")
 
-    assert "A single supported instruction" in getting_started
+    assert "a single supported instruction" in getting_started.lower()
     assert "If multiple supported instruction files are discovered" in getting_started
     assert "If none are discovered, create one supported instruction file first" in getting_started
 
