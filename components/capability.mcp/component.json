@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "capability.mcp",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Caller-visible MCP protocol, transport, client, security, and semantic-equivalence contract.",
+  "requires": [
+    "capability.runtime"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/MCP_INTERFACE.md",
+      "destination": "MCP_INTERFACE.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/mcp-transports.md",
+      "destination": "docs/mcp-transports.md",
+      "ownership": "managed"
+    }
+  ]
+}

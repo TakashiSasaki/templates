@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "capability.mcp-apps",
+  "kind": "capability",
+  "version": 1,
+  "summary": "MCP Apps extension resource, bridge, visibility, sandbox, and fallback contract.",
+  "requires": [
+    "capability.mcp"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/MCP_APPS.md",
+      "destination": "MCP_APPS.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/mcp-apps.md",
+      "destination": "docs/mcp-apps.md",
+      "ownership": "managed"
+    }
+  ]
+}
