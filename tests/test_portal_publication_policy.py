@@ -25,54 +25,58 @@ def iter_pages(nodes: list[dict[str, Any]]):
 
 
 class PortalPublicationPolicyTests(unittest.TestCase):
-    def test_portal_cover_is_reader_oriented_and_exposes_all_publications(self) -> None:
+    def test_portal_cover_preserves_artifact_entry_points_and_exposes_composition(self) -> None:
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
-        self.assertIn('href="overview/"', portal)
-        for destination in ("skill/", "policy/", "webapp/"):
+        for destination in (
+            "overview/",
+            "composition/",
+            "capabilities/",
+            "skill/",
+            "policy/",
+            "webapp/",
+        ):
             with self.subTest(destination=destination):
                 self.assertIn(f'href="{destination}"', portal)
-        for label in ("Skill", "Policy", "Web application"):
+        for label in ("Agent Skill", "Policy", "Web application"):
             with self.subTest(label=label):
                 self.assertIn(
                     f'class="portal-domain-card__label">{label}</span>',
                     portal,
                 )
+        self.assertIn("One reviewed Composition authority", portal)
+        self.assertIn("Composition and Policy by reviewed full commit SHA", portal)
 
-    def test_portal_overview_preserves_publication_policy_explanation(self) -> None:
+    def test_portal_overview_explains_two_provider_model(self) -> None:
         overview = PORTAL_OVERVIEW.read_text(encoding="utf-8")
 
         self.assertIn("explicit allowlists", overview)
         self.assertIn("full 40-character commit SHAs", overview)
         self.assertIn("build-provenance.json", overview)
         self.assertIn("Machine-readable contracts and schemas", overview)
+        self.assertIn("external provider set is now `composition` and `policy`", overview)
+        self.assertIn("Composition does not merge artifact semantics", overview)
 
-    def test_portal_and_policy_include_all_top_level_entry_points(self) -> None:
-        policy = " ".join(PUBLISHING_POLICY.read_text(encoding="utf-8").split())
-        overview = " ".join(PORTAL_OVERVIEW.read_text(encoding="utf-8").split())
-
-        for requirement in (
-            "- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;",
-            "- all four `/repository-trees/` entry points are reachable;",
-            "- `/files/` and all four branch browser entry points are reachable;",
-            "- `/guided/` and `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` are reachable;",
-            "- `/guided/graph.json` records the same reviewed provider full SHAs as the provider checkouts and deployed provenance;",
+    def test_publication_policy_declares_current_entry_points(self) -> None:
+        policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
+        for entry in (
+            "`/composition/`",
+            "`/skill/`",
+            "`/capabilities/`",
+            "`/webapp/`",
+            "`/lifecycle/`",
+            "`/policy/`",
+            "`/repository-trees/`",
+            "`/files/`",
+            "`/guided/`",
+            "`/glossary/`",
         ):
-            with self.subTest(requirement=requirement):
-                self.assertIn(requirement, policy)
-        self.assertIn(
-            "under `/skill/`, `/policy/`, and `/webapp/`.",
-            overview,
-        )
+            with self.subTest(entry=entry):
+                self.assertIn(entry, policy)
+        self.assertIn("Composition and Policy", policy)
+        self.assertIn("former Skill/Webapp copyable-template trees are retired", policy)
 
-    def test_policy_does_not_render_site_only_as_a_list_item(self) -> None:
-        raw_policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
-        normalized_policy = " ".join(raw_policy.split())
-
-        self.assertNotIn("\n-only deployment boundary", raw_policy)
-        self.assertIn("`site`-only deployment boundary", normalized_policy)
-
-    def test_integrated_navigation_has_stable_portal_and_provider_entry_points(self) -> None:
+    def test_integrated_navigation_uses_composition_as_skill_and_webapp_authority(self) -> None:
         manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
         pages = list(iter_pages(manifest["navigation"]))
         indexed = {
@@ -85,42 +89,55 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             indexed[("site", "portal-overview")],
             "overview/index.md",
         )
-        self.assertEqual(indexed[("skill", "overview")], "skill/index.md")
         self.assertEqual(
-            indexed[("skill", "mcp-apps-interface")],
-            "skill/MCP_APPS.md",
+            indexed[("composition", "overview")],
+            "composition/index.md",
         )
         self.assertEqual(
-            indexed[("skill", "mcp-apps-guidance")],
-            "skill/docs/mcp-apps.md",
+            indexed[("composition", "skill-overview")],
+            "skill/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "mcp-apps-interface")],
+            "capabilities/mcp-apps/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "webapp-overview")],
+            "webapp/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "contract-evolution")],
+            "lifecycle/contract-evolution/index.md",
         )
         self.assertEqual(indexed[("policy", "overview")], "policy/index.md")
         self.assertEqual(
             indexed[("policy", "provider-navigation")],
             "policy/provider/index.md",
         )
-        self.assertEqual(
-            indexed[("policy", "shared-policy-navigation")],
-            "policy/shared-policy/index.md",
-        )
-        self.assertEqual(
-            indexed[("policy", "consumer-policy-navigation")],
-            "policy/consumer/index.md",
-        )
-        self.assertEqual(indexed[("webapp", "overview")], "webapp/index.md")
+
+        publications = {page["publication"] for page in pages}
+        self.assertEqual(publications, {"site", "composition", "policy"})
+        self.assertNotIn("skill", publications)
+        self.assertNotIn("webapp", publications)
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]
-        self.assertIn("Portal overview", top_level_titles)
-        self.assertIn("Skill", top_level_titles)
-        self.assertIn("Policy", top_level_titles)
-        self.assertIn("Web application", top_level_titles)
+        for title in (
+            "Portal overview",
+            "Composition",
+            "Agent Skill",
+            "Application capabilities",
+            "Web application",
+            "Lifecycle contracts",
+            "Policy",
+        ):
+            self.assertIn(title, top_level_titles)
 
     def test_provider_inputs_are_locked_to_full_commit_shas(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
 
         self.assertEqual(
             set(lock["publications"]),
-            {"skill", "policy", "webapp"},
+            {"composition", "policy"},
         )
         for publication, entry in lock["publications"].items():
             with self.subTest(publication=publication):
@@ -135,7 +152,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("Adding a file to a provider branch does not publish it", policy)
         self.assertIn("Generated destinations are stable public paths", policy)
 
-    def test_deployment_environment_is_documented_as_an_external_release_gate(self) -> None:
+    def test_deployment_environment_remains_external_release_gate(self) -> None:
         policy = " ".join(PUBLISHING_POLICY.read_text(encoding="utf-8").split())
         readme = " ".join(README.read_text(encoding="utf-8").split())
 
