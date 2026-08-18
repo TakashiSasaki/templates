@@ -95,7 +95,7 @@ A material source path is relative to that component's source root. A destinatio
 
 The descriptor does not contain executable install, update, or post-install hooks.
 
-Dependencies and conflicts operate on component identities, not filenames.
+Dependencies and conflicts operate on component identities, not filenames. Artifact components may select or constrain reusable capability/lifecycle components. In the opposite direction, `capability.*` and `lifecycle.*` descriptors must not require or conflict with `artifact.*` IDs; a supposedly generic component that names a concrete artifact authority belongs in the artifact layer instead.
 
 Catalog-level validation must eventually reject:
 
@@ -103,7 +103,8 @@ Catalog-level validation must eventually reject:
 - dependency cycles;
 - self-dependencies;
 - a component that both requires and conflicts with the same component;
-- duplicate component IDs; and
+- duplicate component IDs;
+- generic capability/lifecycle descriptors that depend on or conflict with artifact components; and
 - incompatible selected components.
 
 PR1 validates the descriptor shape and the cross-field invariants that can be established without a populated component catalog.
@@ -159,13 +160,15 @@ It binds the result to:
 - the selected recipe;
 - the SHA-256 of the exact validated consumer-configuration file bytes;
 - the resolved component set, containing exactly one `artifact.*` entry and serialized in ascending lexical order by component ID, with exact component versions and descriptor-byte digests; and
-- the materialized file inventory, serialized in ascending lexical order by destination, with ownership modes and materialized byte digests.
+- the non-empty materialized file inventory, serialized in ascending lexical order by destination, with ownership modes and materialized byte digests.
 
 The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
 
 A lock contains no generation timestamp or other intentionally nondeterministic field.
 
 The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination.
+
+A future catalog/resolver validator must also prove that the lock's recipe exists, that its required artifact is the lock's single resolved artifact, that required/default/explicit selections and dependency closure are satisfied, and that every recorded component version/digest corresponds to the immutable source revision. Those cross-document checks are intentionally not fabricated in PR1 because no production catalog or resolver exists yet.
 
 A future composer must fail closed when the lock is malformed, uses the all-zero Git object ID, references an unsupported source identity, or cannot be reconciled with the consumer repository.
 
@@ -205,6 +208,8 @@ Composition is not a general-purpose text merge engine. Two components must not 
 
 When information from multiple components must be aggregated, each component supplies separate authoritative metadata and one designated component owns the resulting `generated` destination.
 
+Destination comparison is portable rather than native-filesystem-specific. ASCII case variants such as `README.md` and `readme.md` are considered the same destination, and a file path cannot simultaneously be a parent path of another materialized file such as `contracts` and `contracts/mcp.json`. These rules prevent compositions that work on one filesystem but collide on a case-insensitive or ordinary hierarchical consumer filesystem.
+
 This rule avoids order-dependent file patches and makes composition results auditable.
 
 ## Safe paths
@@ -221,7 +226,9 @@ The schema rejects:
 - path segments beginning with `-`; and
 - `.git` administration paths.
 
-The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
+The Windows-drive lookahead is intentionally redundant with the portable character allowlist. Keeping the explicit check documents the cross-platform threat being rejected even if the allowlist is later broadened.
+
+The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. Case-insensitive destination collision checks are additionally enforced by semantic validation. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
 
 ## Determinism
 
@@ -296,7 +303,7 @@ PR1 defines four JSON Schema Draft 2020-12 contracts:
 
 Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
 
-Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, exactly one resolved artifact, lexically ordered/unique resolved component IDs, lexically ordered/unique destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
+Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, generic/artifact dependency boundaries, exactly one resolved artifact, lexically ordered/unique resolved component IDs, portable collision-free destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
 
 ## Explicit PR1 non-goals
 
@@ -309,6 +316,7 @@ PR1 does not:
 - implement file materialization;
 - implement update or conflict handling;
 - generate consumer registries;
+- validate recipe/component closure against a production catalog that does not yet exist;
 - change Site publication catalogs or navigation;
 - adopt composition into consumer repositories; or
 - retire any legacy branch.

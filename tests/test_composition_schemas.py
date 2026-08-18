@@ -32,6 +32,30 @@ def load(path: Path) -> dict:
     return value
 
 
+def normalized_path(path: str) -> tuple[str, ...]:
+    return tuple(part.casefold() for part in path.split("/"))
+
+
+def validate_portable_destinations(destinations: list[str]) -> None:
+    lock_path = normalized_path(LOCK_DESTINATION)
+    normalized = [(destination, normalized_path(destination)) for destination in destinations]
+    for destination, path in normalized:
+        if path == lock_path or path == lock_path[: len(path)]:
+            raise ValueError(
+                f"materialized destination conflicts with reserved lock path: {destination!r}"
+            )
+    for index, (left_text, left) in enumerate(normalized):
+        for right_text, right in normalized[index + 1 :]:
+            if left == right:
+                raise ValueError(
+                    f"materialized destinations collide case-insensitively: {left_text!r}, {right_text!r}"
+                )
+            if left == right[: len(left)] or right == left[: len(right)]:
+                raise ValueError(
+                    f"materialized file/directory destinations conflict: {left_text!r}, {right_text!r}"
+                )
+
+
 def validate_component_semantics(value: dict) -> None:
     component_id = value["id"]
     required = set(value["requires"])
@@ -43,9 +67,18 @@ def validate_component_semantics(value: dict) -> None:
     overlap = required & conflicts
     if overlap:
         raise ValueError(f"required/conflicting component overlap: {sorted(overlap)}")
-    destinations = [item["destination"] for item in value["materials"]]
-    if len(destinations) != len(set(destinations)):
-        raise ValueError("one component must not declare the same destination twice")
+    if value["kind"] != "artifact":
+        artifact_relations = sorted(
+            relation
+            for relation in required | conflicts
+            if relation.startswith("artifact.")
+        )
+        if artifact_relations:
+            raise ValueError(
+                "capability/lifecycle components must not depend on or conflict with artifact components: "
+                f"{artifact_relations}"
+            )
+    validate_portable_destinations([item["destination"] for item in value["materials"]])
 
 
 def validate_recipe_semantics(value: dict) -> None:
@@ -78,12 +111,9 @@ def validate_lock_semantics(value: dict) -> None:
         raise ValueError("lock must resolve exactly one artifact component")
     resolved = set(component_ids)
     destinations = [item["destination"] for item in value["files"]]
-    if len(destinations) != len(set(destinations)):
-        raise ValueError("a materialized destination must have one owner")
     if destinations != sorted(destinations):
         raise ValueError("lock file destinations must be lexically ordered")
-    if LOCK_DESTINATION in destinations:
-        raise ValueError("lock must not include its own reserved destination")
+    validate_portable_destinations(destinations)
     unknown_owners = sorted(
         {item["component"] for item in value["files"] if item["component"] not in resolved}
     )
@@ -122,6 +152,14 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
 
+    def test_generic_component_cannot_reference_artifact_component(self) -> None:
+        for field in ("requires", "conflicts"):
+            value = copy.deepcopy(self.examples["component"])
+            value[field].append("artifact.webapp-core")
+            with self.subTest(field=field):
+                with self.assertRaises(ValueError):
+                    self.assert_schema_valid("component", value)
+
     def test_component_rejects_unsafe_destination(self) -> None:
         for destination in (
             "../outside",
@@ -137,7 +175,15 @@ class CompositionSchemaTests(unittest.TestCase):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises(ValidationError):
+                with self.assertRaises((ValidationError, ValueError)):
+                    self.assert_schema_valid("component", value)
+
+    def test_component_rejects_case_variant_and_parent_of_reserved_lock(self) -> None:
+        for destination in (".Template-Composition/LOCK.json", ".template-composition"):
+            value = copy.deepcopy(self.examples["component"])
+            value["materials"][0]["destination"] = destination
+            with self.subTest(destination=destination):
+                with self.assertRaises(ValueError):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_source(self) -> None:
@@ -160,11 +206,13 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assert_schema_valid("component", value)
 
-    def test_component_rejects_duplicate_destination(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        value["materials"][1]["destination"] = value["materials"][0]["destination"]
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("component", value)
+    def test_component_rejects_portability_destination_collisions(self) -> None:
+        for destination in ("Contracts/interfaces/mcp.md", "contracts"):
+            value = copy.deepcopy(self.examples["component"])
+            value["materials"][1]["destination"] = destination
+            with self.subTest(destination=destination):
+                with self.assertRaises(ValueError):
+                    self.assert_schema_valid("component", value)
 
     def test_copied_material_requires_source(self) -> None:
         value = copy.deepcopy(self.examples["component"])
@@ -202,6 +250,12 @@ class CompositionSchemaTests(unittest.TestCase):
             with self.subTest(field=field):
                 with self.assertRaises(ValidationError):
                     self.assert_schema_valid("config", value)
+
+    def test_lock_requires_nonempty_file_inventory(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["files"] = []
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("lock", value)
 
     def test_lock_requires_canonical_source_repository(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
@@ -257,10 +311,13 @@ class CompositionSchemaTests(unittest.TestCase):
             self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_its_reserved_destination(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"][0]["destination"] = LOCK_DESTINATION
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("lock", value)
+        for destination in (LOCK_DESTINATION, ".Template-Composition/LOCK.json", ".template-composition"):
+            value = copy.deepcopy(self.examples["lock"])
+            value["files"][0]["destination"] = destination
+            value["files"] = sorted(value["files"], key=lambda item: item["destination"])
+            with self.subTest(destination=destination):
+                with self.assertRaises((ValidationError, ValueError)):
+                    self.assert_schema_valid("lock", value)
 
     def test_lock_requires_lexically_ordered_destinations(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
@@ -268,11 +325,21 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assert_schema_valid("lock", value)
 
+    def test_lock_rejects_portability_destination_collisions(self) -> None:
+        for destination in ("Schemas/mcp.schema.json", "schemas"):
+            value = copy.deepcopy(self.examples["lock"])
+            value["files"][1]["destination"] = destination
+            value["files"] = sorted(value["files"], key=lambda item: item["destination"])
+            with self.subTest(destination=destination):
+                with self.assertRaises(ValueError):
+                    self.assert_schema_valid("lock", value)
+
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
         duplicate = copy.deepcopy(value["files"][0])
         duplicate["component"] = "capability.runtime"
         value["files"].append(duplicate)
+        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
         with self.assertRaises(ValueError):
             self.assert_schema_valid("lock", value)
 
