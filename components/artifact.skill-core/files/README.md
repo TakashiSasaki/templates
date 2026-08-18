@@ -31,7 +31,7 @@ When a capability is selected, complete its materialized contract and summarize 
 Run:
 
 ```sh
-python scripts/validate_skill.py .
+python .github/scripts/validate_skill.py .
 ```
 
 The validator checks frontmatter, Skill-profile selection, declared resource paths, capability-file dependency relationships, and—when present—the projection of known composition capabilities from `.template-composition/lock.json`.

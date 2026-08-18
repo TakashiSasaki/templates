@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/catalog.schema.json",
+  "title": "Composition production catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "components", "recipes"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"}
+    },
+    "recipes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"}
+    }
+  }
+}

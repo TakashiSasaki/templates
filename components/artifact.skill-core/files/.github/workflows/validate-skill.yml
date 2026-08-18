@@ -21,4 +21,4 @@ jobs:
           python-version: "3.12.13"
 
       - name: Validate Skill scaffold
-        run: python scripts/validate_skill.py .
+        run: python .github/scripts/validate_skill.py .

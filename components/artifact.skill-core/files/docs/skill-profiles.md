@@ -71,7 +71,7 @@ Do not preserve them for compatibility. Repositories using the composition model
 Run:
 
 ```sh
-python scripts/validate_skill.py .
+python .github/scripts/validate_skill.py .
 ```
 
 The validator checks the four-profile model, declared resources, and capability-file relationships. When a composition lock exists, it also checks the known Skill projection of resolved capabilities.

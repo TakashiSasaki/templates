@@ -31,4 +31,4 @@ Do not recreate removed legacy profile files merely to resemble the old monolith
 
 ## Validation
 
-Run `python scripts/validate_skill.py .` after structural changes. Run capability-specific tests required by every selected interface contract before release.
+Run `python .github/scripts/validate_skill.py .` after structural changes. Run capability-specific tests required by every selected interface contract before release.
