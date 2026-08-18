@@ -1,17 +1,15 @@
 # Composition schemas
 
-These JSON Schema Draft 2020-12 documents define the composition data model.
+The JSON Schema Draft 2020-12 contracts define the composition source and resolved-state model.
 
-- `component.schema.json` — reusable artifact, capability, or lifecycle component descriptors.
+- `component.schema.json` — artifact/capability/lifecycle descriptors, materials, dependencies/conflicts, and optional `contract_registrations` metadata.
 - `recipe.schema.json` — consumer-facing artifact recipes.
 - `composition-config.schema.json` — unresolved consumer intent.
 - `composition-lock.schema.json` — immutable-source-bound resolved state.
 - `catalog.schema.json` — closed production component/recipe inventory.
 
-JSON Schema validates document shape and directly expressible cardinality/identity constraints. Repository tests additionally enforce semantic invariants that span fields or documents, such as disjoint selections, portable destination ownership, lexical ordering, resolved-owner references, catalog closure, dependency existence/cycles, and recipe-to-component references.
+A contract registration names one component-owned contract document/schema, stable migration slug, current document schema version, complete version history, and purpose. Registration metadata is source-time composition input; it is not copied into a consumer as an independent authority. `lifecycle.contract-evolution` deterministically renders the consumer `contracts/manifest.json` from the resolved registration set.
 
-PR1's semantic checks are executable specification for the future composer and consumer validator. A materialized consumer must receive a validator, or an equivalent generated validation contract, that enforces applicable semantic invariants without reading the `composition` source checkout. JSON Schema validation alone is not the complete consumer-validation contract.
+JSON Schema validates document shape. Repository tests additionally enforce cross-document semantics such as safe paths, disjoint selections, dependency closure, portable destination ownership, registration uniqueness/ownership, deterministic generation, resolved-owner references, and materialized validation.
 
-PR2 adds the first production catalog under `../catalog/` and validates real component source inventories and the Skill recipe. It still does not implement general dependency resolution, materialization, update behavior, or a public composer CLI.
-
-Documents under `../examples/` remain schema fixtures rather than production catalog entries.
+The general composer/resolver/update implementation remains separate from these schemas.

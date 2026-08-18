@@ -2,54 +2,51 @@
 
 This orphan branch is the source authority for reusable artifact, capability, and lifecycle components in `TakashiSasaki/templates`.
 
-Consumer repositories are not created by copying a monolithic `template/` directory. The composition model resolves an artifact recipe plus explicit consumer intent into a deterministic component set, materializes that set, writes resolved state, and leaves the consumer repository self-contained.
+Consumer repositories are produced from artifact recipes plus explicit consumer intent. The target composer resolves a deterministic component closure, materializes source and generated files, writes a lock, and leaves the consumer repository self-contained.
 
 ## Migration state
 
-PR1 established the architecture and machine-readable contracts for component descriptors, recipes, consumer intent, resolved locks, file ownership, deterministic composition, and semantic validation boundaries.
+PR1 established the composition data model, safe-path/file-ownership rules, resolved-lock contract, and semantic validation boundaries.
 
-PR2 introduces the first production catalog and migrates Agent Skill application capabilities out of the legacy monolithic `skill/template/` authority.
+PR2 established the first production catalog, migrated Agent Skill semantics into `artifact.skill-core`, and extracted runtime/CLI/MCP/MCP Apps/browser/service behavior into reusable `capability.*` authorities.
 
-The production Skill composition now separates:
+PR3 adds the Web application artifact and reusable lifecycle chain:
 
-- `artifact.skill-core` — Skill trigger/workflow/resource semantics and Skill-specific validation;
-- `capability.runtime` — runtime, commands, dependency, distribution, environment, and deployment authority;
-- `capability.cli` — packaged CLI behavior;
-- `capability.mcp` — MCP protocol and transport behavior;
-- `capability.mcp-apps` — MCP Apps extension behavior;
-- `capability.web-interface` — standalone browser-facing interface behavior; and
-- `capability.service` — independently reachable headless-service behavior.
+- `artifact.webapp-core` — browser surfaces, canonical routes, visible UI states, viewports/input capabilities, and Web-specific coverage validation;
+- `lifecycle.contract-evolution` — generated closed contract registry, schema binding, version histories, and migrations;
+- `lifecycle.implementation-evidence` — artifact-neutral implementation boundaries, proofs, commands, and release gates;
+- `lifecycle.release-evidence` — exact-revision execution provenance/results/decision; and
+- `lifecycle.release-bundle` — deterministic digest-closed release handoff.
 
-`recipes/skill.json` selects `artifact.skill-core` and exposes the six generic application capabilities as optional composition choices. Capability dependencies are resolved independently of Skill semantics.
+The legacy `webapp` source snapshot used by PR3 is `fa269e1310a37ad46f3644ed4f46954a815380ec`. Its browser-domain contract bytes and their current domain version histories are preserved. The legacy branch history is not merged into `composition`.
 
-## Skill profile model
+## Generated contract manifest
 
-The composition-era Skill profile namespace contains only Skill-specific resource patterns:
+`contracts/manifest.json` is no longer a monolithic artifact-owned source file. `component.json` may declare `contract_registrations`; `lifecycle.contract-evolution` is the unique owner of the generated manifest destination. A deterministic composer renders the manifest from the resolved registration set.
 
-- `instruction-only`;
-- `knowledge-augmented`;
-- `asset-driven`;
-- `script-assisted`.
+This avoids giving Webapp ownership of lifecycle registrations and allows the same lifecycle components to be selected by the Skill recipe.
 
-The former `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service` tags are intentionally retired rather than preserved for compatibility. Their responsibilities are composition capabilities.
+## Recipes
 
-`INTERFACES.md` is also retired in the new Skill artifact: preferred agent route and fallback policy belong in `SKILL.md`, while generic interface behavior and semantic-equivalence requirements belong to capability contracts.
+`recipes/skill.json` selects `artifact.skill-core`. Application capabilities and lifecycle components are opt-in.
 
-## Production catalog
+`recipes/webapp.json` selects `artifact.webapp-core`. The artifact requires the complete lifecycle chain transitively through `lifecycle.release-bundle`. Runtime/CLI/MCP/MCP Apps/operational Web exposure/headless service capabilities remain optional; a static/CDN Web application therefore does not acquire an application runtime merely because it is browser-facing.
 
-`catalog/catalog.json` is the closed production inventory. Catalog validation proves that component and recipe paths match that inventory, descriptor sources are closed, dependencies exist and are acyclic, recipe references are valid, and the complete Skill-capability selection has portable single-owner destinations.
+## Authority boundaries
 
-The composer/resolver is not implemented yet. PR2 validates the authoritative source graph and materialized Skill projection without introducing installation/update behavior.
+Artifact semantics and reusable application/lifecycle concerns remain separate. Generic capability/lifecycle descriptors must not depend on artifact authorities. Artifact components may require reusable lifecycle/capability components when those contracts are intrinsic to that artifact recipe.
 
-## Migration boundary
+The production catalog is closed and validated for dependency existence/acyclicity, source inventory, registration ownership, deterministic generated manifest input, portable destination ownership, and materialized Skill/Webapp validation.
 
-The legacy `skill` and `webapp` branches remain untouched during this PR. PR2 records the Skill source snapshot it was derived from, but does not connect branch histories.
+## Deferred work
 
-Webapp artifact semantics and reusable lifecycle contracts remain for the next migration stage. Composer implementation, publication, Site integration, and final legacy-authority retirement are later independently reviewable changes.
+The general resolver/composer, production lock generation, apply/update behavior, publication catalog cutover, Site integration, and retirement of the legacy `skill` / `webapp` source authorities remain later independently reviewable work.
 
 See:
 
 - [`docs/architecture/composition-model.md`](docs/architecture/composition-model.md)
 - [`docs/architecture/catalog.md`](docs/architecture/catalog.md)
+- [`docs/architecture/generated-contract-manifest.md`](docs/architecture/generated-contract-manifest.md)
 - [`docs/migrations/pr2-skill-capabilities.md`](docs/migrations/pr2-skill-capabilities.md)
+- [`docs/migrations/pr3-webapp-lifecycle.md`](docs/migrations/pr3-webapp-lifecycle.md)
 - [`catalog/README.md`](catalog/README.md)
