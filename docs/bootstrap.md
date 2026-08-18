@@ -24,7 +24,7 @@ The distribution uses three distinct revision roles:
 
 `release/skill-installer.json` publishes the installer/skill-source pair. Neither the command nor the remote installer executes the mutable `policy` branch, a tag, or a short SHA.
 
-A reviewed checkout can also install the same skill:
+A reviewed checkout can also install the skill tree from that checkout:
 
 ```bash
 python skills/agent-policy/scripts/install.py \
@@ -32,6 +32,8 @@ python skills/agent-policy/scripts/install.py \
 ```
 
 Use `--replace` only when replacing an existing skill with the same identity. The local installer refuses a symlink target, an overlapping source/destination, or replacement of a directory whose `SKILL.md` does not identify `agent-policy`.
+
+The local-checkout path is intended for repository development and review. It is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision in `release/skill-installer.json`. Use the published remote installer when reproducing the published distribution is required.
 
 ## Skill contents
 
@@ -49,6 +51,8 @@ skills/agent-policy/
 ```
 
 `runtime.py` selects the immutable toolchain, constructs or reuses the persistent runtime cache, and verifies the installed distribution set. `bootstrap.py` handles unmanaged adoption. `run.py` handles managed operation using `.agent-policy.lock`.
+
+The normal consumer entry points are these installed `scripts/bootstrap.py` and `scripts/run.py` wrappers. Direct `agent-policy ...` commands documented in the CLI and adoption reference describe the canonical toolchain CLI. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
 
 ## Repository inspection and dry run
 
@@ -83,7 +87,9 @@ The pinned toolchain may use `agent-policy init` internally as a fresh-adoption 
 
 ## Prepare migration adoption of existing instructions
 
-When inspection finds multiple supported instruction files, choose one authoritative primary source:
+When inspection finds exactly one supported instruction file, bootstrap selects it automatically. When it finds multiple supported instruction files, choose one authoritative primary source explicitly. If no supported instruction files are discovered, create a supported `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` first; policy or skill assets alone cannot be selected as primary instructions.
+
+When an explicit primary is required:
 
 ```bash
 python scripts/bootstrap.py \
@@ -99,6 +105,8 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md \
   --apply
 ```
+
+Omit `--primary-instructions` when inspection selected the only supported instruction file automatically.
 
 Application runs migration preparation and then `adopt preview`. The existing primary instructions are not replaced.
 

@@ -10,6 +10,8 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 `--repository` と `--format` はサブコマンドより前に指定します。`--repository` を省略すると、現在位置からGitリポジトリルートを探索します。
 
+これらのexampleはcanonical toolchain CLIを直接説明します。`agent-policy` skillをinstallした通常のconsumer workflowでは、unmanaged repositoryに対してinstalled skill directoryから `python scripts/bootstrap.py ...` を、managed operationには `python scripts/run.py ...` を使用します。skillのinstallだけで `agent-policy` executableがglobalな `PATH` にinstallされるわけではありません。
+
 ## オンボーディングモデル
 
 初回導入には常に `adopt` を使用します。`adopt inspect` が未管理リポジトリを分類し、`adopt prepare` がその状態から安全な内部strategyを選択します。

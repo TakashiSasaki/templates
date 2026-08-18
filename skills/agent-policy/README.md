@@ -37,28 +37,26 @@ For a repository pin different from the skill default, an already validated cach
 
 ## Immutable remote installation
 
-Install from the published immutable bootstrap script:
+Remote installation is supported through a separately published immutable installer. The exact installer command and the current installer-script and skill-source full SHAs are publication metadata, so they are deliberately not embedded in this installed README.
 
-```text
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ebadaf67234ddfbe372ef9f5b52ead2522621307/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
-```
+In the source repository, use the current repository-level installation documentation (`README.md`, `docs/getting-started.md`, or `docs/bootstrap.md`) together with `release/skill-installer.json` to identify the published installer. A published command must execute `scripts/install_agent_policy_skill.py` from the descriptor's full immutable installer revision, never from `policy`, a tag, a short SHA, or another mutable reference.
 
-Append `--replace` to replace an existing installation after the local installer confirms that the destination is already an `agent-policy` skill.
+The remote bootstrap downloads only the exact full-SHA archive selected by the published installer, extracts only `skills/agent-policy/`, rejects unsafe archive members, and delegates final target replacement to this directory's `scripts/install.py`.
 
 The distribution deliberately separates three revision roles:
 
-- **installer script revision** `ebadaf67234ddfbe372ef9f5b52ead2522621307` is the full SHA in the raw GitHub URL above;
-- **skill source revision** `e4a0ae84bdf6c68020747d13e1fcaee9865d9c72` is embedded by that installer and identifies this skill tree; and
+- the **installer script revision** identifies the remotely executed installer and is published outside this installed skill tree;
+- the **skill source revision** is embedded by that installer and identifies the downloaded skill tree; and
 - the **stable runtime revision** is the independent full SHA in `runtime-manifest.json` used to execute the canonical CLI.
-
-`release/skill-installer.json` publishes the installer and skill-source pair. The remote bootstrap downloads only the exact full-SHA archive, extracts only `skills/agent-policy/`, rejects unsafe archive members, and delegates final target replacement to this directory's `scripts/install.py`.
 
 ## Installation during repository development
 
-A reviewed checkout remains valid:
+A reviewed checkout can install the skill tree from that checkout:
 
 ```text
 python skills/agent-policy/scripts/install.py /path/to/agent-skills/agent-policy
 ```
 
 Use `--replace` only when the existing destination is already an `agent-policy` skill installation.
+
+This local-checkout path is intended for repository development and review. It installs the checkout's current `skills/agent-policy/` subtree and therefore is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision recorded by the publication descriptor.

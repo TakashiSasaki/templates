@@ -125,12 +125,30 @@ def select_primary_instructions(
     if len(available) == 1:
         return available[0]
     if apply:
-        detail = ", ".join(available) if available else "none"
+        if not available:
+            raise ValueError(
+                "Migration adoption requires a supported primary instruction file; "
+                "create one supported instruction file before applying"
+            )
+        detail = ", ".join(available)
         raise ValueError(
-            "Adoption requires --primary-instructions when discovery is ambiguous; "
-            f"available: {detail}"
+            "Migration adoption requires --primary-instructions when multiple "
+            f"supported instruction files are discovered; available: {detail}"
         )
     return None
+
+
+def primary_selection_guidance(available: tuple[str, ...]) -> str:
+    if not available:
+        supported = ", ".join(KNOWN_INSTRUCTION_FILES)
+        return (
+            "No supported primary instruction file was discovered. "
+            f"Create one supported instruction file ({supported}), then re-run bootstrap."
+        )
+    return (
+        "Multiple supported primary instruction files were discovered. "
+        "Re-run with --primary-instructions <path> after review."
+    )
 
 
 def action_arguments(
@@ -252,11 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if strategy == "migration" and primary_instructions is None:
             available = available_primary_instructions(inspection)
+            print(primary_selection_guidance(available))
             detail = ", ".join(available) if available else "none"
-            print(
-                "No unique primary instruction was selected. "
-                "Re-run with --primary-instructions after review."
-            )
             print(f"Available primary instructions: {detail}")
             return 0
         if primary_instructions is not None:

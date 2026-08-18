@@ -26,7 +26,7 @@ python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githu
 
 `release/skill-installer.json` は最初の2つのidentityを公開します。commandもremote installerもmutableな `policy` branch、tag、短縮SHAを実行しません。
 
-レビュー済みcheckoutから直接installする方法も利用できます。
+レビュー済みcheckoutから、そのcheckoutのskill treeを直接installする方法も利用できます。
 
 ```bash
 python skills/agent-policy/scripts/install.py \
@@ -34,6 +34,8 @@ python skills/agent-policy/scripts/install.py \
 ```
 
 `--replace` は同じidentityの既存skillを置き換える場合だけ使用します。local installerはsymlink target、source/destinationの重複、`SKILL.md` が `agent-policy` を示さないdirectoryの置換を拒否します。
+
+local-checkout経路はrepository developmentとreview用です。そのcheckoutが `release/skill-installer.json` のskill-source revisionと一致しない限り、現在公開されているremote distributionとbyte-for-byteで同一とは限りません。公開distributionを再現する必要がある場合は公開済みremote installerを使用します。
 
 ## Skillの内容
 
@@ -52,7 +54,11 @@ skills/agent-policy/
 
 `runtime.py` はimmutable toolchainの選択、persistent runtime cacheの構築・再利用、installed distribution setの検証を担当します。`bootstrap.py` は未導入repositoryを扱い、`run.py` は `.agent-policy.lock` に基づくmanaged operationを扱います。
 
+通常のconsumer entry pointはinstalled `scripts/bootstrap.py` と `scripts/run.py` です。CLIおよびadoption reference中の直接 `agent-policy ...` commandはcanonical toolchain CLIを説明するものです。skillのinstallだけで `agent-policy` executableがglobalな `PATH` にinstallされるわけではありません。
+
 ## Repository inspectionとdry-run
+
+installed skill directoryから実行します。
 
 ```bash
 python scripts/bootstrap.py --repository /path/to/product
@@ -83,7 +89,9 @@ pinned toolchainは `agent-policy init` をfresh-adoption用の内部primitive�
 
 ## 既存指示をmigration adoptionする
 
-複数の対応instruction fileが見つかった場合はprimary sourceを指定します。
+inspectionで対応instruction fileが1件だけ見つかった場合はbootstrapが自動選択します。複数見つかった場合はauthoritativeなprimary sourceを明示的に選択します。1件も見つからない場合は、まず対応する `AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、または `.github/copilot-instructions.md` を作成してください。policyやskill assetだけをprimary instructionとして選択することはできません。
+
+primaryの明示指定が必要な場合:
 
 ```bash
 python scripts/bootstrap.py \
@@ -99,6 +107,8 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md \
   --apply
 ```
+
+inspectionで対応instruction fileが1件だけ見つかり自動選択された場合は `--primary-instructions` を省略します。
 
 migration preparation後に `adopt preview` を実行し、既存primary instructionは置き換えません。
 

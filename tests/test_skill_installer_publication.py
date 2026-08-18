@@ -16,6 +16,7 @@ README = ROOT / "README.md"
 SKILL_README = ROOT / "skills/agent-policy/README.md"
 BOOTSTRAP_DOC = ROOT / "docs/bootstrap.md"
 GETTING_STARTED = ROOT / "docs/getting-started.md"
+RELEASE_TRUST = ROOT / "repository-policy/release-trust.md"
 INSTALLER_REVISION = "ebadaf67234ddfbe372ef9f5b52ead2522621307"
 SKILL_REVISION = "e4a0ae84bdf6c68020747d13e1fcaee9865d9c72"
 RAW_INSTALLER_URL = (
@@ -70,8 +71,8 @@ def test_installer_release_verifier_matches_pinned_history() -> None:
     assert verifier.verify() == (INSTALLER_REVISION, SKILL_REVISION)
 
 
-def test_user_facing_docs_publish_only_the_full_sha_installer_url() -> None:
-    documents = (README, SKILL_README, BOOTSTRAP_DOC, GETTING_STARTED)
+def test_publication_docs_publish_only_the_full_sha_installer_url() -> None:
+    documents = (README, BOOTSTRAP_DOC, GETTING_STARTED)
     for path in documents:
         content = path.read_text(encoding="utf-8")
         assert RAW_INSTALLER_URL in content, path
@@ -80,7 +81,31 @@ def test_user_facing_docs_publish_only_the_full_sha_installer_url() -> None:
         assert "scripts/install_agent_policy_skill.py', timeout=30" in content
 
 
+def test_release_policy_defines_installed_readme_boundary() -> None:
+    content = RELEASE_TRUST.read_text(encoding="utf-8")
+    assert "installer-publication surface" in content
+    assert "distributed consumer artifact, not an installer-publication authority" in content
+    assert "must not embed a specific installer-script revision or skill-source revision" in content
+
+
+def test_installed_skill_readme_is_publication_independent() -> None:
+    # The installed README is a distributed consumer artifact rather than the
+    # installer-publication surface, so publication SHAs belong elsewhere.
+    content = SKILL_README.read_text(encoding="utf-8")
+    assert "## Immutable remote installation" in content
+    assert "Remote installation is supported" in content
+    assert "release/skill-installer.json" in content
+    assert "raw.githubusercontent.com" not in content
+    assert INSTALLER_REVISION not in content
+    assert SKILL_REVISION not in content
+    # Guard against the historical placeholder that treated remote installation
+    # as future follow-up work instead of a supported publication path.
+    assert "follow-up installer work" not in content.lower()
+
+
 def test_docs_distinguish_installer_skill_and_runtime_revisions() -> None:
+    # SKILL_README intentionally carries the role names but not publication SHAs;
+    # repository-level publication docs carry the currently published identities.
     combined = "\n".join(
         path.read_text(encoding="utf-8")
         for path in (README, SKILL_README, BOOTSTRAP_DOC, GETTING_STARTED)
