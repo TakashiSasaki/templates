@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "capability.mcp",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Caller-visible Model Context Protocol capability.",
+  "requires": [
+    "capability.runtime"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "contracts/MCP_INTERFACE.md",
+      "destination": "contracts/interfaces/mcp.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "schemas/mcp.schema.json",
+      "destination": "schemas/mcp.schema.json",
+      "ownership": "managed"
+    }
+  ]
+}

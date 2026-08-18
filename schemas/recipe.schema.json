@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/recipe.schema.json",
+  "title": "Composition recipe",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "summary",
+    "artifact",
+    "required_components",
+    "default_components",
+    "optional_components"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact": {
+      "type": "string",
+      "pattern": "^artifact\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "required_components": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      }
+    },
+    "default_components": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      }
+    },
+    "optional_components": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      }
+    }
+  }
+}
