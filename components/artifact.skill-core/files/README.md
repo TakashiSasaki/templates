@@ -20,6 +20,8 @@ Skill-specific profiles are deliberately small:
 
 The old `packaged-cli`, `mcp-enabled`, `browser-interface`, and `headless-service` profile tags are not part of the new Skill profile model. Their responsibilities live in composition capabilities.
 
+The uncustomized seed uses `Selected profiles: template-scaffold` as a scaffold sentinel. It is **not** a fifth concrete Skill profile. Replace it before the repository becomes an operational Skill; concrete Skills may use only the four profiles above.
+
 ## Public interfaces
 
 When a capability is selected, complete its materialized contract and summarize the preferred agent route/fallback in `SKILL.md`.

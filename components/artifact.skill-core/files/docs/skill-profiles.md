@@ -8,6 +8,16 @@ Start with `SKILL.md`. Add only the resource structures the workflow demonstrabl
 
 Every concrete Skill uses exactly one `Selected profiles:` line. `instruction-only` is exclusive; the other profiles may be combined.
 
+## Scaffold sentinel
+
+The uncustomized seed is materialized with:
+
+```text
+Selected profiles: template-scaffold
+```
+
+`template-scaffold` is not a concrete Skill profile and is valid only while the repository remains the untouched scaffold. Replace it before adding operational resources or treating the repository as an operational Skill. Concrete Skills may select only the four profiles defined below.
+
 ## Profile 0: instruction-only
 
 Typical semantic content:
