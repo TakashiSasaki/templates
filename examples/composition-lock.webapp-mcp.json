@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source": {
     "repository": "TakashiSasaki/templates",
-    "revision": "0000000000000000000000000000000000000000"
+    "revision": "0123456789abcdef0123456789abcdef01234567"
   },
   "recipe": "webapp",
   "configuration_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
@@ -13,14 +13,14 @@
       "descriptor_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
     },
     {
-      "id": "capability.runtime",
-      "version": 1,
-      "descriptor_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
-    },
-    {
       "id": "capability.mcp",
       "version": 1,
       "descriptor_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "id": "capability.runtime",
+      "version": 1,
+      "descriptor_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
     },
     {
       "id": "lifecycle.contract-evolution",

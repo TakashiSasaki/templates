@@ -9,6 +9,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
+LOCK_DESTINATION = ".template-composition/lock.json"
 SCHEMAS = {
     "component": ROOT / "schemas" / "component.schema.json",
     "recipe": ROOT / "schemas" / "recipe.schema.json",
@@ -70,10 +71,14 @@ def validate_lock_semantics(value: dict) -> None:
     component_ids = [item["id"] for item in value["resolved_components"]]
     if len(component_ids) != len(set(component_ids)):
         raise ValueError("lock resolved component IDs must be unique")
+    if component_ids != sorted(component_ids):
+        raise ValueError("lock resolved component IDs must be lexically ordered")
     resolved = set(component_ids)
     destinations = [item["destination"] for item in value["files"]]
     if len(destinations) != len(set(destinations)):
         raise ValueError("a materialized destination must have one owner")
+    if LOCK_DESTINATION in destinations:
+        raise ValueError("lock must not include its own reserved destination")
     unknown_owners = sorted(
         {item["component"] for item in value["files"] if item["component"] not in resolved}
     )
@@ -113,10 +118,28 @@ class CompositionSchemaTests(unittest.TestCase):
             self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_destination(self) -> None:
-        for destination in ("../outside", "/absolute", "C:/windows", "a/../b", ".git/config"):
+        for destination in (
+            "../outside",
+            "/absolute",
+            "C:/windows",
+            "a/../b",
+            ".git/config",
+            "contracts/",
+            "-option/file",
+            "contracts/-option",
+            LOCK_DESTINATION,
+        ):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
+                with self.assertRaises(ValidationError):
+                    self.assert_schema_valid("component", value)
+
+    def test_component_rejects_unsafe_source(self) -> None:
+        for source in ("../outside", "/absolute", "C:/windows", "a/../b", ".git/config", "contracts/", "-option/file"):
+            value = copy.deepcopy(self.examples["component"])
+            value["materials"][0]["source"] = source
+            with self.subTest(source=source):
                 with self.assertRaises(ValidationError):
                     self.assert_schema_valid("component", value)
 
@@ -188,6 +211,27 @@ class CompositionSchemaTests(unittest.TestCase):
             with self.subTest(revision=revision):
                 with self.assertRaises(ValidationError):
                     self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["resolved_components"].append(copy.deepcopy(value["resolved_components"][0]))
+        with self.assertRaises(ValueError):
+            self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_lexically_ordered_components(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["resolved_components"][0], value["resolved_components"][1] = (
+            value["resolved_components"][1],
+            value["resolved_components"][0],
+        )
+        with self.assertRaises(ValueError):
+            self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_its_reserved_destination(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["files"][0]["destination"] = LOCK_DESTINATION
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
         value = copy.deepcopy(self.examples["lock"])

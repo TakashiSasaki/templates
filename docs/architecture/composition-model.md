@@ -142,6 +142,8 @@ The include and exclude sets must be disjoint.
 
 The configuration does not enumerate the final dependency closure and cannot replace the recipe's artifact component. Dependency closure belongs to the lock.
 
+A parameter key names the component whose parameter namespace it targets. Schema validation checks the component-ID shape only; the future resolver must reject parameters for components that are not present in the resolved selection.
+
 PR1 defines the data model but does not commit to a particular YAML or JSON CLI serialization. JSON examples are used because JSON is directly schema-validatable and can represent the same data model.
 
 Schema version 1 models one artifact recipe materialized at the consumer repository root. Nested multiple artifact instances may be added later, but PR1 does not encode that future feature.
@@ -156,14 +158,14 @@ It binds the result to:
 - a lowercase full 40-hex Git commit revision;
 - the selected recipe;
 - the SHA-256 of the exact validated consumer-configuration file bytes;
-- the resolved ordered component set, including exact component versions and descriptor-byte digests; and
+- the resolved component set, serialized in ascending lexical order by component ID and including exact component versions and descriptor-byte digests; and
 - the materialized file inventory, ownership modes, and materialized byte digests.
 
 The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
 
 A lock contains no generation timestamp or other intentionally nondeterministic field.
 
-The lock itself is generated state and is excluded from its own file-digest inventory.
+The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination.
 
 A future composer must fail closed when the lock is malformed, references an unsupported source identity, or cannot be reconciled with the consumer repository.
 
@@ -214,8 +216,9 @@ The schema rejects:
 - absolute paths;
 - Windows drive-prefixed paths;
 - `.` and `..` path segments;
-- repeated separators;
-- backslashes; and
+- repeated or trailing separators;
+- backslashes;
+- path segments beginning with `-`; and
 - `.git` administration paths.
 
 The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
@@ -293,7 +296,7 @@ PR1 defines four JSON Schema Draft 2020-12 contracts:
 
 Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
 
-Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, unique destination ownership, and lock references to resolved component owners.
+Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, unique destination ownership, lexically ordered/unique resolved component IDs, reserved lock-path exclusion, and lock references to resolved component owners.
 
 ## Explicit PR1 non-goals
 
