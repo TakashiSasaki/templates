@@ -271,6 +271,23 @@ class CompositionSchemaTests(unittest.TestCase):
                 with self.assertRaises(ValidationError):
                     self.assert_schema_valid("lock", value)
 
+    def test_lock_requires_lowercase_full_sha256_fields(self) -> None:
+        mutations = (
+            ("configuration_sha256", None),
+            ("descriptor_sha256", "resolved_components"),
+            ("materialized_sha256", "files"),
+        )
+        for field, container in mutations:
+            for invalid in ("a" * 63, "A" * 64):
+                value = copy.deepcopy(self.examples["lock"])
+                if container is None:
+                    value[field] = invalid
+                else:
+                    value[container][0][field] = invalid
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaises(ValidationError):
+                        self.assert_schema_valid("lock", value)
+
     def test_lock_requires_exactly_one_artifact_component(self) -> None:
         without_artifact = copy.deepcopy(self.examples["lock"])
         without_artifact["resolved_components"] = [
@@ -278,7 +295,7 @@ class CompositionSchemaTests(unittest.TestCase):
             for item in without_artifact["resolved_components"]
             if not item["id"].startswith("artifact.")
         ]
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValidationError, ValueError)):
             self.assert_schema_valid("lock", without_artifact)
 
         with_two_artifacts = copy.deepcopy(self.examples["lock"])
@@ -292,13 +309,13 @@ class CompositionSchemaTests(unittest.TestCase):
         with_two_artifacts["resolved_components"] = sorted(
             with_two_artifacts["resolved_components"], key=lambda item: item["id"]
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValidationError, ValueError)):
             self.assert_schema_valid("lock", with_two_artifacts)
 
     def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
         value["resolved_components"].append(copy.deepcopy(value["resolved_components"][0]))
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValidationError, ValueError)):
             self.assert_schema_valid("lock", value)
 
     def test_lock_requires_lexically_ordered_components(self) -> None:

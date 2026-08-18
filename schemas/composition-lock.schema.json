@@ -44,6 +44,21 @@
     "resolved_components": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
+      "contains": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^artifact\\."
+          }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -71,6 +86,7 @@
     "files": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
