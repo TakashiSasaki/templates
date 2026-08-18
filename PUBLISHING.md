@@ -1,491 +1,206 @@
 # Integrated publication policy
 
-This policy applies to the unrelated `site`, `skill`, `policy`, and `webapp`
-branch histories in `TakashiSasaki/templates`.
+This policy applies to the `site`, `composition`, and `policy` authorities in
+`TakashiSasaki/templates`.
 
 ## Objective
 
-The `site` branch publishes one human-readable GitHub Pages portal that includes
-reviewed documentation from the `skill`, `policy`, and `webapp` branches without
-combining their Git histories or transferring ownership of their canonical
-content. The same Pages artifact may also expose a bounded source-oriented file
-browser for the exact build inputs, a bounded index-guided navigation surface
-that projects provider-owned `index.md` structure under the rules below, and an
-integrated terminology surface backed by provider-owned canonical glossaries.
+The `site` branch publishes one human-readable GitHub Pages portal from exact
+reviewed revisions of two external Provider branches:
+
+- `composition` — canonical Agent Skill and Web application artifact semantics,
+  reusable application capabilities, lifecycle contracts, recipes, schemas, and
+  composer documentation;
+- `policy` — canonical coding-agent operating policy and the agent-policy
+  toolchain.
+
+`site` owns integration and deployment. It is not an external Provider branch.
+The portal may group Composition material under reader-oriented paths such as
+`/skill/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`; those paths do not
+create separate source ownership.
 
 The publication system must be explicit, reproducible, reviewable, and safe
 against accidental branch-wide disclosure.
 
 ## Responsibilities
 
-Provider branches (`skill`, `policy`, and `webapp`) own:
+Provider branches (`composition` and `policy`) own:
 
 - canonical documentation and supporting public assets;
 - `docs/publication-catalog.json`, which defines the provider's public boundary;
 - `docs/glossary.yml` when the provider owns canonical terminology;
 - stable document IDs and canonical source paths;
-- stable glossary term IDs and repository-owned definitions for concepts whose
-  semantic owner is that provider;
-- whether a cataloged document or asset is required or optional;
-- one required publication home document;
-- provider-owned `index.md` files and the semantic navigation paths expressed by
-  their headings, link order, link labels, link destinations, and short
-  descriptions;
-- provider-local validation of catalog and documentation changes.
+- stable glossary term IDs and repository-owned definitions;
+- provider-owned `index.md` navigation semantics; and
+- provider-local validation of public-boundary changes.
 
 The `site` branch owns:
 
-- the global portal home and reader-oriented information architecture;
-- cross-publication titles, hierarchy, ordering, and generated destinations for
-  cataloged documentation;
+- portal home and reader-facing information architecture;
+- cross-provider titles, grouping, ordering, and generated destinations;
 - reviewed full-SHA source locks in `publication-sources.json`;
 - integrated assembly and strict static-site generation;
-- deterministic glossary integration, the schema-versioned `/glossary/index.json`
-  read model, and the non-authoritative human projection at `/glossary/`;
-- generated repository inventories and bounded inline file previews;
-- the bounded static file-browser snapshots for `site`, `skill`, `policy`, and
-  `webapp` build inputs;
-- the deterministic index-navigation graph and human-readable projection of the
-  exact reviewed `skill`, `policy`, and `webapp` provider inputs without
-  redefining their provider-owned navigation semantics;
-- generated link, fragment, asset, canonical-URL, and provenance validation;
+- integrated glossary generation;
+- repository trees, bounded inline previews, and the static source browser for
+  exact build inputs;
+- deterministic index-guided navigation for Composition and Policy;
+- generated link, fragment, asset, canonical-URL, and provenance validation; and
 - the sole repository workflow authorized to deploy GitHub Pages.
 
-A document is globally identified by the pair `publication:document`, for
-example `policy:overview` or `webapp:implementation-evidence`. Glossary concepts
-use their own stable global term IDs as defined by `GLOSSARY.md`.
+A document is globally identified by `publication:document`, for example
+`composition:skill-contract`, `composition:contract-evolution`, or
+`policy:overview`.
 
 ## Public boundary
 
-Publication catalogs are explicit allowlists for rendered documentation,
-supporting publication assets, and declared canonical glossary input. The
-assembler must not infer that a file is a published document, asset, or glossary
-source from its directory, extension, Git tracking status, or presence in a
-provider branch.
+Publication catalogs are explicit allowlists. The assembler must not infer that
+a file is public from its directory, extension, Git tracking status, or presence
+in a provider branch.
 
 The following rules apply:
 
 1. Only Markdown entries in a provider publication catalog are rendered as
    documentation pages.
-2. Only non-Markdown assets declared by the applicable catalog schema are copied
-   as provider publication assets.
-3. A provider glossary participates in integrated terminology only when a schema
-   version 3 publication catalog explicitly declares its `glossary.source`.
+2. Only non-Markdown assets explicitly declared by the applicable catalog are
+   copied as provider assets.
+3. A provider glossary participates only when a schema-version-3 catalog declares
+   `glossary.source`.
 4. Tests, workflows, scripts, generated output, working notes, and newly added
    files do not become cataloged documentation merely because they are tracked.
 5. Branch-wide copies and unrestricted glob-based publication are prohibited for
-   cataloged documentation and provider assets. The separate repository inventory,
-   inline-preview, static file-browser, index-guided navigation, and glossary
-   surfaces may expose only the bounded representations explicitly permitted
-   below and by `GLOSSARY.md`.
-6. Machine-readable contracts and schemas may be published as supporting
-   assets, but the navigation should lead readers through explanatory Markdown.
-7. Catalog paths, glossary paths, and asset traversal must reject parent
-   traversal, unsafe path forms, `.git` components, and symbolic-link traversal.
-8. Repository inventory previews, static file-browser pages, index-guided
-   navigation pages, and glossary projections are separate bounded rendering
-   surfaces and must satisfy every applicable constraint in the following
-   sections and in `GLOSSARY.md`.
+   cataloged documentation and provider assets.
+6. Machine-readable contracts, descriptors, recipes, and schemas may be
+   published as explicit supporting assets, while navigation should prioritize
+   explanatory Markdown.
+7. Catalog paths, glossary paths, and asset traversal must reject unsafe paths,
+   parent traversal, `.git` components, and symbolic-link traversal.
 
-Adding a file to a provider branch does not publish it as a cataloged document or
-provider asset and does not make it glossary authority. Adding or changing a
-catalog entry is a public-interface change and requires review as such. Adding a
-term to an already declared provider glossary is a terminology-contract change,
-not a publication-catalog schema change. A tracked regular file can nevertheless
-become visible in the separate file-browser snapshot when it satisfies the
-bounded browser rules below; this does not make it a cataloged document or asset.
-Likewise, a path referenced by a provider-owned `index.md` may be represented as
-navigation metadata or linked to the file browser without becoming a cataloged
-documentation page.
+Adding a file to a provider branch does not publish it. Adding or changing a
+catalog entry is a public-interface change and requires review.
+
+## Composition publication boundary
+
+`composition` is one provider even though it contains several semantic classes:
+
+- `artifact.skill-core` and `artifact.webapp-core` remain distinct artifact
+  identities;
+- `capability.*` components are reusable application capabilities;
+- `lifecycle.*` components are reusable lifecycle contracts.
+
+The Site must not reconstruct `skill` and `webapp` as independent canonical
+providers. Reader grouping may distinguish them, but provenance must resolve to
+one exact Composition revision.
+
+Consumer-generated `contracts/manifest.json` is not a source publication file.
+The Composition provider publishes the descriptors, contract registrations, and
+schemas from which the composer deterministically generates it.
 
 ## Glossary publication
 
-`GLOSSARY.md` is the normative glossary contract. Provider-owned
-`docs/glossary.yml` files are canonical semantic inputs, while `site` integrates
-them from the exact reviewed provider revisions used by the rest of the build.
+`GLOSSARY.md` is the Site glossary contract. Provider-owned
+`docs/glossary.yml` files are canonical semantic inputs integrated from the exact
+reviewed revisions used by the rest of the build.
 
-The integrated glossary must satisfy all of the following rules:
+The integrated glossary must:
 
-- English remains the canonical terminology and explanatory language;
-- localized labels such as Japanese preferred terms and aliases are lexical
-  discovery metadata, not independent definitions;
-- repository-defined concepts use globally unique stable `templates-*` term IDs
-  and have one canonical provider owner;
-- externally defined concepts use `external-*` IDs and retain explicit external
-  authority metadata;
-- duplicate IDs, unresolved related-term references, invalid origin-specific
-  fields, unsafe source paths, malformed authority URLs, and invalid localized
-  labels fail the build closed;
-- every integrated entry records its provider, canonical glossary source path,
-  and exact full-SHA source revision;
-- `/glossary/index.json` is the deterministic schema-versioned machine-readable
-  read model;
-- `/glossary/` is a generated human-readable projection of that same model and
-  must not redefine or translate glossary semantics independently.
+- preserve globally unique stable term IDs;
+- record provider, source path, and exact source revision for every term;
+- reject duplicate IDs and unresolved related-term references;
+- preserve external authority metadata for `external-*` concepts; and
+- permit cross-provider relations such as Composition-owned
+  `templates-skill-profile` relating to Policy-owned `templates-policy-profile`.
 
-The initial terminology is a seed rather than a closed vocabulary. Adding a
-valid term to a declared provider glossary must not require editing a Site-side
-allowlist of every term ID. Integration tests may pin representative concepts
-and semantic invariants, but they must permit additional valid terms.
+The Composition glossary is intentionally encoded as strict JSON syntax in a
+`.yml` file. JSON is a YAML 1.2 subset; the actual Site PyYAML integration path
+must parse and validate those exact bytes during CI.
 
-## Repository inventory
+## Source locking and provenance
 
-The integrated site may publish a generated directory-tree inventory for the
-reviewed `skill`, `policy`, and `webapp` checkouts. This inventory is metadata
-about the Git tree and is separate from the publication catalog boundary.
+`publication-sources.json` contains exactly `composition` and `policy`. Each
+locked revision must be a lowercase full 40-character commit SHA.
 
-A path appearing in the inventory does not make the file part of the Pages
-publication as a cataloged document or provider asset. The tree generator must
-not copy unlisted file contents; the separate inline-preview and file-browser
-generators may emit only the bounded escaped representations defined below.
+The reusable build workflow may accept explicit reviewed overrides, but absence
+of an override resolves to the lock. It must never fall back from a missing
+provider output to the pull-request merge ref or another mutable branch.
 
-The inventory may provide:
+Every Pages artifact contains `/build-provenance.json` recording:
 
-- a human-readable, collapsible view of every tracked path;
-- immutable GitHub links using the full checked-out commit SHA;
-- Pages links for Markdown files that are already cataloged and navigable;
-- entry-type labels for symlinks and gitlinks;
-- a sandboxed inline frame for eligible regular text files.
+- the built `site` commit;
+- the exact Composition commit; and
+- the exact Policy commit.
 
-The inventory must be generated from Git tree metadata rather than an
-unrestricted filesystem walk. Untracked files and `.git` administration data
-must not appear. The generators must not follow symlinks or gitlinks. Mutable
-branch names must not be used in generated file links.
+The provenance record identifies inputs; it is not a cryptographic attestation.
 
-### Inline previews
+## Repository views
 
-Inline preview generation has a narrower mandatory boundary:
+Repository trees and inline previews cover the exact Composition and Policy
+provider revisions. The source browser covers `site`, `composition`, and
+`policy`. These are bounded build-time views, not cataloged-document ownership.
 
-- content is read from the exact Git blob objects named by `git ls-tree`, never
-  from mutable working-tree paths;
-- only regular files that decode as strict UTF-8 text are eligible;
-- NUL bytes, invalid UTF-8, disallowed control characters, binary files,
-  symlinks, and gitlinks are excluded;
-- each preview source is limited to 256 KiB;
-- candidate and aggregate preview byte budgets are enforced before publication;
-- repository markup is HTML-escaped and shown as text rather than rendered as
-  active repository HTML;
-- generated preview pages declare a restrictive content security policy and are
-  loaded through an iframe with the `sandbox` attribute and no permissions;
-- preview URLs include the provider publication and exact checked-out revision;
-- the immutable GitHub source link remains available as the fallback and source
-  of record.
+Symlinks and gitlinks are never followed. Text preview surfaces remain bounded by
+size/encoding/safety rules and immutable source links remain available.
 
-Repository-tree pages and preview HTML are generated into the temporary assembled
-project before the strict static-site build. Temporary catalog and navigation
-declarations must be validated by the same assembler that validates canonical
-documentation. Generated Markdown, preview HTML, and final site HTML remain build
-artifacts and must not be committed.
+The former Skill/Webapp copyable-template trees are retired. Source inspection
+must present the Composition source tree rather than regenerate the abandoned
+monolithic `template/` distribution model.
 
-### Static file browser
+## Index-guided navigation
 
-The static file browser is a source-oriented rendering surface at `/files/`. It
-covers the exact checkout used for the `site` implementation and the exact
-`skill`, `policy`, and `webapp` provider checkouts used by the same build. The
-human branch labels are navigation labels only; each browser page must display
-and render the corresponding full 40-character checked-out commit SHA.
+The canonical guided graph contains providers in deterministic order:
 
-The browser must satisfy all of the following constraints:
+1. `composition`;
+2. `policy`.
 
-- directory and entry discovery is derived from `git ls-tree` metadata;
-- regular-file content is read from the exact Git blob object IDs named by the
-  tree, not from mutable working-tree paths;
-- symlinks and gitlinks are listed as metadata but are never followed;
-- only strict UTF-8 regular files without NUL bytes, bidirectional controls, or
-  other disallowed control characters are rendered as text;
-- each rendered text file is limited to 1 MiB, and candidate text content is
-  limited to 64 MiB per branch before publication;
-- every regular tracked file receives a local browser target; files outside the
-  text boundary receive a metadata/fallback page rather than active file content;
-- syntax highlighting is generated at build time with the pinned Pygments
-  dependency using the file name to select an appropriate lexer, with plain-text
-  fallback when no lexer matches;
-- source text is HTML-escaped before publication, and generated file pages use a
-  restrictive content security policy;
-- desktop-width views keep the tree and selected file visible in a split browser
-  layout; at narrow viewports a same-origin progressive-enhancement controller
-  may switch between full-height Files and Content panes while the no-JavaScript
-  fallback remains the bounded split layout;
-- the hidden narrow-viewport pane is non-interactive, an explicit Files control
-  restores the unchanged tree state, and the selected file remains isolated in
-  an iframe with the `sandbox` attribute and no permissions;
-- line numbers and line wrapping can be toggled locally without executing
-  repository-supplied code;
-- ordinary text viewing has no runtime GitHub API, raw-content, or CDN dependency;
-- an immutable full-SHA GitHub source link may remain available as an explicit
-  fallback and source-of-record link.
+Provider-owned `docs/index.md` files supply the semantic progressive-disclosure
+structure. Site may render localized overlays but must not transfer canonical
+navigation ownership to translated material.
 
-The browser is generated only after the strict Zensical build has created the
-final site directory, so `zensical build --clean` cannot delete it. It must be
-generated before final site-link validation and before the Pages artifact is
-uploaded. Browser HTML is a build artifact and must not be committed.
+The graph records the exact full-SHA provider revisions used by publication.
 
-### Index-guided navigation
+## Stable reader entry points
 
-The index-guided navigation surface at `/guided/` exists so that a human reader
-can follow and evaluate the same provider-owned progressive-disclosure path that
-an AI agent can use before falling back to search or unrestricted source
-browsing. It is a projection of navigation metadata, not a second catalog and
-not a replacement for the Site-authored reader navigation.
+The integrated IA must provide at least:
 
-The guided-navigation implementation must satisfy all of the following rules:
+- `/` and `/overview/`;
+- `/composition/`;
+- `/skill/`;
+- `/capabilities/`;
+- `/webapp/`;
+- `/lifecycle/`;
+- `/policy/`;
+- `/repository-trees/` with Composition and Policy entries;
+- `/files/` with Site, Composition, and Policy entries;
+- `/guided/` with Composition and Policy entries; and
+- `/glossary/`.
 
-- the only top-level providers are `skill`, `policy`, and `webapp`;
-- each provider traversal starts at that exact checkout's `docs/index.md`;
-- `index.md` content is read from exact Git blob object IDs named by the checked
-  out revision rather than mutable working-tree content;
-- only `index.md` nodes reached from the explicit provider root participate in
-  guided navigation; size and content validation is performed when each node is
-  reached, so unrelated index-shaped files elsewhere in the repository do not
-  become guided inputs merely because of their name;
-- provider `index.md` files are interpreted only through the conservative
-  reserved-index shape accepted by the navigation parser: headings and Markdown
-  link entries with short descriptions; arbitrary provider Markdown or raw HTML
-  is not rendered as guided-navigation content;
-- provider-controlled titles, section names, labels, and descriptions are HTML
-  escaped before they appear in generated HTML;
-- strict UTF-8, NUL/control-character, repository-root escape, unsafe URL scheme,
-  malformed-host-or-port, broken-link, symlink, and gitlink boundaries fail
-  closed;
-- a directory link is followed recursively only when it resolves to an
-  `index.md` regular file in the same provider revision;
-- cycles, multiple navigation parents, and maximum index depth are recorded as
-  diagnostics so the information architecture can be evaluated without
-  inventing an unvalidated policy limit;
-- the schema-versioned machine-readable graph is published at
-  `/guided/graph.json` and records the exact provider full SHA for every provider;
-- the human viewer consumes that graph rather than reparsing provider Markdown,
-  so graph semantics and human presentation cannot drift independently;
-- an index-to-index link opens the generated guided index page; a link to an
-  already cataloged document opens the Site's existing stable documentation
-  destination; an uncataloged regular tracked file without a fragment opens the
-  corresponding immutable `/files/` viewer; an uncataloged regular tracked file
-  with any fragment opens the exact full-SHA immutable GitHub source so a
-  semantic or line fragment is not silently attached to a local fallback page
-  that may not expose a matching anchor; a directory without a followed index
-  opens the corresponding provider source-browser entry point; and an HTTP(S)
-  external link remains external;
-- each guided page displays its provider, exact full SHA, source `index.md` path,
-  and immutable GitHub source link;
-- the graph revision for a provider must equal the checked-out provider revision
-  used for catalog assembly, repository trees, previews, and `/files/`; revision
-  disagreement fails before guided output is accepted;
-- generated guided HTML uses a restrictive content security policy, permits the
-  same-origin PWA manifest injected by Site metadata normalization, and does not
-  execute repository-supplied code;
-- ordinary guided browsing has no runtime GitHub API, raw-content, or CDN
-  dependency except when a user explicitly follows an immutable full-SHA GitHub
-  source link used as the source of record or semantic-fragment fallback.
-
-The guided surface is generated after the static file browser because
-uncataloged guided targets may resolve to file-browser pages. Both surfaces must
-be generated before final site-link validation and before the Pages artifact is
-uploaded. Guided HTML and graph JSON are build artifacts and must not be
-committed.
-
-## Human-readable information architecture
-
-The portal must provide a clear entry point for each major publication:
-
-- `/skill/` for reusable skill and interface contracts;
-- `/policy/` for application-neutral agent policy and operation;
-- `/webapp/` for Web application template contracts and evidence.
-
-It must also provide stable generated inventory entry points:
-
-- `/repository-trees/`;
-- `/repository-trees/skill/`;
-- `/repository-trees/policy/`;
-- `/repository-trees/webapp/`.
-
-The source-oriented browser has stable entry points:
-
-- `/files/` for browser selection;
-- `/files/site/` for the deployed site implementation snapshot;
-- `/files/skill/`, `/files/policy/`, and `/files/webapp/` for the reviewed
-  provider snapshots.
-
-The index-guided surface has stable entry points:
-
-- `/guided/` for choosing a provider-owned navigation path;
-- `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` for the reviewed
-  provider navigation roots;
-- `/guided/graph.json` for the schema-versioned machine-readable representation
-  used by the human viewer.
-
-The glossary surface has stable entry points:
-
-- `/glossary/` for the generated human-readable terminology projection;
-- `/glossary/index.json` for the schema-versioned integrated glossary read model.
-
-The Site-authored navigation, provider-owned guided navigation, and glossary
-surface are complementary. Site navigation is organized by reader task and
-conceptual hierarchy, the guided surface intentionally preserves provider-owned
-index order, grouping, labels, and descriptions, and the glossary preserves
-stable concept identity and canonical terminology. The Site must not silently
-derive or replace its primary navigation from arbitrary Markdown parsing merely
-because a guided graph or glossary model exists.
-
-Overview, adoption, operation, architecture, evidence, release, ADR, and
-migration material should be grouped under descriptive titles in Site-authored
-navigation. Raw contracts, schemas, and other machine-readable files should
-remain reachable from explanatory documents without dominating primary
-navigation.
-
-Generated destinations are stable public paths. Renaming a source file does not
-require a public URL change when the stable document ID and destination remain
-unchanged. A destination change must be reviewed as a compatibility change. File
-browser content URLs are implementation details keyed by immutable provider
-revision and source-path identity. Nested guided-index URLs identify the current
-reviewed provider/path projection; the exact provider revision is recorded in
-the guided page and graph rather than encoded in that nested URL. Only the branch
-browser and guided provider entry points above are stable public paths.
-
-## Reproducibility and provenance
-
-Normal builds use lowercase full 40-character commit SHAs from
-`publication-sources.json`. Mutable branch names, tags, and abbreviated SHAs are
-not acceptable source locks.
-
-The build artifact contains `build-provenance.json` with:
-
-- the repository identifier;
-- the exact `site` commit;
-- the exact `skill`, `policy`, and `webapp` commits.
-
-Repository-tree links, preview URLs, file-browser pages, the index-navigation
-graph, guided-navigation pages, and glossary entries must use the corresponding
-checked-out commit. Workflow-call revision overrides therefore produce
-inventory, preview, browser, graph, guided, and glossary output for the
-overridden commit rather than the normal lock value.
-
-The provenance file identifies deterministic source inputs. It is not a digital
-signature, software bill of materials, or artifact attestation.
-
-Workflow-call revision overrides are reserved for deliberate compatibility
-checks. They do not replace the reviewed lock file for normal publication.
-
-## Change workflow
-
-A provider publication change uses this sequence:
-
-1. Change canonical documentation, provider-owned index navigation, glossary
-   terminology, and when applicable the publication catalog on the owning
-   provider branch.
-2. Validate the provider publication locally and in CI. Provider branches should
-   use the Site reusable compatibility build for glossary-bearing changes so
-   proposed terms are checked by the canonical glossary parser before merge.
-3. Merge the provider pull request and record the actual merge commit full SHA.
-4. Create a coordinated branch from the current `site` head.
-5. Update `publication-sources.json` to the reviewed provider merge commit.
-6. Update `site-manifest.json` when documents, reader-facing titles, hierarchy,
-   order, or generated destinations change. Glossary term additions do not by
-   themselves require a navigation-manifest change.
-7. Build the integrated site against the exact locked commits.
-8. Require tests, glossary integration and viewer generation, repository-tree
-   generation, inline-preview generation, strict site generation, static
-   file-browser generation, index-navigation graph and guided-viewer generation,
-   entry-point checks, provenance generation, and generated-link validation to
-   pass.
-9. Merge the `site` pull request. A push to `site` is the only deployment event.
-
-Provider and `site` changes remain separate pull requests because they have
-different ownership and review responsibilities. A period in which a provider
-merge is not yet represented by the `site` lock is valid and intentional.
+Generated destinations are stable public paths controlled by `site-manifest.json`.
+They are independent of provider source paths.
 
 ## Deployment authority
 
-`.github/workflows/build-pages.yml` is build-only. It may create and upload a
-Pages artifact, but it has no Pages write or OpenID Connect token authority and
-must not call `actions/deploy-pages`.
+Only `.github/workflows/deploy-pages.yml` may deploy GitHub Pages, and it runs
+only for a push to `site`. Pull-request builds may construct and upload a Pages
+artifact for validation but cannot deploy it.
 
-`.github/workflows/deploy-pages.yml` is the sole deployment workflow. It accepts
-only a push to `refs/heads/site` in `TakashiSasaki/templates` and grants Pages
-write and identity-token permissions only to the deployment job. Default-branch
-status is not an authorization input.
+The GitHub Pages deployment environment is an external release gate. Its custom
+deployment branch policy must allow exactly the `site` branch. The obsolete
+`main` authorization has been removed. Do not broaden the environment to all
+branches or add another deployment authority.
 
-`https://templates.moukaeritai.work/` is the configured Pages base URL. It is a
-root-hosted site: the configured base path must be empty, and generated links
-must not retain the former `/templates/` project path. The deployment workflow
-compares the repository-owned expected URL with the `actions/configure-pages`
-base URL, host, and base-path outputs and fails closed before deployment when
-GitHub's external Pages settings drift.
+`https://templates.moukaeritai.work/` is the configured Pages base URL. HTTPS
+enforcement is enabled. The retired `/templates/` project path must not reappear
+in generated public URLs.
 
-The GitHub `github-pages` environment is an external repository setting and is
-not changed by a pull request. Its custom deployment branch policy must allow
-exactly the `site` branch for this repository. A stale rule that allows `main`
-instead of `site` causes the build and artifact upload to succeed while the
-deployment job is rejected before runner steps begin.
+## Acceptance checks
 
-The custom domain and TLS controls are also external repository and DNS state.
-Before publication is complete, the Pages custom domain must be
-`templates.moukaeritai.work`, the certificate must be approved, and HTTPS
-enforcement is enabled. A custom Actions deployment does not rely on a committed
-`CNAME` file; GitHub's Pages setting and DNS are the authoritative domain state.
+Before a Site cutover is considered complete:
 
-The environment rule is a release gate. Before declaring publication complete,
-verify that:
-
-- `site` is the allowed deployment branch;
-- obsolete `main` authorization has been removed;
-- the `site` push workflow completes its build and deploy jobs successfully;
-- `/`, `/skill/`, `/policy/`, and `/webapp/` are reachable;
-- `/glossary/` and `/glossary/index.json` are reachable and represent the same
-  integrated terminology model;
-- all four `/repository-trees/` entry points are reachable;
-- `/files/` and all four branch browser entry points are reachable;
-- `/guided/` and `/guided/skill/`, `/guided/policy/`, and `/guided/webapp/` are
-  reachable;
-- `/guided/graph.json` records the same reviewed provider full SHAs as the
-  provider checkouts and deployed provenance;
-- preview links load the corresponding sandboxed frame without replacing source
-  links;
-- file-browser text pages show line-number and wrapping controls and do not need
-  a runtime GitHub API or CDN request to render their text;
-- guided pages preserve provider-owned link labels and descriptions without
-  executing provider-supplied markup or code;
-- the deployed `/build-provenance.json` matches the reviewed lock file;
-- HTTP requests redirect to HTTPS and the deployed response uses the custom
-  domain.
-
-Do not broaden the environment to all branches as a workaround. The workflow
-conditions and environment policy should independently enforce the same
-`site`-only deployment boundary.
-
-## Completion criteria
-
-A publication update is complete only when all of the following hold:
-
-- each required catalog document appears exactly once in integrated navigation;
-- unknown and uncataloged files are not rendered as cataloged documentation;
-- declared provider glossaries integrate without duplicate term IDs, unresolved
-  related terms, invalid authority metadata, or provenance disagreement;
-- `/glossary/index.json` and `/glossary/` are generated from the same reviewed
-  provider snapshots and preserve canonical English semantics plus localized
-  lexical labels;
-- required provider entry points are generated;
-- repository inventories cover all tracked entries without following symlinks
-  or gitlinks;
-- repository inventory links use the exact checked-out provider commits;
-- inline previews are generated only from eligible bounded Git blobs and render
-  escaped text in sandboxed frames;
-- binary, oversized, symlink, gitlink, and invalid-text entries retain GitHub-only
-  fallback behavior in the inline-preview surface;
-- the static file browser covers `site`, `skill`, `policy`, and `webapp` at their
-  exact checked-out full SHAs and reads eligible content only from named Git blobs;
-- browser syntax highlighting is build-time only, text is escaped, line-number
-  and wrapping toggles work without repository code execution, and non-text or
-  oversized files receive fallback pages;
-- each provider guided root is generated from its exact checked-out
-  `docs/index.md`, and every reachable index node represented in
-  `/guided/graph.json` has a corresponding human viewer page;
-- the guided graph and viewer use the same full-SHA provider snapshots as
-  publication assembly and `/files/`, preserve provider-owned navigation
-  metadata, escape provider text, and fail closed on invalid navigation targets;
-- graph diagnostics record cycles, multiple-parent indexes, and maximum depth
-  without converting those observations into unsupported policy limits;
-- internal links, fragments, assets, preview targets, browser targets, guided
-  targets, glossary targets, and canonical URLs validate;
-- provenance records exact full-SHA inputs;
-- no provider branch can deploy Pages;
-- a `site` push successfully deploys the reviewed artifact.
+- source-lock parsing proves the provider set is exactly Composition and Policy;
+- both provider checkouts are at the locked full SHAs;
+- every catalog document is mapped exactly once by `site-manifest.json`;
+- the Composition glossary parses through the actual Site YAML loader;
+- repository trees/browser/guided navigation use the new provider set;
+- no Skill/Webapp copyable-tree generator is part of the build;
+- `/build-provenance.json` records Site, Composition, and Policy revisions;
+- generated links/fragments/canonical URLs validate; and
+- the `site`-only deployment boundary remains intact.
