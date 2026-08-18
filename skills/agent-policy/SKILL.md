@@ -20,7 +20,7 @@ Use this as the single repository-facing entry point for the `agent-policy` tool
 2. Review the reported adoption state, discovered instruction sources, strategy, and primary-instruction selection.
 3. For `unmanaged-empty`, the public operation is fresh adoption; the tool may use its hidden initialization primitive internally.
 4. For `unmanaged-existing`, preserve handwritten instructions and use staged migration adoption.
-5. If migration discovery finds zero or multiple supported primary instruction files, select one explicitly with `--primary-instructions` before applying.
+5. If no supported instruction files are discovered during migration, create one supported instruction file and re-run bootstrap. If exactly one supported instruction file is discovered, bootstrap selects it automatically. If multiple supported instruction files are discovered, select one explicitly with `--primary-instructions` before applying.
 6. Only after reviewing the dry run, rerun with `--apply` when mutation is intended.
 7. Fresh adoption may complete directly to managed state and then validate/check.
 8. Migration bootstrap may prepare and preview only. It must never finalize migration.

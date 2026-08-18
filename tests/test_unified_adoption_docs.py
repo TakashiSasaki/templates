@@ -50,21 +50,27 @@ def test_consumer_and_cli_docs_distinguish_execution_context() -> None:
 
 def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> None:
     getting_started = read_doc("docs/getting-started.md")
-    bootstrap = read_doc("docs/bootstrap.md")
+    bootstrap_doc = read_doc("docs/bootstrap.md")
     adoption = read_doc("docs/adoption.md")
+    skill = read_doc("skills/agent-policy/SKILL.md")
     zero_case = "If no supported instruction files are discovered"
 
     assert "a single supported instruction" in getting_started.lower()
     assert "If multiple supported instruction files are discovered" in getting_started
     assert zero_case in getting_started
 
-    assert "exactly one supported instruction file" in bootstrap
-    assert "multiple supported instruction files" in bootstrap
-    assert zero_case in bootstrap
+    assert "exactly one supported instruction file" in bootstrap_doc
+    assert "multiple supported instruction files" in bootstrap_doc
+    assert zero_case in bootstrap_doc
 
     assert "A single discovered supported instruction file is selected automatically" in adoption
     assert "If multiple supported instruction files are discovered" in adoption
     assert zero_case in adoption
+
+    assert zero_case in skill
+    assert "exactly one supported instruction file is discovered" in skill
+    assert "If multiple supported instruction files are discovered" in skill
+    assert "zero or multiple supported primary instruction files" not in skill
 
 
 def test_readiness_audit_marks_legacy_route_names_as_historical() -> None:
