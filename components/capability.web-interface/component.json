@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "capability.web-interface",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Standalone browser-facing interface, routing, security, health, and failure-isolation contract.",
+  "requires": [
+    "capability.runtime"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/WEB_INTERFACE.md",
+      "destination": "WEB_INTERFACE.md",
+      "ownership": "seed"
+    }
+  ]
+}

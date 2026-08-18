@@ -1,0 +1,17 @@
+# Python validation cache
+__pycache__/
+*.py[cod]
+
+# Local environments
+.venv/
+venv/
+
+# Common build/test output
+.coverage
+.pytest_cache/
+dist/
+build/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

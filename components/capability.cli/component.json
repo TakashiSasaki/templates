@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "capability.cli",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Stable caller-visible packaged CLI contract.",
+  "requires": [
+    "capability.runtime"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/CLI_INTERFACE.md",
+      "destination": "CLI_INTERFACE.md",
+      "ownership": "seed"
+    }
+  ]
+}

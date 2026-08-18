@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "components": [
+    "artifact.skill-core",
+    "capability.cli",
+    "capability.mcp",
+    "capability.mcp-apps",
+    "capability.runtime",
+    "capability.service",
+    "capability.web-interface"
+  ],
+  "recipes": [
+    "skill"
+  ]
+}
