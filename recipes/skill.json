@@ -3,7 +3,9 @@
   "id": "skill",
   "summary": "Minimal Agent Skill artifact with optional reusable application and lifecycle capabilities.",
   "artifact": "artifact.skill-core",
-  "required_components": [],
+  "required_components": [
+    "lifecycle.composition-state"
+  ],
   "default_components": [],
   "optional_components": [
     "capability.cli",

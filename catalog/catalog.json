@@ -9,6 +9,7 @@
     "capability.runtime",
     "capability.service",
     "capability.web-interface",
+    "lifecycle.composition-state",
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
     "lifecycle.release-bundle",
