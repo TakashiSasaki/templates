@@ -70,14 +70,25 @@ def test_installer_release_verifier_matches_pinned_history() -> None:
     assert verifier.verify() == (INSTALLER_REVISION, SKILL_REVISION)
 
 
-def test_user_facing_docs_publish_only_the_full_sha_installer_url() -> None:
-    documents = (README, SKILL_README, BOOTSTRAP_DOC, GETTING_STARTED)
+def test_publication_docs_publish_only_the_full_sha_installer_url() -> None:
+    documents = (README, BOOTSTRAP_DOC, GETTING_STARTED)
     for path in documents:
         content = path.read_text(encoding="utf-8")
         assert RAW_INSTALLER_URL in content, path
         assert "raw.githubusercontent.com/TakashiSasaki/templates/policy/" not in content
         assert "raw.githubusercontent.com/TakashiSasaki/templates/main/" not in content
         assert "scripts/install_agent_policy_skill.py', timeout=30" in content
+
+
+def test_installed_skill_readme_is_publication_independent() -> None:
+    content = SKILL_README.read_text(encoding="utf-8")
+    assert "## Immutable remote installation" in content
+    assert "Remote installation is supported" in content
+    assert "release/skill-installer.json" in content
+    assert "raw.githubusercontent.com" not in content
+    assert INSTALLER_REVISION not in content
+    assert SKILL_REVISION not in content
+    assert "follow-up installer work" not in content.lower()
 
 
 def test_docs_distinguish_installer_skill_and_runtime_revisions() -> None:

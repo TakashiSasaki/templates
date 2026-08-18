@@ -24,18 +24,22 @@ python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githu
 
 `release/skill-installer.json` は最初の2つのidentityを記録します。このcommandは `policy`、tag、短縮SHAを実行しません。
 
-レビュー済みcheckoutから直接installする方法も利用できます。
+レビュー済みcheckoutから直接installする方法は、repository development用の経路としても利用できます。
 
 ```bash
 python skills/agent-policy/scripts/install.py \
   /path/to/agent-skills/agent-policy
 ```
 
+このcommandは、レビュー中checkoutのskill treeをinstallします。そのcheckoutが `release/skill-installer.json` のskill-source revisionと一致しない限り、現在公開されているremote distributionとbyte-for-byteで同一とは限りません。公開distributionを再現することが目的なら、公開済みremote commandを使用します。
+
 `runtime-manifest.json` はstable toolchain revisionをfull SHAで固定し、そのrevisionの `requirements-runtime.lock` をSHA-256で結び付けます。これらのfull SHAを `policy`、tag、短縮SHAなどmutableまたは曖昧なreferenceへ置き換えないでください。
+
+通常のconsumer workflowでは、installed skill directoryから `scripts/bootstrap.py` と `scripts/run.py` を使用します。CLIおよびadoption reference中の直接 `agent-policy ...` exampleはcanonical toolchain CLIを説明するものであり、skillのinstallだけで `agent-policy` executableがglobalな `PATH` にinstallされるわけではありません。
 
 ## 1. Repositoryを調査してadoption planを確認する
 
-unmanaged repositoryではbootstrapは既定でdry-runです。
+unmanaged repositoryではbootstrapは既定でdry-runです。installed skill directoryから実行します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -77,7 +81,9 @@ AGENTS.md
 
 ## 2B. 既存instructionをpreserveしたままmigration adoptionする
 
-複数の対応instruction fileが見つかった場合はprimary instructionを指定します。
+`unmanaged-existing` では、`AGENTS.md`、`CLAUDE.md`、`GEMINI.md`、`.github/copilot-instructions.md` のうち対応instruction fileが1件だけ見つかった場合は自動選択します。複数見つかった場合は `--primary-instructions` でauthoritativeなprimaryを指定します。1件も見つからない場合は、まず対応instruction fileを作成してください。policyやskill assetだけをprimary instructionとして選択することはできません。
+
+primaryの明示指定が必要な場合は、まずdry-runを確認します。
 
 ```bash
 python scripts/bootstrap.py \
@@ -93,6 +99,8 @@ python scripts/bootstrap.py \
   --primary-instructions AGENTS.md \
   --apply
 ```
+
+inspectionで対応instruction fileが1件だけ見つかり自動選択された場合は、`--primary-instructions` を省略します。
 
 既存primary instructionは置き換えません。prepared adoption stateを作成し、`adopt preview` まで実行します。手書きinstructionのsemanticsをproject policyへ反映し、previewとの差分をレビューしてください。
 

@@ -8,6 +8,8 @@ agent-policy [--repository PATH] [--format text|json] COMMAND [OPTIONS]
 
 Specify `--repository` and `--format` before the subcommand. If `--repository` is omitted, the CLI searches upward from the current location for the Git repository root.
 
+These examples describe the canonical toolchain CLI directly. The normal consumer workflow after installing the `agent-policy` skill uses `python scripts/bootstrap.py ...` from the installed skill directory for unmanaged repositories and `python scripts/run.py ...` for managed operations. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
+
 ## Onboarding model
 
 Use `adopt` for all first-time onboarding. `adopt inspect` classifies an unmanaged repository, and `adopt prepare` selects the safe internal strategy from that state:
