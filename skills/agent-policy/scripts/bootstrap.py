@@ -271,7 +271,8 @@ def main(argv: list[str] | None = None) -> int:
         if strategy == "migration" and primary_instructions is None:
             available = available_primary_instructions(inspection)
             print(primary_selection_guidance(available))
-            print(f"Available primary instructions: {', '.join(available) if available else 'none'}")
+            detail = ", ".join(available) if available else "none"
+            print(f"Available primary instructions: {detail}")
             return 0
         if primary_instructions is not None:
             print(f"Primary instructions: {primary_instructions}")
