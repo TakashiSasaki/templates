@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 EXPECTED_REPOSITORY = "TakashiSasaki/templates"
-PUBLICATION_NAMES = ("skill", "policy", "webapp")
+PUBLICATION_NAMES = ("composition", "policy")
 FULL_COMMIT_PATTERN = re.compile(r"\A[0-9a-f]{40}\Z")
 NAME_PATTERN = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 
