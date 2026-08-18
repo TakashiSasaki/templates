@@ -12,6 +12,6 @@
     {"source":"files/.template-composition/validators/validate_contract_evolution.py","destination":".template-composition/validators/validate_contract_evolution.py","ownership":"managed"},
     {"source":"files/schemas/contract-manifest.schema.json","destination":"schemas/contract-manifest.schema.json","ownership":"managed"},
     {"source":"files/docs/architecture/contract-evolution.md","destination":"docs/architecture/contract-evolution.md","ownership":"managed"},
-    {"destination":"contracts/manifest.json","ownership":"generated"}
+    {"destination":"contracts/manifest.json","ownership":"generated","generator":"contract-manifest-v1"}
   ]
 }

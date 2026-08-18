@@ -6,9 +6,11 @@ The legacy Webapp template stored `contracts/manifest.json` as one static file c
 
 ## Decision
 
-Contract metadata is distributed to its true source authority as `component.json` `contract_registrations`. `lifecycle.contract-evolution` uniquely declares `contracts/manifest.json` as a `generated` material.
+Contract metadata is distributed to its true source authority as `component.json` `contract_registrations`. `lifecycle.contract-evolution` uniquely declares `contracts/manifest.json` as a `generated` material using the bounded declarative generator ID `contract-manifest-v1`.
 
-For a resolved component set the generator:
+A generated material names a generator ID rather than executable code or a command. The composer maintains an allowlisted implementation for supported generator IDs; unknown production generator IDs are rejected. This preserves the hook-free execution boundary.
+
+For a resolved component set the `contract-manifest-v1` generator:
 
 1. collects all `contract_registrations`;
 2. rejects duplicate IDs/document paths/schema paths;

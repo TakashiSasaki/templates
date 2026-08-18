@@ -4,31 +4,15 @@
   "title": "Composition component descriptor",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "id",
-    "kind",
-    "version",
-    "summary",
-    "requires",
-    "conflicts",
-    "materials"
-  ],
+  "required": ["schema_version", "id", "kind", "version", "summary", "requires", "conflicts", "materials"],
   "$defs": {
-    "componentId": {
-      "type": "string",
-      "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-    },
+    "componentId": {"type": "string", "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
     "versionInitial": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["version", "change_type"],
+      "type": "object", "additionalProperties": false, "required": ["version", "change_type"],
       "properties": {"version": {"const": 1}, "change_type": {"const": "initial"}}
     },
     "versionTransition": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["version", "change_type", "migration"],
+      "type": "object", "additionalProperties": false, "required": ["version", "change_type", "migration"],
       "properties": {
         "version": {"type": "integer", "minimum": 2},
         "change_type": {"enum": ["additive", "breaking"]},
@@ -36,15 +20,11 @@
       }
     },
     "versionHistory": {
-      "type": "array",
-      "minItems": 1,
-      "uniqueItems": true,
-      "prefixItems": [{"$ref": "#/$defs/versionInitial"}],
-      "items": {"$ref": "#/$defs/versionTransition"}
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "prefixItems": [{"$ref": "#/$defs/versionInitial"}], "items": {"$ref": "#/$defs/versionTransition"}
     },
     "contractRegistration": {
-      "type": "object",
-      "additionalProperties": false,
+      "type": "object", "additionalProperties": false,
       "required": ["id", "document", "schema", "migration_slug", "document_schema_version", "version_history", "purpose"],
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
@@ -57,9 +37,7 @@
       }
     },
     "copiedMaterial": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["source", "destination", "ownership"],
+      "type": "object", "additionalProperties": false, "required": ["source", "destination", "ownership"],
       "properties": {
         "source": {"type": "string", "pattern": "^(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"},
         "destination": {"type": "string", "pattern": "^(?!\\.template-composition/lock\\.json$)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"},
@@ -67,12 +45,11 @@
       }
     },
     "generatedMaterial": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["destination", "ownership"],
+      "type": "object", "additionalProperties": false, "required": ["destination", "ownership", "generator"],
       "properties": {
         "destination": {"type": "string", "pattern": "^(?!\\.template-composition/lock\\.json$)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"},
-        "ownership": {"const": "generated"}
+        "ownership": {"const": "generated"},
+        "generator": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"}
       }
     }
   },

@@ -47,19 +47,13 @@ def validate_portable_destinations(destinations: list[str]) -> None:
     for destination, path in normalized:
         validate_portable_path(destination)
         if path == lock_path[: len(path)] or lock_path == path[: len(lock_path)]:
-            raise ValueError(
-                f"materialized destination conflicts with reserved lock path: {destination!r}"
-            )
+            raise ValueError(f"materialized destination conflicts with reserved lock path: {destination!r}")
     for index, (left_text, left) in enumerate(normalized):
         for right_text, right in normalized[index + 1 :]:
             if left == right:
-                raise ValueError(
-                    f"materialized destinations collide case-insensitively: {left_text!r}, {right_text!r}"
-                )
+                raise ValueError(f"materialized destinations collide case-insensitively: {left_text!r}, {right_text!r}")
             if left == right[: len(left)] or right == left[: len(right)]:
-                raise ValueError(
-                    f"materialized file/directory destinations conflict: {left_text!r}, {right_text!r}"
-                )
+                raise ValueError(f"materialized file/directory destinations conflict: {left_text!r}, {right_text!r}")
 
 
 def validate_component_semantics(value: dict) -> None:
@@ -74,16 +68,9 @@ def validate_component_semantics(value: dict) -> None:
     if overlap:
         raise ValueError(f"required/conflicting component overlap: {sorted(overlap)}")
     if value["kind"] != "artifact":
-        artifact_relations = sorted(
-            relation
-            for relation in required | conflicts
-            if relation.startswith("artifact.")
-        )
+        artifact_relations = sorted(relation for relation in required | conflicts if relation.startswith("artifact."))
         if artifact_relations:
-            raise ValueError(
-                "capability/lifecycle components must not depend on or conflict with artifact components: "
-                f"{artifact_relations}"
-            )
+            raise ValueError(f"capability/lifecycle components must not depend on or conflict with artifact components: {artifact_relations}")
     for material in value["materials"]:
         if "source" in material:
             validate_portable_path(material["source"])
@@ -91,11 +78,7 @@ def validate_component_semantics(value: dict) -> None:
 
 
 def validate_recipe_semantics(value: dict) -> None:
-    groups = [
-        set(value["required_components"]),
-        set(value["default_components"]),
-        set(value["optional_components"]),
-    ]
+    groups = [set(value["required_components"]), set(value["default_components"]), set(value["optional_components"])]
     for left_index, left in enumerate(groups):
         for right in groups[left_index + 1 :]:
             if left & right:
@@ -132,12 +115,7 @@ def validate_lock_semantics(value: dict) -> None:
         raise ValueError(f"resolved component owns no materialized file: {missing_owners}")
 
 
-SEMANTIC_VALIDATORS = {
-    "component": validate_component_semantics,
-    "recipe": validate_recipe_semantics,
-    "config": validate_config_semantics,
-    "lock": validate_lock_semantics,
-}
+SEMANTIC_VALIDATORS = {"component": validate_component_semantics, "recipe": validate_recipe_semantics, "config": validate_config_semantics, "lock": validate_lock_semantics}
 
 
 class CompositionSchemaTests(unittest.TestCase):
@@ -158,273 +136,145 @@ class CompositionSchemaTests(unittest.TestCase):
                 self.assert_schema_valid(name, value)
 
     def test_component_kind_must_match_id_namespace(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        value["kind"] = "artifact"
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("component", value)
+        value = copy.deepcopy(self.examples["component"]); value["kind"] = "artifact"
+        with self.assertRaises(ValidationError): self.assert_schema_valid("component", value)
 
     def test_generic_component_cannot_reference_artifact_component(self) -> None:
         for field in ("requires", "conflicts"):
-            value = copy.deepcopy(self.examples["component"])
-            value[field].append("artifact.webapp-core")
+            value = copy.deepcopy(self.examples["component"]); value[field].append("artifact.webapp-core")
             with self.subTest(field=field):
-                with self.assertRaises(ValueError):
-                    self.assert_schema_valid("component", value)
+                with self.assertRaises(ValueError): self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_destination(self) -> None:
-        for destination in (
-            "../outside",
-            "/absolute",
-            "C:/windows",
-            "a/../b",
-            ".git/config",
-            ".Git/config",
-            "sub/.GIT/hooks/pre-commit",
-            "contracts/",
-            "-option/file",
-            "contracts/-option",
-            LOCK_DESTINATION,
-        ):
-            value = copy.deepcopy(self.examples["component"])
-            value["materials"][0]["destination"] = destination
+        for destination in ("../outside", "/absolute", "C:/windows", "a/../b", ".git/config", ".Git/config", "sub/.GIT/hooks/pre-commit", "contracts/", "-option/file", "contracts/-option", LOCK_DESTINATION):
+            value = copy.deepcopy(self.examples["component"]); value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises((ValidationError, ValueError)):
-                    self.assert_schema_valid("component", value)
+                with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("component", value)
 
     def test_component_rejects_reserved_lock_path_structural_conflicts(self) -> None:
-        for destination in (
-            ".Template-Composition/LOCK.json",
-            ".template-composition",
-            ".template-composition/lock.json/nested",
-            ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
-        ):
-            value = copy.deepcopy(self.examples["component"])
-            value["materials"][0]["destination"] = destination
+        for destination in (".Template-Composition/LOCK.json", ".template-composition", ".template-composition/lock.json/nested", ".TEMPLATE-COMPOSITION/LOCK.JSON/nested"):
+            value = copy.deepcopy(self.examples["component"]); value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises(ValueError):
-                    self.assert_schema_valid("component", value)
+                with self.assertRaises(ValueError): self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_source(self) -> None:
-        for source in (
-            "../outside",
-            "/absolute",
-            "C:/windows",
-            "a/../b",
-            ".git/config",
-            ".Git/config",
-            "sub/.GIT/hooks/pre-commit",
-            "contracts/",
-            "-option/file",
-        ):
-            value = copy.deepcopy(self.examples["component"])
-            value["materials"][0]["source"] = source
+        for source in ("../outside", "/absolute", "C:/windows", "a/../b", ".git/config", ".Git/config", "sub/.GIT/hooks/pre-commit", "contracts/", "-option/file"):
+            value = copy.deepcopy(self.examples["component"]); value["materials"][0]["source"] = source
             with self.subTest(source=source):
-                with self.assertRaises((ValidationError, ValueError)):
-                    self.assert_schema_valid("component", value)
+                with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("component", value)
 
     def test_component_rejects_self_dependency(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        value["requires"].append(value["id"])
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("component", value)
+        value = copy.deepcopy(self.examples["component"]); value["requires"].append(value["id"])
+        with self.assertRaises(ValueError): self.assert_schema_valid("component", value)
 
     def test_component_rejects_required_conflict_overlap(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        value["conflicts"].append(value["requires"][0])
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("component", value)
+        value = copy.deepcopy(self.examples["component"]); value["conflicts"].append(value["requires"][0])
+        with self.assertRaises(ValueError): self.assert_schema_valid("component", value)
 
     def test_component_rejects_portability_destination_collisions(self) -> None:
         for destination in ("Contracts/interfaces/mcp.md", "contracts"):
-            value = copy.deepcopy(self.examples["component"])
-            value["materials"][1]["destination"] = destination
+            value = copy.deepcopy(self.examples["component"]); value["materials"][1]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises(ValueError):
-                    self.assert_schema_valid("component", value)
+                with self.assertRaises(ValueError): self.assert_schema_valid("component", value)
 
     def test_copied_material_requires_source(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        del value["materials"][0]["source"]
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("component", value)
+        value = copy.deepcopy(self.examples["component"]); del value["materials"][0]["source"]
+        with self.assertRaises(ValidationError): self.assert_schema_valid("component", value)
 
-    def test_generated_material_has_no_source(self) -> None:
+    def test_generated_material_requires_generator_and_has_no_source(self) -> None:
         value = copy.deepcopy(self.examples["component"])
-        value["materials"][0] = {
-            "destination": ".template-composition/registry.json",
-            "ownership": "generated",
-        }
+        value["materials"][0] = {"destination": ".template-composition/registry.json", "ownership": "generated", "generator": "contract-manifest-v1"}
         self.assert_schema_valid("component", value)
+        del value["materials"][0]["generator"]
+        with self.assertRaises(ValidationError): self.assert_schema_valid("component", value)
+        value["materials"][0]["generator"] = "contract-manifest-v1"
         value["materials"][0]["source"] = "registry-source.json"
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("component", value)
+        with self.assertRaises(ValidationError): self.assert_schema_valid("component", value)
 
-    def test_recipe_rejects_selection_class_overlap(self) -> None:
-        value = copy.deepcopy(self.examples["recipe"])
-        value["optional_components"].append(value["default_components"][0])
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("recipe", value)
+    def test_descriptors_cannot_add_execution_hooks(self) -> None:
+        for field in ("hooks", "commands", "post_install", "executable"):
+            value = copy.deepcopy(self.examples["component"]); value[field] = ["echo unsafe"]
+            with self.subTest(field=field):
+                with self.assertRaises(ValidationError): self.assert_schema_valid("component", value)
 
     def test_config_rejects_include_exclude_overlap(self) -> None:
-        value = copy.deepcopy(self.examples["config"])
-        value["components"]["exclude"].append(value["components"]["include"][0])
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("config", value)
+        value = copy.deepcopy(self.examples["config"]); value["components"]["exclude"] = [value["components"]["include"][0]]
+        with self.assertRaises(ValueError): self.assert_schema_valid("config", value)
 
     def test_config_cannot_select_artifact_component(self) -> None:
         for field in ("include", "exclude"):
-            value = copy.deepcopy(self.examples["config"])
-            value["components"][field].append("artifact.skill-core")
+            value = copy.deepcopy(self.examples["config"]); value["components"][field].append("artifact.skill-core")
             with self.subTest(field=field):
-                with self.assertRaises(ValidationError):
-                    self.assert_schema_valid("config", value)
+                with self.assertRaises(ValidationError): self.assert_schema_valid("config", value)
 
-    def test_lock_requires_nonempty_file_inventory(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"] = []
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("lock", value)
-
-    def test_lock_requires_canonical_source_repository(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["source"]["repository"] = "example/other"
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("lock", value)
+    def test_recipe_rejects_selection_class_overlap(self) -> None:
+        value = copy.deepcopy(self.examples["recipe"]); value["optional_components"].append(value["default_components"][0])
+        with self.assertRaises(ValueError): self.assert_schema_valid("recipe", value)
 
     def test_lock_requires_full_lowercase_revision(self) -> None:
-        for revision in ("abc123", "A" * 40, "0" * 39, "0" * 40, "0" * 41):
-            value = copy.deepcopy(self.examples["lock"])
-            value["source"]["revision"] = revision
+        for revision in ("abc123", "A" * 40, "0" * 40):
+            value = copy.deepcopy(self.examples["lock"]); value["source"]["revision"] = revision
             with self.subTest(revision=revision):
-                with self.assertRaises(ValidationError):
-                    self.assert_schema_valid("lock", value)
+                with self.assertRaises(ValidationError): self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_canonical_source_repository(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); value["source"]["repository"] = "other/repository"
+        with self.assertRaises(ValidationError): self.assert_schema_valid("lock", value)
 
     def test_lock_requires_lowercase_full_sha256_fields(self) -> None:
-        mutations = (
-            ("configuration_sha256", None),
-            ("descriptor_sha256", "resolved_components"),
-            ("materialized_sha256", "files"),
-        )
-        for field, container in mutations:
-            for invalid in ("a" * 63, "A" * 64):
-                value = copy.deepcopy(self.examples["lock"])
-                if container is None:
-                    value[field] = invalid
-                else:
-                    value[container][0][field] = invalid
-                with self.subTest(field=field, invalid=invalid):
-                    with self.assertRaises(ValidationError):
-                        self.assert_schema_valid("lock", value)
-
-    def test_lock_requires_exactly_one_artifact_component(self) -> None:
-        without_artifact = copy.deepcopy(self.examples["lock"])
-        without_artifact["resolved_components"] = [
-            item
-            for item in without_artifact["resolved_components"]
-            if not item["id"].startswith("artifact.")
-        ]
-        without_artifact["files"] = [
-            item
-            for item in without_artifact["files"]
-            if not item["component"].startswith("artifact.")
-        ]
-        with self.assertRaises((ValidationError, ValueError)):
-            self.assert_schema_valid("lock", without_artifact)
-
-        with_two_artifacts = copy.deepcopy(self.examples["lock"])
-        with_two_artifacts["resolved_components"].append(
-            {
-                "id": "artifact.skill-core",
-                "version": 1,
-                "descriptor_sha256": "f" * 64,
-            }
-        )
-        with_two_artifacts["resolved_components"] = sorted(
-            with_two_artifacts["resolved_components"], key=lambda item: item["id"]
-        )
-        with self.assertRaises((ValidationError, ValueError)):
-            self.assert_schema_valid("lock", with_two_artifacts)
-
-    def test_lock_requires_every_resolved_component_to_own_material(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"] = [
-            item for item in value["files"] if item["component"] != "capability.runtime"
-        ]
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("lock", value)
-
-    def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["resolved_components"].append(copy.deepcopy(value["resolved_components"][0]))
-        with self.assertRaises((ValidationError, ValueError)):
-            self.assert_schema_valid("lock", value)
+        mutations = [("configuration_sha256", None), ("resolved_components", "descriptor_sha256"), ("files", "materialized_sha256")]
+        for collection, field in mutations:
+            value = copy.deepcopy(self.examples["lock"])
+            if field is None: value[collection] = "A" * 64
+            else: value[collection][0][field] = "A" * 64
+            with self.subTest(collection=collection, field=field):
+                with self.assertRaises(ValidationError): self.assert_schema_valid("lock", value)
 
     def test_lock_requires_lexically_ordered_components(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["resolved_components"][0], value["resolved_components"][1] = (
-            value["resolved_components"][1],
-            value["resolved_components"][0],
-        )
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("lock", value)
+        value = copy.deepcopy(self.examples["lock"]); value["resolved_components"] = list(reversed(value["resolved_components"]))
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
 
-    def test_lock_rejects_its_reserved_destination(self) -> None:
-        for destination in (
-            LOCK_DESTINATION,
-            ".Template-Composition/LOCK.json",
-            ".template-composition",
-            ".template-composition/lock.json/nested",
-            ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
-        ):
-            value = copy.deepcopy(self.examples["lock"])
-            value["files"][0]["destination"] = destination
-            value["files"] = sorted(value["files"], key=lambda item: item["destination"])
-            with self.subTest(destination=destination):
-                with self.assertRaises((ValidationError, ValueError)):
-                    self.assert_schema_valid("lock", value)
+    def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); duplicate = copy.deepcopy(value["resolved_components"][0]); duplicate["version"] += 1; value["resolved_components"].append(duplicate); value["resolved_components"].sort(key=lambda item: item["id"])
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_exactly_one_artifact_component(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); duplicate = copy.deepcopy(value["resolved_components"][0]); duplicate["id"] = "artifact.skill-core"; value["resolved_components"].append(duplicate); value["resolved_components"].sort(key=lambda item: item["id"])
+        with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("lock", value)
 
     def test_lock_requires_lexically_ordered_destinations(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"][0], value["files"][1] = value["files"][1], value["files"][0]
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("lock", value)
-
-    def test_lock_rejects_portability_destination_collisions(self) -> None:
-        for destination in ("Schemas/mcp.schema.json", "schemas"):
-            value = copy.deepcopy(self.examples["lock"])
-            value["files"][1]["destination"] = destination
-            value["files"] = sorted(value["files"], key=lambda item: item["destination"])
-            with self.subTest(destination=destination):
-                with self.assertRaises(ValueError):
-                    self.assert_schema_valid("lock", value)
-
-    def test_lock_rejects_case_variant_git_destination(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"][0]["destination"] = ".Git/composition.json"
-        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
-        with self.assertRaises((ValidationError, ValueError)):
-            self.assert_schema_valid("lock", value)
+        value = copy.deepcopy(self.examples["lock"]); value["files"] = list(reversed(value["files"]))
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        duplicate = copy.deepcopy(value["files"][0])
-        duplicate["component"] = "capability.runtime"
-        value["files"].append(duplicate)
-        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("lock", value)
+        value = copy.deepcopy(self.examples["lock"]); duplicate = copy.deepcopy(value["files"][0]); duplicate["component"] = value["files"][1]["component"]; value["files"].append(duplicate); value["files"].sort(key=lambda item: item["destination"])
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_portability_destination_collisions(self) -> None:
+        for destination in ("Contracts/runtime.md", "contracts"):
+            value = copy.deepcopy(self.examples["lock"]); value["files"][0]["destination"] = destination; value["files"].sort(key=lambda item: item["destination"])
+            with self.subTest(destination=destination):
+                with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_case_variant_git_destination(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); value["files"][0]["destination"] = ".Git/config"; value["files"].sort(key=lambda item: item["destination"])
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_its_reserved_destination(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); value["files"][0]["destination"] = LOCK_DESTINATION; value["files"].sort(key=lambda item: item["destination"])
+        with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_unresolved_file_owner(self) -> None:
-        value = copy.deepcopy(self.examples["lock"])
-        value["files"][0]["component"] = "capability.unknown"
-        with self.assertRaises(ValueError):
-            self.assert_schema_valid("lock", value)
+        value = copy.deepcopy(self.examples["lock"]); value["files"][0]["component"] = "capability.unknown"
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
 
-    def test_descriptors_cannot_add_execution_hooks(self) -> None:
-        value = copy.deepcopy(self.examples["component"])
-        value["post_install"] = "echo unsafe"
-        with self.assertRaises(ValidationError):
-            self.assert_schema_valid("component", value)
+    def test_lock_requires_every_resolved_component_to_own_material(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); removed_owner = value["resolved_components"][-1]["id"]; value["files"] = [item for item in value["files"] if item["component"] != removed_owner]
+        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+
+    def test_lock_requires_nonempty_file_inventory(self) -> None:
+        value = copy.deepcopy(self.examples["lock"]); value["files"] = []
+        with self.assertRaises(ValidationError): self.assert_schema_valid("lock", value)
 
 
 if __name__ == "__main__":
