@@ -116,7 +116,7 @@ jobs:
 
       - name: Generate repository trees
         run: |
-          python site-source/scripts/generate_repository_trees.py \
+          python site-source/scripts/generate_repository_trees_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --site-root site-publication \
             --output-root build \
@@ -125,7 +125,7 @@ jobs:
 
       - name: Generate inline file previews
         run: |
-          python site-source/scripts/generate_repository_file_previews.py \
+          python site-source/scripts/generate_repository_file_previews_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --site-root site-publication \
             --output-root build \
@@ -166,7 +166,7 @@ jobs:
 
       - name: Generate static repository browser
         run: |
-          python site-source/scripts/generate_repository_browser.py \
+          python site-source/scripts/generate_repository_browser_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --output-root build/site \
             --branch site=site-source \
@@ -175,7 +175,7 @@ jobs:
 
       - name: Generate index navigation graph
         run: |
-          python site-source/scripts/generate_index_navigation.py \
+          python site-source/scripts/run_composition_navigation.py graph \
             --repository "$GITHUB_REPOSITORY" \
             --output build/index-navigation.json \
             --provider composition=composition-source \
@@ -183,7 +183,7 @@ jobs:
 
       - name: Generate index navigation locale overlays
         run: |
-          python site-source/scripts/generate_index_navigation_locales.py \
+          python site-source/scripts/run_composition_navigation.py locales \
             --graph build/index-navigation.json \
             --output build/index-navigation-locales.json \
             --provider composition=composition-source \
@@ -191,7 +191,7 @@ jobs:
 
       - name: Generate index-guided navigation viewer
         run: |
-          python site-source/scripts/generate_index_navigation_viewer.py \
+          python site-source/scripts/run_composition_navigation.py viewer \
             --repository "$GITHUB_REPOSITORY" \
             --graph build/index-navigation.json \
             --site-root site-publication \
@@ -201,7 +201,7 @@ jobs:
 
       - name: Generate localized index-guided navigation viewer
         run: |
-          python site-source/scripts/generate_index_navigation_locale_viewer.py \
+          python site-source/scripts/run_composition_navigation.py locale-viewer \
             --repository "$GITHUB_REPOSITORY" \
             --graph build/index-navigation.json \
             --locale-overlays build/index-navigation-locales.json \
