@@ -236,7 +236,7 @@ class CompositionSchemaTests(unittest.TestCase):
 
     def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
         value = copy.deepcopy(self.examples["lock"]); duplicate = copy.deepcopy(value["resolved_components"][0]); duplicate["version"] += 1; value["resolved_components"].append(duplicate); value["resolved_components"].sort(key=lambda item: item["id"])
-        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+        with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("lock", value)
 
     def test_lock_requires_exactly_one_artifact_component(self) -> None:
         value = copy.deepcopy(self.examples["lock"]); duplicate = copy.deepcopy(value["resolved_components"][0]); duplicate["id"] = "artifact.skill-core"; value["resolved_components"].append(duplicate); value["resolved_components"].sort(key=lambda item: item["id"])
@@ -258,7 +258,7 @@ class CompositionSchemaTests(unittest.TestCase):
 
     def test_lock_rejects_case_variant_git_destination(self) -> None:
         value = copy.deepcopy(self.examples["lock"]); value["files"][0]["destination"] = ".Git/config"; value["files"].sort(key=lambda item: item["destination"])
-        with self.assertRaises(ValueError): self.assert_schema_valid("lock", value)
+        with self.assertRaises((ValidationError, ValueError)): self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_its_reserved_destination(self) -> None:
         value = copy.deepcopy(self.examples["lock"]); value["files"][0]["destination"] = LOCK_DESTINATION; value["files"].sort(key=lambda item: item["destination"])
