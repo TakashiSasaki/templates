@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "webapp",
+  "summary": "Framework-neutral Web application artifact with required reusable lifecycle closure and optional application capabilities.",
+  "artifact": "artifact.webapp-core",
+  "required_components": [],
+  "default_components": [],
+  "optional_components": [
+    "capability.cli",
+    "capability.mcp",
+    "capability.mcp-apps",
+    "capability.runtime",
+    "capability.service",
+    "capability.web-interface"
+  ]
+}

@@ -2,14 +2,20 @@
   "schema_version": 1,
   "components": [
     "artifact.skill-core",
+    "artifact.webapp-core",
     "capability.cli",
     "capability.mcp",
     "capability.mcp-apps",
     "capability.runtime",
     "capability.service",
-    "capability.web-interface"
+    "capability.web-interface",
+    "lifecycle.contract-evolution",
+    "lifecycle.implementation-evidence",
+    "lifecycle.release-bundle",
+    "lifecycle.release-evidence"
   ],
   "recipes": [
-    "skill"
+    "skill",
+    "webapp"
   ]
 }
