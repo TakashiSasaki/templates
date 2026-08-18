@@ -36,8 +36,15 @@ def portable_key(path: str) -> str:
 def assert_no_portable_collisions(test: unittest.TestCase, destinations: list[str]) -> None:
     ordered = sorted(destinations, key=lambda item: (portable_key(item), item))
     seen: dict[str, str] = {}
+    reserved_lock = ".template-composition/lock.json"
     for destination in ordered:
         key = portable_key(destination)
+        test.assertFalse(
+            key == reserved_lock
+            or key.startswith(reserved_lock + "/")
+            or reserved_lock.startswith(key + "/"),
+            f"destination structurally conflicts with reserved lock path: {destination!r}",
+        )
         test.assertNotIn(key, seen, f"case-insensitive destination collision: {seen.get(key)!r} / {destination!r}")
         seen[key] = destination
     keys = set(seen)
@@ -73,7 +80,7 @@ class ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(self.catalog["recipes"], sorted(self.catalog["recipes"]))
         component_dirs = sorted(
             path.name for path in (ROOT / "components").iterdir()
-            if path.is_dir() and (path / "component.json").is_file()
+            if path.is_dir()
         )
         recipe_ids = sorted(path.stem for path in (ROOT / "recipes").glob("*.json"))
         self.assertEqual(component_dirs, self.catalog["components"])
