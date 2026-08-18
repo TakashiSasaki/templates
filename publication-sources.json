@@ -2,14 +2,11 @@
   "schema_version": 1,
   "repository": "TakashiSasaki/templates",
   "publications": {
-    "skill": {
-      "revision": "b8b735dbe525ca76316fec445cdce43db02a955e"
+    "composition": {
+      "revision": "af5712208e88b3fcd7db744503ae3ffa32414da7"
     },
     "policy": {
       "revision": "27a3319a3785250236bee056fd917379c245aaef"
-    },
-    "webapp": {
-      "revision": "fa269e1310a37ad46f3644ed4f46954a815380ec"
     }
   }
 }
