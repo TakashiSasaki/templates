@@ -30,6 +30,8 @@ For an unmanaged repository, `scripts/bootstrap.py` inspects repository state an
 
 For a managed repository, `scripts/run.py` reads `.agent-policy.lock` and runs the repository-pinned full-SHA toolchain. Malformed, mutable, or unsupported lock pins fail closed rather than falling back to the skill default.
 
+The bare `agent-policy ...` examples above describe the canonical toolchain CLI. Normal consumers run `python scripts/bootstrap.py ...` from the installed skill directory for unmanaged repositories and `python scripts/run.py ...` for managed operations. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
+
 ### Immutable one-line installation
 
 Install the reviewed skill with an installer script whose URL is itself pinned to a full commit SHA:
@@ -48,12 +50,14 @@ The distribution has three distinct immutable roles:
 
 `release/skill-installer.json` records the first two identities. The one-line command never executes the mutable `policy` branch or a tag.
 
-A reviewed checkout remains an alternative installation source:
+A reviewed checkout is also available as a repository-development installation path:
 
 ```bash
 python skills/agent-policy/scripts/install.py \
   /path/to/agent-skills/agent-policy
 ```
+
+That command installs the skill tree from the checkout being reviewed. It is not necessarily byte-for-byte identical to the currently published remote distribution unless the checkout matches the skill-source revision in `release/skill-installer.json`. Use the published remote command when reproducing the published distribution is the goal.
 
 `skills/agent-policy/runtime-manifest.json` records the stable default full SHA and the SHA-256 of that revision's `requirements-runtime.lock`. `release/toolchain.json` carries the same stable toolchain pin. Stable-pin movement uses a reviewed candidate commit followed by a separate promotion change, so no commit attempts to contain its own SHA.
 

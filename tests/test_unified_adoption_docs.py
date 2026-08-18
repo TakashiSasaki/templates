@@ -22,10 +22,17 @@ def test_current_onboarding_docs_use_state_derived_adoption() -> None:
 
 
 def test_consumer_and_cli_docs_distinguish_execution_context() -> None:
+    readme = read_doc("README.md")
     getting_started = read_doc("docs/getting-started.md")
     bootstrap = read_doc("docs/bootstrap.md")
     cli = read_doc("docs/cli.md")
     adoption = read_doc("docs/adoption.md")
+
+    assert "repository-development installation path" in readme
+    assert "not necessarily byte-for-byte identical" in readme
+    assert "globally on `PATH`" in readme
+    assert "scripts/bootstrap.py" in readme
+    assert "scripts/run.py" in readme
 
     assert "From the installed skill directory" in getting_started
     assert "Run from the installed skill directory" in bootstrap
@@ -33,6 +40,8 @@ def test_consumer_and_cli_docs_distinguish_execution_context() -> None:
     assert "canonical toolchain CLI" in adoption
     assert "globally on `PATH`" in cli
     assert "globally on `PATH`" in adoption
+    assert "scripts/bootstrap.py" in adoption
+    assert "scripts/run.py" in adoption
 
 
 def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> None:
