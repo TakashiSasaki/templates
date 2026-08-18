@@ -17,6 +17,7 @@ Production catalog validation establishes:
 - component ownership of every registered contract document/schema/migration;
 - a unique generated owner for `contracts/manifest.json`;
 - deterministic manifest rendering from resolved `contract_registrations`;
+- every resolvable production component owns at least one materialized file, because the schema-v1 lock requires every resolved component to have a file-ownership witness;
 - portable single-owner material destinations; and
 - successful materialized validation for production Skill and Webapp compositions.
 
