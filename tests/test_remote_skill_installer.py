@@ -65,11 +65,11 @@ def test_remote_installer_pins_the_merged_single_skill_revision() -> None:
     assert installer.TOOLCHAIN_REPOSITORY == "TakashiSasaki/templates"
     assert (
         installer.SKILL_SOURCE_REVISION
-        == "e4a0ae84bdf6c68020747d13e1fcaee9865d9c72"
+        == "a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce"
     )
     assert installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION)
     assert installer.archive_url().endswith(
-        "/tar.gz/e4a0ae84bdf6c68020747d13e1fcaee9865d9c72"
+        "/tar.gz/a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce"
     )
 
 
