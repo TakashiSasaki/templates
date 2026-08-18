@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "terms": [
+    {
+      "id": "templates-composition-component",
+      "term": "Composition component",
+      "localized_labels": {"ja": {"term": "コンポジションコンポーネント"}},
+      "origin": "repository",
+      "definition": "A closed reusable source authority identified as an artifact, capability, or lifecycle component. Its descriptor declares dependencies, conflicts, materialized files, ownership modes, and any contract registrations used by deterministic composition.",
+      "related_terms": ["templates-composition-artifact-component", "templates-composition-capability-component", "templates-composition-lifecycle-component", "templates-composition-recipe"]
+    },
+    {
+      "id": "templates-composition-artifact-component",
+      "term": "Artifact component",
+      "localized_labels": {"ja": {"term": "アーティファクトコンポーネント"}},
+      "origin": "repository",
+      "definition": "A composition component that defines the identity-specific semantics of the produced artifact, such as an Agent Skill or Web application, while reusable capabilities and lifecycle concerns remain separate authorities.",
+      "related_terms": ["templates-composition-component", "templates-artifact-contract"]
+    },
+    {
+      "id": "templates-composition-capability-component",
+      "term": "Capability component",
+      "localized_labels": {"ja": {"term": "ケイパビリティコンポーネント"}},
+      "origin": "repository",
+      "definition": "An artifact-neutral composition component that adds an optional application capability such as a runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
+      "related_terms": ["templates-composition-component", "templates-runtime-decision-record", "external-mcp-model-context-protocol"]
+    },
+    {
+      "id": "templates-composition-lifecycle-component",
+      "term": "Lifecycle component",
+      "localized_labels": {"ja": {"term": "ライフサイクルコンポーネント"}},
+      "origin": "repository",
+      "definition": "An artifact-neutral composition component that adds product lifecycle machinery such as resolved-state validation, contract evolution, implementation evidence, release evidence, or release handoff.",
+      "related_terms": ["templates-composition-component", "templates-contract-manifest", "templates-implementation-evidence", "templates-release-evidence", "templates-release-bundle"]
+    },
+    {
+      "id": "templates-composition-recipe",
+      "term": "Composition recipe",
+      "localized_labels": {"ja": {"term": "コンポジションレシピ"}},
+      "origin": "repository",
+      "definition": "A consumer-facing artifact recipe that selects exactly one artifact component and defines which reusable capability or lifecycle components are required, defaulted, or available for explicit selection.",
+      "related_terms": ["templates-composition-component", "templates-composition-lock"]
+    },
+    {
+      "id": "templates-composition-lock",
+      "term": "Composition lock",
+      "localized_labels": {"ja": {"term": "コンポジションロック"}},
+      "origin": "repository",
+      "definition": "The deterministic .template-composition/lock.json resolved-state record written last by the composer. It binds the exact composition source revision, configuration bytes, resolved components, descriptor digests, material destinations, owners, ownership modes, and materialized-byte digests.",
+      "related_terms": ["templates-composition-recipe", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material"]
+    },
+    {
+      "id": "templates-composition-managed-material",
+      "term": "Managed material",
+      "localized_labels": {"ja": {"term": "管理対象マテリアル"}},
+      "origin": "repository",
+      "definition": "Materialized content whose composition source remains authoritative after initial application. Consumer-time validation requires its current bytes to continue matching the composition lock digest.",
+      "related_terms": ["templates-composition-lock", "templates-composition-seed-material", "templates-composition-generated-material"]
+    },
+    {
+      "id": "templates-composition-seed-material",
+      "term": "Seed material",
+      "localized_labels": {"ja": {"term": "シードマテリアル"}},
+      "origin": "repository",
+      "definition": "Materialized initial content whose ownership transfers to the consumer repository after composition. The file must remain present, but consumer edits are allowed to diverge from the initial lock digest.",
+      "related_terms": ["templates-composition-lock", "templates-composition-managed-material", "templates-composition-generated-material"]
+    },
+    {
+      "id": "templates-composition-generated-material",
+      "term": "Generated material",
+      "localized_labels": {"ja": {"term": "生成マテリアル"}},
+      "origin": "repository",
+      "definition": "Materialized content produced deterministically by an allowlisted declarative generator from resolved composition authorities rather than copied from one source file. Its bytes remain composition-managed and digest-bound in the lock.",
+      "related_terms": ["templates-composition-lock", "templates-composition-managed-material", "templates-contract-manifest"]
+    },
+    {
+      "id": "templates-skill-profile",
+      "term": "Skill profile",
+      "localized_labels": {"ja": {"term": "スキルプロファイル", "aliases": ["Skill プロファイル"]}},
+      "origin": "repository",
+      "definition": "A Skill-specific resource pattern describing whether a concrete Agent Skill is instruction-only, knowledge-augmented, asset-driven, or script-assisted. Application runtime and public interfaces are composition capabilities rather than Skill profiles.",
+      "related_terms": ["templates-policy-profile", "templates-skill-template-scaffold", "templates-composition-capability-component"]
+    },
+    {
+      "id": "templates-skill-template-scaffold",
+      "term": "Skill template scaffold",
+      "localized_labels": {"ja": {"term": "スキルテンプレート・スキャフォールド", "aliases": ["スキルテンプレート雛形"]}},
+      "origin": "repository",
+      "definition": "The uncustomized Agent Skill seed identified by the reserved template-scaffold sentinel. The sentinel is not a fifth concrete Skill profile and must be replaced before the repository is treated as an operational Skill.",
+      "related_terms": ["templates-skill-profile", "templates-composition-artifact-component"]
+    },
+    {
+      "id": "templates-runtime-decision-record",
+      "term": "Runtime decision record",
+      "localized_labels": {"ja": {"term": "ランタイム決定記録"}},
+      "origin": "repository",
+      "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill or Webapp semantics.",
+      "related_terms": ["templates-composition-capability-component"]
+    },
+    {
+      "id": "templates-contract-manifest",
+      "term": "Contract manifest",
+      "localized_labels": {"ja": {"term": "コントラクトマニフェスト", "aliases": ["契約マニフェスト"]}},
+      "origin": "repository",
+      "definition": "The deterministic generated contracts/manifest.json registry built from contract registrations in the resolved component closure. It identifies active contract documents, schemas, purposes, version histories, and migrations without being a handwritten source file.",
+      "related_terms": ["templates-composition-generated-material", "templates-composition-lifecycle-component", "templates-release-bundle"]
+    },
+    {
+      "id": "templates-implementation-evidence",
+      "term": "Implementation evidence",
+      "localized_labels": {"ja": {"term": "実装エビデンス", "aliases": ["実装証跡"]}},
+      "origin": "repository",
+      "definition": "An artifact-neutral lifecycle contract that maps artifact-defined contract targets to repository-local implementation boundaries, positive and negative proofs, authoritative command definitions, and release gates. It defines what must be proved and run but does not record candidate execution itself.",
+      "related_terms": ["templates-release-evidence", "templates-artifact-contract", "templates-composition-lifecycle-component"]
+    },
+    {
+      "id": "templates-release-evidence",
+      "term": "Release evidence",
+      "localized_labels": {"ja": {"term": "リリースエビデンス", "aliases": ["リリース証跡"]}},
+      "origin": "repository",
+      "definition": "An artifact-neutral revision-specific record that binds one exact candidate revision to completed authoritative command and release-gate results, execution provenance, and the resulting release decision.",
+      "related_terms": ["templates-implementation-evidence", "templates-release-bundle", "templates-composition-lifecycle-component"]
+    },
+    {
+      "id": "templates-release-bundle",
+      "term": "Release bundle",
+      "localized_labels": {"ja": {"term": "リリースバンドル"}},
+      "origin": "repository",
+      "definition": "An artifact-neutral deterministic handoff contract that binds an approved candidate revision to the exact current bytes of the active registered contract set transferred to the next system.",
+      "related_terms": ["templates-contract-manifest", "templates-release-evidence", "templates-composition-lifecycle-component"]
+    },
+    {
+      "id": "external-mcp-model-context-protocol",
+      "term": "Model Context Protocol",
+      "aliases": ["MCP"],
+      "localized_labels": {"ja": {"term": "モデルコンテキストプロトコル"}},
+      "origin": "external",
+      "summary": "An open protocol that standardizes how LLM applications connect to external context sources, tools, and capabilities through host, client, and server roles.",
+      "authority": {"kind": "normative", "sources": [{"title": "Model Context Protocol Specification", "url": "https://modelcontextprotocol.io/specification/2026-07-28", "version": "2026-07-28"}]},
+      "repository_usage": "capability.mcp uses MCP 2026-07-28 as the initial core protocol baseline, while optional extensions such as MCP Apps remain separately selected composition capabilities.",
+      "related_terms": ["templates-composition-capability-component"]
+    }
+  ]
+}

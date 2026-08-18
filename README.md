@@ -12,19 +12,21 @@ PR2 established the first production catalog, migrated Agent Skill semantics int
 
 PR3 added the Web application artifact and reusable lifecycle chain:
 
-- `artifact.webapp-core` — browser surfaces, canonical routes, visible UI states, viewports/input capabilities, and Web-specific coverage validation;
+- `artifact.webapp-core` — browser surfaces, canonical routes, visible states, viewports/input capabilities, and Web-specific coverage validation;
 - `lifecycle.contract-evolution` — generated closed contract registry, schema binding, version histories, and migrations;
 - `lifecycle.implementation-evidence` — artifact-neutral implementation boundaries, proofs, commands, and release gates;
 - `lifecycle.release-evidence` — exact-revision execution provenance/results/decision; and
 - `lifecycle.release-bundle` — deterministic digest-closed release handoff.
 
-PR4 adds the first deterministic composer/resolver MVP and universal consumer composition-state validation. Its public operation model is:
+PR4 added the first deterministic composer/resolver MVP and universal consumer composition-state validation. Its public operation model is:
 
 ```text
 inspect -> plan -> apply -> validate
 ```
 
 `update` is deliberately not implemented in the MVP. A repository containing an existing composition lock is treated as managed state and update is refused rather than inferred.
+
+PR5 establishes the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and stdlib-only provider-local publication validation. Site integration remains a separate change.
 
 The legacy `webapp` source snapshot used by PR3 is `fa269e1310a37ad46f3644ed4f46954a815380ec`. Its browser-domain contract bytes and their current domain version histories are preserved. The legacy branch history is not merged into `composition`.
 
@@ -63,6 +65,20 @@ The lock is written last. An interrupted initial apply before that point leaves 
 
 See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for the detailed resolver, trust, and crash-boundary contract.
 
+## Publication boundary
+
+`docs/publication-catalog.json` is the authoritative allowlist for integrated publication. `docs/index.md` is the provider-owned guided-navigation root and `docs/glossary.yml` is the composition terminology authority. Machine-readable descriptors, recipes, schemas, and contract/schema seeds are published only through explicit asset declarations.
+
+Run provider-local validation with:
+
+```sh
+python scripts/validate_publication.py
+```
+
+Skill and Webapp remain distinct artifact semantics inside the `composition` provider. They are no longer independent canonical template publications. Site may present task-oriented Skill and Webapp groups, but it must lock and attribute their source to the exact reviewed `composition` revision.
+
+See [`docs/publication-catalog.md`](docs/publication-catalog.md) and [`docs/index.md`](docs/index.md).
+
 ## Authority boundaries
 
 Artifact semantics and reusable application/lifecycle concerns remain separate. Generic capability/lifecycle descriptors must not depend on artifact authorities. Artifact components may require reusable lifecycle/capability components when those contracts are intrinsic to that artifact recipe.
@@ -71,10 +87,12 @@ The production catalog is closed and validated for dependency existence/acyclici
 
 ## Deferred work
 
-Update/upgrade semantics for an existing composition lock, publication catalog cutover, Site integration, and retirement of the legacy `skill` / `webapp` source authorities remain later independently reviewable work.
+Update/upgrade semantics for an existing composition lock, Site integration, and retirement of the legacy `skill` / `webapp` source authorities remain later independently reviewable work.
 
 See:
 
+- [`docs/index.md`](docs/index.md)
+- [`docs/publication-catalog.md`](docs/publication-catalog.md)
 - [`docs/architecture/composition-model.md`](docs/architecture/composition-model.md)
 - [`docs/architecture/catalog.md`](docs/architecture/catalog.md)
 - [`docs/architecture/generated-contract-manifest.md`](docs/architecture/generated-contract-manifest.md)
