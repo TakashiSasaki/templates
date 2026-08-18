@@ -33,7 +33,7 @@ That command installs the skill tree from the checkout being reviewed. It is not
 
 `runtime-manifest.json` pins the reviewed stable toolchain revision by full SHA and binds that revision's `requirements-runtime.lock` by SHA-256. Do not replace any of these full-SHA identities with `policy`, a tag, or an abbreviated SHA.
 
-The normal consumer workflow uses `scripts/bootstrap.py` and `scripts/run.py` from the installed skill directory. Direct `agent-policy ...` examples in the CLI and adoption reference describe the canonical toolchain CLI; installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
+The normal consumer workflow uses `scripts/bootstrap.py` and `scripts/run.py` from the installed skill directory. Direct `agent-policy ...` examples in the CLI and adoption reference describe the canonical toolchain CLI. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
 
 ## 1. Inspect the repository and review the adoption plan
 
@@ -79,7 +79,7 @@ AGENTS.md
 
 ## 2B. Prepare migration adoption while preserving existing instructions
 
-For `unmanaged-existing`, a single supported instruction discovered as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` is selected automatically. If multiple supported instruction files are discovered, choose the authoritative primary with `--primary-instructions`. If none are discovered, create one supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
+For `unmanaged-existing`, a single supported instruction discovered as `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` is selected automatically. If multiple supported instruction files are discovered, choose the authoritative primary with `--primary-instructions`. If no supported instruction files are discovered, create one supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
 
 When an explicit primary is required, review the dry run first:
 

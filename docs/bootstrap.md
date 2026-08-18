@@ -52,7 +52,7 @@ skills/agent-policy/
 
 `runtime.py` selects the immutable toolchain, constructs or reuses the persistent runtime cache, and verifies the installed distribution set. `bootstrap.py` handles unmanaged adoption. `run.py` handles managed operation using `.agent-policy.lock`.
 
-The normal consumer entry points are these installed `scripts/bootstrap.py` and `scripts/run.py` wrappers. Direct `agent-policy ...` commands documented in the CLI and adoption reference describe the canonical toolchain CLI and do not imply that skill installation places an executable globally on `PATH`.
+The normal consumer entry points are these installed `scripts/bootstrap.py` and `scripts/run.py` wrappers. Direct `agent-policy ...` commands documented in the CLI and adoption reference describe the canonical toolchain CLI. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
 
 ## Repository inspection and dry run
 
@@ -87,7 +87,7 @@ The pinned toolchain may use `agent-policy init` internally as a fresh-adoption 
 
 ## Prepare migration adoption of existing instructions
 
-When inspection finds exactly one supported instruction file, bootstrap selects it automatically. When it finds multiple supported instruction files, choose one authoritative primary source explicitly. When it finds none, create a supported `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` first; policy or skill assets alone cannot be selected as primary instructions.
+When inspection finds exactly one supported instruction file, bootstrap selects it automatically. When it finds multiple supported instruction files, choose one authoritative primary source explicitly. If no supported instruction files are discovered, create a supported `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or `.github/copilot-instructions.md` first; policy or skill assets alone cannot be selected as primary instructions.
 
 When an explicit primary is required:
 

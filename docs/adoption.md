@@ -9,7 +9,7 @@ Adoption is the single user-facing onboarding operation for bringing an unmanage
 
 The user does not choose between separate `init` and `adopt` onboarding routes. The implementation may reuse initialization machinery internally for fresh adoption, but that is an internal primitive rather than a separate onboarding concept.
 
-This document describes the canonical toolchain CLI directly. The normal consumer workflow after installing the `agent-policy` skill uses the installed `scripts/bootstrap.py` wrapper for unmanaged repositories and `scripts/run.py` for managed operations. Installing the skill does not by itself place an `agent-policy` executable globally on `PATH`.
+This document describes the canonical toolchain CLI directly. The normal consumer workflow after installing the `agent-policy` skill uses the installed `scripts/bootstrap.py` wrapper for unmanaged repositories and `scripts/run.py` for managed operations. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
 
 ## Command model
 
@@ -75,7 +75,7 @@ The internal initialization primitive validates all planned destinations and ref
 
 ### Migration adoption
 
-For `unmanaged-existing`, preparation preserves the selected primary instruction file and creates a staged migration state. A single discovered supported instruction file is selected automatically. If multiple supported instruction files are discovered, an explicit valid `--primary-instructions` is required before mutation. If zero supported instruction files are discovered, create a supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
+For `unmanaged-existing`, preparation preserves the selected primary instruction file and creates a staged migration state. A single discovered supported instruction file is selected automatically. If multiple supported instruction files are discovered, an explicit valid `--primary-instructions` is required before mutation. If no supported instruction files are discovered, create a supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
 
 ```bash
 agent-policy --repository . adopt prepare \

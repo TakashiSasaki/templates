@@ -22,44 +22,49 @@ def test_current_onboarding_docs_use_state_derived_adoption() -> None:
 
 
 def test_consumer_and_cli_docs_distinguish_execution_context() -> None:
-    readme = read_doc("README.md")
-    getting_started = read_doc("docs/getting-started.md")
-    bootstrap = read_doc("docs/bootstrap.md")
-    cli = read_doc("docs/cli.md")
-    adoption = read_doc("docs/adoption.md")
+    documents = {
+        "README.md": read_doc("README.md"),
+        "docs/getting-started.md": read_doc("docs/getting-started.md"),
+        "docs/bootstrap.md": read_doc("docs/bootstrap.md"),
+        "docs/cli.md": read_doc("docs/cli.md"),
+        "docs/adoption.md": read_doc("docs/adoption.md"),
+    }
+    path_statement = (
+        "Installing the skill does not by itself install an `agent-policy` "
+        "executable globally on `PATH`."
+    )
 
-    assert "repository-development installation path" in readme
-    assert "not necessarily byte-for-byte identical" in readme
-    assert "globally on `PATH`" in readme
-    assert "scripts/bootstrap.py" in readme
-    assert "scripts/run.py" in readme
+    assert "repository-development installation path" in documents["README.md"]
+    assert "not necessarily byte-for-byte identical" in documents["README.md"]
 
-    assert "From the installed skill directory" in getting_started
-    assert "Run from the installed skill directory" in bootstrap
-    assert "canonical toolchain CLI" in cli
-    assert "canonical toolchain CLI" in adoption
-    assert "globally on `PATH`" in cli
-    assert "globally on `PATH`" in adoption
-    assert "scripts/bootstrap.py" in adoption
-    assert "scripts/run.py" in adoption
+    for relative, text in documents.items():
+        assert path_statement in text, relative
+
+    assert "From the installed skill directory" in documents["docs/getting-started.md"]
+    assert "Run from the installed skill directory" in documents["docs/bootstrap.md"]
+    assert "canonical toolchain CLI" in documents["docs/cli.md"]
+    assert "canonical toolchain CLI" in documents["docs/adoption.md"]
+    assert "scripts/bootstrap.py" in documents["docs/adoption.md"]
+    assert "scripts/run.py" in documents["docs/adoption.md"]
 
 
 def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> None:
     getting_started = read_doc("docs/getting-started.md")
     bootstrap = read_doc("docs/bootstrap.md")
     adoption = read_doc("docs/adoption.md")
+    zero_case = "If no supported instruction files are discovered"
 
     assert "a single supported instruction" in getting_started.lower()
     assert "If multiple supported instruction files are discovered" in getting_started
-    assert "If none are discovered, create one supported instruction file first" in getting_started
+    assert zero_case in getting_started
 
     assert "exactly one supported instruction file" in bootstrap
     assert "multiple supported instruction files" in bootstrap
-    assert "When it finds none, create a supported" in bootstrap
+    assert zero_case in bootstrap
 
     assert "A single discovered supported instruction file is selected automatically" in adoption
     assert "If multiple supported instruction files are discovered" in adoption
-    assert "If zero supported instruction files are discovered" in adoption
+    assert zero_case in adoption
 
 
 def test_readiness_audit_marks_legacy_route_names_as_historical() -> None:

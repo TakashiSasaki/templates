@@ -54,7 +54,7 @@ skills/agent-policy/
 
 `runtime.py` はimmutable toolchainの選択、persistent runtime cacheの構築・再利用、installed distribution setの検証を担当します。`bootstrap.py` は未導入repositoryを扱い、`run.py` は `.agent-policy.lock` に基づくmanaged operationを扱います。
 
-通常のconsumer entry pointはinstalled `scripts/bootstrap.py` と `scripts/run.py` です。CLIおよびadoption reference中の直接 `agent-policy ...` commandはcanonical toolchain CLIを説明するものであり、skill installがexecutableをglobalな `PATH` に配置することを意味しません。
+通常のconsumer entry pointはinstalled `scripts/bootstrap.py` と `scripts/run.py` です。CLIおよびadoption reference中の直接 `agent-policy ...` commandはcanonical toolchain CLIを説明するものです。skillのinstallだけで `agent-policy` executableがglobalな `PATH` にinstallされるわけではありません。
 
 ## Repository inspectionとdry-run
 
