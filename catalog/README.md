@@ -17,7 +17,12 @@ Production catalog validation establishes:
 - component ownership of every registered contract document/schema/migration;
 - a unique generated owner for `contracts/manifest.json`;
 - deterministic manifest rendering from resolved `contract_registrations`;
+- every resolvable production component owns at least one materialized file, because the schema-v1 lock requires every resolved component to have a file-ownership witness;
 - portable single-owner material destinations; and
 - successful materialized validation for production Skill and Webapp compositions.
 
-The catalog is source authority, not consumer material and not an execution-hook registry. The future resolver will bind a concrete consumer configuration to one immutable source revision and write the resolved lock.
+The catalog is source authority, not consumer material and not an execution-hook registry.
+
+The composer validates this closed source graph, resolves a recipe plus consumer configuration against one exact clean Git revision, and writes the resulting component/file closure to `.template-composition/lock.json` after successful initial materialization. Generated materials are dispatched only through allowlisted declarative generator IDs.
+
+Existing managed repositories are intentionally outside the composer MVP's apply contract: a pre-existing composition lock causes update refusal rather than implicit merge/upgrade behavior.

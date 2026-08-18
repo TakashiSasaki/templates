@@ -4,7 +4,9 @@
   "kind": "artifact",
   "version": 1,
   "summary": "Minimal Agent Skill artifact semantics, development guidance, and Skill-specific structural validation.",
-  "requires": [],
+  "requires": [
+    "lifecycle.composition-state"
+  ],
   "conflicts": [],
   "materials": [
     {"source":"files/.editorconfig","destination":".editorconfig","ownership":"seed"},
