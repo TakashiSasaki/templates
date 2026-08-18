@@ -1,0 +1,278 @@
+name: Temporary PR6 composition cutover transform
+
+on:
+  push:
+    branches:
+      - agent/site-composition-cutover
+    paths:
+      - .github/workflows/pr6-cutover-transform.yml
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: agent/site-composition-cutover
+          fetch-depth: 0
+
+      - name: Transform Site to composition provider
+        env:
+          COMPOSITION_REVISION: 673510e09ded8664ce54a82c4dde95f922fbf687
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path('.')
+          composition_revision = os.environ['COMPOSITION_REVISION']
+
+          # Source locks: composition replaces skill + webapp as canonical authority.
+          source_path = root / 'publication-sources.json'
+          source_data = json.loads(source_path.read_text(encoding='utf-8'))
+          policy_revision = source_data['publications']['policy']['revision']
+          source_data['publications'] = {
+              'composition': {'revision': composition_revision},
+              'policy': {'revision': policy_revision},
+          }
+          source_path.write_text(json.dumps(source_data, indent=2) + '\n', encoding='utf-8')
+
+          resolver = root / 'scripts/resolve_publication_sources.py'
+          text = resolver.read_text(encoding='utf-8')
+          text = text.replace(
+              'PUBLICATION_NAMES = ("skill", "policy", "webapp")',
+              'PUBLICATION_NAMES = ("composition", "policy")',
+          )
+          resolver.write_text(text, encoding='utf-8')
+
+          nav_base = root / 'scripts/generate_index_navigation_base.py'
+          text = nav_base.read_text(encoding='utf-8')
+          text = text.replace(
+              'PROVIDER_ORDER = ("skill", "policy", "webapp")',
+              'PROVIDER_ORDER = ("composition", "policy")',
+          )
+          nav_base.write_text(text, encoding='utf-8')
+
+          # Site-authored reader IA. Policy subtree is preserved byte-for-semantics
+          # from the existing manifest; Skill/Webapp source ownership is replaced.
+          manifest_path = root / 'site-manifest.json'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          existing = manifest['navigation']
+          site_nodes = existing[:2]
+          policy_node = next(node for node in existing if node.get('title') == 'Policy')
+
+          def page(title, document, destination):
+              return {
+                  'title': title,
+                  'publication': 'composition',
+                  'document': document,
+                  'destination': destination,
+              }
+
+          composition_node = {
+              'title': 'Composition',
+              'children': [
+                  page('Overview', 'overview', 'composition/index.md'),
+                  page('Documentation index', 'documentation-index', 'composition/docs/index.md'),
+                  page('Publication boundary', 'publication-boundary', 'composition/docs/publication-catalog.md'),
+                  {
+                      'title': 'Architecture',
+                      'children': [
+                          page('Composition model', 'composition-model', 'composition/architecture/composition-model.md'),
+                          page('Production catalog', 'catalog-architecture', 'composition/architecture/catalog.md'),
+                          page('Generated contract manifest', 'generated-contract-manifest', 'composition/architecture/generated-contract-manifest.md'),
+                          page('Composer MVP', 'composer-mvp', 'composition/architecture/composer-mvp.md'),
+                      ],
+                  },
+                  {
+                      'title': 'Machine authority guides',
+                      'children': [
+                          page('Catalog guide', 'catalog-guide', 'composition/catalog/index.md'),
+                          page('Schema guide', 'schema-guide', 'composition/schemas/index.md'),
+                      ],
+                  },
+              ],
+          }
+
+          skill_node = {
+              'title': 'Agent Skill',
+              'children': [
+                  page('Overview', 'skill-overview', 'skill/index.md'),
+                  page('Skill contract', 'skill-contract', 'skill/SKILL.md'),
+                  page('Documentation index', 'skill-documentation-index', 'skill/docs/index.md'),
+                  page('Skill profiles', 'skill-profiles', 'skill/docs/skill-profiles.md'),
+                  page('Skill/capability map', 'skill-capability-map', 'skill/docs/skill-capability-map.md'),
+                  page('Architecture', 'skill-architecture', 'skill/docs/architecture.md'),
+              ],
+          }
+
+          capabilities_node = {
+              'title': 'Application capabilities',
+              'children': [
+                  page('Runtime decision record', 'runtime-decision-record', 'capabilities/runtime/index.md'),
+                  page('Runtime selection', 'runtime-selection', 'capabilities/runtime/selection.md'),
+                  page('Packaged CLI interface', 'cli-interface', 'capabilities/cli/index.md'),
+                  page('MCP interface', 'mcp-interface', 'capabilities/mcp/index.md'),
+                  page('MCP transports', 'mcp-transports', 'capabilities/mcp/transports.md'),
+                  page('MCP Apps interface', 'mcp-apps-interface', 'capabilities/mcp-apps/index.md'),
+                  page('MCP Apps guidance', 'mcp-apps-guidance', 'capabilities/mcp-apps/guidance.md'),
+                  page('Standalone browser interface', 'browser-interface', 'capabilities/browser/index.md'),
+                  page('Headless service interface', 'service-interface', 'capabilities/service/index.md'),
+              ],
+          }
+
+          webapp_node = {
+              'title': 'Web application',
+              'children': [
+                  page('Overview', 'webapp-overview', 'webapp/index.md'),
+                  page('Template contract', 'webapp-template', 'webapp/TEMPLATE.md'),
+                  page('Documentation index', 'webapp-documentation-index', 'webapp/docs/index.md'),
+                  page('Webapp contracts', 'webapp-contracts', 'webapp/docs/architecture/contracts.md'),
+                  page('Responsibility boundaries', 'webapp-responsibility-boundaries', 'webapp/docs/architecture/responsibility-boundaries.md'),
+                  page('Validation toolchain', 'webapp-validation-toolchain', 'webapp/docs/architecture/validation-toolchain.md'),
+                  {
+                      'title': 'Migrations',
+                      'children': [
+                          page('Routes v1 to v2', 'routes-migration', 'webapp/docs/migrations/routes-v1-to-v2.md'),
+                          page('UI states v1 to v2', 'ui-states-migration', 'webapp/docs/migrations/ui-states-v1-to-v2.md'),
+                      ],
+                  },
+              ],
+          }
+
+          lifecycle_node = {
+              'title': 'Lifecycle contracts',
+              'children': [
+                  page('Composition state', 'composition-state', 'lifecycle/composition-state/index.md'),
+                  page('Contract evolution', 'contract-evolution', 'lifecycle/contract-evolution/index.md'),
+                  page('Implementation evidence', 'implementation-evidence', 'lifecycle/implementation-evidence/index.md'),
+                  page('Release evidence', 'release-evidence', 'lifecycle/release-evidence/index.md'),
+                  page('Release bundle', 'release-bundle', 'lifecycle/release-bundle/index.md'),
+              ],
+          }
+
+          migration_node = {
+              'title': 'Composition migration history',
+              'children': [
+                  page('Skill capability migration', 'skill-capability-migration', 'composition/migrations/skill-capabilities.md'),
+                  page('Webapp lifecycle migration', 'webapp-lifecycle-migration', 'composition/migrations/webapp-lifecycle.md'),
+              ],
+          }
+
+          manifest['navigation'] = [
+              *site_nodes,
+              composition_node,
+              skill_node,
+              capabilities_node,
+              webapp_node,
+              lifecycle_node,
+              migration_node,
+              policy_node,
+          ]
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          # Workflow cutover. Keep provider-generic tooling, remove direct-copy-only steps.
+          workflow_path = root / '.github/workflows/build-pages.yml'
+          workflow = workflow_path.read_text(encoding='utf-8')
+
+          def remove_input(text: str, key: str) -> str:
+              pattern = re.compile(
+                  rf'(?ms)^      {re.escape(key)}:\n.*?(?=^      [a-zA-Z_][a-zA-Z0-9_]*:|^\npermissions:)'
+              )
+              return pattern.sub('', text, count=1)
+
+          for key in ('source_ref', 'skill_ref', 'webapp_ref'):
+              workflow = remove_input(workflow, key)
+          composition_input = (
+              '      composition_ref:\n'
+              '        description: Optional override for the locked composition publication revision\n'
+              '        required: false\n'
+              '        type: string\n'
+              "        default: ''\n"
+          )
+          workflow = workflow.replace('      policy_ref:\n', composition_input + '      policy_ref:\n', 1)
+
+          def replace_step(text: str, name: str, replacement: str) -> str:
+              pattern = re.compile(
+                  rf'(?ms)^      - name: {re.escape(name)}\n.*?(?=^      - name: |\Z)'
+              )
+              updated, count = pattern.subn(replacement, text, count=1)
+              if count != 1:
+                  raise SystemExit(f'could not replace workflow step: {name}')
+              return updated
+
+          workflow = replace_step(
+              workflow,
+              'Resolve publication source revisions',
+              '''      - name: Resolve publication source revisions
+        id: publication_refs
+        env:
+          COMPOSITION_REF_OVERRIDE: ${{ inputs.composition_ref }}
+          POLICY_REF_OVERRIDE: ${{ inputs.policy_ref }}
+        run: |
+          overrides=()
+          if [ -n "$COMPOSITION_REF_OVERRIDE" ]; then
+            overrides+=(--override "composition=$COMPOSITION_REF_OVERRIDE")
+          fi
+          if [ -n "$POLICY_REF_OVERRIDE" ]; then
+            overrides+=(--override "policy=$POLICY_REF_OVERRIDE")
+          fi
+          python site-source/scripts/resolve_publication_sources.py \\
+            --lock site-source/publication-sources.json \\
+            --output "$GITHUB_OUTPUT" \\
+            "${overrides[@]}"
+
+''',
+          )
+          workflow = replace_step(
+              workflow,
+              'Check out skill publication',
+              '''      - name: Check out composition publication
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+
+''',
+          )
+          workflow = replace_step(workflow, 'Check out webapp publication', '')
+          workflow = replace_step(workflow, 'Generate Skill copyable template tree', '')
+          workflow = replace_step(workflow, 'Generate Webapp copyable template tree', '')
+
+          # Provider argument lists throughout generic generators.
+          workflow = workflow.replace('skill=skill-source', 'composition=composition-source')
+          workflow = re.sub(r'^.*webapp=webapp-source.*\n', '', workflow, flags=re.MULTILINE)
+          workflow = re.sub(r' \\\n(?=\n      - name:)', '\n', workflow)
+
+          # Generated-artifact assertions and provenance.
+          workflow = workflow.replace('for publication in skill policy webapp; do', 'for publication in composition policy; do')
+          workflow = re.sub(
+              r'(?ms)^          for copyable in skill webapp; do\n.*?^          done\n',
+              '',
+              workflow,
+          )
+          workflow = workflow.replace('for branch in site skill policy webapp; do', 'for branch in site composition policy; do')
+          workflow = workflow.replace('for provider in skill policy webapp; do', 'for provider in composition policy; do')
+          workflow = workflow.replace('test -f build/site/repository-trees/skill/index.html\n', 'test -f build/site/repository-trees/composition/index.html\n')
+          workflow = re.sub(r'^          test -f build/site/repository-trees/skill/template/index\.html\n', '', workflow, flags=re.MULTILINE)
+          workflow = re.sub(r'^          test -f build/site/repository-trees/webapp/index\.html\n', '', workflow, flags=re.MULTILINE)
+          workflow = re.sub(r'^          test -f build/site/repository-trees/webapp/template/index\.html\n', '', workflow, flags=re.MULTILINE)
+          workflow_path.write_text(workflow, encoding='utf-8')
+
+          # Remove the temporary workflow from the resulting tree.
+          (root / '.github/workflows/pr6-cutover-transform.yml').unlink()
+          PY
+
+      - name: Commit transformed cutover
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Cut Site publication over to composition provider'
+          git push origin HEAD:agent/site-composition-cutover
