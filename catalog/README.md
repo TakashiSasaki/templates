@@ -2,34 +2,22 @@
 
 `catalog.json` is the closed inventory of production component and recipe authorities available from this `composition` revision.
 
-## Path convention
-
-Every catalog component ID resolves to:
-
-```text
-components/<component-id>/component.json
-```
-
-Every recipe ID resolves to:
-
-```text
-recipes/<recipe-id>.json
-```
-
-Catalog arrays are unique and serialized in lexical order. Repository validation requires the catalog to exactly match the component and recipe authorities physically present under those roots.
+Every component ID resolves to `components/<component-id>/component.json`; every recipe ID resolves to `recipes/<recipe-id>.json`. Catalog arrays are unique and lexically ordered, and validation requires exact agreement with the physical authority directories/files.
 
 ## Closure rules
 
-Production catalog validation establishes that:
+Production catalog validation establishes:
 
-- every descriptor and recipe validates against its schema;
-- descriptor identity matches its directory;
-- every declared copied material exists and every source file below a component's `files/` root is declared exactly once;
-- every dependency/conflict reference names a catalog component;
-- the dependency graph is acyclic;
-- generic capability/lifecycle components do not depend on artifact-specific authorities;
-- every recipe references one catalog artifact and only catalog capability/lifecycle components;
-- recipe selection classes are disjoint; and
-- tested recipe closures have portable, single-owner materialized destinations.
+- descriptor/recipe/schema validity;
+- exact component source-file declaration;
+- dependency/conflict target existence and dependency acyclicity;
+- generic capability/lifecycle independence from artifact-specific authorities;
+- recipe reference validity and disjoint required/default/optional selections;
+- global uniqueness of registered contract IDs, document paths, and schema paths;
+- component ownership of every registered contract document/schema/migration;
+- a unique generated owner for `contracts/manifest.json`;
+- deterministic manifest rendering from resolved `contract_registrations`;
+- portable single-owner material destinations; and
+- successful materialized validation for production Skill and Webapp compositions.
 
-The future resolver will apply consumer include/exclude intent and generate a full composition lock. The catalog itself is source authority, not consumer material and not an execution-hook registry.
+The catalog is source authority, not consumer material and not an execution-hook registry. The future resolver will bind a concrete consumer configuration to one immutable source revision and write the resolved lock.

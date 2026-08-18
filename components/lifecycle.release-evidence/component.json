@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "lifecycle.release-evidence",
+  "kind": "lifecycle",
+  "version": 1,
+  "summary": "Revision-bound execution provenance, command/gate results, and release decision.",
+  "requires": ["lifecycle.implementation-evidence"],
+  "conflicts": [],
+  "contract_registrations": [{
+    "id": "release_evidence",
+    "document": "contracts/release-evidence.json",
+    "schema": "schemas/release-evidence.schema.json",
+    "migration_slug": "release-evidence",
+    "document_schema_version": 1,
+    "version_history": [{"version":1,"change_type":"initial"}],
+    "purpose": "Bind one exact product revision to authoritative command/gate results, execution provenance, and a release decision."
+  }],
+  "materials": [
+    {"source":"files/contracts/release-evidence.json","destination":"contracts/release-evidence.json","ownership":"seed"},
+    {"source":"files/schemas/release-evidence.schema.json","destination":"schemas/release-evidence.schema.json","ownership":"managed"},
+    {"source":"files/.template-composition/validators/validate_release_evidence.py","destination":".template-composition/validators/validate_release_evidence.py","ownership":"managed"},
+    {"source":"files/docs/architecture/release-evidence.md","destination":"docs/architecture/release-evidence.md","ownership":"managed"}
+  ]
+}

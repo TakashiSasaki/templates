@@ -14,6 +14,104 @@
     "conflicts",
     "materials"
   ],
+  "$defs": {
+    "versionInitial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "change_type"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "change_type": {
+          "const": "initial"
+        }
+      }
+    },
+    "versionTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "change_type",
+        "migration"
+      ],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "change_type": {
+          "enum": [
+            "additive",
+            "breaking"
+          ]
+        },
+        "migration": {
+          "type": "string",
+          "pattern": "^docs/migrations/[a-z][a-z0-9-]*-v[1-9][0-9]*-to-v[1-9][0-9]*\\.md$"
+        }
+      }
+    },
+    "versionHistory": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/versionInitial"
+        }
+      ],
+      "items": {
+        "$ref": "#/$defs/versionTransition"
+      }
+    },
+    "contractRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document",
+        "schema",
+        "migration_slug",
+        "document_schema_version",
+        "version_history",
+        "purpose"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "document": {
+          "type": "string",
+          "pattern": "^contracts/[a-z][a-z0-9-]*\\.json$"
+        },
+        "schema": {
+          "type": "string",
+          "pattern": "^schemas/[a-z][a-z0-9-]*\\.schema\\.json$"
+        },
+        "migration_slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "document_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "version_history": {
+          "$ref": "#/$defs/versionHistory"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
   "properties": {
     "schema_version": {
       "const": 1
@@ -53,6 +151,13 @@
         "pattern": "^(artifact|capability|lifecycle)\\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
       }
     },
+    "contract_registrations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/contractRegistration"
+      }
+    },
     "materials": {
       "type": "array",
       "minItems": 1,
@@ -90,7 +195,8 @@
             "additionalProperties": false,
             "required": [
               "destination",
-              "ownership"
+              "ownership",
+              "generator"
             ],
             "properties": {
               "destination": {
@@ -99,6 +205,10 @@
               },
               "ownership": {
                 "const": "generated"
+              },
+              "generator": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
               }
             }
           }

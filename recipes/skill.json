@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "skill",
-  "summary": "Minimal Agent Skill artifact with optional reusable runtime and public-interface capabilities.",
+  "summary": "Minimal Agent Skill artifact with optional reusable application and lifecycle capabilities.",
   "artifact": "artifact.skill-core",
   "required_components": [],
   "default_components": [],
@@ -11,6 +11,10 @@
     "capability.mcp-apps",
     "capability.runtime",
     "capability.service",
-    "capability.web-interface"
+    "capability.web-interface",
+    "lifecycle.contract-evolution",
+    "lifecycle.implementation-evidence",
+    "lifecycle.release-bundle",
+    "lifecycle.release-evidence"
   ]
 }

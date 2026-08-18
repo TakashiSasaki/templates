@@ -248,13 +248,18 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
 
-    def test_generated_material_has_no_source(self) -> None:
+    def test_generated_material_requires_generator_and_has_no_source(self) -> None:
         value = copy.deepcopy(self.examples["component"])
         value["materials"][0] = {
             "destination": ".template-composition/registry.json",
             "ownership": "generated",
+            "generator": "contract-manifest-v1",
         }
         self.assert_schema_valid("component", value)
+        del value["materials"][0]["generator"]
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("component", value)
+        value["materials"][0]["generator"] = "contract-manifest-v1"
         value["materials"][0]["source"] = "registry-source.json"
         with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)

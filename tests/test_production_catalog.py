@@ -155,7 +155,7 @@ class ProductionCatalogTests(unittest.TestCase):
                     self.assertIn(component_id, self.components)
                     self.assertNotEqual(self.components[component_id]["kind"], "artifact")
 
-    def test_skill_recipe_exposes_the_six_generic_capabilities(self):
+    def test_skill_recipe_exposes_generic_capabilities_and_lifecycle(self):
         recipe = self.recipes["skill"]
         self.assertEqual(recipe["artifact"], "artifact.skill-core")
         self.assertEqual(recipe["required_components"], [])
@@ -169,6 +169,10 @@ class ProductionCatalogTests(unittest.TestCase):
                 "capability.runtime",
                 "capability.service",
                 "capability.web-interface",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+                "lifecycle.release-bundle",
+                "lifecycle.release-evidence",
             ],
         )
 
@@ -233,7 +237,7 @@ class ProductionCatalogTests(unittest.TestCase):
                     shutil.copy2(component_root / material["source"], destination)
 
             lock_dir = target / ".template-composition"
-            lock_dir.mkdir()
+            lock_dir.mkdir(exist_ok=True)
             (lock_dir / "lock.json").write_text(
                 json.dumps(
                     {"resolved_components": [{"id": component_id} for component_id in selected]},

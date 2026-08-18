@@ -1,0 +1,36 @@
+name: Validate Web application contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-webapp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12.13"
+      - name: Install contract validation dependencies
+        run: python -m pip install --disable-pip-version-check --no-deps -r .template-composition/requirements-validation.lock
+      - name: Validate dependency graph
+        run: python -m pip check
+      - name: Validate contract schemas and Webapp invariants
+        run: python scripts/validate_contracts.py
+      - name: Validate contract evolution
+        run: python .template-composition/validators/validate_contract_evolution.py .
+      - name: Validate implementation evidence
+        run: python .template-composition/validators/validate_implementation_evidence.py .
+      - name: Validate Webapp evidence coverage
+        run: python scripts/validate_webapp_evidence.py
+      - name: Validate release evidence
+        run: python .template-composition/validators/validate_release_evidence.py .
+      - name: Validate release bundle
+        run: python .template-composition/validators/validate_release_bundle.py .
