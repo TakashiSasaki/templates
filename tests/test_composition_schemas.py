@@ -36,11 +36,17 @@ def normalized_path(path: str) -> tuple[str, ...]:
     return tuple(part.casefold() for part in path.split("/"))
 
 
+def validate_portable_path(path: str) -> None:
+    if any(part == ".git" for part in normalized_path(path)):
+        raise ValueError(f"path must not traverse Git administration data: {path!r}")
+
+
 def validate_portable_destinations(destinations: list[str]) -> None:
     lock_path = normalized_path(LOCK_DESTINATION)
     normalized = [(destination, normalized_path(destination)) for destination in destinations]
     for destination, path in normalized:
-        if path == lock_path or path == lock_path[: len(path)]:
+        validate_portable_path(destination)
+        if path == lock_path[: len(path)] or lock_path == path[: len(lock_path)]:
             raise ValueError(
                 f"materialized destination conflicts with reserved lock path: {destination!r}"
             )
@@ -78,6 +84,9 @@ def validate_component_semantics(value: dict) -> None:
                 "capability/lifecycle components must not depend on or conflict with artifact components: "
                 f"{artifact_relations}"
             )
+    for material in value["materials"]:
+        if "source" in material:
+            validate_portable_path(material["source"])
     validate_portable_destinations([item["destination"] for item in value["materials"]])
 
 
@@ -114,11 +123,13 @@ def validate_lock_semantics(value: dict) -> None:
     if destinations != sorted(destinations):
         raise ValueError("lock file destinations must be lexically ordered")
     validate_portable_destinations(destinations)
-    unknown_owners = sorted(
-        {item["component"] for item in value["files"] if item["component"] not in resolved}
-    )
+    owners = {item["component"] for item in value["files"]}
+    unknown_owners = sorted(owners - resolved)
     if unknown_owners:
         raise ValueError(f"lock file owner is not resolved: {unknown_owners}")
+    missing_owners = sorted(resolved - owners)
+    if missing_owners:
+        raise ValueError(f"resolved component owns no materialized file: {missing_owners}")
 
 
 SEMANTIC_VALIDATORS = {
@@ -167,6 +178,8 @@ class CompositionSchemaTests(unittest.TestCase):
             "C:/windows",
             "a/../b",
             ".git/config",
+            ".Git/config",
+            "sub/.GIT/hooks/pre-commit",
             "contracts/",
             "-option/file",
             "contracts/-option",
@@ -178,8 +191,13 @@ class CompositionSchemaTests(unittest.TestCase):
                 with self.assertRaises((ValidationError, ValueError)):
                     self.assert_schema_valid("component", value)
 
-    def test_component_rejects_case_variant_and_parent_of_reserved_lock(self) -> None:
-        for destination in (".Template-Composition/LOCK.json", ".template-composition"):
+    def test_component_rejects_reserved_lock_path_structural_conflicts(self) -> None:
+        for destination in (
+            ".Template-Composition/LOCK.json",
+            ".template-composition",
+            ".template-composition/lock.json/nested",
+            ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
+        ):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
@@ -187,11 +205,21 @@ class CompositionSchemaTests(unittest.TestCase):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_source(self) -> None:
-        for source in ("../outside", "/absolute", "C:/windows", "a/../b", ".git/config", "contracts/", "-option/file"):
+        for source in (
+            "../outside",
+            "/absolute",
+            "C:/windows",
+            "a/../b",
+            ".git/config",
+            ".Git/config",
+            "sub/.GIT/hooks/pre-commit",
+            "contracts/",
+            "-option/file",
+        ):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["source"] = source
             with self.subTest(source=source):
-                with self.assertRaises(ValidationError):
+                with self.assertRaises((ValidationError, ValueError)):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_self_dependency(self) -> None:
@@ -295,6 +323,11 @@ class CompositionSchemaTests(unittest.TestCase):
             for item in without_artifact["resolved_components"]
             if not item["id"].startswith("artifact.")
         ]
+        without_artifact["files"] = [
+            item
+            for item in without_artifact["files"]
+            if not item["component"].startswith("artifact.")
+        ]
         with self.assertRaises((ValidationError, ValueError)):
             self.assert_schema_valid("lock", without_artifact)
 
@@ -303,7 +336,7 @@ class CompositionSchemaTests(unittest.TestCase):
             {
                 "id": "artifact.skill-core",
                 "version": 1,
-                "descriptor_sha256": "b" * 64,
+                "descriptor_sha256": "f" * 64,
             }
         )
         with_two_artifacts["resolved_components"] = sorted(
@@ -311,6 +344,14 @@ class CompositionSchemaTests(unittest.TestCase):
         )
         with self.assertRaises((ValidationError, ValueError)):
             self.assert_schema_valid("lock", with_two_artifacts)
+
+    def test_lock_requires_every_resolved_component_to_own_material(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["files"] = [
+            item for item in value["files"] if item["component"] != "capability.runtime"
+        ]
+        with self.assertRaises(ValueError):
+            self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_resolved_component_ids(self) -> None:
         value = copy.deepcopy(self.examples["lock"])
@@ -328,7 +369,13 @@ class CompositionSchemaTests(unittest.TestCase):
             self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_its_reserved_destination(self) -> None:
-        for destination in (LOCK_DESTINATION, ".Template-Composition/LOCK.json", ".template-composition"):
+        for destination in (
+            LOCK_DESTINATION,
+            ".Template-Composition/LOCK.json",
+            ".template-composition",
+            ".template-composition/lock.json/nested",
+            ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
+        ):
             value = copy.deepcopy(self.examples["lock"])
             value["files"][0]["destination"] = destination
             value["files"] = sorted(value["files"], key=lambda item: item["destination"])
@@ -350,6 +397,13 @@ class CompositionSchemaTests(unittest.TestCase):
             with self.subTest(destination=destination):
                 with self.assertRaises(ValueError):
                     self.assert_schema_valid("lock", value)
+
+    def test_lock_rejects_case_variant_git_destination(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["files"][0]["destination"] = ".Git/composition.json"
+        value["files"] = sorted(value["files"], key=lambda item: item["destination"])
+        with self.assertRaises((ValidationError, ValueError)):
+            self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
         value = copy.deepcopy(self.examples["lock"])

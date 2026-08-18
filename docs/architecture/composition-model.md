@@ -162,13 +162,15 @@ It binds the result to:
 - the resolved component set, containing exactly one `artifact.*` entry and serialized in ascending lexical order by component ID, with exact component versions and descriptor-byte digests; and
 - the non-empty materialized file inventory, serialized in ascending lexical order by destination, with ownership modes and materialized byte digests.
 
+Every resolved component owns at least one entry in the final lock file inventory. This follows the schema-version-1 component contract, in which every component descriptor declares at least one material. A future schema version may relax both sides together if metadata-only components become necessary.
+
 The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
 
 A lock contains no generation timestamp or other intentionally nondeterministic field.
 
-The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination.
+The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination, any case variant of it, any parent path that would have to be a file, or any descendant that would require `lock.json` itself to be a directory. Other files below `.template-composition/`, such as a generated `registry.json`, remain available to components; the directory as a whole is not reserved.
 
-A future catalog/resolver validator must also prove that the lock's recipe exists, that its required artifact is the lock's single resolved artifact, that required/default/explicit selections and dependency closure are satisfied, and that every recorded component version/digest corresponds to the immutable source revision. Those cross-document checks are intentionally not fabricated in PR1 because no production catalog or resolver exists yet.
+A future catalog/resolver validator must also prove that the lock's recipe exists, that its required artifact is the lock's single resolved artifact, that required/default/explicit selections and dependency closure are satisfied, that every recorded component version/digest corresponds to the immutable source revision, and that every lock file destination/ownership pair agrees with the authoritative material declaration in its owning component descriptor. Those cross-document checks are intentionally not fabricated in PR1 because no production catalog or resolver exists yet.
 
 A future composer must fail closed when the lock is malformed, uses the all-zero Git object ID, references an unsupported source identity, or cannot be reconciled with the consumer repository.
 
@@ -224,11 +226,11 @@ The schema rejects:
 - repeated or trailing separators;
 - backslashes;
 - path segments beginning with `-`; and
-- `.git` administration paths.
+- `.git` administration path segments in any ASCII case variant.
 
 The Windows-drive lookahead is intentionally redundant with the portable character allowlist. Keeping the explicit check documents the cross-platform threat being rejected even if the allowlist is later broadened.
 
-The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. Case-insensitive destination collision checks are additionally enforced by semantic validation. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
+The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. Case-insensitive destination collision checks and case-folded Git-administration checks are additionally enforced by semantic validation. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
 
 ## Determinism
 
@@ -303,7 +305,9 @@ PR1 defines four JSON Schema Draft 2020-12 contracts:
 
 Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
 
-Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, generic/artifact dependency boundaries, exactly one resolved artifact, lexically ordered/unique resolved component IDs, portable collision-free destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
+Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, generic/artifact dependency boundaries, exactly one resolved artifact, lexically ordered/unique resolved component IDs, resolved-component material coverage, portable collision-free destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
+
+The semantic checks in PR1 are an executable specification for the future materialized validator. Consumer-time independence requires that those checks, or an equivalent generated validation contract, be available inside the consumer repository; validating the JSON Schema alone is not sufficient for all composition invariants.
 
 ## Explicit PR1 non-goals
 

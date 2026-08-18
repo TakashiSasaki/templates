@@ -46,10 +46,34 @@
       "materialized_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     },
     {
+      "destination": "contracts/implementation-evidence.json",
+      "component": "lifecycle.implementation-evidence",
+      "ownership": "seed",
+      "materialized_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
       "destination": "contracts/interfaces/mcp.md",
       "component": "capability.mcp",
       "ownership": "seed",
       "materialized_sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+    },
+    {
+      "destination": "contracts/release-evidence.json",
+      "component": "lifecycle.release-evidence",
+      "ownership": "seed",
+      "materialized_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    {
+      "destination": "contracts/runtime.md",
+      "component": "capability.runtime",
+      "ownership": "seed",
+      "materialized_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    },
+    {
+      "destination": "contracts/webapp.json",
+      "component": "artifact.webapp-core",
+      "ownership": "seed",
+      "materialized_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
     },
     {
       "destination": "schemas/mcp.schema.json",
