@@ -120,17 +120,40 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
             ["configuration", "policy-profiles", "policy-authoring"],
         )
 
+        adr_node = next(
+            child
+            for child in policy_section["children"]
+            if child.get("title") == "Architecture decisions"
+        )
+        self.assertEqual(
+            adr_node["children"][-1]["document"],
+            "adr-single-agent-policy-skill-runtime-cache",
+        )
+
     def test_policy_layer_documents_have_distinct_destinations(self) -> None:
         manifest = json.loads(
             (ROOT / "site-manifest.json").read_text(encoding="utf-8")
         )
         leaves = _walk_navigation(manifest["navigation"])
-        policy_destinations = [
+        destinations = {
             item["destination"]
             for item in leaves
-            if item.get("publication") == "policy"
-        ]
-        self.assertEqual(len(policy_destinations), len(set(policy_destinations)))
+            if item.get("document")
+            in {
+                "provider-navigation",
+                "shared-policy-navigation",
+                "consumer-policy-navigation",
+            }
+        }
+
+        self.assertEqual(
+            destinations,
+            {
+                "policy/provider/index.md",
+                "policy/shared-policy/index.md",
+                "policy/consumer/index.md",
+            },
+        )
 
 
 if __name__ == "__main__":
