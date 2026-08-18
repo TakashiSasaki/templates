@@ -84,16 +84,17 @@ def load_json_bytes(data: bytes, *, label: str) -> Any:
 
 def read_json(path: Path) -> Any:
     try:
-        return load_json_bytes(path.read_bytes(), label=str(path))
+        data = path.read_bytes()
     except OSError as exc:
         raise CompositionError("READ_FAILED", f"cannot read {path}: {exc}") from exc
+    return load_json_bytes(data, label=str(path))
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _run_git(*arguments: str) -> str:
+def _run_git(*arguments: str, allow_failure: bool = False) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(
             ["git", "-C", str(SOURCE_ROOT), *arguments],
@@ -103,22 +104,24 @@ def _run_git(*arguments: str) -> str:
         )
     except OSError as exc:
         raise CompositionError("GIT_UNAVAILABLE", f"cannot execute git: {exc}") from exc
-    if result.returncode != 0:
+    if result.returncode != 0 and not allow_failure:
         raise CompositionError(
             "GIT_FAILED",
             f"git {' '.join(arguments)} failed: {result.stderr.strip()}",
         )
-    return result.stdout.strip()
+    return result
 
 
 def source_revision() -> str:
-    revision = _run_git("rev-parse", "HEAD")
+    revision = _run_git("rev-parse", "HEAD").stdout.strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision) or revision == "0" * 40:
         raise CompositionError(
             "INVALID_SOURCE_REVISION",
             f"invalid source revision: {revision!r}",
         )
-    dirty = _run_git("status", "--porcelain", "--untracked-files=no")
+    dirty = _run_git(
+        "status", "--porcelain", "--untracked-files=no"
+    ).stdout.strip()
     if dirty:
         raise CompositionError(
             "DIRTY_SOURCE",
@@ -127,7 +130,31 @@ def source_revision() -> str:
     return revision
 
 
+def _assert_tracked_authority(path: Path) -> None:
+    try:
+        relative = path.relative_to(SOURCE_ROOT).as_posix()
+    except ValueError as exc:
+        raise CompositionError(
+            "SOURCE_OUTSIDE_REPOSITORY",
+            f"source authority is outside the composition checkout: {path}",
+        ) from exc
+    if path.is_symlink() or not path.is_file():
+        raise CompositionError(
+            "INVALID_SOURCE_AUTHORITY",
+            f"source authority must be a regular non-symlink file: {relative}",
+        )
+    tracked = _run_git(
+        "ls-files", "--error-unmatch", "--", relative, allow_failure=True
+    )
+    if tracked.returncode != 0:
+        raise CompositionError(
+            "UNTRACKED_SOURCE_AUTHORITY",
+            f"source authority is not tracked by the bound Git revision: {relative}",
+        )
+
+
 def _schema_validate(schema_path: Path, value: Any, *, label: str) -> None:
+    _assert_tracked_authority(schema_path)
     schema = read_json(schema_path)
     try:
         Draft202012Validator.check_schema(schema)
@@ -136,10 +163,7 @@ def _schema_validate(schema_path: Path, value: Any, *, label: str) -> None:
             key=lambda error: tuple(error.absolute_path),
         )
     except Exception as exc:
-        raise CompositionError(
-            "INVALID_SCHEMA",
-            f"{schema_path}: {exc}",
-        ) from exc
+        raise CompositionError("INVALID_SCHEMA", f"{schema_path}: {exc}") from exc
     if errors:
         rendered = "; ".join(error.message for error in errors[:5])
         raise CompositionError(
@@ -158,12 +182,13 @@ def _recipe_path(recipe_id: str) -> Path:
 
 def load_source_state() -> SourceState:
     revision = source_revision()
-    catalog = read_json(SOURCE_ROOT / "catalog/catalog.json")
+    catalog_path = SOURCE_ROOT / "catalog/catalog.json"
+    _assert_tracked_authority(catalog_path)
+    catalog = read_json(catalog_path)
     _schema_validate(
-        SOURCE_ROOT / "schemas/catalog.schema.json",
-        catalog,
-        label="catalog",
+        SOURCE_ROOT / "schemas/catalog.schema.json", catalog, label="catalog"
     )
+
     component_ids = catalog["components"]
     recipe_ids = catalog["recipes"]
     if component_ids != sorted(component_ids) or len(component_ids) != len(
@@ -200,7 +225,9 @@ def load_source_state() -> SourceState:
 
     components: dict[str, dict[str, Any]] = {}
     for component_id in component_ids:
-        descriptor = read_json(_component_path(component_id))
+        descriptor_path = _component_path(component_id)
+        _assert_tracked_authority(descriptor_path)
+        descriptor = read_json(descriptor_path)
         _schema_validate(
             SOURCE_ROOT / "schemas/component.schema.json",
             descriptor,
@@ -215,7 +242,9 @@ def load_source_state() -> SourceState:
 
     recipes: dict[str, dict[str, Any]] = {}
     for recipe_id in recipe_ids:
-        recipe = read_json(_recipe_path(recipe_id))
+        path = _recipe_path(recipe_id)
+        _assert_tracked_authority(path)
+        recipe = read_json(path)
         _schema_validate(
             SOURCE_ROOT / "schemas/recipe.schema.json",
             recipe,
@@ -254,8 +283,7 @@ def _validate_source_graph(
             "conflicts"
         ]:
             raise CompositionError(
-                "INVALID_COMPONENT",
-                f"{component_id} references itself",
+                "INVALID_COMPONENT", f"{component_id} references itself"
             )
         overlap = set(descriptor["requires"]) & set(descriptor["conflicts"])
         if overlap:
@@ -326,8 +354,7 @@ def resolve_configuration(
     recipe = state.recipes.get(recipe_id)
     if recipe is None:
         raise CompositionError(
-            "UNKNOWN_RECIPE",
-            f"unknown production recipe: {recipe_id}",
+            "UNKNOWN_RECIPE", f"unknown production recipe: {recipe_id}"
         )
 
     required = set(recipe["required_components"])
@@ -353,10 +380,11 @@ def resolve_configuration(
             "COMPONENT_NOT_EXPOSED",
             f"recipe {recipe_id} does not expose excluded components: {sorted(unknown_exclude)}",
         )
-    if required & exclude:
+    required_excluded = required & exclude
+    if required_excluded:
         raise CompositionError(
             "REQUIRED_COMPONENT_EXCLUDED",
-            f"cannot exclude recipe-required components: {sorted(required & exclude)}",
+            f"cannot exclude recipe-required components: {sorted(required_excluded)}",
         )
 
     selected = {recipe["artifact"], *required, *(defaults - exclude), *include}
@@ -463,12 +491,7 @@ def build_materials(state: SourceState, selected: list[str]) -> list[Material]:
         for declaration in descriptor["materials"]:
             if "source" in declaration:
                 source = component_root / declaration["source"]
-                if source.is_symlink() or not source.is_file():
-                    raise CompositionError(
-                        "INVALID_SOURCE_MATERIAL",
-                        "source material is missing, non-regular, or a symlink: "
-                        f"{component_id}/{declaration['source']}",
-                    )
+                _assert_tracked_authority(source)
                 try:
                     data = source.read_bytes()
                 except OSError as exc:
@@ -536,14 +559,16 @@ def _existing_inventory(target: Path) -> list[tuple[str, tuple[str, ...], str]]:
     inventory: list[tuple[str, tuple[str, ...], str]] = []
     for root, dirs, files in os.walk(target, topdown=True, followlinks=False):
         root_path = Path(root)
+        original_dirs = list(dirs)
         dirs[:] = [
             name
-            for name in dirs
+            for name in original_dirs
             if name.casefold() != ".git"
             and not (root_path / name).is_symlink()
         ]
-        entries = list(dirs) + list(files)
-        for name in entries:
+        for name in original_dirs + list(files):
+            if name.casefold() == ".git" and root_path == target:
+                continue
             path = root_path / name
             relative = path.relative_to(target).as_posix()
             if path.is_symlink():
@@ -644,7 +669,9 @@ def build_lock(
 ) -> dict[str, Any]:
     resolved = []
     for component_id in selected:
-        descriptor_bytes = _component_path(component_id).read_bytes()
+        descriptor_path = _component_path(component_id)
+        _assert_tracked_authority(descriptor_path)
+        descriptor_bytes = descriptor_path.read_bytes()
         resolved.append(
             {
                 "id": component_id,
@@ -700,8 +727,7 @@ def _parent_chain_is_safe(target: Path, destination: Path) -> bool:
 def _write_no_overwrite(target: Path, destination: Path, data: bytes) -> None:
     if not _parent_chain_is_safe(target, destination):
         raise CompositionError(
-            "WRITE_CONFLICT",
-            f"unsafe parent path while applying {destination}",
+            "WRITE_CONFLICT", f"unsafe parent path while applying {destination}"
         )
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not _parent_chain_is_safe(target, destination):
@@ -711,8 +737,7 @@ def _write_no_overwrite(target: Path, destination: Path, data: bytes) -> None:
         )
     if destination.is_symlink():
         raise CompositionError(
-            "WRITE_CONFLICT",
-            f"refusing to replace symlink: {destination}",
+            "WRITE_CONFLICT", f"refusing to replace symlink: {destination}"
         )
 
     temp_name: str | None = None
@@ -736,8 +761,7 @@ def _write_no_overwrite(target: Path, destination: Path, data: bytes) -> None:
             ) from exc
         except OSError as exc:
             raise CompositionError(
-                "WRITE_FAILED",
-                f"cannot install {destination}: {exc}",
+                "WRITE_FAILED", f"cannot install {destination}: {exc}"
             ) from exc
     finally:
         if temp_name:
@@ -755,8 +779,7 @@ def apply_plan(
 ) -> None:
     if target.exists() and target.is_symlink():
         raise CompositionError(
-            "INVALID_TARGET",
-            "consumer repository root must not be a symbolic link",
+            "INVALID_TARGET", "consumer repository root must not be a symbolic link"
         )
     target.mkdir(parents=True, exist_ok=True)
     material_by_destination = {
@@ -766,11 +789,7 @@ def apply_plan(
         if action["action"] != "create":
             continue
         material = material_by_destination[action["destination"]]
-        _write_no_overwrite(
-            target,
-            target / material.destination,
-            material.data,
-        )
+        _write_no_overwrite(target, target / material.destination, material.data)
     lock_bytes = (
         json.dumps(lock, ensure_ascii=False, indent=2) + "\n"
     ).encode("utf-8")
@@ -780,11 +799,7 @@ def apply_plan(
 def validate_consumer_with_source_validator(
     target: Path,
 ) -> tuple[bool, list[str]]:
-    if not SOURCE_CONSUMER_VALIDATOR.is_file() or SOURCE_CONSUMER_VALIDATOR.is_symlink():
-        raise CompositionError(
-            "SOURCE_VALIDATOR_MISSING",
-            "source-authoritative composition validator is missing or unsafe",
-        )
+    _assert_tracked_authority(SOURCE_CONSUMER_VALIDATOR)
     result = subprocess.run(
         [sys.executable, str(SOURCE_CONSUMER_VALIDATOR), str(target)],
         text=True,
@@ -811,14 +826,12 @@ def load_configuration(path: Path) -> tuple[bytes, dict[str, Any]]:
         data = path.read_bytes()
     except OSError as exc:
         raise CompositionError(
-            "READ_FAILED",
-            f"cannot read configuration {path}: {exc}",
+            "READ_FAILED", f"cannot read configuration {path}: {exc}"
         ) from exc
     value = load_json_bytes(data, label=str(path))
     if not isinstance(value, dict):
         raise CompositionError(
-            "INVALID_CONFIG",
-            "composition configuration must be an object",
+            "INVALID_CONFIG", "composition configuration must be an object"
         )
     return data, value
 
@@ -862,13 +875,7 @@ def command_plan(
     recipe, selected = resolve_configuration(state, config)
     materials = build_materials(state, selected)
     actions, conflicts = plan_target(target, materials)
-    lock = build_lock(
-        state,
-        recipe["id"],
-        config_bytes,
-        selected,
-        materials,
-    )
+    lock = build_lock(state, recipe["id"], config_bytes, selected, materials)
     payload = {
         "schema_version": 1,
         "source": {
@@ -901,13 +908,7 @@ def command_apply(
             "recipe": recipe["id"],
             "conflicts": conflicts,
         }
-    lock = build_lock(
-        state,
-        recipe["id"],
-        config_bytes,
-        selected,
-        materials,
-    )
+    lock = build_lock(state, recipe["id"], config_bytes, selected, materials)
     apply_plan(target, actions, materials, lock)
     valid, errors = validate_consumer_with_source_validator(target)
     if not valid:
@@ -983,26 +984,18 @@ def main() -> int:
             status, payload = command_inspect(args.target.absolute())
         elif args.command == "plan":
             status, payload = command_plan(
-                args.config.absolute(),
-                args.target.absolute(),
+                args.config.absolute(), args.target.absolute()
             )
         elif args.command == "apply":
             status, payload = command_apply(
-                args.config.absolute(),
-                args.target.absolute(),
+                args.config.absolute(), args.target.absolute()
             )
         elif args.command == "validate":
             status, payload = command_validate(args.target.absolute())
         else:
             raise AssertionError(args.command)
     except CompositionError as exc:
-        _emit(
-            {
-                "status": "error",
-                "code": exc.code,
-                "message": exc.message,
-            }
-        )
+        _emit({"status": "error", "code": exc.code, "message": exc.message})
         return 2
     _emit(payload)
     return status
