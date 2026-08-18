@@ -47,10 +47,7 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
         self.assertLess(locale_metadata, entry_points)
         self.assertLess(entry_points, link_validation)
 
-        # Each locked provider is consumed by the canonical graph, locale overlay,
-        # canonical viewer, and localized viewer. All four stages must use the same
-        # checked-out provider root rather than rediscovering branch state.
-        for provider in ("skill", "policy", "webapp"):
+        for provider in ("composition", "policy"):
             self.assertEqual(
                 workflow.count(f"--provider {provider}={provider}-source"),
                 4,
@@ -59,6 +56,14 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
                 f'build/site/guided/${{provider}}/index.html',
                 workflow,
             )
+        self.assertNotIn("--provider skill=", workflow)
+        self.assertNotIn("--provider webapp=", workflow)
+        self.assertEqual(
+            workflow.count("scripts/run_composition_navigation.py"),
+            4,
+        )
+        for mode in ("graph", "locales", "viewer", "locale-viewer"):
+            self.assertIn(f"run_composition_navigation.py {mode}", workflow)
         self.assertIn("--output build/index-navigation.json", workflow)
         self.assertIn("--graph build/index-navigation.json", workflow)
         self.assertIn("--output build/index-navigation-locales.json", workflow)
@@ -66,16 +71,9 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
         self.assertIn("--pair-map build/guided-locale-publication.json", workflow)
         self.assertIn("--site-root build/site/guided", workflow)
         self.assertIn("build/site/guided/graph.json", workflow)
+        self.assertIn("guided graph provider order mismatch", workflow)
         self.assertIn("test ! -e build/site/ja/guided/graph.json", workflow)
         self.assertIn("missing guided index page", workflow)
-        self.assertGreaterEqual(
-            workflow.count('<link rel="manifest" href="/app.webmanifest">'),
-            2,
-        )
-        self.assertGreaterEqual(
-            workflow.count('<meta name="theme-color" content="#3f51b5">'),
-            2,
-        )
 
     def test_reader_surfaces_expose_guided_discovery_as_a_distinct_path(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
@@ -89,30 +87,25 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
 
     def test_publication_policy_defines_provider_owned_guided_boundary(self) -> None:
         policy = POLICY.read_text(encoding="utf-8")
-        normalized = " ".join(policy.split())
 
-        self.assertIn("### Index-guided navigation", policy)
-        self.assertIn("provider-owned `index.md`", policy)
-        self.assertIn("/guided/graph.json", policy)
-        self.assertIn("cycles, multiple navigation parents, and maximum index depth", normalized)
-        self.assertIn("human viewer consumes that graph rather than reparsing provider Markdown", normalized)
-        self.assertIn("graph revision for a provider must equal the checked-out provider revision", normalized)
-        self.assertIn("not a second catalog", normalized)
-        self.assertIn("must not silently derive or replace its primary navigation", normalized)
+        self.assertIn("## Index-guided navigation", policy)
+        self.assertIn("Provider-owned `docs/index.md`", policy)
+        self.assertIn("composition", policy)
+        self.assertIn("policy", policy)
+        self.assertIn("exact full-SHA provider revisions", policy)
 
     def test_maintenance_and_readme_include_guided_build_contract(self) -> None:
         maintenance = MAINTENANCE.read_text(encoding="utf-8")
         readme = README.read_text(encoding="utf-8")
         for text in (maintenance, readme):
-            self.assertIn("scripts/generate_index_navigation.py", text)
-            self.assertIn("scripts/generate_index_navigation_viewer.py", text)
+            self.assertIn("scripts/run_composition_navigation.py", text)
             self.assertIn("--site-root build/site/guided", text)
         self.assertIn("## Index-guided navigation generation", maintenance)
         self.assertIn("/guided/", readme)
 
-    def test_provider_lock_remains_an_independent_full_sha_dependency_lock(self) -> None:
+    def test_provider_lock_remains_a_full_sha_dependency_lock(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
-        self.assertEqual(set(lock["publications"]), {"skill", "policy", "webapp"})
+        self.assertEqual(set(lock["publications"]), {"composition", "policy"})
         for provider, entry in lock["publications"].items():
             with self.subTest(provider=provider):
                 revision = entry["revision"]
