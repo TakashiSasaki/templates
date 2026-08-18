@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "1f07815c173e42517aae69af15e6fa9a46015c41"
+POLICY_REVISION = "27a3319a3785250236bee056fd917379c245aaef"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
