@@ -106,6 +106,8 @@ The lock is composer metadata and is excluded from its own file inventory.
 
 Every artifact requires `lifecycle.composition-state` transitively. It materializes a stdlib-only validator and the lock schema under `.template-composition/`.
 
+`lifecycle.composition-state` is an artifact dependency rather than a recipe-visible optional selection because it is composition integrity infrastructure, not product behavior. Any repository carrying a composition lock must also carry the self-contained validation contract for that lock; allowing consumers to opt out would permit managed repositories whose recorded composition state cannot be independently checked without the source checkout.
+
 The consumer validator does not read the source catalog. It checks the recorded resolved state, portable/symlink boundaries, and current material files:
 
 - `managed` — must exist and still match the lock digest;
