@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "0000000000000000000000000000000000000000"
+  },
+  "recipe": "webapp",
+  "configuration_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "resolved_components": [
+    {
+      "id": "artifact.webapp-core",
+      "version": 1,
+      "descriptor_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "id": "capability.runtime",
+      "version": 1,
+      "descriptor_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "id": "capability.mcp",
+      "version": 1,
+      "descriptor_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "id": "lifecycle.contract-evolution",
+      "version": 1,
+      "descriptor_sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    {
+      "id": "lifecycle.implementation-evidence",
+      "version": 1,
+      "descriptor_sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    {
+      "id": "lifecycle.release-evidence",
+      "version": 1,
+      "descriptor_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  ],
+  "files": [
+    {
+      "destination": "schemas/mcp.schema.json",
+      "component": "capability.mcp",
+      "ownership": "managed",
+      "materialized_sha256": "8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    {
+      "destination": "contracts/interfaces/mcp.md",
+      "component": "capability.mcp",
+      "ownership": "seed",
+      "materialized_sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+    },
+    {
+      "destination": ".template-composition/registry.json",
+      "component": "lifecycle.contract-evolution",
+      "ownership": "generated",
+      "materialized_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}
