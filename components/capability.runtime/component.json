@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "capability.runtime",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Maintained implementation runtime, commands, dependencies, distribution, environment, and deployment lifecycle.",
+  "requires": [],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/RUNTIME.md",
+      "destination": "RUNTIME.md",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/docs/runtime-selection.md",
+      "destination": "docs/runtime-selection.md",
+      "ownership": "managed"
+    }
+  ]
+}

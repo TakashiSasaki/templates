@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "capability.service",
+  "kind": "capability",
+  "version": 1,
+  "summary": "Independently reachable non-browser service contract.",
+  "requires": [
+    "capability.runtime"
+  ],
+  "conflicts": [],
+  "materials": [
+    {
+      "source": "files/SERVICE_INTERFACE.md",
+      "destination": "SERVICE_INTERFACE.md",
+      "ownership": "seed"
+    }
+  ]
+}
