@@ -57,30 +57,52 @@
       "type": "array",
       "minItems": 1,
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "source",
-          "destination",
-          "ownership"
-        ],
-        "properties": {
-          "source": {
-            "type": "string",
-            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*//)[A-Za-z0-9._/-]+$"
+        "oneOf": [
+          {
+            "title": "Copied material",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source",
+              "destination",
+              "ownership"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*//)[A-Za-z0-9._/-]+$"
+              },
+              "destination": {
+                "type": "string",
+                "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*//)[A-Za-z0-9._/-]+$"
+              },
+              "ownership": {
+                "enum": [
+                  "managed",
+                  "seed"
+                ]
+              }
+            }
           },
-          "destination": {
-            "type": "string",
-            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*//)[A-Za-z0-9._/-]+$"
-          },
-          "ownership": {
-            "enum": [
-              "managed",
-              "seed",
-              "generated"
-            ]
+          {
+            "title": "Generated material",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "destination",
+              "ownership"
+            ],
+            "properties": {
+              "destination": {
+                "type": "string",
+                "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*//)[A-Za-z0-9._/-]+$"
+              },
+              "ownership": {
+                "const": "generated"
+              }
+            }
           }
-        }
+        ]
       }
     }
   },

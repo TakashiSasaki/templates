@@ -10,3 +10,5 @@ These JSON Schema Draft 2020-12 documents define the PR1 composition data model.
 JSON Schema validates document shape. Repository tests additionally enforce semantic invariants that span fields or documents, such as disjoint selections, unique materialized destinations, and lock ownership references.
 
 The schemas define data contracts only. They do not implement dependency resolution, materialization, update behavior, or a public composer CLI.
+
+The documents under `../examples/` are executable fixtures, not production catalog entries.

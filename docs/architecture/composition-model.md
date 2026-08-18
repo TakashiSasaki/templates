@@ -87,7 +87,11 @@ A component descriptor declares:
 - human-readable summary;
 - required component IDs;
 - conflicting component IDs; and
-- materialized files with source, destination, and ownership mode.
+- materialized destinations with an ownership mode.
+
+`managed` and `seed` materials also declare a source path. `generated` materials deliberately have no source path because their bytes are derived from the resolved composition.
+
+A material source path is relative to that component's source root. A destination path is relative to the consumer repository root in schema version 1.
 
 The descriptor does not contain executable install, update, or post-install hooks.
 
@@ -119,6 +123,10 @@ A recipe never owns copies of generic capability or lifecycle contracts. Both `w
 
 The required, default, and optional component sets must be pairwise disjoint.
 
+The artifact component is selected only by the recipe in schema version 1. Consumer include/exclude declarations cannot substitute a different `artifact.*` component.
+
+Detailed resolver semantics for required/default/optional membership are intentionally deferred until the component catalog and resolver exist. At minimum, the future resolver must reject any attempt to exclude a recipe-required component or a transitive dependency.
+
 ## Consumer composition intent
 
 A consumer configuration records user intent separately from resolution.
@@ -126,15 +134,17 @@ A consumer configuration records user intent separately from resolution.
 It declares:
 
 - one recipe ID;
-- components explicitly included;
-- components explicitly excluded; and
+- capability or lifecycle components explicitly included;
+- capability or lifecycle components explicitly excluded; and
 - optional component-scoped parameters.
 
 The include and exclude sets must be disjoint.
 
-The configuration does not enumerate the final dependency closure. That is the lock's responsibility.
+The configuration does not enumerate the final dependency closure and cannot replace the recipe's artifact component. Dependency closure belongs to the lock.
 
 PR1 defines the data model but does not commit to a particular YAML or JSON CLI serialization. JSON examples are used because JSON is directly schema-validatable and can represent the same data model.
+
+Schema version 1 models one artifact recipe materialized at the consumer repository root. Nested multiple artifact instances may be added later, but PR1 does not encode that future feature.
 
 ## Resolved composition lock
 
@@ -142,12 +152,14 @@ A lock records the deterministic result of resolution.
 
 It binds the result to:
 
-- the exact source repository;
+- source repository `TakashiSasaki/templates`;
 - a lowercase full 40-hex Git commit revision;
 - the selected recipe;
-- the SHA-256 of the consumer configuration;
-- the resolved ordered component set, including descriptor digests; and
+- the SHA-256 of the exact validated consumer-configuration file bytes;
+- the resolved ordered component set, including exact component versions and descriptor-byte digests; and
 - the materialized file inventory, ownership modes, and materialized byte digests.
+
+The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
 
 A lock contains no generation timestamp or other intentionally nondeterministic field.
 
@@ -177,7 +189,7 @@ A future update must not overwrite an existing seeded destination merely because
 
 ### `generated`
 
-The bytes are derived deterministically from the resolved composition.
+The bytes are derived deterministically from the resolved composition and therefore have a destination but no source file in the component descriptor.
 
 Typical examples are aggregate registries or other closed inventories assembled from selected component metadata.
 
@@ -189,7 +201,7 @@ A materialized destination path has at most one component owner.
 
 Composition is not a general-purpose text merge engine. Two components must not append to, patch, or partially own the same file.
 
-When information from multiple components must be aggregated, each component supplies separate authoritative metadata and the composer creates one `generated` aggregate owned by a single designated generating authority.
+When information from multiple components must be aggregated, each component supplies separate authoritative metadata and one designated component owns the resulting `generated` destination.
 
 This rule avoids order-dependent file patches and makes composition results auditable.
 
@@ -213,11 +225,11 @@ The current schema intentionally restricts component-controlled materialization 
 The target composer must satisfy:
 
 ```text
-(source revision, validated configuration) -> resolved composition
-(resolved composition, component bytes)    -> materialized managed/generated bytes
+(source revision, validated configuration bytes) -> resolved composition
+(resolved composition, component bytes)          -> materialized managed/generated bytes
 ```
 
-For the same immutable source revision and the same configuration, resolution order, component metadata, and managed/generated output bytes must be stable.
+For the same immutable source revision and the same validated configuration bytes, resolution order, component metadata, and managed/generated output bytes must be stable.
 
 A composer must not consult mutable branches, ambient repository state, wall-clock time, random values, network-discovered defaults, or arbitrary executable hooks when deriving those bytes.
 
@@ -279,7 +291,7 @@ PR1 defines four JSON Schema Draft 2020-12 contracts:
 - `schemas/composition-config.schema.json`; and
 - `schemas/composition-lock.schema.json`.
 
-Positive examples under `examples/` are executable schema fixtures.
+Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
 
 Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, unique destination ownership, and lock references to resolved component owners.
 

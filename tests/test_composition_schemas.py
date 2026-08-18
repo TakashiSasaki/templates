@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = {
@@ -108,7 +109,7 @@ class CompositionSchemaTests(unittest.TestCase):
     def test_component_kind_must_match_id_namespace(self) -> None:
         value = copy.deepcopy(self.examples["component"])
         value["kind"] = "artifact"
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_destination(self) -> None:
@@ -116,7 +117,7 @@ class CompositionSchemaTests(unittest.TestCase):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises(Exception):
+                with self.assertRaises(ValidationError):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_self_dependency(self) -> None:
@@ -137,6 +138,23 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assert_schema_valid("component", value)
 
+    def test_copied_material_requires_source(self) -> None:
+        value = copy.deepcopy(self.examples["component"])
+        del value["materials"][0]["source"]
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("component", value)
+
+    def test_generated_material_has_no_source(self) -> None:
+        value = copy.deepcopy(self.examples["component"])
+        value["materials"][0] = {
+            "destination": ".template-composition/registry.json",
+            "ownership": "generated",
+        }
+        self.assert_schema_valid("component", value)
+        value["materials"][0]["source"] = "registry-source.json"
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("component", value)
+
     def test_recipe_rejects_selection_class_overlap(self) -> None:
         value = copy.deepcopy(self.examples["recipe"])
         value["optional_components"].append(value["default_components"][0])
@@ -149,12 +167,26 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assert_schema_valid("config", value)
 
+    def test_config_cannot_select_artifact_component(self) -> None:
+        for field in ("include", "exclude"):
+            value = copy.deepcopy(self.examples["config"])
+            value["components"][field].append("artifact.skill-core")
+            with self.subTest(field=field):
+                with self.assertRaises(ValidationError):
+                    self.assert_schema_valid("config", value)
+
+    def test_lock_requires_canonical_source_repository(self) -> None:
+        value = copy.deepcopy(self.examples["lock"])
+        value["source"]["repository"] = "example/other"
+        with self.assertRaises(ValidationError):
+            self.assert_schema_valid("lock", value)
+
     def test_lock_requires_full_lowercase_revision(self) -> None:
         for revision in ("abc123", "A" * 40, "0" * 39, "0" * 41):
             value = copy.deepcopy(self.examples["lock"])
             value["source"]["revision"] = revision
             with self.subTest(revision=revision):
-                with self.assertRaises(Exception):
+                with self.assertRaises(ValidationError):
                     self.assert_schema_valid("lock", value)
 
     def test_lock_rejects_duplicate_destination_owners(self) -> None:
@@ -174,7 +206,7 @@ class CompositionSchemaTests(unittest.TestCase):
     def test_descriptors_cannot_add_execution_hooks(self) -> None:
         value = copy.deepcopy(self.examples["component"])
         value["post_install"] = "echo unsafe"
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             self.assert_schema_valid("component", value)
 
 
