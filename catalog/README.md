@@ -17,7 +17,7 @@ Production catalog validation establishes:
 - component ownership of every registered contract document/schema/migration;
 - a unique generated owner for `contracts/manifest.json`;
 - deterministic manifest rendering from resolved `contract_registrations`;
-- every resolvable production component owns at least one materialized file, because the schema-v1 lock requires every resolved component to have a file-ownership witness;
+- every resolvable production component owns at least one materialized file, because the composition lock requires every resolved component to have a file-ownership witness;
 - portable single-owner material destinations; and
 - successful materialized validation for production Skill and Webapp compositions.
 
@@ -25,4 +25,4 @@ The catalog is source authority, not consumer material and not an execution-hook
 
 The composer validates this closed source graph, resolves a recipe plus consumer configuration against one exact clean Git revision, and writes the resulting component/file closure to `.template-composition/lock.json` after successful initial materialization. Generated materials are dispatched only through allowlisted declarative generator IDs.
 
-Existing managed repositories are intentionally outside the composer MVP's apply contract: a pre-existing composition lock causes update refusal rather than implicit merge/upgrade behavior.
+For an unmanaged target, initial composition refuses a pre-existing composition lock rather than inferring a managed-state transition. Existing managed repositories instead use explicit operations: `update` preserves the normalized intent recorded by lock schema v2 while advancing to a descendant Composition source revision, and `upgrade` accepts an explicit new configuration for changes such as recipe, component selection, parameters, or component versions. Neither operation is a general-purpose merge engine: locally modified `managed`/`generated` material and owner/ownership-mode transitions fail closed rather than being overwritten or inferred.
