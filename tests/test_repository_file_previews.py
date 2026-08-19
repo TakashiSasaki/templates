@@ -196,9 +196,13 @@ class RepositoryFilePreviewConfigurationTests(unittest.TestCase):
         self.assertLess(tree_generation, preview_generation)
         self.assertLess(preview_generation, static_build)
         self.assertIn(
-            "python site-source/scripts/generate_repository_file_previews.py",
+            "python site-source/scripts/generate_repository_file_previews_composition.py",
             workflow,
         )
+        self.assertIn("--publication composition=composition-source", workflow)
+        self.assertIn("--publication policy=policy-source", workflow)
+        self.assertNotIn("--publication skill=", workflow)
+        self.assertNotIn("--publication webapp=", workflow)
         self.assertIn(
             "build/site/repository-trees/previews",
             workflow,
