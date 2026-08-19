@@ -28,7 +28,17 @@ def main() -> int:
                 "UPDATE_CONFIG_NOT_ALLOWED",
                 "update preserves lock intent and therefore does not accept --config; use upgrade for intent changes",
             )
-        status, payload = transaction.apply_update(args.target.absolute())
+        target = args.target.absolute()
+        marker_path = target / core.TRANSACTION_RELATIVE
+        lock_path = target / core.LOCK_RELATIVE
+        if not (marker_path.exists() or marker_path.is_symlink()) and not (
+            lock_path.exists() or lock_path.is_symlink()
+        ):
+            raise core.CompositionError(
+                "MANAGED_LOCK_REQUIRED",
+                f"managed operation requires {core.LOCK_RELATIVE}",
+            )
+        status, payload = transaction.apply_update(target)
     except core.CompositionError as exc:
         _emit({"status": "error", "code": exc.code, "message": exc.message})
         return 2
