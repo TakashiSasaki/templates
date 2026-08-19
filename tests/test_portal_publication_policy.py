@@ -54,7 +54,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertIn("full 40-character commit SHAs", overview)
         self.assertIn("build-provenance.json", overview)
         self.assertIn("Machine-readable contracts and schemas", overview)
-        self.assertIn("external provider set is now `composition` and `policy`", overview)
+        self.assertIn(
+            "external provider set is now <code>composition</code> and <code>policy</code>",
+            overview,
+        )
         self.assertIn("Composition does not merge artifact semantics", overview)
 
     def test_publication_policy_declares_current_entry_points(self) -> None:
