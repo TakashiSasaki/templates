@@ -1,28 +1,26 @@
-# Composer MVP
+# Composer MVP and managed-state contract
 
 ## Scope
 
-PR4 implements the first deterministic source-time composer for the production component catalog.
-
-The public lifecycle is:
+The deterministic Composer uses the public lifecycle:
 
 ```text
 inspect -> plan -> apply -> validate
 ```
 
-`update` is deliberately not implemented. A target containing `.template-composition/lock.json` is already managed and `plan` / `apply` fail with `UPDATE_NOT_SUPPORTED` rather than guessing merge behavior.
+The initial-composition behavior remains fail-closed for a target that already contains `.template-composition/lock.json`. Managed-state update and upgrade are separate operations; they are not inferred by initial composition.
+
+This document also defines the lock-schema-v2 foundation required by update/upgrade. The read-only reconciliation planner and mutation/recovery protocol are implemented in subsequent independently reviewable changes.
 
 ## Source authority
 
-The composer runs from a clean `composition` source checkout. It binds every successful plan/apply to the exact full Git commit returned by `git rev-parse HEAD` and refuses tracked source modifications.
+The Composer runs from a clean `composition` source checkout. It binds every successful plan/apply to the exact full Git commit returned by `git rev-parse HEAD` and refuses tracked source modifications.
 
 The production catalog is loaded closed: catalog IDs must exactly match `components/` and `recipes/`, descriptors/recipes must validate against their schemas, dependencies must exist and be acyclic, and generic capability/lifecycle components must not depend on artifact authorities.
 
-## Resolution
+## Resolution and consumer intent
 
-For schema version 1, one production recipe determines the artifact and selectable component surface.
-
-Resolution starts from:
+One production recipe determines the artifact and selectable component surface. Resolution starts from:
 
 ```text
 artifact
@@ -33,102 +31,116 @@ artifact
 
 Then all `requires` dependencies are added transitively.
 
-The resolver fails closed when:
+The resolver fails closed for include/exclude overlap, unexposed selections, exclusion of required/transitive dependencies, active conflicts, or parameters targeting components absent from the resolved closure.
 
-- include/exclude overlap;
-- an included or excluded component is not exposed by the recipe;
-- a recipe-required component is excluded;
-- an excluded component reappears as a transitive dependency;
-- the resolved closure contains a declared conflict; or
-- a parameter namespace names a component absent from the resolved closure.
+The consumer configuration remains schema version 1. Lock schema version 2 stores a normalized semantic snapshot of that configuration as `intent`:
 
-Parameters remain opaque component-scoped intent in this MVP. No current material generator consumes a parameter value. The exact configuration bytes are nevertheless bound by SHA-256 in the lock, so later parameter semantics cannot silently reinterpret an older lock without a versioned contract change.
+```json
+{
+  "recipe": "skill",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+Normalization sorts include/exclude component IDs lexically and recursively sorts object keys inside parameters while preserving array order. The snapshot, rather than mutable ambient configuration, is the authority used by a future `update` operation.
+
+`configuration_sha256` is retained as provenance for the exact bytes of the most recent explicitly supplied configuration. A future update that preserves intent carries that digest forward; an explicit upgrade with a new configuration replaces it.
 
 ## Generated materials
 
-A generated material names a bounded declarative `generator` ID; descriptors never contain executable hooks.
+A generated material names a bounded declarative `generator` ID; descriptors never contain executable hooks. The initial allowlist contains only `contract-manifest-v1`.
 
-The initial allowlist contains only:
+It collects `contract_registrations` from the resolved closure, rejects duplicate identities/paths, sorts by contract ID, and emits deterministic UTF-8 JSON. Unknown generator IDs fail before target writes.
 
-```text
-contract-manifest-v1
-```
+## Initial plan and apply
 
-It collects `contract_registrations` from the resolved closure, rejects duplicate identities/paths, sorts by contract ID, and emits deterministic UTF-8 JSON.
+Initial `plan` is read-only. It computes every copied/generated material byte before classifying the target as `create`, `adopt-identical`, or conflict.
 
-Unknown generator IDs fail before target writes.
+Initial composition never overwrites different existing bytes. Identical unmanaged files may be adopted because the resulting lock can truthfully bind their exact bytes. Portable case collisions, file/directory conflicts, symbolic-link boundaries, unsupported generated-material handlers, dependency conflicts, and existing managed-state metadata fail closed.
 
-## Plan
+Created files are written to a temporary file in the destination directory and installed with a no-overwrite hard-link operation. The lock is written last. If the process stops before that point, the repository remains unmanaged and a later initial apply may adopt only exact previously materialized bytes.
 
-`plan` is read-only. It computes every copied/generated material byte before classifying the target.
+## Lock schema version 2
 
-Each destination is classified as:
-
-- `create` — destination is absent and safe;
-- `adopt-identical` — an unmanaged existing regular file has exactly the planned bytes; or
-- conflict — any unsafe or ambiguous condition.
-
-Conflicts include:
-
-- different existing bytes;
-- symbolic links;
-- file/directory prefix collisions;
-- portable case-insensitive collisions;
-- a target root that is a symbolic link; and
-- an existing composition lock.
-
-An identical unmanaged file may be adopted because the resulting lock can truthfully bind its exact bytes. Different existing files are never overwritten during initial composition.
-
-## Apply and crash boundary
-
-`apply` recomputes the plan. All ordinary conflicts are detected before writes.
-
-Created files are written to a temporary file in the destination directory and installed with a no-overwrite hard-link operation. If another actor creates the destination after planning, apply fails rather than replacing it.
-
-Directories may be created incrementally. The operation is therefore not described as a full filesystem transaction.
-
-The lock is written **last**. If the process stops before that point, the repository remains unmanaged. A later run may adopt any already-created files only when their bytes exactly match the new plan; partial or different bytes become conflicts.
-
-## Lock
-
-The schema-version-1 lock contains no timestamp or random value. It binds:
+The canonical lock path remains `.template-composition/lock.json`. Schema version 2 contains no timestamp, random value, branch name, or network-derived value. It binds:
 
 - canonical source repository identity;
-- exact nonzero 40-hex source revision;
-- selected recipe;
-- SHA-256 of the exact configuration file bytes;
-- lexically ordered resolved component IDs, versions, and exact descriptor-byte SHA-256 values; and
-- lexically ordered materialized destinations, owners, ownership modes, and exact materialized-byte SHA-256 values.
+- exact nonzero lowercase 40-hex source revision;
+- normalized consumer `intent` (`recipe`, include/exclude selection, and parameters);
+- SHA-256 of the exact recipe bytes used for resolution (`recipe_sha256`);
+- SHA-256 of the exact most recently supplied configuration bytes (`configuration_sha256`);
+- lexically ordered resolved component IDs, positive integer versions, and exact descriptor-byte SHA-256 values; and
+- lexically ordered materialized destinations, owners, ownership modes, and materialized-byte SHA-256 values.
 
-The lock is composer metadata and is excluded from its own file inventory.
+The former top-level `recipe` field is removed because `intent.recipe` is the canonical consumer selection. Lock schema v1 is intentionally not accepted; this repository is pre-production and no backward-compatibility migration is required.
+
+The recipe digest closes a v1 audit gap: recipe bytes participate in resolution and therefore must be identifiable from the lock just as component descriptor bytes are.
+
+For `seed` materials, the recorded digest identifies the bytes initially supplied by Composition. Consumer-time validation permits later digest drift because content ownership has transferred to the consumer.
+
+## Reserved managed-state metadata
+
+Component material must not claim paths that collide, case-insensitively or structurally, with Composer-owned metadata:
+
+```text
+.template-composition/lock.json
+.template-composition/transaction.json
+.template-composition/staging/**
+```
+
+`transaction.json` and `staging/**` are reserved for the managed-state recovery protocol. Reserving them in the lock-v2 contract before update mutation exists prevents a later component from acquiring ambiguous ownership of transaction state.
+
+Other files below `.template-composition/`, including the self-contained validator and schemas materialized by `lifecycle.composition-state`, remain valid component destinations.
 
 ## Consumer-time independence
 
-Every artifact requires `lifecycle.composition-state` transitively. It materializes a stdlib-only validator and the lock schema under `.template-composition/`.
+Every artifact requires `lifecycle.composition-state` transitively. It materializes a stdlib-only validator and lock schema under `.template-composition/`.
 
-`lifecycle.composition-state` is an artifact dependency rather than a recipe-visible optional selection because it is composition integrity infrastructure, not product behavior. Any repository carrying a composition lock must also carry the self-contained validation contract for that lock; allowing consumers to opt out would permit managed repositories whose recorded composition state cannot be independently checked without the source checkout.
+The consumer validator does not read the source catalog. It checks lock-v2 shape, source identity, normalized selection constraints, portable/symlink boundaries, and current material files:
 
-The consumer validator does not read the source catalog. It checks the recorded resolved state, portable/symlink boundaries, and current material files:
-
-- `managed` — must exist and still match the lock digest;
-- `generated` — must exist and still match the lock digest;
+- `managed` — must exist and match the lock digest;
+- `generated` — must exist and match the lock digest;
 - `seed` — must exist, but digest drift is allowed after ownership transfer.
+
+If `.template-composition/transaction.json` exists, the repository is explicitly reported as interrupted managed state rather than valid steady state. Recovery is a source-side Composer operation.
 
 Extra consumer-owned files are allowed.
 
-The source-side `inspect` / `validate` commands must not execute untrusted code from the consumer repository. They use source-authoritative validation logic to inspect target bytes. Direct invocation of the materialized validator is the consumer-side self-contained path.
+## Update versus upgrade contract
 
-## Deferred update semantics
+The managed-state operations are intentionally distinct:
 
-A later update PR must separately define at least:
+- `update` preserves the normalized lock intent and reconciles it against a descendant Composition source revision;
+- `upgrade` is the explicit operation for changing intent, recipe selection, component versions, or another declared compatibility boundary.
 
-- source-revision change rules;
-- component add/remove resolution;
-- managed/generated replacement only when current bytes match the old lock;
-- seed preservation;
-- removed managed-file handling;
-- generated-file regeneration;
-- source/config/descriptor reconciliation; and
-- recovery when an update is interrupted.
+Composition is not a general-purpose merge engine. The baseline ownership rules are:
 
-None of those behaviors are inferred by the MVP.
+- managed -> managed: replace/delete only when current bytes match the old lock digest;
+- generated -> generated: regenerate/delete only when current bytes match the old lock digest;
+- seed -> seed: preserve current consumer bytes unconditionally;
+- new managed/generated/seed: create only at a safe unoccupied destination;
+- removed seed: preserve it as a consumer-owned extra file;
+- ownership transitions: never inferred by update and require an explicit upgrade rule or a conflict.
+
+A component version change requires `upgrade`. If a component remains at the same positive integer version but its descriptor digest changes, the source has changed a compatibility-bearing descriptor without changing its version. That is a source invariant violation and is rejected by both update and upgrade. Source material bytes may change without a descriptor change; that is the normal managed/generated update case.
+
+## Determinism and execution boundary
+
+For the same immutable source revision, normalized intent, and valid old managed state, reconciliation order, managed/generated output bytes, and the resulting lock are deterministic. Seed contents after ownership transfer are preserved rather than merged.
+
+The Composer does not consult mutable branches, wall-clock time, random values, network-discovered defaults, arbitrary hooks, consumer code, package managers, or product build/test/deploy commands when deriving composition state.
+
+## Managed-state work decomposition
+
+The managed-state implementation is deliberately split into reviewable layers:
+
+1. lock-v2 and update/upgrade contract;
+2. read-only update reconciliation planning;
+3. safe update mutation plus interrupted-update recovery; and
+4. explicit upgrade semantics using the same reconciliation and recovery engine.
+
+At the lock-v2 stage, `plan`/`apply` still refuse an existing lock with `UPDATE_NOT_SUPPORTED`; later stages replace that temporary refusal only for explicit managed-state modes.
