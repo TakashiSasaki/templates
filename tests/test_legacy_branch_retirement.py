@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
-COMPOSITION_REVISION = "353ffd49279618a23efa1892d703e8f1de6c0c4a"
+COMPOSITION_REVISION = "0a83b68534ddea4fbc37b39474353d03818cc141"
 POLICY_REVISION = "46cfe5acbb91c1e4a6ece18dc2a429df3afa7268"
 SKILL_ARCHIVE_REVISION = "b8b735dbe525ca76316fec445cdce43db02a955e"
 WEBAPP_ARCHIVE_REVISION = "fa269e1310a37ad46f3644ed4f46954a815380ec"
@@ -76,12 +76,15 @@ class LegacyBranchRetirementTests(unittest.TestCase):
                 for condition in conditions
             )
         )
-        self.assertTrue(
-            any(
-                "update/upgrade semantics" in condition
-                and "independent of legacy branch retirement" in condition
-                for condition in conditions
-            )
+        lifecycle_boundary = next(
+            condition
+            for condition in conditions
+            if "Composer lifecycle semantics are owned by the composition authority"
+            in condition
+        )
+        self.assertIn("outside this Site migration-state record", lifecycle_boundary)
+        self.assertFalse(
+            any("future Composition work" in condition for condition in conditions)
         )
 
     def test_active_site_operations_do_not_reintroduce_legacy_branches(self) -> None:
