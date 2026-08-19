@@ -26,9 +26,16 @@ inspect -> plan -> apply -> validate
 
 `update` is deliberately not implemented in the MVP. A repository containing an existing composition lock is treated as managed state and update is refused rather than inferred.
 
-PR5 establishes the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and stdlib-only provider-local publication validation. Site integration remains a separate change.
+PR5 established the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and stdlib-only provider-local publication validation.
 
-The legacy `webapp` source snapshot used by PR3 is `fa269e1310a37ad46f3644ed4f46954a815380ec`. Its browser-domain contract bytes and their current domain version histories are preserved. The legacy branch history is not merged into `composition`.
+Site PR #270 completed the publication cutover to the post-composition authority model. The Site now locks one reviewed `composition` revision for Skill/Webapp artifact semantics, reusable capabilities, lifecycle contracts, recipes, schemas, composer documentation, and related publication assets. The legacy `skill` and `webapp` branches are no longer source authorities or Site publication inputs.
+
+The final legacy branch heads retained for historical provenance are:
+
+- `skill`: `b8b735dbe525ca76316fec445cdce43db02a955e`;
+- `webapp`: `fa269e1310a37ad46f3644ed4f46954a815380ec`.
+
+The browser-domain contract bytes and their current domain version histories imported from the legacy Webapp source are preserved in Composition. Legacy branch history is not merged into `composition`.
 
 ## Generated contract manifest
 
@@ -87,7 +94,7 @@ The production catalog is closed and validated for dependency existence/acyclici
 
 ## Deferred work
 
-Update/upgrade semantics for an existing composition lock, Site integration, and retirement of the legacy `skill` / `webapp` source authorities remain later independently reviewable work.
+Update/upgrade semantics for a repository with an existing composition lock remain future Composition work. They are not required to complete the branch-authority migration or to retire the legacy `skill` / `webapp` branch refs.
 
 See:
 
