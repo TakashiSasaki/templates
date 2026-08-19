@@ -2,31 +2,21 @@
 
 ## Decision
 
-The `composition` branch is the future single source authority for reusable application-template material that is currently split between the unrelated `webapp` and `skill` histories.
+The `composition` branch is the canonical source authority for reusable artifact semantics, application capabilities, lifecycle contracts, recipes, schemas, and the deterministic Composer.
 
-This branch does not make Web applications and Agent Skills the same artifact. It separates three concerns:
+Composition separates three authority classes:
 
 1. **artifact semantics** — what kind of artifact is being developed, such as a Web application or Agent Skill;
 2. **capabilities** — reusable optional behavior such as runtime, CLI, MCP, MCP Apps, browser exposure, or a headless service; and
-3. **lifecycle contracts** — reusable contract-evolution, implementation-evidence, release-evidence, and release-bundle behavior.
+3. **lifecycle contracts** — reusable composition state, contract evolution, implementation evidence, release evidence, and release-bundle behavior.
 
-`webapp` and `skill` therefore become recipes over one component catalog rather than independent monolithic downstream templates.
+Web applications and Agent Skills remain distinct artifacts. They share reusable authorities through recipes over one component catalog rather than through duplicated monolithic templates.
 
-PR1 establishes this model and the machine-readable schemas only. Physical migration of legacy content is deliberately later work.
+The legacy `skill` and `webapp` source-authority migration is complete. Managed-state update/upgrade is an independent Composer lifecycle concern.
 
-## Replacement for direct copyability
+## Source-time composition, consumer-time independence
 
-The retired architectural target is:
-
-```text
-monolithic template/
-        |
-        | byte-for-byte copy
-        v
-consumer repository
-```
-
-The replacement target is:
+The materialization model is:
 
 ```text
 recipe + consumer intent + immutable source revision
@@ -40,11 +30,11 @@ recipe + consumer intent + immutable source revision
           consumer repository + lock
 ```
 
-The important invariant retained from the old copyable model is not that a source subtree itself is directly copyable. The retained invariant is:
+The core invariant is:
 
-> After materialization, the consumer repository is self-contained and can be validated without access to the composition source checkout.
+> After successful materialization, the consumer repository is self-contained and can validate its steady composition state without access to the Composition source checkout.
 
-This is **source-time composition, consumer-time independence**.
+Source-side Composer operations are required only when deriving a new state (`initial`, `update`, or `upgrade`) or recovering an interrupted managed-state transaction.
 
 ## Authority classes
 
@@ -54,28 +44,9 @@ Component IDs have exactly one of three prefixes:
 - `capability.*` — reusable application capabilities; or
 - `lifecycle.*` — reusable product-lifecycle contracts.
 
-The prefix must agree with the component descriptor's `kind`.
+The prefix must agree with the descriptor `kind`. Generic `capability.*` and `lifecycle.*` descriptors must not require or conflict with concrete `artifact.*` authorities. Artifact components may require reusable capabilities/lifecycle components when those contracts are intrinsic to the artifact.
 
-Initial intended authorities are:
-
-```text
-artifact.webapp-core
-artifact.skill-core
-
-capability.runtime
-capability.cli
-capability.mcp
-capability.mcp-apps
-capability.web-interface
-capability.service
-
-lifecycle.contract-evolution
-lifecycle.implementation-evidence
-lifecycle.release-evidence
-lifecycle.release-bundle
-```
-
-These names are architectural targets, not a declaration that PR1 already contains those component implementations.
+The production catalog is closed. Catalog validation requires component and recipe inventories to match the source tree, dependencies to exist and be acyclic, identities to be unique, generic/artifact boundaries to hold, and selected conflicts to be rejected.
 
 ## Component descriptor
 
@@ -83,246 +54,261 @@ A component descriptor declares:
 
 - stable component `id`;
 - component `kind`;
-- integer component `version`;
+- positive integer component `version`;
 - human-readable summary;
 - required component IDs;
-- conflicting component IDs; and
-- materialized destinations with an ownership mode.
+- conflicting component IDs;
+- materialized destinations with ownership modes; and
+- optional declarative registrations used by bounded generated-material handlers.
 
-`managed` and `seed` materials also declare a source path. `generated` materials deliberately have no source path because their bytes are derived from the resolved composition.
+`managed` and `seed` materials declare a source path. `generated` materials have no source path because their bytes are derived deterministically from resolved component metadata.
 
-A material source path is relative to that component's source root. A destination path is relative to the consumer repository root in schema version 1.
+Descriptors do not contain arbitrary executable install/update/post-install hooks.
 
-The descriptor does not contain executable install, update, or post-install hooks.
+The integer component version is an explicit compatibility boundary, not SemVer. A managed `update` may not cross a version change. Explicit `upgrade` may cross a component-version change. If descriptor bytes change while the component version remains unchanged, Composer rejects the source transition as an invariant violation rather than pretending compatibility information is unchanged.
 
-Dependencies and conflicts operate on component identities, not filenames. Artifact components may select or constrain reusable capability/lifecycle components. In the opposite direction, `capability.*` and `lifecycle.*` descriptors must not require or conflict with `artifact.*` IDs; a supposedly generic component that names a concrete artifact authority belongs in the artifact layer instead.
+## Recipe and consumer intent
 
-Catalog-level validation must eventually reject:
+A recipe is a consumer-facing starting selection, not an implementation authority. It declares:
 
-- missing dependencies;
-- dependency cycles;
-- self-dependencies;
-- a component that both requires and conflicts with the same component;
-- duplicate component IDs;
-- generic capability/lifecycle descriptors that depend on or conflict with artifact components; and
-- incompatible selected components.
+- one artifact component;
+- required reusable components;
+- default reusable components; and
+- optional reusable components.
 
-PR1 validates the descriptor shape and the cross-field invariants that can be established without a populated component catalog.
+Required/default/optional sets are pairwise disjoint.
 
-## Recipe
+Consumer configuration records unresolved intent separately from the resolved lock:
 
-A recipe is a consumer-facing starting selection, not an implementation authority.
-
-A recipe declares:
-
-- one required artifact component;
-- additional required capability or lifecycle components;
-- default capability or lifecycle components; and
-- optional capability or lifecycle components.
-
-A recipe never owns copies of generic capability or lifecycle contracts. Both `webapp` and `skill` recipes may select the same `capability.mcp` authority.
-
-The required, default, and optional component sets must be pairwise disjoint.
-
-The artifact component is selected only by the recipe in schema version 1. Consumer include/exclude declarations cannot substitute a different `artifact.*` component.
-
-Detailed resolver semantics for required/default/optional membership are intentionally deferred until the component catalog and resolver exist. At minimum, the future resolver must reject any attempt to exclude a recipe-required component or a transitive dependency.
-
-## Consumer composition intent
-
-A consumer configuration records user intent separately from resolution.
-
-It declares:
-
-- one recipe ID;
-- capability or lifecycle components explicitly included;
-- capability or lifecycle components explicitly excluded; and
+- recipe ID;
+- explicitly included capability/lifecycle IDs;
+- explicitly excluded capability/lifecycle IDs; and
 - optional component-scoped parameters.
 
-The include and exclude sets must be disjoint.
+Include/exclude sets are disjoint. Consumers cannot replace the recipe artifact through include/exclude. The resolver rejects exclusions of recipe-required or transitive dependencies and rejects parameters for components absent from the resolved closure.
 
-The configuration does not enumerate the final dependency closure and cannot replace the recipe's artifact component. Dependency closure belongs to the lock.
+The normalized intent snapshot stored in lock v2 sorts include/exclude IDs lexically and recursively sorts object keys inside parameters while preserving array order.
 
-A parameter key names the component whose parameter namespace it targets. Schema validation checks the component-ID shape only; the future resolver must reject parameters for components that are not present in the resolved selection.
+## Deterministic resolution
 
-PR1 defines the data model but does not commit to a particular YAML or JSON CLI serialization. JSON examples are used because JSON is directly schema-validatable and can represent the same data model.
+For a validated configuration, the resolver begins with:
 
-Schema version 1 models one artifact recipe materialized at the consumer repository root. Nested multiple artifact instances may be added later, but PR1 does not encode that future feature.
+```text
+recipe artifact
++ recipe required components
++ recipe default components not explicitly excluded
++ explicit includes
+```
 
-## Resolved composition lock
+It then computes the complete transitive `requires` closure and validates exclusions/conflicts.
 
-A lock records the deterministic result of resolution.
+Generated material uses only bounded allowlisted generator IDs. The current `contract-manifest-v1` generator aggregates declarative contract registrations from the resolved closure and emits deterministic JSON. Component descriptors never provide executable generator code.
 
-It binds the result to:
+The Composer does not consult mutable branches, wall-clock time, random values, network-discovered defaults, arbitrary hooks, consumer code, package managers, or product build/test/deploy commands when deriving Composition state.
 
-- source repository `TakashiSasaki/templates`;
-- a lowercase full 40-hex Git commit revision;
-- the selected recipe;
-- the SHA-256 of the exact validated consumer-configuration file bytes;
-- the resolved component set, containing exactly one `artifact.*` entry and serialized in ascending lexical order by component ID, with exact component versions and descriptor-byte digests; and
-- the non-empty materialized file inventory, serialized in ascending lexical order by destination, with ownership modes and materialized byte digests.
+## Lock schema version 2
 
-Every resolved component owns at least one entry in the final lock file inventory. This follows the schema-version-1 component contract, in which every component descriptor declares at least one material. A future schema version may relax both sides together if metadata-only components become necessary.
+The canonical steady-state metadata path is:
 
-The configuration digest is intentionally a byte-identity binding in schema version 1. A semantically equivalent rewrite with different bytes has a different digest. Any later move to semantic canonicalization requires an explicit versioned contract change.
+```text
+.template-composition/lock.json
+```
 
-A lock contains no generation timestamp or other intentionally nondeterministic field.
+Lock schema version 2 records:
 
-The canonical schema-version-1 lock path is `.template-composition/lock.json`. The lock itself is composer metadata, not component material, and is excluded from its own `files` inventory. Component descriptors and lock file inventories must not claim that reserved destination, any case variant of it, any parent path that would have to be a file, or any descendant that would require `lock.json` itself to be a directory. Other files below `.template-composition/`, such as a generated `registry.json`, remain available to components; the directory as a whole is not reserved.
+- canonical source repository identity;
+- exact nonzero lowercase 40-hex source commit revision;
+- normalized consumer `intent`;
+- `recipe_sha256`, binding the exact recipe bytes used for resolution;
+- `configuration_sha256`, binding the exact bytes of the most recently explicitly supplied consumer configuration;
+- lexically ordered resolved components with positive integer versions and descriptor SHA-256 digests; and
+- lexically ordered materialized destinations with owner, ownership mode, and materialized SHA-256 digest.
 
-A future catalog/resolver validator must also prove that the lock's recipe exists, that its required artifact is the lock's single resolved artifact, that required/default/explicit selections and dependency closure are satisfied, that every recorded component version/digest corresponds to the immutable source revision, and that every lock file destination/ownership pair agrees with the authoritative material declaration in its owning component descriptor. Those cross-document checks are intentionally not fabricated in PR1 because no production catalog or resolver exists yet.
+Lock v1 is intentionally unsupported. The repository is pre-production, so the contract was corrected directly instead of retaining a legacy migration path.
 
-A future composer must fail closed when the lock is malformed, uses the all-zero Git object ID, references an unsupported source identity, or cannot be reconciled with the consumer repository.
+`configuration_sha256` is provenance, while `intent` is the semantic authority needed to reproduce update intent. `update` therefore does not need the original configuration file. `upgrade` consumes a new explicit configuration and replaces both normalized intent and configuration-byte provenance.
+
+The lock contains no timestamp, random value, branch name, or other intentionally nondeterministic state.
 
 ## File ownership
 
-Every materialized file has exactly one ownership mode.
+Each materialized destination has one component owner and one ownership mode.
 
 ### `managed`
 
-The composition source remains authoritative for the materialized bytes.
+Composition remains authoritative for the bytes.
 
-Typical examples are reusable schemas and validators.
-
-A future update may replace the file only when its current bytes still match the digest recorded by the existing lock. Local modification must cause a refusal rather than a silent overwrite.
-
-### `seed`
-
-The composer supplies initial bytes once and then transfers content ownership to the consumer.
-
-Typical examples are product-specific contract instances that the consumer is expected to edit.
-
-A future update must not overwrite an existing seeded destination merely because the source seed changed.
+Update/upgrade may replace or remove a managed file only when its current bytes match the old lock digest. A local modification is a conflict and is never overwritten silently.
 
 ### `generated`
 
-The bytes are derived deterministically from the resolved composition and therefore have a destination but no source file in the component descriptor.
+Bytes are recomputed deterministically from the target resolved composition.
 
-Typical examples are aggregate registries or other closed inventories assembled from selected component metadata.
+Generated files use the same local-modification guard as managed files: regenerate or remove only when current bytes still match the old lock digest.
 
-Generated bytes may be recreated by the composer when the existing generated file has not been locally modified.
+### `seed`
 
-## Destination ownership invariant
+Composition supplies bytes only for first materialization of that destination, then content ownership transfers to the consumer.
 
-A materialized destination path has at most one component owner.
+For a seed already present in the old lock, update/upgrade always preserves current consumer bytes. Source-side seed changes do not overwrite them. The old seed provenance digest is carried into a new lock while the seed remains selected.
 
-Composition is not a general-purpose text merge engine. Two components must not append to, patch, or partially own the same file.
+A newly selected seed may be created only when its destination is absent and safe. After that create succeeds it is consumer-owned.
 
-When information from multiple components must be aggregated, each component supplies separate authoritative metadata and one designated component owns the resulting `generated` destination.
+A removed seed is never deleted. It disappears from the new lock and remains as an ordinary consumer-owned extra file.
 
-Destination comparison is portable rather than native-filesystem-specific. ASCII case variants such as `README.md` and `readme.md` are considered the same destination, and a file path cannot simultaneously be a parent path of another materialized file such as `contracts` and `contracts/mcp.json`. These rules prevent compositions that work on one filesystem but collide on a case-insensitive or ordinary hierarchical consumer filesystem.
+## Destination and ownership invariants
 
-This rule avoids order-dependent file patches and makes composition results auditable.
+A materialized destination has at most one component owner. Composition does not patch, append to, partially own, or merge a file shared by multiple components.
 
-## Safe paths
+Portable destination comparison rejects:
 
-Component source and destination paths are relative POSIX-style paths.
+- ASCII case collisions such as `README.md` versus `readme.md`;
+- file/directory prefix collisions such as `contracts` versus `contracts/mcp.json`;
+- absolute or drive-prefixed paths;
+- `.` / `..` segments;
+- repeated/trailing separators or backslashes;
+- segments beginning with `-`; and
+- `.git` administration segments in any ASCII case variant.
 
-The schema rejects:
+At an existing destination, a component-owner change or ownership-mode change is not automatically inferred. `update` reports it as upgrade-required; explicit `upgrade` still refuses automatic owner/ownership migration because the configuration does not specify a safe content-transfer policy.
 
-- absolute paths;
-- Windows drive-prefixed paths;
-- `.` and `..` path segments;
-- repeated or trailing separators;
-- backslashes;
-- path segments beginning with `-`; and
-- `.git` administration path segments in any ASCII case variant.
+Aggregation across components is implemented by separate declarative metadata plus one designated owner of a deterministic `generated` destination.
 
-The Windows-drive lookahead is intentionally redundant with the portable character allowlist. Keeping the explicit check documents the cross-platform threat being rejected even if the allowlist is later broadened.
+## Public operation model
 
-The current schema intentionally restricts component-controlled materialization paths to a portable ASCII path subset. Case-insensitive destination collision checks and case-folded Git-administration checks are additionally enforced by semantic validation. This restriction can be broadened later only with equivalent cross-platform safety guarantees.
-
-## Determinism
-
-The target composer must satisfy:
-
-```text
-(source revision, validated configuration bytes) -> resolved composition
-(resolved composition, component bytes)          -> materialized managed/generated bytes
-```
-
-For the same immutable source revision and the same validated configuration bytes, resolution order, component metadata, and managed/generated output bytes must be stable.
-
-A composer must not consult mutable branches, ambient repository state, wall-clock time, random values, network-discovered defaults, or arbitrary executable hooks when deriving those bytes.
-
-Consumer-owned `seed` files are intentionally outside byte-for-byte update determinism after ownership transfer.
-
-## Security and execution boundary
-
-Composition is declarative.
-
-Component descriptors must not define arbitrary shell commands, executables, package-manager commands, or lifecycle hooks.
-
-The future composer may:
-
-1. inspect repository state;
-2. validate configuration;
-3. resolve dependencies and conflicts;
-4. construct a plan;
-5. materialize declared source bytes;
-6. create deterministic generated files;
-7. write the lock; and
-8. run bounded composition-structure validation.
-
-Product build, test, deployment, migration, runtime, or package-install commands remain consumer responsibilities unless a later reviewed contract introduces a narrowly specified mechanism.
-
-## Planned operation model
-
-The intended public lifecycle is:
+The public lifecycle is:
 
 ```text
 inspect -> plan -> apply -> validate
 ```
 
-An eventual `update` operation is expected but is not part of PR1 or the initial composer MVP.
+Managed-state intent is explicit through operation modes:
 
-New and existing repositories use the same state inspection model rather than separate copy/install mechanisms.
+```text
+plan/apply --mode initial
+plan/apply --mode update
+plan/apply --mode upgrade
+```
+
+Omitting `--mode` is equivalent to `initial` for compatibility with the initial Composer CLI.
+
+### Initial
+
+Initial composition consumes an explicit configuration and requires no existing lock. It never overwrites different unmanaged bytes. Identical unmanaged material may be adopted. The lock is written last, making lock creation the transition from unmanaged to managed state.
+
+### Update
+
+`update` preserves `lock.intent` and reconciles it against the current descendant Composition source revision. It rejects a new `--config`.
+
+Component version changes are reported as `COMPONENT_VERSION_UPGRADE_REQUIRED`. Same-version descriptor drift is rejected as a source invariant violation.
+
+### Upgrade
+
+`upgrade` requires an explicit new configuration for a new operation. It may change recipe/include/exclude/parameters and may cross component-version boundaries.
+
+It does not weaken ownership protections: managed/generated local changes still conflict, seed contents remain consumer-owned, and owner/ownership transitions remain unsupported automatic migrations.
+
+Both update and upgrade require the old source revision to exist in the local source history and be an ancestor of, or identical to, the target source revision. Downgrade or unrelated-history reconciliation fails closed.
+
+## Read-only reconciliation
+
+Every update/upgrade builds the complete plan before filesystem mutation.
+
+The plan classifies components as:
+
+```text
+added / removed / changed / unchanged
+```
+
+and files as:
+
+```text
+create / replace / remove / preserve / unchanged / conflict
+```
+
+A managed/generated replacement or removal is planned only after current bytes match the old lock digest. A new destination must be empty and structurally safe. A missing old locked material is invalid old state rather than implicit deletion.
+
+The plan includes a deterministic new-lock preview and an explicit conflict list. `plan` is read-only.
+
+For the same immutable source revision, selected intent, and valid old managed state, plan ordering, generated bytes, and lock preview are deterministic.
+
+## Managed-state transaction and recovery
+
+Initial apply can use "lock last" because no old managed state exists. Update/upgrade need a stronger protocol because an old lock already describes the repository.
+
+Composer reserves:
+
+```text
+.template-composition/transaction.json
+.template-composition/staging/**
+```
+
+Components cannot claim these paths. `transaction.json` is the implemented durable marker; `staging/**` remains reserved for possible future storage strategies.
+
+Before the first managed-state file mutation, apply writes a deterministic transaction marker containing:
+
+- operation (`update` or `upgrade`);
+- exact target source revision;
+- embedded old and new lock objects;
+- exact old/new lock-file identities; and
+- ordered create/replace/remove actions with digest preconditions.
+
+Mutation follows a deterministic roll-forward state machine:
+
+- create: destination must be absent, or already match the recorded new digest during recovery;
+- replace: destination must match the recorded old digest, or already match the recorded new digest;
+- remove: destination must match the recorded old digest, or already be absent;
+- any third state, symlink, unsafe parent, or non-regular-file state stops without overwriting it.
+
+The new lock is installed only after material actions. New-state validation runs while the transaction marker still exists. The marker is deleted last.
+
+If interrupted, rerunning the matching `apply --mode ...` loads the existing marker instead of planning a different operation. Recovery requires the exact source revision recorded in the transaction and reconstructs deterministic target bytes before continuing.
+
+Upgrade recovery uses the transaction-bound target intent; it does not accept a second `--config`.
+
+This is roll-forward, not rollback. The protocol never needs to restore consumer-owned seed bytes and never guesses how to merge an unexpected local edit.
+
+## Consumer-time validation
+
+`lifecycle.composition-state` materializes a stdlib-only validator and lock schema into the consumer repository.
+
+In steady state the validator checks lock-v2 shape, canonical source identity, deterministic ordering/portable path invariants, and current materials:
+
+- managed/generated files must exist and match lock digests;
+- active seed files must exist but may differ from their recorded initial provenance digest.
+
+If `transaction.json` exists, steady-state validation refuses the repository as interrupted managed state and requires source-side recovery.
+
+Extra consumer-owned files are allowed, including seeds removed from the active composition.
+
+## Security and execution boundary
+
+Composition remains declarative. It does not execute consumer code or arbitrary component hooks.
+
+The Composer may:
+
+1. inspect repository/composition state;
+2. validate configuration and managed metadata;
+3. resolve dependencies/conflicts;
+4. build a read-only reconciliation plan;
+5. materialize declared source bytes;
+6. create deterministic generated files;
+7. perform digest-guarded filesystem mutation;
+8. write lock/transaction metadata; and
+9. run bounded composition-structure validation.
+
+Product build, test, deployment, application migration, runtime, and package-install commands remain outside the Composer contract.
 
 ## Branch topology
 
-The intended end state is:
+The canonical authority topology is:
 
 ```text
-site          integrated documentation and GitHub Pages deployment
-policy        application-type-independent agent/repository policy
-composition   artifact recipes, shared components, lifecycle contracts, composer
+site          integrated reader-facing publication, assembly, Pages/PWA
+policy        coding-agent policy authority
+composition   artifact/capability/lifecycle authorities, recipes, schemas, Composer
 ```
 
-The existing `webapp` and `skill` branches remain authoritative during the migration. They are not modified by PR1.
+Legacy `skill` / `webapp` authority migration and retirement are complete. Their history is provenance, not an active Composition update source.
 
-After their content has been migrated, validated through composition fixtures, published from an immutable `composition` revision, and cut over in `site`, they can be retired as source authorities.
-
-Source unification does not collapse the public documentation taxonomy. Site may continue to expose separate Web application and Skill sections while also exposing shared capabilities and lifecycle documentation.
-
-## PR1 schemas
-
-PR1 defines four JSON Schema Draft 2020-12 contracts:
-
-- `schemas/component.schema.json`;
-- `schemas/recipe.schema.json`;
-- `schemas/composition-config.schema.json`; and
-- `schemas/composition-lock.schema.json`.
-
-Positive examples under `examples/` are executable schema fixtures only. They are not production catalog entries and do not assert that the named components already exist.
-
-Repository tests also enforce cross-field invariants that JSON Schema does not express conveniently, including pairwise-disjoint selections, generic/artifact dependency boundaries, exactly one resolved artifact, lexically ordered/unique resolved component IDs, resolved-component material coverage, portable collision-free destination ownership, reserved lock-path exclusion, and lock references to resolved component owners.
-
-The semantic checks in PR1 are an executable specification for the future materialized validator. Consumer-time independence requires that those checks, or an equivalent generated validation contract, be available inside the consumer repository; validating the JSON Schema alone is not sufficient for all composition invariants.
-
-## Explicit PR1 non-goals
-
-PR1 does not:
-
-- migrate a file from `webapp` or `skill`;
-- define completed `artifact.webapp-core` or `artifact.skill-core` components;
-- define production Webapp or Skill recipes;
-- implement dependency resolution;
-- implement file materialization;
-- implement update or conflict handling;
-- generate consumer registries;
-- validate recipe/component closure against a production catalog that does not yet exist;
-- change Site publication catalogs or navigation;
-- adopt composition into consumer repositories; or
-- retire any legacy branch.
-
-Those changes require later independently reviewable pull requests.
+Source unification does not collapse reader-facing taxonomy. Site may continue to expose distinct Web application and Skill task-oriented views while attributing them to one immutable reviewed `composition` revision.

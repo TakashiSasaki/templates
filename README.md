@@ -51,9 +51,9 @@ This avoids giving Webapp ownership of lifecycle registrations and allows the sa
 
 Every artifact requires `lifecycle.composition-state`. It materializes a stdlib-only validator and lock schema under `.template-composition/`. The actual `.template-composition/lock.json` remains reserved composer metadata.
 
-Consumer-time validation requires `managed` and `generated` files to match their lock digests. `seed` files must remain present but may change after ownership transfer.
+Consumer-time validation requires `managed` and `generated` files to match their lock digests. `seed` files must remain present while they are part of the active composition, but their bytes may change after ownership transfer.
 
-## Lock v2 and managed-state evolution
+## Lock v2 and managed-state operations
 
 Composition lock schema version 2 stores a normalized consumer-intent snapshot rather than only a digest of the original configuration. The lock records:
 
@@ -66,18 +66,20 @@ Composition lock schema version 2 stores a normalized consumer-intent snapshot r
 
 Lock v1 is intentionally not supported. The repository is pre-production, so the contract is corrected directly instead of carrying a legacy migration path.
 
-The managed-state design distinguishes:
+Managed state has two distinct forward operations:
 
-- `update` — preserve consumer intent while reconciling to a descendant Composition source revision; and
-- `upgrade` — explicitly cross an intent, component-version, recipe-selection, or other declared compatibility boundary.
+- `update` preserves the normalized lock intent while reconciling to the current descendant Composition source revision;
+- `upgrade` accepts an explicit new consumer configuration and may change recipe/include/exclude/parameters and component versions.
 
-Composer-owned recovery metadata is reserved at `.template-composition/transaction.json` and `.template-composition/staging/**`. Components cannot claim those paths.
+`update` never accepts a replacement `--config`; changing intent is therefore impossible by accident. A component-version change is an upgrade boundary. A descriptor-byte change without a component-version change is rejected by both operations as a source invariant violation.
 
-At this contract stage, initial `plan` / `apply` still fail closed on an existing lock. Read-only update planning, safe mutation/recovery, and explicit upgrade are implemented in subsequent changes rather than being inferred by initial composition.
+Explicit `upgrade` is not a general-purpose migration or merge engine. If the same destination changes component owner or ownership mode, upgrade refuses the transition instead of guessing how to transfer or merge content.
+
+Composer-owned recovery metadata is reserved at `.template-composition/transaction.json` and `.template-composition/staging/**`. Components cannot claim those paths. `transaction.json` is the durable roll-forward marker; `staging/**` remains reserved for future storage strategies.
 
 ## Composer
 
-Run the source-side composer with:
+Initial composition remains the default mode:
 
 ```sh
 python scripts/compose.py inspect --target /path/to/repository
@@ -86,13 +88,38 @@ python scripts/compose.py apply --config composition.json --target /path/to/repo
 python scripts/compose.py validate --target /path/to/repository
 ```
 
+The equivalent explicit initial commands are:
+
+```sh
+python scripts/compose.py plan --mode initial --config composition.json --target /path/to/repository
+python scripts/compose.py apply --mode initial --config composition.json --target /path/to/repository
+```
+
+For an existing managed consumer, inspect the full read-only update plan before applying it:
+
+```sh
+python scripts/compose.py plan --mode update --target /path/to/repository
+python scripts/compose.py apply --mode update --target /path/to/repository
+```
+
+For an explicit compatibility-boundary change, supply the new consumer intent to both planning and the start of apply:
+
+```sh
+python scripts/compose.py plan --mode upgrade --config composition.json --target /path/to/repository
+python scripts/compose.py apply --mode upgrade --config composition.json --target /path/to/repository
+```
+
+If an update or upgrade is interrupted after the transaction marker is written, rerun the same `apply --mode ...` operation. Recovery uses the existing transaction and requires the exact source revision recorded by it. Upgrade recovery does not take `--config`; the normalized target intent and new lock are already bound by the transaction.
+
 The source checkout must be clean for tracked files. Every catalog, descriptor, recipe, schema, validator, and copied material actually consumed by composition must be a regular Git-tracked source authority under the exact revision written to the lock.
 
 Initial composition never overwrites different existing bytes. Identical unmanaged files may be adopted. Portable case collisions, file/directory conflicts, symbolic-link boundaries, unsupported generated-material handlers, dependency conflicts, invalid include/exclude selections, and pre-existing composer transaction metadata fail closed.
 
 The initial-composition lock is written last. An interrupted initial apply before that point leaves an unmanaged repository; a later initial apply may adopt only exact previously materialized bytes.
 
-See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for the detailed resolver, lock-v2, ownership, and managed-state contract.
+Managed update/upgrade mutation writes a deterministic transaction marker before changing managed state. Every managed/generated replacement or removal is guarded by the old lock digest. Retry accepts only the old state or the already-applied new state; any third byte state stops without being overwritten. The new lock is installed only after file actions, validated while the marker remains, and the marker is removed last.
+
+See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for the detailed resolver, lock-v2, ownership, reconciliation, and recovery contract.
 
 ## Publication boundary
 
@@ -119,14 +146,15 @@ The production catalog is closed and validated for dependency existence/acyclici
 Composition is not a general-purpose merge engine.
 
 - `managed` / `generated` may be replaced or removed only when current bytes match the old lock digest.
-- `seed` becomes consumer-owned after first materialization and is not overwritten by update.
-- removed seed files remain as consumer-owned files.
+- `seed` becomes consumer-owned after first materialization and is never overwritten by update or upgrade.
+- a newly selected seed may be created only when its destination is absent and safe; after creation it becomes consumer-owned.
+- removed seed files remain as consumer-owned extra files and disappear from the new lock.
 - generated output is recomputed deterministically from the resolved composition.
-- ownership transitions are never inferred by update.
+- file-owner and ownership-mode transitions are never inferred, including during explicit upgrade.
 - component version changes require explicit upgrade.
 - descriptor-byte changes without a component-version change are rejected as a source invariant violation.
-- read-only planning precedes managed-state mutation.
-- interrupted managed-state mutation must be detectable and recoverable without discarding consumer-owned changes.
+- every update/upgrade has a complete read-only plan before filesystem mutation.
+- interrupted managed-state mutation is recovered by deterministic roll-forward without discarding unexpected consumer changes.
 
 See:
 
