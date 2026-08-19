@@ -60,7 +60,10 @@
             "required": ["action", "destination", "component", "ownership", "to_sha256"],
             "properties": {
               "action": {"const": "create"},
-              "destination": {"type": "string"},
+              "destination": {
+                "type": "string",
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+              },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "seed", "generated"]},
               "to_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
@@ -72,7 +75,10 @@
             "required": ["action", "destination", "component", "ownership", "from_sha256", "to_sha256"],
             "properties": {
               "action": {"const": "replace"},
-              "destination": {"type": "string"},
+              "destination": {
+                "type": "string",
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+              },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "generated"]},
               "from_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -85,7 +91,10 @@
             "required": ["action", "destination", "component", "ownership", "from_sha256"],
             "properties": {
               "action": {"const": "remove"},
-              "destination": {"type": "string"},
+              "destination": {
+                "type": "string",
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+              },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "generated"]},
               "from_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
