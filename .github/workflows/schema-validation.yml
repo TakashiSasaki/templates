@@ -26,8 +26,8 @@ jobs:
         with:
           # Managed update/upgrade validates that the lock's old source revision
           # exists locally and is an ancestor of the target source revision.
-          # Keep history available so CI exercises that real contract rather
-          # than replacing it with a mocked ancestry check.
+          # The component-version guard also compares descriptor bytes against
+          # a reviewed ancestor revision. Keep real history available for both.
           fetch-depth: 0
 
       - name: Set up Python
@@ -45,6 +45,12 @@ jobs:
 
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
+
+      - name: Enforce component descriptor version monotonicity
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/composition'
+        env:
+          COMPONENT_VERSION_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: .venv/bin/python scripts/validate_component_versions.py --base "$COMPONENT_VERSION_BASE"
 
       - name: Run schema and semantic contract tests
         run: .venv/bin/python -m unittest discover -s tests -v
