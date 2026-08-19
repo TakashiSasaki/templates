@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 
 PROVIDER_ORDER = ("composition", "policy")
 MODULES = {
@@ -20,6 +21,11 @@ def main() -> int:
         choices = ", ".join(MODULES)
         print(f"usage: {sys.argv[0]} <{choices}> [arguments...]", file=sys.stderr)
         return 2
+
+    repository_root = Path(__file__).resolve().parents[1]
+    if str(repository_root) not in sys.path:
+        sys.path.insert(0, str(repository_root))
+
     command = sys.argv[1]
     module = importlib.import_module(MODULES[command])
     if hasattr(module, "PROVIDER_ORDER"):
