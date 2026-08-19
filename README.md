@@ -4,6 +4,12 @@ This orphan branch is the source authority for reusable artifact, capability, an
 
 Consumer repositories are produced from artifact recipes plus explicit consumer intent. The composer resolves a deterministic component closure, materializes source and generated files, writes a lock, and leaves the consumer repository self-contained.
 
+## Use Composition
+
+If you are using Composition to create or maintain a concrete Agent Skill or Web application repository, start with [Using Composition](docs/consumer-guide.md). It provides the task-oriented `initial` / `update` / `upgrade` / recovery workflow, file-editing rules, and conflict handling without requiring the architecture documents.
+
+For exact CLI options, inspect states, plan fields, ownership semantics, and diagnostic codes, use the [Composer reference](docs/reference/composer.md). The architecture documents remain the deeper design and maintainer reference.
+
 ## Migration state
 
 PR1 established the composition data model, safe-path/file-ownership rules, resolved-lock contract, and semantic validation boundaries.
