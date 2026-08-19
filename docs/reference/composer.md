@@ -34,6 +34,18 @@ python scripts/compose.py plan --mode initial --config composition.json --target
 
 The dispatcher accepts `--mode` before or after the command, but examples and documentation use command-first form.
 
+## CLI discovery
+
+The public entrypoint exposes the complete lifecycle and mode/config rules without requiring consumers to know which internal adapter handles a command:
+
+```sh
+python scripts/compose.py --help
+```
+
+The top-level help lists `inspect -> plan -> apply -> validate`, the `initial` / `update` / `upgrade` modes, the `--config` requirements for each mode, interrupted-upgrade recovery behavior, and representative commands. This help path is read-only and does not load Composition source state or inspect a consumer repository.
+
+Internal modules such as `composer_update_plan.py`, `composer_apply.py`, `composer_managed.py`, and `composer_transaction.py` are implementation layers, not alternate public entrypoints. Consumer automation and documentation should invoke `scripts/compose.py`.
+
 ## Source checkout requirements
 
 The Composer runs from the Composition source checkout. Source authorities consumed by composition must be regular Git-tracked files under one exact clean revision.
@@ -166,7 +178,7 @@ Upgrade accepts explicit new intent. The plan includes `intent.from` and `intent
 
 Component version changes are accepted as explicit `component-version` compatibility boundaries during upgrade. Descriptor-byte change without a component-version change remains invalid and reports `COMPONENT_DESCRIPTOR_CHANGED_WITHOUT_VERSION`.
 
-File-owner and ownership-mode changes are not automatically migrated. Update may identify these as `*_UPGRADE_REQUIRED`; explicit upgrade then reports the corresponding `*_NOT_SUPPORTED` conflict rather than inferring a migration.
+File-owner and ownership-mode changes are not automatically migrated. Update may identify these as `*_UPGRADE_REQUIRED`; the public message explicitly warns that current upgrade still does not infer that migration. Explicit upgrade reports the corresponding `*_NOT_SUPPORTED` conflict rather than inferring a migration.
 
 ## Apply behavior
 
@@ -212,38 +224,38 @@ A transaction for the other operation reports `RECOVERY_OPERATION_MISMATCH`. A d
 
 ## Consumer-facing managed lifecycle diagnostics
 
-The following codes are especially relevant to normal consumer operation.
+The following codes are especially relevant to normal consumer operation. The public `scripts/compose.py` entrypoint preserves the structured diagnostic `code` and adds remediation to known managed-lifecycle `message` fields at presentation time. The underlying planner/transaction code and fail-closed decisions are unchanged. Automation should key on `code` and structured fields rather than matching the prose of `message`.
 
 | Code | Meaning | Consumer action |
 | --- | --- | --- |
 | `INITIAL_MODE_REQUIRES_UNMANAGED_TARGET` | initial mode found an existing Composition lock | use `update` to preserve intent or `upgrade` to change intent/boundary |
-| `MANAGED_LOCK_REQUIRED` | update/upgrade was requested without managed state | inspect the target; use initial mode for an unmanaged repository |
-| `UPDATE_CONFIG_NOT_ALLOWED` | `--config` was supplied to update | remove `--config`; use upgrade for intent changes |
-| `UPGRADE_CONFIG_REQUIRED` | new upgrade planning/apply lacks explicit target intent | supply `--config` |
-| `RECOVERY_CONFIG_NOT_ALLOWED` | `--config` was supplied while recovering upgrade | remove `--config`; transaction already binds target intent |
-| `RECOVERY_REQUIRED` | an unfinished managed transaction exists | recover the recorded operation before planning another one |
-| `RECOVERY_OPERATION_MISMATCH` | requested recovery mode differs from transaction operation | rerun the operation recorded in the transaction |
-| `RECOVERY_SOURCE_MISMATCH` | source checkout is not the exact revision recorded by the transaction | check out the recorded revision and retry |
-| `OLD_SOURCE_REVISION_UNAVAILABLE` | old lock revision is absent from local Composition history | make that revision available locally before retrying |
-| `SOURCE_REVISION_NOT_DESCENDANT` | target Composition revision is not old revision or its descendant | use a descendant/equal source revision |
-| `COMPONENT_VERSION_UPGRADE_REQUIRED` | update encounters a component version change | plan an explicit upgrade with desired intent |
+| `MANAGED_LOCK_REQUIRED` | update/upgrade was requested without managed state | run `inspect`; use initial mode only if the target is unmanaged and no lock exists |
+| `UPDATE_CONFIG_NOT_ALLOWED` | `--config` was supplied to update | remove `--config`; use upgrade for intentional recipe/component/parameter/boundary changes |
+| `UPGRADE_CONFIG_REQUIRED` | new upgrade planning/apply lacks explicit target intent | supply `--config`; only interrupted upgrade recovery omits it |
+| `RECOVERY_CONFIG_NOT_ALLOWED` | `--config` was supplied while recovering upgrade | remove `--config`; rerun `apply --mode upgrade` at the exact recorded source revision |
+| `RECOVERY_REQUIRED` | an unfinished managed transaction exists | recover the recorded operation at its exact source revision before planning another one; do not delete the marker |
+| `RECOVERY_OPERATION_MISMATCH` | requested recovery mode differs from transaction operation | rerun `apply` with the operation recorded in the transaction |
+| `RECOVERY_SOURCE_MISMATCH` | source checkout is not the exact revision recorded by the transaction | check out the recorded revision and retry the matching apply; upgrade recovery omits `--config` |
+| `OLD_SOURCE_REVISION_UNAVAILABLE` | old lock revision is absent from local Composition history | make that revision available locally before retrying; do not bypass ancestry validation |
+| `SOURCE_REVISION_NOT_DESCENDANT` | target Composition revision is not old revision or its descendant | use the locked revision or a descendant/equal source revision |
+| `COMPONENT_VERSION_UPGRADE_REQUIRED` | update encounters a component version change | plan an explicit upgrade with desired intent and `--config` |
 | `COMPONENT_DESCRIPTOR_CHANGED_WITHOUT_VERSION` | descriptor bytes changed without version change | source-side invariant is broken; do not bypass it in the consumer |
-| `LOCAL_MODIFICATION` | managed/generated current bytes differ from old lock | restore the locked state or stop and redesign source/ownership; Composer will not overwrite |
-| `OLD_STATE_INVALID` | locked material is missing, non-regular, or under an unsafe path | repair target state before retrying |
-| `DESTINATION_CONFLICT` | newly selected destination conflicts with existing repository structure | reconcile the ordinary repository path before retrying |
-| `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` | update detects a component-owner change at one destination | this is a compatibility boundary; current automatic migration is unsupported |
-| `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` | update detects ownership-mode change | this is a compatibility boundary; current automatic migration is unsupported |
-| `FILE_OWNER_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires owner migration | provide an explicit source-side migration design; do not edit lock metadata |
-| `OWNERSHIP_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires ownership migration | provide an explicit source-side migration design; do not edit lock metadata |
-| `PRECONDITION_CHANGED` | bytes or metadata changed after the transaction/plan precondition was established | inspect the unexpected change; Composer will not overwrite it |
+| `LOCAL_MODIFICATION` | managed/generated current bytes differ from old lock | restore locked bytes or redesign source/ownership; Composer will not merge, overwrite, or delete the unexpected local state |
+| `OLD_STATE_INVALID` | locked material is missing, non-regular, or under an unsafe path | repair the target state before retrying; Composer will not overwrite an unexpected state to repair it |
+| `DESTINATION_CONFLICT` | newly selected destination conflicts with existing repository structure | deliberately reconcile the ordinary repository path, then rerun `plan` |
+| `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` | update detects a component-owner change at one destination | update cannot cross it automatically, and current upgrade does not infer the migration; design a source-side migration |
+| `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` | update detects ownership-mode change | update cannot cross it automatically, and current upgrade does not infer the migration; design a source-side migration |
+| `FILE_OWNER_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires owner migration | provide an explicit source-side migration design; do not edit lock metadata or retry unchanged |
+| `OWNERSHIP_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires ownership migration | provide an explicit source-side migration design; do not edit lock metadata or retry unchanged |
+| `PRECONDITION_CHANGED` | bytes or metadata changed after the transaction/plan precondition was established | inspect the unexpected change; preserve any transaction marker and do not force an overwrite |
 
 Other codes may describe invalid source authorities, malformed schemas/configuration, unsafe paths, unsupported generated handlers, or I/O failures. They are source/contract failures rather than normal lifecycle choices.
 
 ## Exit status
 
-The CLI emits JSON to standard output for normal results and Composer errors.
+Except for explicit help output, the CLI emits JSON to standard output for normal results and Composer errors.
 
-- `0` — requested operation or validation succeeded;
+- `0` — requested operation, validation, or explicit help succeeded;
 - `2` — invalid state, conflict, argument-level Composer error, or managed-operation failure;
 - `3` — initial apply materialized files but its immediate post-apply consumer validation failed; the Composer attempts to remove the just-written lock so the repository is not reported as successfully managed.
 
