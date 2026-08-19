@@ -1,5 +1,6 @@
 name: Check publication freshness
 
+# Normative contract: PUBLICATION_FRESHNESS.md
 # The reviewed publication lock remains the release input. A different current
 # Composition HEAD is informational by itself; the compatibility signal is
 # whether that exact candidate revision passes the normal full Site build.
@@ -10,6 +11,7 @@ on:
     paths:
       - '.github/workflows/check-publication-freshness.yml'
       - '.github/workflows/build-pages.yml'
+      - 'PUBLICATION_FRESHNESS.md'
       - 'publication-sources.json'
       - 'site-manifest.json'
       - 'scripts/**'
@@ -80,25 +82,16 @@ jobs:
           LOCKED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
           CURRENT_COMPOSITION: ${{ steps.composition_head.outputs.result }}
         run: |
-          python - <<'PY'
-          import os
-          import re
-          from pathlib import Path
+          python site-source/scripts/classify_publication_freshness.py \
+            --locked "$LOCKED_COMPOSITION" \
+            --current "$CURRENT_COMPOSITION" \
+            --output "$GITHUB_OUTPUT"
 
-          locked = os.environ["LOCKED_COMPOSITION"]
-          current = os.environ["CURRENT_COMPOSITION"]
-          full_sha = re.compile(r"\A[0-9a-f]{40}\Z")
-          if not full_sha.fullmatch(locked):
-              raise SystemExit("locked Composition revision is not a full lowercase SHA")
-          if not full_sha.fullmatch(current):
-              raise SystemExit("current Composition HEAD is not a full lowercase SHA")
-          relation = "current" if locked == current else "different"
-          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-              output.write(f"relation={relation}\n")
-          PY
-
+  # This diagnostic advances only Composition to a current immutable snapshot.
+  # Policy deliberately remains at the reviewed lock resolved by build-pages.yml.
   candidate_build:
     name: Build with current Composition HEAD
+    if: github.repository == 'TakashiSasaki/templates'
     needs: resolve
     uses: ./.github/workflows/build-pages.yml
     with:
@@ -108,7 +101,7 @@ jobs:
       contents: read
 
   report:
-    if: ${{ always() && needs.resolve.result == 'success' }}
+    if: ${{ always() && github.repository == 'TakashiSasaki/templates' && needs.resolve.result == 'success' }}
     needs:
       - resolve
       - candidate_build
@@ -129,7 +122,13 @@ jobs:
             echo "- current Composition HEAD snapshot: \`$CURRENT_COMPOSITION\`"
             echo "- lock/head relation: \`$RELATION\`"
             echo "- full candidate Site build: \`$CANDIDATE_RESULT\`"
+            echo '- Policy source: reviewed Site lock (no current-Policy override)'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$CANDIDATE_RESULT" = "skipped" ]; then
+            echo "::error::Current Composition compatibility build was skipped; no compatibility conclusion is available."
+            exit 1
+          fi
 
           if [ "$CANDIDATE_RESULT" != "success" ]; then
             echo "::error::Current Composition HEAD does not pass the normal full Site publication build."
