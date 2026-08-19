@@ -88,6 +88,20 @@ class ComposerDispatchTests(unittest.TestCase):
             self.assertEqual(payload["status"], "updated")
             self.assertTrue(payload["no_op"])
 
+    def test_missing_managed_lock_has_same_error_for_plan_and_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "unmanaged"
+            for command in ("plan", "apply"):
+                result, payload = self.run_composer(
+                    command,
+                    "--mode",
+                    "update",
+                    "--target",
+                    str(target),
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(payload["code"], "MANAGED_LOCK_REQUIRED")
+
 
 if __name__ == "__main__":
     unittest.main()
