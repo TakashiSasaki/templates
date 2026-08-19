@@ -52,6 +52,19 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("template/SKILL.md", sources)
         self.assertNotIn("template/README.md", sources)
 
+    def test_catalog_guide_uses_current_managed_lifecycle(self):
+        guide = (ROOT / "catalog" / "README.md").read_text(encoding="utf-8")
+        for retired_claim in (
+            "schema-v1 lock",
+            "outside the composer MVP's apply contract",
+            "causes update refusal",
+        ):
+            with self.subTest(retired_claim=retired_claim):
+                self.assertNotIn(retired_claim, guide)
+        self.assertIn("lock schema v2", guide)
+        self.assertIn("`update` preserves", guide)
+        self.assertIn("`upgrade` accepts", guide)
+
     def test_publication_assets_cover_closed_production_authorities(self):
         validator = load_validator()
         documents, assets, glossary = validator.parse_catalog()
