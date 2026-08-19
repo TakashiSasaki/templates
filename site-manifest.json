@@ -55,6 +55,7 @@
     {
       "title": "Application capabilities",
       "children": [
+        {"title": "Overview", "publication": "site", "document": "capabilities-overview", "destination": "capabilities/index.md"},
         {"title": "Runtime decision record", "publication": "composition", "document": "runtime-decision-record", "destination": "capabilities/runtime/index.md"},
         {"title": "Runtime selection", "publication": "composition", "document": "runtime-selection", "destination": "capabilities/runtime/selection.md"},
         {"title": "Packaged CLI interface", "publication": "composition", "document": "cli-interface", "destination": "capabilities/cli/index.md"},
@@ -87,6 +88,7 @@
     {
       "title": "Lifecycle contracts",
       "children": [
+        {"title": "Overview", "publication": "site", "document": "lifecycle-overview", "destination": "lifecycle/index.md"},
         {"title": "Composition state", "publication": "composition", "document": "composition-state", "destination": "lifecycle/composition-state/index.md"},
         {"title": "Contract evolution", "publication": "composition", "document": "contract-evolution", "destination": "lifecycle/contract-evolution/index.md"},
         {"title": "Implementation evidence", "publication": "composition", "document": "implementation-evidence", "destination": "lifecycle/implementation-evidence/index.md"},

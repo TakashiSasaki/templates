@@ -24,7 +24,7 @@
       <a class="portal-cover__button portal-cover__button--secondary" href="composition/">
         Understand Composition <span aria-hidden="true">→</span>
       </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="composition/docs/#reusable-application-capabilities">
+      <a class="portal-cover__button portal-cover__button--secondary" href="capabilities/">
         Browse capabilities <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="/glossary/">
