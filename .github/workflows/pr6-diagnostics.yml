@@ -23,7 +23,7 @@ jobs:
       - name: Check out Composition candidate
         uses: actions/checkout@v7
         with:
-          ref: e9391352bcb3242228c0548b8018ac038b936667
+          ref: 601456f99c90cd18818eac84f253821bd428e21a
           path: composition-source
 
       - name: Check out locked Policy provider
