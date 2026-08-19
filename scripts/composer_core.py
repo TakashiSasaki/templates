@@ -500,7 +500,11 @@ def plan_target(target: Path, materials: list[Material]) -> tuple[list[dict[str,
         return actions, ["consumer repository root must not be a symbolic link"]
     lock_path = target / LOCK_RELATIVE
     if lock_path.exists() or lock_path.is_symlink():
-        return actions, ["UPDATE_NOT_SUPPORTED: target already contains a composition lock"]
+        return actions, [
+            "INITIAL_MODE_REQUIRES_UNMANAGED_TARGET: target already contains a composition lock; "
+            "use --mode update to preserve locked intent, or --mode upgrade with an explicit "
+            "configuration to change intent or compatibility boundaries"
+        ]
     for reserved in (TRANSACTION_RELATIVE, STAGING_PREFIX):
         path = target / reserved
         if path.exists() or path.is_symlink():

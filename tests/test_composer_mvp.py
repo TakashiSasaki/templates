@@ -199,7 +199,7 @@ class ComposerMVPTests(unittest.TestCase):
             self.assertEqual(inspect_result.returncode, 0, inspect_result.stderr)
             self.assertEqual(inspect_payload["state"], "managed-valid")
 
-    def test_second_apply_refuses_update(self):
+    def test_initial_apply_rejects_managed_target_with_current_lifecycle_guidance(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             config_path = self.write_config(root, config("skill"))
@@ -213,7 +213,11 @@ class ComposerMVPTests(unittest.TestCase):
             )
             self.assertEqual(second.returncode, 2)
             self.assertEqual(payload["status"], "conflict")
-            self.assertIn("UPDATE_NOT_SUPPORTED", payload["conflicts"][0])
+            conflict = payload["conflicts"][0]
+            self.assertIn("INITIAL_MODE_REQUIRES_UNMANAGED_TARGET", conflict)
+            self.assertIn("--mode update", conflict)
+            self.assertIn("--mode upgrade", conflict)
+            self.assertNotIn("UPDATE_NOT_SUPPORTED", conflict)
 
     def test_identical_existing_file_is_adopted(self):
         with tempfile.TemporaryDirectory() as temp_dir:
