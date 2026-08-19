@@ -1,0 +1,258 @@
+# Composer reference
+
+This reference describes the consumer-facing contract of `scripts/compose.py`. For task-oriented instructions, start with [Using Composition](../consumer-guide.md). For design rationale, see [Composer MVP](../architecture/composer-mvp.md) and the [Composition model](../architecture/composition-model.md).
+
+## Public lifecycle
+
+The public lifecycle is:
+
+```text
+inspect -> plan -> apply -> validate
+```
+
+`inspect` and `validate` are mode-neutral. `plan` and `apply` use one of three modes: `initial`, `update`, or `upgrade`.
+
+## Command and option matrix
+
+| Command | Mode | `--target` | `--config` | Purpose |
+| --- | --- | --- | --- | --- |
+| `inspect` | none | required | not accepted | classify target state without mutation |
+| `plan` | `initial` or omitted | required | required | plan first materialization |
+| `apply` | `initial` or omitted | required | required | perform first materialization |
+| `plan` | `update` | required | forbidden | preserve lock-v2 intent and reconcile to current descendant source |
+| `apply` | `update` | required | forbidden | apply or recover managed update |
+| `plan` | `upgrade` | required | required | plan explicit intent/compatibility-boundary change |
+| `apply` | `upgrade` | required | required for a new upgrade; forbidden during recovery | start or recover explicit upgrade |
+| `validate` | none | required | not accepted | validate current consumer state |
+
+Initial mode is the default. These forms are equivalent:
+
+```sh
+python scripts/compose.py plan --config composition.json --target /repo
+python scripts/compose.py plan --mode initial --config composition.json --target /repo
+```
+
+The dispatcher accepts `--mode` before or after the command, but examples and documentation use command-first form.
+
+## Source checkout requirements
+
+The Composer runs from the Composition source checkout. Source authorities consumed by composition must be regular Git-tracked files under one exact clean revision.
+
+For managed `update` and `upgrade`:
+
+- the old revision recorded in the consumer lock must be available in local Composition Git history;
+- the target source revision must equal or descend from the old revision;
+- recovery requires the exact target revision recorded in `.template-composition/transaction.json`.
+
+The canonical source identity is the Composition authority in `TakashiSasaki/templates`.
+
+## `inspect`
+
+Syntax:
+
+```sh
+python scripts/compose.py inspect --target /repo
+```
+
+Possible `state` values are:
+
+| State | Meaning |
+| --- | --- |
+| `absent` | target path does not exist |
+| `unmanaged` | target exists without a Composition lock |
+| `managed-valid` | lock and materialized state validate |
+| `managed-invalid` | Composition metadata exists but consumer validation fails |
+| `managed-interrupted` | `.template-composition/transaction.json` exists and recovery is required |
+| `invalid` | target root itself is invalid, for example a symbolic link |
+
+`inspect` treats transaction-marker presence as sufficient to classify interrupted managed state. It does not trust or branch on transaction contents before recovery.
+
+## Consumer configuration
+
+Configuration schema version 1 has four required fields:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "skill",
+  "components": {
+    "include": [],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+`recipe` selects a production recipe. `components.include` and `components.exclude` may name exposed `capability.*` or `lifecycle.*` components. Include/exclude sets must be disjoint; required components cannot be excluded; selected dependency closure cannot contain an excluded component.
+
+`parameters` is an object keyed by selected `artifact.*`, `capability.*`, or `lifecycle.*` component IDs. The schema permits component-local object values. At this production revision, materialization does not consume parameter values and production components do not declare parameter-specific material behavior. Parameter objects are nevertheless normalized into lock-v2 intent, so changing them requires explicit `upgrade`.
+
+## Lock schema v2
+
+`.template-composition/lock.json` is Composer-owned resolved state. It records:
+
+- exact source repository and revision;
+- normalized intent: recipe, sorted include/exclude choices, and normalized parameters;
+- exact recipe digest;
+- digest of the most recently supplied configuration bytes;
+- resolved component IDs, component versions, and descriptor digests;
+- every active material destination, owner component, ownership mode, and materialized digest.
+
+Consumers may read the lock to understand state and ownership, but should not edit it manually.
+
+## Initial planning
+
+Syntax:
+
+```sh
+python scripts/compose.py plan --config composition.json --target /repo
+```
+
+The initial plan payload has `schema_version: 2` and `operation: "initial"`. Important fields include `source`, `intent`, `resolved_components`, `actions`, `conflicts`, and `lock_preview`.
+
+Initial action values are:
+
+| Action | Meaning |
+| --- | --- |
+| `create` | destination is absent and may be created |
+| `adopt-identical` | an existing regular file already has exactly the desired bytes |
+
+Initial conflicts are reported separately. Different existing bytes, portable case collisions, file/directory collisions, symbolic links, unsafe paths, existing Composer-managed metadata, and invalid component/configuration resolution prevent apply.
+
+Initial composition never overwrites different existing bytes.
+
+## Managed update planning
+
+Syntax:
+
+```sh
+python scripts/compose.py plan --mode update --target /repo
+```
+
+The managed update plan has `schema_version: 1` and `operation: "update"`. It reconstructs configuration from lock-v2 normalized intent; a new `--config` is rejected as `UPDATE_CONFIG_NOT_ALLOWED`.
+
+The payload contains:
+
+- `from_revision` / `to_revision`;
+- unchanged normalized `intent`;
+- recipe digest transition information;
+- component `added`, `removed`, `changed`, and `unchanged` groups;
+- file action buckets;
+- structured top-level `conflicts`;
+- `lock_preview`.
+
+Managed file action buckets are:
+
+| Bucket | Meaning |
+| --- | --- |
+| `create` | new active material may be created at an absent safe destination |
+| `replace` | clean `managed` or `generated` material changes bytes and may be replaced |
+| `remove` | clean `managed` or `generated` material leaves the active composition and may be deleted |
+| `preserve` | `seed` remains consumer-owned and is left unchanged; removed seed also remains as an ordinary extra file |
+| `unchanged` | active `managed`/`generated` material already has the desired digest |
+| `conflict` | transition is unsafe or unsupported and apply must not mutate |
+
+A component version change is a conflict in update and reports `COMPONENT_VERSION_UPGRADE_REQUIRED`.
+
+## Explicit upgrade planning
+
+Syntax:
+
+```sh
+python scripts/compose.py plan --mode upgrade --config composition.json --target /repo
+```
+
+Upgrade accepts explicit new intent. The plan includes `intent.from` and `intent.to`, configuration digest transition, recipe transition, component transition, the same managed file action buckets, conflicts, and a new lock preview.
+
+Component version changes are accepted as explicit `component-version` compatibility boundaries during upgrade. Descriptor-byte change without a component-version change remains invalid and reports `COMPONENT_DESCRIPTOR_CHANGED_WITHOUT_VERSION`.
+
+File-owner and ownership-mode changes are not automatically migrated. Update may identify these as `*_UPGRADE_REQUIRED`; explicit upgrade then reports the corresponding `*_NOT_SUPPORTED` conflict rather than inferring a migration.
+
+## Apply behavior
+
+`apply` performs deterministic planning again before mutation. A conflicting plan returns without creating a managed transaction.
+
+Initial apply creates only absent destinations, adopts only byte-identical existing files, writes the lock last, then performs consumer validation.
+
+Managed update/upgrade writes `.template-composition/transaction.json` before the first managed-state mutation. Only `create`, `replace`, and `remove` become transaction actions. `preserve` and `unchanged` do not mutate files.
+
+For `replace` and `remove`, current bytes must still match the old lock digest. Retry accepts an already-applied new state. Any third state reports a precondition error rather than being overwritten.
+
+The new lock is installed after file actions, consumer state is validated while the transaction marker still exists, and the marker is removed last.
+
+## Ownership modes
+
+| Ownership | Authority after initial materialization | Update/upgrade behavior |
+| --- | --- | --- |
+| `managed` | Composition source material remains authoritative | may replace/remove only when current bytes equal old lock digest |
+| `generated` | deterministic Composition generator remains authoritative | recomputed and may replace/remove only when current bytes equal old lock digest |
+| `seed` | ownership transfers to the consumer | never overwritten or deleted by update/upgrade after first materialization |
+
+A seed file that remains active keeps its original provenance digest in the next lock even if consumer bytes differ. A removed seed disappears from the new lock but remains in the repository as ordinary consumer-owned content.
+
+## Recovery
+
+A managed transaction is durable roll-forward state. `inspect` reports `managed-interrupted` while the marker exists.
+
+Recovery requirements are:
+
+1. use the exact Composition source revision recorded by `transaction.source.revision`;
+2. rerun the matching apply mode recorded by `transaction.operation`;
+3. do not edit or delete the marker manually;
+4. for interrupted upgrade, omit `--config` because target intent and new lock are already recorded.
+
+Examples:
+
+```sh
+python scripts/compose.py apply --mode update --target /repo
+python scripts/compose.py apply --mode upgrade --target /repo
+```
+
+A transaction for the other operation reports `RECOVERY_OPERATION_MISMATCH`. A different source checkout reports `RECOVERY_SOURCE_MISMATCH`.
+
+## Consumer-facing managed lifecycle diagnostics
+
+The following codes are especially relevant to normal consumer operation.
+
+| Code | Meaning | Consumer action |
+| --- | --- | --- |
+| `INITIAL_MODE_REQUIRES_UNMANAGED_TARGET` | initial mode found an existing Composition lock | use `update` to preserve intent or `upgrade` to change intent/boundary |
+| `MANAGED_LOCK_REQUIRED` | update/upgrade was requested without managed state | inspect the target; use initial mode for an unmanaged repository |
+| `UPDATE_CONFIG_NOT_ALLOWED` | `--config` was supplied to update | remove `--config`; use upgrade for intent changes |
+| `UPGRADE_CONFIG_REQUIRED` | new upgrade planning/apply lacks explicit target intent | supply `--config` |
+| `RECOVERY_CONFIG_NOT_ALLOWED` | `--config` was supplied while recovering upgrade | remove `--config`; transaction already binds target intent |
+| `RECOVERY_REQUIRED` | an unfinished managed transaction exists | recover the recorded operation before planning another one |
+| `RECOVERY_OPERATION_MISMATCH` | requested recovery mode differs from transaction operation | rerun the operation recorded in the transaction |
+| `RECOVERY_SOURCE_MISMATCH` | source checkout is not the exact revision recorded by the transaction | check out the recorded revision and retry |
+| `OLD_SOURCE_REVISION_UNAVAILABLE` | old lock revision is absent from local Composition history | make that revision available locally before retrying |
+| `SOURCE_REVISION_NOT_DESCENDANT` | target Composition revision is not old revision or its descendant | use a descendant/equal source revision |
+| `COMPONENT_VERSION_UPGRADE_REQUIRED` | update encounters a component version change | plan an explicit upgrade with desired intent |
+| `COMPONENT_DESCRIPTOR_CHANGED_WITHOUT_VERSION` | descriptor bytes changed without version change | source-side invariant is broken; do not bypass it in the consumer |
+| `LOCAL_MODIFICATION` | managed/generated current bytes differ from old lock | restore the locked state or stop and redesign source/ownership; Composer will not overwrite |
+| `OLD_STATE_INVALID` | locked material is missing, non-regular, or under an unsafe path | repair target state before retrying |
+| `DESTINATION_CONFLICT` | newly selected destination conflicts with existing repository structure | reconcile the ordinary repository path before retrying |
+| `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` | update detects a component-owner change at one destination | this is a compatibility boundary; current automatic migration is unsupported |
+| `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` | update detects ownership-mode change | this is a compatibility boundary; current automatic migration is unsupported |
+| `FILE_OWNER_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires owner migration | provide an explicit source-side migration design; do not edit lock metadata |
+| `OWNERSHIP_TRANSITION_NOT_SUPPORTED` | explicit upgrade still requires ownership migration | provide an explicit source-side migration design; do not edit lock metadata |
+| `PRECONDITION_CHANGED` | bytes or metadata changed after the transaction/plan precondition was established | inspect the unexpected change; Composer will not overwrite it |
+
+Other codes may describe invalid source authorities, malformed schemas/configuration, unsafe paths, unsupported generated handlers, or I/O failures. They are source/contract failures rather than normal lifecycle choices.
+
+## Exit status
+
+The CLI emits JSON to standard output for normal results and Composer errors.
+
+- `0` — requested operation or validation succeeded;
+- `2` — invalid state, conflict, argument-level Composer error, or managed-operation failure;
+- `3` — initial apply materialized files but its immediate post-apply consumer validation failed; the Composer attempts to remove the just-written lock so the repository is not reported as successfully managed.
+
+Argparse usage errors follow Python `argparse` behavior.
+
+## Consumer validator
+
+Every artifact includes `lifecycle.composition-state`, which materializes a stdlib-only validator under `.template-composition/`. The source-side `compose.py validate` command invokes the source authority version of that validator.
+
+Consumer validation checks lock shape/semantics and materialized repository state. `managed` and `generated` bytes must equal the lock digest. Active `seed` files must remain present but may differ from their provenance digest.
+
+The consumer validator does not re-resolve the source component graph or verify source descriptor bytes; those checks belong to the source-side Composer.
