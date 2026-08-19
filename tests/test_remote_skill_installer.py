@@ -61,15 +61,15 @@ def skill_archive(*, extra_members: list[tarfile.TarInfo] | None = None) -> byte
     return buffer.getvalue()
 
 
-def test_remote_installer_pins_the_merged_single_skill_revision() -> None:
+def test_remote_installer_pins_the_policy_owned_skill_revision() -> None:
     assert installer.TOOLCHAIN_REPOSITORY == "TakashiSasaki/templates"
     assert (
         installer.SKILL_SOURCE_REVISION
-        == "a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce"
+        == "27a3319a3785250236bee056fd917379c245aaef"
     )
     assert installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION)
     assert installer.archive_url().endswith(
-        "/tar.gz/a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce"
+        "/tar.gz/27a3319a3785250236bee056fd917379c245aaef"
     )
 
 
