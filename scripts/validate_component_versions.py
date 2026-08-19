@@ -64,15 +64,21 @@ def validate_descriptor_transition(old_bytes: bytes, new_bytes: bytes, *, path: 
 
 
 def _base_descriptor_bytes(root: Path, base_revision: str, relative_path: str) -> bytes | None:
-    result = _run_git(
+    listing = _run_git(
         root,
-        "show",
-        f"{base_revision}:{relative_path}",
-        allow_failure=True,
-    )
-    if result.returncode == 0:
-        return result.stdout
-    return None
+        "ls-tree",
+        "--name-only",
+        base_revision,
+        "--",
+        relative_path,
+    ).stdout.decode("utf-8", errors="strict").strip()
+    if not listing:
+        return None
+    if listing != relative_path:
+        raise ComponentVersionGuardError(
+            f"unexpected base tree entry while reading {relative_path}: {listing!r}"
+        )
+    return _run_git(root, "show", f"{base_revision}:{relative_path}").stdout
 
 
 def validate_repository(base_revision: str, *, root: Path = ROOT) -> int:
@@ -120,7 +126,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         compared = validate_repository(args.base)
-    except ComponentVersionGuardError as exc:
+    except (ComponentVersionGuardError, UnicodeDecodeError) as exc:
         print(f"component version guard failed:\n{exc}", file=sys.stderr)
         return 2
     print(f"component version guard passed for {compared} existing component descriptors")
