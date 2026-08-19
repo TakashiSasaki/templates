@@ -11,6 +11,8 @@ DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
 COMPOSITION_REVISION = "353ffd49279618a23efa1892d703e8f1de6c0c4a"
 POLICY_REVISION = "46cfe5acbb91c1e4a6ece18dc2a429df3afa7268"
+SKILL_ARCHIVE_REVISION = "b8b735dbe525ca76316fec445cdce43db02a955e"
+WEBAPP_ARCHIVE_REVISION = "fa269e1310a37ad46f3644ed4f46954a815380ec"
 
 ACTIVE_OPERATIONAL_FILES = (
     ".github/workflows/build-pages.yml",
@@ -42,7 +44,7 @@ RETIRED_OPERATIONAL_PATTERNS = (
 
 
 class LegacyBranchRetirementTests(unittest.TestCase):
-    def test_source_lock_uses_only_retirement_ready_authorities(self) -> None:
+    def test_source_lock_uses_only_active_external_authorities(self) -> None:
         source_lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
 
         self.assertEqual(
@@ -53,15 +55,31 @@ class LegacyBranchRetirementTests(unittest.TestCase):
             },
         )
 
-    def test_deployment_state_records_retirement_readiness(self) -> None:
+    def test_deployment_state_records_completed_retirement(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
 
         self.assertEqual(state["locked_composition_revision"], COMPOSITION_REVISION)
-        self.assertIn("retirement readiness completed", state["reason"])
+        self.assertIn("branch retirement completed", state["reason"])
         conditions = state["completed_conditions"]
+        retirement_condition = next(
+            condition
+            for condition in conditions
+            if "legacy skill and webapp branch refs are deleted" in condition
+        )
+        self.assertIn("archive/skill-final", retirement_condition)
+        self.assertIn(SKILL_ARCHIVE_REVISION, retirement_condition)
+        self.assertIn("archive/webapp-final", retirement_condition)
+        self.assertIn(WEBAPP_ARCHIVE_REVISION, retirement_condition)
         self.assertTrue(
             any(
-                "legacy skill and webapp branch refs are historical-only" in condition
+                "active canonical authorities are site, policy, and composition" in condition
+                for condition in conditions
+            )
+        )
+        self.assertTrue(
+            any(
+                "update/upgrade semantics" in condition
+                and "independent of legacy branch retirement" in condition
                 for condition in conditions
             )
         )
