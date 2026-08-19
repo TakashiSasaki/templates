@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
+GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
 
 
 def load_validator():
@@ -86,7 +87,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
                     line=number,
                 ):
                     self.assertTrue(
-                        line.startswith("#") or line.startswith("- ["),
+                        line.startswith("#") or GUIDED_LINK.fullmatch(line),
                         f"unsupported guided index content at "
                         f"{index_path.relative_to(ROOT)}:{number}: {raw_line!r}",
                     )
