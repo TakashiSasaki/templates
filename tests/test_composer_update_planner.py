@@ -342,7 +342,7 @@ class UpdatePlannerCLITests(unittest.TestCase):
             self.assertIn("SKILL.md", preserved)
             self.assertEqual(seed_path.read_bytes()[-14:], b"consumer edit\n")
 
-    def test_update_rejects_explicit_config_and_apply_remains_read_only(self) -> None:
+    def test_update_rejects_explicit_config_and_no_op_apply_is_write_free(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             config_path, target = self.materialize(root)
@@ -362,8 +362,9 @@ class UpdatePlannerCLITests(unittest.TestCase):
             result, payload = self.run_composer(
                 "apply", "--mode", "update", "--target", str(target)
             )
-            self.assertEqual(result.returncode, 2)
-            self.assertEqual(payload["code"], "UPDATE_APPLY_NOT_IMPLEMENTED")
+            self.assertEqual(result.returncode, 0, payload)
+            self.assertEqual(payload["status"], "updated")
+            self.assertTrue(payload["no_op"])
             self.assertEqual((target / ".template-composition" / "lock.json").read_bytes(), lock_before)
 
     def test_malformed_old_lock_fails_closed(self) -> None:

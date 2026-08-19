@@ -18,7 +18,7 @@ plan/apply --mode upgrade
 
 Omitting `--mode` remains equivalent to `initial`. Managed-state update and upgrade are never inferred from the presence of a lock.
 
-Lock schema version 2 provides the consumer-intent and provenance foundation. Read-only update reconciliation is implemented; safe update mutation/recovery and explicit upgrade mutation remain separate later layers.
+Lock schema version 2 provides the consumer-intent and provenance foundation. Read-only update reconciliation and crash-recoverable update apply are implemented. Explicit upgrade remains the later compatibility-boundary layer and reuses the same transaction protocol.
 
 ## Source authority
 
@@ -27,6 +27,8 @@ The Composer runs from a clean `composition` source checkout. It binds every suc
 The production catalog is loaded closed: catalog IDs must exactly match `components/` and `recipes/`, descriptors/recipes must validate against their schemas, dependencies must exist and be acyclic, and generic capability/lifecycle components must not depend on artifact authorities.
 
 For update, the old lock source revision must exist in the local source history and must be an ancestor of, or identical to, the current source revision. This permits forward reconciliation while rejecting downgrade or unrelated-history reconciliation without consulting the network or a mutable branch.
+
+Interrupted recovery requires the source checkout to be exactly the transaction's recorded target revision. Recovery never silently re-plans against a different source revision.
 
 ## Resolution and consumer intent
 
@@ -104,7 +106,7 @@ Component material must not claim paths that collide, case-insensitively or stru
 .template-composition/staging/**
 ```
 
-`transaction.json` and `staging/**` are reserved for the managed-state recovery protocol. Reserving them in the lock-v2 contract before update mutation exists prevents a later component from acquiring ambiguous ownership of transaction state.
+`transaction.json` and `staging/**` are reserved for the managed-state recovery protocol. `transaction.json` is implemented as the durable roll-forward marker. `staging/**` remains reserved so a later storage strategy can stage larger material sets without changing component destination authority.
 
 Other files below `.template-composition/`, including the self-contained validator and schemas materialized by `lifecycle.composition-state`, remain valid component destinations.
 
@@ -159,6 +161,13 @@ The machine-readable plan contains:
   "operation": "update",
   "from_revision": "...",
   "to_revision": "...",
+  "intent": {},
+  "recipe": {
+    "id": "...",
+    "from_sha256": "...",
+    "to_sha256": "...",
+    "changed": false
+  },
   "components": {
     "added": [],
     "removed": [],
@@ -178,6 +187,8 @@ The machine-readable plan contains:
 }
 ```
 
+The top-level `intent` is the old normalized lock intent used to resolve the update. `lock_preview.intent` is the newly emitted normalized snapshot; for update they are semantically identical by construction.
+
 For destinations present in both old and new state:
 
 - a managed/generated destination is `replace` only after its current digest matches the old lock; equal old/new desired digests are `unchanged`;
@@ -192,13 +203,61 @@ A missing old material is treated as invalid old managed state rather than as an
 
 The lock preview records current source/recipe/component state and carries forward `configuration_sha256` plus the old recorded digest for every preserved seed.
 
-`apply --mode update` deliberately remains non-mutating at this layer and returns `UPDATE_APPLY_NOT_IMPLEMENTED` after a conflict-free plan. The mutation and recovery protocol is the next implementation layer.
+## Safe update apply
+
+Run a mutation only after reviewing the same read-only plan:
+
+```sh
+python scripts/compose.py apply --mode update --target /path/to/repository
+```
+
+`apply` reconstructs the complete plan before the first mutation. If conflicts exist, it performs no write. It also verifies that the exact lock bytes have not changed while planning.
+
+For a non-no-op update, the first durable managed-state mutation is creation of `.template-composition/transaction.json`. The transaction document contains:
+
+- operation and exact target source revision;
+- the complete old and new lock objects;
+- SHA-256 identity for the exact old lock file bytes and deterministic new lock file bytes; and
+- the lexically ordered `create`, `replace`, and `remove` actions derived from the read-only plan.
+
+The transaction schema does not itself duplicate the full lock schema; source-side recovery validates both embedded locks against `composition-lock.schema.json` and checks every action against the corresponding old/new file inventory.
+
+Each mutation is preconditioned:
+
+- `create` accepts an absent destination or, during recovery, a regular file already matching the recorded new digest;
+- `replace` accepts only the recorded old digest or the already-applied new digest;
+- `remove` accepts only the recorded old digest or an already-absent destination;
+- symbolic links, non-regular files, unsafe parent paths, or any third digest stop recovery.
+
+Replacement data are written to a same-directory temporary file, fsynced, rechecked against the expected digest, and installed with `os.replace`. Directory metadata is fsynced where supported. Creation retains no-overwrite installation semantics. Deletion is followed by a directory fsync where supported.
+
+After all material actions, the lock is atomically replaced only when its exact file digest still matches the recorded old lock; an already-installed new lock is accepted during recovery. The source-side self-contained validator functions then validate the new lock and material state while the transaction marker is still present. Only after successful validation and verification that the marker itself has not changed is the marker deleted.
+
+## Interrupted update recovery
+
+The protocol is deterministic roll-forward rather than rollback. Any crash after transaction-marker creation leaves an explicit interrupted state. `inspect`/consumer validation report recovery required.
+
+Re-running:
+
+```sh
+python scripts/compose.py apply --mode update --target /path/to/repository
+```
+
+loads the existing transaction instead of constructing a new plan. Recovery requires the current source checkout to equal the transaction target revision. It re-resolves the old intent from that immutable source, reconstructs the deterministic new lock/material bytes, and requires them to equal the transaction's recorded new state before any resumed mutation.
+
+For each action, old state means "perform this action" and new state means "this action already completed". Any other state is a conflict and remains untouched. Therefore a consumer change made before an action is attempted, or after an interrupted marker was written, is not silently overwritten by retry.
+
+A crash after the new lock is installed but before marker deletion is also recoverable: all actions and the lock are recognized as already applied, the new state is validated again, and only then is the marker removed.
+
+A same-revision, same-intent no-op update writes no transaction marker and does not rewrite the lock.
 
 ## Determinism and execution boundary
 
-For the same immutable source revision, normalized intent, and valid old managed state, reconciliation order, managed/generated output bytes, plan JSON, and the resulting lock preview are deterministic. Seed contents after ownership transfer are preserved rather than merged.
+For the same immutable source revision, normalized intent, and valid old managed state, reconciliation order, managed/generated output bytes, plan JSON, transaction JSON, and the resulting lock preview are deterministic. Seed contents after ownership transfer are preserved rather than merged.
 
 The Composer does not consult mutable branches, wall-clock time, random values, network-discovered defaults, arbitrary hooks, consumer code, package managers, or product build/test/deploy commands when deriving composition state.
+
+As with ordinary filesystem tools, uncoordinated concurrent writers can race a filesystem syscall; Composer nevertheless rechecks digest/path preconditions immediately before each replacement/removal and never treats an unexpected digest as mergeable state.
 
 ## Managed-state work decomposition
 
@@ -209,4 +268,4 @@ The managed-state implementation is deliberately split into reviewable layers:
 3. safe update mutation plus interrupted-update recovery; and
 4. explicit upgrade semantics using the same reconciliation and recovery engine.
 
-Layers 1 and 2 define the lock and full read-only update plan. Layer 3 is solely responsible for converting a conflict-free plan into crash-recoverable filesystem mutation. Layer 4 opens the compatibility boundaries that update deliberately refuses.
+Layers 1 through 3 now provide intent recovery, deterministic planning, digest-guarded mutation, and roll-forward recovery. Layer 4 opens the compatibility boundaries that update deliberately refuses without introducing a second filesystem mutation protocol.
