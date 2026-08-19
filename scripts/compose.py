@@ -93,9 +93,9 @@ def main() -> int:
         from composer_apply import main as apply_main
 
         return apply_main()
-    from composer_managed import main as managed_main
+    from composer_update_plan import main as update_plan_main
 
-    return managed_main()
+    return update_plan_main()
 
 
 if __name__ == "__main__":
