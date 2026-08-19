@@ -148,12 +148,12 @@ def _verify_source_transition(old_revision: str, new_revision: str) -> None:
     if ancestry.returncode == 1:
         raise ManagedPlanError(
             "SOURCE_REVISION_NOT_DESCENDANT",
-            f"update target revision {new_revision} is not a descendant of old revision {old_revision}",
+            f"target composition source revision {new_revision} is not a descendant of old revision {old_revision}",
         )
     if ancestry.returncode != 0:
         raise ManagedPlanError(
             "GIT_FAILED",
-            "cannot establish source revision ancestry for managed update",
+            "cannot establish source revision ancestry for managed operation",
         )
 
 
