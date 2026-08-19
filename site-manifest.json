@@ -21,8 +21,9 @@
       "title": "Composition",
       "children": [
         {"title": "Overview", "publication": "composition", "document": "overview", "destination": "composition/index.md"},
+        {"title": "Use Composition", "publication": "composition", "document": "consumer-guide", "destination": "composition/use/index.md"},
+        {"title": "Composer reference", "publication": "composition", "document": "composer-reference", "destination": "composition/reference/composer.md"},
         {"title": "Documentation index", "publication": "composition", "document": "documentation-index", "destination": "composition/docs/index.md"},
-        {"title": "Publication boundary", "publication": "composition", "document": "publication-boundary", "destination": "composition/docs/publication-catalog.md"},
         {
           "title": "Architecture",
           "children": [
@@ -38,7 +39,8 @@
             {"title": "Catalog guide", "publication": "composition", "document": "catalog-guide", "destination": "composition/catalog/index.md"},
             {"title": "Schema guide", "publication": "composition", "document": "schema-guide", "destination": "composition/schemas/index.md"}
           ]
-        }
+        },
+        {"title": "Publication boundary", "publication": "composition", "document": "publication-boundary", "destination": "composition/docs/publication-catalog.md"}
       ]
     },
     {
