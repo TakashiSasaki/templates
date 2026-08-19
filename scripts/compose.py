@@ -51,6 +51,11 @@ def main() -> int:
     if mode == "initial":
         _remove_initial_mode()
         return _initial_main()
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode == "update" and command == "apply":
+        from composer_apply import main as apply_main
+
+        return apply_main()
     from composer_managed import main as managed_main
 
     return managed_main()
