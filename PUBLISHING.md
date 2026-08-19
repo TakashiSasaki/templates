@@ -157,6 +157,10 @@ navigation ownership to translated material.
 
 The graph records the exact full-SHA provider revisions used by publication.
 
+For guided links, an uncataloged regular tracked file with any fragment opens the exact full-SHA immutable GitHub source. Fragment-free uncataloged regular files may use the bounded immutable `/files/` snapshot.
+
+Nested guided-index URLs identify the current reviewed provider/path projection; the exact provider revision is recorded in the guided page and graph rather than encoded in that nested URL.
+
 ## Stable reader entry points
 
 The integrated IA must provide at least:
