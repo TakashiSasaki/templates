@@ -63,20 +63,33 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("templates-webapp-template-distribution-artifact", ids)
         self.assertNotIn("templates-skill-mcp-extension", ids)
 
-    def test_guided_index_uses_restricted_navigation_shape(self):
-        index_path = ROOT / "docs" / "index.md"
-        for number, raw_line in enumerate(
-            index_path.read_text(encoding="utf-8").splitlines(),
-            start=1,
-        ):
-            line = raw_line.strip()
-            if not line:
-                continue
-            with self.subTest(line=number):
-                self.assertTrue(
-                    line.startswith("#") or line.startswith("- ["),
-                    f"unsupported guided index content at line {number}: {raw_line!r}",
-                )
+    def test_guided_indexes_use_restricted_navigation_shape(self):
+        index_paths = sorted(ROOT.rglob("index.md"))
+        self.assertEqual(
+            [path.relative_to(ROOT).as_posix() for path in index_paths],
+            [
+                "components/artifact.skill-core/files/docs/index.md",
+                "components/artifact.webapp-core/files/docs/index.md",
+                "docs/index.md",
+            ],
+        )
+        for index_path in index_paths:
+            for number, raw_line in enumerate(
+                index_path.read_text(encoding="utf-8").splitlines(),
+                start=1,
+            ):
+                line = raw_line.strip()
+                if not line:
+                    continue
+                with self.subTest(
+                    path=index_path.relative_to(ROOT).as_posix(),
+                    line=number,
+                ):
+                    self.assertTrue(
+                        line.startswith("#") or line.startswith("- ["),
+                        f"unsupported guided index content at "
+                        f"{index_path.relative_to(ROOT)}:{number}: {raw_line!r}",
+                    )
 
     def test_guided_index_local_links_remain_inside_source_and_exist(self):
         index_path = ROOT / "docs" / "index.md"
