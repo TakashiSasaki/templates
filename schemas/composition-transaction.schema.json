@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/composition-transaction.schema.json",
+  "title": "Composition managed-state transaction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "source",
+    "old_lock_file_sha256",
+    "new_lock_file_sha256",
+    "old_lock",
+    "new_lock",
+    "actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation": {
+      "enum": ["update", "upgrade"]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/templates"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(?!0{40}$)[0-9a-f]{40}$"
+        }
+      }
+    },
+    "old_lock_file_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "new_lock_file_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "old_lock": {
+      "type": "object"
+    },
+    "new_lock": {
+      "type": "object"
+    },
+    "actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "destination", "component", "ownership", "to_sha256"],
+            "properties": {
+              "action": {"const": "create"},
+              "destination": {"type": "string"},
+              "component": {"type": "string"},
+              "ownership": {"enum": ["managed", "seed", "generated"]},
+              "to_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "destination", "component", "ownership", "from_sha256", "to_sha256"],
+            "properties": {
+              "action": {"const": "replace"},
+              "destination": {"type": "string"},
+              "component": {"type": "string"},
+              "ownership": {"enum": ["managed", "generated"]},
+              "from_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "to_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "destination", "component", "ownership", "from_sha256"],
+            "properties": {
+              "action": {"const": "remove"},
+              "destination": {"type": "string"},
+              "component": {"type": "string"},
+              "ownership": {"enum": ["managed", "generated"]},
+              "from_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        ]
+      }
+    }
+  }
+}
