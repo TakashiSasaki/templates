@@ -10,13 +10,15 @@ MAINTENANCE = ROOT / "MAINTENANCE.md"
 
 class LatestIndexNavigationIntegrationReviewTests(unittest.TestCase):
     def test_maintenance_documents_fragmented_uncataloged_source_fallback(self) -> None:
-        maintenance = " ".join(MAINTENANCE.read_text(encoding="utf-8").split())
+        maintenance = " ".join(
+            MAINTENANCE.read_text(encoding="utf-8").split()
+        ).casefold()
         self.assertIn(
             "fragment-free uncataloged regular-file targets resolve to the same immutable `/files/` snapshot",
             maintenance,
         )
         self.assertIn(
-            "uncataloged regular-file targets with any fragment use the exact full-SHA immutable GitHub source",
+            "uncataloged regular-file targets with any fragment use the exact full-sha immutable github source",
             maintenance,
         )
 
