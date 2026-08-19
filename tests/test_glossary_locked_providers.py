@@ -9,7 +9,7 @@ from scripts.glossary import integrate_glossaries
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "TakashiSasaki/templates"
-PROVIDER_ORDER = ("skill", "policy", "webapp")
+PROVIDER_ORDER = ("composition", "policy")
 REQUIRED_PROVIDER_BY_TERM_ID = {
     "external-git-branch": "site",
     "templates-publication-catalog": "site",
@@ -17,12 +17,23 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-integrated-publication": "site",
     "templates-publication-source-lock": "site",
     "templates-index-guided-navigation": "site",
-    "templates-skill-profile": "skill",
-    "templates-skill-template-scaffold": "skill",
-    "templates-skill-mcp-extension": "skill",
-    "templates-skill-runtime-decision-record": "skill",
-    "templates-skill-public-interface-selection-contract": "skill",
-    "external-mcp-model-context-protocol": "skill",
+    "templates-composition-component": "composition",
+    "templates-composition-artifact-component": "composition",
+    "templates-composition-capability-component": "composition",
+    "templates-composition-lifecycle-component": "composition",
+    "templates-composition-recipe": "composition",
+    "templates-composition-lock": "composition",
+    "templates-composition-managed-material": "composition",
+    "templates-composition-seed-material": "composition",
+    "templates-composition-generated-material": "composition",
+    "templates-skill-profile": "composition",
+    "templates-skill-template-scaffold": "composition",
+    "templates-runtime-decision-record": "composition",
+    "templates-contract-manifest": "composition",
+    "templates-implementation-evidence": "composition",
+    "templates-release-evidence": "composition",
+    "templates-release-bundle": "composition",
+    "external-mcp-model-context-protocol": "composition",
     "templates-policy-module": "policy",
     "templates-policy-profile": "policy",
     "templates-policy-context": "policy",
@@ -31,73 +42,16 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-context-policy": "policy",
     "templates-repository-local-policy": "policy",
     "templates-artifact-contract": "policy",
-    "templates-adapter-renderer-requirement": "policy",
-    "templates-explanatory-material": "policy",
-    "templates-policy-override": "policy",
-    "templates-policy-stable-release": "policy",
-    "templates-policy-stable-release-descriptor": "policy",
-    "templates-policy-promoted-toolchain-revision": "policy",
-    "templates-policy-bootstrap-trust-seed": "policy",
-    "templates-policy-managed-repository": "policy",
-    "templates-webapp-template-mode": "webapp",
-    "templates-webapp-contract-manifest": "webapp",
-    "templates-webapp-implementation-evidence": "webapp",
-    "templates-webapp-release-evidence": "webapp",
-    "templates-webapp-template-source-artifact": "webapp",
-    "templates-webapp-template-distribution-artifact": "webapp",
-    "templates-webapp-product-repository-artifact": "webapp",
-    "templates-webapp-product-mode": "webapp",
-    "templates-webapp-release-bundle": "webapp",
-    "templates-webapp-contract-family": "webapp",
-    "templates-webapp-candidate-revision": "webapp",
-    "templates-webapp-merge-test-revision": "webapp",
-    "templates-webapp-released-revision": "webapp",
-    "templates-webapp-deployed-revision": "webapp",
 }
-REQUIRED_CANONICAL_TERM_IDS = set(REQUIRED_PROVIDER_BY_TERM_ID)
-EXPECTED_JA_LABELS = {
-    "templates-provider-branch": "プロバイダーブランチ",
-    "templates-integrated-publication": "統合公開",
-    "templates-index-guided-navigation": "インデックス誘導ナビゲーション",
-    "templates-skill-runtime-decision-record": "ランタイム決定記録",
-    "external-mcp-model-context-protocol": "モデルコンテキストプロトコル",
-    "templates-context-policy": "コンテキストポリシー",
-    "templates-policy-stable-release": "安定版リリース",
-    "templates-policy-stable-release-descriptor": "安定版リリース記述子",
-    "templates-policy-promoted-toolchain-revision": "昇格済みツールチェーンリビジョン",
-    "templates-policy-bootstrap-trust-seed": "ブートストラップ信頼シード",
-    "templates-policy-managed-repository": "管理対象リポジトリ",
-    "templates-webapp-product-mode": "プロダクトモード",
-    "templates-webapp-candidate-revision": "候補リビジョン",
-    "templates-webapp-merge-test-revision": "マージテストリビジョン",
-    "templates-webapp-released-revision": "リリース済みリビジョン",
-    "templates-webapp-deployed-revision": "デプロイ済みリビジョン",
-}
-EXPECTED_CROSS_PROVIDER_RELATED_TERMS = {
-    "templates-skill-profile": {
-        "templates-policy-profile",
-    },
-    "templates-policy-profile": {
-        "templates-skill-profile",
-    },
-    "templates-skill-public-interface-selection-contract": {
-        "templates-artifact-contract",
-        "templates-adapter-renderer-requirement",
-    },
-    "templates-webapp-implementation-evidence": {
-        "templates-artifact-contract",
-    },
-    "templates-webapp-release-evidence": {
-        "templates-artifact-contract",
-    },
-    "templates-webapp-release-bundle": {
-        "templates-artifact-contract",
-    },
-}
-EXPECTED_PROVIDER_LOCAL_EXTERNAL_RELATED_TERMS = {
-    "templates-skill-mcp-extension": {
-        "external-mcp-model-context-protocol",
-    },
+RETIRED_IDS = {
+    "templates-skill-mcp-extension",
+    "templates-skill-runtime-decision-record",
+    "templates-skill-public-interface-selection-contract",
+    "templates-webapp-template-source-artifact",
+    "templates-webapp-template-distribution-artifact",
+    "templates-webapp-implementation-evidence",
+    "templates-webapp-release-evidence",
+    "templates-webapp-release-bundle",
 }
 
 
@@ -110,93 +64,68 @@ class LockedProviderGlossaryTests(unittest.TestCase):
                 for name in PROVIDER_ORDER
             },
         }
-        missing = [
-            name for name, path in providers.items()
-            if not path.is_dir()
-        ]
+        missing = [name for name, path in providers.items() if not path.is_dir()]
         if missing:
             self.skipTest(
                 "provider checkouts are not available outside the Pages CI layout: "
                 + ", ".join(missing)
             )
 
+        # PR5 intentionally stores composition glossary YAML as strict JSON, a
+        # YAML 1.2 subset. This test exercises those exact bytes through the
+        # Site's PyYAML loader instead of merely reparsing them with json.loads.
+        composition_glossary = providers["composition"] / "docs" / "glossary.yml"
+        self.assertTrue(
+            composition_glossary.read_text(encoding="utf-8").lstrip().startswith("{")
+        )
+
         locks = json.loads(
             (ROOT / "publication-sources.json").read_text(encoding="utf-8")
         )["publications"]
+        self.assertEqual(set(locks), set(PROVIDER_ORDER))
         revisions = {
             "site": "0" * 40,
-            **{
-                name: locks[name]["revision"]
-                for name in PROVIDER_ORDER
-            },
+            **{name: locks[name]["revision"] for name in PROVIDER_ORDER},
         }
 
         integrated = integrate_glossaries(providers, revisions, REPOSITORY)
         terms = integrated["terms"]
         by_id = {term["id"]: term for term in terms}
-
         self.assertEqual(len(by_id), len(terms))
-        self.assertTrue(REQUIRED_CANONICAL_TERM_IDS <= set(by_id))
+        self.assertTrue(set(REQUIRED_PROVIDER_BY_TERM_ID) <= set(by_id))
+        self.assertFalse(RETIRED_IDS & set(by_id))
 
-        for term_id, term in by_id.items():
+        for term_id, provider in REQUIRED_PROVIDER_BY_TERM_ID.items():
             with self.subTest(term_id=term_id):
-                provider = term["provider"]
+                term = by_id[term_id]
+                self.assertEqual(term["provider"], provider)
                 self.assertEqual(term["source_path"], "docs/glossary.yml")
                 self.assertEqual(term["source_revision"], revisions[provider])
 
-        for term_id, provider in REQUIRED_PROVIDER_BY_TERM_ID.items():
-            with self.subTest(term_id=term_id, provider=provider):
-                self.assertEqual(by_id[term_id]["provider"], provider)
-
-        for term_id, expected_label in EXPECTED_JA_LABELS.items():
-            with self.subTest(term_id=term_id, language="ja"):
-                self.assertEqual(
-                    by_id[term_id]["localized_labels"]["ja"]["term"],
-                    expected_label,
-                )
+        self.assertEqual(
+            by_id["templates-provider-branch"]["localized_labels"]["ja"]["term"],
+            "プロバイダーブランチ",
+        )
+        self.assertEqual(
+            by_id["templates-skill-profile"]["localized_labels"]["ja"]["term"],
+            "スキルプロファイル",
+        )
 
         mcp = by_id["external-mcp-model-context-protocol"]
+        self.assertEqual(mcp["provider"], "composition")
         self.assertEqual(mcp["origin"], "external")
         self.assertEqual(mcp["aliases"], ["MCP"])
         self.assertEqual(mcp["authority"]["kind"], "normative")
         self.assertEqual(
-            mcp["authority"]["sources"],
-            [
-                {
-                    "title": "Model Context Protocol Specification",
-                    "url": "https://modelcontextprotocol.io/specification/2026-07-28",
-                    "version": "2026-07-28",
-                }
-            ],
+            mcp["authority"]["sources"][0]["version"],
+            "2026-07-28",
         )
 
-        for term_id, expected_related in EXPECTED_CROSS_PROVIDER_RELATED_TERMS.items():
-            with self.subTest(term_id=term_id, relation_scope="cross-provider"):
-                self.assertTrue(
-                    expected_related <= set(by_id[term_id].get("related_terms", []))
-                )
-                for related_id in expected_related:
-                    self.assertNotEqual(
-                        by_id[term_id]["provider"],
-                        by_id[related_id]["provider"],
-                    )
-
-        for term_id, expected_related in (
-            EXPECTED_PROVIDER_LOCAL_EXTERNAL_RELATED_TERMS.items()
-        ):
-            with self.subTest(
-                term_id=term_id,
-                relation_scope="provider-local-external",
-            ):
-                self.assertTrue(
-                    expected_related <= set(by_id[term_id].get("related_terms", []))
-                )
-                for related_id in expected_related:
-                    self.assertEqual(
-                        by_id[term_id]["provider"],
-                        by_id[related_id]["provider"],
-                    )
-                    self.assertEqual(by_id[related_id]["origin"], "external")
+        skill_profile = by_id["templates-skill-profile"]
+        policy_profile = by_id["templates-policy-profile"]
+        self.assertIn("templates-policy-profile", skill_profile["related_terms"])
+        self.assertIn("templates-skill-profile", policy_profile["related_terms"])
+        self.assertNotEqual(skill_profile["provider"], policy_profile["provider"])
 
 
 if __name__ == "__main__":

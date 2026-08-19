@@ -12,6 +12,18 @@
       "source": "docs/overview.md",
       "optional": false,
       "home": false
+    },
+    {
+      "id": "capabilities-overview",
+      "source": "docs/capabilities.md",
+      "optional": false,
+      "home": false
+    },
+    {
+      "id": "lifecycle-overview",
+      "source": "docs/lifecycle.md",
+      "optional": false,
+      "home": false
     }
   ],
   "glossary": {

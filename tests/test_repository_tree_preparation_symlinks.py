@@ -38,10 +38,14 @@ class RepositoryTreePreparationSymlinkTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (site_root / "docs/repository-trees/index.md").write_text(
+                "# Repository trees\n",
+                encoding="utf-8",
+            )
+            (site_root / "docs/repository-trees/overview.md").write_text(
                 "# Repository trees\n\n<!-- GENERATED_REPOSITORY_TREE_INDEX -->\n",
                 encoding="utf-8",
             )
-            for publication in ("skill", "policy", "webapp"):
+            for publication in ("composition", "policy"):
                 (site_root / f"docs/repository-trees/{publication}.md").write_text(
                     f"# {publication}\n\n"
                     f"<!-- GENERATED_REPOSITORY_TREE:{publication} -->\n",

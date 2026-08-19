@@ -17,9 +17,8 @@ SCRIPT = (
     / "write_publication_provenance.py"
 )
 SITE_COMMIT = "a" * 40
-SKILL_COMMIT = "b" * 40
+COMPOSITION_COMMIT = "b" * 40
 POLICY_COMMIT = "c" * 40
-WEBAPP_COMMIT = "d" * 40
 DEPLOYMENT_TIMESTAMP = "2026-08-15 22:07:00 JST"
 
 
@@ -40,9 +39,8 @@ class BuildProvenanceTests(unittest.TestCase):
         repository: str = "TakashiSasaki/templates",
         site_commit: str = SITE_COMMIT,
         publication_commits: tuple[str, ...] = (
-            f"skill={SKILL_COMMIT}",
+            f"composition={COMPOSITION_COMMIT}",
             f"policy={POLICY_COMMIT}",
-            f"webapp={WEBAPP_COMMIT}",
         ),
         output: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
@@ -80,9 +78,8 @@ class BuildProvenanceTests(unittest.TestCase):
                 "repository": "TakashiSasaki/templates",
                 "site_commit": SITE_COMMIT,
                 "publication_commits": {
+                    "composition": COMPOSITION_COMMIT,
                     "policy": POLICY_COMMIT,
-                    "skill": SKILL_COMMIT,
-                    "webapp": WEBAPP_COMMIT,
                 },
             },
         )
@@ -108,9 +105,8 @@ class BuildProvenanceTests(unittest.TestCase):
                 "site_revision": SITE_COMMIT,
                 "deployed_at": DEPLOYMENT_TIMESTAMP,
                 "publications": {
-                    "skill": SKILL_COMMIT,
+                    "composition": COMPOSITION_COMMIT,
                     "policy": POLICY_COMMIT,
-                    "webapp": WEBAPP_COMMIT,
                 },
             },
             json.loads(site_version.read_text(encoding="utf-8")),
@@ -131,22 +127,22 @@ class BuildProvenanceTests(unittest.TestCase):
                 )
 
     def test_rejects_invalid_publication_commit(self) -> None:
-        result = self.run_writer(publication_commits=("skill=not-a-sha",))
+        result = self.run_writer(publication_commits=("composition=not-a-sha",))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(
-            "skill publication commit must be a full lowercase 40-character Git commit SHA",
+            "composition publication commit must be a full lowercase 40-character Git commit SHA",
             result.stderr,
         )
 
     def test_rejects_duplicate_publication_name(self) -> None:
         result = self.run_writer(
             publication_commits=(
-                f"skill={SKILL_COMMIT}",
-                f"skill={POLICY_COMMIT}",
+                f"composition={COMPOSITION_COMMIT}",
+                f"composition={POLICY_COMMIT}",
             )
         )
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("duplicate publication commit: skill", result.stderr)
+        self.assertIn("duplicate publication commit: composition", result.stderr)
 
     def test_requires_at_least_one_publication_commit(self) -> None:
         result = self.run_writer(publication_commits=())

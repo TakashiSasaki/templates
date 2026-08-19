@@ -1,350 +1,271 @@
 # TakashiSasaki/templates
 
-This repository maintains three independently versioned development systems and
-one integration branch:
+This repository now separates three authorities by responsibility:
 
-| Branch | What it provides | Start here when you need to |
+| Branch | Authority | Start here when you need to |
 |---|---|---|
-| `skill` | Contracts, runtime guidance, and caller interfaces for reusable Agent Skills | Build or adapt a reusable agent capability |
-| `policy` | Shared agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
-| `webapp` | A copyable Web application template plus application contracts, validation, evidence, and migration guidance | Build a Web application from a reviewed template contract |
-| `site` | The integrated documentation portal and its deterministic publication, glossary, source-browser, and PWA tooling | Read or publish the three systems together |
+| `composition` | Agent Skill and Web application artifact semantics, reusable application capabilities, lifecycle contracts, production recipes/schemas, and the deterministic composer | Define or materialize a Skill/Webapp composition |
+| `policy` | Shared coding-agent operating policy and the `agent-policy` selection, validation, rendering, adoption, and release toolchain | Define or apply verifiable agent operating rules |
+| `site` | The integrated documentation portal, reader information architecture, publication validation, repository views, PWA behavior, and the sole Pages deployment route | Read or publish the reviewed authorities together |
 
-The `skill`, `policy`, and `webapp` branches have unrelated Git histories and
-remain independently owned. The `site` branch does not merge those histories;
-it selects reviewed full-commit revisions and publishes their documentation as
-one reader-oriented portal.
+`composition` is an orphan branch with its own history. `policy` and `site` remain
+independent authorities. The Site does not merge provider histories; it selects
+reviewed full-commit revisions and assembles their declared publication
+boundaries.
 
 The public portal is `https://templates.moukaeritai.work/`. The custom domain is
-served from the domain root rather than from the former `/templates/` project
-path.
+served from the domain root, not from the retired `/templates/` project path.
 
-The normative cross-branch publication rules are documented in
-[`PUBLISHING.md`](PUBLISHING.md). Canonical terminology ownership, glossary
-schema rules, localized lexical labels, and glossary integration are documented
-in [`GLOSSARY.md`](GLOSSARY.md). Build identity, per-document revision metadata,
-PWA freshness-state vocabulary, and cache/fallback invariants are documented in
+Normative publication rules are in [`PUBLISHING.md`](PUBLISHING.md). Canonical
+terminology integration is defined by [`GLOSSARY.md`](GLOSSARY.md). Runtime
+freshness and PWA cache/fallback invariants are defined by
 [`FRESHNESS.md`](FRESHNESS.md).
 
-## Publication ownership model
+## Authority model
 
-In Site publication terminology, `skill`, `policy`, and `webapp` are **Provider
-branches**: repository-internal Git branches that own canonical content supplied
-as independently versioned inputs to the integrated Site publication. This term
-does not mean a cloud provider, LLM or API provider, identity provider, or other
-external service provider. The `site` branch is the integration and publication
-branch, not a Provider branch.
+In Site publication terminology, `composition` and `policy` are the two external
+**Provider branches**. The `site` branch is the integration and deployment
+authority and is not an external Provider branch.
 
-Each Provider branch owns its public source boundary in
-`docs/publication-catalog.json`:
+Skill and Webapp are still distinct artifact identities:
 
-- stable document IDs within its publication namespace;
-- canonical Markdown source paths;
-- required versus optional documents;
-- its section landing document;
-- explicit non-Markdown asset roots under catalog schema version 3;
-- an optional canonical `docs/glossary.yml` source under catalog schema version 3.
+- `artifact.skill-core` owns Agent Skill trigger/workflow/resource semantics;
+- `artifact.webapp-core` owns browser-product semantics;
+- `capability.*` owns reusable runtime and public-interface capabilities;
+- `lifecycle.*` owns reusable composition-state, contract-evolution, evidence,
+  and release-handoff concerns.
 
-All live publication catalogs use schema version 3. Older catalog schemas are
-retired and are rejected by the Site publication assembler.
+The reader paths `/skill/` and `/webapp/` therefore remain useful, but both are
+sourced from the same exact reviewed `composition` revision. Source ownership is
+not reconstructed from reader URL grouping.
 
-The catalog is an explicit allowlist for rendered documentation, Provider branch
-assets, and declared canonical glossary input. Individual glossary terms are
-not catalog entries; adding a term to a declared glossary does not require a
-catalog change. Repository inventory previews are a separate bounded surface:
-they do not add files to the documentation catalog and are generated only from
-eligible immutable Git blobs under the constraints in `PUBLISHING.md`.
+## Publication model
 
-The `site` branch owns:
+Each external provider owns `docs/publication-catalog.json`. Catalog schema
+version 3 is an explicit allowlist for reader Markdown, machine-readable assets,
+and the optional canonical provider glossary.
 
-- the global portal home;
-- cross-publication navigation, titles, ordering, and generated destinations;
-- full-commit source locking in `publication-sources.json`;
-- deterministic integration of declared Provider branch glossaries into
-  `/glossary/index.json`, with provider/path/full-SHA provenance;
-- generated repository-tree inventories and sandboxed text previews for the
-  exact checked-out revisions;
-- the bounded static repository browser for immutable source inspection;
-- the deterministic index-navigation graph and `/guided/` projection of
-  Provider-branch-owned `index.md` navigation at the same locked revisions;
-- integrated assembly, strict site generation, link validation, provenance,
-  freshness identity, and Pages deployment.
+The Site owns:
 
-A document is identified by the pair `publication:document`, such as
-`skill:overview`, `policy:overview`, or `webapp:overview`. A glossary concept is
-identified independently by its stable glossary term ID.
+- global reader navigation and generated destinations in `site-manifest.json`;
+- full-SHA external-provider locks in `publication-sources.json`;
+- assembly of `site`, `composition`, and `policy` publication inputs;
+- integrated glossary generation with provider/path/revision provenance;
+- repository-tree views for Composition and Policy;
+- the static source browser for Site, Composition, and Policy;
+- deterministic index-guided navigation for Composition and Policy;
+- strict static-site build, link validation, provenance, freshness metadata, and
+  Pages deployment.
 
-## Reader-facing portal
+A public document is identified by `publication:document`, for example
+`composition:skill-contract`, `composition:contract-evolution`, or
+`policy:overview`.
 
-The generated site exposes stable top-level entry points for all major
-publications:
+## Reader-facing entry points
 
-- `/skill/` for reusable Skill contracts and caller interfaces;
-- `/policy/` for shared agent policy and the `agent-policy` toolchain;
-- `/webapp/` for Web application templates, contracts, evidence, release, and
-  migration guidance.
+The integrated portal exposes:
 
-Three complementary discovery surfaces are available:
+- `/composition/` — composition architecture, catalog, and composer;
+- `/skill/` — Agent Skill artifact semantics;
+- `/capabilities/` — runtime, CLI, MCP, MCP Apps, browser, and service
+  capabilities;
+- `/webapp/` — Web application artifact semantics;
+- `/lifecycle/` — composition-state and product-lifecycle contracts;
+- `/policy/` — coding-agent policy;
+- `/guided/` — provider-owned progressive disclosure from `index.md`;
+- `/repository-trees/` — exact Composition and Policy tracked-path inventories;
+- `/files/` — bounded Site/Composition/Policy source snapshots; and
+- `/glossary/` — the validated integrated terminology projection.
 
-- `/guided/` follows Provider-branch-owned `index.md` navigation from the exact
-  locked Skill, Policy, and Webapp revisions;
-- `/repository-trees/` presents complete tracked-path inventories for the three
-  Provider branch revisions;
-- `/files/` provides the bounded static browser for immutable source snapshots.
+Machine-readable component descriptors, recipes, schemas, contracts, and other
+assets are supporting material. Primary navigation continues to prioritize
+explanatory Markdown.
 
-The machine-readable integrated terminology registry is published at
-`/glossary/index.json`. The Site also renders a static human-readable projection
-of that same validated model at `/glossary/`; the viewer does not create a
-second terminology authority or imply that search is part of glossary schema
-version 1.
+## Source locking and provenance
 
-Cataloged Markdown files link to their Pages documentation. Eligible regular
-UTF-8 text files up to 256 KiB can be opened in a sandboxed inline frame, while
-every file retains an immutable GitHub source link at the exact rendered full
-commit SHA. Binary, oversized, symlink, gitlink, invalid-UTF8, and
-control-character inputs remain GitHub-only.
+`publication-sources.json` contains exactly the reviewed `composition` and
+`policy` full 40-character commit SHAs used by normal builds. Workflow-call
+overrides exist only for deliberate compatibility/review testing.
 
-Primary navigation prioritizes explanatory Markdown. Explicitly published
-contracts, schemas, and other machine-readable assets remain supporting material
-reachable from their explanatory pages. The `/guided/` surface does not replace
-that reader-oriented navigation; it lets humans retrace the Provider-branch-owned
-progressive-disclosure path that agents can follow.
+Every uploaded Pages artifact contains `/build-provenance.json`, which records
+the built `site` commit and exact Composition and Policy commits. It identifies
+publication inputs; it is not a cryptographic attestation.
 
-## Key files
+## Repository and guided views
 
-- `docs/publication-catalog.json`: the canonical site portal publication and
-  optional glossary-source declaration;
-- `docs/glossary.yml`: Site-owned canonical glossary entries;
-- `GLOSSARY.md`: normative glossary schema, authority, ownership, and
-  localization contract;
-- `FRESHNESS.md`: normative build identity, per-document revision metadata,
-  runtime freshness-state, cache namespace, and stale-fallback contract;
-- `docs/repository-trees/*.md`: reviewed templates for generated tree pages;
-- `site-manifest.json`: canonical integrated navigation before generated
-  inventory augmentation;
-- `publication-sources.json`: reviewed full-SHA Provider branch inputs;
-- `PUBLISHING.md`: normative public-boundary and deployment policy;
-- `scripts/prepare_repository_tree_publication.py`: creates a temporary site
-  publication with validated tree-page catalog and navigation entries;
-- `scripts/assemble_publications.py`: canonical schema-v3 publication assembly
-  engine and Python API. Direct imports and CLI execution both reject retired
-  and unknown publication-catalog schemas;
-- `scripts/assemble_publications_v3.py`: stable schema-v3 CLI alias used by the
-  existing workflow and translation tooling; it re-exports the canonical
-  assembler without a second loader or runtime monkey-patch;
-- `scripts/glossary.py`: strict glossary parsing, schema validation, and
-  cross-provider integration logic;
-- `scripts/generate_glossary.py`: emits deterministic `/glossary/index.json`
-  source data with exact provider provenance and, in its CLI publication path,
-  renders the sibling `/glossary/index.html` viewer;
-- `scripts/generate_glossary_viewer.py`: validates the integrated glossary JSON
-  again at the rendering boundary and produces the static `/glossary/` human
-  projection;
-- `scripts/generate_repository_trees.py`: generates tracked-path trees and
-  immutable GitHub links from `git ls-tree`;
-- `scripts/generate_repository_file_previews.py`: reads exact Git blob objects,
-  emits escaped static preview pages, and connects them to sandboxed iframes;
-- `scripts/generate_repository_browser.py`: generates the standalone immutable
-  `/files/` browser after the strict site build;
-- `scripts/generate_index_navigation.py`: parses provider-owned `index.md`
-  files from immutable Git blobs into a deterministic navigation graph;
-- `scripts/generate_index_navigation_viewer.py`: renders that graph as the
-  static `/guided/` human navigation surface without reparsing Markdown;
-- `scripts/generate_freshness_metadata.py`: projects the exact build revisions
-  into `/site-version.json`, annotates eligible generated HTML with the Site
-  revision, and verifies both outputs before artifact upload;
-- `scripts/check_mobile_layout.py`: measures rendered phone-width geometry with
-  Playwright-managed Chromium and writes screenshot and metric evidence;
-- `scripts/check_pwa_freshness.py`: exercises network-first document
-  revalidation, runtime document-cache fallback, stale indication, authoritative
-  deletion, shell refresh, and Service Worker update propagation in Chromium;
-- `scripts/check_pwa_commit_regressions.py`: exercises representation-aware
-  instant-navigation commit correlation, same-URL fresh retries, full-navigation
-  cached markers, and standalone fixed warning presentation in Chromium;
-- `scripts/check_pwa_slow_convergence.py`: exercises the 1500 ms soft-timeout
-  path, `checking` presentation, background state convergence, cache-miss waiting,
-  and generation-bound slow-network delivery in Chromium;
-- `scripts/check_pwa_capabilities.py`: exercises the live Service Worker
-  freshness-capability message contract in Chromium and derives install-asset
-  preflight from the worker's `STATIC_ASSETS` declaration;
-- `requirements-visual.txt`: pins the visual-regression browser controller;
-- `assets/javascripts/repository-tree-viewer.js`: updates and focuses the shared
-  viewer without rendering repository content in the parent document;
-- `assets/javascripts/repository-browser.js`: progressive-enhancement controller
-  for narrow-viewport Files/Content switching in the static repository browser;
-- `scripts/finalize_site_metadata.py`: normalizes canonical and PWA metadata in
-  generated HTML, including the post-generated `/guided/` tree;
-- `.github/workflows/build-pages.yml`: build-only reusable workflow;
-- `.github/workflows/mobile-visual-regression.yml`: same-repository pull-request
-  check that consumes the built Pages artifact and validates mobile layout plus
-  the browser-level PWA freshness lifecycle, document-commit regressions,
-  slow-network convergence, and capability contract;
-- `.github/workflows/deploy-pages.yml`: deployment route restricted to pushes
-  to `site`.
+Repository-tree generation uses the composition-era entrypoint:
 
-## Local validation
+```sh
+python site/scripts/generate_repository_trees_composition.py \
+  --repository TakashiSasaki/templates \
+  --site-root site-publication \
+  --output-root build \
+  --publication composition=sources/composition \
+  --publication policy=sources/policy
+```
 
-Check out the four unrelated branches into separate directories, with Provider
-branch commits matching `publication-sources.json`, then run the same material
-stages as the Pages build. All publication catalogs must use schema version 3.
-The stable `assemble_publications_v3.py` path used below delegates to the same
-canonical schema-v3 engine exposed by `assemble_publications.py`:
+The standalone source browser uses Site, Composition, and Policy:
+
+```sh
+python site/scripts/generate_repository_browser_composition.py \
+  --repository TakashiSasaki/templates \
+  --output-root build/site \
+  --branch site=site \
+  --branch composition=sources/composition \
+  --branch policy=sources/policy
+```
+
+Index-guided navigation uses one composition-era wrapper for graph, locale,
+viewer, and localized-viewer generation:
+
+```sh
+python site/scripts/run_composition_navigation.py graph \
+  --repository TakashiSasaki/templates \
+  --output build/index-navigation.json \
+  --provider composition=sources/composition \
+  --provider policy=sources/policy
+
+python site/scripts/run_composition_navigation.py viewer \
+  --repository TakashiSasaki/templates \
+  --graph build/index-navigation.json \
+  --site-root site-publication \
+  --output-root build/site \
+  --provider composition=sources/composition \
+  --provider policy=sources/policy
+
+python site/scripts/finalize_site_metadata.py \
+  --site-root build/site/guided \
+  --canonical-url https://templates.moukaeritai.work/
+```
+
+Fragment-free uncataloged regular-file targets resolve to the same immutable
+`/files/` snapshot. Uncataloged regular-file targets with any fragment use the
+exact full-SHA immutable GitHub source because the Site cannot safely claim a
+fragment mapping for an unrendered source file.
+
+## Local publication validation
+
+Check out the independent authorities into separate directories, using the
+provider revisions locked by `publication-sources.json`:
+
+```text
+site/
+sources/composition/
+sources/policy/
+```
+
+Then run the material stages used by Pages:
 
 ```sh
 python -m unittest discover --start-directory site/tests --verbose
+
 python site/scripts/prepare_repository_tree_publication.py \
   --site-root site \
   --output-root site-publication
+
 python site/scripts/assemble_publications_v3.py \
   --publication site=site-publication \
-  --publication skill=sources/skill \
+  --publication composition=sources/composition \
   --publication policy=sources/policy \
-  --publication webapp=sources/webapp \
   --site-root site-publication \
   --output-root build
+
 python site/scripts/publish_provider_translations.py \
   --publication site=site-publication \
-  --publication skill=sources/skill \
+  --publication composition=sources/composition \
   --publication policy=sources/policy \
-  --publication webapp=sources/webapp \
   --site-root site-publication \
   --output-root build
-python site/scripts/generate_repository_trees.py \
+
+python site/scripts/generate_repository_trees_composition.py \
   --repository TakashiSasaki/templates \
   --site-root site-publication \
   --output-root build \
-  --publication skill=sources/skill \
-  --publication policy=sources/policy \
-  --publication webapp=sources/webapp
-python site/scripts/generate_skill_template_tree.py \
+  --publication composition=sources/composition \
+  --publication policy=sources/policy
+
+python site/scripts/generate_repository_file_previews_composition.py \
   --repository TakashiSasaki/templates \
   --site-root site-publication \
   --output-root build \
-  --skill-root sources/skill
-python site/scripts/generate_webapp_template_tree.py \
-  --repository TakashiSasaki/templates \
-  --site-root site-publication \
-  --output-root build \
-  --webapp-root sources/webapp
-python site/scripts/generate_repository_file_previews.py \
-  --repository TakashiSasaki/templates \
-  --site-root site-publication \
-  --output-root build \
-  --publication skill=sources/skill \
-  --publication policy=sources/policy \
-  --publication webapp=sources/webapp
+  --publication composition=sources/composition \
+  --publication policy=sources/policy
+
 zensical build --config-file build/zensical.toml --clean --strict
+
 python site/scripts/generate_glossary.py \
   --repository TakashiSasaki/templates \
   --output build/site/glossary/index.json \
   --publication site=site-publication \
   --revision "site=$(git -C site rev-parse HEAD)" \
-  --publication skill=sources/skill \
-  --revision "skill=$(git -C sources/skill rev-parse HEAD)" \
+  --publication composition=sources/composition \
+  --revision "composition=$(git -C sources/composition rev-parse HEAD)" \
   --publication policy=sources/policy \
-  --revision "policy=$(git -C sources/policy rev-parse HEAD)" \
-  --publication webapp=sources/webapp \
-  --revision "webapp=$(git -C sources/webapp rev-parse HEAD)"
-python site/scripts/finalize_site_metadata.py \
-  --site-root build/site \
-  --canonical-url https://templates.moukaeritai.work/
-python site/scripts/generate_repository_browser.py \
+  --revision "policy=$(git -C sources/policy rev-parse HEAD)"
+
+python site/scripts/generate_repository_browser_composition.py \
   --repository TakashiSasaki/templates \
   --output-root build/site \
   --branch site=site \
-  --branch skill=sources/skill \
-  --branch policy=sources/policy \
-  --branch webapp=sources/webapp
-python site/scripts/generate_index_navigation.py \
+  --branch composition=sources/composition \
+  --branch policy=sources/policy
+
+python site/scripts/run_composition_navigation.py graph \
   --repository TakashiSasaki/templates \
   --output build/index-navigation.json \
-  --provider skill=sources/skill \
-  --provider policy=sources/policy \
-  --provider webapp=sources/webapp
-python site/scripts/generate_index_navigation_viewer.py \
+  --provider composition=sources/composition \
+  --provider policy=sources/policy
+
+python site/scripts/run_composition_navigation.py locales \
+  --graph build/index-navigation.json \
+  --output build/index-navigation-locales.json \
+  --provider composition=sources/composition \
+  --provider policy=sources/policy
+
+python site/scripts/run_composition_navigation.py viewer \
   --repository TakashiSasaki/templates \
   --graph build/index-navigation.json \
   --site-root site-publication \
   --output-root build/site \
-  --provider skill=sources/skill \
-  --provider policy=sources/policy \
-  --provider webapp=sources/webapp
+  --provider composition=sources/composition \
+  --provider policy=sources/policy
+
 python site/scripts/finalize_site_metadata.py \
   --site-root build/site/guided \
   --canonical-url https://templates.moukaeritai.work/
+
 python site/scripts/write_publication_provenance.py \
   --output build/site/build-provenance.json \
   --repository TakashiSasaki/templates \
   --site-commit "$(git -C site rev-parse HEAD)" \
-  --publication-commit "skill=$(git -C sources/skill rev-parse HEAD)" \
-  --publication-commit "policy=$(git -C sources/policy rev-parse HEAD)" \
-  --publication-commit "webapp=$(git -C sources/webapp rev-parse HEAD)"
+  --publication-commit "composition=$(git -C sources/composition rev-parse HEAD)" \
+  --publication-commit "policy=$(git -C sources/policy rev-parse HEAD)"
+
 python site/scripts/validate_site_links.py \
   --site-root build/site \
   --config-file build/zensical.toml
-python -m pip install -r site/requirements-visual.txt
-python -m playwright install --with-deps chromium
-python site/scripts/check_mobile_layout.py \
-  --site-root build/site \
-  --output-root build/mobile-visual
-python site/scripts/check_pwa_freshness.py \
-  --site-root build/site \
-  --output build/mobile-visual/pwa-freshness.json
-python site/scripts/check_pwa_commit_regressions.py \
-  --site-root build/site \
-  --output build/mobile-visual/pwa-document-commit.json
-python site/scripts/check_pwa_slow_convergence.py \
-  --site-root build/site \
-  --output build/mobile-visual/pwa-slow-convergence.json
-python site/scripts/check_pwa_capabilities.py \
-  --site-root build/site \
-  --output build/mobile-visual/pwa-capabilities.json
 ```
 
-The mobile layout check uses the Chromium build matched to the pinned Playwright
-controller and writes 390×844 screenshots plus `metrics.json` under
-`build/mobile-visual`; geometry is validated at 360×800, 390×844, and 412×915.
-The PWA freshness lifecycle check uses the same browser installation and writes
-`pwa-freshness.json` while validating HTTP-cache revalidation, runtime document
-cache update and persistence, explicit stale indication for cached fallbacks,
-ordinary 4xx non-fallback, 5xx fallback, authoritative deletion, cache-miss 503,
-static-shell convergence, and worker update propagation. The document-commit
-regression check writes `pwa-document-commit.json` and verifies that a cancelled
-cached navigation followed by a fresh retry to the same URL clears its warning
-only when the fresh representation commits, while full-navigation cached pages
-retain their fixed warning through the initial commit. The slow-network
-convergence check writes `pwa-slow-convergence.json` and verifies the 1500 ms soft
-timeout, visible `checking` state, non-aborted network continuation, cache-miss
-waiting, and convergence to the generation-correct terminal freshness state. The
-separate capability check writes `pwa-capabilities.json` and validates the live
-freshness-capability message contract plus complete Service Worker install-asset
-preflight. The provenance command above also writes and verifies
-`/site-version.json` plus the per-page `templates-site-revision` metadata
-described in `FRESHNESS.md`.
-Use workflow-call revision overrides only for deliberate compatibility testing.
-Normal builds use the reviewed full-SHA lock file. Repository-tree links,
-preview URLs, repository-browser snapshots, guided navigation, and glossary
-provenance all use the actual checked-out commits, so override builds remain
-internally consistent.
+Browser-level mobile/PWA checks remain governed by `FRESHNESS.md` and the
+existing visual-regression workflows; the provider cutover does not weaken those
+contracts.
 
 ## Deployment boundary
 
-Only `.github/workflows/deploy-pages.yml` on the `site` branch may configure or
-deploy GitHub Pages. Provider branches may validate or build their own
-documentation, but they must not upload or deploy a Pages artifact.
+`.github/workflows/build-pages.yml` is build-only. It may run for pull requests
+or through `workflow_call`, but it has read-only repository permission and no
+Pages deployment authority.
 
-The repository's `github-pages` environment is an external release gate. Its
-custom deployment branch policy must allow exactly `site`; it must not retain a
-stale `main`-only rule or be broadened to every branch. Pull requests cannot
-change this setting, so it must be verified separately before publication is
-declared complete.
+`.github/workflows/deploy-pages.yml` is the only Pages deployment route and runs
+only on a push to `site`. The external `github-pages` environment is configured
+to allow exactly the `site` branch. Pull requests cannot change this setting;
+changing it requires repository/environment administration. Do not broaden the
+environment to all branches or introduce a second deployment workflow.
 
-The Pages custom-domain setting must remain `templates.moukaeritai.work`, and
-Enforce HTTPS must be enabled after GitHub has approved the certificate. The
-deployment workflow verifies the configured Pages base URL, host, and empty base
-path before invoking `actions/deploy-pages`.
+## Retired direct-copy publication path
 
-A Provider branch publication change requires a Provider branch PR and a
-coordinated site PR. Merge the Provider branch PR with a merge commit, update the
-Site source lock to that merge commit's full SHA, verify the integrated build,
-and only then merge the Site PR.
+The Site no longer generates dedicated Skill or Webapp copyable-template trees.
+Those workflows, scripts, and integration tests were tied to the retired
+monolithic `template/` source model. Source inspection now presents the exact
+Composition tree, while consumer repositories are produced by the composition
+composer.

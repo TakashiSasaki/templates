@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.generate_index_navigation import (
     IndexNavigationError,
     checked_revision,
-    generate_graph,
     normalize_link_description,
     parse_index,
 )
@@ -14,7 +17,7 @@ from scripts.generate_index_navigation import (
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "TakashiSasaki/templates"
-PROVIDER_ORDER = ("skill", "policy", "webapp")
+PROVIDER_ORDER = ("composition", "policy")
 POLICY_LAYER_INDEXES = {
     "docs/provider/index.md",
     "docs/shared-policy/index.md",
@@ -108,7 +111,29 @@ class LockedProviderGraphTests(unittest.TestCase):
                 + ", ".join(missing)
             )
 
-        graph = generate_graph(REPOSITORY, providers)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "graph.json"
+            command = [
+                sys.executable,
+                str(ROOT / "scripts" / "run_composition_navigation.py"),
+                "graph",
+                "--repository",
+                REPOSITORY,
+                "--output",
+                str(output),
+            ]
+            for name in PROVIDER_ORDER:
+                command.extend(["--provider", f"{name}={providers[name]}"])
+            result = subprocess.run(
+                command,
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            graph = json.loads(output.read_text(encoding="utf-8"))
+
         by_name = {provider["name"]: provider for provider in graph["providers"]}
 
         self.assertEqual(tuple(by_name), PROVIDER_ORDER)

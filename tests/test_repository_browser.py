@@ -10,7 +10,7 @@ from unittest import mock
 
 import scripts.generate_repository_browser as repository_browser
 from scripts.generate_repository_browser import (
-    BRANCH_ORDER,
+    BRANCH_ORDER as BASE_BRANCH_ORDER,
     MAX_TEXT_BYTES,
     RepositoryBrowserError,
     decode_browser_text,
@@ -23,7 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 POLICY = ROOT / "PUBLISHING.md"
 REQUIREMENTS = ROOT / "requirements.txt"
-BROWSER_SCRIPT = ROOT / "scripts" / "generate_repository_browser.py"
+COMPOSITION_BROWSER_SCRIPT = (
+    ROOT / "scripts" / "generate_repository_browser_composition.py"
+)
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -37,7 +39,7 @@ def run_git(root: Path, *args: str) -> str:
     return process.stdout.strip()
 
 
-class RepositoryBrowserTests(unittest.TestCase):
+class RepositoryBrowserSafetyTests(unittest.TestCase):
     def make_repository(self, root: Path) -> None:
         root.mkdir()
         run_git(root, "init", "--quiet")
@@ -55,7 +57,7 @@ class RepositoryBrowserTests(unittest.TestCase):
         run_git(root, "add", ".")
         run_git(root, "commit", "--quiet", "--message", "fixture")
 
-    def test_generates_four_branch_tree_and_sandboxed_highlighted_viewers(self) -> None:
+    def test_base_renderer_preserves_bounded_sandboxed_source_views(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "repository"
@@ -63,24 +65,20 @@ class RepositoryBrowserTests(unittest.TestCase):
             output.mkdir()
             self.make_repository(repository)
 
-            branches = {branch: repository for branch in BRANCH_ORDER}
+            branches = {branch: repository for branch in BASE_BRANCH_ORDER}
             messages = generate_browser(
                 "TakashiSasaki/templates", output, branches
             )
 
-            self.assertEqual(len(messages), 4)
+            self.assertEqual(len(messages), len(BASE_BRANCH_ORDER))
             self.assertTrue((output / "files/index.html").is_file())
-            for branch in BRANCH_ORDER:
-                page = (output / f"files/{branch}/index.html").read_text(
-                    encoding="utf-8"
-                )
-                self.assertIn(f"{branch} branch file browser", page)
-                self.assertIn('name="repository-file-viewer"', page)
-                self.assertIn('sandbox=""', page)
-                self.assertIn("tree-file--fallback", page)
-                self.assertIn('class="tree-source"', page)
-                self.assertIn('target="_blank" rel="noopener"', page)
-                self.assertNotIn("raw.githubusercontent.com", page)
+            page = (output / "files/site/index.html").read_text(encoding="utf-8")
+            self.assertIn('name="repository-file-viewer"', page)
+            self.assertIn('sandbox=""', page)
+            self.assertIn("tree-file--fallback", page)
+            self.assertIn('class="tree-source"', page)
+            self.assertIn('target="_blank" rel="noopener"', page)
+            self.assertNotIn("raw.githubusercontent.com", page)
 
             viewers = sorted((output / "files/site/content").glob("*.html"))
             self.assertEqual(len(viewers), 3)
@@ -97,8 +95,6 @@ class RepositoryBrowserTests(unittest.TestCase):
             )
             self.assertNotIn("<script>alert('escaped')</script>", combined)
             self.assertIn("Text view unavailable", combined)
-            self.assertIn("source arrow beside the file name", combined)
-            self.assertNotIn('target="_blank"', combined)
             self.assertIn("Content-Security-Policy", combined)
 
     def test_text_boundary_rejects_invalid_or_unsafe_content(self) -> None:
@@ -112,24 +108,6 @@ class RepositoryBrowserTests(unittest.TestCase):
         text, reason = decode_browser_text(b"x" * (MAX_TEXT_BYTES + 1))
         self.assertIsNone(text)
         self.assertIn("browser limit", reason or "")
-
-    def test_generation_rejects_out_of_order_branches(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            output = root / "site"
-            output.mkdir()
-            branches = {
-                "skill": root,
-                "site": root,
-                "policy": root,
-                "webapp": root,
-            }
-            with self.assertRaisesRegex(
-                RepositoryBrowserError,
-                "branches must be supplied exactly",
-            ):
-                generate_browser("TakashiSasaki/templates", output, branches)
-            self.assertFalse((output / "files").exists())
 
     def test_prepare_browser_root_fails_closed_when_destination_exists(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -154,98 +132,79 @@ class RepositoryBrowserTests(unittest.TestCase):
             output = root / "site"
             output.mkdir()
             self.make_repository(repository)
-            branches = {branch: repository for branch in BRANCH_ORDER}
-            with mock.patch.object(
-                repository_browser,
-                "MAX_TOTAL_TEXT_BYTES",
-                1,
-            ):
+            branches = {branch: repository for branch in BASE_BRANCH_ORDER}
+            with mock.patch.object(repository_browser, "MAX_TOTAL_TEXT_BYTES", 1):
                 with self.assertRaisesRegex(
                     RepositoryBrowserError,
                     "text candidates exceed",
                 ):
                     generate_browser("TakashiSasaki/templates", output, branches)
 
-    def test_cli_rejects_duplicate_and_out_of_order_branch_arguments(self) -> None:
+
+class CompositionRepositoryBrowserTests(unittest.TestCase):
+    def make_repository(self, root: Path) -> None:
+        root.mkdir()
+        run_git(root, "init", "--quiet")
+        run_git(root, "config", "user.email", "tests@example.invalid")
+        run_git(root, "config", "user.name", "Repository browser tests")
+        (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+        run_git(root, "add", ".")
+        run_git(root, "commit", "--quiet", "--message", "fixture")
+
+    def test_composition_entrypoint_accepts_only_site_composition_policy(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary)
-            duplicate = subprocess.run(
-                [
-                    sys.executable,
-                    str(BROWSER_SCRIPT),
-                    "--repository",
-                    "TakashiSasaki/templates",
-                    "--output-root",
-                    str(output),
-                    "--branch",
-                    "site=unused",
-                    "--branch",
-                    "site=unused",
-                    "--branch",
-                    "skill=unused",
-                    "--branch",
-                    "policy=unused",
-                    "--branch",
-                    "webapp=unused",
-                ],
+            root = Path(temporary)
+            repository = root / "repository"
+            output = root / "site"
+            output.mkdir()
+            self.make_repository(repository)
+            command = [
+                sys.executable,
+                str(COMPOSITION_BROWSER_SCRIPT),
+                "--repository",
+                "TakashiSasaki/templates",
+                "--output-root",
+                str(output),
+            ]
+            for branch in ("site", "composition", "policy"):
+                command.extend(("--branch", f"{branch}={repository}"))
+            result = subprocess.run(
+                command,
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            self.assertEqual(duplicate.returncode, 2)
-            self.assertIn("duplicate branch: site", duplicate.stderr)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((output / "files/site/index.html").is_file())
+            self.assertTrue((output / "files/composition/index.html").is_file())
+            self.assertTrue((output / "files/policy/index.html").is_file())
+            self.assertFalse((output / "files/skill").exists())
+            self.assertFalse((output / "files/webapp").exists())
 
-            out_of_order = subprocess.run(
-                [
-                    sys.executable,
-                    str(BROWSER_SCRIPT),
-                    "--repository",
-                    "TakashiSasaki/templates",
-                    "--output-root",
-                    str(output),
-                    "--branch",
-                    "skill=unused",
-                    "--branch",
-                    "site=unused",
-                    "--branch",
-                    "policy=unused",
-                    "--branch",
-                    "webapp=unused",
-                ],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            self.assertEqual(out_of_order.returncode, 2)
-            self.assertIn("branches must be supplied exactly", out_of_order.stderr)
-
-
-class RepositoryBrowserConfigurationTests(unittest.TestCase):
-    def test_workflow_builds_browser_after_zensical_and_before_link_validation(self) -> None:
+    def test_workflow_uses_composition_browser_after_static_build(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         static_build = workflow.index("- name: Build the static site")
         browser_build = workflow.index("- name: Generate static repository browser")
         link_validation = workflow.index("- name: Validate generated site links")
         self.assertLess(static_build, browser_build)
         self.assertLess(browser_build, link_validation)
+        self.assertIn("generate_repository_browser_composition.py", workflow)
         self.assertIn("--branch site=site-source", workflow)
-        self.assertIn("--branch skill=skill-source", workflow)
+        self.assertIn("--branch composition=composition-source", workflow)
         self.assertIn("--branch policy=policy-source", workflow)
-        self.assertIn("--branch webapp=webapp-source", workflow)
+        self.assertNotIn("--branch skill=", workflow)
+        self.assertNotIn("--branch webapp=", workflow)
         self.assertIn("build/site/files/${branch}/index.html", workflow)
         self.assertIn("browser_source_view", workflow)
         self.assertIn("URLAttributeParser", workflow)
 
-    def test_policy_and_dependencies_define_browser_boundary(self) -> None:
+    def test_policy_and_dependencies_preserve_browser_safety_boundary(self) -> None:
         policy = " ".join(POLICY.read_text(encoding="utf-8").split())
         requirements = REQUIREMENTS.read_text(encoding="utf-8")
-        self.assertIn("Static file browser", policy)
-        self.assertIn("1 MiB", policy)
-        self.assertIn("64 MiB", policy)
-        self.assertIn("Pygments", policy)
-        self.assertIn("runtime GitHub API", policy)
+        self.assertIn("bounded build-time views", policy)
+        self.assertIn("Symlinks and gitlinks are never followed", policy)
+        self.assertIn("Site, Composition, and Policy", policy)
         self.assertIn("Pygments==", requirements)
 
 

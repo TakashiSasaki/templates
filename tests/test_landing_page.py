@@ -83,6 +83,8 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-cover"', text)
         self.assertIn('href="overview/"', text)
         for destination in (
+            "composition/",
+            "capabilities/",
             "skill/",
             "policy/",
             "webapp/",
@@ -93,7 +95,7 @@ class LandingPageTests(unittest.TestCase):
             self.assertIn(f'href="{destination}"', text)
         self.assertIn("Browse by index.md", text)
         self.assertIn("Browse source files", text)
-        for label in ("Skill", "Policy", "Web application"):
+        for label in ("Agent Skill", "Policy", "Web application"):
             self.assertIn(
                 f'class="portal-domain-card__label">{label}</span>',
                 text,
@@ -102,12 +104,16 @@ class LandingPageTests(unittest.TestCase):
     def test_overview_preserves_the_detailed_portal_explanation(self) -> None:
         text = OVERVIEW.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Portal overview\n\n"))
-        self.assertIn('id="choose-a-template"', text)
+        self.assertIn('id="choose-an-entry-point"', text)
         self.assertIn("Publication catalogs are explicit allowlists", text)
         self.assertIn("full 40-character commit SHAs", text)
         self.assertIn("build-provenance.json", text)
         self.assertIn("Machine-readable contracts and schemas", text)
-        self.assertIn("under `/skill/`, `/policy/`, and `/webapp/`.", text)
+        self.assertIn("The external provider set is now <code>composition</code> and <code>policy</code>", text)
+        self.assertIn("/skill/", text)
+        self.assertIn("/webapp/", text)
+        self.assertIn("/capabilities/", text)
+        self.assertIn("/lifecycle/", text)
 
     def test_landing_pages_reference_only_declared_svg_artwork(self) -> None:
         text = "\n".join(

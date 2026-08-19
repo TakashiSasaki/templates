@@ -17,9 +17,8 @@ import write_publication_provenance  # noqa: E402
 
 SITE_REVISION = "a" * 40
 PUBLICATIONS = {
-    "skill": "b" * 40,
+    "composition": "b" * 40,
     "policy": "c" * 40,
-    "webapp": "d" * 40,
 }
 DEPLOYMENT_TIMESTAMP = "2026-08-15 22:07:00 JST"
 
@@ -47,7 +46,7 @@ class FreshnessMetadataTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             site_root = Path(directory)
             nested = site_root / "guide"
-            preview = site_root / "repository-trees/previews/skill/revision"
+            preview = site_root / "repository-trees/previews/composition/revision"
             nested.mkdir()
             preview.mkdir(parents=True)
             (site_root / "index.html").write_text(page(), encoding="utf-8")
@@ -156,7 +155,7 @@ class FreshnessMetadataTests(unittest.TestCase):
             generate_freshness_metadata.build_payload(
                 SITE_REVISION,
                 DEPLOYMENT_TIMESTAMP,
-                {"skill": PUBLICATIONS["skill"]},
+                {"composition": PUBLICATIONS["composition"]},
             )
 
         with self.assertRaisesRegex(
@@ -170,7 +169,7 @@ class FreshnessMetadataTests(unittest.TestCase):
             )
 
         duplicate = [f"{name}={revision}" for name, revision in PUBLICATIONS.items()]
-        duplicate.append(f"skill={PUBLICATIONS['skill']}")
+        duplicate.append(f"composition={PUBLICATIONS['composition']}")
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
             "duplicate publication",
@@ -190,7 +189,7 @@ class FreshnessMetadataTests(unittest.TestCase):
             generate_freshness_metadata.FreshnessMetadataError,
             "NAME=REVISION",
         ):
-            generate_freshness_metadata.parse_publications(["skill"])
+            generate_freshness_metadata.parse_publications(["composition"])
 
         with self.assertRaisesRegex(
             generate_freshness_metadata.FreshnessMetadataError,
@@ -198,9 +197,8 @@ class FreshnessMetadataTests(unittest.TestCase):
         ):
             generate_freshness_metadata.parse_publications(
                 [
-                    f"skill={PUBLICATIONS['skill']}",
+                    f"composition={PUBLICATIONS['composition']}",
                     f"policy={PUBLICATIONS['policy']}",
-                    f"webapp={PUBLICATIONS['webapp']}",
                     f"unknown={'e' * 40}",
                 ]
             )
@@ -217,7 +215,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                 DEPLOYMENT_TIMESTAMP,
                 generate_freshness_metadata.deployment_timestamp_from_index(site_root),
             )
-
             index.write_text(page("Preview build (not deployed)"), encoding="utf-8")
             self.assertEqual(
                 "",
@@ -265,7 +262,6 @@ class FreshnessMetadataTests(unittest.TestCase):
             )
             with mock.patch.object(sys, "argv", cli_argv(site_root)):
                 self.assertEqual(0, generate_freshness_metadata.main())
-
             payload = json.loads(
                 (site_root / "site-version.json").read_text(encoding="utf-8")
             )
@@ -288,7 +284,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                 ),
             ):
                 self.assertEqual(0, generate_freshness_metadata.main())
-
             payload = json.loads(
                 (site_root / "site-version.json").read_text(encoding="utf-8")
             )
@@ -320,7 +315,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                     DEPLOYMENT_TIMESTAMP,
                     PUBLICATIONS,
                 )
-
             self.assertEqual("do not overwrite\n", target.read_text(encoding="utf-8"))
             self.assertEqual(original_index, index.read_text(encoding="utf-8"))
 
@@ -350,7 +344,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                     DEPLOYMENT_TIMESTAMP,
                     PUBLICATIONS,
                 )
-
             self.assertEqual(target_source, target.read_text(encoding="utf-8"))
             self.assertNotIn("templates-site-revision", index.read_text(encoding="utf-8"))
             self.assertFalse((site_root / "site-version.json").exists())
@@ -363,7 +356,6 @@ class FreshnessMetadataTests(unittest.TestCase):
                 page(f"Deployment time: {DEPLOYMENT_TIMESTAMP}"),
                 encoding="utf-8",
             )
-
             write_publication_provenance.write_provenance(
                 output,
                 "TakashiSasaki/templates",
@@ -375,13 +367,13 @@ class FreshnessMetadataTests(unittest.TestCase):
                 SITE_REVISION,
                 PUBLICATIONS,
             )
-
             self.assertIsNotNone(result)
             site_version, annotated = result
             self.assertEqual(1, annotated)
             payload = json.loads(site_version.read_text(encoding="utf-8"))
             self.assertEqual(SITE_REVISION, payload["site_revision"])
             self.assertEqual(DEPLOYMENT_TIMESTAMP, payload["deployed_at"])
+            self.assertEqual(PUBLICATIONS, payload["publications"])
 
 
 if __name__ == "__main__":

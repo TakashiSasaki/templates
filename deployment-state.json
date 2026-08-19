@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "status": "active",
-  "reason": "skill template restructuring and site integration completed; later reviewed source revisions publish through the same site-only boundary",
-  "locked_skill_revision": "b8b735dbe525ca76316fec445cdce43db02a955e",
+  "reason": "composition authority migration and Site publication cutover completed; Skill and Webapp remain distinct artifact semantics under one composition provider",
+  "locked_composition_revision": "49ad63e2d570fffdc9cd4365c65e566315fe9a6a",
   "completed_conditions": [
-    "the skill branch exposes the canonical copyable profile-aware template at template/ and passes its complete validation suite",
-    "site locks the current reviewed skill full commit SHA",
-    "the integrated site publishes and validates separate complete-source and skill copyable-template trees against that revision",
-    "site-only deployment authority is active and remains confined to a push of the site branch"
+    "the composition branch owns the production artifact, capability, lifecycle, recipe, schema, composer, and publication contracts",
+    "site locks the reviewed composition publication merge commit by full SHA",
+    "the integrated Site publishes composition and policy as the external provider set while retaining reader-facing Skill and Webapp artifact groups",
+    "site-only deployment authority remains confined to a push of the site branch"
   ]
 }

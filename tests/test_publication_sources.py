@@ -24,9 +24,8 @@ class PublicationSourceLockTests(unittest.TestCase):
             "schema_version": 1,
             "repository": "TakashiSasaki/templates",
             "publications": {
-                "skill": {"revision": "1" * 40},
+                "composition": {"revision": "1" * 40},
                 "policy": {"revision": "2" * 40},
-                "webapp": {"revision": "3" * 40},
             },
         }
 
@@ -37,15 +36,14 @@ class PublicationSourceLockTests(unittest.TestCase):
                 self.write_lock(root, self.valid_payload()),
                 {"policy": "agent/policy-preview"},
             )
-            self.assertEqual("1" * 40, resolved["skill"])
+            self.assertEqual("1" * 40, resolved["composition"])
             self.assertEqual("agent/policy-preview", resolved["policy"])
             output = StringIO()
             write_outputs(output, resolved)
             self.assertEqual(
                 [
-                    f"skill={'1' * 40}",
+                    f"composition={'1' * 40}",
                     "policy=agent/policy-preview",
-                    f"webapp={'3' * 40}",
                 ],
                 output.getvalue().splitlines(),
             )
@@ -64,8 +62,18 @@ class PublicationSourceLockTests(unittest.TestCase):
             payload = self.valid_payload()
             publications = payload["publications"]
             assert isinstance(publications, dict)
-            publications["skill"] = {"revision": "skill"}
+            publications["composition"] = {"revision": "composition"}
             with self.assertRaisesRegex(SourceLockError, "full lowercase"):
+                resolve_sources(self.write_lock(root, payload), {})
+
+    def test_legacy_provider_set_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = self.valid_payload()
+            publications = payload["publications"]
+            assert isinstance(publications, dict)
+            publications["skill"] = {"revision": "3" * 40}
+            with self.assertRaisesRegex(SourceLockError, "exactly"):
                 resolve_sources(self.write_lock(root, payload), {})
 
     def test_duplicate_json_member_is_rejected(self) -> None:

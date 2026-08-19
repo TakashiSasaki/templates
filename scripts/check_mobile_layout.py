@@ -30,7 +30,7 @@ CASES = (
     CheckCase("repository-trees", "/repository-trees/", "repository-table"),
     CheckCase(
         "webapp-template",
-        "/repository-trees/webapp/template/",
+        "/webapp/TEMPLATE/",
         "document",
     ),
 )

@@ -21,7 +21,7 @@ DEPLOYMENT_NOTICE_PATTERN = re.compile(
 )
 PREVIEW_NOTICE = "Preview build (not deployed)"
 SITE_REVISION_META_NAME = "templates-site-revision"
-EXPECTED_PUBLICATIONS = ("skill", "policy", "webapp")
+EXPECTED_PUBLICATIONS = ("composition", "policy")
 
 
 class FreshnessMetadataError(RuntimeError):
@@ -109,7 +109,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         metavar="NAME=REVISION",
-        help="Resolved provider publication revision; repeat for skill, policy, and webapp.",
+        help="Resolved provider publication revision; repeat for composition and policy.",
     )
     return parser.parse_args()
 

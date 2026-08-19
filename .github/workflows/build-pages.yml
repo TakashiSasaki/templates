@@ -11,13 +11,8 @@ on:
         required: false
         type: string
         default: site
-      source_ref:
-        description: Deprecated compatibility alias for skill_ref
-        required: false
-        type: string
-        default: ''
-      skill_ref:
-        description: Optional override for the locked skill publication revision
+      composition_ref:
+        description: Optional override for the locked composition publication revision
         required: false
         type: string
         default: ''
@@ -26,21 +21,11 @@ on:
         required: false
         type: string
         default: ''
-      webapp_ref:
-        description: Optional override for the locked webapp publication revision
-        required: false
-        type: string
-        default: ''
       deployment_timestamp:
         description: JST deployment timestamp rendered in the footer; empty for non-deploying builds
         required: false
         type: string
         default: ''
-      deploy:
-        description: Deprecated compatibility input; ignored because this workflow cannot deploy
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -72,44 +57,32 @@ jobs:
       - name: Resolve publication source revisions
         id: publication_refs
         env:
-          SOURCE_REF_COMPAT: ${{ inputs.source_ref }}
-          SKILL_REF_OVERRIDE: ${{ inputs.skill_ref }}
+          COMPOSITION_REF_OVERRIDE: ${{ inputs.composition_ref }}
           POLICY_REF_OVERRIDE: ${{ inputs.policy_ref }}
-          WEBAPP_REF_OVERRIDE: ${{ inputs.webapp_ref }}
         run: |
           overrides=()
-          skill_override="${SKILL_REF_OVERRIDE:-$SOURCE_REF_COMPAT}"
-          if [ -n "$skill_override" ]; then
-            overrides+=(--override "skill=$skill_override")
+          if [ -n "$COMPOSITION_REF_OVERRIDE" ]; then
+            overrides+=(--override "composition=$COMPOSITION_REF_OVERRIDE")
           fi
           if [ -n "$POLICY_REF_OVERRIDE" ]; then
             overrides+=(--override "policy=$POLICY_REF_OVERRIDE")
-          fi
-          if [ -n "$WEBAPP_REF_OVERRIDE" ]; then
-            overrides+=(--override "webapp=$WEBAPP_REF_OVERRIDE")
           fi
           python site-source/scripts/resolve_publication_sources.py \
             --lock site-source/publication-sources.json \
             --output "$GITHUB_OUTPUT" \
             "${overrides[@]}"
 
-      - name: Check out skill publication
+      - name: Check out composition publication
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.publication_refs.outputs.skill }}
-          path: skill-source
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
 
       - name: Check out policy publication
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.publication_refs.outputs.policy }}
           path: policy-source
-
-      - name: Check out webapp publication
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.publication_refs.outputs.webapp }}
-          path: webapp-source
 
       - name: Install pinned site dependencies
         run: python -m pip install --requirement site-source/requirements.txt
@@ -127,9 +100,8 @@ jobs:
         run: |
           python site-source/scripts/assemble_publications_v3.py \
             --publication site=site-publication \
-            --publication skill=skill-source \
+            --publication composition=composition-source \
             --publication policy=policy-source \
-            --publication webapp=webapp-source \
             --site-root site-publication \
             --output-root build
 
@@ -137,47 +109,28 @@ jobs:
         run: |
           python site-source/scripts/publish_provider_translations.py \
             --publication site=site-publication \
-            --publication skill=skill-source \
+            --publication composition=composition-source \
             --publication policy=policy-source \
-            --publication webapp=webapp-source \
             --site-root site-publication \
             --output-root build
 
       - name: Generate repository trees
         run: |
-          python site-source/scripts/generate_repository_trees.py \
+          python site-source/scripts/generate_repository_trees_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --site-root site-publication \
             --output-root build \
-            --publication skill=skill-source \
-            --publication policy=policy-source \
-            --publication webapp=webapp-source
-
-      - name: Generate Skill copyable template tree
-        run: |
-          python site-source/scripts/generate_skill_template_tree.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --site-root site-publication \
-            --output-root build \
-            --skill-root skill-source
-
-      - name: Generate Webapp copyable template tree
-        run: |
-          python site-source/scripts/generate_webapp_template_tree.py \
-            --repository "$GITHUB_REPOSITORY" \
-            --site-root site-publication \
-            --output-root build \
-            --webapp-root webapp-source
+            --publication composition=composition-source \
+            --publication policy=policy-source
 
       - name: Generate inline file previews
         run: |
-          python site-source/scripts/generate_repository_file_previews.py \
+          python site-source/scripts/generate_repository_file_previews_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --site-root site-publication \
             --output-root build \
-            --publication skill=skill-source \
-            --publication policy=policy-source \
-            --publication webapp=webapp-source
+            --publication composition=composition-source \
+            --publication policy=policy-source
 
       - name: Prepare deployment metadata
         id: site_metadata
@@ -200,12 +153,10 @@ jobs:
             --output build/site/glossary/index.json \
             --publication site=site-publication \
             --revision "site=$(git -C site-source rev-parse HEAD)" \
-            --publication skill=skill-source \
-            --revision "skill=$(git -C skill-source rev-parse HEAD)" \
+            --publication composition=composition-source \
+            --revision "composition=$(git -C composition-source rev-parse HEAD)" \
             --publication policy=policy-source \
-            --revision "policy=$(git -C policy-source rev-parse HEAD)" \
-            --publication webapp=webapp-source \
-            --revision "webapp=$(git -C webapp-source rev-parse HEAD)"
+            --revision "policy=$(git -C policy-source rev-parse HEAD)"
 
       - name: Normalize generated canonical links and PWA metadata
         run: |
@@ -215,46 +166,42 @@ jobs:
 
       - name: Generate static repository browser
         run: |
-          python site-source/scripts/generate_repository_browser.py \
+          python site-source/scripts/generate_repository_browser_composition.py \
             --repository "$GITHUB_REPOSITORY" \
             --output-root build/site \
             --branch site=site-source \
-            --branch skill=skill-source \
-            --branch policy=policy-source \
-            --branch webapp=webapp-source
+            --branch composition=composition-source \
+            --branch policy=policy-source
 
       - name: Generate index navigation graph
         run: |
-          python site-source/scripts/generate_index_navigation.py \
+          python site-source/scripts/run_composition_navigation.py graph \
             --repository "$GITHUB_REPOSITORY" \
             --output build/index-navigation.json \
-            --provider skill=skill-source \
-            --provider policy=policy-source \
-            --provider webapp=webapp-source
+            --provider composition=composition-source \
+            --provider policy=policy-source
 
       - name: Generate index navigation locale overlays
         run: |
-          python site-source/scripts/generate_index_navigation_locales.py \
+          python site-source/scripts/run_composition_navigation.py locales \
             --graph build/index-navigation.json \
             --output build/index-navigation-locales.json \
-            --provider skill=skill-source \
-            --provider policy=policy-source \
-            --provider webapp=webapp-source
+            --provider composition=composition-source \
+            --provider policy=policy-source
 
       - name: Generate index-guided navigation viewer
         run: |
-          python site-source/scripts/generate_index_navigation_viewer.py \
+          python site-source/scripts/run_composition_navigation.py viewer \
             --repository "$GITHUB_REPOSITORY" \
             --graph build/index-navigation.json \
             --site-root site-publication \
             --output-root build/site \
-            --provider skill=skill-source \
-            --provider policy=policy-source \
-            --provider webapp=webapp-source
+            --provider composition=composition-source \
+            --provider policy=policy-source
 
       - name: Generate localized index-guided navigation viewer
         run: |
-          python site-source/scripts/generate_index_navigation_locale_viewer.py \
+          python site-source/scripts/run_composition_navigation.py locale-viewer \
             --repository "$GITHUB_REPOSITORY" \
             --graph build/index-navigation.json \
             --locale-overlays build/index-navigation-locales.json \
@@ -262,9 +209,8 @@ jobs:
             --site-root site-publication \
             --output-root build/site \
             --pair-map build/guided-locale-publication.json \
-            --provider skill=skill-source \
-            --provider policy=policy-source \
-            --provider webapp=webapp-source
+            --provider composition=composition-source \
+            --provider policy=policy-source
 
       - name: Normalize guided canonical links and PWA metadata
         run: |
@@ -377,11 +323,15 @@ jobs:
             '"id": "templates-provider-branch"' \
             build/site/glossary/index.json
           grep --fixed-strings -- \
-            '"term": "プロバイダーブランチ"' \
+            '"id": "templates-composition-component"' \
             build/site/glossary/index.json
           site_revision="$(git -C site-source rev-parse HEAD)"
+          composition_revision="$(git -C composition-source rev-parse HEAD)"
           grep --fixed-strings -- \
             "\"source_revision\": \"${site_revision}\"" \
+            build/site/glossary/index.json
+          grep --fixed-strings -- \
+            "\"source_revision\": \"${composition_revision}\"" \
             build/site/glossary/index.json
           grep --fixed-strings -- \
             '<link rel="manifest" href="/app.webmanifest">' \
@@ -389,19 +339,19 @@ jobs:
           grep --fixed-strings -- \
             '<meta name="theme-color" content="#3f51b5">' \
             build/site/index.html
+          test -f build/site/composition/index.html
           test -f build/site/skill/index.html
+          test -f build/site/capabilities/runtime/index.html
+          test -f build/site/webapp/index.html
+          test -f build/site/lifecycle/composition-state/index.html
           test -f build/site/policy/index.html
           test -f build/site/policy/provider/index.html
           test -f build/site/policy/shared-policy/index.html
           test -f build/site/policy/consumer/index.html
-          test -f build/site/webapp/index.html
           test -f build/site/repository-trees/index.html
-          test -f build/site/repository-trees/skill/index.html
-          test -f build/site/repository-trees/skill/template/index.html
+          test -f build/site/repository-trees/composition/index.html
           test -f build/site/repository-trees/policy/index.html
-          test -f build/site/repository-trees/webapp/index.html
-          test -f build/site/repository-trees/webapp/template/index.html
-          for publication in skill policy webapp; do
+          for publication in composition policy; do
             page="build/site/repository-trees/${publication}/index.html"
             grep --fixed-strings -- 'repository-file-viewer' "$page"
             if grep --quiet --fixed-strings -- 'repository-file-preview-link' "$page"; then
@@ -415,13 +365,9 @@ jobs:
               )"
             fi
           done
-          for copyable in skill webapp; do
-            grep --fixed-strings -- 'Copyable root:' \
-              "build/site/repository-trees/${copyable}/template/index.html"
-          done
           test -f build/site/files/index.html
           test -f build/site/files/repository-browser.js
-          for branch in site skill policy webapp; do
+          for branch in site composition policy; do
             page="build/site/files/${branch}/index.html"
             test -f "$page"
             grep --fixed-strings -- 'repository-file-viewer' "$page"
@@ -446,7 +392,7 @@ jobs:
           grep --fixed-strings -- \
             '<meta name="theme-color" content="#3f51b5">' \
             build/site/guided/index.html
-          for provider in skill policy webapp; do
+          for provider in composition policy; do
             page="build/site/guided/${provider}/index.html"
             revision="$(git -C "${provider}-source" rev-parse HEAD)"
             test -f "$page"
@@ -476,6 +422,8 @@ jobs:
           graph = json.loads((root / "guided/graph.json").read_text(encoding="utf-8"))
           if graph.get("schema_version") != 1:
             raise SystemExit("guided graph schema version mismatch")
+          if [provider.get("name") for provider in graph.get("providers", [])] != ["composition", "policy"]:
+            raise SystemExit("guided graph provider order mismatch")
           for provider in graph.get("providers", []):
               name = provider["name"]
               for index in provider["indexes"]:
@@ -499,9 +447,8 @@ jobs:
             --output build/site/build-provenance.json \
             --repository "$GITHUB_REPOSITORY" \
             --site-commit "$(git -C site-source rev-parse HEAD)" \
-            --publication-commit "skill=$(git -C skill-source rev-parse HEAD)" \
-            --publication-commit "policy=$(git -C policy-source rev-parse HEAD)" \
-            --publication-commit "webapp=$(git -C webapp-source rev-parse HEAD)"
+            --publication-commit "composition=$(git -C composition-source rev-parse HEAD)" \
+            --publication-commit "policy=$(git -C policy-source rev-parse HEAD)"
 
       - name: Validate generated site links
         run: |

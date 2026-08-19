@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the site publication with generated repository-tree page declarations."""
+"""Prepare the Site publication with Composition/Policy repository-tree pages."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import json
 import shutil
 from pathlib import Path
 from typing import Any, Iterable
-
 
 OUTPUT_MARKER = ".repository-tree-publication-root"
 OUTPUT_MARKER_CONTENT = "managed by scripts/prepare_repository_tree_publication.py\n"
@@ -20,8 +19,8 @@ TREE_DOCUMENTS = (
         "home": False,
     },
     {
-        "id": "repository-tree-skill",
-        "source": "docs/repository-trees/skill.md",
+        "id": "repository-tree-composition",
+        "source": "docs/repository-trees/composition.md",
         "optional": False,
         "home": False,
     },
@@ -31,25 +30,7 @@ TREE_DOCUMENTS = (
         "optional": False,
         "home": False,
     },
-    {
-        "id": "repository-tree-webapp",
-        "source": "docs/repository-trees/webapp.md",
-        "optional": False,
-        "home": False,
-    },
 )
-WEBAPP_TEMPLATE_DOCUMENT = {
-    "id": "repository-tree-webapp-template",
-    "source": "docs/repository-trees/webapp/template.md",
-    "optional": False,
-    "home": False,
-}
-SKILL_TEMPLATE_DOCUMENT = {
-    "id": "repository-tree-skill-template",
-    "source": "docs/repository-trees/skill/template.md",
-    "optional": False,
-    "home": False,
-}
 TREE_NAVIGATION = {
     "title": "Repository trees",
     "children": [
@@ -60,10 +41,10 @@ TREE_NAVIGATION = {
             "destination": "repository-trees/index.md",
         },
         {
-            "title": "Skill tree",
+            "title": "Composition tree",
             "publication": "site",
-            "document": "repository-tree-skill",
-            "destination": "repository-trees/skill.md",
+            "document": "repository-tree-composition",
+            "destination": "repository-trees/composition.md",
         },
         {
             "title": "Policy tree",
@@ -71,30 +52,12 @@ TREE_NAVIGATION = {
             "document": "repository-tree-policy",
             "destination": "repository-trees/policy.md",
         },
-        {
-            "title": "Web application tree",
-            "publication": "site",
-            "document": "repository-tree-webapp",
-            "destination": "repository-trees/webapp.md",
-        },
     ],
-}
-WEBAPP_TEMPLATE_NAVIGATION = {
-    "title": "Web application copyable template",
-    "publication": "site",
-    "document": "repository-tree-webapp-template",
-    "destination": "repository-trees/webapp/template.md",
-}
-SKILL_TEMPLATE_NAVIGATION = {
-    "title": "Skill copyable template",
-    "publication": "site",
-    "document": "repository-tree-skill-template",
-    "destination": "repository-trees/skill/template.md",
 }
 
 
 class PreparationError(RuntimeError):
-    """Raised when the generated site publication cannot be prepared safely."""
+    """Raised when generated Site publication cannot be prepared safely."""
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -191,7 +154,7 @@ def copy_tree(source: Path, destination: Path, label: str) -> None:
 
 def augment_catalog(
     catalog: dict[str, Any],
-    generated_documents: Iterable[dict[str, Any]] = (*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT),
+    generated_documents: Iterable[dict[str, Any]] = TREE_DOCUMENTS,
 ) -> dict[str, Any]:
     documents = catalog.get("documents")
     if not isinstance(documents, list):
@@ -221,20 +184,12 @@ def augment_catalog(
     return result
 
 
-def augment_manifest(
-    manifest: dict[str, Any],
-    template_navigation: Iterable[dict[str, Any]] = (WEBAPP_TEMPLATE_NAVIGATION,),
-) -> dict[str, Any]:
+def augment_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     navigation = manifest.get("navigation")
     if not isinstance(navigation, list) or not navigation:
         raise PreparationError("site manifest navigation must be a non-empty array")
-    template_navigation = tuple(template_navigation)
-    generated_titles = {
-        TREE_NAVIGATION["title"],
-        *(entry["title"] for entry in template_navigation),
-    }
     if any(
-        isinstance(node, dict) and node.get("title") in generated_titles
+        isinstance(node, dict) and node.get("title") == TREE_NAVIGATION["title"]
         for node in navigation
     ):
         raise PreparationError(
@@ -245,31 +200,13 @@ def augment_manifest(
     result["navigation"] = [
         navigation[0],
         json.loads(json.dumps(TREE_NAVIGATION)),
-        *(json.loads(json.dumps(entry)) for entry in template_navigation),
         *navigation[1:],
     ]
     return result
 
 
-def generated_template_contracts(
-    output_root: Path,
-) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
-    documents = [*TREE_DOCUMENTS, WEBAPP_TEMPLATE_DOCUMENT]
-    navigation = [WEBAPP_TEMPLATE_NAVIGATION]
-    skill_template = output_root / SKILL_TEMPLATE_DOCUMENT["source"]
-    if skill_template.is_symlink():
-        raise PreparationError(
-            f"repository-tree template must not be a symlink: {skill_template}"
-        )
-    if skill_template.is_file():
-        documents.append(SKILL_TEMPLATE_DOCUMENT)
-        navigation.append(SKILL_TEMPLATE_NAVIGATION)
-    return tuple(documents), tuple(navigation)
-
-
 def prepare(site_root: Path, output_root: Path) -> list[str]:
     site_root = site_root.resolve(strict=True)
-
     manifest_path = site_root / "site-manifest.json"
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise PreparationError(
@@ -277,9 +214,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         )
 
     output_root = prepare_output_root(output_root, site_root)
-
-    docs_source = site_root / "docs"
-    copy_tree(docs_source, output_root / "docs", "site docs")
+    copy_tree(site_root / "docs", output_root / "docs", "site docs")
 
     assets_source = site_root / "assets"
     if assets_source.exists():
@@ -292,26 +227,18 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         )
     shutil.copy2(template_source, output_root / template_source.name)
 
-    generated_documents, template_navigation = generated_template_contracts(output_root)
     catalog_path = output_root / "docs/publication-catalog.json"
     prepared_manifest_path = output_root / "site-manifest.json"
-
     write_json(
         catalog_path,
-        augment_catalog(
-            read_json(catalog_path, "site publication catalog"),
-            generated_documents,
-        ),
+        augment_catalog(read_json(catalog_path, "site publication catalog")),
     )
     write_json(
         prepared_manifest_path,
-        augment_manifest(
-            read_json(manifest_path, "site manifest"),
-            template_navigation,
-        ),
+        augment_manifest(read_json(manifest_path, "site manifest")),
     )
 
-    for document in generated_documents:
+    for document in TREE_DOCUMENTS:
         template = output_root / document["source"]
         if not template.is_file():
             raise PreparationError(
@@ -320,7 +247,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
 
     return [
         f"prepared site publication: {output_root.resolve()}",
-        f"generated documents: {len(generated_documents)}",
+        f"generated documents: {len(TREE_DOCUMENTS)}",
     ]
 
 

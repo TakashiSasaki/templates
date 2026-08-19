@@ -20,7 +20,7 @@ class CatalogV3EntrypointTests(unittest.TestCase):
             workflow,
         )
 
-    def test_stable_v3_alias_reexports_canonical_symbols(self) -> None:
+    def test_stable_v3_entrypoint_reexports_canonical_contract_symbols(self) -> None:
         self.assertIs(
             assemble_publications_v3.AssemblyError,
             assemble_publications.AssemblyError,
@@ -29,10 +29,21 @@ class CatalogV3EntrypointTests(unittest.TestCase):
             assemble_publications_v3.load_catalog,
             assemble_publications.load_catalog,
         )
-        self.assertIs(
+        self.assertIsNot(
             assemble_publications_v3.main,
             assemble_publications.main,
         )
+
+    def test_stable_v3_entrypoint_rebases_publication_links(self) -> None:
+        source = (ROOT / "scripts/assemble_publications_v3.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "from scripts.publication_link_rewriter import rebase_publication_links",
+            source,
+        )
+        self.assertIn("publication links rebased", source)
 
     def test_translation_publisher_uses_stable_v3_alias(self) -> None:
         source = TRANSLATION_PUBLISHER.read_text(encoding="utf-8")
