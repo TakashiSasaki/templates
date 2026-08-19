@@ -31,6 +31,27 @@ class ComposerDispatchTests(unittest.TestCase):
             self.fail(f"composer did not emit JSON: {exc}\n{result.stdout}\n{result.stderr}")
         return result, payload
 
+    def test_top_level_help_exposes_public_lifecycle_and_mode_config_rules(self) -> None:
+        for help_flag in ("--help", "-h"):
+            with self.subTest(help_flag=help_flag):
+                result = subprocess.run(
+                    [sys.executable, str(COMPOSER), help_flag],
+                    cwd=ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("inspect -> plan -> apply -> validate", result.stdout)
+                self.assertIn("initial", result.stdout)
+                self.assertIn("update", result.stdout)
+                self.assertIn("upgrade", result.stdout)
+                self.assertIn("--config is required", result.stdout)
+                self.assertIn("--config is forbidden", result.stdout)
+                self.assertIn("Interrupted upgrade recovery omits --config", result.stdout)
+                self.assertIn("docs/consumer-guide.md", result.stdout)
+                self.assertIn("docs/reference/composer.md", result.stdout)
+
     def test_managed_planner_module_has_no_standalone_cli(self) -> None:
         self.assertTrue(callable(managed.plan_update))
         self.assertFalse(hasattr(managed, "command_apply_update"))
@@ -111,6 +132,8 @@ class ComposerDispatchTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 2)
                 self.assertEqual(payload["code"], "MANAGED_LOCK_REQUIRED")
+                self.assertIn("Run `inspect`", payload["message"])
+                self.assertIn("use initial mode only when the target is unmanaged", payload["message"])
 
 
 if __name__ == "__main__":

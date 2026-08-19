@@ -3,19 +3,61 @@
 
 from __future__ import annotations
 
+import io
+import json
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from composer_cli_messages import remediate_payload
 from composer_core import CompositionError, _assert_tracked_authority, main as _initial_main
 
 __all__ = ["CompositionError", "_assert_tracked_authority", "main"]
 
 COMMANDS = {"inspect", "plan", "apply", "validate"}
 VALUE_OPTIONS = {"--mode", "--config", "--target"}
+
+PUBLIC_HELP = """\
+usage: compose.py COMMAND [--mode MODE] --target PATH [--config FILE]
+
+Public lifecycle:
+  inspect -> plan -> apply -> validate
+
+Commands:
+  inspect   Classify target state without mutation.
+  plan      Preview deterministic initial/update/upgrade changes.
+  apply     Materialize or reconcile the selected lifecycle operation.
+  validate  Validate the current consumer repository state.
+
+Modes for plan/apply:
+  initial   Default when --mode is omitted. New composition; --config is required.
+  update    Preserve normalized lock-v2 intent; --config is forbidden.
+  upgrade   Explicit intent/compatibility-boundary change; --config is required for a
+            new plan/apply and forbidden when recovering an interrupted upgrade.
+
+Recovery:
+  If inspect reports managed-interrupted, use the exact Composition source revision
+  recorded in .template-composition/transaction.json and rerun the matching apply mode.
+  Do not delete the transaction marker manually. Interrupted upgrade recovery omits --config.
+
+Examples:
+  python scripts/compose.py inspect --target /repo
+  python scripts/compose.py plan --config composition.json --target /repo
+  python scripts/compose.py apply --config composition.json --target /repo
+  python scripts/compose.py plan --mode update --target /repo
+  python scripts/compose.py apply --mode update --target /repo
+  python scripts/compose.py plan --mode upgrade --config composition.json --target /repo
+  python scripts/compose.py apply --mode upgrade --config composition.json --target /repo
+  python scripts/compose.py validate --target /repo
+
+See docs/consumer-guide.md for task-oriented use and docs/reference/composer.md for the
+exact consumer-facing contract.
+"""
 
 
 def _normalize_command_position() -> None:
@@ -76,7 +118,37 @@ def _remove_initial_mode() -> None:
     sys.argv[:] = [sys.argv[0], *rewritten]
 
 
+def _run_managed_adapter(adapter: Callable[[], int]) -> int:
+    """Run an internal managed adapter and improve only its public JSON presentation."""
+
+    stream = io.StringIO()
+    try:
+        with redirect_stdout(stream):
+            status = adapter()
+    except SystemExit as exc:
+        rendered = stream.getvalue()
+        if rendered:
+            print(rendered, end="")
+        return exc.code if isinstance(exc.code, int) else 1
+
+    rendered = stream.getvalue()
+    try:
+        payload = json.loads(rendered)
+    except json.JSONDecodeError:
+        print(rendered, end="")
+        return status
+    if not isinstance(payload, dict):
+        print(rendered, end="")
+        return status
+    print(json.dumps(remediate_payload(payload), ensure_ascii=False, indent=2))
+    return status
+
+
 def main() -> int:
+    if sys.argv[1:] in (["--help"], ["-h"]):
+        print(PUBLIC_HELP, end="")
+        return 0
+
     _normalize_command_position()
     mode = _mode_from_argv()
     if mode is None:
@@ -87,15 +159,15 @@ def main() -> int:
     if mode == "upgrade":
         from composer_upgrade import main as upgrade_main
 
-        return upgrade_main()
+        return _run_managed_adapter(upgrade_main)
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     if mode == "update" and command == "apply":
         from composer_apply import main as apply_main
 
-        return apply_main()
+        return _run_managed_adapter(apply_main)
     from composer_update_plan import main as update_plan_main
 
-    return update_plan_main()
+    return _run_managed_adapter(update_plan_main)
 
 
 if __name__ == "__main__":
