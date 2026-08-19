@@ -12,8 +12,11 @@ from pathlib import Path
 from typing import Any
 
 LOCK_RELATIVE = ".template-composition/lock.json"
+TRANSACTION_RELATIVE = ".template-composition/transaction.json"
+STAGING_PREFIX = ".template-composition/staging"
 CANONICAL_REPOSITORY = "TakashiSasaki/templates"
 COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 RECIPE_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REVISION_RE = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
@@ -69,6 +72,25 @@ def _portable_parts(value: str) -> tuple[str, ...] | None:
     return parts
 
 
+def _normalized_parts(value: str) -> tuple[str, ...]:
+    return tuple(part.casefold() for part in value.split("/"))
+
+
+def _reserved_destination(value: str) -> bool:
+    parts = _normalized_parts(value)
+    lock_parts = _normalized_parts(LOCK_RELATIVE)
+    transaction_parts = _normalized_parts(TRANSACTION_RELATIVE)
+    staging_parts = _normalized_parts(STAGING_PREFIX)
+    return (
+        parts == lock_parts[: len(parts)]
+        or lock_parts == parts[: len(lock_parts)]
+        or parts == transaction_parts[: len(parts)]
+        or transaction_parts == parts[: len(transaction_parts)]
+        or parts == staging_parts
+        or staging_parts == parts[: len(staging_parts)]
+    )
+
+
 def _path_has_symlink(root: Path, parts: tuple[str, ...]) -> bool:
     candidate = root
     for part in parts:
@@ -81,6 +103,43 @@ def _path_has_symlink(root: Path, parts: tuple[str, ...]) -> bool:
     return False
 
 
+def _validate_intent(intent: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(intent, dict) or set(intent) != {"recipe", "components", "parameters"}:
+        return ["composition lock intent must contain exactly recipe, components, and parameters"]
+    recipe = intent.get("recipe")
+    if not isinstance(recipe, str) or not RECIPE_RE.fullmatch(recipe):
+        errors.append("composition lock intent recipe is invalid")
+    components = intent.get("components")
+    if not isinstance(components, dict) or set(components) != {"include", "exclude"}:
+        errors.append("composition lock intent components must contain exactly include and exclude")
+    else:
+        selections: dict[str, list[str]] = {}
+        for name in ("include", "exclude"):
+            value = components.get(name)
+            if not isinstance(value, list) or any(
+                not isinstance(item, str) or not SELECTABLE_COMPONENT_RE.fullmatch(item)
+                for item in value
+            ):
+                errors.append(f"composition lock intent components.{name} is invalid")
+                continue
+            if value != sorted(value):
+                errors.append(f"composition lock intent components.{name} must be lexically ordered")
+            if len(value) != len(set(value)):
+                errors.append(f"composition lock intent components.{name} must be unique")
+            selections[name] = value
+        if set(selections.get("include", [])) & set(selections.get("exclude", [])):
+            errors.append("composition lock intent include/exclude sets must be disjoint")
+    parameters = intent.get("parameters")
+    if not isinstance(parameters, dict):
+        errors.append("composition lock intent parameters must be an object")
+    else:
+        for key, value in parameters.items():
+            if not COMPONENT_RE.fullmatch(key) or not isinstance(value, dict):
+                errors.append(f"composition lock intent parameter namespace is invalid: {key!r}")
+    return errors
+
+
 def validate_lock_shape(lock: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(lock, dict):
@@ -88,7 +147,8 @@ def validate_lock_shape(lock: Any) -> list[str]:
     expected_keys = {
         "schema_version",
         "source",
-        "recipe",
+        "intent",
+        "recipe_sha256",
         "configuration_sha256",
         "resolved_components",
         "files",
@@ -97,8 +157,8 @@ def validate_lock_shape(lock: Any) -> list[str]:
         errors.append(
             f"composition lock keys must be exactly {sorted(expected_keys)}; got {sorted(lock)}"
         )
-    if lock.get("schema_version") != 1:
-        errors.append("composition lock schema_version must be 1")
+    if lock.get("schema_version") != 2:
+        errors.append("composition lock schema_version must be 2")
 
     source = lock.get("source")
     if not isinstance(source, dict) or set(source) != {"repository", "revision"}:
@@ -110,12 +170,11 @@ def validate_lock_shape(lock: Any) -> list[str]:
         if not isinstance(revision, str) or not REVISION_RE.fullmatch(revision):
             errors.append("composition lock source revision must be a nonzero lowercase 40-hex commit")
 
-    recipe = lock.get("recipe")
-    if not isinstance(recipe, str) or not RECIPE_RE.fullmatch(recipe):
-        errors.append("composition lock recipe is invalid")
-    config_digest = lock.get("configuration_sha256")
-    if not isinstance(config_digest, str) or not SHA256_RE.fullmatch(config_digest):
-        errors.append("composition lock configuration_sha256 must be lowercase 64-hex")
+    errors.extend(_validate_intent(lock.get("intent")))
+    for field in ("recipe_sha256", "configuration_sha256"):
+        digest = lock.get(field)
+        if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+            errors.append(f"composition lock {field} must be lowercase 64-hex")
 
     resolved = lock.get("resolved_components")
     resolved_ids: list[str] = []
@@ -161,10 +220,8 @@ def validate_lock_shape(lock: Any) -> list[str]:
                 errors.append(f"files[{index}].destination is not a safe portable path")
             else:
                 destinations.append(destination)
-                normalized = tuple(part.casefold() for part in parts)
-                lock_parts = tuple(part.casefold() for part in LOCK_RELATIVE.split("/"))
-                if normalized == lock_parts[: len(normalized)] or lock_parts == normalized[: len(lock_parts)]:
-                    errors.append(f"files[{index}].destination conflicts with reserved lock path")
+                if _reserved_destination(destination):
+                    errors.append(f"files[{index}].destination conflicts with reserved composer metadata")
             component = entry.get("component")
             if component not in resolved_set:
                 errors.append(f"files[{index}].component is not a resolved component")
@@ -178,10 +235,7 @@ def validate_lock_shape(lock: Any) -> list[str]:
 
         if destinations != sorted(destinations):
             errors.append("materialized file destinations must be lexically ordered")
-        normalized_destinations = [
-            tuple(part.casefold() for part in destination.split("/"))
-            for destination in destinations
-        ]
+        normalized_destinations = [_normalized_parts(destination) for destination in destinations]
         for index, left in enumerate(normalized_destinations):
             for right in normalized_destinations[index + 1 :]:
                 if left == right:
@@ -224,6 +278,9 @@ def validate_materialized_files(root: Path, lock: dict[str, Any]) -> list[str]:
 
 
 def validate_repository(root: Path) -> list[str]:
+    transaction_path = root / TRANSACTION_RELATIVE
+    if transaction_path.exists() or transaction_path.is_symlink():
+        return [f"composition update transaction is present; recovery required: {TRANSACTION_RELATIVE}"]
     errors: list[str] = []
     lock_path = root / LOCK_RELATIVE
     if lock_path.is_symlink():

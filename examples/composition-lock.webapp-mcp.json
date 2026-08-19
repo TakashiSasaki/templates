@@ -1,10 +1,25 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source": {
     "repository": "TakashiSasaki/templates",
     "revision": "0123456789abcdef0123456789abcdef01234567"
   },
-  "recipe": "webapp",
+  "intent": {
+    "recipe": "webapp",
+    "components": {
+      "include": [
+        "capability.mcp",
+        "lifecycle.release-evidence"
+      ],
+      "exclude": []
+    },
+    "parameters": {
+      "capability.mcp": {
+        "transport": "streamable-http"
+      }
+    }
+  },
+  "recipe_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
   "configuration_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
   "resolved_components": [
     {

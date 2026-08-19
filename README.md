@@ -24,7 +24,7 @@ PR4 added the first deterministic composer/resolver MVP and universal consumer c
 inspect -> plan -> apply -> validate
 ```
 
-`update` is deliberately not implemented in the MVP. A repository containing an existing composition lock is treated as managed state and update is refused rather than inferred.
+The initial MVP deliberately refused an existing composition lock rather than guessing update behavior.
 
 PR5 established the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and stdlib-only provider-local publication validation.
 
@@ -53,7 +53,29 @@ Every artifact requires `lifecycle.composition-state`. It materializes a stdlib-
 
 Consumer-time validation requires `managed` and `generated` files to match their lock digests. `seed` files must remain present but may change after ownership transfer.
 
-## Composer MVP
+## Lock v2 and managed-state evolution
+
+Composition lock schema version 2 stores a normalized consumer-intent snapshot rather than only a digest of the original configuration. The lock records:
+
+- canonical source identity and exact source revision;
+- normalized `intent` (`recipe`, include/exclude selection, and parameters);
+- `recipe_sha256` for the exact recipe bytes used during resolution;
+- `configuration_sha256` for the exact most recently supplied configuration bytes;
+- resolved component versions and descriptor digests; and
+- materialized file ownership and byte digests.
+
+Lock v1 is intentionally not supported. The repository is pre-production, so the contract is corrected directly instead of carrying a legacy migration path.
+
+The managed-state design distinguishes:
+
+- `update` — preserve consumer intent while reconciling to a descendant Composition source revision; and
+- `upgrade` — explicitly cross an intent, component-version, recipe-selection, or other declared compatibility boundary.
+
+Composer-owned recovery metadata is reserved at `.template-composition/transaction.json` and `.template-composition/staging/**`. Components cannot claim those paths.
+
+At this contract stage, initial `plan` / `apply` still fail closed on an existing lock. Read-only update planning, safe mutation/recovery, and explicit upgrade are implemented in subsequent changes rather than being inferred by initial composition.
+
+## Composer
 
 Run the source-side composer with:
 
@@ -66,11 +88,11 @@ python scripts/compose.py validate --target /path/to/repository
 
 The source checkout must be clean for tracked files. Every catalog, descriptor, recipe, schema, validator, and copied material actually consumed by composition must be a regular Git-tracked source authority under the exact revision written to the lock.
 
-Initial composition never overwrites different existing bytes. Identical unmanaged files may be adopted. Portable case collisions, file/directory conflicts, symbolic-link boundaries, unsupported generated-material handlers, dependency conflicts, and invalid include/exclude selections fail closed.
+Initial composition never overwrites different existing bytes. Identical unmanaged files may be adopted. Portable case collisions, file/directory conflicts, symbolic-link boundaries, unsupported generated-material handlers, dependency conflicts, invalid include/exclude selections, and pre-existing composer transaction metadata fail closed.
 
-The lock is written last. An interrupted initial apply before that point leaves an unmanaged repository; a later apply may adopt only exact previously materialized bytes.
+The initial-composition lock is written last. An interrupted initial apply before that point leaves an unmanaged repository; a later initial apply may adopt only exact previously materialized bytes.
 
-See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for the detailed resolver, trust, and crash-boundary contract.
+See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for the detailed resolver, lock-v2, ownership, and managed-state contract.
 
 ## Publication boundary
 
@@ -92,9 +114,19 @@ Artifact semantics and reusable application/lifecycle concerns remain separate. 
 
 The production catalog is closed and validated for dependency existence/acyclicity, source inventory, registration ownership, deterministic generated material input, portable destination ownership, and materialized Skill/Webapp validation.
 
-## Deferred work
+## Managed-state safety rules
 
-Update/upgrade semantics for a repository with an existing composition lock remain future Composition work. They are not required to complete the branch-authority migration or to retire the legacy `skill` / `webapp` branch refs.
+Composition is not a general-purpose merge engine.
+
+- `managed` / `generated` may be replaced or removed only when current bytes match the old lock digest.
+- `seed` becomes consumer-owned after first materialization and is not overwritten by update.
+- removed seed files remain as consumer-owned files.
+- generated output is recomputed deterministically from the resolved composition.
+- ownership transitions are never inferred by update.
+- component version changes require explicit upgrade.
+- descriptor-byte changes without a component-version change are rejected as a source invariant violation.
+- read-only planning precedes managed-state mutation.
+- interrupted managed-state mutation must be detectable and recoverable without discarding consumer-owned changes.
 
 See:
 
