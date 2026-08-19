@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
+COMPOSER = SCRIPTS / "compose.py"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -13,6 +17,46 @@ from composer_cli_messages import consumer_message, remediate_payload  # noqa: E
 
 
 class ComposerCliMessageTests(unittest.TestCase):
+    def run_composer(self, *arguments: str) -> tuple[subprocess.CompletedProcess[str], dict]:
+        result = subprocess.run(
+            [sys.executable, str(COMPOSER), *arguments],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            self.fail(f"composer did not emit JSON: {exc}\n{result.stdout}\n{result.stderr}")
+        return result, payload
+
+    def materialize_skill(self, root: Path) -> tuple[Path, Path]:
+        config_path = root / "composition.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "recipe": "skill",
+                    "components": {"include": [], "exclude": []},
+                    "parameters": {},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        target = root / "consumer"
+        result, payload = self.run_composer(
+            "apply",
+            "--config",
+            str(config_path),
+            "--target",
+            str(target),
+        )
+        self.assertEqual(result.returncode, 0, payload)
+        return config_path, target
+
     def test_source_transition_messages_preserve_reason_and_add_next_action(self) -> None:
         old_revision = "1" * 40
         new_revision = "2" * 40
@@ -163,6 +207,74 @@ class ComposerCliMessageTests(unittest.TestCase):
         self.assertIn("will not merge, overwrite, or delete", result["files"]["conflict"][0]["message"])
         self.assertEqual(source["message"], "managed operation requires lock")
         self.assertEqual(source["conflicts"][0]["message"], "locally modified managed material cannot be replaced")
+
+    def test_public_entrypoint_remediates_update_config_upgrade_config_and_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = root / "composition.json"
+            config_path.write_text("{}\n", encoding="utf-8")
+            target = root / "consumer"
+
+            result, payload = self.run_composer(
+                "plan",
+                "--mode",
+                "update",
+                "--config",
+                str(config_path),
+                "--target",
+                str(target),
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(payload["code"], "UPDATE_CONFIG_NOT_ALLOWED")
+            self.assertIn("preserves normalized lock-v2 intent", payload["message"])
+
+            result, payload = self.run_composer(
+                "plan",
+                "--mode",
+                "upgrade",
+                "--target",
+                str(target),
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(payload["code"], "UPGRADE_CONFIG_REQUIRED")
+            self.assertIn("only interrupted upgrade recovery omits --config", payload["message"])
+
+            marker = target / ".template-composition" / "transaction.json"
+            marker.parent.mkdir(parents=True)
+            marker.write_text("{}\n", encoding="utf-8")
+            result, payload = self.run_composer(
+                "plan",
+                "--mode",
+                "update",
+                "--target",
+                str(target),
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(payload["code"], "RECOVERY_REQUIRED")
+            self.assertIn("do not start a new plan", payload["message"])
+            self.assertIn("do not start a new plan", payload["message"])
+
+    def test_public_entrypoint_remediates_local_modification_without_changing_conflict_code(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _, target = self.materialize_skill(root)
+            managed_path = target / "docs" / "architecture.md"
+            managed_path.write_bytes(managed_path.read_bytes() + b"local edit\n")
+
+            result, payload = self.run_composer(
+                "plan",
+                "--mode",
+                "update",
+                "--target",
+                str(target),
+            )
+            self.assertEqual(result.returncode, 2)
+            local_conflicts = [
+                entry for entry in payload["conflicts"] if entry["code"] == "LOCAL_MODIFICATION"
+            ]
+            self.assertTrue(local_conflicts)
+            self.assertIn("will not merge, overwrite, or delete", local_conflicts[0]["message"])
+            self.assertIn("rerun `plan`", local_conflicts[0]["message"])
 
 
 if __name__ == "__main__":
