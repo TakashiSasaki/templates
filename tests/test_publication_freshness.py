@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ import classify_publication_freshness as freshness  # noqa: E402
 
 LOCKED = "0" * 40
 CURRENT = "1" * 40
+SCRIPT = ROOT / "scripts/classify_publication_freshness.py"
 
 
 class PublicationFreshnessClassificationTests(unittest.TestCase):
@@ -47,6 +49,48 @@ class PublicationFreshnessClassificationTests(unittest.TestCase):
                 "relation=different\nrelation=current\n",
                 output.read_text(encoding="utf-8"),
             )
+
+    def test_cli_contract_writes_relation_output(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="publication-freshness-cli-") as directory:
+            output = Path(directory) / "github-output"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--locked",
+                    LOCKED,
+                    "--current",
+                    CURRENT,
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("relation=different\n", output.read_text(encoding="utf-8"))
+
+    def test_cli_contract_reports_invalid_revision_on_stderr(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--locked",
+                "composition",
+                "--current",
+                CURRENT,
+            ],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+
+        self.assertEqual(1, result.returncode)
+        self.assertEqual("", result.stdout)
+        self.assertIn("publication freshness classification failed:", result.stderr)
+        self.assertIn("full lowercase commit SHA", result.stderr)
 
 
 if __name__ == "__main__":

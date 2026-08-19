@@ -15,6 +15,7 @@ on:
       - 'publication-sources.json'
       - 'site-manifest.json'
       - 'scripts/**'
+      - 'tests/**'
       - 'requirements.txt'
       - 'zensical.template.toml'
   schedule:
@@ -26,7 +27,7 @@ permissions:
 
 concurrency:
   group: publication-freshness-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   resolve:
@@ -110,6 +111,7 @@ jobs:
     steps:
       - name: Report publication freshness
         env:
+          SITE_REVISION: ${{ needs.resolve.outputs.site_revision }}
           LOCKED_COMPOSITION: ${{ needs.resolve.outputs.composition_lock }}
           CURRENT_COMPOSITION: ${{ needs.resolve.outputs.composition_head }}
           RELATION: ${{ needs.resolve.outputs.relation }}
@@ -118,6 +120,7 @@ jobs:
           {
             echo '## Composition publication freshness'
             echo
+            echo "- Site revision: \`$SITE_REVISION\`"
             echo "- reviewed Site lock: \`$LOCKED_COMPOSITION\`"
             echo "- current Composition HEAD snapshot: \`$CURRENT_COMPOSITION\`"
             echo "- lock/head relation: \`$RELATION\`"
@@ -125,16 +128,27 @@ jobs:
             echo '- Policy source: reviewed Site lock (no current-Policy override)'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$CANDIDATE_RESULT" = "skipped" ]; then
-            echo "::error::Current Composition compatibility build was skipped; no compatibility conclusion is available."
-            exit 1
-          fi
+          case "$CANDIDATE_RESULT" in
+            success)
+              ;;
+            skipped)
+              echo "::error::Current Composition compatibility build was skipped; no compatibility conclusion is available."
+              exit 1
+              ;;
+            *)
+              echo "::error::Current Composition HEAD does not pass the normal full Site publication build."
+              exit 1
+              ;;
+          esac
 
-          if [ "$CANDIDATE_RESULT" != "success" ]; then
-            echo "::error::Current Composition HEAD does not pass the normal full Site publication build."
-            exit 1
-          fi
-
-          if [ "$RELATION" = "different" ]; then
-            echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
-          fi
+          case "$RELATION" in
+            current)
+              ;;
+            different)
+              echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
+              ;;
+            *)
+              echo "::error::Unexpected publication freshness relation: $RELATION"
+              exit 1
+              ;;
+          esac

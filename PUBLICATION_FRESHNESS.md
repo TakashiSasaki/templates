@@ -24,7 +24,7 @@ The workflow:
 4. classifies the reviewed lock as `current` or `different` from that snapshot;
 5. invokes `.github/workflows/build-pages.yml` with that exact SHA as `composition_ref`;
 6. leaves `policy_ref` unset, so Policy remains at the reviewed Site lock;
-7. reports the lock, candidate snapshot, relation, and complete candidate-build result.
+7. reports the Site revision, lock, candidate snapshot, relation, and complete candidate-build result.
 
 This is deliberately a Composition-only candidate check. It closes the Composition publication integration gap without converting the Site release model into an implicit "latest providers" build.
 
@@ -32,14 +32,14 @@ This is deliberately a Composition-only candidate check. It closes the Compositi
 
 The lock/head relation is informational; the full candidate build is the compatibility signal.
 
-| Reviewed Composition lock | Current Composition snapshot | Candidate build | Meaning |
-| --- | --- | --- | --- |
-| same | same | success | Site is current for Composition and the snapshot is compatible. |
-| different | newer/different | success | The reviewed Site remains valid; emit a warning that a newer compatible Composition snapshot is available for explicit review. |
-| any | exact current snapshot | failure | Current Composition does not pass the normal Site publication pipeline; integration triage is required. |
-| any | unavailable or build skipped | not executed | No compatibility conclusion is valid; the diagnostic itself must not report this as a tested incompatibility. |
+| Lock/head relation | Candidate build | Meaning |
+| --- | --- | --- |
+| `current` | success | Site is current for Composition and the snapshot is compatible. |
+| `different` | success | The reviewed Site remains valid; emit a warning that a different compatible Composition snapshot is available for explicit review. |
+| `current` or `different` | failure | Current Composition does not pass the normal Site publication pipeline; integration triage is required. |
+| unavailable | not executed / skipped | No compatibility conclusion is valid; the diagnostic run is incomplete or failed before compatibility was tested. |
 
-A `different` relation is therefore not a failure condition. It must not cause an automatic lock update.
+A `different` relation is therefore not a failure condition. It must not cause an automatic lock update. An unexpected relation value is itself a diagnostic error rather than an implicit freshness conclusion.
 
 ## Validation boundary
 
@@ -51,11 +51,13 @@ The artifact is validation output only. The freshness workflow has `contents: re
 
 The diagnostic runs:
 
-- for pull requests targeting `site` when publication-integration inputs or the diagnostic itself change;
+- for pull requests targeting `site` when publication-integration inputs, tests, or the diagnostic itself change;
 - once daily at `17:23 UTC` (`02:23 JST`);
 - on explicit `workflow_dispatch`.
 
-The scheduled run is intended to detect Composition movement after the last reviewed Site pin even when Site itself has not changed.
+The scheduled run is intended to detect Composition movement after the last reviewed Site pin even when Site itself has not changed. Scheduled and manual diagnostics are not cancelled merely because another diagnostic starts; superseded pull-request diagnostics may be cancelled and replaced by the newer PR revision.
+
+A qualifying Site pull request normally causes two full publication builds: the ordinary locked-input PR build and this diagnostic's current-Composition candidate build. That duplication is intentional so changes to the integration or diagnostic path validate both the reviewed release graph and the prospective Composition graph. Presentation-only changes are excluded by the freshness workflow path filter.
 
 ## Triage responsibility
 

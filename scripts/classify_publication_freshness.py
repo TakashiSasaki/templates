@@ -4,12 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
-
-FULL_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+from resolve_publication_sources import FULL_COMMIT_PATTERN
 
 
 class PublicationFreshnessError(RuntimeError):

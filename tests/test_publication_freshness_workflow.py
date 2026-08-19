@@ -22,10 +22,18 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         pull_request = triggers["pull_request"]
 
         self.assertEqual(["site"], pull_request["branches"])
-        self.assertIn("publication-sources.json", pull_request["paths"])
-        self.assertIn("site-manifest.json", pull_request["paths"])
-        self.assertIn("scripts/**", pull_request["paths"])
-        self.assertIn("PUBLICATION_FRESHNESS.md", pull_request["paths"])
+        expected_paths = {
+            ".github/workflows/check-publication-freshness.yml",
+            ".github/workflows/build-pages.yml",
+            "PUBLICATION_FRESHNESS.md",
+            "publication-sources.json",
+            "site-manifest.json",
+            "scripts/**",
+            "tests/**",
+            "requirements.txt",
+            "zensical.template.toml",
+        }
+        self.assertEqual(expected_paths, set(pull_request["paths"]))
         self.assertEqual("23 17 * * *", triggers["schedule"][0]["cron"])
         self.assertIn("workflow_dispatch", triggers)
 
@@ -34,6 +42,14 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertNotIn("id-token: write", self.workflow_text)
         self.assertNotIn("actions/configure-pages@", self.workflow_text)
         self.assertNotIn("actions/deploy-pages@", self.workflow_text)
+
+    def test_concurrency_only_cancels_superseded_pull_request_runs(self) -> None:
+        concurrency = self.workflow["concurrency"]
+        self.assertEqual("publication-freshness-${{ github.ref }}", concurrency["group"])
+        self.assertEqual(
+            "${{ github.event_name == 'pull_request' }}",
+            concurrency["cancel-in-progress"],
+        )
 
     def test_current_composition_head_is_resolved_to_an_exact_sha_snapshot(self) -> None:
         resolve = self.workflow["jobs"]["resolve"]
@@ -75,20 +91,24 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertNotIn("policy_ref", candidate["with"])
         self.assertEqual({"contents": "read"}, candidate["permissions"])
 
-    def test_report_distinguishes_unexecuted_failure_and_divergence(self) -> None:
+    def test_report_distinguishes_candidate_results_and_relation_states(self) -> None:
         report = self.workflow["jobs"]["report"]
         self.assertIn("github.repository == 'TakashiSasaki/templates'", report["if"])
         steps = {step["name"]: step for step in report["steps"]}
-        run = steps["Report publication freshness"]["run"]
+        report_step = steps["Report publication freshness"]
+        run = report_step["run"]
 
-        skipped_position = run.index('if [ "$CANDIDATE_RESULT" = "skipped" ]; then')
-        failure_position = run.index('if [ "$CANDIDATE_RESULT" != "success" ]; then')
-        warning_position = run.index('if [ "$RELATION" = "different" ]; then')
-        self.assertLess(skipped_position, failure_position)
-        self.assertLess(failure_position, warning_position)
+        self.assertEqual(
+            "${{ needs.resolve.outputs.site_revision }}",
+            report_step["env"]["SITE_REVISION"],
+        )
+        self.assertIn("Site revision:", run)
+        self.assertIn('case "$CANDIDATE_RESULT" in', run)
         self.assertIn("no compatibility conclusion is available", run)
         self.assertIn("does not pass the normal full Site publication build", run)
+        self.assertIn('case "$RELATION" in', run)
         self.assertIn("advancing the reviewed lock remains an explicit Site review decision", run)
+        self.assertIn("Unexpected publication freshness relation", run)
         self.assertIn("Policy source: reviewed Site lock", run)
 
     def test_normative_contract_documents_diagnostic_scope(self) -> None:
@@ -101,6 +121,7 @@ class PublicationFreshnessWorkflowTests(unittest.TestCase):
         self.assertIn("does not update the lock automatically", contract)
         self.assertIn("FRESHNESS.md", contract)
         self.assertIn("Site maintainer", contract)
+        self.assertIn("two full publication builds", contract)
 
 
 if __name__ == "__main__":
