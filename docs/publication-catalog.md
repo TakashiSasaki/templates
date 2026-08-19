@@ -53,4 +53,4 @@ python scripts/validate_publication.py
 
 Validation is fail-closed for unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, undeclared reader documentation, missing production descriptors/schemas/recipes, Markdown hidden inside asset trees, malformed glossary records, and obsolete glossary IDs that would reintroduce the retired copyable-template model.
 
-PR6 may consume this publication only after its exact composition revision is locked by Site.
+Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. Subsequent Composition publication changes require an explicit reviewed Site pin-forward rather than any mutable branch reference.
