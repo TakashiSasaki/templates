@@ -104,42 +104,82 @@
     {
       "title": "Policy",
       "children": [
-        {"title": "Overview", "publication": "policy", "document": "overview", "destination": "policy/index.md"},
-        {"title": "Provider navigation", "publication": "policy", "document": "provider-navigation", "destination": "policy/provider/index.md"},
-        {"title": "Shared policy navigation", "publication": "policy", "document": "shared-policy-navigation", "destination": "policy/shared-policy/index.md"},
-        {"title": "Policy profiles", "publication": "policy", "document": "policy-profiles", "destination": "policy/shared-policy/profiles.md"},
-        {"title": "Consumer policy navigation", "publication": "policy", "document": "consumer-policy-navigation", "destination": "policy/consumer/index.md"},
-        {"title": "Getting started", "publication": "policy", "document": "getting-started", "destination": "policy/getting-started.md"},
-        {"title": "Managed operation", "publication": "policy", "document": "managed-operation", "destination": "policy/managed-operation.md"},
-        {"title": "CLI", "publication": "policy", "document": "cli", "destination": "policy/cli.md"},
-        {"title": "Bootstrap", "publication": "policy", "document": "bootstrap", "destination": "policy/bootstrap.md"},
-        {"title": "Adoption", "publication": "policy", "document": "adoption", "destination": "policy/adoption.md"},
-        {"title": "Release lifecycle", "publication": "policy", "document": "release-lifecycle", "destination": "policy/release-lifecycle.md"},
-        {"title": "Policy readiness", "publication": "policy", "document": "policy-readiness", "destination": "policy/policy-readiness.md"},
-        {"title": "Documentation publication", "publication": "policy", "document": "documentation-publication", "destination": "policy/documentation-publication.md"},
-        {"title": "Publication catalog", "publication": "policy", "document": "publication-catalog", "destination": "policy/publication-catalog.md"},
-        {"title": "PWA", "publication": "policy", "document": "pwa", "destination": "policy/pwa.md"},
-        {"title": "Google AI Studio", "publication": "policy", "document": "google-ai-studio", "destination": "policy/agent-environments/google-ai-studio.md"},
-        {"title": "Repository structure", "publication": "policy", "document": "repository-structure", "destination": "policy/repository-structure.md"},
-        {"title": "Architecture", "publication": "policy", "document": "architecture", "destination": "policy/architecture.md"},
-        {"title": "Configuration", "publication": "policy", "document": "configuration", "destination": "policy/configuration.md"},
-        {"title": "Policy authoring", "publication": "policy", "document": "policy-authoring", "destination": "policy/policy-authoring.md"},
-        {"title": "Policy authority inventory", "publication": "policy", "document": "policy-authority-inventory", "destination": "policy/policy-authority-inventory.md"},
-        {"title": "Review policy", "publication": "policy", "document": "review-policy", "destination": "policy/review-policy.md"},
-        {"title": "External artifact intake", "publication": "policy", "document": "external-artifact-intake", "destination": "policy/external-artifact-intake.md"},
-        {"title": "Regression prevention", "publication": "policy", "document": "regression-prevention", "destination": "policy/regression-prevention.md"},
-        {"title": "Bootstrap model", "publication": "policy", "document": "bootstrap-model", "destination": "policy/bootstrap-model.md"},
-        {"title": "Threat model", "publication": "policy", "document": "threat-model", "destination": "policy/threat-model.md"},
+        {
+          "title": "Overview",
+          "publication": "policy",
+          "document": "overview",
+          "destination": "policy/index.md"
+        },
+        {
+          "title": "Policy layers",
+          "children": [
+            {
+              "title": "Provider and toolchain",
+              "publication": "policy",
+              "document": "provider-navigation",
+              "destination": "policy/provider/index.md"
+            },
+            {
+              "title": "Shared policy corpus",
+              "publication": "policy",
+              "document": "shared-policy-navigation",
+              "destination": "policy/shared-policy/index.md"
+            },
+            {
+              "title": "Consumer effective policy",
+              "publication": "policy",
+              "document": "consumer-policy-navigation",
+              "destination": "policy/consumer/index.md"
+            }
+          ]
+        },
+        {
+          "title": "Introduction",
+          "children": [
+            {"title": "Getting started", "publication": "policy", "document": "getting-started", "destination": "policy/getting-started.md"},
+            {"title": "Managed repository operation", "publication": "policy", "document": "managed-operation", "destination": "policy/managed-operation.md"},
+            {"title": "CLI", "publication": "policy", "document": "cli", "destination": "policy/cli.md"},
+            {"title": "Bootstrap skill", "publication": "policy", "document": "bootstrap", "destination": "policy/bootstrap.md"},
+            {"title": "Repository adoption", "publication": "policy", "document": "adoption", "destination": "policy/adoption.md"},
+            {"title": "Toolchain release lifecycle", "publication": "policy", "document": "release-lifecycle", "destination": "policy/release-lifecycle.md"},
+            {"title": "Policy completion roadmap", "publication": "policy", "document": "policy-readiness", "destination": "policy/policy-readiness.md"},
+            {"title": "Documentation publication", "publication": "policy", "document": "documentation-publication", "destination": "policy/documentation-publication.md"},
+            {"title": "Publication catalog", "publication": "policy", "document": "publication-catalog", "destination": "policy/publication-catalog.md"},
+            {"title": "PWA usage", "publication": "policy", "document": "pwa", "destination": "policy/pwa.md"}
+          ]
+        },
+        {
+          "title": "Agent environments",
+          "children": [
+            {"title": "Google AI Studio Build mode", "publication": "policy", "document": "google-ai-studio", "destination": "policy/agent-environments/google-ai-studio.md"}
+          ]
+        },
+        {
+          "title": "Design",
+          "children": [
+            {"title": "Repository structure", "publication": "policy", "document": "repository-structure", "destination": "policy/repository-structure.md"},
+            {"title": "Architecture", "publication": "policy", "document": "architecture", "destination": "policy/architecture.md"},
+            {"title": "Configuration", "publication": "policy", "document": "configuration", "destination": "policy/configuration.md"},
+            {"title": "Policy profiles", "publication": "policy", "document": "policy-profiles", "destination": "policy/shared-policy/profiles.md"},
+            {"title": "Policy authoring", "publication": "policy", "document": "policy-authoring", "destination": "policy/policy-authoring.md"},
+            {"title": "Policy authority inventory", "publication": "policy", "document": "policy-authority-inventory", "destination": "policy/policy-authority-inventory.md"},
+            {"title": "Shared review policy", "publication": "policy", "document": "review-policy", "destination": "policy/review-policy.md"},
+            {"title": "External artifact intake", "publication": "policy", "document": "external-artifact-intake", "destination": "policy/external-artifact-intake.md"},
+            {"title": "Regression prevention", "publication": "policy", "document": "regression-prevention", "destination": "policy/regression-prevention.md"},
+            {"title": "Bootstrap model", "publication": "policy", "document": "bootstrap-model", "destination": "policy/bootstrap-model.md"},
+            {"title": "Threat model", "publication": "policy", "document": "threat-model", "destination": "policy/threat-model.md"}
+          ]
+        },
         {
           "title": "Architecture decisions",
           "children": [
-            {"title": "ADR index", "publication": "policy", "document": "adr-index", "destination": "policy/adr/index.md"},
-            {"title": "Repository adoption", "publication": "policy", "document": "adr-repository-adoption", "destination": "policy/adr/0002-repository-adoption.md"},
-            {"title": "Application-neutral policy scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
-            {"title": "Integrated bootstrap skill", "publication": "policy", "document": "adr-integrated-bootstrap-skill", "destination": "policy/adr/0004-integrated-bootstrap-skill.md"},
-            {"title": "Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
-            {"title": "Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
-            {"title": "Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
+            {"title": "Overview", "publication": "policy", "document": "adr-index", "destination": "policy/adr/index.md"},
+            {"title": "ADR-0002 Repository adoption", "publication": "policy", "document": "adr-repository-adoption", "destination": "policy/adr/0002-repository-adoption.md"},
+            {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
+            {"title": "ADR-0004 Integrated bootstrap skill", "publication": "policy", "document": "adr-integrated-bootstrap-skill", "destination": "policy/adr/0004-integrated-bootstrap-skill.md"},
+            {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
+            {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
+            {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
           ]
         }
       ]
