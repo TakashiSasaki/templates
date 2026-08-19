@@ -97,6 +97,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "composition/index.md",
         )
         self.assertEqual(
+            indexed[("composition", "consumer-guide")],
+            "composition/use/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "composer-reference")],
+            "composition/reference/composer.md",
+        )
+        self.assertEqual(
             indexed[("composition", "skill-overview")],
             "skill/index.md",
         )
@@ -122,6 +130,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         self.assertEqual(publications, {"site", "composition", "policy"})
         self.assertNotIn("skill", publications)
         self.assertNotIn("webapp", publications)
+
+        composition_group = next(
+            node for node in manifest["navigation"] if node["title"] == "Composition"
+        )
+        self.assertEqual(
+            [child["title"] for child in composition_group["children"][:4]],
+            ["Overview", "Use Composition", "Composer reference", "Documentation index"],
+        )
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]
         for title in (
