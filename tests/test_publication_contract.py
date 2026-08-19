@@ -10,7 +10,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
+GUIDED_INDEX_PATHS = [
+    "components/artifact.skill-core/files/docs/index.md",
+    "components/artifact.webapp-core/files/docs/index.md",
+    "docs/index.md",
+]
 GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
+LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 def load_validator():
@@ -68,11 +74,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         index_paths = sorted(ROOT.rglob("index.md"))
         self.assertEqual(
             [path.relative_to(ROOT).as_posix() for path in index_paths],
-            [
-                "components/artifact.skill-core/files/docs/index.md",
-                "components/artifact.webapp-core/files/docs/index.md",
-                "docs/index.md",
-            ],
+            GUIDED_INDEX_PATHS,
         )
         for index_path in index_paths:
             for number, raw_line in enumerate(
@@ -93,17 +95,17 @@ class CompositionPublicationContractTests(unittest.TestCase):
                     )
 
     def test_guided_index_local_links_remain_inside_source_and_exist(self):
-        index_path = ROOT / "docs" / "index.md"
-        text = index_path.read_text(encoding="utf-8")
-        links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
-        self.assertTrue(links)
-        for target in links:
-            with self.subTest(target=target):
-                self.assertFalse(target.startswith(("http://", "https://", "/")))
-                path = (index_path.parent / target).resolve()
-                path.relative_to(ROOT.resolve())
-                self.assertTrue(path.exists(), target)
-                self.assertFalse(path.is_symlink(), target)
+        for relative_index in GUIDED_INDEX_PATHS:
+            index_path = ROOT / relative_index
+            links = LINK_TARGET.findall(index_path.read_text(encoding="utf-8"))
+            self.assertTrue(links, relative_index)
+            for target in links:
+                with self.subTest(index=relative_index, target=target):
+                    self.assertFalse(target.startswith(("http://", "https://", "/")))
+                    path = (index_path.parent / target).resolve()
+                    path.relative_to(ROOT.resolve())
+                    self.assertTrue(path.exists(), target)
+                    self.assertFalse(path.is_symlink(), target)
 
 
 if __name__ == "__main__":
