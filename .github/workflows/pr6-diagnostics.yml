@@ -20,10 +20,10 @@ jobs:
         with:
           path: site-source
 
-      - name: Check out locked Composition provider
+      - name: Check out Composition candidate
         uses: actions/checkout@v7
         with:
-          ref: af5712208e88b3fcd7db744503ae3ffa32414da7
+          ref: 95e678fb84248d0e78a345eb3d165c5c959eee3f
           path: composition-source
 
       - name: Check out locked Policy provider
@@ -94,3 +94,11 @@ jobs:
           status=$?
           tail -n 200 zensical.log
           exit "$status"
+
+      - name: Generate index navigation graph
+        run: |
+          python site-source/scripts/run_composition_navigation.py graph \
+            --repository "$GITHUB_REPOSITORY" \
+            --output build/index-navigation.json \
+            --provider composition=composition-source \
+            --provider policy=policy-source
