@@ -26,7 +26,7 @@ READER_BASENAMES = {
     "WEB_INTERFACE.md",
     "SERVICE_INTERFACE.md",
 }
-IGNORED_MARKDOWN_DISCOVERY_DIRS = {
+IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS = {
     ".git",
     ".mypy_cache",
     ".pytest_cache",
@@ -98,6 +98,10 @@ def resolve_regular(relative: PurePosixPath, field: str) -> Path:
 
 def paths_overlap(first: PurePosixPath, second: PurePosixPath) -> bool:
     return first == second or first in second.parents or second in first.parents
+
+
+def is_ignored_root_execution_path(relative: PurePosixPath) -> bool:
+    return bool(relative.parts) and relative.parts[0] in IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS
 
 
 def walk_asset(relative: PurePosixPath, field: str) -> list[Path]:
@@ -223,7 +227,7 @@ def parse_publication_classification() -> dict[PurePosixPath, str]:
         source = safe_path(raw["source"], f"{field}.source")
         if source.suffix.lower() != ".md":
             raise PublicationError(f"{field}.source must be Markdown")
-        if any(part in IGNORED_MARKDOWN_DISCOVERY_DIRS for part in source.parts):
+        if is_ignored_root_execution_path(source):
             raise PublicationError(f"{field}.source must be repository source Markdown")
         reason = raw["reason"]
         if not isinstance(reason, str) or not reason.strip():
@@ -241,9 +245,9 @@ def discover_repository_markdown() -> set[PurePosixPath]:
     while pending:
         directory = pending.pop()
         for child in sorted(directory.iterdir(), key=lambda item: item.name):
-            if child.is_dir() and child.name in IGNORED_MARKDOWN_DISCOVERY_DIRS:
-                continue
             relative = PurePosixPath(child.relative_to(ROOT).as_posix())
+            if child.is_dir() and is_ignored_root_execution_path(relative):
+                continue
             if child.is_symlink():
                 raise PublicationError(
                     f"repository Markdown discovery must not traverse symlink: {relative}"

@@ -79,6 +79,34 @@ class CompositionPublicationContractTests(unittest.TestCase):
         )
         self.assertTrue(all(reason.strip() for reason in exclusions.values()))
 
+    def test_only_root_execution_state_directories_are_ignored(self):
+        validator = load_validator()
+        self.assertTrue(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath(".venv/lib/README.md")
+            )
+        )
+        self.assertTrue(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath(".pytest_cache/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("components/example/files/.venv/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("docs/__pycache__/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("node_modules/README.md")
+            )
+        )
+
     def test_unclassified_markdown_fails_closed(self):
         validator = load_validator()
         published = {PurePosixPath("README.md")}
