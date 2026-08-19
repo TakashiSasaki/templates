@@ -1,7 +1,5 @@
 # Composition documentation index
 
-Use this index to inspect the composition source by responsibility rather than by repository path. The production component catalog remains the machine authority; this page is the provider-owned progressive-disclosure path used by humans and guided navigation.
-
 ## Start here
 
 - [Composition source overview](../README.md) — current migration state, recipes, composer operations, and authority boundaries.
@@ -49,5 +47,3 @@ Use this index to inspect the composition source by responsibility rather than b
 
 - [Production catalog guide](../catalog/README.md) — catalog closure rules and path conventions.
 - [Composition schema guide](../schemas/README.md) — component, recipe, configuration, lock, and catalog schema responsibilities.
-
-Machine-readable descriptors, recipes, schemas, seed contracts, and contract schemas are declared as publication assets in `publication-catalog.json`; they are addresses/contracts rather than primary reader navigation.
