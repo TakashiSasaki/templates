@@ -63,7 +63,7 @@ python scripts/bootstrap.py \
   --apply
 ```
 
-The pinned toolchain may use `agent-policy init` internally as the fresh-adoption primitive, then requires `validate` and `check` to succeed through the same runtime. Initialization is not a separate user-facing operation.
+The pinned toolchain may use `agent-policy init` internally as the fresh-adoption primitive, then requires `validate` and `check` to succeed through the same runtime. Initialization is not a separate user-facing onboarding operation.
 
 The main files created are:
 
