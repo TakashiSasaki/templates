@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "status": "active",
-  "reason": "composition authority migration and Site publication cutover completed; Skill and Webapp remain distinct artifact semantics under one composition provider",
-  "locked_composition_revision": "49ad63e2d570fffdc9cd4365c65e566315fe9a6a",
+  "reason": "composition authority migration, Site publication cutover, and legacy Skill/Webapp branch retirement readiness completed; Skill and Webapp remain distinct artifact semantics under one composition provider",
+  "locked_composition_revision": "353ffd49279618a23efa1892d703e8f1de6c0c4a",
   "completed_conditions": [
     "the composition branch owns the production artifact, capability, lifecycle, recipe, schema, composer, and publication contracts",
     "site locks the reviewed composition publication merge commit by full SHA",
     "the integrated Site publishes composition and policy as the external provider set while retaining reader-facing Skill and Webapp artifact groups",
+    "legacy skill and webapp branch refs are historical-only and are not required by active Site publication, build, deployment, or the pinned Policy installer release",
     "site-only deployment authority remains confined to a push of the site branch"
   ]
 }
