@@ -137,8 +137,11 @@ Repository trees and inline previews cover the exact Composition and Policy
 provider revisions. The source browser covers `site`, `composition`, and
 `policy`. These are bounded build-time views, not cataloged-document ownership.
 
-Symlinks and gitlinks are never followed. Text preview surfaces remain bounded by
-size/encoding/safety rules and immutable source links remain available.
+Symlinks and gitlinks are never followed. Eligible preview content is read from
+immutable Git blob objects, must be strict UTF-8 text, and is capped at 256 KiB.
+Preview content is rendered only inside a sandboxed inline frame; source text is
+escaped and is never injected into the trusted parent DOM. Entries that do not
+meet the preview boundary retain immutable source links instead.
 
 The former Skill/Webapp copyable-template trees are retired. Source inspection
 must present the Composition source tree rather than regenerate the abandoned
