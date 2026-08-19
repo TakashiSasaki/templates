@@ -46,11 +46,25 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertEqual(len(homes), 1)
         self.assertEqual(homes[0]["source"], "README.md")
         sources = {entry["source"] for entry in catalog["documents"]}
+        self.assertIn("docs/consumer-guide.md", sources)
+        self.assertIn("docs/reference/composer.md", sources)
         self.assertIn("components/artifact.skill-core/files/SKILL.md", sources)
         self.assertIn("components/artifact.webapp-core/files/TEMPLATE.md", sources)
         self.assertIn("components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md", sources)
         self.assertNotIn("template/SKILL.md", sources)
         self.assertNotIn("template/README.md", sources)
+
+    def test_consumer_docs_are_primary_entry_points(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("[Using Composition](docs/consumer-guide.md)", readme)
+        self.assertIn("[Composer reference](docs/reference/composer.md)", readme)
+
+        index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+        consumer_position = index.index("[Using Composition](consumer-guide.md)")
+        reference_position = index.index("[Composer reference](reference/composer.md)")
+        architecture_position = index.index("## Composition architecture")
+        self.assertLess(consumer_position, architecture_position)
+        self.assertLess(reference_position, architecture_position)
 
     def test_catalog_guide_uses_current_managed_lifecycle(self):
         guide = (ROOT / "catalog" / "README.md").read_text(encoding="utf-8")
