@@ -2,11 +2,20 @@
 
 ## Start here
 
-- [Composition source overview](../README.md) — current migration state, recipes, composer operations, and authority boundaries.
-- [Publication boundary](publication-catalog.md) — what this provider exposes to the integrated documentation site and why.
+- [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
+- [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
+- [Composition source overview](../README.md) — current authority, recipes, lifecycle summary, and repository-level Composition context.
+
+## Composition architecture
+
 - [Composition model](architecture/composition-model.md) — artifact, capability, lifecycle, ownership, intent, and lock semantics.
-- [Composer MVP](architecture/composer-mvp.md) — resolver precedence, plan/apply safety, trust boundaries, and consumer validation.
+- [Composer MVP](architecture/composer-mvp.md) — resolver precedence, plan/apply safety, trust boundaries, managed reconciliation, and recovery protocol.
 - [Production catalog architecture](architecture/catalog.md) — closed component and recipe inventory.
+- [Generated contract manifest](architecture/generated-contract-manifest.md) — deterministic generated contract registry architecture.
+
+## Publication boundary
+
+- [Publication boundary](publication-catalog.md) — what this provider exposes to the integrated documentation site and why.
 
 ## Agent Skill artifact
 
@@ -46,4 +55,4 @@
 ## Machine-readable authorities
 
 - [Production catalog guide](../catalog/README.md) — catalog closure rules and path conventions.
-- [Composition schema guide](../schemas/README.md) — component, recipe, configuration, lock, and catalog schema responsibilities.
+- [Composition schema guide](../schemas/README.md) — component, recipe, configuration, lock, transaction, and catalog schema responsibilities.
