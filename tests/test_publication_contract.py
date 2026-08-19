@@ -63,6 +63,21 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertNotIn("templates-webapp-template-distribution-artifact", ids)
         self.assertNotIn("templates-skill-mcp-extension", ids)
 
+    def test_guided_index_uses_restricted_navigation_shape(self):
+        index_path = ROOT / "docs" / "index.md"
+        for number, raw_line in enumerate(
+            index_path.read_text(encoding="utf-8").splitlines(),
+            start=1,
+        ):
+            line = raw_line.strip()
+            if not line:
+                continue
+            with self.subTest(line=number):
+                self.assertTrue(
+                    line.startswith("#") or line.startswith("- ["),
+                    f"unsupported guided index content at line {number}: {raw_line!r}",
+                )
+
     def test_guided_index_local_links_remain_inside_source_and_exist(self):
         index_path = ROOT / "docs" / "index.md"
         text = index_path.read_text(encoding="utf-8")
