@@ -25,6 +25,12 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                     "optional": False,
                     "home": False,
                 },
+                {
+                    "id": "skill-docs",
+                    "source": "components/artifact.skill-core/files/docs/index.md",
+                    "optional": False,
+                    "home": False,
+                },
             ],
             "assets": [
                 {
@@ -55,6 +61,12 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                     "document": "runtime",
                     "destination": "capabilities/runtime/index.md",
                 },
+                {
+                    "title": "Skill docs",
+                    "publication": "composition",
+                    "document": "skill-docs",
+                    "destination": "skill/docs/index.md",
+                },
             ],
         }
         root.mkdir(parents=True, exist_ok=True)
@@ -75,6 +87,9 @@ class PublicationLinkRewriterTests(unittest.TestCase):
             runtime = provider / "components/capability.runtime/files/RUNTIME.md"
             runtime.parent.mkdir(parents=True, exist_ok=True)
             runtime.write_text("# Runtime\n", encoding="utf-8")
+            skill_docs = provider / "components/artifact.skill-core/files/docs/index.md"
+            skill_docs.parent.mkdir(parents=True, exist_ok=True)
+            skill_docs.write_text("# Skill docs\n", encoding="utf-8")
             catalog_asset = provider / "catalog/catalog.json"
             catalog_asset.parent.mkdir(parents=True, exist_ok=True)
             catalog_asset.write_text("{}\n", encoding="utf-8")
@@ -83,6 +98,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
 
 [Runtime](../components/capability.runtime/files/RUNTIME.md?mode=1#decision)
 [Runtime angle](<../components/capability.runtime/files/RUNTIME.md#angle>)
+[Skill docs](../components/artifact.skill-core/files/docs/)
 [Catalog](../catalog/catalog.json)
 [External](https://example.com/docs.md)
 [Mail](mailto:docs@example.com)
@@ -107,6 +123,9 @@ class PublicationLinkRewriterTests(unittest.TestCase):
             runtime_output = output / "docs/capabilities/runtime/index.md"
             runtime_output.parent.mkdir(parents=True, exist_ok=True)
             runtime_output.write_text("# Runtime\n", encoding="utf-8")
+            skill_docs_output = output / "docs/skill/docs/index.md"
+            skill_docs_output.parent.mkdir(parents=True, exist_ok=True)
+            skill_docs_output.write_text("# Skill docs\n", encoding="utf-8")
             asset_output = output / "docs/composition/machine/catalog.json"
             asset_output.parent.mkdir(parents=True, exist_ok=True)
             asset_output.write_text("{}\n", encoding="utf-8")
@@ -117,7 +136,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 output,
             )
 
-            self.assertEqual(count, 4)
+            self.assertEqual(count, 5)
             published = overview_output.read_text(encoding="utf-8")
             self.assertIn(
                 "[Runtime](../../capabilities/runtime/index.md?mode=1#decision)",
@@ -127,6 +146,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 "[Runtime angle](<../../capabilities/runtime/index.md#angle>)",
                 published,
             )
+            self.assertIn("[Skill docs](../../skill/docs/index.md)", published)
             self.assertIn("[Catalog](../machine/catalog.json)", published)
             self.assertIn(
                 "[run]: ../../capabilities/runtime/index.md#reference",
