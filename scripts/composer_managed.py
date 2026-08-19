@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -520,51 +519,3 @@ def plan_update(target: Path) -> tuple[int, dict[str, Any]]:
         "lock_preview": lock_preview,
     }
     return (0 if not conflicts else 2), payload
-
-
-def command_apply_update(target: Path) -> tuple[int, dict[str, Any]]:
-    status, plan = plan_update(target)
-    if status != 0:
-        return status, plan
-    return 2, {
-        "status": "error",
-        "code": "UPDATE_APPLY_NOT_IMPLEMENTED",
-        "message": "read-only update planning is implemented; update mutation is not implemented yet",
-        "target": str(target),
-    }
-
-
-def _emit(payload: dict[str, Any]) -> None:
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    for name in ("plan", "apply"):
-        subparser = subparsers.add_parser(name)
-        subparser.add_argument("--mode", choices=("update", "upgrade"), required=True)
-        subparser.add_argument("--target", required=True, type=Path)
-        subparser.add_argument("--config", type=Path)
-    args = parser.parse_args()
-    try:
-        if args.mode == "upgrade":
-            raise ManagedPlanError(
-                "UPGRADE_NOT_IMPLEMENTED",
-                "explicit upgrade semantics are not implemented yet",
-            )
-        if args.config is not None:
-            raise ManagedPlanError(
-                "UPDATE_CONFIG_NOT_ALLOWED",
-                "update preserves lock intent and therefore does not accept --config; use upgrade for intent changes",
-            )
-        target = args.target.absolute()
-        if args.command == "plan":
-            status, payload = plan_update(target)
-        else:
-            status, payload = command_apply_update(target)
-    except core.CompositionError as exc:
-        _emit({"status": "error", "code": exc.code, "message": exc.message})
-        return 2
-    _emit(payload)
-    return status

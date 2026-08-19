@@ -8,7 +8,12 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPOSER = ROOT / "scripts" / "compose.py"
+SCRIPTS = ROOT / "scripts"
+COMPOSER = SCRIPTS / "compose.py"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+import composer_managed as managed
 
 
 class ComposerDispatchTests(unittest.TestCase):
@@ -25,6 +30,11 @@ class ComposerDispatchTests(unittest.TestCase):
         except json.JSONDecodeError as exc:
             self.fail(f"composer did not emit JSON: {exc}\n{result.stdout}\n{result.stderr}")
         return result, payload
+
+    def test_managed_planner_module_has_no_standalone_cli(self) -> None:
+        self.assertTrue(callable(managed.plan_update))
+        self.assertFalse(hasattr(managed, "command_apply_update"))
+        self.assertFalse(hasattr(managed, "main"))
 
     def test_flag_first_initial_and_update_dispatch_match_command_first_behavior(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
