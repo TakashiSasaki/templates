@@ -11,6 +11,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = ROOT / "docs" / "publication-catalog.json"
+CLASSIFICATION_PATH = ROOT / "docs" / "publication-classification.json"
 GLOSSARY_PATH = ROOT / "docs" / "glossary.yml"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TERM_RE = re.compile(r"^(?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -24,6 +25,14 @@ READER_BASENAMES = {
     "MCP_APPS.md",
     "WEB_INTERFACE.md",
     "SERVICE_INTERFACE.md",
+}
+IGNORED_MARKDOWN_DISCOVERY_DIRS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
 }
 OBSOLETE_TERM_IDS = {
     "templates-skill-mcp-extension",
@@ -194,6 +203,96 @@ def parse_catalog() -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], Pu
     return documents, assets, glossary_source
 
 
+def parse_publication_classification() -> dict[PurePosixPath, str]:
+    data = strict_json(CLASSIFICATION_PATH, "publication classification")
+    if set(data) != {"schema_version", "excluded_markdown"}:
+        raise PublicationError(
+            "publication classification must contain schema_version and excluded_markdown"
+        )
+    if data.get("schema_version") != 1 or type(data.get("schema_version")) is not int:
+        raise PublicationError("publication classification schema_version must be integer 1")
+    raw_exclusions = data.get("excluded_markdown")
+    if not isinstance(raw_exclusions, list):
+        raise PublicationError("publication classification excluded_markdown must be an array")
+
+    exclusions: dict[PurePosixPath, str] = {}
+    for index, raw in enumerate(raw_exclusions):
+        field = f"excluded_markdown[{index}]"
+        if not isinstance(raw, dict) or set(raw) != {"source", "reason"}:
+            raise PublicationError(f"{field} must contain source and reason")
+        source = safe_path(raw["source"], f"{field}.source")
+        if source.suffix.lower() != ".md":
+            raise PublicationError(f"{field}.source must be Markdown")
+        if any(part in IGNORED_MARKDOWN_DISCOVERY_DIRS for part in source.parts):
+            raise PublicationError(f"{field}.source must be repository source Markdown")
+        reason = raw["reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            raise PublicationError(f"{field}.reason must be non-empty")
+        if source in exclusions:
+            raise PublicationError(f"duplicate excluded Markdown source: {source}")
+        resolve_regular(source, f"{field}.source")
+        exclusions[source] = reason.strip()
+    return exclusions
+
+
+def discover_repository_markdown() -> set[PurePosixPath]:
+    discovered: set[PurePosixPath] = set()
+    pending = [ROOT]
+    while pending:
+        directory = pending.pop()
+        for child in sorted(directory.iterdir(), key=lambda item: item.name):
+            if child.is_dir() and child.name in IGNORED_MARKDOWN_DISCOVERY_DIRS:
+                continue
+            relative = PurePosixPath(child.relative_to(ROOT).as_posix())
+            if child.is_symlink():
+                raise PublicationError(
+                    f"repository Markdown discovery must not traverse symlink: {relative}"
+                )
+            if child.is_dir():
+                pending.append(child)
+                continue
+            if child.is_file() and child.suffix.lower() == ".md":
+                discovered.add(relative)
+    return discovered
+
+
+def validate_markdown_partition(
+    published: set[PurePosixPath],
+    excluded: set[PurePosixPath],
+    discovered: set[PurePosixPath],
+) -> None:
+    overlap = sorted(path.as_posix() for path in published & excluded)
+    if overlap:
+        raise PublicationError(
+            "Markdown must not be both published and explicitly excluded: "
+            + ", ".join(overlap)
+        )
+    missing = sorted(path.as_posix() for path in discovered - published - excluded)
+    if missing:
+        raise PublicationError(
+            "repository Markdown lacks explicit publication classification: "
+            + ", ".join(missing)
+        )
+    unknown = sorted(path.as_posix() for path in (published | excluded) - discovered)
+    if unknown:
+        raise PublicationError(
+            "Markdown publication classification references undiscovered source: "
+            + ", ".join(unknown)
+        )
+
+
+def validate_markdown_classification(
+    documents: dict[str, dict[str, Any]],
+    exclusions: dict[PurePosixPath, str],
+) -> None:
+    published = {entry["source"] for entry in documents.values()}
+    validate_markdown_partition(
+        published,
+        set(exclusions),
+        discover_repository_markdown(),
+    )
+
+
 def asset_covers(assets: list[dict[str, Any]], relative: PurePosixPath) -> bool:
     for asset in assets:
         source = asset["source"]
@@ -301,7 +400,9 @@ def validate_glossary(glossary_source: PurePosixPath) -> None:
 
 def validate_publication_root() -> None:
     documents, assets, glossary_source = parse_catalog()
+    exclusions = parse_publication_classification()
     validate_reader_coverage(documents)
+    validate_markdown_classification(documents, exclusions)
     validate_machine_coverage(assets)
     validate_glossary(glossary_source)
 
