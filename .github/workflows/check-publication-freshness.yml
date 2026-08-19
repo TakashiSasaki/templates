@@ -1,0 +1,141 @@
+name: Check publication freshness
+
+# The reviewed publication lock remains the release input. A different current
+# Composition HEAD is informational by itself; the compatibility signal is
+# whether that exact candidate revision passes the normal full Site build.
+on:
+  pull_request:
+    branches:
+      - site
+    paths:
+      - '.github/workflows/check-publication-freshness.yml'
+      - '.github/workflows/build-pages.yml'
+      - 'publication-sources.json'
+      - 'site-manifest.json'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - 'zensical.template.toml'
+  schedule:
+    - cron: '23 17 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publication-freshness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-latest
+    outputs:
+      site_revision: ${{ steps.site_revision.outputs.sha }}
+      composition_lock: ${{ steps.publication_refs.outputs.composition }}
+      composition_head: ${{ steps.composition_head.outputs.result }}
+      relation: ${{ steps.classify.outputs.relation }}
+
+    steps:
+      - name: Check out Site diagnostic implementation
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: site-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Capture exact Site revision
+        id: site_revision
+        env:
+          SITE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: echo "sha=$SITE_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve reviewed publication lock
+        id: publication_refs
+        run: |
+          python site-source/scripts/resolve_publication_sources.py \
+            --lock site-source/publication-sources.json \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Resolve current Composition HEAD
+        id: composition_head
+        uses: actions/github-script@v8
+        with:
+          result-encoding: string
+          script: |
+            const { data } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'composition',
+            });
+            return data.commit.sha;
+
+      - name: Classify publication freshness
+        id: classify
+        env:
+          LOCKED_COMPOSITION: ${{ steps.publication_refs.outputs.composition }}
+          CURRENT_COMPOSITION: ${{ steps.composition_head.outputs.result }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          locked = os.environ["LOCKED_COMPOSITION"]
+          current = os.environ["CURRENT_COMPOSITION"]
+          full_sha = re.compile(r"\A[0-9a-f]{40}\Z")
+          if not full_sha.fullmatch(locked):
+              raise SystemExit("locked Composition revision is not a full lowercase SHA")
+          if not full_sha.fullmatch(current):
+              raise SystemExit("current Composition HEAD is not a full lowercase SHA")
+          relation = "current" if locked == current else "different"
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"relation={relation}\n")
+          PY
+
+  candidate_build:
+    name: Build with current Composition HEAD
+    needs: resolve
+    uses: ./.github/workflows/build-pages.yml
+    with:
+      site_ref: ${{ needs.resolve.outputs.site_revision }}
+      composition_ref: ${{ needs.resolve.outputs.composition_head }}
+    permissions:
+      contents: read
+
+  report:
+    if: ${{ always() && needs.resolve.result == 'success' }}
+    needs:
+      - resolve
+      - candidate_build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Report publication freshness
+        env:
+          LOCKED_COMPOSITION: ${{ needs.resolve.outputs.composition_lock }}
+          CURRENT_COMPOSITION: ${{ needs.resolve.outputs.composition_head }}
+          RELATION: ${{ needs.resolve.outputs.relation }}
+          CANDIDATE_RESULT: ${{ needs.candidate_build.result }}
+        run: |
+          {
+            echo '## Composition publication freshness'
+            echo
+            echo "- reviewed Site lock: \`$LOCKED_COMPOSITION\`"
+            echo "- current Composition HEAD snapshot: \`$CURRENT_COMPOSITION\`"
+            echo "- lock/head relation: \`$RELATION\`"
+            echo "- full candidate Site build: \`$CANDIDATE_RESULT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$CANDIDATE_RESULT" != "success" ]; then
+            echo "::error::Current Composition HEAD does not pass the normal full Site publication build."
+            exit 1
+          fi
+
+          if [ "$RELATION" = "different" ]; then
+            echo "::warning::Composition publication lock differs from current Composition HEAD; the candidate build is compatible, but advancing the reviewed lock remains an explicit Site review decision."
+          fi
