@@ -119,6 +119,8 @@ def _rewrite_destination(
         return destination
 
     site_target = document_targets.get(source_target)
+    if site_target is None and raw_path.endswith("/"):
+        site_target = document_targets.get(source_target / "index.md")
     if site_target is None:
         site_target = _asset_target(source_target, asset_rules, docs_root)
     if site_target is None:
