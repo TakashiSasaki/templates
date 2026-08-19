@@ -45,7 +45,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
                     portal,
                 )
         self.assertIn("One reviewed Composition authority", portal)
-        self.assertIn("Composition and Policy by reviewed full commit SHA", portal)
+        self.assertIn("The Site locks both providers by full commit SHA", portal)
 
     def test_portal_overview_explains_two_provider_model(self) -> None:
         overview = PORTAL_OVERVIEW.read_text(encoding="utf-8")
