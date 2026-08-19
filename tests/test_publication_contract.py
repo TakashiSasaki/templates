@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts" / "validate_publication.py"
@@ -55,9 +55,83 @@ class CompositionPublicationContractTests(unittest.TestCase):
     def test_publication_assets_cover_closed_production_authorities(self):
         validator = load_validator()
         documents, assets, glossary = validator.parse_catalog()
+        exclusions = validator.parse_publication_classification()
         validator.validate_reader_coverage(documents)
+        validator.validate_markdown_classification(documents, exclusions)
         validator.validate_machine_coverage(assets)
         self.assertEqual(glossary.as_posix(), "docs/glossary.yml")
+
+    def test_all_repository_markdown_is_published_or_explicitly_excluded(self):
+        validator = load_validator()
+        documents, _, _ = validator.parse_catalog()
+        exclusions = validator.parse_publication_classification()
+        published = {entry["source"] for entry in documents.values()}
+        discovered = validator.discover_repository_markdown()
+
+        self.assertEqual(published | set(exclusions), discovered)
+        self.assertFalse(published & set(exclusions))
+        self.assertEqual(
+            set(exclusions),
+            {
+                PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
+                PurePosixPath("examples/README.md"),
+            },
+        )
+        self.assertTrue(all(reason.strip() for reason in exclusions.values()))
+
+    def test_only_root_execution_state_directories_are_ignored(self):
+        validator = load_validator()
+        self.assertTrue(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath(".venv/lib/README.md")
+            )
+        )
+        self.assertTrue(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath(".pytest_cache/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("components/example/files/.venv/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("docs/__pycache__/README.md")
+            )
+        )
+        self.assertFalse(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath("node_modules/README.md")
+            )
+        )
+
+    def test_unclassified_markdown_fails_closed(self):
+        validator = load_validator()
+        published = {PurePosixPath("README.md")}
+        discovered = published | {PurePosixPath("docs/guides/new-guide.md")}
+        with self.assertRaises(validator.PublicationError) as raised:
+            validator.validate_markdown_partition(published, set(), discovered)
+        self.assertIn("lacks explicit publication classification", str(raised.exception))
+        self.assertIn("docs/guides/new-guide.md", str(raised.exception))
+
+    def test_markdown_cannot_be_both_published_and_excluded(self):
+        validator = load_validator()
+        source = PurePosixPath("README.md")
+        with self.assertRaises(validator.PublicationError) as raised:
+            validator.validate_markdown_partition({source}, {source}, {source})
+        self.assertIn("both published and explicitly excluded", str(raised.exception))
+
+    def test_classification_cannot_reference_undiscovered_markdown(self):
+        validator = load_validator()
+        with self.assertRaises(validator.PublicationError) as raised:
+            validator.validate_markdown_partition(
+                {PurePosixPath("README.md")},
+                {PurePosixPath("removed/README.md")},
+                {PurePosixPath("README.md")},
+            )
+        self.assertIn("references undiscovered source", str(raised.exception))
 
     def test_glossary_is_strict_json_yaml_subset_and_drops_retired_copy_model(self):
         raw = (ROOT / "docs" / "glossary.yml").read_text(encoding="utf-8")

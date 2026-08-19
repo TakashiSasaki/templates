@@ -15,6 +15,21 @@ The `composition` branch owns one provider publication boundary for the reusable
 
 The publication home is the branch `README.md`. `docs/index.md` is the provider-owned progressive-disclosure root used by guided navigation.
 
+## Markdown classification boundary
+
+The catalog is an allowlist, but absence from the allowlist must also be intentional. `docs/publication-classification.json` therefore closes the maintenance boundary for repository-source Markdown without turning every Markdown file into reader publication.
+
+Every Markdown file in the Composition source tree must be exactly one of:
+
+1. **published** — its source path appears in `docs/publication-catalog.json` under `documents`; or
+2. **explicitly excluded** — its source path appears in `docs/publication-classification.json` with a non-empty maintenance reason.
+
+Local execution-state directories such as Git metadata, virtual environments, and tool caches are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, or a new top-level Markdown file therefore fails validation until its publication intent is classified explicitly.
+
+An exclusion does not suppress a known reader-facing requirement: the existing reader-coverage rules still require provider roots, architecture/migration documentation, schema/catalog guides, and reader material declared by production components to be published. A path also cannot be both published and excluded.
+
+The current explicit exclusions are operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`) and non-production executable-fixture guidance (`examples/README.md`). The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
+
 ## Machine-readable boundary
 
 Machine-readable source authorities are published as supporting assets rather than rendered documentation. The catalog includes:
@@ -51,6 +66,6 @@ Run:
 python scripts/validate_publication.py
 ```
 
-Validation is fail-closed for unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, undeclared reader documentation, missing production descriptors/schemas/recipes, Markdown hidden inside asset trees, malformed glossary records, and obsolete glossary IDs that would reintroduce the retired copyable-template model.
+Validation is fail-closed for unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, undeclared reader documentation, unclassified repository Markdown, published/excluded classification overlap, stale Markdown exclusions, missing production descriptors/schemas/recipes, Markdown hidden inside asset trees, malformed glossary records, and obsolete glossary IDs that would reintroduce the retired copyable-template model.
 
 Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. Subsequent Composition publication changes require an explicit reviewed Site pin-forward rather than any mutable branch reference.
