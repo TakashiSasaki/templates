@@ -280,7 +280,7 @@ def validate_materialized_files(root: Path, lock: dict[str, Any]) -> list[str]:
 def validate_repository(root: Path) -> list[str]:
     transaction_path = root / TRANSACTION_RELATIVE
     if transaction_path.exists() or transaction_path.is_symlink():
-        return [f"composition update transaction is present; recovery required: {TRANSACTION_RELATIVE}"]
+        return [f"composition transaction is present; recovery required: {TRANSACTION_RELATIVE}"]
     errors: list[str] = []
     lock_path = root / LOCK_RELATIVE
     if lock_path.is_symlink():

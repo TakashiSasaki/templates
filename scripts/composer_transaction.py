@@ -226,7 +226,10 @@ def _validate_action_against_locks(
         if old is None or new is None:
             raise TransactionError("INVALID_TRANSACTION", f"invalid replace transition for {destination}")
         if old["ownership"] not in {"managed", "generated"}:
-            raise TransactionError("INVALID_TRANSACTION", f"cannot replace old seed via update: {destination}")
+            raise TransactionError(
+                "INVALID_TRANSACTION",
+                f"managed transaction cannot replace seed-owned material: {destination}",
+            )
         if (
             old["component"] != new["component"]
             or old["ownership"] != new["ownership"]
@@ -241,7 +244,10 @@ def _validate_action_against_locks(
         if old is None or new is not None:
             raise TransactionError("INVALID_TRANSACTION", f"invalid remove transition for {destination}")
         if old["ownership"] not in {"managed", "generated"}:
-            raise TransactionError("INVALID_TRANSACTION", f"cannot remove seed via update: {destination}")
+            raise TransactionError(
+                "INVALID_TRANSACTION",
+                f"managed transaction cannot remove seed-owned material: {destination}",
+            )
         if (
             action["component"] != old["component"]
             or action["ownership"] != old["ownership"]

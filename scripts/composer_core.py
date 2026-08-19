@@ -731,7 +731,7 @@ def command_inspect(target: Path) -> tuple[int, dict[str, Any]]:
         return 2, {
             "state": "managed-interrupted",
             "target": str(target),
-            "errors": [f"composition update transaction is present: {TRANSACTION_RELATIVE}"],
+            "errors": [f"composition transaction is present; recovery required: {TRANSACTION_RELATIVE}"],
         }
     lock_path = target / LOCK_RELATIVE
     if not lock_path.exists() and not lock_path.is_symlink():
