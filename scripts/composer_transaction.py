@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import tempfile
@@ -174,14 +173,17 @@ def _create_expected(
 
 def _load_source_validator_module() -> ModuleType:
     core._assert_tracked_authority(core.SOURCE_CONSUMER_VALIDATOR)
-    spec = importlib.util.spec_from_file_location(
-        "composition_source_validator_for_transaction",
-        core.SOURCE_CONSUMER_VALIDATOR,
-    )
-    if spec is None or spec.loader is None:
-        raise TransactionError("VALIDATOR_UNAVAILABLE", "cannot load source composition validator")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    try:
+        source = core.SOURCE_CONSUMER_VALIDATOR.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise TransactionError("VALIDATOR_UNAVAILABLE", f"cannot read source composition validator: {exc}") from exc
+    module = ModuleType("composition_source_validator_for_transaction")
+    module.__file__ = str(core.SOURCE_CONSUMER_VALIDATOR)
+    try:
+        code = compile(source, str(core.SOURCE_CONSUMER_VALIDATOR), "exec")
+        exec(code, module.__dict__)
+    except Exception as exc:
+        raise TransactionError("VALIDATOR_UNAVAILABLE", f"cannot load source composition validator: {exc}") from exc
     return module
 
 
@@ -197,8 +199,7 @@ def _mutation_actions(plan: dict[str, Any]) -> list[dict[str, Any]]:
     actions: list[dict[str, Any]] = []
     for action_name in ("create", "replace", "remove"):
         for entry in plan["files"][action_name]:
-            action = {"action": action_name, **entry}
-            actions.append(action)
+            actions.append({"action": action_name, **entry})
     actions.sort(key=lambda entry: (entry["destination"], entry["action"]))
     return actions
 
@@ -307,13 +308,12 @@ def _desired_materials_for_transaction(
     managed._verify_source_transition(old_lock["source"]["revision"], state.revision)
     config = managed._intent_as_configuration(old_lock["intent"])
     recipe, selected = core.resolve_configuration(state, config)
-    components, component_conflicts = managed._component_plan(old_lock, state, selected)
+    _, component_conflicts = managed._component_plan(old_lock, state, selected)
     if component_conflicts:
         raise TransactionError(
             "INVALID_TRANSACTION",
             f"transaction crosses update compatibility boundary: {component_conflicts}",
         )
-    del components
     materials = core.build_materials(state, selected)
     carried_seed_digests = {
         entry["destination"]: entry["materialized_sha256"]
@@ -356,6 +356,7 @@ def _build_transaction(
     old_lock_bytes: bytes,
     old_lock: dict[str, Any],
 ) -> dict[str, Any]:
+    del target
     transaction = {
         "schema_version": 1,
         "operation": "update",
@@ -505,10 +506,7 @@ def _start_update(target: Path) -> tuple[int, dict[str, Any]]:
     marker_path = target / core.TRANSACTION_RELATIVE
     marker_bytes = _transaction_bytes(transaction)
     _write_no_overwrite_durable(target, marker_path, marker_bytes)
-    try:
-        payload = _apply_transaction(target, transaction, marker_bytes)
-    except core.CompositionError:
-        raise
+    payload = _apply_transaction(target, transaction, marker_bytes)
     payload["no_op"] = False
     return 0, payload
 
