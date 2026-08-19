@@ -11,15 +11,15 @@
 installer scriptのURL自体をimmutableなfull commit SHAで固定した公開済みinstallerを使用します。
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/3b87d15f37f02cb55ad29d7b577cd45dfd09e5bc/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/4db0e1d9a71385f572118407c585c56773bea8bc/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 既存の `agent-policy` skillを置換する場合だけ `--replace` を追加します。
 
 3種類のfull-SHA identityを意図的に分離します。
 
-- **installer script revision** `3b87d15f37f02cb55ad29d7b577cd45dfd09e5bc`: remoteで実行するinstallerを識別します。
-- **skill source revision** `a3946e2d1fcb9ae9d24f87d3f412a678dc81e1ce`: installされる `skills/agent-policy/` subtreeを識別します。
+- **installer script revision** `4db0e1d9a71385f572118407c585c56773bea8bc`: remoteで実行するinstallerを識別します。
+- **skill source revision** `27a3319a3785250236bee056fd917379c245aaef`: installされる `skills/agent-policy/` subtreeを識別します。
 - **stable runtime revision**: installed `runtime-manifest.json` 内のfull SHAで、skillがcanonical CLIを実行するときのruntimeを識別します。
 
 `release/skill-installer.json` は最初の2つのidentityを記録します。このcommandは `policy`、tag、短縮SHAを実行しません。
