@@ -49,7 +49,7 @@ First inspect the target:
 python scripts/compose.py inspect --target /path/to/repository
 ```
 
-For a new target, `absent` or `unmanaged` is expected. If the state is already `managed-valid`, use `update` or `upgrade` instead of initial composition.
+For a new target, `absent` or `unmanaged` is expected. If `inspect` reports any managed state, do not fall back to initial composition merely because validation failed: `managed-valid` should use `update` or `upgrade`, `managed-interrupted` should be recovered first, and `managed-invalid` should be diagnosed and repaired before retrying the appropriate managed operation. Initial composition refuses a pre-existing Composition lock.
 
 Plan before applying:
 
