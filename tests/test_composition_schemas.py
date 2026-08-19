@@ -10,6 +10,8 @@ from jsonschema.exceptions import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_DESTINATION = ".template-composition/lock.json"
+TRANSACTION_DESTINATION = ".template-composition/transaction.json"
+STAGING_DESTINATION = ".template-composition/staging"
 SCHEMAS = {
     "component": ROOT / "schemas" / "component.schema.json",
     "recipe": ROOT / "schemas" / "recipe.schema.json",
@@ -42,13 +44,20 @@ def validate_portable_path(path: str) -> None:
 
 
 def validate_portable_destinations(destinations: list[str]) -> None:
-    lock_path = normalized_path(LOCK_DESTINATION)
+    reserved_files = (
+        normalized_path(LOCK_DESTINATION),
+        normalized_path(TRANSACTION_DESTINATION),
+    )
+    staging_path = normalized_path(STAGING_DESTINATION)
     normalized = [(destination, normalized_path(destination)) for destination in destinations]
     for destination, path in normalized:
         validate_portable_path(destination)
-        if path == lock_path[: len(path)] or lock_path == path[: len(lock_path)]:
+        if any(
+            path == reserved[: len(path)] or reserved == path[: len(reserved)]
+            for reserved in reserved_files
+        ) or path == staging_path or staging_path == path[: len(staging_path)]:
             raise ValueError(
-                f"materialized destination conflicts with reserved lock path: {destination!r}"
+                f"materialized destination conflicts with reserved Composer metadata: {destination!r}"
             )
     for index, (left_text, left) in enumerate(normalized):
         for right_text, right in normalized[index + 1 :]:
@@ -191,17 +200,21 @@ class CompositionSchemaTests(unittest.TestCase):
                 with self.assertRaises((ValidationError, ValueError)):
                     self.assert_schema_valid("component", value)
 
-    def test_component_rejects_reserved_lock_path_structural_conflicts(self) -> None:
+    def test_component_rejects_reserved_composer_metadata_conflicts(self) -> None:
         for destination in (
             ".Template-Composition/LOCK.json",
             ".template-composition",
             ".template-composition/lock.json/nested",
             ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
+            ".Template-Composition/TRANSACTION.json",
+            ".TEMPLATE-COMPOSITION/TRANSACTION.JSON/nested",
+            ".Template-Composition/STAGING",
+            ".TEMPLATE-COMPOSITION/STAGING/nested",
         ):
             value = copy.deepcopy(self.examples["component"])
             value["materials"][0]["destination"] = destination
             with self.subTest(destination=destination):
-                with self.assertRaises(ValueError):
+                with self.assertRaises((ValidationError, ValueError)):
                     self.assert_schema_valid("component", value)
 
     def test_component_rejects_unsafe_source(self) -> None:
@@ -373,13 +386,19 @@ class CompositionSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assert_schema_valid("lock", value)
 
-    def test_lock_rejects_its_reserved_destination(self) -> None:
+    def test_lock_rejects_reserved_composer_metadata_destination(self) -> None:
         for destination in (
             LOCK_DESTINATION,
             ".Template-Composition/LOCK.json",
             ".template-composition",
             ".template-composition/lock.json/nested",
             ".TEMPLATE-COMPOSITION/LOCK.JSON/nested",
+            TRANSACTION_DESTINATION,
+            ".Template-Composition/TRANSACTION.json",
+            ".TEMPLATE-COMPOSITION/TRANSACTION.JSON/nested",
+            STAGING_DESTINATION,
+            ".Template-Composition/STAGING",
+            ".TEMPLATE-COMPOSITION/STAGING/nested",
         ):
             value = copy.deepcopy(self.examples["lock"])
             value["files"][0]["destination"] = destination
