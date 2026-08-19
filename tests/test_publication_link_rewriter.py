@@ -29,7 +29,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
             "assets": [
                 {
                     "source": "catalog/catalog.json",
-                    "destination": "catalog/catalog.json",
+                    "destination": "machine/catalog.json",
                     "optional": False,
                 }
             ],
@@ -107,7 +107,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
             runtime_output = output / "docs/capabilities/runtime/index.md"
             runtime_output.parent.mkdir(parents=True, exist_ok=True)
             runtime_output.write_text("# Runtime\n", encoding="utf-8")
-            asset_output = output / "docs/composition/catalog/catalog.json"
+            asset_output = output / "docs/composition/machine/catalog.json"
             asset_output.parent.mkdir(parents=True, exist_ok=True)
             asset_output.write_text("{}\n", encoding="utf-8")
 
@@ -127,7 +127,7 @@ class PublicationLinkRewriterTests(unittest.TestCase):
                 "[Runtime angle](<../../capabilities/runtime/index.md#angle>)",
                 published,
             )
-            self.assertIn("[Catalog](../catalog/catalog.json)", published)
+            self.assertIn("[Catalog](../machine/catalog.json)", published)
             self.assertIn(
                 "[run]: ../../capabilities/runtime/index.md#reference",
                 published,
