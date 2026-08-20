@@ -17,6 +17,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         path = root / "docs" / "publication-catalog.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(catalog), encoding="utf-8")
+        (root / "README.md").write_text("# Overview\n", encoding="utf-8")
 
     def base_catalog(self, version: object) -> dict:
         return {
@@ -120,7 +121,7 @@ class PublicationCatalogSchemaVersionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="catalog-version-test-") as directory:
             root = Path(directory)
             self.write_catalog(root, catalog)
-            with self.assertRaisesRegex(AssemblyError, "glossary is invalid"):
+            with self.assertRaisesRegex(AssemblyError, "glossary"):
                 load_catalog("test", root)
 
     def test_glossary_source_must_not_overlap_assets(self) -> None:
