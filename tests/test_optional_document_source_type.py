@@ -74,7 +74,7 @@ class OptionalDocumentSourceTypeTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 AssemblyError,
-                "publication document must be a regular file",
+                "not a regular file",
             ):
                 assemble({"site": site}, site, output)
 
