@@ -20,14 +20,14 @@ concurrency:
 jobs:
   compatibility:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@8174c99c7d33b3aefaf22b43c4790826cf5a9756
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@3ae5d1e60c65e7a8ebf5f9af0436044484e42983
     with:
-      site_ref: 8174c99c7d33b3aefaf22b43c4790826cf5a9756
+      site_ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
       policy_ref: ${{ github.sha }}
     # The reusable workflow and Site source are pinned to the reviewed
-    # PR #309 Site merge commit. That Site revision uses the current
-    # composition + policy provider graph and publishes the canonical
-    # Policy–Composition coexistence contract. The Composition revision is
+    # PR #313 Site merge commit. That revision includes the current
+    # composition + policy provider lock and the Site-owned canonical
+    # schema-v3 publication protocol established by PR #313. Composition is
     # resolved from that Site revision's reviewed publication-sources lock.
     # For pull requests, github.sha is GitHub's proposed merge commit; for
     # workflow_dispatch it is the selected ref's exact commit. The called
