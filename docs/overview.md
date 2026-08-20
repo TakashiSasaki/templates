@@ -128,6 +128,15 @@ release evidence, and release handoff are reusable `lifecycle.*` components.
 The reader paths `/skill/`, `/webapp/`, `/capabilities/`, and `/lifecycle/`
 reflect these semantic boundaries rather than separate provider ownership.
 
+## Policy and Composition coexistence
+
+Policy and Composition are intentionally independent authorities even when both
+are adopted by the same consumer repository. Their coexistence contract is
+specified in [Policy–Composition coexistence](policy-composition-coexistence.md).
+The contract defines owned namespaces, prohibited dependencies, ownership
+handoffs, collision rules, and cross-authority invariants without introducing a
+third consumer-management tool.
+
 ## What is published
 
 Each external provider declares its public boundary in
