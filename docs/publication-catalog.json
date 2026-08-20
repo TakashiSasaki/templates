@@ -14,6 +14,12 @@
       "home": false
     },
     {
+      "id": "policy-composition-coexistence",
+      "source": "docs/policy-composition-coexistence.md",
+      "optional": false,
+      "home": false
+    },
+    {
       "id": "capabilities-overview",
       "source": "docs/capabilities.md",
       "optional": false,
