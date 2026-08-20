@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_provider_coexistence import _snapshot
+from scripts.validate_provider_coexistence import _absolute_without_resolving, _snapshot
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +52,22 @@ class ProviderCoexistenceIntegrationTests(unittest.TestCase):
         self.assertNotIn("policy_ref", workflow)
         self.assertNotIn("skill-source", workflow)
         self.assertNotIn("webapp-source", workflow)
+
+    def test_executable_path_preserves_virtualenv_symlink_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real = root / "python-real"
+            real.write_text("", encoding="utf-8")
+            venv = root / "venv" / "bin"
+            venv.mkdir(parents=True)
+            link = venv / "python"
+            link.symlink_to(real)
+
+            absolute = _absolute_without_resolving(link)
+
+            self.assertEqual(absolute, link)
+            self.assertTrue(absolute.is_symlink())
+            self.assertNotEqual(absolute, link.resolve())
 
     def test_snapshot_tracks_bytes_and_directory_membership_without_following_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
