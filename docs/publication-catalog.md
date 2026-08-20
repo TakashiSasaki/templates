@@ -17,13 +17,17 @@ cross-branch document identity is `policy:<document-id>`. Glossary term identity
 is independent of document identity and follows the repository-wide stable term
 ID contract.
 
-`site` owns the portal home page, navigation labels and ordering, generated
-destinations, the reviewed source-revision lock, the Zensical build, integrated
-glossary generation, and Pages deployment. `policy` continues to run only its
-branch-local documentation build and must not gain a Pages deployment route.
+`site` owns the generic schema-v3 publication protocol implementation as well as
+the portal home page, navigation labels and ordering, generated destinations,
+the reviewed source-revision lock, the Zensical build, integrated glossary
+generation, and Pages deployment. Policy consumes the generic protocol from a
+reviewed full Site commit SHA; it does not maintain a second parser, path
+validator, or asset-tree implementation.
 
-The catalog field `home: true` identifies the landing document for the
-`policy` section. It does not select the global portal home.
+`policy` continues to run only its branch-local documentation build and must not
+gain a Pages deployment route. The catalog field `home: true` identifies the
+landing document for the `policy` section. It does not select the global portal
+home.
 
 ## Canonical language and translations
 
@@ -51,10 +55,10 @@ authority relationship and keeping the English document canonical.
 
 ## Schema version
 
-The provider validator accepts only integer schema version `3`. Legacy
-publication-catalog schema versions `1` and `2` are retired and fail closed.
-Schema version `3` defines the current Markdown document and explicit asset
-contracts and additionally permits one canonical glossary declaration:
+The Site-owned generic publication protocol accepts only integer schema version
+`3`. Legacy publication-catalog schema versions `1` and `2` are retired and fail
+closed. Schema version `3` defines the current Markdown document and explicit
+asset contracts and additionally permits one canonical glossary declaration:
 
 ```json
 {
@@ -106,19 +110,35 @@ escape the declared source root.
 
 ## Validation
 
-Run the validators from the repository root:
+The canonical generic validator is Site's stdlib-only
+`scripts/publication_contract.py`. Policy documentation CI consumes the exact
+implementation merged by Site PR #313 at full commit SHA
+`3ae5d1e60c65e7a8ebf5f9af0436044484e42983`. The workflow sparse-checks out
+that immutable revision and runs it against the Policy source root; it never
+executes a mutable `site` branch tip.
+
+For local reproduction, make a separate checkout of that exact Site revision
+available at a path of your choice, then run:
 
 ```sh
-python scripts/validate_publication_catalog.py
-python -m scripts.validate_publication_catalog
+SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/site-checkout-at-3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" \
+  --source-root . \
+  --catalog docs/publication-catalog.json
 python scripts/validate_translations.py
 ```
 
-The publication validator rejects duplicate JSON members, unsupported fields,
+The generic protocol rejects duplicate JSON members, unsupported fields,
 unsafe or symbolic-link paths, duplicate IDs and destinations, invalid home
 declarations, missing required sources, any catalog schema version other than
-integer `3`, malformed glossary declarations, and glossary/asset source
-overlap.
+integer `3`, malformed glossary declarations, Markdown smuggling through asset
+trees, and glossary/asset source overlap. Those rules are defined and tested by
+Site rather than copied into Policy.
+
+Policy-owned tests continue to verify Policy-specific declarations and semantics,
+including the expected Policy landing document, glossary declaration,
+translation relationships, reader/navigation structure, and documentation build
+boundary.
 
 The Site build independently parses and validates the glossary content itself,
 including its schema, stable term IDs, localized labels, external authority
