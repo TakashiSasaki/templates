@@ -147,6 +147,16 @@ Artifact semantics and reusable application/lifecycle concerns remain separate. 
 
 The production catalog is closed and validated for dependency existence/acyclicity, source inventory, registration ownership, deterministic generated material input, portable destination ownership, and materialized Skill/Webapp validation.
 
+### Policy coexistence
+
+Coding-agent operating policy is a separate `policy` authority. Composition does not interpret Policy profiles, `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`, and Composer never invokes the `agent-policy` CLI. Policy adoption is therefore not represented by `capability.agent-policy` or any other production Composition component.
+
+The Policy-owned paths `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**` are foreign reserved destinations for Composition. Component descriptors, resolved locks, managed transactions, and the self-contained consumer validator reject attempts to claim them. Existing Policy metadata that is unrelated to a Composition material destination is left unchanged by initial, update, upgrade, validation, and recovery behavior.
+
+Ordinary repository paths are not made globally exclusive by this rule. In particular, the Skill artifact materializes `AGENTS.md` as `seed`; after initial materialization it is consumer-owned and Composition update/upgrade preserves later consumer or Policy-adoption edits. Conversely, if a Policy-managed repository already contains a different `AGENTS.md`, Composition initial fails closed rather than inferring a reverse ownership transfer.
+
+The canonical cross-authority rules are maintained by Site in the [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/). This branch defines only Composition's provider-local enforcement and does not duplicate Policy semantics or create a shared lock, transaction, or management plane.
+
 ## Managed-state safety rules
 
 Composition is not a general-purpose merge engine.
