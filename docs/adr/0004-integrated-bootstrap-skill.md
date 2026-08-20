@@ -1,5 +1,7 @@
 # ADR-0004: Integrate the bootstrap trust seed into the policy branch
 
+> Historical record. This decision is superseded by ADR-0007 and must not be used as the current Policy architecture.
+
 - Status: Superseded by ADR-0007
 - Date: 2026-08-01
 
