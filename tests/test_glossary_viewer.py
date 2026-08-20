@@ -38,6 +38,11 @@ class GlossaryViewerTests(unittest.TestCase):
         self.assertLess(page.index('id="provider-composition"'), page.index('id="provider-policy"'))
         self.assertNotIn('id="provider-skill"', page)
         self.assertNotIn('id="provider-webapp"', page)
+    def test_inline_popup_uses_current_provider_labels(self) -> None:
+        script=(Path(__file__).resolve().parents[1]/"assets/javascripts/glossary-inline.js").read_text(encoding="utf-8")
+        self.assertIn('composition: "Composition"', script)
+        self.assertNotIn('skill: "Skill"', script)
+        self.assertNotIn('webapp: "Webapp"', script)
     def test_related_terms_use_stable_id_anchors(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             page = render(load_model(self.write_model(Path(directory))))
