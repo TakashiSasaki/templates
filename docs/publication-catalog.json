@@ -40,9 +40,7 @@
     {"id":"implementation-evidence","source":"components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md","optional":false,"home":false},
     {"id":"release-evidence","source":"components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md","optional":false,"home":false},
     {"id":"release-bundle","source":"components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md","optional":false,"home":false},
-    {"id":"composition-authority-migration","source":"docs/migrations/composition-authority-migration.md","optional":false,"home":false},
-    {"id":"skill-capability-migration","source":"docs/migrations/pr2-skill-capabilities.md","optional":false,"home":false},
-    {"id":"webapp-lifecycle-migration","source":"docs/migrations/pr3-webapp-lifecycle.md","optional":false,"home":false}
+    {"id":"composition-authority-migration","source":"docs/migrations/composition-authority-migration.md","optional":false,"home":false}
   ],
   "assets": [
     {"source":"catalog/catalog.json","destination":"catalog/catalog.json","optional":false},
