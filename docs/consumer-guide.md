@@ -77,6 +77,28 @@ python scripts/compose.py validate --target /path/to/repository
 
 A successful initial apply writes `.template-composition/lock.json` last. The repository is then managed state.
 
+## Use Policy with a Composition repository
+
+Coding-agent Policy is optional and is adopted independently. Composition does not create `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`, does not expose Policy adoption as a `capability.*`, and does not invoke the `agent-policy` CLI.
+
+For a repository that will use both authorities, the normal sequence is:
+
+```text
+Composition initial
+  -> seed materialization
+  -> consumer ownership
+  -> optional explicit Policy adoption
+  -> independent Policy + Composition managed state
+```
+
+This order matters most for the Skill recipe. `artifact.skill-core` materializes `AGENTS.md` as `seed`, so after initial composition its contents are consumer-owned. Explicit Policy adoption may subsequently migrate or replace those instruction bytes. Later Composition `update` / `upgrade` preserves the active seed rather than restoring Composition's original `AGENTS.md` bytes.
+
+Policy-owned metadata is outside Composition ownership. Existing `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**` are left unchanged when they do not collide with an ordinary Composition material. Composition schemas and consumer validation also reject any component, lock inventory, or transaction that tries to claim those paths.
+
+The reverse ownership transition is not inferred. If a Policy-managed repository already contains a different `AGENTS.md` and you then try Skill initial composition, planning reports a normal destination conflict and apply does not overwrite the file or create a Composition lock. An explicit migration contract would be required to support that reverse transition.
+
+For the complete cross-authority rules, see the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
+
 ## Check whether a repository is managed
 
 Use:
@@ -197,7 +219,7 @@ Use the `ownership` field in `.template-composition/lock.json` to decide how a m
 | `generated` | Do not edit locally. The bytes are deterministically regenerated from Composition authorities. |
 | `seed` | Edit as normal repository content after first materialization. Composition does not overwrite later consumer edits. |
 
-Files not listed in the active lock are ordinary repository content unless another repository-local contract says otherwise.
+Files not listed in the active lock are ordinary repository content unless another repository-local contract says otherwise. Policy-owned metadata is one explicit example: `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**` remain outside the Composition lock and are not repair targets for Composer operations.
 
 Do not manually edit Composer-owned metadata such as `.template-composition/lock.json` or `.template-composition/transaction.json` to bypass a conflict.
 
