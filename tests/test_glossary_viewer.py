@@ -10,13 +10,13 @@ from scripts.generate_glossary_viewer import GlossaryViewerError, generate, load
 
 REV_SITE = "1" * 40
 REV_POLICY = "2" * 40
-REV_WEBAPP = "3" * 40
+REV_COMPOSITION = "3" * 40
 
 def sample_model() -> dict[str, object]:
     return {"schema_version": 1, "repository": "TakashiSasaki/templates", "terms": [
         {"id":"templates-policy-context","term":"Policy context","aliases":[],"localized_labels":{"ja":{"term":"ポリシーコンテキスト","aliases":["方針コンテキスト"]}},"origin":"repository","definition":"A semantic authority boundary.","related_terms":["templates-policy-renderer"],"provider":"policy","source_path":"docs/glossary.yml","source_revision":REV_POLICY},
         {"id":"templates-policy-renderer","term":"Policy renderer","aliases":["Renderer"],"origin":"repository","definition":"A presentation adapter.","provider":"policy","source_path":"docs/glossary.yml","source_revision":REV_POLICY},
-        {"id":"templates-webapp-template-mode","term":"Template mode","aliases":[],"localized_labels":{"ja":{"term":"テンプレートモード","aliases":[]}},"origin":"repository","definition":"A source-template evidence state.","provider":"webapp","source_path":"docs/glossary.yml","source_revision":REV_WEBAPP},
+        {"id":"templates-composition-component","term":"Composition component","aliases":[],"localized_labels":{"ja":{"term":"コンポジションコンポーネント","aliases":[]}},"origin":"repository","definition":"A reusable Composition source authority.","provider":"composition","source_path":"docs/glossary.yml","source_revision":REV_COMPOSITION},
         {"id":"external-git-branch","term":"Branch","aliases":[],"localized_labels":{"ja":{"term":"ブランチ","aliases":[]}},"origin":"external","summary":"A named line of development in Git.","authority":{"kind":"upstream","sources":[{"title":"Git glossary","url":"https://git-scm.com/docs/gitglossary","locator":"branch"}]},"provider":"site","source_path":"docs/glossary.yml","source_revision":REV_SITE}
     ]}
 
@@ -29,9 +29,15 @@ class GlossaryViewerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             model = load_model(self.write_model(Path(directory)))
         page = render(model)
-        for text in ("Templates-defined terms","Externally defined terms","Policy context","ポリシーコンテキスト","方針コンテキスト","External authority:","Git glossary"):
+        for text in ("Templates-defined terms","Externally defined terms","Policy context","ポリシーコンテキスト","方針コンテキスト","Composition component","Composition","External authority:","Git glossary"):
             self.assertIn(text, page)
         self.assertIn("4</strong>total concepts", page)
+    def test_current_provider_order_places_composition_before_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            page = render(load_model(self.write_model(Path(directory))))
+        self.assertLess(page.index('id="provider-composition"'), page.index('id="provider-policy"'))
+        self.assertNotIn('id="provider-skill"', page)
+        self.assertNotIn('id="provider-webapp"', page)
     def test_related_terms_use_stable_id_anchors(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             page = render(load_model(self.write_model(Path(directory))))
