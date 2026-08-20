@@ -1,9 +1,5 @@
 # アーキテクチャ決定
 
-> **参考訳（非正本）:** この文書は英語正本の日本語参考訳です。内容に差異がある場合は英語正本が優先されます。
-
-Architecture Decision Record（ADR）は、Policy の重要な設計判断の根拠を保存します。現行の決定は現在のアーキテクチャを定義し、置き換え済みの決定は歴史的な根拠としてのみ保持され、現在の権威として扱ってはいけません。
-
 ## 現行の決定
 
 * [ADR-0002: リポジトリ導入](0002-repository-adoption.md) - 既存のリポジトリ指示を破壊的に置き換えずに policy ツールチェーンを導入する方法を定義します。
@@ -14,4 +10,4 @@ Architecture Decision Record（ADR）は、Policy の重要な設計判断の根
 
 ## 置き換え済みの決定
 
-* [ADR-0004: 統合ブートストラップ Skill](0004-integrated-bootstrap-skill.md) - 分離された bootstrap trust seed に関する歴史的決定です。ADR-0007 によって置き換えられており、以前の trust-boundary 設計を説明するためだけに保持されています。
+* [ADR-0004: 統合ブートストラップ Skill](0004-integrated-bootstrap-skill.md) - ADR-0007 によって置き換えられており、以前の bootstrap trust-boundary 設計を説明する歴史的根拠としてのみ保持されています。
