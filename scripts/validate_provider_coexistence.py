@@ -142,6 +142,11 @@ def _write_composition_config(path: Path, recipe: str) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
+def _absolute_without_resolving(path: Path) -> Path:
+    """Return an absolute path while preserving an executable symlink identity."""
+    return Path(os.path.abspath(path))
+
+
 class Harness:
     def __init__(
         self,
@@ -154,10 +159,10 @@ class Harness:
         policy_revision: str,
     ) -> None:
         self.composition_root = composition_root.resolve()
-        self.composition_python = composition_python.resolve()
+        self.composition_python = _absolute_without_resolving(composition_python)
         self.composition_revision = composition_revision
         self.policy_root = policy_root.resolve()
-        self.policy_cli = policy_cli.resolve()
+        self.policy_cli = _absolute_without_resolving(policy_cli)
         self.policy_revision = policy_revision
         self.composer = self.composition_root / "scripts" / "compose.py"
 
