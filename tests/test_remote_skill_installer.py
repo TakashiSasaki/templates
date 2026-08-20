@@ -65,11 +65,11 @@ def test_remote_installer_pins_the_policy_owned_skill_revision() -> None:
     assert installer.TOOLCHAIN_REPOSITORY == "TakashiSasaki/templates"
     assert (
         installer.SKILL_SOURCE_REVISION
-        == "27a3319a3785250236bee056fd917379c245aaef"
+        == "a7123c4bb12942d690193e9e73f64cd12e33c00d"
     )
     assert installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION)
     assert installer.archive_url().endswith(
-        "/tar.gz/27a3319a3785250236bee056fd917379c245aaef"
+        "/tar.gz/a7123c4bb12942d690193e9e73f64cd12e33c00d"
     )
 
 
