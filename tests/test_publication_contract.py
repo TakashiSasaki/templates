@@ -213,6 +213,16 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("templates-skill-profile", ids)
         self.assertIn("templates-composition-component", ids)
         self.assertIn("templates-contract-manifest", ids)
+        for term_id in (
+            "templates-composition-material-ownership",
+            "templates-composition-component-owner",
+            "templates-composition-ownership-mode",
+            "templates-composition-managed-material",
+            "templates-composition-seed-material",
+            "templates-composition-generated-material",
+        ):
+            with self.subTest(term_id=term_id):
+                self.assertIn(term_id, ids)
         self.assertNotIn("templates-webapp-template-distribution-artifact", ids)
         self.assertNotIn("templates-skill-mcp-extension", ids)
 
