@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Validate the composition provider publication boundary with stdlib only."""
+"""Validate Composition-specific publication semantics.
+
+The generic schema-v3 publication protocol is owned by Site and is loaded from
+an explicitly supplied reviewed checkout. This module retains only
+Composition-owned publication classification, coverage, and glossary semantics.
+"""
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import re
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOG_PATH = ROOT / "docs" / "publication-catalog.json"
 CLASSIFICATION_PATH = ROOT / "docs" / "publication-classification.json"
-GLOSSARY_PATH = ROOT / "docs" / "glossary.yml"
-NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SITE_PROTOCOL_ENV = "SITE_PUBLICATION_PROTOCOL_ROOT"
+SITE_PROTOCOL_RELATIVE = Path("scripts/publication_contract.py")
 TERM_RE = re.compile(r"^(?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*$")
 READER_BASENAMES = {
     "README.md",
@@ -31,6 +37,7 @@ IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS = {
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
+    ".site-publication-protocol",
     ".venv",
     "__pycache__",
 }
@@ -47,7 +54,68 @@ class PublicationError(RuntimeError):
     pass
 
 
+def _site_protocol_root(explicit_root: Path | None = None) -> Path:
+    if explicit_root is not None:
+        root = explicit_root
+    else:
+        configured = os.environ.get(SITE_PROTOCOL_ENV)
+        if not configured:
+            raise PublicationError(
+                f"{SITE_PROTOCOL_ENV} must identify a reviewed Site protocol checkout"
+            )
+        root = Path(configured)
+    if not root.is_absolute():
+        root = ROOT / root
+    try:
+        return root.resolve(strict=True)
+    except OSError as exc:
+        raise PublicationError(f"Site publication protocol root is unavailable: {root}") from exc
+
+
+def load_site_publication_protocol(explicit_root: Path | None = None) -> Any:
+    protocol_root = _site_protocol_root(explicit_root)
+    protocol_path = protocol_root / SITE_PROTOCOL_RELATIVE
+    if not protocol_path.is_file() or protocol_path.is_symlink():
+        raise PublicationError(
+            "reviewed Site publication protocol file is unavailable: "
+            f"{protocol_path}"
+        )
+
+    module_name = "_templates_site_publication_contract"
+    spec = importlib.util.spec_from_file_location(module_name, protocol_path)
+    if spec is None or spec.loader is None:
+        raise PublicationError(f"unable to load Site publication protocol: {protocol_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        sys.modules.pop(module_name, None)
+        raise PublicationError(
+            f"unable to execute Site publication protocol: {protocol_path}: {exc}"
+        ) from exc
+
+    for attribute in ("PublicationContractError", "load_publication_catalog"):
+        if not hasattr(module, attribute):
+            raise PublicationError(
+                f"Site publication protocol is missing required interface: {attribute}"
+            )
+    return module
+
+
+def load_publication_catalog(explicit_protocol_root: Path | None = None) -> Any:
+    protocol = load_site_publication_protocol(explicit_protocol_root)
+    try:
+        return protocol.load_publication_catalog(
+            ROOT,
+            label="composition publication catalog",
+        )
+    except protocol.PublicationContractError as exc:
+        raise PublicationError(f"Site publication protocol rejected catalog: {exc}") from exc
+
+
 def strict_json(path: Path, label: str) -> dict[str, Any]:
+    """Read a Composition-owned JSON contract with duplicate-member rejection."""
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
@@ -73,8 +141,15 @@ def strict_json(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
-def safe_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
+def safe_composition_path(value: Any, field: str) -> PurePosixPath:
+    """Validate paths in Composition-owned maintenance metadata."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\\" in value
+        or ":" in value
+        or "\0" in value
+    ):
         raise PublicationError(f"{field} must be a safe relative POSIX path")
     parts = value.split("/")
     if any(part in {"", ".", ".."} or part.casefold() == ".git" for part in parts):
@@ -96,115 +171,8 @@ def resolve_regular(relative: PurePosixPath, field: str) -> Path:
     return current
 
 
-def paths_overlap(first: PurePosixPath, second: PurePosixPath) -> bool:
-    return first == second or first in second.parents or second in first.parents
-
-
 def is_ignored_root_execution_path(relative: PurePosixPath) -> bool:
     return bool(relative.parts) and relative.parts[0] in IGNORED_ROOT_MARKDOWN_DISCOVERY_DIRS
-
-
-def walk_asset(relative: PurePosixPath, field: str) -> list[Path]:
-    current = ROOT
-    for part in relative.parts:
-        current /= part
-        if current.is_symlink():
-            raise PublicationError(f"{field} must not traverse a symlink: {relative}")
-    if current.is_file():
-        if current.suffix.lower() == ".md":
-            raise PublicationError(f"{field} must not publish Markdown as an asset: {relative}")
-        return [current]
-    if not current.is_dir():
-        raise PublicationError(f"{field} must exist: {relative}")
-    files: list[Path] = []
-    pending = [current]
-    while pending:
-        directory = pending.pop()
-        for child in sorted(directory.iterdir(), key=lambda item: item.name):
-            if child.is_symlink():
-                raise PublicationError(f"{field} contains a symlink: {child.relative_to(ROOT)}")
-            if child.is_dir():
-                pending.append(child)
-                continue
-            if not child.is_file():
-                raise PublicationError(f"{field} contains unsupported entry: {child.relative_to(ROOT)}")
-            if child.suffix.lower() == ".md":
-                raise PublicationError(f"{field} contains undeclared Markdown: {child.relative_to(ROOT)}")
-            files.append(child)
-    if not files:
-        raise PublicationError(f"{field} must not be empty: {relative}")
-    return files
-
-
-def parse_catalog() -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], PurePosixPath]:
-    data = strict_json(CATALOG_PATH, "publication catalog")
-    if set(data) != {"schema_version", "documents", "assets", "glossary"}:
-        raise PublicationError("publication catalog must contain schema_version, documents, assets, and glossary")
-    if data.get("schema_version") != 3 or type(data.get("schema_version")) is not int:
-        raise PublicationError("publication catalog schema_version must be integer 3")
-
-    documents: dict[str, dict[str, Any]] = {}
-    sources: set[PurePosixPath] = set()
-    homes = 0
-    raw_documents = data.get("documents")
-    if not isinstance(raw_documents, list) or not raw_documents:
-        raise PublicationError("publication catalog documents must be non-empty")
-    for index, raw in enumerate(raw_documents):
-        field = f"documents[{index}]"
-        if not isinstance(raw, dict) or set(raw) != {"id", "source", "optional", "home"}:
-            raise PublicationError(f"{field} has invalid fields")
-        doc_id = raw["id"]
-        if not isinstance(doc_id, str) or not NAME_RE.fullmatch(doc_id):
-            raise PublicationError(f"{field}.id must be lowercase kebab-case")
-        source = safe_path(raw["source"], f"{field}.source")
-        if source.suffix.lower() != ".md":
-            raise PublicationError(f"{field}.source must be Markdown")
-        if type(raw["optional"]) is not bool or type(raw["home"]) is not bool:
-            raise PublicationError(f"{field}.optional and home must be boolean")
-        if doc_id in documents or source in sources:
-            raise PublicationError("publication document IDs and sources must be unique")
-        resolve_regular(source, f"{field}.source")
-        if raw["home"]:
-            homes += 1
-            if raw["optional"]:
-                raise PublicationError("publication home must not be optional")
-        documents[doc_id] = {"source": source, "optional": raw["optional"], "home": raw["home"]}
-        sources.add(source)
-    if homes != 1:
-        raise PublicationError("publication catalog must define exactly one home")
-
-    raw_assets = data.get("assets")
-    if not isinstance(raw_assets, list) or not raw_assets:
-        raise PublicationError("publication catalog assets must be non-empty")
-    assets: list[dict[str, Any]] = []
-    source_paths: list[PurePosixPath] = []
-    destination_paths: list[PurePosixPath] = []
-    for index, raw in enumerate(raw_assets):
-        field = f"assets[{index}]"
-        if not isinstance(raw, dict) or set(raw) != {"source", "destination", "optional"}:
-            raise PublicationError(f"{field} has invalid fields")
-        source = safe_path(raw["source"], f"{field}.source")
-        destination = safe_path(raw["destination"], f"{field}.destination")
-        if type(raw["optional"]) is not bool:
-            raise PublicationError(f"{field}.optional must be boolean")
-        walk_asset(source, f"{field}.source")
-        assets.append({"source": source, "destination": destination, "optional": raw["optional"]})
-        source_paths.append(source)
-        destination_paths.append(destination)
-    for label, values in (("asset sources", source_paths), ("asset destinations", destination_paths)):
-        if len(values) != len(set(values)):
-            raise PublicationError(f"{label} must be unique")
-        for index, first in enumerate(values):
-            for second in values[index + 1:]:
-                if paths_overlap(first, second):
-                    raise PublicationError(f"{label} must not overlap: {first} and {second}")
-
-    glossary = data.get("glossary")
-    if not isinstance(glossary, dict) or set(glossary) != {"source"}:
-        raise PublicationError("publication catalog glossary must contain only source")
-    glossary_source = safe_path(glossary["source"], "glossary.source")
-    resolve_regular(glossary_source, "glossary.source")
-    return documents, assets, glossary_source
 
 
 def parse_publication_classification() -> dict[PurePosixPath, str]:
@@ -224,7 +192,7 @@ def parse_publication_classification() -> dict[PurePosixPath, str]:
         field = f"excluded_markdown[{index}]"
         if not isinstance(raw, dict) or set(raw) != {"source", "reason"}:
             raise PublicationError(f"{field} must contain source and reason")
-        source = safe_path(raw["source"], f"{field}.source")
+        source = safe_composition_path(raw["source"], f"{field}.source")
         if source.suffix.lower() != ".md":
             raise PublicationError(f"{field}.source must be Markdown")
         if is_ignored_root_execution_path(source):
@@ -260,6 +228,14 @@ def discover_repository_markdown() -> set[PurePosixPath]:
     return discovered
 
 
+def validate_composition_catalog_declarations(catalog: Any) -> None:
+    homes = [document for document in catalog.documents if document.home]
+    if len(homes) != 1 or homes[0].source != PurePosixPath("README.md"):
+        raise PublicationError("Composition publication home must be README.md")
+    if catalog.glossary_source != PurePosixPath("docs/glossary.yml"):
+        raise PublicationError("Composition glossary declaration must be docs/glossary.yml")
+
+
 def validate_markdown_partition(
     published: set[PurePosixPath],
     excluded: set[PurePosixPath],
@@ -286,10 +262,10 @@ def validate_markdown_partition(
 
 
 def validate_markdown_classification(
-    documents: dict[str, dict[str, Any]],
+    catalog: Any,
     exclusions: dict[PurePosixPath, str],
 ) -> None:
-    published = {entry["source"] for entry in documents.values()}
+    published = {document.source for document in catalog.documents}
     validate_markdown_partition(
         published,
         set(exclusions),
@@ -297,10 +273,9 @@ def validate_markdown_classification(
     )
 
 
-def asset_covers(assets: list[dict[str, Any]], relative: PurePosixPath) -> bool:
-    for asset in assets:
-        source = asset["source"]
-        if source == relative or source in relative.parents:
+def asset_covers(catalog: Any, relative: PurePosixPath) -> bool:
+    for asset in catalog.assets:
+        if asset.source == relative or asset.source in relative.parents:
             return True
     return False
 
@@ -312,8 +287,8 @@ def reader_material(source: str) -> bool:
     )
 
 
-def validate_reader_coverage(documents: dict[str, dict[str, Any]]) -> None:
-    document_sources = {entry["source"] for entry in documents.values()}
+def validate_reader_coverage(catalog: Any) -> None:
+    document_sources = {document.source for document in catalog.documents}
     required = {
         PurePosixPath("README.md"),
         PurePosixPath("docs/index.md"),
@@ -321,8 +296,14 @@ def validate_reader_coverage(documents: dict[str, dict[str, Any]]) -> None:
         PurePosixPath("catalog/README.md"),
         PurePosixPath("schemas/README.md"),
     }
-    required.update(PurePosixPath(path.relative_to(ROOT).as_posix()) for path in (ROOT / "docs" / "architecture").glob("*.md"))
-    required.update(PurePosixPath(path.relative_to(ROOT).as_posix()) for path in (ROOT / "docs" / "migrations").glob("*.md"))
+    required.update(
+        PurePosixPath(path.relative_to(ROOT).as_posix())
+        for path in (ROOT / "docs" / "architecture").glob("*.md")
+    )
+    required.update(
+        PurePosixPath(path.relative_to(ROOT).as_posix())
+        for path in (ROOT / "docs" / "migrations").glob("*.md")
+    )
 
     production = strict_json(ROOT / "catalog" / "catalog.json", "production catalog")
     for component_id in production.get("components", []):
@@ -334,18 +315,29 @@ def validate_reader_coverage(documents: dict[str, dict[str, Any]]) -> None:
                 required.add(PurePosixPath(f"components/{component_id}/{source}"))
     missing = sorted(path.as_posix() for path in required - document_sources)
     if missing:
-        raise PublicationError("reader-facing Markdown is missing from publication catalog: " + ", ".join(missing))
+        raise PublicationError(
+            "reader-facing Markdown is missing from publication catalog: "
+            + ", ".join(missing)
+        )
 
 
-def validate_machine_coverage(assets: list[dict[str, Any]]) -> None:
+def validate_machine_coverage(catalog: Any) -> None:
     required = {PurePosixPath("catalog/catalog.json"), PurePosixPath("recipes")}
-    required.update(PurePosixPath(path.relative_to(ROOT).as_posix()) for path in (ROOT / "schemas").glob("*.json"))
+    required.update(
+        PurePosixPath(path.relative_to(ROOT).as_posix())
+        for path in (ROOT / "schemas").glob("*.json")
+    )
     production = strict_json(ROOT / "catalog" / "catalog.json", "production catalog")
     for component_id in production.get("components", []):
         required.add(PurePosixPath(f"components/{component_id}/component.json"))
-    missing = sorted(path.as_posix() for path in required if not asset_covers(assets, path))
+    missing = sorted(
+        path.as_posix() for path in required if not asset_covers(catalog, path)
+    )
     if missing:
-        raise PublicationError("machine-readable production authority is missing from publication assets: " + ", ".join(missing))
+        raise PublicationError(
+            "machine-readable production authority is missing from publication assets: "
+            + ", ".join(missing)
+        )
 
 
 def validate_glossary(glossary_source: PurePosixPath) -> None:
@@ -381,11 +373,17 @@ def validate_glossary(glossary_source: PurePosixPath) -> None:
         else:
             raise PublicationError(f"{field}.origin must be repository or external")
         related = term.get("related_terms", [])
-        if not isinstance(related, list) or any(not isinstance(value, str) or not TERM_RE.fullmatch(value) for value in related):
+        if not isinstance(related, list) or any(
+            not isinstance(value, str) or not TERM_RE.fullmatch(value)
+            for value in related
+        ):
             raise PublicationError(f"{field}.related_terms is invalid")
     obsolete = sorted(ids & OBSOLETE_TERM_IDS)
     if obsolete:
-        raise PublicationError("obsolete copyable-template glossary IDs must not return: " + ", ".join(obsolete))
+        raise PublicationError(
+            "obsolete copyable-template glossary IDs must not return: "
+            + ", ".join(obsolete)
+        )
     required_ids = {
         "templates-skill-profile",
         "templates-composition-component",
@@ -399,16 +397,21 @@ def validate_glossary(glossary_source: PurePosixPath) -> None:
     }
     missing = sorted(required_ids - ids)
     if missing:
-        raise PublicationError("required composition glossary terms are missing: " + ", ".join(missing))
+        raise PublicationError(
+            "required composition glossary terms are missing: " + ", ".join(missing)
+        )
 
 
-def validate_publication_root() -> None:
-    documents, assets, glossary_source = parse_catalog()
+def validate_publication_root(explicit_protocol_root: Path | None = None) -> None:
+    catalog = load_publication_catalog(explicit_protocol_root)
     exclusions = parse_publication_classification()
-    validate_reader_coverage(documents)
-    validate_markdown_classification(documents, exclusions)
-    validate_machine_coverage(assets)
-    validate_glossary(glossary_source)
+    validate_composition_catalog_declarations(catalog)
+    validate_reader_coverage(catalog)
+    validate_markdown_classification(catalog, exclusions)
+    validate_machine_coverage(catalog)
+    if catalog.glossary_source is None:
+        raise PublicationError("Composition glossary declaration is required")
+    validate_glossary(catalog.glossary_source)
 
 
 def main() -> int:
