@@ -11,8 +11,14 @@ def test_mkdocs_separates_current_and_superseded_adrs() -> None:
 
     current = "          - Current decisions:"
     superseded = "          - Superseded decisions:"
-    adr7 = "              - ADR-0007 Single agent-policy skill runtime cache: adr/0007-single-agent-policy-skill-runtime-cache.md"
-    adr4 = "              - ADR-0004 Integrated bootstrap skill (superseded): adr/0004-integrated-bootstrap-skill.md"
+    adr7 = (
+        "              - ADR-0007 Single agent-policy skill runtime cache: "
+        "adr/0007-single-agent-policy-skill-runtime-cache.md"
+    )
+    adr4 = (
+        "              - ADR-0004 Integrated bootstrap skill (superseded): "
+        "adr/0004-integrated-bootstrap-skill.md"
+    )
 
     assert current in text
     assert superseded in text
@@ -27,7 +33,7 @@ def test_adr_index_marks_current_and_superseded_authority() -> None:
     assert "## Current decisions" in text
     assert "## Superseded decisions" in text
     assert text.index("ADR-0007") < text.index("## Superseded decisions") < text.index("ADR-0004")
-    assert "retained only to explain the earlier trust-boundary design" in text
+    assert "retained only as historical rationale" in text
 
 
 def test_superseded_adr_warns_before_historical_detail() -> None:
