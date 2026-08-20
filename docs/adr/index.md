@@ -1,7 +1,5 @@
 # Architecture decisions
 
-Architecture Decision Records preserve the rationale for significant Policy design choices. Current decisions define the active architecture; superseded decisions remain available only as historical rationale and must not be treated as current authority.
-
 ## Current decisions
 
 * [ADR-0002: Repository adoption](0002-repository-adoption.md) - Defines how existing repositories adopt the policy toolchain without destructively replacing existing instructions.
@@ -12,4 +10,4 @@ Architecture Decision Records preserve the rationale for significant Policy desi
 
 ## Superseded decisions
 
-* [ADR-0004: Integrated bootstrap skill](0004-integrated-bootstrap-skill.md) - Historical decision for the separate bootstrap trust seed. Superseded by ADR-0007 and retained only to explain the earlier trust-boundary design.
+* [ADR-0004: Integrated bootstrap skill](0004-integrated-bootstrap-skill.md) - Superseded by ADR-0007; retained only as historical rationale for the earlier bootstrap trust-boundary design.
