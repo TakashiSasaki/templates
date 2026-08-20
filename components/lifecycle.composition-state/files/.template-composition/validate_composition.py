@@ -14,6 +14,9 @@ from typing import Any
 LOCK_RELATIVE = ".template-composition/lock.json"
 TRANSACTION_RELATIVE = ".template-composition/transaction.json"
 STAGING_PREFIX = ".template-composition/staging"
+POLICY_CONFIG_RELATIVE = ".agent-policy.yml"
+POLICY_LOCK_RELATIVE = ".agent-policy.lock"
+POLICY_STATE_PREFIX = ".agent-policy"
 CANONICAL_REPOSITORY = "TakashiSasaki/templates"
 COMPONENT_RE = re.compile(r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 SELECTABLE_COMPONENT_RE = re.compile(r"^(capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
@@ -76,11 +79,18 @@ def _normalized_parts(value: str) -> tuple[str, ...]:
     return tuple(part.casefold() for part in value.split("/"))
 
 
+def _at_or_below(parts: tuple[str, ...], prefix: tuple[str, ...]) -> bool:
+    return parts == prefix or prefix == parts[: len(prefix)]
+
+
 def _reserved_destination(value: str) -> bool:
     parts = _normalized_parts(value)
     lock_parts = _normalized_parts(LOCK_RELATIVE)
     transaction_parts = _normalized_parts(TRANSACTION_RELATIVE)
     staging_parts = _normalized_parts(STAGING_PREFIX)
+    policy_config_parts = _normalized_parts(POLICY_CONFIG_RELATIVE)
+    policy_lock_parts = _normalized_parts(POLICY_LOCK_RELATIVE)
+    policy_state_parts = _normalized_parts(POLICY_STATE_PREFIX)
     return (
         parts == lock_parts[: len(parts)]
         or lock_parts == parts[: len(lock_parts)]
@@ -88,6 +98,9 @@ def _reserved_destination(value: str) -> bool:
         or transaction_parts == parts[: len(transaction_parts)]
         or parts == staging_parts
         or staging_parts == parts[: len(staging_parts)]
+        or _at_or_below(parts, policy_config_parts)
+        or _at_or_below(parts, policy_lock_parts)
+        or _at_or_below(parts, policy_state_parts)
     )
 
 
@@ -221,7 +234,7 @@ def validate_lock_shape(lock: Any) -> list[str]:
             else:
                 destinations.append(destination)
                 if _reserved_destination(destination):
-                    errors.append(f"files[{index}].destination conflicts with reserved composer metadata")
+                    errors.append(f"files[{index}].destination conflicts with reserved provider metadata")
             component = entry.get("component")
             if component not in resolved_set:
                 errors.append(f"files[{index}].component is not a resolved component")
