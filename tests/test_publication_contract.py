@@ -48,6 +48,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         sources = {entry.source.as_posix() for entry in catalog.documents}
         self.assertIn("docs/consumer-guide.md", sources)
         self.assertIn("docs/reference/composer.md", sources)
+        self.assertIn("docs/migrations/composition-authority-migration.md", sources)
         self.assertIn("components/artifact.skill-core/files/SKILL.md", sources)
         self.assertIn("components/artifact.webapp-core/files/TEMPLATE.md", sources)
         self.assertIn(
@@ -69,6 +70,29 @@ class CompositionPublicationContractTests(unittest.TestCase):
         architecture_position = index.index("## Composition architecture")
         self.assertLess(consumer_position, architecture_position)
         self.assertLess(reference_position, architecture_position)
+
+    def test_landing_page_separates_current_state_from_migration_history(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(readme.startswith("# Composition\n"))
+        self.assertNotIn("## Migration state", readme)
+        for stage_label in ("PR1", "PR2", "PR3", "PR4", "PR5", "Site PR #270"):
+            with self.subTest(stage_label=stage_label):
+                self.assertNotIn(stage_label, readme)
+        self.assertIn(
+            "[Composition authority migration history](docs/migrations/composition-authority-migration.md)",
+            readme,
+        )
+
+        index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "[Composition authority migration](migrations/composition-authority-migration.md)",
+            index,
+        )
+        history = (
+            ROOT / "docs" / "migrations" / "composition-authority-migration.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("https://github.com/TakashiSasaki/templates/pull/265", history)
+        self.assertIn("https://github.com/TakashiSasaki/templates/pull/277", history)
 
     def test_catalog_guide_uses_current_managed_lifecycle(self):
         guide = (ROOT / "catalog" / "README.md").read_text(encoding="utf-8")
