@@ -11,7 +11,7 @@ from scripts.validate_provider_coexistence import _absolute_without_resolving, _
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/provider-coexistence.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
-COMPOSITION_REVISION = "e731b37933f462eeaf50c85b8f749100831a1ae0"
+COMPOSITION_REVISION = "65dbdc79474ebfd1350887c8b834b74e3ab37030"
 POLICY_REVISION = "2960c0223f2063d800151499e60d4e976873281b"
 
 
