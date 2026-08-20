@@ -47,11 +47,9 @@
 - [Release evidence](../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance and release decisions.
 - [Release bundle](../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff.
 
-## Composition migration history
+## Historical provenance
 
-- [Composition authority migration](migrations/composition-authority-migration.md) — high-level migration chronology, authority cutover, branch retirement, and provenance.
-- [Skill capability migration](migrations/pr2-skill-capabilities.md) — detailed separation of Skill semantics from generic application capabilities.
-- [Webapp lifecycle migration](migrations/pr3-webapp-lifecycle.md) — detailed separation of Web-specific semantics from reusable lifecycle contracts.
+- [Composition authority migration](migrations/composition-authority-migration.md) — consolidated chronology of the authority cutover, provider migration, branch retirement, and immutable PR provenance. Stage-specific implementation notes are retained only for repository maintenance and are not reader publication pages.
 
 ## Machine-readable authorities
 
