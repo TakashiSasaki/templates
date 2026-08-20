@@ -47,12 +47,14 @@ nav:
       - ブートストラップモデル: bootstrap-model.md
       - 脅威モデル: threat-model.md
       - Architecture decisions:
-          - 概要: adr/index.md
-          - ADR-0002 Repository adoption: adr/0002-repository-adoption.md
-          - ADR-0003 Application-neutral scope: adr/0003-application-neutral-policy-scope.md
-          - ADR-0004 Integrated bootstrap skill: adr/0004-integrated-bootstrap-skill.md
-          - ADR-0005 Single policy authority: adr/0005-single-policy-authority.md
-          - ADR-0006 Copyable artifact policy adoption: adr/0006-copyable-artifact-policy-adoption.md
+          - Current decisions:
+              - ADR-0002 Repository adoption: adr/0002-repository-adoption.md
+              - ADR-0003 Application-neutral scope: adr/0003-application-neutral-policy-scope.md
+              - ADR-0005 Single policy authority: adr/0005-single-policy-authority.md
+              - ADR-0006 Copyable artifact policy adoption: adr/0006-copyable-artifact-policy-adoption.md
+              - ADR-0007 Single agent-policy skill runtime cache: adr/0007-single-agent-policy-skill-runtime-cache.md
+          - Superseded decisions:
+              - ADR-0004 Integrated bootstrap skill (superseded): adr/0004-integrated-bootstrap-skill.md
 
 markdown_extensions:
   - admonition
