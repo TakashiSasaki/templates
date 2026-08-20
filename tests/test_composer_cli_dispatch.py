@@ -48,7 +48,8 @@ class ComposerDispatchTests(unittest.TestCase):
                 self.assertIn("upgrade", result.stdout)
                 self.assertIn("--config is required", result.stdout)
                 self.assertIn("--config is forbidden", result.stdout)
-                self.assertIn("Interrupted upgrade recovery omits --config", result.stdout)
+                self.assertIn("Interrupted update and upgrade recovery", result.stdout)
+                self.assertIn("both omit --config", result.stdout)
                 self.assertIn("docs/consumer-guide.md", result.stdout)
                 self.assertIn("docs/reference/composer.md", result.stdout)
 
