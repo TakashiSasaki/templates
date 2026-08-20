@@ -35,6 +35,10 @@ A catalog contains:
 
 Paths must be safe relative POSIX paths and must not use parent traversal, `.git` components, ambiguous Windows forms, or symlink traversal. Asset trees may not smuggle Markdown into the public boundary.
 
+`scripts/publication_contract.py` is the Site-owned canonical implementation of the generic schema-v3 publication protocol. It is deliberately stdlib-only and is both importable and directly executable. `scripts/assemble_publications.py` delegates catalog parsing and declared-source validation to this module instead of maintaining a second implementation.
+
+The shared protocol covers only generic JSON/schema/path/document/asset/glossary boundary rules. Provider-specific semantics remain with the provider: for example Composition Markdown classification, reader-material coverage, production artifact inventory, and Policy-specific translation or policy-content checks do not move into Site. When provider CI starts consuming the shared validator, it must execute the file from a reviewed full Site commit SHA rather than a mutable branch tip; this is a development/publication dependency, not a consumer-runtime dependency.
+
 ## Navigation manifest
 
 `site-manifest.json` schema version 2 defines the canonical reader information architecture. Each leaf names one `publication`, `document`, and generated `destination`.

@@ -148,7 +148,10 @@ class AssemblyReviewRegressionTests(unittest.TestCase):
             except OSError as exc:
                 self.skipTest(f"directory symlinks unavailable: {exc}")
 
-            with self.assertRaisesRegex(AssemblyError, "contains a symlink"):
+            with self.assertRaisesRegex(
+                AssemblyError,
+                r"contains a (?:symbolic link|symlink)",
+            ):
                 assemble({"site": site}, site, output)
 
             self.assertFalse(
