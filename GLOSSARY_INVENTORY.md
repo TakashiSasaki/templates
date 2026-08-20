@@ -1,17 +1,25 @@
 # Glossary terminology inventory
 
-This file is a maintainer working inventory for expanding the federated glossary.
-It is not a canonical glossary source and is intentionally not listed in any
-publication catalog. Canonical terms remain in the semantic owner's
-`docs/glossary.yml`.
+This file is a maintainer working inventory and historical review ledger for the
+federated glossary. It is not a canonical glossary source and is intentionally
+not listed in any publication catalog. Current canonical terms remain in the
+active semantic owners' `docs/glossary.yml` files and in the exact integrated
+Site glossary.
+
+Completed tables below record the semantic owner or curator that applied at the
+time each expansion was reviewed and promoted. They do **not** define the current
+provider topology. The active authority model is now `site`, `composition`, and
+`policy`; Skill and Webapp semantics that survived the authority migration are
+owned by Composition rather than by active `skill` or `webapp` provider branches.
 
 The inventory is a review aid, not a closed vocabulary. Terms may be added later
 without editing this file when their ownership and semantics are already clear.
 
 The original 14-term seed, the reviewed 17-term first expansion, the reviewed
-10-term second expansion, and the first reviewed external-term expansion are
-canonical. The integrated glossary therefore has a required 42-term baseline at
-this stage, while remaining open to later vocabulary growth.
+10-term second expansion, and the first reviewed external-term expansion formed
+a 42-term promotion baseline at the end of those historical passes. That number
+is not a current required count or minimum. The current canonical vocabulary is
+defined by the active provider glossaries selected by the Site publication lock.
 
 ## Selection rules
 
@@ -39,13 +47,16 @@ Stable IDs follow `GLOSSARY.md`: repository-defined concepts use
 that stores the entry rather than being mechanically encoded in the ID. A domain
 word such as `skill`, `policy`, or `webapp` belongs in a slug only when it is
 needed to identify the concept's semantic scope or avoid conflating a nearby
-concept, not merely because that branch currently owns the entry. Consequently,
-Policy ownership-taxonomy terms such as `templates-shared-policy` do not acquire
-an extra `policy-` segment solely for provider namespacing.
+concept, not merely because a provider owned the entry when this ledger recorded
+it. Consequently, Policy ownership-taxonomy terms such as
+`templates-shared-policy` do not acquire an extra `policy-` segment solely for
+provider namespacing.
 
 ## Original canonical seed
 
-The original seed remains a required subset of the canonical vocabulary.
+The following table records the original seed as a historical promotion
+milestone. It is not a statement that every listed ID remains part of the current
+active-provider canonical vocabulary.
 
 | Canonical ID | Owner / curator | Origin | English term |
 | --- | --- | --- | --- |
@@ -218,14 +229,15 @@ semantics.
 
 ## Completed external terminology expansion
 
-The first external-term curation pass adds the generic protocol concept needed to
-navigate from the repository-defined Skill MCP extension to its external semantic
-basis. External semantic authority remains outside this repository even though
-Skill is the single local curator of the entry.
+The first external-term curation pass recorded the generic protocol concept used
+to navigate from the then-Skill-owned MCP extension to its external semantic
+basis. External semantic authority remained outside this repository; `skill` in
+the table is the local curator recorded at that historical promotion point, not a
+current active provider.
 
 | Canonical term | Canonical ID | Curator | Origin | Japanese discovery label | Authority / rationale |
 | --- | --- | --- | --- | --- | --- |
-| Model Context Protocol | `external-mcp-model-context-protocol` | skill | external | モデルコンテキストプロトコル | The official Model Context Protocol specification dated `2026-07-28` is the version-pinned normative authority. Skill already uses that core protocol revision as its current baseline. `templates-skill-mcp-extension` links one-way to this generic external concept; the reverse relation is deliberately omitted so the external term does not become an open-ended registry of repository-specific concepts. |
+| Model Context Protocol | `external-mcp-model-context-protocol` | skill | external | モデルコンテキストプロトコル | The official Model Context Protocol specification dated `2026-07-28` was the version-pinned normative authority for this promotion. The then-Skill-owned MCP extension used that core protocol revision as its baseline; the one-way relation recorded here reflects that historical vocabulary state rather than the current Composition-owned capability model. |
 
 ## External terminology candidates
 
@@ -238,7 +250,7 @@ multiple provider glossaries.
 
 | Candidate term | Proposed ID | Curator | Initial decision | Notes |
 | --- | --- | --- | --- | --- |
-| Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the current repository-defined glossary baseline. |
+| Service Worker | `external-web-service-worker` | site | defer | Relevant to Site PWA behavior, but not required to understand the recorded repository-defined expansion baseline. |
 | Progressive Web App | `external-web-progressive-web-app` | site | defer | Same reason as Service Worker; add when PWA terminology becomes a glossary navigation need. |
 
 ## Japanese-label policy for this inventory
@@ -266,9 +278,10 @@ exact-revision promotion model:
 4. run provider-local checks and the Site compatibility workflow;
 5. merge provider changes and promote the reviewed full merge SHAs through
    `publication-sources.json`;
-6. verify the integrated machine-readable glossary and human viewer while
-   treating the established canonical IDs as a required subset rather than a
-   closed vocabulary; and
+6. verify the integrated machine-readable glossary and human viewer, using the
+   active provider glossaries as current authority and treating this ledger's
+   historical IDs as provenance rather than an automatically required subset;
+   and
 7. review useful cross-provider `related_terms` only after all referenced targets
    exist in the locked integrated set.
 
