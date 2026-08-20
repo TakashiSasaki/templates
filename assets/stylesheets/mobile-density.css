@@ -91,46 +91,133 @@
   }
 
   .portal-cover {
-    gap: 0.9rem;
+    gap: 0.7rem;
     padding: 0.85rem;
     border-radius: 0.8rem;
   }
 
   .portal-cover__kicker {
-    margin-bottom: 0.55rem;
+    margin-bottom: 0.5rem;
   }
 
   .portal-cover h1 {
-    margin-bottom: 0.65rem;
-    font-size: clamp(1.75rem, 9vw, 2.25rem);
-    line-height: 1.02;
+    margin-bottom: 0.6rem;
+    font-size: clamp(1.75rem, 8.8vw, 2.25rem);
+    line-height: 1.04;
   }
 
   .portal-cover__lead {
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.75rem;
     font-size: 0.85rem;
     line-height: 1.5;
   }
 
   .portal-cover__actions {
     gap: 0.45rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .portal-cover__button,
+  .portal-policy-panel__action,
+  .portal-doc-link {
+    min-height: 48px;
   }
 
   .portal-cover__button {
-    min-height: 48px;
     padding: 0.5rem 0.75rem;
   }
 
-  .portal-domain-card {
-    padding: 0.75rem 0.85rem;
-  }
-
-  .portal-cover-features article {
-    padding: 0.75rem;
-  }
-
   .portal-cover__signals {
-    gap: 0.35rem;
+    gap: 0.3rem 0.75rem;
+  }
+
+  .portal-cover__visual {
+    margin-top: -0.1rem;
+  }
+
+  .portal-authority,
+  .portal-doc-nav,
+  .portal-guarantees {
+    margin-top: 0.7rem;
+    padding: 0.75rem;
+    border-radius: 0.8rem;
+  }
+
+  .portal-section-heading {
+    margin-bottom: 0.65rem;
+  }
+
+  .portal-section-heading h2,
+  .portal-policy-panel h2 {
+    font-size: 1.2rem;
+  }
+
+  .portal-section-heading p:last-child,
+  .portal-policy-panel__copy p:last-child {
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .portal-artifact-grid {
+    gap: 0.5rem;
+  }
+
+  .portal-artifact-card {
+    min-height: 7rem;
+    padding: 0.65rem;
+    gap: 0.5rem;
+  }
+
+  .portal-artifact-card__icon,
+  .portal-policy-panel__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .portal-artifact-card__icon img,
+  .portal-policy-panel__icon img {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .portal-artifact-card__copy strong {
+    font-size: 0.88rem;
+  }
+
+  .portal-artifact-card__copy span {
+    font-size: 0.72rem;
+    line-height: 1.38;
+  }
+
+  .portal-policy-panel {
+    gap: 0.65rem;
+    margin-top: 0.7rem;
+    padding: 0.75rem;
+    border-radius: 0.8rem;
+  }
+
+  .portal-policy-panel__action {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .portal-doc-links {
+    gap: 0.4rem;
+  }
+
+  .portal-doc-link {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.74rem;
+  }
+
+  .portal-guarantees {
+    margin-bottom: 1.3rem;
+  }
+
+  .portal-guarantees__grid {
+    gap: 0.5rem;
+  }
+
+  .portal-guarantees article {
+    padding: 0.65rem;
   }
 }
