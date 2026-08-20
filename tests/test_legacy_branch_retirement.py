@@ -9,15 +9,17 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
-COMPOSITION_REVISION = "6d569d18f8121f8592118b7e545ec5f6f0424d23"
-POLICY_REVISION = "46cfe5acbb91c1e4a6ece18dc2a429df3afa7268"
+COMPOSITION_REVISION = "681aaf3939f4a4f6c55faa65c0bdafd610066182"
+POLICY_REVISION = "f645c5640a40c240d83c3658462fc7449b931649"
 SKILL_ARCHIVE_REVISION = "b8b735dbe525ca76316fec445cdce43db02a955e"
 WEBAPP_ARCHIVE_REVISION = "fa269e1310a37ad46f3644ed4f46954a815380ec"
 
 ACTIVE_OPERATIONAL_FILES = (
     ".github/workflows/build-pages.yml",
     ".github/workflows/deploy-pages.yml",
+    ".github/workflows/provider-coexistence.yml",
     "scripts/resolve_publication_sources.py",
+    "scripts/validate_provider_coexistence.py",
     "scripts/generate_repository_trees_composition.py",
     "scripts/generate_repository_file_previews_composition.py",
     "scripts/generate_repository_browser_composition.py",
@@ -59,7 +61,7 @@ class LegacyBranchRetirementTests(unittest.TestCase):
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
 
         self.assertEqual(state["locked_composition_revision"], COMPOSITION_REVISION)
-        self.assertIn("branch retirement completed", state["reason"])
+        self.assertIn("branch retirement", state["reason"])
         conditions = state["completed_conditions"]
         retirement_condition = next(
             condition
@@ -83,6 +85,13 @@ class LegacyBranchRetirementTests(unittest.TestCase):
             in condition
         )
         self.assertIn("outside this Site migration-state record", lifecycle_boundary)
+        self.assertTrue(
+            any(
+                "validates Policy–Composition coexistence" in condition
+                and "without becoming a consumer-state management authority" in condition
+                for condition in conditions
+            )
+        )
         self.assertFalse(
             any("future Composition work" in condition for condition in conditions)
         )

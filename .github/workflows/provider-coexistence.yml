@@ -1,0 +1,86 @@
+name: Provider coexistence integration
+
+on:
+  pull_request:
+    branches:
+      - site
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-coexistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coexistence:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out Site implementation
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: site-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Resolve exact provider revisions
+        id: publication_refs
+        run: |
+          python site-source/scripts/resolve_publication_sources.py \
+            --lock site-source/publication-sources.json \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Check out exact Composition provider
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.composition }}
+          path: composition-source
+          fetch-depth: 0
+
+      - name: Check out exact Policy provider
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.publication_refs.outputs.policy }}
+          path: policy-source
+          fetch-depth: 0
+
+      - name: Create isolated Composition environment
+        run: |
+          python -I -m venv --clear .venv-composition
+          .venv-composition/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --requirement composition-source/requirements-dev.lock
+
+      - name: Create isolated Policy environment
+        run: |
+          python -I -m venv --clear .venv-policy
+          .venv-policy/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --requirement policy-source/requirements-ci.lock
+          .venv-policy/bin/python -m pip install \
+            --isolated \
+            --disable-pip-version-check \
+            --no-deps \
+            --no-build-isolation \
+            --editable policy-source
+          .venv-policy/bin/python -m pip check
+
+      - name: Validate exact-revision Policy–Composition coexistence
+        run: |
+          python site-source/scripts/validate_provider_coexistence.py \
+            --composition-root composition-source \
+            --composition-python "$PWD/.venv-composition/bin/python" \
+            --composition-revision "${{ steps.publication_refs.outputs.composition }}" \
+            --policy-root policy-source \
+            --policy-cli "$PWD/.venv-policy/bin/agent-policy" \
+            --policy-revision "${{ steps.publication_refs.outputs.policy }}"
