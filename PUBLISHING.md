@@ -168,7 +168,7 @@ Nested guided-index URLs identify the current reviewed provider/path projection;
 
 The integrated IA must provide at least:
 
-- `/` and `/overview/`;
+- `/`;
 - `/composition/`;
 - `/skill/`;
 - `/capabilities/`;
