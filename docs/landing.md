@@ -18,10 +18,7 @@
       presents them through one validated reader experience.
     </p>
     <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="overview/">
-        Read portal overview <span aria-hidden="true">→</span>
-      </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="composition/">
+      <a class="portal-cover__button portal-cover__button--primary" href="composition/">
         Understand Composition <span aria-hidden="true">→</span>
       </a>
       <a class="portal-cover__button portal-cover__button--secondary" href="capabilities/">

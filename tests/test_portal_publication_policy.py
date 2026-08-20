@@ -8,8 +8,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PORTAL_HOME = ROOT / "docs/landing.md"
-PORTAL_OVERVIEW = ROOT / "docs/overview.md"
+PORTAL_HOME = ROOT / "docs" / "landing.md"
 README = ROOT / "README.md"
 PUBLISHING_POLICY = ROOT / "PUBLISHING.md"
 SITE_MANIFEST = ROOT / "site-manifest.json"
@@ -29,7 +28,6 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
         for destination in (
-            "overview/",
             "composition/",
             "capabilities/",
             "skill/",
@@ -38,6 +36,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         ):
             with self.subTest(destination=destination):
                 self.assertIn(f'href="{destination}"', portal)
+        self.assertNotIn('href="overview/"', portal)
         for label in ("Agent Skill", "Policy", "Web application"):
             with self.subTest(label=label):
                 self.assertIn(
@@ -46,19 +45,6 @@ class PortalPublicationPolicyTests(unittest.TestCase):
                 )
         self.assertIn("One reviewed Composition authority", portal)
         self.assertIn("The Site locks both providers by full commit SHA", portal)
-
-    def test_portal_overview_explains_two_provider_model(self) -> None:
-        overview = PORTAL_OVERVIEW.read_text(encoding="utf-8")
-
-        self.assertIn("explicit allowlists", overview)
-        self.assertIn("full 40-character commit SHAs", overview)
-        self.assertIn("build-provenance.json", overview)
-        self.assertIn("Machine-readable contracts and schemas", overview)
-        self.assertIn(
-            "external provider set is now <code>composition</code> and <code>policy</code>",
-            overview,
-        )
-        self.assertIn("Composition does not merge artifact semantics", overview)
 
     def test_publication_policy_declares_current_entry_points(self) -> None:
         policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
@@ -76,6 +62,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         ):
             with self.subTest(entry=entry):
                 self.assertIn(entry, policy)
+        self.assertNotIn("`/overview/`", policy)
         self.assertIn("Composition and Policy", policy)
         self.assertIn("former Skill/Webapp copyable-template trees are retired", policy)
 
@@ -88,10 +75,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         }
 
         self.assertEqual(indexed[("site", "portal-home")], "index.md")
-        self.assertEqual(
-            indexed[("site", "portal-overview")],
-            "overview/index.md",
-        )
+        self.assertNotIn(("site", "portal-overview"), indexed)
         self.assertEqual(
             indexed[("composition", "overview")],
             "composition/index.md",
@@ -140,8 +124,8 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         )
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]
+        self.assertNotIn("Portal overview", top_level_titles)
         for title in (
-            "Portal overview",
             "Composition",
             "Agent Skill",
             "Application capabilities",

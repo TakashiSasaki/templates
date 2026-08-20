@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "docs" / "landing.md"
-OVERVIEW = ROOT / "docs" / "overview.md"
 STYLESHEET = ROOT / "assets" / "stylesheets" / "extra.css"
 COVER_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-cover.css"
 SHELL_STYLESHEET = ROOT / "assets" / "stylesheets" / "landing-shell.css"
@@ -19,7 +18,6 @@ TRANSLATION_STYLESHEET = ROOT / "assets" / "stylesheets" / "translation-reader.c
 IMAGES = ROOT / "assets" / "images"
 EXPECTED_SVGS = {
     "landing-architecture.svg",
-    "publication-pipeline.svg",
     "icon-skill.svg",
     "icon-policy.svg",
     "icon-webapp.svg",
@@ -76,12 +74,16 @@ def validate_static_svg(path: Path) -> None:
 
 
 class LandingPageTests(unittest.TestCase):
-    def test_graphical_cover_exposes_primary_destinations_and_overview(self) -> None:
+    def test_graphical_cover_exposes_primary_destinations(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("# Templates documentation portal\n\n"))
         self.assertIn('class="portal-landing portal-landing--cover"', text)
         self.assertIn('class="portal-cover"', text)
-        self.assertIn('href="overview/"', text)
+        self.assertNotIn('href="overview/"', text)
+        self.assertIn(
+            'class="portal-cover__button portal-cover__button--primary" href="composition/"',
+            text,
+        )
         for destination in (
             "composition/",
             "capabilities/",
@@ -101,27 +103,8 @@ class LandingPageTests(unittest.TestCase):
                 text,
             )
 
-    def test_overview_preserves_the_detailed_portal_explanation(self) -> None:
-        text = OVERVIEW.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("# Portal overview\n\n"))
-        self.assertIn('id="choose-an-entry-point"', text)
-        self.assertIn("Publication catalogs are explicit allowlists", text)
-        self.assertIn("full 40-character commit SHAs", text)
-        self.assertIn("build-provenance.json", text)
-        self.assertIn("Machine-readable contracts and schemas", text)
-        self.assertIn("The external provider set is now <code>composition</code> and <code>policy</code>", text)
-        self.assertIn("/skill/", text)
-        self.assertIn("/webapp/", text)
-        self.assertIn("/capabilities/", text)
-        self.assertIn("/lifecycle/", text)
-
-    def test_landing_pages_reference_only_declared_svg_artwork(self) -> None:
-        text = "\n".join(
-            (
-                LANDING.read_text(encoding="utf-8"),
-                OVERVIEW.read_text(encoding="utf-8"),
-            )
-        )
+    def test_landing_page_references_only_declared_svg_artwork(self) -> None:
+        text = LANDING.read_text(encoding="utf-8")
         references = set(
             re.findall(r'src="(?:\.\./)?images/([a-z0-9-]+\.svg)"', text)
         )
@@ -155,20 +138,13 @@ class LandingPageTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         validate_static_svg(path)
 
-    def test_cover_and_overview_styles_are_scoped_and_responsive(self) -> None:
+    def test_cover_styles_are_scoped_and_responsive(self) -> None:
         css = STYLESHEET.read_text(encoding="utf-8")
         cover_css = COVER_STYLESHEET.read_text(encoding="utf-8")
         shell_css = SHELL_STYLESHEET.read_text(encoding="utf-8")
         mobile_css = MOBILE_STYLESHEET.read_text(encoding="utf-8")
         translation_css = TRANSLATION_STYLESHEET.read_text(encoding="utf-8")
-        for selector in (
-            ".portal-landing",
-            ".portal-hero",
-            ".portal-card-grid",
-            ".portal-publication",
-            ".portal-tree-callout",
-        ):
-            self.assertIn(selector, css)
+        self.assertIn(".portal-landing", css)
         for selector in (
             ".portal-landing--cover",
             ".portal-cover",

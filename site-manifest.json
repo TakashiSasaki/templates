@@ -12,12 +12,6 @@
       "destination": "index.md"
     },
     {
-      "title": "Portal overview",
-      "publication": "site",
-      "document": "portal-overview",
-      "destination": "overview/index.md"
-    },
-    {
       "title": "Policy–Composition coexistence",
       "publication": "site",
       "document": "policy-composition-coexistence",
