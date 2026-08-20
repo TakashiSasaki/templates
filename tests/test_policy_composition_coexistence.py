@@ -151,7 +151,7 @@ class PolicyCompositionCoexistenceTests(unittest.TestCase):
 
             applied, payload = self.run_composer("apply", target=target, mode="update")
             self.assertEqual(applied.returncode, 0, applied.stderr)
-            self.assertEqual(payload["status"], "applied")
+            self.assertEqual(payload["status"], "updated")
             self.assertEqual(agents.read_bytes(), policy_agents)
             self.assert_policy_state_unchanged(target, policy_state)
 
