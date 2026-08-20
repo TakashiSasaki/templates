@@ -60,6 +60,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Check out Site publication protocol
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Site PR #313 established the canonical generic schema-v3 protocol.
+          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+          path: .site-publication-protocol
+          sparse-checkout: scripts/publication_contract.py
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -79,8 +90,8 @@ jobs:
       - name: Verify installed dependency graph
         run: .venv/bin/python -m pip check
 
-      - name: Validate publication catalog
-        run: .venv/bin/python scripts/validate_publication_catalog.py
+      - name: Validate publication catalog with Site protocol
+        run: .venv/bin/python -I .site-publication-protocol/scripts/publication_contract.py --source-root . --catalog docs/publication-catalog.json
 
       - name: Generate repository file previews
         run: .venv/bin/python scripts/generate_repository_preview.py
