@@ -46,14 +46,23 @@ class PublicationProtocolConsumptionTests(unittest.TestCase):
         self.assertIn("validate_machine_coverage", text)
         self.assertIn("validate_glossary", text)
 
-    def test_site_publication_dependency_stays_out_of_composer_runtime(self):
-        runtime_paths = [
-            ROOT / "scripts" / "compose.py",
-            ROOT / "scripts" / "composer_core.py",
-            ROOT / "scripts" / "composer_managed.py",
-            ROOT / "scripts" / "composer_transaction.py",
-            ROOT / "scripts" / "composer_upgrade.py",
-        ]
+    def test_site_publication_dependency_stays_out_of_consumer_runtime(self):
+        runtime_paths = [ROOT / "scripts" / "compose.py"]
+        runtime_paths.extend(sorted((ROOT / "scripts").glob("composer_*.py")))
+        runtime_paths.extend(
+            [
+                ROOT
+                / "components"
+                / "lifecycle.composition-state"
+                / "files"
+                / ".template-composition"
+                / "validate_composition.py",
+                ROOT / "recipes" / "skill.json",
+                ROOT / "recipes" / "webapp.json",
+            ]
+        )
+        self.assertGreaterEqual(len(runtime_paths), 11)
+
         forbidden_dependencies = (
             "publication_contract",
             "SITE_PUBLICATION_PROTOCOL_ROOT",
@@ -63,7 +72,10 @@ class PublicationProtocolConsumptionTests(unittest.TestCase):
         for path in runtime_paths:
             text = path.read_text(encoding="utf-8")
             for dependency in forbidden_dependencies:
-                with self.subTest(path=path.name, dependency=dependency):
+                with self.subTest(
+                    path=path.relative_to(ROOT).as_posix(),
+                    dependency=dependency,
+                ):
                     self.assertNotIn(dependency, text)
 
     def test_documentation_declares_split_authority_and_full_sha_consumption(self):
