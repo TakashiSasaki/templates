@@ -38,15 +38,15 @@ Every artifact requires `lifecycle.composition-state`, which materializes the se
 
 See the [Composition model](docs/architecture/composition-model.md), [production catalog architecture](docs/architecture/catalog.md), and [generated contract manifest architecture](docs/architecture/generated-contract-manifest.md) for the detailed design.
 
-## Ownership and safety model
+## Material ownership and safety model
 
-Materialized files use explicit ownership modes:
+Each materialized file has one component owner and one ownership mode:
 
-- `managed` files remain Composition-owned and may change only through guarded managed-state reconciliation;
-- `generated` files are recomputed deterministically from the resolved composition and remain Composition-owned; and
-- `seed` files transfer to consumer ownership after initial materialization, so later consumer or Policy edits are preserved.
+- Managed material (`managed`) remains Composition-owned and may change only through guarded managed-state reconciliation;
+- Generated material (`generated`) is recomputed deterministically from the resolved composition and remains Composition-owned; and
+- Seed material (`seed`) transfers to consumer ownership after initial materialization, so later consumer or Policy edits are preserved.
 
-Consumer-time validation requires `managed` and `generated` files to match their lock digests. Active `seed` files must remain present but may differ from their original bytes after ownership transfer. File-owner or ownership-mode transitions are never guessed, component-version changes require explicit upgrade, and descriptor-byte changes without a component-version change are rejected as source invariant violations.
+Consumer-time validation requires `managed` and `generated` files to match their lock digests. Active `seed` files must remain present but may differ from their original bytes after ownership transfer. Changes to a component owner or ownership mode are never guessed; component-version changes require explicit upgrade, and descriptor-byte changes without a component-version change are rejected as source invariant violations.
 
 See the [Composer reference](docs/reference/composer.md) for the complete operational contract and [Composer architecture](docs/architecture/composer-mvp.md) for resolver, reconciliation, transaction, and recovery details.
 
