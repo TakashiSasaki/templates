@@ -62,7 +62,7 @@
               "action": {"const": "create"},
               "destination": {
                 "type": "string",
-                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?!\\.[aA][gG][eE][nN][tT]-[pP][oO][lL][iI][cC][yY](?:$|/|\\.[yY][mM][lL](?:/|$)|\\.[lL][oO][cC][kK](?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
               },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "seed", "generated"]},
@@ -77,7 +77,7 @@
               "action": {"const": "replace"},
               "destination": {
                 "type": "string",
-                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?!\\.[aA][gG][eE][nN][tT]-[pP][oO][lL][iI][cC][yY](?:$|/|\\.[yY][mM][lL](?:/|$)|\\.[lL][oO][cC][kK](?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
               },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "generated"]},
@@ -93,7 +93,7 @@
               "action": {"const": "remove"},
               "destination": {
                 "type": "string",
-                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
+                "pattern": "^(?!\\.template-composition(?:$|/(?:lock|transaction)\\.json(?:/|$)|/staging(?:/|$)))(?!\\.[aA][gG][eE][nN][tT]-[pP][oO][lL][iI][cC][yY](?:$|/|\\.[yY][mM][lL](?:/|$)|\\.[lL][oO][cC][kK](?:/|$)))(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$"
               },
               "component": {"type": "string"},
               "ownership": {"enum": ["managed", "generated"]},

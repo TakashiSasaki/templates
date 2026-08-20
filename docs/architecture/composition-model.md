@@ -174,6 +174,24 @@ At an existing destination, a component-owner change or ownership-mode change is
 
 Aggregation across components is implemented by separate declarative metadata plus one designated owner of a deterministic `generated` destination.
 
+## Policy coexistence boundary
+
+Policy is an independent coding-agent operating authority, not a Composition capability. Composition components and recipes therefore do not represent Policy adoption, and Composer does not invoke `agent-policy` or interpret Policy profiles, configuration, lock, runtime, or release state.
+
+Composition enforces only the cross-authority ownership boundary needed to avoid mutation collisions. The following paths are foreign reserved destinations:
+
+```text
+.agent-policy.yml
+.agent-policy.lock
+.agent-policy/**
+```
+
+Component descriptors, resolved lock inventories, managed transaction actions, and self-contained consumer validation reject claims on those paths, including portable case variants. This does not make every ordinary repository instruction path Policy-owned. The Skill artifact's `AGENTS.md` remains a Composition `seed`; after initial materialization it is consumer-owned and later Policy adoption may replace its contents without Composition update/upgrade overwriting those bytes.
+
+The reverse transition is intentionally not inferred. If a repository already contains a different Policy-generated `AGENTS.md` before Skill initial composition, the existing destination conflict is preserved and initial composition fails closed until an explicit migration contract exists.
+
+The canonical cross-authority contract is Site-owned and published as the [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/). Composition's local model records only the invariants it enforces; it does not duplicate Policy semantics or introduce a shared lock, transaction, or umbrella management layer.
+
 ## Public operation model
 
 The public lifecycle is:
@@ -275,11 +293,12 @@ This is roll-forward, not rollback. The protocol never needs to restore consumer
 In steady state the validator checks lock-v2 shape, canonical source identity, deterministic ordering/portable path invariants, and current materials:
 
 - managed/generated files must exist and match lock digests;
-- active seed files must exist but may differ from their recorded initial provenance digest.
+- active seed files must exist but may differ from their recorded initial provenance digest; and
+- lock inventory must not claim foreign Policy-owned metadata destinations.
 
 If `transaction.json` exists, steady-state validation refuses the repository as interrupted managed state and requires source-side recovery.
 
-Extra consumer-owned files are allowed, including seeds removed from the active composition.
+Extra consumer-owned files are allowed, including seeds removed from the active composition and independent Policy metadata not listed in the Composition lock.
 
 ## Security and execution boundary
 
@@ -297,7 +316,7 @@ The Composer may:
 8. write lock/transaction metadata; and
 9. run bounded composition-structure validation.
 
-Product build, test, deployment, application migration, runtime, and package-install commands remain outside the Composer contract.
+Product build, test, deployment, application migration, runtime, package-install, and coding-agent Policy commands remain outside the Composer contract.
 
 ## Branch topology
 
