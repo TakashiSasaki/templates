@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
-from agent_policy.commands import adopt, init, validate
+from agent_policy.commands import adopt, init, render, validate
+from agent_policy.yamlutil import dump_yaml, load_yaml
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_project_policy(path: Path) -> None:
@@ -120,3 +124,67 @@ def test_adoption_rejects_composition_namespace_as_policy_state(tmp_path: Path) 
     assert ".template-composition" in diagnostics[0].message
     assert not (tmp_path / ".agent-policy.yml").exists()
     assert not (tmp_path / ".template-composition/adoption.json").exists()
+
+
+def test_render_does_not_clean_up_foreign_path_claimed_by_old_policy_lock(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    diagnostics = init.run(
+        tmp_path,
+        ".agent-policy.yml",
+        apply=True,
+        toolchain_revision="LOCAL-DEVELOPMENT",
+        profiles=["core"],
+        enabled_skills=[],
+    )
+    assert diagnostics == []
+
+    foreign = tmp_path / ".template-composition/foreign.md"
+    foreign.parent.mkdir(exist_ok=True)
+    foreign_bytes = b"composition-owned\n"
+    foreign.write_bytes(foreign_bytes)
+
+    policy_lock = tmp_path / ".agent-policy.lock"
+    lock = load_yaml(policy_lock)
+    assert isinstance(lock, dict)
+    outputs = lock["outputs"]
+    assert isinstance(outputs, dict)
+    outputs[".template-composition/foreign.md"] = {
+        "sha256": hashlib.sha256(foreign_bytes).hexdigest()
+    }
+    policy_lock.write_text(dump_yaml(lock), encoding="utf-8")
+    lock_before = policy_lock.read_bytes()
+
+    diagnostics = render.run(tmp_path, ".agent-policy.yml")
+
+    assert diagnostics[0].code == "RENDER"
+    assert ".template-composition" in diagnostics[0].message
+    assert foreign.read_bytes() == foreign_bytes
+    assert policy_lock.read_bytes() == lock_before
+
+
+def test_policy_docs_use_current_authority_topology() -> None:
+    paths = [
+        ROOT / "README.md",
+        ROOT / "docs/architecture.md",
+        ROOT / "docs/publication-catalog.md",
+        ROOT / "docs/repository-structure.md",
+        ROOT / "docs/adr/0003-application-neutral-policy-scope.md",
+        ROOT / "docs/adr/0006-copyable-artifact-policy-adoption.md",
+    ]
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+    stale_active_topology = [
+        "repository's `skill`, `site`, and `webapp` branches",
+        "`main`, `site`, and `webapp` branches",
+        "together with the `skill` and `webapp` catalogs",
+        "branch `webapp`",
+        "The `skill` and `webapp` branches each publish",
+    ]
+    for phrase in stale_active_topology:
+        assert phrase not in combined
+
+    assert "https://templates.moukaeritai.work/coexistence/" in combined
+    assert ".template-composition/**" in combined
+    assert "composition` authority" in combined
