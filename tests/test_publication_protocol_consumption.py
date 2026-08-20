@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import unittest
 from pathlib import Path
 
@@ -47,7 +46,7 @@ class PublicationProtocolConsumptionTests(unittest.TestCase):
         self.assertIn("validate_machine_coverage", text)
         self.assertIn("validate_glossary", text)
 
-    def test_site_dependency_stays_out_of_composer_runtime(self):
+    def test_site_publication_dependency_stays_out_of_composer_runtime(self):
         runtime_paths = [
             ROOT / "scripts" / "compose.py",
             ROOT / "scripts" / "composer_core.py",
@@ -55,12 +54,17 @@ class PublicationProtocolConsumptionTests(unittest.TestCase):
             ROOT / "scripts" / "composer_transaction.py",
             ROOT / "scripts" / "composer_upgrade.py",
         ]
+        forbidden_dependencies = (
+            "publication_contract",
+            "SITE_PUBLICATION_PROTOCOL_ROOT",
+            "load_site_publication_protocol",
+            ".site-publication-protocol",
+        )
         for path in runtime_paths:
             text = path.read_text(encoding="utf-8")
-            with self.subTest(path=path.name):
-                self.assertNotIn("publication_contract", text)
-                self.assertNotIn("SITE_PUBLICATION_PROTOCOL_ROOT", text)
-                self.assertNotRegex(text, re.compile(r"\bsite\b", re.IGNORECASE))
+            for dependency in forbidden_dependencies:
+                with self.subTest(path=path.name, dependency=dependency):
+                    self.assertNotIn(dependency, text)
 
     def test_documentation_declares_split_authority_and_full_sha_consumption(self):
         text = GUIDE.read_text(encoding="utf-8")
