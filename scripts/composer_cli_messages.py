@@ -16,7 +16,9 @@ def consumer_message(entry: dict[str, Any]) -> str:
     """Return an actionable public message while preserving the diagnostic code."""
 
     code = str(entry.get("code", ""))
-    original = str(entry.get("message", "")).strip()
+    message = entry.get("message", "")
+    raw_message = message if isinstance(message, str) else str(message)
+    original = raw_message.strip()
     destination = _value(entry, "destination", "the affected destination")
     component = _value(entry, "component", "the affected component")
 
@@ -122,7 +124,7 @@ def consumer_message(entry: dict[str, Any]) -> str:
             f"{original}. Inspect the unexpected target change and preserve the transaction marker if "
             "one exists; Composer will not force an overwrite when a recorded precondition no longer matches."
         )
-    return original
+    return raw_message
 
 
 def remediate_payload(payload: dict[str, Any]) -> dict[str, Any]:
