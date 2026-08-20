@@ -18,6 +18,12 @@
       "destination": "overview/index.md"
     },
     {
+      "title": "Policy–Composition coexistence",
+      "publication": "site",
+      "document": "policy-composition-coexistence",
+      "destination": "coexistence/index.md"
+    },
+    {
       "title": "Composition",
       "children": [
         {"title": "Overview", "publication": "composition", "document": "overview", "destination": "composition/index.md"},
