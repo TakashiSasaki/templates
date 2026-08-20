@@ -43,7 +43,8 @@ Modes for plan/apply:
 Recovery:
   If inspect reports managed-interrupted, use the exact Composition source revision
   recorded in .template-composition/transaction.json and rerun the matching apply mode.
-  Do not delete the transaction marker manually. Interrupted upgrade recovery omits --config.
+  Do not delete the transaction marker manually. Interrupted update and upgrade recovery
+  both omit --config.
 
 Examples:
   python scripts/compose.py inspect --target /repo
