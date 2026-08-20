@@ -46,7 +46,13 @@
             {"title": "Schema guide", "publication": "composition", "document": "schema-guide", "destination": "composition/schemas/index.md"}
           ]
         },
-        {"title": "Publication boundary", "publication": "composition", "document": "publication-boundary", "destination": "composition/docs/publication-catalog.md"}
+        {"title": "Publication boundary", "publication": "composition", "document": "publication-boundary", "destination": "composition/docs/publication-catalog.md"},
+        {
+          "title": "Historical provenance",
+          "children": [
+            {"title": "Authority migration history", "publication": "composition", "document": "composition-authority-migration", "destination": "composition/migrations/authority-migration.md"}
+          ]
+        }
       ]
     },
     {
@@ -102,14 +108,6 @@
         {"title": "Implementation evidence", "publication": "composition", "document": "implementation-evidence", "destination": "lifecycle/implementation-evidence/index.md"},
         {"title": "Release evidence", "publication": "composition", "document": "release-evidence", "destination": "lifecycle/release-evidence/index.md"},
         {"title": "Release bundle", "publication": "composition", "document": "release-bundle", "destination": "lifecycle/release-bundle/index.md"}
-      ]
-    },
-    {
-      "title": "Composition migration history",
-      "children": [
-        {"title": "Authority migration overview", "publication": "composition", "document": "composition-authority-migration", "destination": "composition/migrations/authority-migration.md"},
-        {"title": "Skill capability migration", "publication": "composition", "document": "skill-capability-migration", "destination": "composition/migrations/skill-capabilities.md"},
-        {"title": "Webapp lifecycle migration", "publication": "composition", "document": "webapp-lifecycle-migration", "destination": "composition/migrations/webapp-lifecycle.md"}
       ]
     },
     {
@@ -185,12 +183,22 @@
           "title": "Architecture decisions",
           "children": [
             {"title": "Overview", "publication": "policy", "document": "adr-index", "destination": "policy/adr/index.md"},
-            {"title": "ADR-0002 Repository adoption", "publication": "policy", "document": "adr-repository-adoption", "destination": "policy/adr/0002-repository-adoption.md"},
-            {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
-            {"title": "ADR-0004 Integrated bootstrap skill", "publication": "policy", "document": "adr-integrated-bootstrap-skill", "destination": "policy/adr/0004-integrated-bootstrap-skill.md"},
-            {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
-            {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
-            {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
+            {
+              "title": "Current decisions",
+              "children": [
+                {"title": "ADR-0002 Repository adoption", "publication": "policy", "document": "adr-repository-adoption", "destination": "policy/adr/0002-repository-adoption.md"},
+                {"title": "ADR-0003 Application-neutral scope", "publication": "policy", "document": "adr-application-neutral-scope", "destination": "policy/adr/0003-application-neutral-policy-scope.md"},
+                {"title": "ADR-0005 Single policy authority", "publication": "policy", "document": "adr-single-policy-authority", "destination": "policy/adr/0005-single-policy-authority.md"},
+                {"title": "ADR-0006 Copyable artifact policy adoption", "publication": "policy", "document": "adr-copyable-artifact-policy-adoption", "destination": "policy/adr/0006-copyable-artifact-policy-adoption.md"},
+                {"title": "ADR-0007 Single agent-policy skill runtime cache", "publication": "policy", "document": "adr-single-agent-policy-skill-runtime-cache", "destination": "policy/adr/0007-single-agent-policy-skill-runtime-cache.md"}
+              ]
+            },
+            {
+              "title": "Superseded decisions",
+              "children": [
+                {"title": "ADR-0004 Integrated bootstrap skill (superseded)", "publication": "policy", "document": "adr-integrated-bootstrap-skill", "destination": "policy/adr/0004-integrated-bootstrap-skill.md"}
+              ]
+            }
           ]
         }
       ]

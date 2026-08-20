@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "2960c0223f2063d800151499e60d4e976873281b"
+POLICY_REVISION = "3388f2df6c59cf2466b114cc236dd1b512349dc7"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -64,6 +64,10 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
             "adr-single-agent-policy-skill-runtime-cache": (
                 "ADR-0007 Single agent-policy skill runtime cache",
                 "policy/adr/0007-single-agent-policy-skill-runtime-cache.md",
+            ),
+            "adr-integrated-bootstrap-skill": (
+                "ADR-0004 Integrated bootstrap skill (superseded)",
+                "policy/adr/0004-integrated-bootstrap-skill.md",
             ),
         }
         for document_id, (title, destination) in expected.items():
@@ -125,9 +129,30 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
             for child in policy_section["children"]
             if child["title"] == "Architecture decisions"
         )
+        self.assertEqual(adr_node["children"][0]["document"], "adr-index")
+        current = next(
+            child
+            for child in adr_node["children"]
+            if child.get("title") == "Current decisions"
+        )
+        superseded = next(
+            child
+            for child in adr_node["children"]
+            if child.get("title") == "Superseded decisions"
+        )
         self.assertEqual(
-            adr_node["children"][-1]["document"],
-            "adr-single-agent-policy-skill-runtime-cache",
+            [child["document"] for child in current["children"]],
+            [
+                "adr-repository-adoption",
+                "adr-application-neutral-scope",
+                "adr-single-policy-authority",
+                "adr-copyable-artifact-policy-adoption",
+                "adr-single-agent-policy-skill-runtime-cache",
+            ],
+        )
+        self.assertEqual(
+            [child["document"] for child in superseded["children"]],
+            ["adr-integrated-bootstrap-skill"],
         )
 
     def test_policy_layer_documents_have_distinct_destinations(self) -> None:
