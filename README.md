@@ -39,15 +39,15 @@ The bare `agent-policy ...` examples above describe the canonical toolchain CLI.
 Install the reviewed skill with an installer script whose URL is itself pinned to a full commit SHA:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/4db0e1d9a71385f572118407c585c56773bea8bc/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/17ac1aae0e9fa3fa272ce2798ab5d3be71c1bd61/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 For an existing installation, append `--replace`; replacement is accepted only when the destination is already identified as this skill.
 
 The distribution has three distinct immutable roles:
 
-- **installer script revision** `4db0e1d9a71385f572118407c585c56773bea8bc` identifies the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `27a3319a3785250236bee056fd917379c245aaef` identifies the `skills/agent-policy/` tree that the installer downloads and atomically installs; and
+- **installer script revision** `17ac1aae0e9fa3fa272ce2798ab5d3be71c1bd61` identifies the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `a7123c4bb12942d690193e9e73f64cd12e33c00d` identifies the `skills/agent-policy/` tree that the installer downloads and atomically installs; and
 - the skill's **stable runtime revision** remains the full SHA in `skills/agent-policy/runtime-manifest.json`, independently selected for CLI execution.
 
 `release/skill-installer.json` records the first two identities. The one-line command never executes the mutable `policy` branch or a tag.
