@@ -1,8 +1,8 @@
 # Glossary contract
 
-This document defines the canonical terminology contract used by the unrelated `site`, `skill`, `policy`, and `webapp` branch histories in `TakashiSasaki/templates`.
+This document defines the canonical terminology contract used by the `site`, `composition`, and `policy` authority histories in `TakashiSasaki/templates`.
 
-Within this contract, **Provider branch** is a repository-specific publication term. It means one of the internal `skill`, `policy`, or `webapp` content-source branches. It does not mean a cloud provider, LLM or API provider, identity provider, or other external service provider. The `site` branch integrates and publishes content from those Provider branches; `site` is not itself a Provider branch.
+Within this contract, **Provider branch** is a repository-specific publication term. It means one of the internal `composition` or `policy` content-source branches. It does not mean a cloud provider, LLM or API provider, identity provider, or other external service provider. The `site` branch integrates and publishes content from those Provider branches; `site` is not itself a Provider branch.
 
 The glossary is a machine-readable semantic contract whose meaning is independent of any particular user interface. Provider branches own canonical terminology, while `site` validates and integrates the Provider-branch-owned sources into one deterministic read model. The Site publication also renders a non-authoritative human projection of that same integrated model at `/glossary/`.
 
@@ -68,12 +68,12 @@ terms:
           - 提供ブランチ
     origin: repository
     definition: >-
-      A repository-internal primary Git branch, currently skill, policy, or
-      webapp, that owns canonical content supplied as an independently versioned
-      input to the Site integrated publication.
+      A repository-internal primary Git branch, currently composition or policy,
+      that owns canonical content supplied as an independently versioned input
+      to the Site integrated publication.
     summary: >-
-      One of the repository's skill, policy, or webapp content-source branches
-      used as an input to the Site publication.
+      One of the repository's composition or policy content-source branches used
+      as an input to the Site publication.
     repository_usage: >-
       In Site publication terminology, Provider branch refers only to these
       internal Git content-source branches. It does not mean a cloud provider,
