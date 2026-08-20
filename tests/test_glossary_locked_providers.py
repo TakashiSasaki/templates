@@ -23,6 +23,9 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-composition-lifecycle-component": "composition",
     "templates-composition-recipe": "composition",
     "templates-composition-lock": "composition",
+    "templates-composition-material-ownership": "composition",
+    "templates-composition-component-owner": "composition",
+    "templates-composition-ownership-mode": "composition",
     "templates-composition-managed-material": "composition",
     "templates-composition-seed-material": "composition",
     "templates-composition-generated-material": "composition",
@@ -110,6 +113,14 @@ class LockedProviderGlossaryTests(unittest.TestCase):
             by_id["templates-skill-profile"]["localized_labels"]["ja"]["term"],
             "スキルプロファイル",
         )
+
+        ownership = by_id["templates-composition-material-ownership"]
+        self.assertEqual(ownership["provider"], "composition")
+        self.assertEqual(
+            ownership["localized_labels"]["ja"]["term"],
+            "マテリアル所有権",
+        )
+        self.assertNotIn("File ownership", ownership.get("aliases", []))
 
         mcp = by_id["external-mcp-model-context-protocol"]
         self.assertEqual(mcp["provider"], "composition")
