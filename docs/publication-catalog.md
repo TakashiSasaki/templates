@@ -2,9 +2,11 @@
 
 The `policy` branch publishes a branch-owned allowlist of human-readable
 documentation, supporting public assets, and canonical terminology input through
-`docs/publication-catalog.json`. The unrelated `site` branch consumes this
-catalog together with the `skill` and `webapp` catalogs and assembles the only
-GitHub Pages deployment for this repository.
+`docs/publication-catalog.json`. The independent `site` authority consumes this
+catalog together with the `composition` catalog and assembles the only GitHub
+Pages deployment for this repository. Skill and Web application remain reader
+and artifact concepts published from Composition rather than separate provider
+branches.
 
 ## Ownership
 

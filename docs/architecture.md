@@ -89,9 +89,27 @@ A validated cache entry is reusable without network access. On cache miss, the s
 
 The cache contains derived execution state, not policy authority. The authoritative inputs remain the full commit SHA, runtime lock digest, and managed repository lock.
 
+## Policy–Composition coexistence boundary
+
+Policy and Composition are independent authorities that may coexist in one consumer repository. The Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) is the canonical cross-authority contract; this section states only Policy's provider-local guarantees.
+
+Policy exclusively owns its configuration and management metadata:
+
+```text
+.agent-policy.yml
+.agent-policy.lock
+.agent-policy/**
+```
+
+Composition exclusively owns `.template-composition/**`. The `agent-policy` repository-path boundary therefore rejects that namespace, including normalized paths and symbolic-link aliases into it. Policy does not use files under that namespace as configuration, project-policy input, adoption state, generated output, or obsolete-output cleanup targets.
+
+This namespace boundary does not make ordinary artifact paths Policy-exclusive. For example, an existing consumer-owned `AGENTS.md` can be an explicit Policy adoption input. Ownership handoff for such ordinary paths is governed by the central coexistence contract rather than by implicit overwrite precedence.
+
+Policy has no runtime dependency on Composer, does not interpret Composition lock or transaction state, and does not participate in a shared Policy/Composition lock or transaction manager. Conversely, the existence of Composition metadata is not an error by itself: normal Policy adoption and managed operations must leave that metadata unchanged.
+
 ## Repository and package architecture
 
-The `policy` branch is an orphan history unrelated to the repository's `main`, `site`, and `webapp` branches. Within `policy`:
+The `policy` branch is an orphan history unrelated to the repository's `site` and `composition` authority histories. Within `policy`:
 
 - policy modules, profiles, schemas, compiler, adoption mechanics, templates, tests, and documentation are maintained together;
 - the single repository-facing skill is stored under `skills/agent-policy/`;

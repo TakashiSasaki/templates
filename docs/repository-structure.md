@@ -4,7 +4,7 @@ description: Describes the policy toolchain, single agent-policy skill, persiste
 
 # Repository structure
 
-The `policy` branch of `TakashiSasaki/templates` is an orphan history with no common ancestor with the repository's other long-lived `main`, `site`, and `webapp` branches. The branch contains the policy toolchain and one repository-facing `agent-policy` skill.
+The `policy` branch of `TakashiSasaki/templates` is an orphan history with no common ancestor with the repository's independent `site` and `composition` authority histories. The branch contains the Policy toolchain and one repository-facing `agent-policy` skill. Agent Skill and Web application artifact semantics are owned by Composition rather than separate provider branches.
 
 The skill is under `skills/agent-policy/`. Its runtime manifest pins a reviewed full commit SHA and the SHA-256 of that revision's runtime dependency lock, so it never executes the mutable `policy` branch tip.
 

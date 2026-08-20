@@ -20,14 +20,15 @@ concurrency:
 jobs:
   compatibility:
     if: github.repository == 'TakashiSasaki/templates'
-    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@ccc9f9789ba0f745a9cd30a7c49c89ef5ab57ff7
+    uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@8174c99c7d33b3aefaf22b43c4790826cf5a9756
     with:
-      site_ref: ccc9f9789ba0f745a9cd30a7c49c89ef5ab57ff7
+      site_ref: 8174c99c7d33b3aefaf22b43c4790826cf5a9756
       policy_ref: ${{ github.sha }}
     # The reusable workflow and Site source are pinned to the reviewed
-    # PR #260 Site merge commit. That Site revision includes Policy profiles,
-    # publishes ADR-0007, and pins the reviewed Policy catalog revision that
-    # closes the canonical/translation navigation graph.
+    # PR #309 Site merge commit. That Site revision uses the current
+    # composition + policy provider graph and publishes the canonical
+    # Policy–Composition coexistence contract. The Composition revision is
+    # resolved from that Site revision's reviewed publication-sources lock.
     # For pull requests, github.sha is GitHub's proposed merge commit; for
     # workflow_dispatch it is the selected ref's exact commit. The called
     # workflow is build-only and cannot deploy Pages.

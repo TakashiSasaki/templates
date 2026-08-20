@@ -6,7 +6,7 @@ description: templatesのpolicyブランチにおける規約ツールチェー�
 
 > **参考訳（非正本）:** この文書は `docs/repository-structure.md` の日本語訳です。英語版が正本であり、内容に差異がある場合は英語版を優先します。
 
-`TakashiSasaki/templates` の `policy` ブランチは、他の長期ブランチである `main`、`site`、`webapp` と共通祖先を持たないorphan historyです。`policy` には規約ツールチェーンと、repository-facingな単一 `agent-policy` skillを配置します。
+`TakashiSasaki/templates` の `policy` ブランチは、独立した `site` および `composition` authorityのhistoryと共通祖先を持たないorphan historyです。`policy` にはPolicy toolchainと、repository-facingな単一 `agent-policy` skillを配置します。Agent SkillおよびWeb applicationのartifact semanticsは、別個のprovider branchではなくCompositionが所有します。
 
 skillは `skills/agent-policy/` にあります。runtime manifestがレビュー済みfull commit SHAと、そのrevisionのruntime dependency lockのSHA-256を固定するため、mutableな `policy` 先端を実行しません。
 

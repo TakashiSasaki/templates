@@ -1,54 +1,57 @@
-# ADR-0006: Keep shared policy adoption opt-in for copyable artifacts
+# ADR-0006: Keep shared policy adoption opt-in for Composition-materialized artifacts
 
 - Status: Accepted
 - Date: 2026-08-08
 
 ## Context
 
-ADR-0005 separated repository-maintainer policy from artifact contracts and deliberately left policy adoption inside copyable consumer artifacts as a separate distribution-contract decision.
+ADR-0005 separated repository-maintainer policy from artifact contracts and deliberately left Policy adoption for consumer artifacts as a separate repository-maintenance decision.
 
-The `skill` and `webapp` branches each publish a byte-preserving `template/` distribution that is copied into a new repository or artifact root. Those distributions must remain independently usable after copying and must not inherit source-maintainer concerns merely because their source branch consumes the shared policy toolchain.
+The current `composition` authority materializes Agent Skill and Web application artifacts from recipes and reusable components. Those artifacts must remain independently usable without acquiring Policy configuration, runtime identity, or maintenance workflows merely because `policy` is maintained in the same `TakashiSasaki/templates` repository.
 
-The two distributions also have different artifact-level instruction needs. A Skill distribution already contains consumer-facing `AGENTS.md` instructions that describe the Skill artifact contract. A Web application distribution does not require an agent-instruction entry point merely to satisfy the Web application contract.
+The artifact families also have different instruction needs. The Skill artifact may materialize consumer-facing `AGENTS.md` as a Composition `seed`, while a Web application artifact does not require an agent-instruction entry point merely to satisfy its artifact contract.
 
-Pre-enrolling either distribution in the shared policy toolchain would add policy configuration, release identity, generated outputs, and maintenance workflow semantics to every copied artifact before its owner has chosen that operating model. It would also risk making repository operating policy appear to be part of the artifact contract itself.
+Automatically enrolling Composition output in the shared Policy toolchain would add Policy configuration, release identity, generated outputs, and maintenance workflow semantics before the consumer repository owner has chosen that operating model. It would also blur artifact semantics with coding-agent operating policy and create an implicit dependency between two independent authorities.
 
 ## Decision
 
-Copyable template distributions are **not pre-enrolled** in the shared policy toolchain.
+Composition-materialized artifacts are **not pre-enrolled** in the shared Policy toolchain.
 
-A copyable distribution must not include `.agent-policy.yml`, `.agent-policy.lock`, generated shared-policy maintenance workflows, or repository-local shared-policy inputs solely because its source branch uses them.
+A Composition recipe or component must not add `.agent-policy.yml`, `.agent-policy.lock`, Policy-generated maintenance workflows, or other Policy management state solely because Policy exists in the source repository. Composer must not invoke `agent-policy` as part of materialization, update, upgrade, or recovery.
 
-After a template is copied, the owner of the resulting concrete repository may explicitly adopt the shared policy toolchain as a separate repository-maintenance decision. That adoption must use the normal reviewed full-SHA bootstrap or adoption path and must preserve the concrete artifact's existing semantic requirements.
+After Composition materialization, the owner of the resulting concrete repository may explicitly adopt the shared Policy toolchain as a separate repository-maintenance decision. That adoption uses the normal reviewed full-SHA Policy bootstrap/adoption path and must preserve the concrete artifact's semantic requirements.
 
-Artifact-level instructions remain owned by the artifact contract unless and until an explicit repository-policy adoption converts their operating-policy portions into generated projections. In particular:
+Artifact-level instructions remain governed by the artifact ownership contract until an explicit ownership handoff occurs. In particular:
 
-- a Skill template may retain consumer-facing `AGENTS.md` when its contents define how to develop and validate the Skill artifact;
-- a Web application template is not required to add `AGENTS.md` merely to participate in the Web application contract; and
-- source-maintainer `.agent-policy.yml`, lock files, generated instructions, review adapters, and policy workflows do not flow into `template/` by inheritance.
+- a Skill artifact may materialize consumer-facing `AGENTS.md` as a Composition `seed`;
+- after initial materialization that seed is consumer-owned according to the Composition seed contract;
+- a later explicit Policy adoption may inspect and migrate that consumer-owned `AGENTS.md` into the Policy-generated steady-state instruction projection;
+- a Web application artifact is not required to add `AGENTS.md` merely to participate in the Web application contract; and
+- `.agent-policy.yml`, `.agent-policy.lock`, `.agent-policy/**`, generated Policy instructions, review adapters, and Policy workflows are not inherited from Composition by default.
 
-A future template may choose pre-enrollment only through a new reviewed distribution-contract decision that demonstrates why the additional toolchain identity and maintenance surface belong in that artifact's default distribution.
+The canonical cross-authority ownership handoff and collision rules are defined by the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/). This ADR does not create a separate Policy-side copy of that contract.
 
 ## Rationale
 
 This keeps three ownership layers distinct:
 
-1. **shared policy** defines application-neutral operating semantics;
-2. **source repository policy** governs maintenance of the template product itself; and
-3. **artifact contracts** define what a copied Skill or Web application repository must contain and how that artifact behaves.
+1. **shared Policy** defines application-neutral coding-agent operating semantics;
+2. **concrete repository Policy state** governs maintenance of a repository that explicitly adopts Policy; and
+3. **Composition artifact contracts** define what a materialized Skill or Web application repository contains and how Composition-owned lifecycle state is managed.
 
-Opt-in adoption avoids imposing repository-management infrastructure on consumers that only need the artifact template. It also keeps copied artifacts self-contained at the semantic level: committed artifact instructions and contracts remain usable even when the shared policy toolchain is not fetched or executed.
+Opt-in adoption avoids imposing Policy management infrastructure on consumers that only need a Composition artifact. It also preserves source-time composition and consumer self-containment: committed artifact instructions and contracts remain usable even when the Policy toolchain is not fetched or executed.
 
-The decision does not prohibit a concrete repository from using shared policy. It only makes that adoption an explicit post-copy operation rather than an implicit property of the template distribution.
+The decision does not prohibit a Composition-produced repository from using Policy. It only makes that adoption an explicit post-materialization operation rather than an implicit property of a recipe or component graph.
 
 ## Consequences
 
-- `skill/template/` must keep source-maintainer policy configuration and generated shared-policy maintenance surfaces out of its closed distribution inventory.
-- `webapp/template/` must keep the same separation and must not gain coding-agent policy merely because the `webapp` source branch consumes shared policy.
-- Distribution validators should reject accidental leakage of source-maintainer policy surfaces into copyable artifacts.
-- Consumer documentation may explain how to opt in after copying, but the copy operation itself remains byte-preserving and performs no automatic policy adoption.
-- Full-SHA policy adoption remains available to any concrete repository after artifact creation.
+- Composition recipes and components must remain semantically independent of Policy adoption.
+- Policy must not be represented as `capability.agent-policy` or an equivalent Composition component merely to automate repository enrollment.
+- Policy does not interpret `.template-composition/**` as Policy state and does not rewrite Composition lock, transaction, staging, or ownership metadata.
+- Consumer documentation may explain how to opt in after Composition materialization, but Composer performs no automatic Policy adoption.
+- Full-SHA Policy adoption remains available to any concrete repository after artifact creation.
+- Reverse ownership transfer from an already Policy-generated destination to newly selected Composition material remains fail-closed unless an explicit migration contract is introduced.
 
 ## Verification
 
-The decision is satisfied when each copyable distribution remains independently valid without `.agent-policy.yml` or `.agent-policy.lock`, source-maintainer policy surfaces are explicitly excluded from the distribution boundary, and post-copy policy adoption remains a separate explicit operation rather than an automatic transformation.
+The decision is satisfied when Composition-produced repositories remain independently valid without `.agent-policy.yml` or `.agent-policy.lock`, Policy operations leave `.template-composition/**` unchanged, Composition artifact selection does not become a Policy profile concern, and post-materialization Policy adoption remains a separate explicit operation.

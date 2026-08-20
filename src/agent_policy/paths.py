@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 
 class UnsafePathError(ValueError):
     pass
+
+
+FOREIGN_RESERVED_NAMESPACES = (".template-composition",)
 
 
 def find_repository_root(start: Path | None = None) -> Path:
@@ -15,16 +19,42 @@ def find_repository_root(start: Path | None = None) -> Path:
     raise FileNotFoundError("No Git repository root found")
 
 
-def resolve_inside(root: Path, relative: str | Path, *, allow_missing: bool = True) -> Path:
-    root = root.resolve()
+def _normalized_lexical_relative(root: Path, relative: str | Path) -> Path:
     raw = Path(relative)
     if raw.is_absolute():
         raise UnsafePathError(f"Absolute paths are not allowed: {relative}")
-    candidate = (root / raw).resolve(strict=not allow_missing)
+    lexical = Path(os.path.abspath(root / raw))
+    try:
+        return lexical.relative_to(root)
+    except ValueError as exc:
+        raise UnsafePathError(f"Path escapes repository root: {relative}") from exc
+
+
+def _is_at_or_below(path: Path, directory: Path) -> bool:
+    return path == directory or directory in path.parents
+
+
+def resolve_inside(root: Path, relative: str | Path, *, allow_missing: bool = True) -> Path:
+    root = root.resolve()
+    lexical_relative = _normalized_lexical_relative(root, relative)
+    for namespace in FOREIGN_RESERVED_NAMESPACES:
+        if _is_at_or_below(lexical_relative, Path(namespace)):
+            raise UnsafePathError(
+                f"Path enters foreign reserved namespace {namespace}: {relative}"
+            )
+
+    candidate = (root / Path(relative)).resolve(strict=not allow_missing)
     try:
         candidate.relative_to(root)
     except ValueError as exc:
         raise UnsafePathError(f"Path escapes repository root: {relative}") from exc
     if candidate == root / ".git" or (root / ".git") in candidate.parents:
         raise UnsafePathError(f"Writing under .git is forbidden: {relative}")
+
+    for namespace in FOREIGN_RESERVED_NAMESPACES:
+        reserved = (root / namespace).resolve(strict=False)
+        if _is_at_or_below(candidate, reserved):
+            raise UnsafePathError(
+                f"Path resolves into foreign reserved namespace {namespace}: {relative}"
+            )
     return candidate

@@ -10,7 +10,7 @@ The policy toolkit originally included a `web-application` profile containing ru
 Keeping application design requirements in the shared agent-policy compiler creates two competing authorities:
 
 - an operational policy system that tells agents how to work; and
-- an application template that defines what a particular artifact must contain and how its contracts are validated.
+- an artifact contract system that defines what a particular artifact must contain and how its contracts are validated.
 
 It also encourages parallel profiles for command-line applications, libraries, mobile applications, services, and other artifact categories. That would turn the policy toolkit into a collection of product-architecture standards rather than a reusable agent-operation system.
 
@@ -33,20 +33,20 @@ Built-in shared policy must not define artifact architecture such as:
 - framework, package, rendering, backend, persistence, or deployment topology;
 - product roles, domain schemas, concrete endpoints, or product terminology.
 
-Artifact-category requirements belong in the corresponding template or domain-specific contract system. Product-specific requirements belong in the product repository. A product repository may still reference its own design and verification documents from repository-local policy, but doing so does not make those design requirements part of the shared policy corpus.
+Artifact-category requirements belong in the corresponding Composition artifact, capability, lifecycle, recipe, or domain-specific contract. Product-specific requirements belong in the product repository. A product repository may still reference its own design and verification documents from repository-local policy, but doing so does not make those design requirements part of the shared policy corpus.
 
-References from shared policy documentation to an application template are informational only and must not create compiler, runtime, validation, or release dependencies between the policy and template branches.
+References from shared policy documentation to Composition are informational only and must not create compiler, runtime, validation, or release dependencies between Policy and Composition. Cross-authority coexistence is governed by the Site-owned Policy–Composition coexistence contract.
 
 Profiles may classify operational situations or risk postures. They must not classify repositories solely by artifact category, such as `web-application`, `cli-application`, `mobile-application`, `library`, or `backend-service`.
 
 ## Consequences
 
 - The built-in `web-application` profile and its eight `interfaces.*` rules are removed.
-- Web-application design authority remains with `TakashiSasaki/templates` branch `webapp`; the policy toolkit has no runtime or validation dependency on that branch.
-- Consumers migrating to `templates:policy` must remove `web-application` from `.agent-policy.yml` and adopt the relevant Webapp contracts independently when applicable.
+- Web-application design authority belongs to the `composition` authority; the policy toolkit has no runtime or validation dependency on Composer or Composition state.
+- Consumers using shared Policy must not encode Webapp artifact selection as a Policy profile; relevant Composition contracts are selected independently when applicable.
 - Existing operational rules are reviewed by what they require an agent to do, not by the vocabulary in their identifier or documentation.
-- Future application-category proposals are redirected to the appropriate template or domain-contract branch.
+- Future application-category proposals are redirected to Composition or another appropriate artifact/domain-contract authority rather than added to shared Policy.
 
 ## Verification
 
-Repository tests enforce that the removed profile, its rule files, and its documentation do not return, and that the scope decision remains present in the published documentation navigation.
+Repository tests enforce that the removed profile, its rule files, and its documentation do not return, that the scope decision remains present in the published documentation navigation, and that Policy does not reclaim Composition artifact semantics.

@@ -1,12 +1,14 @@
 # Policy toolkit
 
-This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `skill`, `site`, and `webapp` branches.
+This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `site` and `composition` authority histories. Agent Skill and Web application artifact semantics are owned by `composition`, not by separate provider branches.
 
 The toolkit compiles shared and repository-specific operating rules into reproducible agent instructions. It governs how coding and general-purpose agents investigate, change, validate, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories.
 
 The Python package and command are named `agent-policy`.
 
 Repository-maintainer operating authority for this branch is declared by `.agent-policy.yml` and the files under `repository-policy/`. Generated `AGENTS.md` and `.github/REVIEW_GUIDELINES.md` are projections of that authority. Other maintained documents may define toolkit contracts, release/readiness states, or explain the current implementation, but this README does not independently override the canonical operating rules.
+
+Policy and Composition may coexist in one consumer repository without a direct runtime dependency. Policy owns `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**`; Composition owns `.template-composition/**`. The canonical cross-authority boundary, including ordinary-path ownership handoffs such as a consumer-owned `AGENTS.md`, is the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
 ## Commands
 
@@ -103,7 +105,7 @@ Consumer-runtime validation has a separate, narrower contract. `requirements-run
 
 The dependency locks fix exact distribution version strings. They do not provide byte-for-byte artifact reproducibility or cryptographic index-origin reproducibility because hashes and source URLs are not recorded. Hash enforcement and explicit repository-origin enforcement are separate trust-boundary changes. Dependency-input and lock changes are made through the repository's reviewed change process.
 
-The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. Its current deployment exclusion implements `repository-policy/documentation-boundary.md`: the `policy` workflow contains no GitHub Pages deployment route and has only `contents: read`, while Pages deployment belongs to the unrelated `site` branch. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
+The documentation build uses the same clean-runner boundary for its independent arbitrary-exact dependency lock, installed-distribution verification, strict MkDocs build, and full-SHA action pins. Its current deployment exclusion implements `repository-policy/documentation-boundary.md`: the `policy` workflow contains no GitHub Pages deployment route and has only `contents: read`, while Pages deployment belongs to the independent `site` authority. See `docs/documentation-publication.md` for the reproducible local sequence and deployment exclusion contract.
 
 ## Branch status
 
