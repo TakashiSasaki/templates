@@ -17,7 +17,7 @@ The catalog publishes explanatory Markdown for:
 - the Web application artifact model;
 - reusable runtime, CLI, MCP, MCP Apps, browser, and service capabilities;
 - reusable composition-state, contract-evolution, implementation-evidence, release-evidence, and release-bundle lifecycle contracts; and
-- migration material needed to understand why former monolithic Skill/Webapp responsibilities moved to their present authorities.
+- one consolidated authority-migration history that explains why former monolithic Skill/Webapp responsibilities moved to their present authorities and points to immutable PR provenance for stage-level detail.
 
 The publication home is the branch `README.md`. `docs/index.md` is the provider-owned progressive-disclosure root used by guided navigation.
 
@@ -32,9 +32,15 @@ Every Markdown file in the Composition source tree must be exactly one of:
 
 Local execution-state directories such as Git metadata, virtual environments, tool caches, and the temporary `.site-publication-protocol` checkout are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, or a new top-level Markdown file therefore fails validation until its publication intent is classified explicitly.
 
-An exclusion does not suppress a known reader-facing requirement: the existing Composition-owned reader-coverage rules still require provider roots, architecture/migration documentation, schema/catalog guides, and reader material declared by production components to be published. A path also cannot be both published and excluded.
+An exclusion does not suppress a known reader-facing requirement: the existing Composition-owned reader-coverage rules still require provider roots, current architecture, the consolidated authority-migration history, schema/catalog guides, and reader material declared by production components to be published. A path also cannot be both published and excluded.
 
-The current explicit exclusions are operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`) and non-production executable-fixture guidance (`examples/README.md`). The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
+The current explicit exclusions are:
+
+- operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`);
+- the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which remain maintainer provenance while the consolidated history and immutable PR records form the reader-facing history surface; and
+- non-production executable-fixture guidance (`examples/README.md`).
+
+The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
 
 ## Machine-readable boundary
 
