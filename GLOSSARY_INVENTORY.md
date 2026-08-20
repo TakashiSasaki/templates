@@ -1,17 +1,25 @@
 # Glossary terminology inventory
 
-This file is a maintainer working inventory for expanding the federated glossary.
-It is not a canonical glossary source and is intentionally not listed in any
-publication catalog. Canonical terms remain in the semantic owner's
-`docs/glossary.yml`.
+This file is a maintainer working inventory and historical review ledger for the
+federated glossary. It is not a canonical glossary source and is intentionally
+not listed in any publication catalog. Current canonical terms remain in the
+active semantic owners' `docs/glossary.yml` files and in the exact integrated
+Site glossary.
+
+Completed tables below record the semantic owner or curator that applied at the
+time each expansion was reviewed and promoted. They do **not** define the current
+provider topology. The active authority model is now `site`, `composition`, and
+`policy`; Skill and Webapp semantics that survived the authority migration are
+owned by Composition rather than by active `skill` or `webapp` provider branches.
 
 The inventory is a review aid, not a closed vocabulary. Terms may be added later
 without editing this file when their ownership and semantics are already clear.
 
 The original 14-term seed, the reviewed 17-term first expansion, the reviewed
-10-term second expansion, and the first reviewed external-term expansion are
-canonical. The integrated glossary therefore has a required 42-term baseline at
-this stage, while remaining open to later vocabulary growth.
+10-term second expansion, and the first reviewed external-term expansion formed
+a 42-term promotion baseline at the end of those historical passes. That number
+is not a current required count or minimum. The current canonical vocabulary is
+defined by the active provider glossaries selected by the Site publication lock.
 
 ## Selection rules
 
@@ -45,7 +53,9 @@ an extra `policy-` segment solely for provider namespacing.
 
 ## Original canonical seed
 
-The original seed remains a required subset of the canonical vocabulary.
+The following table records the original seed as a historical promotion
+milestone. It is not a statement that every listed ID remains part of the current
+active-provider canonical vocabulary.
 
 | Canonical ID | Owner / curator | Origin | English term |
 | --- | --- | --- | --- |
@@ -117,7 +127,6 @@ ontology. Provider-local glossary files are federated inputs and are not require
 to contain definitions for every related ID they reference. Cross-provider
 targets remain defined by exactly one canonical owner and are resolved by the
 Site parser only after the exact provider revisions are integrated.
-
 A cross-provider relation is appropriate only when at least one of these is true:
 
 1. two canonical concepts have similar labels and an explicit relation materially
