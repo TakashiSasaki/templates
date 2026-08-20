@@ -96,7 +96,7 @@
       "localized_labels": {"ja": {"term": "生成マテリアル"}},
       "origin": "repository",
       "definition": "Materialized content produced deterministically by an allowlisted declarative generator from resolved composition authorities rather than copied from one source file. Its bytes remain composition-managed and digest-bound in the lock.",
-      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-contract-manifest"]
+      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-seed-material", "templates-contract-manifest"]
     },
     {
       "id": "templates-skill-profile",
