@@ -7,7 +7,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "46cfe5acbb91c1e4a6ece18dc2a429df3afa7268"
+POLICY_REVISION = "f645c5640a40c240d83c3658462fc7449b931649"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -123,7 +123,7 @@ class PolicyNavigationPublicationTests(unittest.TestCase):
         adr_node = next(
             child
             for child in policy_section["children"]
-            if child.get("title") == "Architecture decisions"
+            if child["title"] == "Architecture decisions"
         )
         self.assertEqual(
             adr_node["children"][-1]["document"],
