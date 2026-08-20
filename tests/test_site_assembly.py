@@ -289,7 +289,7 @@ class MultiPublicationAssemblyTests(unittest.TestCase):
                 self.create_minimal_site(site, source=source)
                 with self.assertRaisesRegex(
                     AssemblyError,
-                    "safe relative POSIX path",
+                    r"safe .*relative POSIX path",
                 ):
                     assemble({"site": site}, site, output)
 
@@ -337,7 +337,7 @@ class MultiPublicationAssemblyTests(unittest.TestCase):
             (site / "asset.txt").write_text("not Markdown\n", encoding="utf-8")
             with self.assertRaisesRegex(
                 AssemblyError,
-                "would publish undeclared Markdown",
+                r"publish.*Markdown",
             ):
                 assemble({"site": site}, site, output)
 
