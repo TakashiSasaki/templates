@@ -4,7 +4,7 @@
 
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
-- [Composition source overview](../README.md) — current authority, recipes, lifecycle summary, and repository-level Composition context.
+- [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
 
 ## Composition architecture
 
@@ -49,8 +49,9 @@
 
 ## Composition migration history
 
-- [Skill capability migration](migrations/pr2-skill-capabilities.md) — separation of Skill semantics from generic application capabilities.
-- [Webapp lifecycle migration](migrations/pr3-webapp-lifecycle.md) — separation of Web-specific semantics from reusable lifecycle contracts.
+- [Composition authority migration](migrations/composition-authority-migration.md) — high-level migration chronology, authority cutover, branch retirement, and provenance.
+- [Skill capability migration](migrations/pr2-skill-capabilities.md) — detailed separation of Skill semantics from generic application capabilities.
+- [Webapp lifecycle migration](migrations/pr3-webapp-lifecycle.md) — detailed separation of Web-specific semantics from reusable lifecycle contracts.
 
 ## Machine-readable authorities
 
