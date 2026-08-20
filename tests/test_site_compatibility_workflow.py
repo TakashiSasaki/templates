@@ -11,7 +11,14 @@ def test_policy_workflow_uses_reviewed_immutable_site_revision() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
     assert "branches:\n      - policy" in text
-    assert "- docs/**" in text
+    for required_path in (
+        "- docs/**",
+        "- .github/workflows/pages.yml",
+        "- .github/workflows/site-compatibility.yml",
+        "- tests/test_publication_protocol_consumption.py",
+        "- tests/test_site_compatibility_workflow.py",
+    ):
+        assert required_path in text
     assert "permissions:\n  contents: read" in text
     assert (
         f"uses: TakashiSasaki/templates/.github/workflows/build-pages.yml@{PINNED_SITE_SHA}"
