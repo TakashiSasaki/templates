@@ -12,8 +12,7 @@
     </h1>
     <p class="portal-cover__lead">
       Composition defines Skill and Webapp artifact semantics plus reusable capabilities.
-      Policy independently defines verifiable coding-agent operation. The Site publishes
-      reviewed snapshots of both through one validated reader experience.
+      Policy independently defines verifiable coding-agent operation.
     </p>
     <div class="portal-cover__actions">
       <a class="portal-cover__button portal-cover__button--primary" href="composition/">
