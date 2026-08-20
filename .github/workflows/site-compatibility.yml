@@ -6,7 +6,9 @@ on:
       - policy
     paths:
       - docs/**
+      - .github/workflows/pages.yml
       - .github/workflows/site-compatibility.yml
+      - tests/test_publication_protocol_consumption.py
       - tests/test_site_compatibility_workflow.py
   workflow_dispatch:
 
