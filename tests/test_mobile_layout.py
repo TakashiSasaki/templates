@@ -72,18 +72,30 @@ class MobileLayoutRegressionTests(unittest.TestCase):
     def test_landing_preserves_touch_target_floor(self) -> None:
         case = CheckCase("landing", "/", "landing")
         metrics = compact_metrics()
-        metrics["cover"] = {"paddingTop": 17}
+        metrics["cover"] = {"paddingTop": 17, "height": 650}
         metrics["lead"] = {"lineHeight": 25.5}
         metrics["buttons"] = [{"height": 47}, {"height": 48}]
         failures = validate_metrics(case, 390, 844, metrics)
         self.assertIn("portal action 0 is shorter than 48px", failures)
+
+    def test_landing_hero_cannot_consume_nearly_the_full_viewport(self) -> None:
+        case = CheckCase("landing", "/", "landing")
+        metrics = compact_metrics()
+        metrics["cover"] = {"paddingTop": 17, "height": 761}
+        metrics["lead"] = {"lineHeight": 25.5}
+        metrics["buttons"] = [{"height": 48}, {"height": 48}]
+        failures = validate_metrics(case, 390, 844, metrics)
+        self.assertIn(
+            "portal cover consumes more than 90% of the mobile viewport height",
+            failures,
+        )
 
     def test_layout_threshold_exceedance_is_reported(self) -> None:
         case = CheckCase("landing", "/", "landing")
         metrics = compact_metrics()
         metrics["content"] = {"paddingTop": 9}
         metrics["heading"] = {"marginBottom": 23}
-        metrics["cover"] = {"paddingTop": 21}
+        metrics["cover"] = {"paddingTop": 21, "height": 650}
         metrics["lead"] = {"lineHeight": 28}
         metrics["buttons"] = [{"height": 48}]
         failures = validate_metrics(case, 390, 844, metrics)

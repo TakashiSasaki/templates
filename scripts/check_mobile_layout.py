@@ -205,6 +205,11 @@ def validate_metrics(
             try:
                 if _number(cover.get("paddingTop"), "cover.paddingTop") > 20:
                     failures.append("portal cover top padding exceeds 20px")
+                cover_height = _number(cover.get("height"), "cover.height")
+                if cover_height > height * 0.9:
+                    failures.append(
+                        "portal cover consumes more than 90% of the mobile viewport height"
+                    )
             except MobileLayoutError as exc:
                 failures.append(str(exc))
         if not isinstance(lead, dict):
