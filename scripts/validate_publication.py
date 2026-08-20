@@ -293,16 +293,13 @@ def validate_reader_coverage(catalog: Any) -> None:
         PurePosixPath("README.md"),
         PurePosixPath("docs/index.md"),
         PurePosixPath("docs/publication-catalog.md"),
+        PurePosixPath("docs/migrations/composition-authority-migration.md"),
         PurePosixPath("catalog/README.md"),
         PurePosixPath("schemas/README.md"),
     }
     required.update(
         PurePosixPath(path.relative_to(ROOT).as_posix())
         for path in (ROOT / "docs" / "architecture").glob("*.md")
-    )
-    required.update(
-        PurePosixPath(path.relative_to(ROOT).as_posix())
-        for path in (ROOT / "docs" / "migrations").glob("*.md")
     )
 
     production = strict_json(ROOT / "catalog" / "catalog.json", "production catalog")
@@ -322,101 +319,68 @@ def validate_reader_coverage(catalog: Any) -> None:
 
 
 def validate_machine_coverage(catalog: Any) -> None:
-    required = {PurePosixPath("catalog/catalog.json"), PurePosixPath("recipes")}
-    required.update(
+    required_assets = {
+        PurePosixPath("catalog/catalog.json"),
+        PurePosixPath("recipes"),
+    }
+    required_assets.update(
         PurePosixPath(path.relative_to(ROOT).as_posix())
         for path in (ROOT / "schemas").glob("*.json")
     )
-    production = strict_json(ROOT / "catalog" / "catalog.json", "production catalog")
-    for component_id in production.get("components", []):
-        required.add(PurePosixPath(f"components/{component_id}/component.json"))
+    required_assets.update(
+        PurePosixPath(f"components/{component_id}/component.json")
+        for component_id in strict_json(
+            ROOT / "catalog" / "catalog.json",
+            "production catalog",
+        ).get("components", [])
+    )
     missing = sorted(
-        path.as_posix() for path in required if not asset_covers(catalog, path)
+        path.as_posix() for path in required_assets if not asset_covers(catalog, path)
     )
     if missing:
         raise PublicationError(
-            "machine-readable production authority is missing from publication assets: "
+            "machine-readable authority is missing from publication assets: "
             + ", ".join(missing)
         )
 
 
-def validate_glossary(glossary_source: PurePosixPath) -> None:
-    glossary = strict_json(ROOT / glossary_source, "composition glossary")
-    if set(glossary) != {"schema_version", "terms"} or glossary.get("schema_version") != 1:
-        raise PublicationError("composition glossary must have schema_version 1 and terms")
-    terms = glossary.get("terms")
+def validate_glossary(catalog: Any) -> None:
+    if catalog.glossary_source is None:
+        raise PublicationError("Composition publication must declare a glossary")
+    path = resolve_regular(catalog.glossary_source, "glossary.source")
+    data = strict_json(path, "Composition glossary")
+    if set(data) != {"schema_version", "terms"} or data.get("schema_version") != 1:
+        raise PublicationError("Composition glossary must use schema version 1")
+    terms = data.get("terms")
     if not isinstance(terms, list) or not terms:
-        raise PublicationError("composition glossary terms must be non-empty")
+        raise PublicationError("Composition glossary terms must be a non-empty array")
     ids: set[str] = set()
     for index, term in enumerate(terms):
-        field = f"terms[{index}]"
         if not isinstance(term, dict):
-            raise PublicationError(f"{field} must be an object")
+            raise PublicationError(f"glossary term {index} must be an object")
         term_id = term.get("id")
         if not isinstance(term_id, str) or not TERM_RE.fullmatch(term_id):
-            raise PublicationError(f"{field}.id is invalid")
+            raise PublicationError(f"glossary term {index} has invalid id")
         if term_id in ids:
             raise PublicationError(f"duplicate glossary term id: {term_id}")
         ids.add(term_id)
-        if not isinstance(term.get("term"), str) or not term["term"].strip():
-            raise PublicationError(f"{field}.term must be non-empty")
-        origin = term.get("origin")
-        if origin == "repository":
-            if not isinstance(term.get("definition"), str) or not term["definition"].strip():
-                raise PublicationError(f"{field} repository term requires definition")
-        elif origin == "external":
-            if not isinstance(term.get("summary"), str) or not term["summary"].strip():
-                raise PublicationError(f"{field} external term requires summary")
-            authority = term.get("authority")
-            if not isinstance(authority, dict) or not authority.get("sources"):
-                raise PublicationError(f"{field} external term requires authority sources")
-        else:
-            raise PublicationError(f"{field}.origin must be repository or external")
-        related = term.get("related_terms", [])
-        if not isinstance(related, list) or any(
-            not isinstance(value, str) or not TERM_RE.fullmatch(value)
-            for value in related
-        ):
-            raise PublicationError(f"{field}.related_terms is invalid")
     obsolete = sorted(ids & OBSOLETE_TERM_IDS)
     if obsolete:
         raise PublicationError(
-            "obsolete copyable-template glossary IDs must not return: "
+            "Composition glossary contains retired copy-model terms: "
             + ", ".join(obsolete)
         )
-    required_ids = {
-        "templates-skill-profile",
-        "templates-composition-component",
-        "templates-composition-recipe",
-        "templates-composition-lock",
-        "templates-contract-manifest",
-        "templates-implementation-evidence",
-        "templates-release-evidence",
-        "templates-release-bundle",
-        "external-mcp-model-context-protocol",
-    }
-    missing = sorted(required_ids - ids)
-    if missing:
-        raise PublicationError(
-            "required composition glossary terms are missing: " + ", ".join(missing)
-        )
-
-
-def validate_publication_root(explicit_protocol_root: Path | None = None) -> None:
-    catalog = load_publication_catalog(explicit_protocol_root)
-    exclusions = parse_publication_classification()
-    validate_composition_catalog_declarations(catalog)
-    validate_reader_coverage(catalog)
-    validate_markdown_classification(catalog, exclusions)
-    validate_machine_coverage(catalog)
-    if catalog.glossary_source is None:
-        raise PublicationError("Composition glossary declaration is required")
-    validate_glossary(catalog.glossary_source)
 
 
 def main() -> int:
     try:
-        validate_publication_root()
+        catalog = load_publication_catalog()
+        exclusions = parse_publication_classification()
+        validate_composition_catalog_declarations(catalog)
+        validate_reader_coverage(catalog)
+        validate_markdown_classification(catalog, exclusions)
+        validate_machine_coverage(catalog)
+        validate_glossary(catalog)
     except PublicationError as exc:
         print(f"composition publication validation failed: {exc}", file=sys.stderr)
         return 1
