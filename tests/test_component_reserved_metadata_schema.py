@@ -15,7 +15,7 @@ TRANSACTION_SCHEMA = ROOT / "schemas" / "composition-transaction.schema.json"
 COMPONENT_EXAMPLE = ROOT / "examples" / "component.mcp.json"
 LOCK_EXAMPLE = ROOT / "examples" / "composition-lock.webapp-mcp.json"
 
-RESERVED_DESTINATIONS = (
+COMPOSER_RESERVED_DESTINATIONS = (
     ".template-composition",
     ".template-composition/lock.json",
     ".template-composition/lock.json/nested",
@@ -24,7 +24,25 @@ RESERVED_DESTINATIONS = (
     ".template-composition/staging",
     ".template-composition/staging/abc/material",
 )
-ALLOWED_DESTINATION = ".template-composition/validators/example.py"
+POLICY_RESERVED_DESTINATIONS = (
+    ".agent-policy",
+    ".agent-policy/adoption.json",
+    ".agent-policy.yml",
+    ".agent-policy.yml/nested",
+    ".agent-policy.lock",
+    ".agent-policy.lock/nested",
+    ".AGENT-POLICY",
+    ".Agent-Policy/STATE.json",
+    ".AGENT-POLICY.YML",
+    ".Agent-Policy.LOCK/nested",
+)
+RESERVED_DESTINATIONS = COMPOSER_RESERVED_DESTINATIONS + POLICY_RESERVED_DESTINATIONS
+ALLOWED_DESTINATIONS = (
+    ".template-composition/validators/example.py",
+    ".agent-policy-example",
+    ".agent-policy.yml.example",
+    ".agent-policy.lockfile",
+)
 
 
 class ReservedMetadataSchemaTests(unittest.TestCase):
@@ -107,19 +125,20 @@ class ReservedMetadataSchemaTests(unittest.TestCase):
                             self.transaction_with_destination(destination, action=action)
                         )
 
-    def test_nonreserved_composition_metadata_remains_available(self) -> None:
-        self.component_validator.validate(
-            self.component_with_destination(ALLOWED_DESTINATION, generated=False)
-        )
-        self.component_validator.validate(
-            self.component_with_destination(ALLOWED_DESTINATION, generated=True)
-        )
-        self.lock_validator.validate(self.lock_with_destination(ALLOWED_DESTINATION))
-        for action in ("create", "replace", "remove"):
-            with self.subTest(action=action):
-                self.transaction_validator.validate(
-                    self.transaction_with_destination(ALLOWED_DESTINATION, action=action)
+    def test_nearby_nonreserved_destinations_remain_available(self) -> None:
+        for destination in ALLOWED_DESTINATIONS:
+            with self.subTest(destination=destination):
+                self.component_validator.validate(
+                    self.component_with_destination(destination, generated=False)
                 )
+                self.component_validator.validate(
+                    self.component_with_destination(destination, generated=True)
+                )
+                self.lock_validator.validate(self.lock_with_destination(destination))
+                for action in ("create", "replace", "remove"):
+                    self.transaction_validator.validate(
+                        self.transaction_with_destination(destination, action=action)
+                    )
 
 
 if __name__ == "__main__":
