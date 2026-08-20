@@ -20,6 +20,8 @@ jobs:
   validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +31,17 @@ jobs:
           # The component-version guard also compares descriptor bytes against
           # a reviewed ancestor revision. Keep real history available for both.
           fetch-depth: 0
+
+      - name: Check out Site publication protocol
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+          path: .site-publication-protocol
+          sparse-checkout: |
+            scripts/publication_contract.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -45,6 +58,12 @@ jobs:
 
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
+
+      - name: Validate Site-owned publication contract
+        run: .venv/bin/python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
+
+      - name: Validate Composition publication semantics
+        run: .venv/bin/python -I scripts/validate_publication.py
 
       - name: Enforce component descriptor version monotonicity
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/composition'
