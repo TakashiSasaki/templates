@@ -32,7 +32,7 @@ inspect -> plan -> apply -> validate
 
 The initial MVP deliberately refused an existing composition lock rather than guessing update behavior.
 
-PR5 established the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and stdlib-only provider-local publication validation.
+PR5 established the composition-owned publication boundary: a schema-version-3 documentation catalog, provider-owned guided index, composition glossary, explicit machine-readable assets, and provider-specific publication validation. The generic schema-v3 catalog protocol is now Site-owned and is consumed by Composition development/publication CI at a reviewed full commit SHA.
 
 Site PR #270 completed the publication cutover to the post-composition authority model. The Site now locks one reviewed `composition` revision for Skill/Webapp artifact semantics, reusable capabilities, lifecycle contracts, recipes, schemas, composer documentation, and related publication assets. The legacy `skill` and `webapp` branches are no longer source authorities or Site publication inputs.
 
@@ -129,13 +129,17 @@ See [`docs/architecture/composer-mvp.md`](docs/architecture/composer-mvp.md) for
 
 ## Publication boundary
 
-`docs/publication-catalog.json` is the authoritative allowlist for integrated publication. `docs/index.md` is the provider-owned guided-navigation root and `docs/glossary.yml` is the composition terminology authority. Machine-readable descriptors, recipes, schemas, and contract/schema seeds are published only through explicit asset declarations.
+`docs/publication-catalog.json` is the authoritative Composition declaration allowlist for integrated publication. `docs/index.md` is the provider-owned guided-navigation root and `docs/glossary.yml` is the Composition terminology authority. Machine-readable descriptors, recipes, schemas, and contract/schema seeds are published only through explicit asset declarations.
 
-Run provider-local validation with:
+The generic schema-v3 publication protocol is implemented by Site. Composition CI consumes `scripts/publication_contract.py` from reviewed Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983`; the Composer runtime does not depend on that protocol. To reproduce the publication checks locally, point `SITE_PUBLICATION_PROTOCOL_ROOT` at a checkout containing that exact reviewed Site file, then run both layers:
 
 ```sh
-python scripts/validate_publication.py
+export SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-site-protocol-checkout
+python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
+python -I scripts/validate_publication.py
 ```
+
+The first command validates generic catalog/path/source rules. The second consumes the same validated catalog interface and enforces Composition-owned Markdown classification, reader/machine authority coverage, home/glossary declarations, and glossary semantics.
 
 Skill and Webapp remain distinct artifact semantics inside the `composition` provider. They are no longer independent canonical template publications. Site may present task-oriented Skill and Webapp groups, but it must lock and attribute their source to the exact reviewed `composition` revision.
 

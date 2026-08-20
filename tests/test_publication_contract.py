@@ -40,19 +40,23 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("Composition publication validation: OK", result.stdout)
 
     def test_catalog_is_composition_owned_and_has_one_home(self):
-        catalog = json.loads((ROOT / "docs" / "publication-catalog.json").read_text(encoding="utf-8"))
-        self.assertEqual(catalog["schema_version"], 3)
-        homes = [entry for entry in catalog["documents"] if entry["home"]]
+        validator = load_validator()
+        catalog = validator.load_publication_catalog()
+        homes = [entry for entry in catalog.documents if entry.home]
         self.assertEqual(len(homes), 1)
-        self.assertEqual(homes[0]["source"], "README.md")
-        sources = {entry["source"] for entry in catalog["documents"]}
+        self.assertEqual(homes[0].source.as_posix(), "README.md")
+        sources = {entry.source.as_posix() for entry in catalog.documents}
         self.assertIn("docs/consumer-guide.md", sources)
         self.assertIn("docs/reference/composer.md", sources)
         self.assertIn("components/artifact.skill-core/files/SKILL.md", sources)
         self.assertIn("components/artifact.webapp-core/files/TEMPLATE.md", sources)
-        self.assertIn("components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md", sources)
+        self.assertIn(
+            "components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md",
+            sources,
+        )
         self.assertNotIn("template/SKILL.md", sources)
         self.assertNotIn("template/README.md", sources)
+        self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
     def test_consumer_docs_are_primary_entry_points(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -81,18 +85,19 @@ class CompositionPublicationContractTests(unittest.TestCase):
 
     def test_publication_assets_cover_closed_production_authorities(self):
         validator = load_validator()
-        documents, assets, glossary = validator.parse_catalog()
+        catalog = validator.load_publication_catalog()
         exclusions = validator.parse_publication_classification()
-        validator.validate_reader_coverage(documents)
-        validator.validate_markdown_classification(documents, exclusions)
-        validator.validate_machine_coverage(assets)
-        self.assertEqual(glossary.as_posix(), "docs/glossary.yml")
+        validator.validate_composition_catalog_declarations(catalog)
+        validator.validate_reader_coverage(catalog)
+        validator.validate_markdown_classification(catalog, exclusions)
+        validator.validate_machine_coverage(catalog)
+        self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
     def test_all_repository_markdown_is_published_or_explicitly_excluded(self):
         validator = load_validator()
-        documents, _, _ = validator.parse_catalog()
+        catalog = validator.load_publication_catalog()
         exclusions = validator.parse_publication_classification()
-        published = {entry["source"] for entry in documents.values()}
+        published = {entry.source for entry in catalog.documents}
         discovered = validator.discover_repository_markdown()
 
         self.assertEqual(published | set(exclusions), discovered)
@@ -116,6 +121,11 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertTrue(
             validator.is_ignored_root_execution_path(
                 PurePosixPath(".pytest_cache/README.md")
+            )
+        )
+        self.assertTrue(
+            validator.is_ignored_root_execution_path(
+                PurePosixPath(".site-publication-protocol/scripts/README.md")
             )
         )
         self.assertFalse(
@@ -173,6 +183,11 @@ class CompositionPublicationContractTests(unittest.TestCase):
 
     def test_guided_indexes_use_restricted_navigation_shape(self):
         index_paths = sorted(ROOT.rglob("index.md"))
+        index_paths = [
+            path
+            for path in index_paths
+            if ".site-publication-protocol" not in path.relative_to(ROOT).parts
+        ]
         self.assertEqual(
             [path.relative_to(ROOT).as_posix() for path in index_paths],
             GUIDED_INDEX_PATHS,
