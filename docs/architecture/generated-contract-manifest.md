@@ -30,4 +30,4 @@ After composition, the generated manifest plus managed lifecycle validators are 
 
 ## Versioning
 
-The composition-era manifest bootstrap starts at schema version 1 because its authority/generation model is new. Individual domain contract histories are independent and may preserve earlier versions; PR3 preserves the current Webapp route and UI-state v1→v2 histories.
+The composition-era manifest bootstrap starts at schema version 1 because its authority/generation model is new. Individual domain contract histories are independent and may preserve earlier versions; the imported Webapp route and UI-state contract histories preserve their v1→v2 domain evolution.
