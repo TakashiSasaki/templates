@@ -84,24 +84,28 @@ class LandingPageTests(unittest.TestCase):
             'class="portal-cover__button portal-cover__button--primary" href="composition/"',
             text,
         )
+        self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
             "composition/",
             "capabilities/",
+            "lifecycle/",
             "skill/",
             "policy/",
             "webapp/",
+            "/glossary/",
             "/guided/",
             "repository-trees/",
             "files/",
         ):
             self.assertIn(f'href="{destination}"', text)
         self.assertIn("Browse by index.md", text)
-        self.assertIn("Browse source files", text)
-        for label in ("Agent Skill", "Policy", "Web application"):
-            self.assertIn(
-                f'class="portal-domain-card__label">{label}</span>',
-                text,
-            )
+        self.assertIn(">Source files</a>", text)
+        self.assertIn('class="portal-artifact-grid"', text)
+        self.assertIn('class="portal-artifact-card portal-artifact-card--skill"', text)
+        self.assertIn('class="portal-artifact-card portal-artifact-card--webapp"', text)
+        self.assertNotIn("portal-artifact-card--policy", text)
+        self.assertIn('class="portal-policy-panel"', text)
+        self.assertIn("Independent authority · Policy", text)
 
     def test_landing_page_references_only_declared_svg_artwork(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
@@ -148,16 +152,20 @@ class LandingPageTests(unittest.TestCase):
         for selector in (
             ".portal-landing--cover",
             ".portal-cover",
-            ".portal-domain-grid",
-            ".portal-domain-card",
-            ".portal-cover-features",
+            ".portal-authority",
+            ".portal-artifact-grid",
+            ".portal-artifact-card",
+            ".portal-policy-panel",
+            ".portal-doc-nav",
+            ".portal-doc-link",
+            ".portal-guarantees",
         ):
             self.assertIn(selector, cover_css)
         self.assertIn(":focus-visible", cover_css)
         self.assertIn("h1:has(+ .portal-landing)", css)
         self.assertIn("container: portal / inline-size", css)
-        self.assertIn("@container portal (max-width: 46rem)", cover_css)
-        self.assertIn("@container portal (max-width: 40rem)", cover_css)
+        self.assertIn("@container portal (max-width: 52rem)", cover_css)
+        self.assertIn("@container portal (max-width: 34rem)", cover_css)
         self.assertIn("prefers-reduced-motion", cover_css)
         self.assertNotIn("@import", cover_css)
 
@@ -190,8 +198,11 @@ class LandingPageTests(unittest.TestCase):
             ".portal-cover",
             ".portal-cover__lead",
             ".portal-cover__button",
-            ".portal-domain-card",
-            ".portal-cover-features article",
+            ".portal-authority",
+            ".portal-artifact-card",
+            ".portal-policy-panel",
+            ".portal-doc-link",
+            ".portal-guarantees article",
         ):
             self.assertIn(selector, mobile_css)
         self.assertIn("min-height: 48px", mobile_css)
