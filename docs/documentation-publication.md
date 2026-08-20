@@ -20,17 +20,17 @@ The lock fixes exact distribution version strings. It does not provide byte-for-
 
 ## Local build reproduction
 
-Remove external Python and pip inputs before the first Python invocation, then reproduce the enabled documentation build from the reviewed lock. Make a separate checkout of Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` available through `SITE_PUBLICATION_PROTOCOL_ROOT` before running the protocol step:
+Remove external Python and pip inputs before the first Python invocation, then reproduce the enabled documentation build from the reviewed lock. Make a separate checkout of Site commit `3ae5d1e60c65e7a8ebf5f9af0436044484e42983` available before the protocol step:
 
 ```bash
 unset PYTHONHOME PYTHONPATH PYTHONSAFEPATH PYTHONPLATLIBDIR PYTHONHASHSEED PYTHONUTF8 PYTHONINTMAXSTRDIGITS PYTHONMALLOC PYTHONIOENCODING PYTHONTRACEMALLOC PYTHONINSPECT PIP_REQUIREMENT PIP_CONSTRAINT PIP_BUILD_CONSTRAINT PIP_REQUIRE_HASHES PIP_DRY_RUN PIP_NO_BINARY PIP_ONLY_BINARY PIP_PLATFORM PIP_PYTHON_VERSION PIP_IMPLEMENTATION PIP_ABI PIP_UPLOADED_PRIOR_TO PIP_INDEX_URL PIP_EXTRA_INDEX_URL PIP_NO_INDEX PIP_FIND_LINKS PIP_TARGET PIP_PREFIX PIP_ROOT PIP_USER PIP_PYTHON PIP_CACHE_DIR PIP_NO_CACHE_DIR PIP_QUIET PIP_PROGRESS_BAR PIP_EDITABLE PIP_GROUP PIP_REQUIREMENTS_FROM_SCRIPT PIP_REPORT PIP_CONFIG_SETTINGS PIP_USE_PEP517 PIP_COMPILE PIP_ISOLATED PIP_USE_FEATURE PIP_VERBOSE PIP_DEBUG PIP_NO_INPUT PIP_DISABLE_PIP_VERSION_CHECK PIP_NO_COLOR PIP_REQUIRE_VIRTUALENV PIP_USE_DEPRECATED PIP_NO_PYTHON_VERSION_WARNING PIP_KEYRING_PROVIDER PIP_EXISTS_ACTION PIP_IGNORE_REQUIRES_PYTHON PIP_LOG PIP_TRUSTED_HOST PIP_CERT PIP_CLIENT_CERT PIP_PROXY PIP_TIMEOUT PIP_DEFAULT_TIMEOUT PIP_RETRIES
 export PIP_CONFIG_FILE=/dev/null
-SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/site-checkout-at-3ae5d1e60c65e7a8ebf5f9af0436044484e42983
 python -I -m venv --clear .venv
 . .venv/bin/activate
 python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-docs.lock
 python scripts/verify_docs_environment.py
 python -m pip check
+SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/site-checkout-at-3ae5d1e60c65e7a8ebf5f9af0436044484e42983
 python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" \
   --source-root . \
   --catalog docs/publication-catalog.json
