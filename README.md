@@ -70,4 +70,4 @@ The main deeper references are:
 - [Production catalog guide](catalog/README.md)
 - [Composition schema guide](schemas/README.md)
 
-Historical migration provenance is intentionally separated from this current-state overview. See [Composition authority migration history](docs/migrations/composition-authority-migration.md), with detailed records for the [Skill capability migration](docs/migrations/pr2-skill-capabilities.md) and [Webapp/lifecycle migration](docs/migrations/pr3-webapp-lifecycle.md).
+Historical migration provenance is intentionally separated from the current operational and architecture documentation. The reader-facing summary is [Composition authority migration history](docs/migrations/composition-authority-migration.md); stage-specific implementation notes remain repository-maintainer records rather than portal pages.

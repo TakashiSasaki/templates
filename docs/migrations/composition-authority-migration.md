@@ -12,13 +12,13 @@ It is historical context, not the operational guide. For current consumer behavi
 
 [PR #266](https://github.com/TakashiSasaki/templates/pull/266) established the first closed production catalog, migrated Agent Skill semantics into `artifact.skill-core`, and extracted reusable runtime, CLI, MCP, MCP Apps, browser-interface, and service concerns into `capability.*` authorities.
 
-See [Skill capability migration](pr2-skill-capabilities.md) for the detailed authority split and source snapshots.
+The immutable PR record is the detailed provenance for the stage-specific authority split and source snapshots. The former standalone PR2 migration note is retained only as a repository-maintainer record and is not part of the reader publication surface.
 
 ## Webapp and lifecycle separation
 
 [PR #267](https://github.com/TakashiSasaki/templates/pull/267) introduced `artifact.webapp-core` and extracted reusable lifecycle authorities for contract evolution, implementation evidence, release evidence, and release bundles. It also established deterministic generated contract-manifest ownership.
 
-See [Webapp and lifecycle migration](pr3-webapp-lifecycle.md) for the detailed authority split and source snapshots.
+The immutable PR record is the detailed provenance for the stage-specific authority split and source snapshots. The former standalone PR3 migration note is retained only as a repository-maintainer record and is not part of the reader publication surface.
 
 ## Deterministic Composer foundation
 

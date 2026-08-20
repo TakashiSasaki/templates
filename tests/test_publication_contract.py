@@ -49,6 +49,8 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("docs/consumer-guide.md", sources)
         self.assertIn("docs/reference/composer.md", sources)
         self.assertIn("docs/migrations/composition-authority-migration.md", sources)
+        self.assertNotIn("docs/migrations/pr2-skill-capabilities.md", sources)
+        self.assertNotIn("docs/migrations/pr3-webapp-lifecycle.md", sources)
         self.assertIn("components/artifact.skill-core/files/SKILL.md", sources)
         self.assertIn("components/artifact.webapp-core/files/TEMPLATE.md", sources)
         self.assertIn(
@@ -82,17 +84,24 @@ class CompositionPublicationContractTests(unittest.TestCase):
             "[Composition authority migration history](docs/migrations/composition-authority-migration.md)",
             readme,
         )
+        self.assertNotIn("docs/migrations/pr2-skill-capabilities.md", readme)
+        self.assertNotIn("docs/migrations/pr3-webapp-lifecycle.md", readme)
 
         index = (ROOT / "docs" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("## Historical provenance", index)
         self.assertIn(
             "[Composition authority migration](migrations/composition-authority-migration.md)",
             index,
         )
+        self.assertNotIn("migrations/pr2-skill-capabilities.md", index)
+        self.assertNotIn("migrations/pr3-webapp-lifecycle.md", index)
         history = (
             ROOT / "docs" / "migrations" / "composition-authority-migration.md"
         ).read_text(encoding="utf-8")
         self.assertIn("https://github.com/TakashiSasaki/templates/pull/265", history)
         self.assertIn("https://github.com/TakashiSasaki/templates/pull/277", history)
+        self.assertNotIn("](pr2-skill-capabilities.md)", history)
+        self.assertNotIn("](pr3-webapp-lifecycle.md)", history)
 
     def test_catalog_guide_uses_current_managed_lifecycle(self):
         guide = (ROOT / "catalog" / "README.md").read_text(encoding="utf-8")
@@ -130,6 +139,8 @@ class CompositionPublicationContractTests(unittest.TestCase):
             set(exclusions),
             {
                 PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
+                PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
+                PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
                 PurePosixPath("examples/README.md"),
             },
         )
