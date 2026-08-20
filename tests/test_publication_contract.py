@@ -223,6 +223,11 @@ class CompositionPublicationContractTests(unittest.TestCase):
         ):
             with self.subTest(term_id=term_id):
                 self.assertIn(term_id, ids)
+        for term in glossary["terms"]:
+            for related in term.get("related_terms", []):
+                if related.startswith("templates-composition-"):
+                    with self.subTest(term=term["id"], related=related):
+                        self.assertIn(related, ids)
         self.assertNotIn("templates-webapp-template-distribution-artifact", ids)
         self.assertNotIn("templates-skill-mcp-extension", ids)
 
