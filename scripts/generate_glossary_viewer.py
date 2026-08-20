@@ -39,12 +39,11 @@ except ModuleNotFoundError:
         TERM_ID,
     )
 
-PROVIDER_ORDER = ("site", "skill", "policy", "webapp")
+PROVIDER_ORDER = ("site", "composition", "policy")
 PROVIDER_LABELS = {
     "site": "Site",
-    "skill": "Skill",
+    "composition": "Composition",
     "policy": "Policy",
-    "webapp": "Webapp",
 }
 ROOT_KEYS = {"schema_version", "repository", "terms"}
 TERM_KEYS = {

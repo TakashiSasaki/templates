@@ -10,9 +10,8 @@
   const CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
   const PROVIDER_LABELS = {
     site: "Site",
-    skill: "Skill",
+    composition: "Composition",
     policy: "Policy",
-    webapp: "Webapp",
   };
   let glossaryPromise;
   let glossaryFreshness = "verified-current";

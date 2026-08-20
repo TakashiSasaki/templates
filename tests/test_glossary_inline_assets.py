@@ -131,9 +131,10 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn("return term.definition;", source)
         self.assertIn("return term.summary;", source)
         self.assertIn('site: "Site"', source)
-        self.assertIn('skill: "Skill"', source)
+        self.assertIn('composition: "Composition"', source)
         self.assertIn('policy: "Policy"', source)
-        self.assertIn('webapp: "Webapp"', source)
+        self.assertNotIn('skill: "Skill"', source)
+        self.assertNotIn('webapp: "Webapp"', source)
         self.assertIn("`External term · curated by ${owner}`", source)
         self.assertIn("`Templates-defined · ${owner}`", source)
 

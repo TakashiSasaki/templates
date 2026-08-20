@@ -23,12 +23,12 @@ terms:
           - 提供ブランチ
     origin: repository
     definition: >-
-      A repository-internal primary Git branch, currently skill, policy, or
-      webapp, that owns canonical content supplied as an independently versioned
-      input to the Site integrated publication.
+      A repository-internal primary Git branch, currently composition or policy,
+      that owns canonical content supplied as an independently versioned input
+      to the Site integrated publication.
     summary: >-
-      One of the repository's skill, policy, or webapp content-source branches
-      used as an input to the Site publication.
+      One of the repository's composition or policy content-source branches used
+      as an input to the Site publication.
     repository_usage: >-
       In Site publication terminology, Provider branch refers only to these
       internal Git content-source branches. It does not mean a cloud provider,
@@ -104,5 +104,5 @@ terms:
         - title: Git glossary
           url: https://git-scm.com/docs/gitglossary
     repository_usage: >-
-      The repository uses separate primary branches for site, policy, skill,
-      and webapp publication and template responsibilities.
+      The repository uses separate primary branches for site, composition, and
+      policy responsibilities.
