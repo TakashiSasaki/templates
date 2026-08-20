@@ -25,7 +25,7 @@ class DuplicateJsonMemberTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 AssemblyError,
-                "test catalog contains duplicate member: source",
+                "test catalog contains duplicate object member: source",
             ):
                 load_catalog("test", root)
 
