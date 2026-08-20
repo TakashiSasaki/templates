@@ -37,14 +37,31 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             with self.subTest(destination=destination):
                 self.assertIn(f'href="{destination}"', portal)
         self.assertNotIn('href="overview/"', portal)
-        for label in ("Agent Skill", "Policy", "Web application"):
-            with self.subTest(label=label):
-                self.assertIn(
-                    f'class="portal-domain-card__label">{label}</span>',
-                    portal,
-                )
-        self.assertIn("One reviewed Composition authority", portal)
-        self.assertIn("The Site locks both providers by full commit SHA", portal)
+
+        self.assertIn(
+            'class="portal-artifact-card portal-artifact-card--skill"',
+            portal,
+        )
+        self.assertIn(
+            'class="portal-artifact-card portal-artifact-card--webapp"',
+            portal,
+        )
+        self.assertNotIn("portal-artifact-card--policy", portal)
+        self.assertIn('class="portal-policy-panel"', portal)
+        self.assertIn("Independent authority · Policy", portal)
+
+        self.assertIn(
+            "Composition defines Skill and Webapp artifact semantics plus reusable capabilities.",
+            portal,
+        )
+        self.assertIn(
+            "Policy independently defines verifiable coding-agent operation.",
+            portal,
+        )
+        self.assertIn(
+            "The Site selects reviewed Composition and Policy revisions by full commit SHA.",
+            portal,
+        )
 
     def test_publication_policy_declares_current_entry_points(self) -> None:
         policy = PUBLISHING_POLICY.read_text(encoding="utf-8")
