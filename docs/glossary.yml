@@ -47,7 +47,33 @@
       "localized_labels": {"ja": {"term": "コンポジションロック"}},
       "origin": "repository",
       "definition": "The deterministic .template-composition/lock.json resolved-state record written last by the composer. It binds the exact composition source revision, configuration bytes, resolved components, descriptor digests, material destinations, owners, ownership modes, and materialized-byte digests.",
-      "related_terms": ["templates-composition-recipe", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material"]
+      "related_terms": ["templates-composition-recipe", "templates-composition-material-ownership", "templates-composition-component-owner", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material"]
+    },
+    {
+      "id": "templates-composition-material-ownership",
+      "term": "Material ownership",
+      "aliases": ["File ownership"],
+      "localized_labels": {"ja": {"term": "マテリアル所有権", "aliases": ["ファイル所有権", "マテリアルオーナーシップ"]}},
+      "origin": "repository",
+      "definition": "The Composition rule that assigns every materialized destination exactly one component owner and one ownership mode. The owner identifies which resolved component claims the destination, while the mode determines whether Composition retains authority over its bytes or transfers content ownership to the consumer.",
+      "related_terms": ["templates-composition-component-owner", "templates-composition-ownership-mode", "templates-composition-lock"]
+    },
+    {
+      "id": "templates-composition-component-owner",
+      "term": "Component owner",
+      "localized_labels": {"ja": {"term": "コンポーネント所有者"}},
+      "origin": "repository",
+      "definition": "The single resolved Composition component recorded as the owner of a materialized destination. It identifies which component claims that destination and is independent of the destination's ownership mode; owner transitions are never inferred automatically.",
+      "related_terms": ["templates-composition-component", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-lock"]
+    },
+    {
+      "id": "templates-composition-ownership-mode",
+      "term": "Ownership mode",
+      "aliases": ["ownership modes"],
+      "localized_labels": {"ja": {"term": "オーナーシップモード", "aliases": ["所有モード"]}},
+      "origin": "repository",
+      "definition": "The per-destination lifecycle classification recorded as managed, generated, or seed in the Composition lock. It determines byte authority after materialization: managed and generated content remain Composition-controlled, while seed content transfers to the consumer.",
+      "related_terms": ["templates-composition-material-ownership", "templates-composition-managed-material", "templates-composition-seed-material", "templates-composition-generated-material", "templates-composition-lock"]
     },
     {
       "id": "templates-composition-managed-material",
@@ -55,7 +81,7 @@
       "localized_labels": {"ja": {"term": "管理対象マテリアル"}},
       "origin": "repository",
       "definition": "Materialized content whose composition source remains authoritative after initial application. Consumer-time validation requires its current bytes to continue matching the composition lock digest.",
-      "related_terms": ["templates-composition-lock", "templates-composition-seed-material", "templates-composition-generated-material"]
+      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-seed-material", "templates-composition-generated-material"]
     },
     {
       "id": "templates-composition-seed-material",
@@ -63,7 +89,7 @@
       "localized_labels": {"ja": {"term": "シードマテリアル"}},
       "origin": "repository",
       "definition": "Materialized initial content whose ownership transfers to the consumer repository after composition. The file must remain present, but consumer edits are allowed to diverge from the initial lock digest.",
-      "related_terms": ["templates-composition-lock", "templates-composition-managed-material", "templates-composition-generated-material"]
+      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-composition-generated-material"]
     },
     {
       "id": "templates-composition-generated-material",
@@ -71,7 +97,7 @@
       "localized_labels": {"ja": {"term": "生成マテリアル"}},
       "origin": "repository",
       "definition": "Materialized content produced deterministically by an allowlisted declarative generator from resolved composition authorities rather than copied from one source file. Its bytes remain composition-managed and digest-bound in the lock.",
-      "related_terms": ["templates-composition-lock", "templates-composition-managed-material", "templates-contract-manifest"]
+      "related_terms": ["templates-composition-lock", "templates-composition-material-ownership", "templates-composition-ownership-mode", "templates-composition-managed-material", "templates-contract-manifest"]
     },
     {
       "id": "templates-skill-profile",
