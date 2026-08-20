@@ -2,8 +2,7 @@
 
 ## Portal documents
 
-* [Graphical landing page](landing.md) - Provides the reader-facing entry point for the integrated documentation portal.
-* [Portal overview](overview.md) - Explains publication boundaries, full-SHA source locking, and the integrated documentation model.
+* [Graphical landing page](landing.md) - Provides the reader-facing home and top-level overview for the integrated documentation portal.
 
 ## Repository views
 
