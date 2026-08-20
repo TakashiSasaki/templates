@@ -129,8 +129,9 @@
 
   /* The authority distinction is already explicit in the lead. On phones,
      secondary signals and the architecture illustration would postpone the
-     first actionable artifact choices by almost a full viewport. */
-  .portal-cover__signals,
+     first actionable artifact choices by almost a full viewport. The .md-typeset
+     qualifier is required to outrank the documentation theme's list display rule. */
+  .md-typeset .portal-cover__signals,
   .portal-cover__visual {
     display: none;
   }
