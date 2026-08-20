@@ -8,7 +8,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 LANDING = ROOT / "docs/landing.md"
-OVERVIEW = ROOT / "docs/overview.md"
 POLICY = ROOT / "PUBLISHING.md"
 MAINTENANCE = ROOT / "MAINTENANCE.md"
 README = ROOT / "README.md"
@@ -77,13 +76,10 @@ class IndexNavigationIntegrationTests(unittest.TestCase):
 
     def test_reader_surfaces_expose_guided_discovery_as_a_distinct_path(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
-        overview = OVERVIEW.read_text(encoding="utf-8")
         self.assertIn('href="/guided/"', landing)
         self.assertIn("Browse by index.md", landing)
         self.assertIn('href="files/"', landing)
-        self.assertIn('href="overview/"', landing)
-        self.assertIn('href="../guided/"', overview)
-        self.assertIn("Browse by index.md", overview)
+        self.assertNotIn('href="overview/"', landing)
 
     def test_publication_policy_defines_provider_owned_guided_boundary(self) -> None:
         policy = POLICY.read_text(encoding="utf-8")
