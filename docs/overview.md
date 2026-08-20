@@ -172,5 +172,5 @@ HTML remain build artifacts and are not committed to `site`.
 
 The Site build checks out each provider independently at its locked revision,
 assembles one temporary documentation project, builds the static site strictly,
-validates links and terminology, records provenance, and uploads the Pages
+validates links and terminology, records provenance, and uploadss the Pages
 artifact. Provider histories are not merged merely for publication.
