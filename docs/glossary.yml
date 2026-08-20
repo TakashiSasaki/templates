@@ -52,8 +52,7 @@
     {
       "id": "templates-composition-material-ownership",
       "term": "Material ownership",
-      "aliases": ["File ownership"],
-      "localized_labels": {"ja": {"term": "マテリアル所有権", "aliases": ["ファイル所有権", "マテリアルオーナーシップ"]}},
+      "localized_labels": {"ja": {"term": "マテリアル所有権", "aliases": ["マテリアルオーナーシップ"]}},
       "origin": "repository",
       "definition": "The Composition rule that assigns every materialized destination exactly one component owner and one ownership mode. The owner identifies which resolved component claims the destination, while the mode determines whether Composition retains authority over its bytes or transfers content ownership to the consumer.",
       "related_terms": ["templates-composition-component-owner", "templates-composition-ownership-mode", "templates-composition-lock"]
