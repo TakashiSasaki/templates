@@ -107,6 +107,7 @@
     {
       "title": "Composition migration history",
       "children": [
+        {"title": "Authority migration overview", "publication": "composition", "document": "composition-authority-migration", "destination": "composition/migrations/authority-migration.md"},
         {"title": "Skill capability migration", "publication": "composition", "document": "skill-capability-migration", "destination": "composition/migrations/skill-capabilities.md"},
         {"title": "Webapp lifecycle migration", "publication": "composition", "document": "webapp-lifecycle-migration", "destination": "composition/migrations/webapp-lifecycle.md"}
       ]
