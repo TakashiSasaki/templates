@@ -711,6 +711,7 @@ def run_composer(
     command = [
         str(python),
         "-I",
+        "-B",
         str(source / manifest["entrypoint"]),
         *arguments,
         "--target",
