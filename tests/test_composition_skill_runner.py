@@ -4,6 +4,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -168,6 +170,32 @@ class CompositionSkillRunnerTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertFalse(installer.is_composition_skill_directory(target))
+
+    def test_install_replace_refuses_unclosed_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / "composition"
+            target.mkdir()
+            marker = target / "SKILL.md"
+            malformed = "---\nname: composition\n"
+            marker.write_text(malformed, encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    str(INSTALL_PATH),
+                    str(target),
+                    "--replace",
+                ],
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "refusing to replace a directory that is not this skill",
+                result.stderr,
+            )
+            self.assertEqual(marker.read_text(encoding="utf-8"), malformed)
 
     def test_installer_copies_runnable_skill_tree(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
