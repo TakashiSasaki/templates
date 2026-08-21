@@ -65,6 +65,9 @@ jobs:
       - name: Validate Composition publication semantics
         run: .venv/bin/python -I scripts/validate_publication.py
 
+      - name: Validate Composition translations
+        run: .venv/bin/python -I scripts/validate_translations.py
+
       - name: Enforce component descriptor version monotonicity
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/composition'
         env:
