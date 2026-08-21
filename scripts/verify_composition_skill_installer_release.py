@@ -206,7 +206,8 @@ def verify(git_ref: str | None = None) -> tuple[str, str, str]:
 
     if git_ref is not None:
         publication_revision = full_sha(
-            git_text("rev-parse", f"{git_ref}^{{commit}}").strip(), "publication"
+            git_text("rev-parse", "--verify", f"{git_ref}^{{commit}}", "--").strip(),
+            "publication",
         )
         require_strict_ancestor(
             installer_revision, publication_revision, "installer -> publication"
