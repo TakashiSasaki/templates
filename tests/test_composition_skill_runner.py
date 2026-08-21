@@ -20,6 +20,7 @@ def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -155,6 +156,7 @@ class CompositionSkillRunnerTests(unittest.TestCase):
         self.assertEqual(result["GIT_TERMINAL_PROMPT"], "0")
         self.assertEqual(result["GIT_CONFIG_NOSYSTEM"], "1")
         self.assertEqual(result["GIT_CONFIG_GLOBAL"], os.devnull)
+        self.assertEqual(result["GIT_NO_REPLACE_OBJECTS"], "1")
 
     def test_cache_root_honors_explicit_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -178,6 +180,45 @@ class CompositionSkillRunnerTests(unittest.TestCase):
         self.assertRegex(first.lock_sha256, r"^[0-9a-f]{64}$")
         self.assertEqual(first.python, runtime.python_token())
         self.assertEqual(first.platform, runtime.platform_token())
+
+    def test_source_cache_rejects_shallow_grafts_and_replace_refs_before_git(self) -> None:
+        revision = "1" * 40
+        with tempfile.TemporaryDirectory() as temporary:
+            for relative in (
+                Path("shallow"),
+                Path("info") / "grafts",
+                Path("refs") / "replace",
+            ):
+                with self.subTest(relative=relative.as_posix()):
+                    root = Path(temporary) / relative.as_posix().replace("/", "-")
+                    entry = root / "entry"
+                    checkout = entry / "checkout"
+                    git_directory = checkout / ".git"
+                    (checkout / "scripts").mkdir(parents=True)
+                    git_directory.mkdir()
+                    runtime.source_marker(entry).write_text(
+                        json.dumps(runtime.source_marker_payload(revision)),
+                        encoding="utf-8",
+                    )
+                    (checkout / "requirements-runtime.lock").write_text(
+                        "attrs===1\n",
+                        encoding="utf-8",
+                    )
+                    (checkout / "scripts" / "compose.py").write_text(
+                        "",
+                        encoding="utf-8",
+                    )
+                    (checkout / "scripts" / "verify_runtime_environment.py").write_text(
+                        "",
+                        encoding="utf-8",
+                    )
+                    forbidden = git_directory / relative
+                    if relative.name == "replace":
+                        forbidden.mkdir(parents=True)
+                    else:
+                        forbidden.parent.mkdir(parents=True, exist_ok=True)
+                        forbidden.write_text("forbidden\n", encoding="utf-8")
+                    self.assertFalse(runtime.source_valid(entry, revision, {}))
 
     def test_cache_install_reuses_valid_winner(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
