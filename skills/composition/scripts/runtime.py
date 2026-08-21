@@ -307,7 +307,7 @@ def install_cache_directory(
 
     try:
         stage.rename(target)
-    except OSError:
+    except OSError as rename_error:
         if valid_existing(target):
             remove_path(stage)
             if backup is not None:
@@ -318,7 +318,13 @@ def install_cache_directory(
             and (backup.exists() or backup.is_symlink())
             and not (target.exists() or target.is_symlink())
         ):
-            backup.rename(target)
+            try:
+                backup.rename(target)
+            except OSError as restore_error:
+                raise RunnerError(
+                    f"cache installation failed for {target}: {rename_error}; "
+                    f"previous cache entry could not be restored: {restore_error}"
+                ) from restore_error
         raise
 
     if backup is not None:
