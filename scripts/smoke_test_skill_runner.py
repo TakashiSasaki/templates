@@ -28,8 +28,13 @@ def clean_environment() -> dict[str, str]:
     return result
 
 
-def run(command: list[str], *, env: dict[str, str]) -> None:
-    subprocess.run(command, env=env, check=True)
+def run(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    cwd: Path | None = None,
+) -> None:
+    subprocess.run(command, env=env, cwd=cwd, check=True)
 
 
 def main() -> int:
@@ -75,9 +80,10 @@ def main() -> int:
                 str(target),
                 "apply",
                 "--config",
-                str(config),
+                "composition.json",
             ],
             env=env,
+            cwd=root,
         )
 
         lock = json.loads(
