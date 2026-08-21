@@ -118,6 +118,8 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
             if relative is None:
                 continue
             root = PurePosixPath(member.name).parts[0]
+            if root in {"", ".", ".."} or "\\" in root or ":" in root:
+                raise RuntimeError(f"unsafe root prefix in skill archive: {member.name}")
             if archive_root is None:
                 archive_root = root
             elif root != archive_root:
