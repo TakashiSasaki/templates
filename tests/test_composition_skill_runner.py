@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_PATH = ROOT / "skills" / "composition" / "scripts" / "runtime.py"
@@ -19,6 +20,7 @@ def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -138,11 +140,13 @@ class CompositionSkillRunnerTests(unittest.TestCase):
                 "PIP_INDEX_URL": "https://example.invalid",
                 "GIT_DIR": "/tmp/redirected-git-dir",
                 "GIT_WORK_TREE": "/tmp/redirected-work-tree",
+                "COMPOSITION_RUNTIME_CACHE": "/tmp/composition-cache",
                 "OTHER": "value",
             }
         )
         self.assertEqual(result["PATH"], "safe")
         self.assertEqual(result["OTHER"], "value")
+        self.assertEqual(result["COMPOSITION_RUNTIME_CACHE"], "/tmp/composition-cache")
         self.assertNotIn("PYTHONPATH", result)
         self.assertNotIn("PIP_INDEX_URL", result)
         self.assertNotIn("GIT_DIR", result)
@@ -150,10 +154,169 @@ class CompositionSkillRunnerTests(unittest.TestCase):
         self.assertEqual(result["PYTHONNOUSERSITE"], "1")
         self.assertEqual(result["PIP_CONFIG_FILE"], os.devnull)
         self.assertEqual(result["GIT_TERMINAL_PROMPT"], "0")
+        self.assertEqual(result["GIT_CONFIG_NOSYSTEM"], "1")
+        self.assertEqual(result["GIT_CONFIG_GLOBAL"], os.devnull)
+        self.assertEqual(result["GIT_NO_REPLACE_OBJECTS"], "1")
+
+    def test_cache_root_honors_explicit_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            expected = Path(temporary) / "cache"
+            with mock.patch.dict(
+                os.environ,
+                {"COMPOSITION_RUNTIME_CACHE": str(expected)},
+                clear=False,
+            ):
+                self.assertEqual(runtime.cache_root(), expected.resolve())
+
+    def test_runtime_identity_binds_revision_lock_python_and_platform(self) -> None:
+        revision = "1" * 40
+        first = runtime.runtime_identity(revision, b"attrs===1\n")
+        same = runtime.runtime_identity(revision, b"attrs===1\n")
+        changed_lock = runtime.runtime_identity(revision, b"attrs===2\n")
+        changed_revision = runtime.runtime_identity("2" * 40, b"attrs===1\n")
+        self.assertEqual(first.digest(), same.digest())
+        self.assertNotEqual(first.digest(), changed_lock.digest())
+        self.assertNotEqual(first.digest(), changed_revision.digest())
+        self.assertRegex(first.lock_sha256, r"^[0-9a-f]{64}$")
+        self.assertEqual(first.python, runtime.python_token())
+        self.assertEqual(first.platform, runtime.platform_token())
+
+    def test_source_cache_rejects_shallow_grafts_and_replace_refs_before_git(self) -> None:
+        revision = "1" * 40
+        with tempfile.TemporaryDirectory() as temporary:
+            for relative in (
+                Path("shallow"),
+                Path("info") / "grafts",
+                Path("refs") / "replace",
+            ):
+                with self.subTest(relative=relative.as_posix()):
+                    root = Path(temporary) / relative.as_posix().replace("/", "-")
+                    entry = root / "entry"
+                    checkout = entry / "checkout"
+                    git_directory = checkout / ".git"
+                    (checkout / "scripts").mkdir(parents=True)
+                    git_directory.mkdir()
+                    runtime.source_marker(entry).write_text(
+                        json.dumps(runtime.source_marker_payload(revision)),
+                        encoding="utf-8",
+                    )
+                    (checkout / "requirements-runtime.lock").write_text(
+                        "attrs===1\n",
+                        encoding="utf-8",
+                    )
+                    (checkout / "scripts" / "compose.py").write_text(
+                        "",
+                        encoding="utf-8",
+                    )
+                    (checkout / "scripts" / "verify_runtime_environment.py").write_text(
+                        "",
+                        encoding="utf-8",
+                    )
+                    forbidden = git_directory / relative
+                    if relative.name == "replace":
+                        forbidden.mkdir(parents=True)
+                    else:
+                        forbidden.parent.mkdir(parents=True, exist_ok=True)
+                        forbidden.write_text("forbidden\n", encoding="utf-8")
+                    self.assertFalse(runtime.source_valid(entry, revision, {}))
+
+    def test_source_valid_rejects_dirty_worktree(self) -> None:
+        revision = "1" * 40
+        with tempfile.TemporaryDirectory() as temporary:
+            entry = Path(temporary) / "entry"
+            checkout = entry / "checkout"
+            (checkout / ".git").mkdir(parents=True)
+            (checkout / "scripts").mkdir()
+            runtime.source_marker(entry).write_text(
+                json.dumps(runtime.source_marker_payload(revision)),
+                encoding="utf-8",
+            )
+            (checkout / "requirements-runtime.lock").write_text(
+                "attrs===1\n",
+                encoding="utf-8",
+            )
+            (checkout / "scripts" / "compose.py").write_text("", encoding="utf-8")
+            (checkout / "scripts" / "verify_runtime_environment.py").write_text(
+                "",
+                encoding="utf-8",
+            )
+            outputs = iter(
+                (
+                    revision,
+                    runtime.CANONICAL_REMOTE,
+                    "false",
+                    "lf",
+                    "true",
+                    "?? untracked.txt\n",
+                    "1",
+                )
+            )
+
+            def fake_run(*_args: object, **_kwargs: object):
+                return subprocess.CompletedProcess([], 0, stdout=next(outputs), stderr="")
+
+            with mock.patch.object(runtime, "run", side_effect=fake_run):
+                self.assertFalse(runtime.source_valid(entry, revision, {}))
+
+    def test_cache_install_reuses_valid_winner(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            stage = root / "stage"
+            target.mkdir()
+            stage.mkdir()
+            (target / "valid").write_text("winner", encoding="utf-8")
+            (stage / "valid").write_text("stage", encoding="utf-8")
+            result = runtime.install_cache_directory(
+                stage,
+                target,
+                lambda candidate: (candidate / "valid").read_text(
+                    encoding="utf-8"
+                )
+                == "winner",
+            )
+            self.assertEqual(result, target)
+            self.assertFalse(stage.exists())
+            self.assertEqual(
+                (target / "valid").read_text(encoding="utf-8"),
+                "winner",
+            )
+
+    def test_cache_install_replaces_invalid_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            stage = root / "stage"
+            target.mkdir()
+            stage.mkdir()
+            (target / "state").write_text("invalid", encoding="utf-8")
+            (stage / "state").write_text("valid", encoding="utf-8")
+            result = runtime.install_cache_directory(
+                stage,
+                target,
+                lambda candidate: candidate.is_dir()
+                and (candidate / "state").is_file()
+                and (candidate / "state").read_text(encoding="utf-8") == "valid",
+            )
+            self.assertEqual(result, target)
+            self.assertFalse(stage.exists())
+            self.assertEqual(
+                (target / "state").read_text(encoding="utf-8"),
+                "valid",
+            )
 
     def test_runtime_lock_rejects_duplicate_normalized_names(self) -> None:
         with self.assertRaisesRegex(runtime.RunnerError, "duplicate distribution"):
             runtime.parse_runtime_lock("rpds_py===1.0\nrpds-py===1.0\n")
+
+    def test_runtime_lock_rejects_invalid_syntax_with_line_number(self) -> None:
+        for invalid in ("attrs>=24.0.0", "package-1.0", "===1.0"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    runtime.RunnerError,
+                    r"requirements-runtime\.lock:2: entry must be exact name===version",
+                ):
+                    runtime.parse_runtime_lock(f"# header\n{invalid}\n")
 
     def test_installer_recognizes_only_composition_skill_marker(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

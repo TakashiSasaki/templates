@@ -53,18 +53,21 @@ The runner owns the Composer target argument. Do not pass `--target`; use `--rep
 
 ## Runtime behavior
 
-This MVP intentionally uses transient source and Python runtime directories. Each invocation:
+The runner persistently caches source checkouts and isolated Python runtimes without changing source-selection or Composer semantics.
 
-1. fetches the selected full SHA from the canonical repository with Git;
-2. checks out that revision detached;
-3. reads that revision's `requirements-runtime.lock`;
-4. for the stable manifest revision, verifies the lock SHA-256 recorded in `runtime-manifest.json`;
-5. creates an isolated virtual environment;
-6. installs the exact lock with dependency resolution disabled;
-7. runs `pip check` and the source revision's runtime-environment verifier; and
-8. executes that revision's `scripts/compose.py` with the runner repository injected as `--target`.
+For the selected full SHA it:
 
-The transient implementation is a performance characteristic, not part of the semantic command contract. A later persistent runtime/source cache may replace repeated construction without changing revision selection, Composer arguments, or managed-recovery semantics.
+1. reuses a validated source cache when available, otherwise fetches that exact revision from the canonical repository with Git and records it in a cache keyed by revision;
+2. verifies the cached checkout is detached at the expected full SHA, has the canonical remote, is byte-clean, uses LF-preserving checkout settings, and retains traversable ancestor history;
+3. reads that revision's `requirements-runtime.lock` and, for the stable manifest revision, verifies the lock SHA-256 recorded in `runtime-manifest.json`;
+4. derives a runtime-cache identity from repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
+5. reuses a matching runtime only after checking its marker, lock digest, Python/platform identity, `pip check`, and the source revision's runtime-environment verifier;
+6. on a runtime miss or invalid entry, creates an isolated virtual environment, installs the exact lock with dependency resolution disabled, validates it, and atomically installs the cache entry; and
+7. executes the selected revision's `scripts/compose.py` with the runner repository injected as `--target`.
+
+A valid source/runtime cache hit performs no network acquisition. `COMPOSITION_RUNTIME_CACHE` may override the cache root for controlled environments and tests. Otherwise platform cache conventions are used under a `composition/runner-v1` namespace.
+
+Cache layout and reuse are performance details. Revision selection, Composer arguments, managed-recovery semantics, lock/transaction semantics, and material ownership remain authoritative outside the cache implementation.
 
 ## Safety requirements
 
@@ -73,5 +76,6 @@ The transient implementation is a performance characteristic, not part of the se
 - Treat `.template-composition/transaction.json` as authoritative during recovery.
 - Never silently fall back to the stable manifest revision when transaction metadata is malformed.
 - Do not pass through a second Composer `--target`.
+- Treat invalid source/runtime cache entries as misses; never trust a cache marker alone.
 - Do not modify `.template-composition/lock.json` or transaction metadata outside the Composer.
 - Review plans before applying mutations.

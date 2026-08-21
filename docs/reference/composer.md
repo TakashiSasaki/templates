@@ -60,7 +60,7 @@ python /path/to/agent-skills/composition/scripts/run.py \
 
 The runner selects only a full lowercase 40-character source revision in `TakashiSasaki/templates`. Its stable default comes from `skills/composition/runtime-manifest.json`; an explicit `--revision <full-sha>` may override that default. When `.template-composition/transaction.json` exists, its exact source revision is authoritative for recovery and overrides the stable default. A conflicting explicit revision is rejected.
 
-After selecting the revision, the runner fetches that exact source, constructs the source revision's `requirements-runtime.lock` environment with dependency resolution disabled, verifies the runtime, and invokes `scripts/compose.py`. The runner adds `--target /repo` itself and refuses any forwarded `--target` option. The transient source/runtime construction in the MVP is not part of the semantic Composer contract and may later be replaced by validated persistent caches.
+After selecting the revision, the runner reuses or builds two independently validated persistent cache layers. The source cache is keyed by exact revision and must remain detached at that SHA, point at the canonical remote, be byte-clean with LF-preserving checkout settings, and retain traversable ancestor history. The runtime cache is keyed by repository, revision, runtime-lock SHA-256, CPython major/minor, and platform/machine; a hit is accepted only after marker/digest/identity checks, `pip check`, and the selected source revision's runtime verifier. On a miss, the runner fetches the exact source or builds the exact `requirements-runtime.lock` environment with dependency resolution disabled and atomically installs the new cache entry. A valid cache hit requires no network acquisition. `COMPOSITION_RUNTIME_CACHE` may override the platform-default cache root for controlled environments. The runner adds `--target /repo` itself and refuses any forwarded `--target` option. Cache layout and reuse are performance details and do not redefine Composer semantics.
 
 ## Source checkout requirements
 
@@ -72,7 +72,7 @@ For managed `update` and `upgrade`:
 - the target source revision must equal or descend from the old revision;
 - recovery requires the exact target revision recorded in `.template-composition/transaction.json`.
 
-The canonical source identity is the Composition authority in `TakashiSasaki/templates`. The installed runner acquires a detached exact-SHA checkout with the selected revision's ancestor history so these checks remain Composer-owned rather than being weakened by the wrapper.
+The canonical source identity is the Composition authority in `TakashiSasaki/templates`. The installed runner acquires or reuses a detached exact-SHA checkout with the selected revision's ancestor history and validates that history before reuse, so these checks remain Composer-owned rather than being weakened by the wrapper.
 
 ## `inspect`
 
