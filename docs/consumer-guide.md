@@ -1,8 +1,8 @@
 # Using Composition
 
-This guide is for consumers who use Composition to create and maintain a concrete Agent Skill or Web application repository. It covers normal repository operations. The architecture documents explain why the lock, digest, and transaction rules work the way they do, but they are not required to start using the Composer.
+This guide is for consumers who use Composition to create and maintain a concrete Agent Skill or Web application repository. Normal consumers use the installed Composition skill runner; the Composer remains the semantic authority underneath that runner.
 
-For exact CLI options, plan fields, ownership definitions, and diagnostic codes, see the [Composer reference](reference/composer.md).
+For exact Composer options, plan fields, ownership definitions, and diagnostic codes, see the [Composer reference](reference/composer.md).
 
 ## Choose the operation
 
@@ -17,35 +17,67 @@ Start from what you want to do:
 
 `inspect` and `validate` are mode-neutral. Use `inspect` before choosing a mutating operation and `validate` after a successful apply.
 
-## Before you run the Composer
+## Install and run the Composition skill
 
-The current consumer entrypoint runs directly from the exact Composition source checkout that you intend to use. The supported runtime prerequisites are:
+The supported runner prerequisites are:
 
-- Git available on `PATH`;
-- CPython 3.11, 3.12, 3.13, or 3.14; and
-- the exact distributions in `requirements-runtime.lock`.
+- Git available on `PATH`; and
+- CPython 3.11, 3.12, 3.13, or 3.14.
 
-The consumer runtime contract is intentionally separate from `requirements-dev.lock`. The development lock may grow to include repository tests, publication validation, or other maintainer-only tooling; consumers should install `requirements-runtime.lock`, not infer runtime requirements from the development environment.
-
-Create an isolated environment and install the reviewed runtime graph with dependency resolution disabled. For example on POSIX:
+The reviewed runner source lives in `skills/composition/`. From a reviewed Composition checkout, install that skill into your agent-skill directory:
 
 ```sh
-python -I -m venv /path/to/composition-runtime
-/path/to/composition-runtime/bin/python -I -m pip install \
-  --isolated \
-  --disable-pip-version-check \
-  --no-deps \
-  --requirement requirements-runtime.lock
-/path/to/composition-runtime/bin/python -I scripts/verify_runtime_environment.py
+python skills/composition/scripts/install.py /path/to/agent-skills/composition
 ```
 
-On Windows, use the corresponding `Scripts\python.exe` inside the virtual environment. The verification command rejects unsupported Python versions, missing or additional non-bootstrap distributions, and version mismatches against `requirements-runtime.lock`.
+If that destination already contains this Composition skill, add `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The command examples below use `python` for readability. Run them with the verified runtime interpreter, whether by activating that environment or by invoking its Python executable explicitly.
+The normal command shape is:
 
-The Composition checkout must be clean for tracked files. Composer reads its exact source identity from Git rather than treating a mutable branch name as runtime identity. Managed `update` and `upgrade` additionally require the old revision recorded in the consumer lock to be available in local Git history and the target Composition revision to equal or descend from that old revision. A shallow checkout that omits the old revision is therefore insufficient for those operations.
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  COMMAND [COMPOSER OPTIONS]
+```
 
-The target repository may be outside the Composition checkout.
+For example:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  inspect
+```
+
+The runner owns the Composer target. Do not also pass `--target`; use runner `--repository`.
+
+### Immutable source and runtime selection
+
+The installed skill does not execute a mutable `composition` branch or tag.
+
+`runtime-manifest.json` records the normal full-SHA Composition source revision and the SHA-256 of that revision's `requirements-runtime.lock`. On each invocation the MVP runner:
+
+1. chooses an immutable full SHA;
+2. fetches that exact revision from `TakashiSasaki/templates`;
+3. checks it out detached;
+4. verifies the stable runtime-lock digest when the stable manifest revision is selected;
+5. creates an isolated transient virtual environment;
+6. installs the exact runtime lock with dependency resolution disabled;
+7. runs `pip check` and the source revision's runtime verifier; and
+8. invokes that revision's `scripts/compose.py`.
+
+An advanced `--revision <full-sha>` may select another exact Composition revision. Mutable names are rejected.
+
+If `.template-composition/transaction.json` exists, managed recovery is stricter: the transaction's exact source revision overrides the stable manifest pin. A conflicting `--revision` is rejected rather than silently changing the recovery context. Malformed transaction metadata also fails closed.
+
+The transient source checkout and virtual environment are an MVP performance characteristic, not a semantic requirement. Persistent source/runtime caches may replace repeated construction later without changing revision selection, recovery, or Composer argument semantics.
+
+### Direct source-checkout execution
+
+Repository maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. Normal consumers should prefer the installed skill because it owns immutable source selection and runtime setup.
+
+Managed `update` and `upgrade` require the old revision recorded in the consumer lock to be available in the selected source revision's Git ancestry. The runner's exact-SHA fetch includes the selected revision's ancestor history for that check.
+
+## Consumer configuration
 
 Initial composition and a new upgrade require a consumer configuration file. A minimal Skill configuration is:
 
@@ -70,7 +102,9 @@ At the current production revision, components do not define parameter-specific 
 First inspect the target:
 
 ```sh
-python scripts/compose.py inspect --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  inspect
 ```
 
 For a new target, `absent` or `unmanaged` is expected. If `inspect` reports any managed state, do not fall back to initial composition merely because validation failed: `managed-valid` should use `update` or `upgrade`, `managed-interrupted` should be recovered first, and `managed-invalid` should be diagnosed and repaired before retrying the appropriate managed operation. Initial composition refuses a pre-existing Composition lock.
@@ -78,9 +112,9 @@ For a new target, `absent` or `unmanaged` is expected. If `inspect` reports any 
 Plan before applying:
 
 ```sh
-python scripts/compose.py plan \
-  --config composition.json \
-  --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --config composition.json
 ```
 
 Initial planning is read-only. Review every action and conflict before applying. `create` means Composition will create a new destination. `adopt-identical` means the destination already has exactly the desired bytes and may be adopted without overwriting it. Any conflict prevents apply from proceeding.
@@ -88,18 +122,20 @@ Initial planning is read-only. Review every action and conflict before applying.
 Apply the same configuration:
 
 ```sh
-python scripts/compose.py apply \
-  --config composition.json \
-  --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  apply --config composition.json
 ```
 
 Then validate:
 
 ```sh
-python scripts/compose.py validate --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  validate
 ```
 
-A successful initial apply writes `.template-composition/lock.json` last. The repository is then managed state.
+A successful initial apply writes `.template-composition/lock.json` last. The lock records the exact Composition source revision used by the runner.
 
 ## Use Policy with a Composition repository
 
@@ -119,7 +155,7 @@ This order matters most for the Skill recipe. `artifact.skill-core` materializes
 
 Policy-owned metadata is outside Composition ownership. Existing `.agent-policy.yml`, `.agent-policy.lock`, and `.agent-policy/**` are left unchanged when they do not collide with an ordinary Composition material. Composition schemas and consumer validation also reject any component, lock inventory, or transaction that tries to claim those paths.
 
-The reverse ownership transition is not inferred. If a Policy-managed repository already contains a different `AGENTS.md` and you then try Skill initial composition, planning reports a normal destination conflict and apply does not overwrite the file or create a Composition lock. An explicit migration contract would be required to support that reverse transition.
+The reverse ownership transition is not inferred. If a Policy-managed repository already contains a different `AGENTS.md` and you then try Skill initial composition, planning reports a normal destination conflict and apply does not overwrite the file or create a Composition lock.
 
 For the complete cross-authority rules, see the Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/).
 
@@ -128,7 +164,9 @@ For the complete cross-authority rules, see the Site-owned [Policy–Composition
 Use:
 
 ```sh
-python scripts/compose.py inspect --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  inspect
 ```
 
 The normal states are:
@@ -139,19 +177,21 @@ The normal states are:
 - `managed-invalid` — Composition metadata exists but the managed state does not validate;
 - `managed-interrupted` — a managed transaction marker is present and recovery is required.
 
-An `invalid` state is used for an invalid target root such as a symbolic link.
-
-Do not decide managed state only from whether a repository contains files that look like template output. `.template-composition/lock.json` and `inspect` are the authoritative indicators.
+An `invalid` state is used for an invalid target root such as a symbolic link. Do not decide managed state only from whether a repository contains files that look like template output. `.template-composition/lock.json` and `inspect` are the authoritative indicators.
 
 ## Update without changing intent
 
-Use `update` when you want the same normalized intent—same recipe, explicit include/exclude choices, and parameters—to move forward to the current descendant Composition source revision.
+Use `update` when you want the same normalized intent—same recipe, explicit include/exclude choices, and parameters—to move forward to the runner's selected descendant Composition revision.
 
 Inspect and plan:
 
 ```sh
-python scripts/compose.py inspect --target /path/to/repository
-python scripts/compose.py plan --mode update --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  inspect
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --mode update
 ```
 
 `update` deliberately does not accept `--config`. Lock schema v2 stores normalized consumer intent, so accepting a replacement configuration during ordinary update would make an intent change indistinguishable from routine source advancement. If you want to change intent, use `upgrade`.
@@ -168,39 +208,37 @@ Review the managed file plan. The main classes are:
 If the plan is acceptable:
 
 ```sh
-python scripts/compose.py apply --mode update --target /path/to/repository
-python scripts/compose.py validate --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  apply --mode update
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  validate
 ```
 
 A component-version change is not an ordinary update. The update plan reports `COMPONENT_VERSION_UPGRADE_REQUIRED`; cross that boundary explicitly with `upgrade`.
 
 ## Upgrade or change intent
 
-Use `upgrade` when you intentionally change the selected compatibility surface, including:
+Use `upgrade` when you intentionally change the selected compatibility surface, including recipe, explicit component include/exclude choices, parameters, or component versions reported as an upgrade boundary.
 
-- recipe;
-- explicit component include/exclude choices;
-- parameters;
-- component versions reported as an upgrade boundary.
-
-Create the desired new configuration and plan it explicitly:
+Plan the desired new configuration explicitly:
 
 ```sh
-python scripts/compose.py plan \
-  --mode upgrade \
-  --config composition.json \
-  --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --mode upgrade --config composition.json
 ```
 
-A new upgrade apply requires the same explicit target intent:
+Then apply the same target intent and validate:
 
 ```sh
-python scripts/compose.py apply \
-  --mode upgrade \
-  --config composition.json \
-  --target /path/to/repository
-
-python scripts/compose.py validate --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  apply --mode upgrade --config composition.json
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  validate
 ```
 
 `upgrade` is explicit, but it is not a general merge or ownership-migration engine. A destination that changes component owner or changes between `managed`, `generated`, and `seed` is still refused. Those transitions require an explicit source-side migration design rather than Composer inference.
@@ -209,26 +247,32 @@ python scripts/compose.py validate --target /path/to/repository
 
 If `inspect` returns `managed-interrupted`, do not delete or edit `.template-composition/transaction.json` manually.
 
-The transaction records the operation and exact target Composition source revision. If necessary, read those fields to identify the required recovery context, but treat the file as Composer-owned metadata.
+The installed runner reads the transaction before acquiring source. It selects the exact transaction source revision automatically and refuses a conflicting explicit revision.
 
-Check out the exact Composition revision recorded by `transaction.json`, then rerun the matching apply operation:
+Rerun the matching operation:
 
 ```sh
-python scripts/compose.py apply --mode update --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  apply --mode update
 ```
 
 or:
 
 ```sh
-python scripts/compose.py apply --mode upgrade --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  apply --mode upgrade
 ```
 
-Recovery uses the already recorded transaction. In particular, interrupted upgrade recovery must not receive `--config`; the target intent and new lock are already bound by the transaction.
+Interrupted upgrade recovery must not receive `--config`; the target intent and new lock are already bound by the transaction.
 
 After recovery succeeds:
 
 ```sh
-python scripts/compose.py validate --target /path/to/repository
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  validate
 ```
 
 Recovery is deterministic roll-forward. If a file no longer matches either the recorded old state or an already-applied new state, the Composer stops rather than overwriting unexpected bytes.
@@ -253,11 +297,11 @@ Planning is intentionally fail-closed and read-only. Fix the cause, then rerun `
 
 Common cases are:
 
-- `LOCAL_MODIFICATION` — a `managed` or `generated` file no longer matches the old lock. Restore the locked bytes if Composition should continue managing it, or stop and redesign ownership/source authority if the local change must remain. The Composer will not merge or overwrite it.
+- `LOCAL_MODIFICATION` — a `managed` or `generated` file no longer matches the old lock. Restore the locked bytes if Composition should continue managing it, or stop and redesign ownership/source authority if the local change must remain.
 - `COMPONENT_VERSION_UPGRADE_REQUIRED` — use `upgrade` with an explicit configuration representing the desired intent.
-- `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` / `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` — update has reached an explicit compatibility boundary. Current upgrade also does not infer the migration; an explicit source-side migration design is required.
+- `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` / `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` — current upgrade does not infer that migration; an explicit source-side migration design is required.
 - `SOURCE_REVISION_NOT_DESCENDANT` — use a Composition revision that is the locked source revision or its descendant.
-- `OLD_SOURCE_REVISION_UNAVAILABLE` — make the old locked revision available in the local Composition Git history before retrying.
+- `OLD_SOURCE_REVISION_UNAVAILABLE` — the selected exact revision must include the old locked revision in its ancestor history.
 - `DESTINATION_CONFLICT` — remove or deliberately reconcile the conflicting ordinary repository path; do not rely on Composer overwrite.
 - `RECOVERY_REQUIRED` — finish the existing transaction instead of starting a new plan.
 
@@ -265,7 +309,7 @@ See the [Composer reference](reference/composer.md) for exact diagnostic meaning
 
 ## Why plan before apply?
 
-`plan` resolves the exact current Composition source, compares it with the target repository, and exposes all proposed mutations and conflicts without writing the target. Managed `apply` performs its own deterministic planning before writing a transaction marker, but reviewing an explicit plan first is the consumer safety checkpoint: it lets you inspect component changes, file replacements/removals, seed preservation, and conflicts before any filesystem mutation is allowed.
+`plan` resolves the exact selected Composition source, compares it with the target repository, and exposes all proposed mutations and conflicts without writing the target. Managed `apply` performs its own deterministic planning before writing a transaction marker, but reviewing an explicit plan first is the consumer safety checkpoint.
 
 ## Deeper design information
 
