@@ -16,6 +16,14 @@
     {
       "source": "examples/README.md",
       "reason": "Repository-local executable fixture guidance documents non-production examples and is intentionally outside the supported reader publication surface."
+    },
+    {
+      "source": "translations/README.md",
+      "reason": "Provider-owned translation maintenance guidance defines derivative translation handling and is not a canonical reader publication document."
+    },
+    {
+      "source": "translations/ja/README.md",
+      "reason": "The Japanese Composition overview is a non-authoritative derivative published only through explicit translation metadata, not through the canonical publication catalog."
     }
   ]
 }
