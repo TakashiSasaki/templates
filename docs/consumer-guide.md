@@ -24,13 +24,15 @@ The supported runner prerequisites are:
 - Git available on `PATH`; and
 - CPython 3.11, 3.12, 3.13, or 3.14.
 
-The reviewed runner source lives in `skills/composition/`. From a reviewed Composition checkout, install that skill into your agent-skill directory:
+Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python skills/composition/scripts/install.py /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/e643a4ac7c8f82b06f38352f869fe1718b6d4a94/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
-If that destination already contains this Composition skill, add `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
+If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
+
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `e643a4ac7c8f82b06f38352f869fe1718b6d4a94` installs skill source `06799100af1e2f139a94f24507e33548dd510157`; that skill's runtime manifest selects stable Composition toolchain revision `907da7416b726fb44f14844364c789c675db3477`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
@@ -49,6 +51,16 @@ python /path/to/agent-skills/composition/scripts/run.py \
 ```
 
 The runner owns the Composer target. Do not also pass `--target`; use runner `--repository`.
+
+### Install from a reviewed checkout
+
+Repository maintainers may instead install the skill from an exact reviewed Composition checkout:
+
+```sh
+python skills/composition/scripts/install.py /path/to/agent-skills/composition
+```
+
+This is an advanced source-maintenance path, not the normal consumer installation route. The checkout itself must be an exact reviewed revision rather than a mutable branch identity. Use `--replace` only for an existing installation already identified as the Composition skill.
 
 ### Immutable source, runtime selection, and cache reuse
 
