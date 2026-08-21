@@ -119,6 +119,76 @@ class TranslationContractTests(unittest.TestCase):
             ):
                 validate(root)
 
+    def test_guided_surface_requires_index_md(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="composition-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_translation(root)
+            write_manifest(
+                root,
+                sha=blob_sha(canonical),
+                surfaces=["guided"],
+            )
+            with self.assertRaisesRegex(
+                TranslationError,
+                "must be an index.md document for guided use",
+            ):
+                validate(root)
+
+    def test_guided_index_need_not_be_in_publication_catalog(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="composition-translation-") as directory:
+            root = Path(directory)
+            prepare_translation(root)
+            (root / "translations" / "ja" / "README.md").unlink()
+
+            canonical = b"# Composition documentation index\n"
+            (root / "docs" / "index.md").write_bytes(canonical)
+            (root / "translations" / "ja" / "docs").mkdir(parents=True)
+            (root / "translations" / "ja" / "docs" / "index.md").write_text(
+                "# Composition documentation index\n\n"
+                "> **参考訳（非正本）:** test\n",
+                encoding="utf-8",
+            )
+            write_manifest(
+                root,
+                sha=blob_sha(canonical),
+                canonical="docs/index.md",
+                translation="translations/ja/docs/index.md",
+                surfaces=["guided"],
+            )
+
+            result = validate(root)
+            self.assertIn("translations validated: 1", result)
+            self.assertIn("reader translations: 0", result)
+            self.assertIn("guided translations: 1", result)
+
+    def test_duplicate_canonical_language_pair_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="composition-translation-") as directory:
+            root = Path(directory)
+            canonical = prepare_translation(root)
+            entry = {
+                "canonical": "README.md",
+                "language": "ja",
+                "translation": "translations/ja/README.md",
+                "canonical_blob_sha": blob_sha(canonical),
+                "surfaces": ["reader"],
+            }
+            (root / "translations" / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "canonical_language": "en",
+                        "translations": [entry, dict(entry)],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                TranslationError,
+                "duplicate canonical/language translation pair",
+            ):
+                validate(root)
+
     def test_translation_path_must_mirror_canonical_path(self) -> None:
         with tempfile.TemporaryDirectory(prefix="composition-translation-") as directory:
             root = Path(directory)
