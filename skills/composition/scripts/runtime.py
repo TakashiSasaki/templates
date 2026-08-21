@@ -394,6 +394,11 @@ def source_valid(entry: Path, revision: str, env: Mapping[str, str]) -> bool:
             env=env,
             capture_output=True,
         ).stdout.strip()
+        longpaths = run(
+            ["git", "-C", str(checkout), "config", "--local", "--get", "core.longpaths"],
+            env=env,
+            capture_output=True,
+        ).stdout.strip()
         status = run(
             [
                 "git",
@@ -419,6 +424,7 @@ def source_valid(entry: Path, revision: str, env: Mapping[str, str]) -> bool:
         and remote == CANONICAL_REMOTE
         and autocrlf == "false"
         and eol == "lf"
+        and longpaths == "true"
         and not status.strip()
         and history_count.isdigit()
         and int(history_count) > 0
@@ -437,6 +443,10 @@ def populate_source_checkout(
     )
     run(
         ["git", "-C", str(checkout), "config", "--local", "core.eol", "lf"],
+        env=env,
+    )
+    run(
+        ["git", "-C", str(checkout), "config", "--local", "core.longpaths", "true"],
         env=env,
     )
     run(
@@ -576,9 +586,6 @@ def runtime_valid(
     python = venv_python(entry)
     if lock.is_symlink() or not lock.is_file():
         return False
-    # Standard venvs commonly use a symlink for bin/python on Unix. The
-    # executable identity is verified by running it below, so the symlink is
-    # not itself a cache-integrity failure.
     if not python.is_file():
         return False
     try:
