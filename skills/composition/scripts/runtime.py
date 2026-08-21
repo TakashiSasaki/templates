@@ -214,6 +214,7 @@ def sanitized_environment(
     result["GIT_TERMINAL_PROMPT"] = "0"
     result["GIT_CONFIG_NOSYSTEM"] = "1"
     result["GIT_CONFIG_GLOBAL"] = os.devnull
+    result["GIT_NO_REPLACE_OBJECTS"] = "1"
     return result
 
 
@@ -312,7 +313,11 @@ def install_cache_directory(
             if backup is not None:
                 remove_path(backup)
             return target
-        if backup is not None and backup.exists() and not target.exists():
+        if (
+            backup is not None
+            and (backup.exists() or backup.is_symlink())
+            and not (target.exists() or target.is_symlink())
+        ):
             backup.rename(target)
         raise
 
@@ -353,6 +358,13 @@ def source_valid(entry: Path, revision: str, env: Mapping[str, str]) -> bool:
         return False
     if git_directory.is_symlink() or not git_directory.is_dir():
         return False
+    for forbidden in (
+        git_directory / "shallow",
+        git_directory / "info" / "grafts",
+        git_directory / "refs" / "replace",
+    ):
+        if forbidden.exists() or forbidden.is_symlink():
+            return False
     for required in (
         checkout / "requirements-runtime.lock",
         checkout / "scripts" / "compose.py",
@@ -564,7 +576,10 @@ def runtime_valid(
     python = venv_python(entry)
     if lock.is_symlink() or not lock.is_file():
         return False
-    if python.is_symlink() or not python.is_file():
+    # Standard venvs commonly use a symlink for bin/python on Unix. The
+    # executable identity is verified by running it below, so the symlink is
+    # not itself a cache-integrity failure.
+    if not python.is_file():
         return False
     try:
         lock_data = lock.read_bytes()
