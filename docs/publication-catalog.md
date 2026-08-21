@@ -39,6 +39,7 @@ The current explicit exclusions are:
 - operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`);
 - the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which remain maintainer provenance while the consolidated history and immutable PR records form the reader-facing history surface;
 - non-production executable-fixture guidance (`examples/README.md`);
+- repository-level immutable installer publication guidance (`release/README.md`), which documents operational release identities while reader-facing installation guidance is assembled separately by Site;
 - repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication;
 - provider-owned translation maintenance guidance (`translations/README.md`); and
 - the non-authoritative Japanese reader derivative (`translations/ja/README.md`), which is exposed only through explicit translation metadata rather than the canonical publication catalog.
@@ -51,11 +52,14 @@ Machine-readable source authorities are published as supporting assets rather th
 
 - `catalog/catalog.json`;
 - both production recipes;
-- every top-level composition JSON Schema;
+- every top-level composition JSON Schema, including the immutable skill-installer release schema;
+- the stable `release/composition-installer.json` identity descriptor;
 - every production component descriptor;
 - Webapp domain contract/schema seeds;
 - reusable lifecycle contract/schema seeds; and
 - the consumer composition-lock schema.
+
+The stable installer descriptor separates three full-SHA roles: the remote installer script revision, the installed skill-source revision, and the Composition toolchain revision selected by that skill. Repository CI verifies those identities against Git history, the pinned installer source, the skill runtime manifest, the runtime-lock digest, and strict `toolchain -> skill source -> installer -> publication` ancestry. The descriptor itself is therefore published as machine-readable authority even though `release/README.md` is not reader-facing publication.
 
 The Site-owned protocol validates the generic asset declarations, source existence, path safety, symlink boundary, overlap rules, and the prohibition on undeclared Markdown inside asset trees. Composition then validates that those generic assets cover the machine-readable authorities required by its own production catalog.
 
@@ -85,13 +89,14 @@ The reviewed shared protocol is not copied into Composition. To reproduce CI, ob
 export SITE_PUBLICATION_PROTOCOL_ROOT=/path/to/reviewed-site-protocol-checkout
 python -I "$SITE_PUBLICATION_PROTOCOL_ROOT/scripts/publication_contract.py" --source-root .
 python -I scripts/validate_publication.py
+python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 python -m unittest discover -s tests -v
 ```
 
-The Site-owned step validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` then dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics.
+The Site-owned step validates the generic schema-v3 publication protocol. `scripts/validate_publication.py` then dynamically loads that same reviewed module to consume its validated `PublicationCatalog` object and applies only Composition-owned declarations, Markdown classification, reader/machine authority coverage, and glossary semantics. The installer-release verifier independently binds publication metadata back to immutable Git history.
 
 A pin update must be deliberate and reviewed. Composition CI must continue to use a 40-character full commit SHA and must not silently follow `site`, a tag, or a pull-request merge ref.
 
-Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, published/excluded classification overlap, stale Markdown exclusions, missing production descriptors/schemas/recipes, malformed Composition glossary records, and obsolete glossary IDs that would reintroduce the retired copyable-template model. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Site-owned protocol before the Composition layer runs.
+Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, published/excluded classification overlap, stale Markdown exclusions, missing production descriptors/schemas/recipes, malformed Composition glossary records, obsolete glossary IDs that would reintroduce the retired copyable-template model, and inconsistent immutable installer release identities. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Site-owned protocol before the Composition layer runs.
 
 Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. Subsequent Composition publication changes require an explicit reviewed Site pin-forward rather than any mutable branch reference.
