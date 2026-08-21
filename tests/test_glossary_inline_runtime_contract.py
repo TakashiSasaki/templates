@@ -64,6 +64,19 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         self.assertIn("var(--md-default-bg-color, Canvas)", dialog_rule)
         self.assertNotIn("var(--md-default-bg-color, #fff)", dialog_rule)
 
+    def test_glossary_dialog_readability_metrics_and_tint_are_explicit(self) -> None:
+        stylesheet = (ROOT / "assets/stylesheets/glossary-inline.css").read_text(
+            encoding="utf-8"
+        )
+        dialog_rule = stylesheet.split(".glossary-inline-dialog {", 1)[1].split("}", 1)[0]
+        definition_rule = stylesheet.split(
+            ".glossary-inline-dialog__definition {", 1
+        )[1].split("}", 1)[0]
+
+        self.assertIn("var(--md-primary-fg-color, #3f51b5) 14%", dialog_rule)
+        self.assertIn("font-size: 0.9rem;", definition_rule)
+        self.assertIn("line-height: 1.65;", definition_rule)
+
 
 if __name__ == "__main__":
     unittest.main()
