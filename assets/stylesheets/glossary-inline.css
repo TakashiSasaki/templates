@@ -50,13 +50,17 @@ button.glossary-term:focus-visible {
   margin: 0;
   padding: 0.9rem 1rem 1rem;
   overflow: auto;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border: 1px solid color-mix(
+    in srgb,
+    var(--md-primary-fg-color, #3f51b5) 30%,
+    transparent
+  );
   border-radius: 0.75rem;
   color: var(--md-default-fg-color, CanvasText);
   background: var(--md-default-bg-color, Canvas);
   background: color-mix(
     in srgb,
-    var(--md-primary-fg-color, #3f51b5) 7%,
+    var(--md-primary-fg-color, #3f51b5) 14%,
     var(--md-default-bg-color, Canvas)
   );
   box-shadow: 0 0.8rem 2.2rem rgba(0, 0, 0, 0.2);
@@ -107,7 +111,8 @@ button.glossary-term:focus-visible {
 
 .glossary-inline-dialog__definition {
   margin: 0.8rem 0 0.65rem;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.65;
 }
 
 .glossary-inline-dialog__meta,
