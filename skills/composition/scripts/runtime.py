@@ -157,10 +157,12 @@ def sanitized_environment(
         for key, value in supplied.items()
         if not key.upper().startswith("PIP_")
         and not key.upper().startswith("PYTHON")
+        and not key.upper().startswith("GIT_")
     }
     result["PYTHONNOUSERSITE"] = "1"
     result["PIP_CONFIG_FILE"] = os.devnull
     result["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    result["GIT_TERMINAL_PROMPT"] = "0"
     return result
 
 
