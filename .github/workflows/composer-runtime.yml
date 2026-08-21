@@ -93,3 +93,6 @@ jobs:
 
       - name: Install skill and exercise immutable runner
         run: python -I scripts/smoke_test_skill_runner.py
+
+      - name: Download and exercise immutable remote installer candidate
+        run: python -I scripts/smoke_test_remote_skill_installer.py
