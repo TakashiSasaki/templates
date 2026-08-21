@@ -108,68 +108,77 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
     archive_root: str | None = None
 
     try:
-        archive = tarfile.open(fileobj=io.BytesIO(data), mode="r:gz")
-    except tarfile.TarError as exc:
-        raise RuntimeError("unable to read skill archive") from exc
-
-    with archive:
-        for member in archive.getmembers():
-            relative = safe_relative_member(member)
-            if relative is None:
-                continue
-            root = PurePosixPath(member.name).parts[0]
-            if root in {"", ".", ".."} or "\\" in root or ":" in root:
-                raise RuntimeError(f"unsafe root prefix in skill archive: {member.name}")
-            if archive_root is None:
-                archive_root = root
-            elif root != archive_root:
-                raise RuntimeError("skill archive contains multiple top-level roots")
-            if member.issym() or member.islnk():
-                raise RuntimeError(
-                    f"symbolic and hard links are not allowed in skill archive: {member.name}"
-                )
-            if not member.isdir() and not member.isfile():
-                raise RuntimeError(
-                    f"unsupported member type in skill archive: {member.name}"
-                )
-            if relative in selected:
-                raise RuntimeError(f"duplicate path in skill archive: {relative}")
-            if member.isfile():
-                if member.size < 0:
-                    raise RuntimeError(f"invalid file size in skill archive: {member.name}")
-                total_size += member.size
-                if total_size > SKILL_LIMIT:
-                    raise RuntimeError("extracted skill exceeds the size limit")
-            selected[relative] = member
-
-        missing = REQUIRED_SKILL_PATHS - set(selected)
-        if missing:
-            rendered = ", ".join(sorted(path.as_posix() for path in missing))
-            raise RuntimeError(f"skill archive is missing required paths: {rendered}")
-
-        for relative, member in sorted(
-            selected.items(), key=lambda item: item[0].as_posix()
-        ):
-            if relative == PurePosixPath("."):
-                continue
-            target = destination.joinpath(*relative.parts)
-            if member.isdir():
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            source: BinaryIO | None = archive.extractfile(member)
-            if source is None:
-                raise RuntimeError(f"unable to read skill archive member: {member.name}")
-            with source, target.open("wb") as output:
-                remaining = member.size
-                while remaining:
-                    chunk = source.read(min(64 * 1024, remaining))
-                    if not chunk:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+            for member in archive.getmembers():
+                relative = safe_relative_member(member)
+                if relative is None:
+                    continue
+                root = PurePosixPath(member.name).parts[0]
+                if root in {"", ".", ".."} or "\\" in root or ":" in root:
+                    raise RuntimeError(
+                        f"unsafe root prefix in skill archive: {member.name}"
+                    )
+                if archive_root is None:
+                    archive_root = root
+                elif root != archive_root:
+                    raise RuntimeError("skill archive contains multiple top-level roots")
+                if member.issym() or member.islnk():
+                    raise RuntimeError(
+                        "symbolic and hard links are not allowed in skill archive: "
+                        f"{member.name}"
+                    )
+                if not member.isdir() and not member.isfile():
+                    raise RuntimeError(
+                        f"unsupported member type in skill archive: {member.name}"
+                    )
+                if relative in selected:
+                    raise RuntimeError(f"duplicate path in skill archive: {relative}")
+                if member.isfile():
+                    if member.size < 0:
                         raise RuntimeError(
-                            f"skill archive member ended early: {member.name}"
+                            f"invalid file size in skill archive: {member.name}"
                         )
-                    output.write(chunk)
-                    remaining -= len(chunk)
+                    total_size += member.size
+                    if total_size > SKILL_LIMIT:
+                        raise RuntimeError("extracted skill exceeds the size limit")
+                selected[relative] = member
+
+            missing = {
+                path
+                for path in REQUIRED_SKILL_PATHS
+                if path not in selected or not selected[path].isfile()
+            }
+            if missing:
+                rendered = ", ".join(sorted(path.as_posix() for path in missing))
+                raise RuntimeError(f"skill archive is missing required files: {rendered}")
+
+            for relative, member in sorted(
+                selected.items(), key=lambda item: item[0].as_posix()
+            ):
+                if relative == PurePosixPath("."):
+                    continue
+                target = destination.joinpath(*relative.parts)
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source: BinaryIO | None = archive.extractfile(member)
+                if source is None:
+                    raise RuntimeError(
+                        f"unable to read skill archive member: {member.name}"
+                    )
+                with source, target.open("wb") as output:
+                    remaining = member.size
+                    while remaining:
+                        chunk = source.read(min(64 * 1024, remaining))
+                        if not chunk:
+                            raise RuntimeError(
+                                f"skill archive member ended early: {member.name}"
+                            )
+                        output.write(chunk)
+                        remaining -= len(chunk)
+    except tarfile.TarError as exc:
+        raise RuntimeError(f"unable to read skill archive: {exc}") from exc
 
     return destination
 
