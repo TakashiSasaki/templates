@@ -44,7 +44,7 @@ def read_json_object(path: Path, label: str) -> dict[str, Any]:
             path.read_text(encoding="utf-8"),
             object_pairs_hook=_unique_object,
         )
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, ValueError) as exc:
         raise RunnerError(f"cannot read {label}: {exc}") from exc
     if not isinstance(value, dict):
         raise RunnerError(f"{label} must be a JSON object")
@@ -119,9 +119,11 @@ def transaction_revision(repository: Path) -> str | None:
     if path.is_symlink() or not path.is_file():
         raise RunnerError("Composition transaction metadata must be a regular file")
     value = read_json_object(path, "Composition transaction")
-    if value.get("schema_version") != 1:
+    schema_version = value.get("schema_version")
+    if type(schema_version) is not int or schema_version != 1:
         raise RunnerError("unsupported Composition transaction schema")
-    if value.get("operation") not in {"update", "upgrade"}:
+    operation = value.get("operation")
+    if not isinstance(operation, str) or operation not in {"update", "upgrade"}:
         raise RunnerError("Composition transaction operation is invalid")
     if "source" not in value:
         raise RunnerError("Composition transaction is missing source metadata")
