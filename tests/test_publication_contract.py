@@ -142,6 +142,8 @@ class CompositionPublicationContractTests(unittest.TestCase):
                 PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
                 PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
                 PurePosixPath("examples/README.md"),
+                PurePosixPath("translations/README.md"),
+                PurePosixPath("translations/ja/README.md"),
             },
         )
         self.assertTrue(all(reason.strip() for reason in exclusions.values()))

@@ -37,8 +37,10 @@ An exclusion does not suppress a known reader-facing requirement: the existing C
 The current explicit exclusions are:
 
 - operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`);
-- the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which remain maintainer provenance while the consolidated history and immutable PR records form the reader-facing history surface; and
-- non-production executable-fixture guidance (`examples/README.md`).
+- the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which remain maintainer provenance while the consolidated history and immutable PR records form the reader-facing history surface;
+- non-production executable-fixture guidance (`examples/README.md`);
+- provider-owned translation maintenance guidance (`translations/README.md`); and
+- the non-authoritative Japanese reader derivative (`translations/ja/README.md`), which is exposed only through explicit translation metadata rather than the canonical publication catalog.
 
 The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
 
