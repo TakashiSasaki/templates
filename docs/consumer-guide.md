@@ -50,32 +50,33 @@ python /path/to/agent-skills/composition/scripts/run.py \
 
 The runner owns the Composer target. Do not also pass `--target`; use runner `--repository`.
 
-### Immutable source and runtime selection
+### Immutable source, runtime selection, and cache reuse
 
 The installed skill does not execute a mutable `composition` branch or tag.
 
-`runtime-manifest.json` records the normal full-SHA Composition source revision and the SHA-256 of that revision's `requirements-runtime.lock`. On each invocation the MVP runner:
+`runtime-manifest.json` records the normal full-SHA Composition source revision and the SHA-256 of that revision's `requirements-runtime.lock`. On each invocation the runner:
 
 1. chooses an immutable full SHA;
-2. fetches that exact revision from `TakashiSasaki/templates`;
-3. checks it out detached;
+2. reuses a validated cached checkout for that exact revision when available, otherwise fetches that exact revision from `TakashiSasaki/templates` with its ancestor history;
+3. verifies that the checkout remains detached at the selected SHA, points to the canonical remote, is byte-clean, uses LF-preserving checkout settings, and has traversable history;
 4. verifies the stable runtime-lock digest when the stable manifest revision is selected;
-5. creates an isolated transient virtual environment;
-6. installs the exact runtime lock with dependency resolution disabled;
-7. runs `pip check` and the source revision's runtime verifier; and
-8. invokes that revision's `scripts/compose.py`.
+5. derives a runtime-cache identity from the repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
+6. reuses a runtime only after validating its marker, cached lock digest, Python/platform identity, `pip check`, and the source revision's runtime verifier; otherwise it builds and atomically installs a new isolated runtime from the exact lock with dependency resolution disabled; and
+7. invokes that revision's `scripts/compose.py`.
 
 An advanced `--revision <full-sha>` may select another exact Composition revision. Mutable names are rejected.
 
 If `.template-composition/transaction.json` exists, managed recovery is stricter: the transaction's exact source revision overrides the stable manifest pin. A conflicting `--revision` is rejected rather than silently changing the recovery context. Malformed transaction metadata also fails closed.
 
-The transient source checkout and virtual environment are an MVP performance characteristic, not a semantic requirement. Persistent source/runtime caches may replace repeated construction later without changing revision selection, recovery, or Composer argument semantics.
+A valid source/runtime cache hit requires no network acquisition. By default the runner uses the platform cache location under a `composition/runner-v1` namespace. `COMPOSITION_RUNTIME_CACHE=/path/to/cache` may override that root for controlled environments or tests. Invalid cache entries are treated as misses and are never trusted from marker metadata alone.
+
+Cache layout and reuse are performance details. They do not change revision selection, recovery, Composer arguments, lock/transaction semantics, or material ownership.
 
 ### Direct source-checkout execution
 
 Repository maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. Normal consumers should prefer the installed skill because it owns immutable source selection and runtime setup.
 
-Managed `update` and `upgrade` require the old revision recorded in the consumer lock to be available in the selected source revision's Git ancestry. The runner's exact-SHA fetch includes the selected revision's ancestor history for that check.
+Managed `update` and `upgrade` require the old revision recorded in the consumer lock to be available in the selected source revision's Git ancestry. The runner's exact-SHA source cache retains and validates traversable ancestor history for that check.
 
 ## Consumer configuration
 
