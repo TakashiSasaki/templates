@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/composition-skill-installer-release.schema.json",
+  "title": "Composition skill installer release",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "channel", "installer", "skill_source", "toolchain"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "channel": {"const": "stable"},
+    "installer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "path"],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"const": "scripts/install_composition_skill.py"}
+      }
+    },
+    "skill_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "path"],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "path": {"const": "skills/composition"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {"const": "TakashiSasaki/templates"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    }
+  }
+}
