@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test the installed Composition skill runner against its stable full-SHA source."""
+"""Smoke-test installed Composition skill acquisition and offline cache reuse."""
 
 from __future__ import annotations
 
@@ -28,6 +28,23 @@ def clean_environment() -> dict[str, str]:
     return result
 
 
+def offline_environment(source: dict[str, str]) -> dict[str, str]:
+    result = dict(source)
+    blocked = "http://127.0.0.1:9"
+    for key in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        result[key] = blocked
+    result["NO_PROXY"] = ""
+    result["no_proxy"] = ""
+    return result
+
+
 def run(
     command: list[str],
     *,
@@ -35,6 +52,13 @@ def run(
     cwd: Path | None = None,
 ) -> None:
     subprocess.run(command, env=env, cwd=cwd, check=True)
+
+
+def single_directory(path: Path, label: str) -> Path:
+    entries = [entry for entry in path.iterdir() if entry.is_dir()]
+    if len(entries) != 1:
+        raise RuntimeError(f"expected one {label} cache entry, found {entries!r}")
+    return entries[0]
 
 
 def main() -> int:
@@ -46,6 +70,8 @@ def main() -> int:
         root = Path(temporary)
         installed = root / "installed-composition"
         target = root / "consumer"
+        cache = root / "runner-cache"
+        env["COMPOSITION_RUNTIME_CACHE"] = str(cache)
         config = root / "composition.json"
         config.write_text(
             json.dumps(
@@ -100,6 +126,32 @@ def main() -> int:
                 f"runner materialized unexpected source identity: {source!r}"
             )
 
+        source_entry = single_directory(cache / "sources", "source")
+        runtime_entry = single_directory(cache / "runtimes", "runtime")
+        if source_entry.name != expected_revision:
+            raise RuntimeError(
+                f"source cache key does not match stable revision: {source_entry.name}"
+            )
+        if not (source_entry / "source.json").is_file():
+            raise RuntimeError("source cache marker is missing")
+        if not (runtime_entry / "runtime.json").is_file():
+            raise RuntimeError("runtime cache marker is missing")
+
+        # A valid cache hit must require no network. If source acquisition or pip
+        # installation is attempted here, the deliberately dead proxies fail fast.
+        run(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "validate",
+            ],
+            env=offline_environment(env),
+            cwd=root,
+        )
+
         validator = target / ".template-composition" / "validate_composition.py"
         run(
             [sys.executable, "-I", str(validator), str(target)],
@@ -107,7 +159,7 @@ def main() -> int:
         )
 
     print(
-        "Composition installed-skill runner smoke test: OK "
+        "Composition installed-skill runner cache smoke test: OK "
         f"({expected_revision})"
     )
     return 0
