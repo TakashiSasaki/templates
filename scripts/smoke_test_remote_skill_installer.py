@@ -29,15 +29,18 @@ def run(command: list[str], *, capture_output: bool = False) -> subprocess.Compl
     )
 
 
+def require_regular_skill_files(target: Path, phase: str) -> None:
+    for relative in REQUIRED:
+        path = target / relative
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError(f"{phase} did not materialize regular file: {relative}")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="composition-remote-installer-smoke-") as temporary:
         target = Path(temporary) / "composition"
         run([sys.executable, "-I", str(INSTALLER), str(target)])
-
-        for relative in REQUIRED:
-            path = target / relative
-            if not path.is_file() or path.is_symlink():
-                raise RuntimeError(f"remote installer did not materialize regular file: {relative}")
+        require_regular_skill_files(target, "remote installer")
 
         manifest = json.loads((target / "runtime-manifest.json").read_text(encoding="utf-8"))
         revision = manifest.get("toolchain", {}).get("revision")
@@ -52,9 +55,7 @@ def main() -> int:
             raise RuntimeError("installed Composition runner help is incomplete")
 
         run([sys.executable, "-I", str(INSTALLER), str(target), "--replace"])
-        for relative in REQUIRED:
-            if not (target / relative).is_file():
-                raise RuntimeError(f"replacement lost required skill file: {relative}")
+        require_regular_skill_files(target, "replacement")
 
     print("Composition immutable remote installer smoke test passed")
     return 0
