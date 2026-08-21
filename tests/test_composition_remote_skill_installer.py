@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import io
 import subprocess
@@ -7,7 +8,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,6 +89,10 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
             with self.subTest(revision=revision):
                 with self.assertRaisesRegex(ValueError, "full lowercase commit SHA"):
                     installer.archive_url(revision)
+
+    def test_safe_relative_member_ignores_absolute_paths(self) -> None:
+        member = tarfile.TarInfo("/templates-source/skills/composition/SKILL.md")
+        self.assertIsNone(installer.safe_relative_member(member))
 
     def test_extract_selects_only_composition_skill_subtree(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -196,11 +201,131 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
                 b"---\nname: composition\n---\n",
             )
         with tempfile.TemporaryDirectory() as temporary:
-            with self.assertRaisesRegex(RuntimeError, "missing required paths"):
+            with self.assertRaisesRegex(RuntimeError, "missing required files"):
                 installer.extract_skill_archive(
                     buffer.getvalue(),
                     Path(temporary) / "skill",
                 )
+
+    def test_extract_requires_required_paths_to_be_regular_files(self) -> None:
+        buffer = io.BytesIO()
+        prefix = "templates-source/skills/composition"
+        with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+            directory = tarfile.TarInfo(f"{prefix}/SKILL.md")
+            directory.type = tarfile.DIRTYPE
+            archive.addfile(directory)
+            add_file(archive, f"{prefix}/runtime-manifest.json", b"{}\n")
+            add_file(archive, f"{prefix}/scripts/install.py", b"x")
+            add_file(archive, f"{prefix}/scripts/run.py", b"x")
+            add_file(archive, f"{prefix}/scripts/runtime.py", b"x")
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "missing required files.*SKILL.md"):
+                installer.extract_skill_archive(
+                    buffer.getvalue(), Path(temporary) / "skill"
+                )
+
+    def test_extract_normalizes_tar_errors_from_member_iteration(self) -> None:
+        class BrokenArchive:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def getmembers(self):
+                raise tarfile.ReadError("broken member table")
+
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            installer.tarfile, "open", return_value=BrokenArchive()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "unable to read skill archive"):
+                installer.extract_skill_archive(b"fake", Path(temporary) / "skill")
+
+    def test_extract_normalizes_tar_errors_from_member_extraction(self) -> None:
+        prefix = "templates-source/skills/composition"
+        members: list[tarfile.TarInfo] = []
+        for relative in (
+            "SKILL.md",
+            "runtime-manifest.json",
+            "scripts/install.py",
+            "scripts/run.py",
+            "scripts/runtime.py",
+        ):
+            member = tarfile.TarInfo(f"{prefix}/{relative}")
+            member.size = 1
+            members.append(member)
+
+        class BrokenArchive:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def getmembers(self):
+                return members
+
+            def extractfile(self, _member: tarfile.TarInfo):
+                raise tarfile.ReadError("broken payload")
+
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            installer.tarfile, "open", return_value=BrokenArchive()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "unable to read skill archive"):
+                installer.extract_skill_archive(b"fake", Path(temporary) / "skill")
+
+    def test_extract_rejects_negative_file_size_and_early_eof(self) -> None:
+        prefix = "templates-source/skills/composition"
+
+        negative = tarfile.TarInfo(f"{prefix}/SKILL.md")
+        negative.size = -1
+
+        class NegativeArchive:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def getmembers(self):
+                return [negative]
+
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            installer.tarfile, "open", return_value=NegativeArchive()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "invalid file size"):
+                installer.extract_skill_archive(b"fake", Path(temporary) / "negative")
+
+        members: list[tarfile.TarInfo] = []
+        for relative in (
+            "SKILL.md",
+            "runtime-manifest.json",
+            "scripts/install.py",
+            "scripts/run.py",
+            "scripts/runtime.py",
+        ):
+            member = tarfile.TarInfo(f"{prefix}/{relative}")
+            member.size = 1
+            members.append(member)
+
+        class EarlyEofArchive:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def getmembers(self):
+                return members
+
+            def extractfile(self, _member: tarfile.TarInfo):
+                return io.BytesIO(b"")
+
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            installer.tarfile, "open", return_value=EarlyEofArchive()
+        ):
+            with self.assertRaisesRegex(RuntimeError, "member ended early"):
+                installer.extract_skill_archive(b"fake", Path(temporary) / "early-eof")
 
     def test_install_delegates_to_atomic_local_installer_in_isolated_python(self) -> None:
         observed: dict[str, object] = {}
@@ -249,6 +374,36 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "download size limit"):
             installer.download_archive(opener=opener)
 
+    def test_download_rejects_malformed_and_negative_content_length(self) -> None:
+        class Headers:
+            def __init__(self, value: str):
+                self.value = value
+
+            def get(self, _key: str) -> str:
+                return self.value
+
+        class FakeResponse:
+            def __init__(self, value: str):
+                self.headers = Headers(value)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args: object) -> None:
+                return None
+
+            def read(self, amount: int = -1) -> bytes:
+                return b"unused"
+
+        for value, message in (("abc", "invalid Content-Length"), ("-10", "download size limit")):
+            with self.subTest(value=value):
+                def opener(_request: object, *, timeout: int, value: str = value):
+                    self.assertEqual(timeout, 30)
+                    return FakeResponse(value)
+
+                with self.assertRaisesRegex(RuntimeError, message):
+                    installer.download_archive(opener=opener)
+
     def test_download_rejects_oversized_payload_without_content_length(self) -> None:
         payload = b"x" * (installer.ARCHIVE_LIMIT + 1)
 
@@ -266,6 +421,27 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "download was empty"):
             installer.download_archive(opener=opener)
+
+    def test_main_cli_exit_codes_and_error_formatting(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / "composition"
+            stdout = io.StringIO()
+            with mock.patch.object(installer, "download_archive", return_value=b"archive"), mock.patch.object(
+                installer, "install_downloaded_skill"
+            ) as install, contextlib.redirect_stdout(stdout):
+                self.assertEqual(installer.main([str(target)]), 0)
+            install.assert_called_once_with(b"archive", target.absolute(), replace=False)
+            self.assertIn("Installed Composition skill", stdout.getvalue())
+
+            stderr = io.StringIO()
+            with mock.patch.object(
+                installer, "download_archive", side_effect=RuntimeError("broken download")
+            ), contextlib.redirect_stderr(stderr):
+                self.assertEqual(installer.main([str(target)]), 1)
+            self.assertIn(
+                "Composition remote installer error: broken download",
+                stderr.getvalue(),
+            )
 
 
 if __name__ == "__main__":
