@@ -52,8 +52,8 @@ button.glossary-term:focus-visible {
   overflow: auto;
   border: 1px solid color-mix(
     in srgb,
-    var(--md-primary-fg-color, #3f51b5) 28%,
-    var(--md-default-fg-color, CanvasText)
+    var(--md-primary-fg-color, #3f51b5) 30%,
+    transparent
   );
   border-radius: 0.75rem;
   color: var(--md-default-fg-color, CanvasText);
