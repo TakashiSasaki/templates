@@ -8,7 +8,7 @@ A consumer repository is produced from an artifact recipe plus explicit consumer
 
 If you are creating or maintaining a concrete Agent Skill or Web application repository, start with [Using Composition](docs/consumer-guide.md). It provides the task-oriented `initial` / `update` / `upgrade` / recovery workflow, file-editing rules, conflict handling, and the reproducible consumer runtime setup.
 
-The current Composer entrypoint runs from an exact Composition source checkout. Git and CPython 3.11 through 3.14 are the supported prerequisites; the clean consumer-runtime matrix validates Ubuntu 24.04 and Windows Server 2022. `requirements-runtime.lock` is the exact consumer-runtime dependency contract. Repository-development dependencies remain a separate concern in `requirements-dev.lock`.
+Normal consumers use the installable `skills/composition/` runner. Git and CPython 3.11 through 3.14 are its supported prerequisites. The runner selects an immutable full-SHA Composition source revision, builds the exact `requirements-runtime.lock` environment with dependency resolution disabled, and invokes the existing Composer with the consumer repository as its target. The direct source-checkout entrypoint remains available for repository maintainers; the clean consumer-runtime matrix validates Ubuntu 24.04 and Windows Server 2022.
 
 For exact CLI options, inspect states, plan fields, ownership semantics, recovery rules, diagnostic codes, and exit behavior, use the [Composer reference](docs/reference/composer.md).
 
