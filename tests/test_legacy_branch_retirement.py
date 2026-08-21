@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
+LANGUAGE_POLICY = ROOT / "LANGUAGE.md"
 
 COMPOSITION_REVISION = "20feffa11fd285e0c46d8e51ddfcbf99e3902224"
 POLICY_REVISION = "3388f2df6c59cf2466b114cc236dd1b512349dc7"
@@ -95,6 +96,27 @@ class LegacyBranchRetirementTests(unittest.TestCase):
         self.assertFalse(
             any("future Composition work" in condition for condition in conditions)
         )
+
+    def test_language_policy_uses_current_authority_and_translation_ownership(self) -> None:
+        policy = LANGUAGE_POLICY.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "current `site`, `policy`, and `composition` authority branches",
+            policy,
+        )
+        self.assertIn(
+            "The authority that owns a canonical document also owns its translation files",
+            policy,
+        )
+        self.assertIn(
+            "the `policy` and `composition` branches therefore own translations",
+            policy,
+        )
+        self.assertIn(
+            "`site` does not maintain independent copies of those translations",
+            policy,
+        )
+        self.assertIn("translations/ja/README.md", policy)
 
     def test_active_site_operations_do_not_reintroduce_legacy_branches(self) -> None:
         for relative_path in ACTIVE_OPERATIONAL_FILES:
