@@ -48,10 +48,11 @@ def composer_arguments(command: str, arguments: list[str]) -> list[str]:
 
 
 def main() -> int:
-    args = parser().parse_args()
+    cli_parser = parser()
+    args = cli_parser.parse_args()
     repository = args.repository.expanduser().absolute()
     if repository.is_symlink():
-        parser().error("consumer repository root must not be a symbolic link")
+        cli_parser.error("consumer repository root must not be a symbolic link")
     try:
         arguments = composer_arguments(args.command, list(args.arguments))
         return run_composer(
