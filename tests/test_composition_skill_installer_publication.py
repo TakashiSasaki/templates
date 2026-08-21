@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 SCHEMA = ROOT / "schemas" / "composition-skill-installer-release.schema.json"
 RELEASE_README = ROOT / "release" / "README.md"
+CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
 INSTALLER_REVISION = "e643a4ac7c8f82b06f38352f869fe1718b6d4a94"
 SKILL_REVISION = "06799100af1e2f139a94f24507e33548dd510157"
 TOOLCHAIN_REVISION = "907da7416b726fb44f14844364c789c675db3477"
@@ -90,6 +91,20 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         self.assertIn("installer script revision", content)
         self.assertIn("skill source revision", content)
         self.assertIn("stable Composition toolchain revision", content)
+        self.assertIn(INSTALLER_REVISION, content)
+        self.assertIn(SKILL_REVISION, content)
+        self.assertIn(TOOLCHAIN_REVISION, content)
+        self.assertNotIn(
+            "raw.githubusercontent.com/TakashiSasaki/templates/composition/", content
+        )
+        self.assertNotIn(
+            "raw.githubusercontent.com/TakashiSasaki/templates/main/", content
+        )
+        self.assertNotIn("/tar.gz/composition", content)
+
+    def test_consumer_guide_publishes_only_full_sha_installer_url(self) -> None:
+        content = CONSUMER_GUIDE.read_text(encoding="utf-8")
+        self.assertIn(RAW_INSTALLER_URL, content)
         self.assertIn(INSTALLER_REVISION, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
