@@ -39,7 +39,7 @@ python -I -m venv /path/to/composition-runtime
 /path/to/composition-runtime/bin/python -I scripts/verify_runtime_environment.py
 ```
 
-On Windows, use the corresponding `Scripts\\python.exe` inside the virtual environment. The verification command rejects unsupported Python versions, missing or additional non-bootstrap distributions, and version mismatches against `requirements-runtime.lock`.
+On Windows, use the corresponding `Scripts\python.exe` inside the virtual environment. The verification command rejects unsupported Python versions, missing or additional non-bootstrap distributions, and version mismatches against `requirements-runtime.lock`.
 
 The command examples below use `python` for readability. Run them with the verified runtime interpreter, whether by activating that environment or by invoking its Python executable explicitly.
 
