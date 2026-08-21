@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "toolchain": {
+    "repository": "TakashiSasaki/templates",
+    "revision": "e0ead0e2ae6ef34eae7a80f17cdb95544b299828"
+  },
+  "runtime_lock": {
+    "path": "requirements-runtime.lock",
+    "sha256": "12bca95de67b6efeb4686cb306601c8870f2d427335e5aacb3db420bf9278e66"
+  },
+  "entrypoint": "scripts/compose.py"
+}
