@@ -93,7 +93,7 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
             self.assertTrue(translated.is_file())
             text = translated.read_text(encoding="utf-8")
             self.assertIn("> **参考訳（非正本）:**", text)
-            self.assertIn("[Using Composition](../../../composition/use/index.md)", text)
+            self.assertIn("[Using Composition](../../composition/use/index.md)", text)
             self.assertEqual(
                 records[0].canonical_destination,
                 PurePosixPath("composition/index.md"),
