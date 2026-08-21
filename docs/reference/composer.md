@@ -2,6 +2,8 @@
 
 This reference describes the consumer-facing contract of `scripts/compose.py`. For task-oriented instructions, start with [Using Composition](../consumer-guide.md). For design rationale, see [Composer MVP](../architecture/composer-mvp.md) and the [Composition model](../architecture/composition-model.md).
 
+Normal consumers reach this contract through the installed `skills/composition/` runner. The runner owns immutable source acquisition, isolated runtime construction, and target injection; it does not redefine lifecycle modes, plans, lock/transaction semantics, ownership, diagnostics, or Composer exit behavior. In direct source-checkout examples below, `--target /repo` is explicit. Through the runner, the equivalent target is supplied once as `--repository /repo`, and a second `--target` is rejected.
+
 ## Public lifecycle
 
 The public lifecycle is:
@@ -44,7 +46,21 @@ python scripts/compose.py --help
 
 The top-level help lists `inspect -> plan -> apply -> validate`, the `initial` / `update` / `upgrade` modes, the `--config` requirements for each mode, interrupted-upgrade recovery behavior, and representative commands. This help path is read-only and does not load Composition source state or inspect a consumer repository.
 
-Internal modules such as `composer_update_plan.py`, `composer_apply.py`, `composer_managed.py`, and `composer_transaction.py` are implementation layers, not alternate public entrypoints. Consumer automation and documentation should invoke `scripts/compose.py`.
+Internal modules such as `composer_update_plan.py`, `composer_apply.py`, `composer_managed.py`, and `composer_transaction.py` are implementation layers, not alternate public entrypoints. Consumer automation and documentation should invoke `scripts/compose.py` directly only when operating from an exact reviewed source checkout; normal installed-skill operation delegates to that same entrypoint.
+
+## Runner binding
+
+The installed runner syntax is:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /repo \
+  COMMAND [COMPOSER OPTIONS]
+```
+
+The runner selects only a full lowercase 40-character source revision in `TakashiSasaki/templates`. Its stable default comes from `skills/composition/runtime-manifest.json`; an explicit `--revision <full-sha>` may override that default. When `.template-composition/transaction.json` exists, its exact source revision is authoritative for recovery and overrides the stable default. A conflicting explicit revision is rejected.
+
+After selecting the revision, the runner fetches that exact source, constructs the source revision's `requirements-runtime.lock` environment with dependency resolution disabled, verifies the runtime, and invokes `scripts/compose.py`. The runner adds `--target /repo` itself and refuses any forwarded `--target` option. The transient source/runtime construction in the MVP is not part of the semantic Composer contract and may later be replaced by validated persistent caches.
 
 ## Source checkout requirements
 
@@ -56,7 +72,7 @@ For managed `update` and `upgrade`:
 - the target source revision must equal or descend from the old revision;
 - recovery requires the exact target revision recorded in `.template-composition/transaction.json`.
 
-The canonical source identity is the Composition authority in `TakashiSasaki/templates`.
+The canonical source identity is the Composition authority in `TakashiSasaki/templates`. The installed runner acquires a detached exact-SHA checkout with the selected revision's ancestor history so these checks remain Composer-owned rather than being weakened by the wrapper.
 
 ## `inspect`
 
@@ -77,7 +93,7 @@ Possible `state` values are:
 | `managed-interrupted` | `.template-composition/transaction.json` exists and recovery is required |
 | `invalid` | target root itself is invalid, for example a symbolic link |
 
-`inspect` treats transaction-marker presence as sufficient to classify interrupted managed state. It does not trust or branch on transaction contents before recovery.
+`inspect` treats transaction-marker presence as sufficient to classify interrupted managed state. It does not trust or branch on transaction contents before recovery. The runner separately validates only enough transaction metadata to choose the exact recovery source revision before launching the Composer; the Composer remains authoritative for recovery-state validation.
 
 ## Consumer configuration
 
@@ -220,6 +236,8 @@ python scripts/compose.py apply --mode update --target /repo
 python scripts/compose.py apply --mode upgrade --target /repo
 ```
 
+Through the installed runner, the equivalent commands omit source checkout management and `--target`; the runner reads the transaction's exact source revision and supplies the target from `--repository`.
+
 A transaction for the other operation reports `RECOVERY_OPERATION_MISMATCH`. A different source checkout reports `RECOVERY_SOURCE_MISMATCH`.
 
 ## Consumer-facing managed lifecycle diagnostics
@@ -259,7 +277,7 @@ Except for explicit help output, the CLI emits JSON to standard output for norma
 - `2` — invalid state, conflict, argument-level Composer error, or managed-operation failure;
 - `3` — initial apply materialized files but its immediate post-apply consumer validation failed; the Composer attempts to remove the just-written lock so the repository is not reported as successfully managed.
 
-Argparse usage errors follow Python `argparse` behavior.
+Argparse usage errors follow Python `argparse` behavior. Runner-local acquisition or selection failures also return `2` but are written as runner errors to standard error before the Composer is invoked.
 
 ## Consumer validator
 
