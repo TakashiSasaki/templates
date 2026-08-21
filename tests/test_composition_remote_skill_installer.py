@@ -48,6 +48,27 @@ def skill_archive(*, extra_members: list[tarfile.TarInfo] | None = None) -> byte
     return buffer.getvalue()
 
 
+class NoLengthHeaders:
+    def get(self, _key: str):
+        return None
+
+
+class BytesResponse:
+    headers = NoLengthHeaders()
+
+    def __init__(self, data: bytes):
+        self.data = data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def read(self, amount: int = -1) -> bytes:
+        return self.data if amount < 0 else self.data[:amount]
+
+
 class CompositionRemoteSkillInstallerTests(unittest.TestCase):
     def test_remote_installer_pins_review_candidate_revision(self) -> None:
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
@@ -97,6 +118,20 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
                         Path(temporary) / "skill",
                     )
 
+    def test_extract_rejects_unsafe_archive_root_token(self) -> None:
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+            add_file(
+                archive,
+                "bad:root/skills/composition/SKILL.md",
+                b"---\nname: composition\n---\n",
+            )
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "unsafe root prefix"):
+                installer.extract_skill_archive(
+                    buffer.getvalue(), Path(temporary) / "skill"
+                )
+
     def test_extract_rejects_links(self) -> None:
         for member_type in (tarfile.SYMTYPE, tarfile.LNKTYPE):
             with self.subTest(member_type=member_type), tempfile.TemporaryDirectory() as temporary:
@@ -108,6 +143,49 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
                         skill_archive(extra_members=[link]),
                         Path(temporary) / "skill",
                     )
+
+    def test_extract_rejects_unsupported_member_types(self) -> None:
+        fifo = tarfile.TarInfo("templates-source/skills/composition/fifo")
+        fifo.type = tarfile.FIFOTYPE
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "unsupported member type"):
+                installer.extract_skill_archive(
+                    skill_archive(extra_members=[fifo]), Path(temporary) / "skill"
+                )
+
+    def test_extract_rejects_duplicate_member_paths(self) -> None:
+        duplicate = tarfile.TarInfo("templates-source/skills/composition/SKILL.md")
+        duplicate.size = 0
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "duplicate path.*SKILL.md"):
+                installer.extract_skill_archive(
+                    skill_archive(extra_members=[duplicate]), Path(temporary) / "skill"
+                )
+
+    def test_extract_rejects_multiple_top_level_roots(self) -> None:
+        second_root = tarfile.TarInfo("templates-other/skills/composition/extra.txt")
+        second_root.size = 0
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "multiple top-level roots"):
+                installer.extract_skill_archive(
+                    skill_archive(extra_members=[second_root]), Path(temporary) / "skill"
+                )
+
+    def test_extract_rejects_skill_size_limit_exceeded(self) -> None:
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+            prefix = "templates-source/skills/composition"
+            add_file(archive, f"{prefix}/SKILL.md", b"---\nname: composition\n---\n")
+            add_file(archive, f"{prefix}/runtime-manifest.json", b"{}\n")
+            add_file(archive, f"{prefix}/scripts/install.py", b"x")
+            add_file(archive, f"{prefix}/scripts/run.py", b"x")
+            add_file(archive, f"{prefix}/scripts/runtime.py", b"x")
+            add_file(archive, f"{prefix}/oversized.bin", b"x" * installer.SKILL_LIMIT)
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "extracted skill exceeds the size limit"):
+                installer.extract_skill_archive(
+                    buffer.getvalue(), Path(temporary) / "skill"
+                )
 
     def test_extract_requires_complete_runnable_skill_contract(self) -> None:
         buffer = io.BytesIO()
@@ -169,6 +247,24 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
             return FakeResponse()
 
         with self.assertRaisesRegex(RuntimeError, "download size limit"):
+            installer.download_archive(opener=opener)
+
+    def test_download_rejects_oversized_payload_without_content_length(self) -> None:
+        payload = b"x" * (installer.ARCHIVE_LIMIT + 1)
+
+        def opener(_request: object, *, timeout: int):
+            self.assertEqual(timeout, 30)
+            return BytesResponse(payload)
+
+        with self.assertRaisesRegex(RuntimeError, "download size limit"):
+            installer.download_archive(opener=opener)
+
+    def test_download_rejects_empty_archive(self) -> None:
+        def opener(_request: object, *, timeout: int):
+            self.assertEqual(timeout, 30)
+            return BytesResponse(b"")
+
+        with self.assertRaisesRegex(RuntimeError, "download was empty"):
             installer.download_archive(opener=opener)
 
 
