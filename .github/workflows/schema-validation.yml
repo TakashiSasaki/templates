@@ -28,8 +28,8 @@ jobs:
         with:
           # Managed update/upgrade validates that the lock's old source revision
           # exists locally and is an ancestor of the target source revision.
-          # The component-version guard also compares descriptor bytes against
-          # a reviewed ancestor revision. Keep real history available for both.
+          # Release verification also checks the immutable T -> S -> I ancestry.
+          # Keep real history available for both contracts.
           fetch-depth: 0
 
       - name: Check out Site publication protocol
@@ -73,6 +73,9 @@ jobs:
         env:
           COMPONENT_VERSION_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: .venv/bin/python scripts/validate_component_versions.py --base "$COMPONENT_VERSION_BASE"
+
+      - name: Verify Composition installer release
+        run: .venv/bin/python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 
       - name: Run schema and semantic contract tests
         run: .venv/bin/python -m unittest discover -s tests -v
