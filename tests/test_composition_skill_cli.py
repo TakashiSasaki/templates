@@ -45,6 +45,26 @@ class CompositionSkillCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("do not pass Composer --target", result.stderr)
 
+    def test_forwarded_target_equals_syntax_is_rejected_before_runtime_acquisition(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "consumer"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    str(RUNNER),
+                    "--repository",
+                    str(repository),
+                    "inspect",
+                    f"--target={repository}",
+                ],
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("do not pass Composer --target", result.stderr)
+
     def test_mutable_revision_name_is_rejected_before_network_access(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repository = Path(temporary) / "consumer"
