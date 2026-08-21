@@ -8,7 +8,9 @@ consumer repository は、artifact recipe と明示的な consumer intent から
 
 ## ここから始める
 
-具体的な Agent Skill または Web アプリケーション repository を作成・保守する場合は、まず [Using Composition](docs/consumer-guide.md) を参照してください。ここでは、タスク指向の `initial` / `update` / `upgrade` / recovery workflow、ファイル編集規則、および conflict handling を説明しています。
+具体的な Agent Skill または Web アプリケーション repository を作成・保守する場合は、まず [Using Composition](docs/consumer-guide.md) を参照してください。ここでは、タスク指向の `initial` / `update` / `upgrade` / recovery workflow、ファイル編集規則、conflict handling、および再現可能な consumer runtime setup を説明しています。
+
+現在の Composer entrypoint は、正確な Composition source checkout から実行します。Ubuntu および Windows では Git と CPython 3.11 から 3.14 が対応 prerequisite であり、`requirements-runtime.lock` が正確な consumer-runtime dependency contract です。repository-development dependencies は `requirements-dev.lock` で別に扱います。
 
 正確な CLI options、inspect states、plan fields、ownership semantics、recovery rules、diagnostic codes、および exit behavior については、[Composer reference](docs/reference/composer.md) を参照してください。
 
