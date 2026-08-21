@@ -88,6 +88,27 @@ class CompositionSkillRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(runtime.RunnerError, "full lowercase SHA"):
                 runtime.select_revision(repository)
 
+    def test_boolean_transaction_schema_version_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary)
+            metadata = repository / ".template-composition"
+            metadata.mkdir()
+            (metadata / "transaction.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": True,
+                        "operation": "update",
+                        "source": {
+                            "repository": "TakashiSasaki/templates",
+                            "revision": "1" * 40,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(runtime.RunnerError, "unsupported Composition transaction schema"):
+                runtime.select_revision(repository)
+
     def test_transaction_metadata_directory_symlink_is_rejected(self) -> None:
         if not hasattr(os, "symlink"):
             self.skipTest("symlink unavailable")
@@ -107,12 +128,14 @@ class CompositionSkillRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(runtime.RunnerError, "must not be a symbolic link"):
                 runtime.select_revision(repository)
 
-    def test_sanitized_environment_removes_python_and_pip_inputs(self) -> None:
+    def test_sanitized_environment_removes_python_pip_and_git_inputs(self) -> None:
         result = runtime.sanitized_environment(
             {
                 "PATH": "safe",
                 "PYTHONPATH": "unsafe",
                 "PIP_INDEX_URL": "https://example.invalid",
+                "GIT_DIR": "/tmp/redirected-git-dir",
+                "GIT_WORK_TREE": "/tmp/redirected-work-tree",
                 "OTHER": "value",
             }
         )
@@ -120,8 +143,11 @@ class CompositionSkillRunnerTests(unittest.TestCase):
         self.assertEqual(result["OTHER"], "value")
         self.assertNotIn("PYTHONPATH", result)
         self.assertNotIn("PIP_INDEX_URL", result)
+        self.assertNotIn("GIT_DIR", result)
+        self.assertNotIn("GIT_WORK_TREE", result)
         self.assertEqual(result["PYTHONNOUSERSITE"], "1")
         self.assertEqual(result["PIP_CONFIG_FILE"], os.devnull)
+        self.assertEqual(result["GIT_TERMINAL_PROMPT"], "0")
 
     def test_runtime_lock_rejects_duplicate_normalized_names(self) -> None:
         with self.assertRaisesRegex(runtime.RunnerError, "duplicate distribution"):
