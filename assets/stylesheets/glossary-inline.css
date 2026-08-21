@@ -57,6 +57,7 @@ button.glossary-term:focus-visible {
   );
   border-radius: 0.75rem;
   color: var(--md-default-fg-color, CanvasText);
+  background: var(--md-default-bg-color, Canvas);
   background: color-mix(
     in srgb,
     var(--md-primary-fg-color, #3f51b5) 14%,
