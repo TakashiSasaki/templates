@@ -18,6 +18,10 @@
       "reason": "Repository-local executable fixture guidance documents non-production examples and is intentionally outside the supported reader publication surface."
     },
     {
+      "source": "skills/composition/SKILL.md",
+      "reason": "Repository-facing agent skill instructions drive local Composition operation and are distributed as executable skill material rather than published as canonical reader documentation."
+    },
+    {
       "source": "translations/README.md",
       "reason": "Provider-owned translation maintenance guidance defines derivative translation handling and is not a canonical reader publication document."
     },
