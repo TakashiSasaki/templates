@@ -39,6 +39,7 @@ The current explicit exclusions are:
 - operational consumer-agent instructions (`components/artifact.skill-core/files/AGENTS.md`);
 - the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which remain maintainer provenance while the consolidated history and immutable PR records form the reader-facing history surface;
 - non-production executable-fixture guidance (`examples/README.md`);
+- repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication;
 - provider-owned translation maintenance guidance (`translations/README.md`); and
 - the non-authoritative Japanese reader derivative (`translations/ja/README.md`), which is exposed only through explicit translation metadata rather than the canonical publication catalog.
 
