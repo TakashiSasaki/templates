@@ -222,6 +222,14 @@ def materialize_source(revision: str, root: Path, env: Mapping[str, str]) -> Pat
     source = root / "source"
     run(["git", "init", "--quiet", str(source)], env=env)
     run(
+        ["git", "-C", str(source), "config", "--local", "core.autocrlf", "false"],
+        env=env,
+    )
+    run(
+        ["git", "-C", str(source), "config", "--local", "core.eol", "lf"],
+        env=env,
+    )
+    run(
         ["git", "-C", str(source), "remote", "add", "origin", CANONICAL_REMOTE],
         env=env,
     )
