@@ -19,7 +19,31 @@ Start from what you want to do:
 
 ## Before you run the Composer
 
-Run `scripts/compose.py` from the Composition source checkout that you intend to use. The checkout must be clean for tracked files. Managed `update` and `upgrade` also require the target Composition revision to be the old locked revision or one of its descendants, and the old revision must be available in the local Git history.
+The current consumer entrypoint runs directly from the exact Composition source checkout that you intend to use. The supported runtime prerequisites are:
+
+- Git available on `PATH`;
+- CPython 3.11, 3.12, 3.13, or 3.14; and
+- the exact distributions in `requirements-runtime.lock`.
+
+The consumer runtime contract is intentionally separate from `requirements-dev.lock`. The development lock may grow to include repository tests, publication validation, or other maintainer-only tooling; consumers should install `requirements-runtime.lock`, not infer runtime requirements from the development environment.
+
+Create an isolated environment and install the reviewed runtime graph with dependency resolution disabled. For example on POSIX:
+
+```sh
+python -I -m venv /path/to/composition-runtime
+/path/to/composition-runtime/bin/python -I -m pip install \
+  --isolated \
+  --disable-pip-version-check \
+  --no-deps \
+  --requirement requirements-runtime.lock
+/path/to/composition-runtime/bin/python -I scripts/verify_runtime_environment.py
+```
+
+On Windows, use the corresponding `Scripts\\python.exe` inside the virtual environment. The verification command rejects unsupported Python versions, missing or additional non-bootstrap distributions, and version mismatches against `requirements-runtime.lock`.
+
+The command examples below use `python` for readability. Run them with the verified runtime interpreter, whether by activating that environment or by invoking its Python executable explicitly.
+
+The Composition checkout must be clean for tracked files. Composer reads its exact source identity from Git rather than treating a mutable branch name as runtime identity. Managed `update` and `upgrade` additionally require the old revision recorded in the consumer lock to be available in local Git history and the target Composition revision to equal or descend from that old revision. A shallow checkout that omits the old revision is therefore insufficient for those operations.
 
 The target repository may be outside the Composition checkout.
 
