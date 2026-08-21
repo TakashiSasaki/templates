@@ -220,6 +220,44 @@ class CompositionSkillRunnerTests(unittest.TestCase):
                         forbidden.write_text("forbidden\n", encoding="utf-8")
                     self.assertFalse(runtime.source_valid(entry, revision, {}))
 
+    def test_source_valid_rejects_dirty_worktree(self) -> None:
+        revision = "1" * 40
+        with tempfile.TemporaryDirectory() as temporary:
+            entry = Path(temporary) / "entry"
+            checkout = entry / "checkout"
+            (checkout / ".git").mkdir(parents=True)
+            (checkout / "scripts").mkdir()
+            runtime.source_marker(entry).write_text(
+                json.dumps(runtime.source_marker_payload(revision)),
+                encoding="utf-8",
+            )
+            (checkout / "requirements-runtime.lock").write_text(
+                "attrs===1\n",
+                encoding="utf-8",
+            )
+            (checkout / "scripts" / "compose.py").write_text("", encoding="utf-8")
+            (checkout / "scripts" / "verify_runtime_environment.py").write_text(
+                "",
+                encoding="utf-8",
+            )
+            outputs = iter(
+                (
+                    revision,
+                    runtime.CANONICAL_REMOTE,
+                    "false",
+                    "lf",
+                    "true",
+                    "?? untracked.txt\n",
+                    "1",
+                )
+            )
+
+            def fake_run(*_args: object, **_kwargs: object):
+                return subprocess.CompletedProcess([], 0, stdout=next(outputs), stderr="")
+
+            with mock.patch.object(runtime, "run", side_effect=fake_run):
+                self.assertFalse(runtime.source_valid(entry, revision, {}))
+
     def test_cache_install_reuses_valid_winner(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -270,6 +308,15 @@ class CompositionSkillRunnerTests(unittest.TestCase):
     def test_runtime_lock_rejects_duplicate_normalized_names(self) -> None:
         with self.assertRaisesRegex(runtime.RunnerError, "duplicate distribution"):
             runtime.parse_runtime_lock("rpds_py===1.0\nrpds-py===1.0\n")
+
+    def test_runtime_lock_rejects_invalid_syntax_with_line_number(self) -> None:
+        for invalid in ("attrs>=24.0.0", "package-1.0", "===1.0"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(
+                    runtime.RunnerError,
+                    r"requirements-runtime\.lock:2: entry must be exact name===version",
+                ):
+                    runtime.parse_runtime_lock(f"# header\n{invalid}\n")
 
     def test_installer_recognizes_only_composition_skill_marker(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
