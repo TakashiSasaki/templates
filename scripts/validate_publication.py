@@ -322,6 +322,7 @@ def validate_machine_coverage(catalog: Any) -> None:
     required_assets = {
         PurePosixPath("catalog/catalog.json"),
         PurePosixPath("recipes"),
+        PurePosixPath("release/composition-installer.json"),
     }
     required_assets.update(
         PurePosixPath(path.relative_to(ROOT).as_posix())
