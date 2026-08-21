@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+"""Smoke-test remote Composition skill download, archive safety, and installation."""
+
 from __future__ import annotations
 
 import json
