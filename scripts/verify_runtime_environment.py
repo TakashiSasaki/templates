@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.metadata
 import re
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +46,8 @@ def parse_lock(path: Path) -> dict[str, str]:
 def installed_distributions() -> dict[str, str]:
     result: dict[str, str] = {}
     for distribution in importlib.metadata.distributions():
-        name = distribution.metadata.get("Name")
+        metadata = distribution.metadata
+        name = metadata.get("Name") if metadata is not None else None
         if not name:
             raise RuntimeError("installed distribution is missing Name metadata")
         normalized = normalize_distribution_name(name)
@@ -55,47 +57,64 @@ def installed_distributions() -> dict[str, str]:
     return result
 
 
-def main() -> int:
-    if sys.implementation.name != "cpython":
+def verify_interpreter(
+    implementation: str,
+    version: tuple[int, int],
+) -> None:
+    if implementation != "cpython":
         raise RuntimeError("Composer consumer runtime requires CPython")
-    version = sys.version_info[:2]
     if not (SUPPORTED_MIN <= version < SUPPORTED_MAX_EXCLUSIVE):
         raise RuntimeError(
             "unsupported CPython version: "
             f"{version[0]}.{version[1]}; supported versions are 3.11 through 3.14"
         )
 
-    expected = parse_lock(RUNTIME_LOCK)
-    installed = installed_distributions()
+
+def verify_distribution_set(
+    expected: Mapping[str, str],
+    installed: Mapping[str, str],
+) -> None:
     checked = {
         name: version
         for name, version in installed.items()
         if name not in BOOTSTRAP_DISTRIBUTIONS
     }
-    if checked != expected:
-        missing = sorted(set(expected) - set(checked))
-        unexpected = sorted(set(checked) - set(expected))
-        mismatched = sorted(
-            name
-            for name in set(expected) & set(checked)
-            if expected[name] != checked[name]
-        )
-        details: list[str] = []
-        if missing:
-            details.append("missing=" + ",".join(missing))
-        if unexpected:
-            details.append("unexpected=" + ",".join(unexpected))
-        if mismatched:
-            details.append(
-                "version-mismatch="
-                + ",".join(
-                    f"{name}:{checked[name]}!={expected[name]}" for name in mismatched
-                )
+    expected_map = dict(expected)
+    if checked == expected_map:
+        return
+
+    missing = sorted(set(expected_map) - set(checked))
+    unexpected = sorted(set(checked) - set(expected_map))
+    mismatched = sorted(
+        name
+        for name in set(expected_map) & set(checked)
+        if expected_map[name] != checked[name]
+    )
+    details: list[str] = []
+    if missing:
+        details.append("missing=" + ",".join(missing))
+    if unexpected:
+        details.append("unexpected=" + ",".join(unexpected))
+    if mismatched:
+        details.append(
+            "version-mismatch="
+            + ",".join(
+                f"{name}:{checked[name]}!={expected_map[name]}" for name in mismatched
             )
-        raise RuntimeError(
-            "installed distribution set does not match requirements-runtime.lock"
-            + (": " + "; ".join(details) if details else "")
         )
+    raise RuntimeError(
+        "installed distribution set does not match requirements-runtime.lock"
+        + (": " + "; ".join(details) if details else "")
+    )
+
+
+def main() -> int:
+    version = sys.version_info[:2]
+    verify_interpreter(sys.implementation.name, version)
+
+    expected = parse_lock(RUNTIME_LOCK)
+    installed = installed_distributions()
+    verify_distribution_set(expected, installed)
 
     print(
         "Composer consumer runtime verified: "
