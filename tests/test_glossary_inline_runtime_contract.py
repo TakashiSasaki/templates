@@ -73,6 +73,7 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
             ".glossary-inline-dialog__definition {", 1
         )[1].split("}", 1)[0]
 
+        self.assertIn("var(--md-primary-fg-color, #3f51b5) 30%", dialog_rule)
         self.assertIn("var(--md-primary-fg-color, #3f51b5) 14%", dialog_rule)
         self.assertIn("font-size: 0.9rem;", definition_rule)
         self.assertIn("line-height: 1.65;", definition_rule)
