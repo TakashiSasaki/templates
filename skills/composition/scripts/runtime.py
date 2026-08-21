@@ -355,7 +355,6 @@ def run_composer(
         try:
             completed = subprocess.run(
                 command,
-                cwd=source,
                 env=env,
                 check=False,
             )
