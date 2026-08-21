@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://templates.moukaeritai.work/schemas/composition-skill-installer-release.schema.json",
+  "$id": "https://templates.moukaeritai.work/schemas/composition/composition-skill-installer-release.schema.json",
   "title": "Composition skill installer release",
   "type": "object",
   "additionalProperties": false,
