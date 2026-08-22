@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import posixpath
 import re
 from dataclasses import dataclass
@@ -102,12 +101,6 @@ def _optional_regular_file(
             f"{field} must be a regular file when present: {relative}"
         )
     return current
-
-
-def _git_blob_sha(path: Path) -> str:
-    data = path.read_bytes()
-    header = f"blob {len(data)}\0".encode("ascii")
-    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
 
 
 def _normalize_relative(base: PurePosixPath, raw: str) -> PurePosixPath:
@@ -391,6 +384,8 @@ def _load_records(
         tuple[Path, dict[str, dict[str, Any]], list[dict[str, Any]]],
     ],
     included_pages: list[dict[str, Any]],
+    *,
+    skip_stale: bool,
 ) -> tuple[
     list[TranslationRecord],
     dict[tuple[str, PurePosixPath], PurePosixPath],
@@ -423,7 +418,11 @@ def _load_records(
         if manifest_path is None:
             continue
         try:
-            manifest = load_translation_manifest(manifest_path, label)
+            manifest = load_translation_manifest(
+                manifest_path,
+                label,
+                publication_root=root,
+            )
         except TranslationManifestError as exc:
             raise TranslationPublicationError(str(exc)) from exc
 
@@ -436,7 +435,6 @@ def _load_records(
             canonical = entry.canonical
             translation = entry.translation
             language = entry.language
-            blob_sha = entry.canonical_blob_sha
 
             document_id = source_to_document.get(canonical)
             if document_id is None:
@@ -451,11 +449,16 @@ def _load_records(
 
             canonical_file = _regular_file(root, canonical, f"{field}.canonical")
             source_file = _regular_file(root, translation, f"{field}.translation")
-            actual_sha = _git_blob_sha(canonical_file)
-            if actual_sha != blob_sha:
+            if entry.current_blob_sha is None:
+                raise TranslationPublicationError(
+                    f"{field}.canonical freshness was not bound to provider bytes"
+                )
+            if not entry.is_current:
+                if skip_stale:
+                    continue
                 raise TranslationPublicationError(
                     f"stale translation for {publication}:{canonical}: expected "
-                    f"{blob_sha}, current {actual_sha}"
+                    f"{entry.canonical_blob_sha}, current {entry.current_blob_sha}"
                 )
             try:
                 text = source_file.read_text(encoding="utf-8")
@@ -489,11 +492,19 @@ def publish_translations(
     ],
     included_pages: list[dict[str, Any]],
     docs_root: Path,
+    *,
+    skip_stale: bool = False,
 ) -> list[TranslationRecord]:
-    """Publish only explicitly declared, synchronized reader translations."""
+    """Publish explicitly declared reader translations.
+
+    Direct callers remain strict by default. The integrated Site build passes
+    ``skip_stale=True`` so stale non-authoritative derivatives are unavailable
+    without invalidating otherwise valid canonical English pages.
+    """
     records, canonical_destinations, asset_routes = _load_records(
         publications,
         included_pages,
+        skip_stale=skip_stale,
     )
     translated_destinations = {
         (record.publication, record.language, record.canonical_source):
