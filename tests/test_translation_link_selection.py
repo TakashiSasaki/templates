@@ -183,7 +183,7 @@ class TranslationLinkSelectionTests(unittest.TestCase):
 
             with self.assertRaisesRegex(
                 TranslationLinkSelectionError,
-                "translation destination escapes documentation root",
+                "published translation escapes documentation root",
             ):
                 rewrite_current_localized_links(
                     [record("ja", "index.md", "../outside.md")],
