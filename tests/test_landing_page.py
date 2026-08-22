@@ -238,6 +238,7 @@ class LandingPageTests(unittest.TestCase):
             [
                 "javascripts/repository-tree-viewer.js",
                 "javascripts/pwa.js",
+                "javascripts/reader-navigation.js",
                 "javascripts/glossary-inline.js",
             ],
         )
