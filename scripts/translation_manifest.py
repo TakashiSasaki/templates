@@ -24,6 +24,7 @@ class TranslationManifestError(RuntimeError):
 
 @dataclass(frozen=True)
 class TranslationEntry:
+    index: int
     canonical: PurePosixPath
     language: str
     translation: PurePosixPath
@@ -154,6 +155,7 @@ def load_translation_manifest(path: Path, label: str) -> TranslationManifest:
         seen_paths.add(translation)
         entries.append(
             TranslationEntry(
+                index=index,
                 canonical=canonical,
                 language=language,
                 translation=translation,
