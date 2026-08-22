@@ -134,6 +134,13 @@ class CompositionPublicationContractTests(unittest.TestCase):
         translations = validator.parse_translation_classification()
         published = {entry.source for entry in catalog.documents}
         discovered = validator.discover_repository_markdown()
+        translation_manifest = json.loads(
+            (ROOT / "translations" / "manifest.json").read_text(encoding="utf-8")
+        )
+        manifest_translations = {
+            PurePosixPath(entry["translation"])
+            for entry in translation_manifest["translations"]
+        }
         expected_exclusions = {
             PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
             PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
@@ -150,21 +157,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertFalse(set(exclusions) & translations)
         self.assertEqual(set(exclusions), expected_exclusions)
         self.assertTrue(all(reason.strip() for reason in exclusions.values()))
-        self.assertEqual(
-            translations,
-            {
-                PurePosixPath("translations/ja/README.md"),
-                PurePosixPath("translations/ja/catalog/README.md"),
-                PurePosixPath(
-                    "translations/ja/components/artifact.skill-core/files/README.md"
-                ),
-                PurePosixPath(
-                    "translations/ja/components/artifact.webapp-core/files/README.md"
-                ),
-                PurePosixPath("translations/ja/docs/publication-catalog.md"),
-                PurePosixPath("translations/ja/schemas/README.md"),
-            },
-        )
+        self.assertEqual(translations, manifest_translations)
 
     def test_only_root_execution_state_directories_are_ignored(self):
         validator = load_validator()
