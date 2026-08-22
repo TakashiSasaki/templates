@@ -63,6 +63,11 @@ def main() -> int:
     parser.add_argument("--publication", action="append", default=[])
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--output-root", required=True, type=Path)
+    parser.add_argument(
+        "--reader-navigation-locales",
+        type=Path,
+        default=READER_NAVIGATION_LOCALES,
+    )
     args = parser.parse_args()
 
     try:
@@ -74,7 +79,7 @@ def main() -> int:
             publications[name] = (resolved, documents, assets)
 
         _, navigation = load_manifest(args.site_root / "site-manifest.json")
-        overlays = load_overlays(READER_NAVIGATION_LOCALES, navigation)
+        overlays = load_overlays(args.reader_navigation_locales, navigation)
         docs_root = args.output_root / "docs"
         included_pages = [
             page
