@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 
 from scripts.assemble_publications import load_manifest, pages
 from scripts.assemble_publications_v3 import load_catalog
+from scripts.prepare_repository_tree_publication import prepare
 from scripts.publish_translations import publish_translations
 from scripts.translation_manifest import load_translation_manifest
 
@@ -41,6 +42,32 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
             with self.subTest(canonical=entry.canonical.as_posix()):
                 self.assertIsNotNone(entry.current_blob_sha)
                 self.assertTrue(entry.is_current)
+
+    def test_prepared_site_publication_preserves_translation_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            prepared = Path(directory) / "site-publication"
+            prepare(ROOT, prepared)
+
+            self.assertEqual(
+                (prepared / "translations" / "manifest.json").read_bytes(),
+                (ROOT / "translations" / "manifest.json").read_bytes(),
+            )
+            self.assertEqual(
+                (
+                    prepared
+                    / "translations"
+                    / "ja"
+                    / "docs"
+                    / "landing.md"
+                ).read_bytes(),
+                (
+                    ROOT
+                    / "translations"
+                    / "ja"
+                    / "docs"
+                    / "landing.md"
+                ).read_bytes(),
+            )
 
     def test_site_reader_translations_publish_under_ja_routes(self) -> None:
         documents, assets, included_pages = self.site_publication()
