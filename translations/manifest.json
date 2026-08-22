@@ -31,6 +31,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/consumer-guide.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/consumer-guide.md",
+      "canonical_blob_sha": "4d584ddccf46208ab05433149bcd870b469bcc38",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
