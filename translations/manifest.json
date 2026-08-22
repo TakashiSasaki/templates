@@ -45,6 +45,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/architecture/generated-contract-manifest.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/architecture/generated-contract-manifest.md",
+      "canonical_blob_sha": "ac0b5a4585f4cd35a098c193ac4c907179490875",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
