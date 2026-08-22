@@ -23,16 +23,17 @@ The publication home is the branch `README.md`. `docs/index.md` is the provider-
 
 ## Markdown classification boundary
 
-The catalog is an allowlist, but absence from the allowlist must also be intentional. `docs/publication-classification.json` therefore closes the Composition maintenance boundary for repository-source Markdown without turning every Markdown file into reader publication. This classification contract is Composition-owned; it is not part of the generic Site publication protocol.
+The catalog is an allowlist, but absence from the allowlist must also be intentional. Composition therefore closes the repository-source Markdown maintenance boundary with two additional Composition-owned declarations: `translations/manifest.json` for non-authoritative derivatives and `docs/publication-classification.json` for explicit non-publication exclusions. Neither declaration is part of the generic Site publication protocol.
 
 Every Markdown file in the Composition source tree must be exactly one of:
 
-1. **published** — its source path appears in `docs/publication-catalog.json` under `documents`; or
-2. **explicitly excluded** — its source path appears in `docs/publication-classification.json` with a non-empty maintenance reason.
+1. **published** — its source path appears in `docs/publication-catalog.json` under `documents`;
+2. **translation-declared** — its path appears as a `translation` in `translations/manifest.json`, making it a non-authoritative derivative of a canonical document; or
+3. **explicitly excluded** — its source path appears in `docs/publication-classification.json` with a non-empty maintenance reason.
 
-Local execution-state directories such as Git metadata, virtual environments, tool caches, and the temporary `.site-publication-protocol` checkout are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, or a new top-level Markdown file therefore fails validation until its publication intent is classified explicitly.
+Local execution-state directories such as Git metadata, virtual environments, tool caches, and the temporary `.site-publication-protocol` checkout are not repository source and are excluded from discovery. A newly introduced Markdown class such as `docs/guides/*.md`, a new component-local documentation subtree, a new top-level Markdown file, or an undeclared translation therefore fails validation until its publication intent is classified explicitly.
 
-An exclusion does not suppress a known reader-facing requirement: the existing Composition-owned reader-coverage rules still require provider roots, current architecture, the consolidated authority-migration history, schema/catalog guides, and reader material declared by production components to be published. A path also cannot be both published and excluded.
+An exclusion does not suppress a known reader-facing requirement: the existing Composition-owned reader-coverage rules still require provider roots, current architecture, the consolidated authority-migration history, schema/catalog guides, and reader material declared by production components to be published. Published, translation-declared, and explicitly excluded Markdown classes are pairwise disjoint.
 
 The current explicit exclusions are:
 
@@ -40,11 +41,12 @@ The current explicit exclusions are:
 - the stage-specific PR2 and PR3 authority-migration notes (`docs/migrations/pr2-skill-capabilities.md` and `docs/migrations/pr3-webapp-lifecycle.md`), which are retained as Composition authority maintenance provenance while the consolidated history and immutable PR records form the reader-facing history surface;
 - non-production executable-fixture guidance (`examples/README.md`);
 - repository-level immutable installer publication guidance (`release/README.md`), which documents operational release identities while reader-facing installation guidance is assembled separately by Site;
-- repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication;
-- provider-owned translation maintenance guidance (`translations/README.md`); and
-- provider-owned non-authoritative Japanese reader derivatives under `translations/ja/`, each exposed only through explicit translation metadata rather than the canonical publication catalog.
+- repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication; and
+- provider-owned translation maintenance guidance (`translations/README.md`).
 
-The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
+Provider-owned translation derivatives are not duplicated in the exclusion list. Their paths are classified solely by `translations/manifest.json`; the translation validator separately enforces canonical-path mirroring, current canonical blob identity, notice requirements, surface eligibility, and complete declaration of translation Markdown.
+
+The classification file and translation manifest are Composition maintenance metadata, not Site publication assets, and do not change publication-catalog schema version 3.
 
 ## Machine-readable boundary
 
@@ -97,6 +99,6 @@ The Site-owned step validates the generic schema-v3 publication protocol. `scrip
 
 A pin update must be deliberate and reviewed. Composition CI must continue to use a 40-character full commit SHA and must not silently follow `site`, a tag, or a pull-request merge ref.
 
-Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, published/excluded classification overlap, stale Markdown exclusions, missing production descriptors/schemas/recipes, malformed Composition glossary records, obsolete glossary IDs that would reintroduce the retired copyable-template model, and inconsistent immutable installer release identities. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Site-owned protocol before the Composition layer runs.
+Composition-specific validation remains fail-closed for undeclared reader documentation, unclassified repository Markdown, overlap among published/translation-declared/explicitly-excluded Markdown classes, stale Markdown exclusions, missing or unsafe translation declarations, missing production descriptors/schemas/recipes, malformed Composition glossary records, obsolete glossary IDs that would reintroduce the retired copyable-template model, and inconsistent immutable installer release identities. Generic catalog failures such as unsafe paths, symbolic-link traversal, duplicate IDs/sources/destinations, invalid home declarations, or Markdown hidden inside asset trees are rejected by the Site-owned protocol before the Composition layer runs.
 
 Site PR #270 completed the publication cutover by locking and consuming an exact reviewed Composition revision. Subsequent Composition publication changes require an explicit reviewed Site pin-forward rather than any mutable branch reference.
