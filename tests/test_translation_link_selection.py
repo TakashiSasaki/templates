@@ -56,7 +56,7 @@ class TranslationLinkSelectionTests(unittest.TestCase):
             source.parent.mkdir(parents=True, exist_ok=True)
             source.write_text(
                 "# 日本語\n\n"
-                "[Composition](/composition/?mode=reader#top)\n"
+                "[Composition](/composition/?mode=reader)\n"
                 "[No slash](/composition)\n"
                 "[Missing](/skill/)\n"
                 "![Image](/composition/)\n"
@@ -74,9 +74,7 @@ class TranslationLinkSelectionTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (docs / "ja" / "policy" / "index.md").write_text(
-                "# Policy JA\n",
-                encoding="utf-8",
-            )
+                "# Policy JA\n", encoding="utf-8")
             records = [
                 record("ja", "index.md", "ja/index.md"),
                 record(
@@ -92,7 +90,7 @@ class TranslationLinkSelectionTests(unittest.TestCase):
 
             self.assertEqual(changed, 4)
             self.assertIn(
-                "[Composition](/ja/composition/?mode=reader#top)",
+                "[Composition](/ja/composition/?mode=reader)",
                 rendered,
             )
             self.assertIn("[No slash](/ja/composition/)", rendered)
@@ -105,6 +103,48 @@ class TranslationLinkSelectionTests(unittest.TestCase):
                 rendered,
             )
             self.assertIn('<a href="/composition/">Code sample</a>', rendered)
+
+    def test_cross_page_fragments_remain_canonical(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            docs = Path(directory) / "docs"
+            source = docs / "ja" / "index.md"
+            target = docs / "ja" / "composition" / "index.md"
+            target.parent.mkdir(parents=True)
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(
+                "# 日本語\n\n"
+                "[Inline](/composition/#canonical-section)\n"
+                "[Reference][composition-fragment]\n"
+                "[composition-fragment]: /composition/#canonical-section\n"
+                '<a href="/composition/#canonical-section">HTML</a>\n',
+                encoding="utf-8",
+            )
+            target.write_text("# 翻訳された見出し\n", encoding="utf-8")
+
+            changed = rewrite_current_localized_links(
+                [
+                    record("ja", "index.md", "ja/index.md"),
+                    record(
+                        "ja",
+                        "composition/index.md",
+                        "ja/composition/index.md",
+                    ),
+                ],
+                docs,
+            )
+            rendered = source.read_text(encoding="utf-8")
+
+            self.assertEqual(changed, 0)
+            self.assertIn("[Inline](/composition/#canonical-section)", rendered)
+            self.assertIn(
+                "[composition-fragment]: /composition/#canonical-section",
+                rendered,
+            )
+            self.assertIn(
+                '<a href="/composition/#canonical-section">HTML</a>',
+                rendered,
+            )
+            self.assertNotIn("/ja/composition/#canonical-section", rendered)
 
     def test_missing_or_stale_target_remains_canonical(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
