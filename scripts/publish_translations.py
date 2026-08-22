@@ -290,7 +290,11 @@ def _rewrite_link(
             record.language,
             document_source,
         )
-        if translated_key in translated_destinations:
+        if parsed.fragment:
+            destination = canonical_destinations[
+                (record.publication, document_source)
+            ]
+        elif translated_key in translated_destinations:
             destination = translated_destinations[translated_key]
         else:
             destination = canonical_destinations[
