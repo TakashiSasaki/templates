@@ -45,6 +45,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/architecture/composer-mvp.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/architecture/composer-mvp.md",
+      "canonical_blob_sha": "3b703044d79dce22db2a8e40e9428b0078de1a43",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/architecture/generated-contract-manifest.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/generated-contract-manifest.md",
