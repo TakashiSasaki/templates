@@ -10,6 +10,9 @@ from scripts.reader_navigation_locales import (
     ReaderNavigationLocaleError,
     build_runtime_map,
     load_overlays,
+    markdown_route,
+    navigation_titles,
+    write_runtime_map,
 )
 
 
@@ -59,17 +62,20 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
             },
         ]
 
-    def write_overlay(self, path: Path, labels: list[dict[str, str]]) -> None:
+    def write_payload(self, path: Path, payload: object) -> None:
         path.write_text(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "canonical_language": "en",
-                    "locales": [{"language": "ja", "labels": labels}],
-                },
-                ensure_ascii=False,
-            ),
+            json.dumps(payload, ensure_ascii=False),
             encoding="utf-8",
+        )
+
+    def write_overlay(self, path: Path, labels: list[dict[str, str]]) -> None:
+        self.write_payload(
+            path,
+            {
+                "schema_version": 1,
+                "canonical_language": "en",
+                "locales": [{"language": "ja", "labels": labels}],
+            },
         )
 
     def complete_labels(self) -> list[dict[str, str]]:
@@ -138,6 +144,77 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
             self.assertEqual(overlays["ja"]["Overview"], "概要")
             self.assertEqual(len(overlays["ja"]), 6)
 
+    def test_schema_and_root_fields_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "locales.json"
+            valid = {
+                "schema_version": 1,
+                "canonical_language": "en",
+                "locales": [
+                    {"language": "ja", "labels": self.complete_labels()}
+                ],
+            }
+            cases = (
+                ({**valid, "schema_version": True}, "schema_version must be integer 1"),
+                ({**valid, "schema_version": 2}, "schema_version must be integer 1"),
+                ({**valid, "extra": 1}, "unsupported fields"),
+                ({**valid, "canonical_language": "ja"}, "canonical_language must be en"),
+            )
+            for payload, message in cases:
+                with self.subTest(payload=payload):
+                    self.write_payload(path, payload)
+                    with self.assertRaisesRegex(ReaderNavigationLocaleError, message):
+                        load_overlays(path, self.navigation())
+
+    def test_duplicate_locale_and_label_ids_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "locales.json"
+            labels = self.complete_labels()
+            duplicate_locale = {
+                "schema_version": 1,
+                "canonical_language": "en",
+                "locales": [
+                    {"language": "ja", "labels": labels},
+                    {"language": "ja", "labels": labels},
+                ],
+            }
+            self.write_payload(path, duplicate_locale)
+            with self.assertRaisesRegex(
+                ReaderNavigationLocaleError,
+                "duplicate reader navigation locale",
+            ):
+                load_overlays(path, self.navigation())
+
+            duplicate_ids = self.complete_labels()
+            duplicate_ids[1] = {**duplicate_ids[1], "id": duplicate_ids[0]["id"]}
+            self.write_overlay(path, duplicate_ids)
+            with self.assertRaisesRegex(ReaderNavigationLocaleError, "duplicate id"):
+                load_overlays(path, self.navigation())
+
+            invalid_id = self.complete_labels()
+            invalid_id[0] = {**invalid_id[0], "id": "Not Valid"}
+            self.write_overlay(path, invalid_id)
+            with self.assertRaisesRegex(ReaderNavigationLocaleError, "lowercase kebab-case"):
+                load_overlays(path, self.navigation())
+
+    def test_non_object_canonical_navigation_node_fails_closed(self) -> None:
+        with self.assertRaisesRegex(
+            ReaderNavigationLocaleError,
+            "canonical navigation node must be an object",
+        ):
+            navigation_titles([{"title": "Home"}, "not-an-object"])  # type: ignore[list-item]
+
+    def test_markdown_route_uses_directory_style_public_urls(self) -> None:
+        cases = {
+            "index.md": "/",
+            "composition/index.md": "/composition/",
+            "policy/cli.md": "/policy/cli/",
+            "ja/policy/cli.md": "/ja/policy/cli/",
+        }
+        for destination, expected in cases.items():
+            with self.subTest(destination=destination):
+                self.assertEqual(markdown_route(PurePosixPath(destination)), expected)
+
     def test_runtime_routes_include_only_current_translation_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
@@ -189,6 +266,29 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
                     self.record("composition/index.md", "ja/other/index.md"),
                 ],
             )
+
+    def test_write_runtime_map_creates_parent_and_deterministic_utf8_json(self) -> None:
+        payload = {
+            "schema_version": 1,
+            "canonical_language": "en",
+            "locales": [
+                {
+                    "language": "ja",
+                    "labels": {"Home": "ホーム"},
+                    "routes": {"/": "/ja/"},
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested" / "reader-navigation-runtime.json"
+
+            write_runtime_map(path, payload)
+
+            self.assertTrue(path.is_file())
+            text = path.read_text(encoding="utf-8")
+            self.assertTrue(text.endswith("\n"))
+            self.assertIn("ホーム", text)
+            self.assertEqual(json.loads(text), payload)
 
 
 if __name__ == "__main__":
