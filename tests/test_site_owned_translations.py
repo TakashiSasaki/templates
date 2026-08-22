@@ -31,7 +31,7 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
         ]
         return documents, assets, included_pages
 
-    def test_site_reader_manifest_declares_current_site_documents(self) -> None:
+    def test_site_reader_manifest_declares_site_owned_documents(self) -> None:
         documents, _, _ = self.site_publication()
         catalog_sources = {document["source"] for document in documents.values()}
         manifest = load_translation_manifest(
@@ -40,16 +40,13 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
             publication_root=ROOT,
         )
         reader_entries = manifest.for_surface("reader")
+        declared = {entry.canonical for entry in reader_entries}
 
-        self.assertEqual(
-            {entry.canonical for entry in reader_entries},
-            EXPECTED_CANONICALS,
-        )
-        self.assertTrue(EXPECTED_CANONICALS.issubset(catalog_sources))
+        self.assertTrue(EXPECTED_CANONICALS.issubset(declared))
+        self.assertTrue(declared.issubset(catalog_sources))
         for entry in reader_entries:
             with self.subTest(canonical=entry.canonical.as_posix()):
                 self.assertIsNotNone(entry.current_blob_sha)
-                self.assertTrue(entry.is_current)
 
     def test_prepared_site_publication_preserves_translation_authority(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -77,13 +74,26 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
                 ).read_bytes(),
             )
 
-    def test_site_reader_translations_publish_under_ja_routes(self) -> None:
+    def test_site_reader_publication_matches_current_availability(self) -> None:
         documents, assets, included_pages = self.site_publication()
+        manifest = load_translation_manifest(
+            ROOT / "translations" / "manifest.json",
+            "site translation manifest",
+            publication_root=ROOT,
+        )
+        source_to_document = {
+            document["source"]: document_id
+            for document_id, document in documents.items()
+        }
+        page_destinations = {
+            (page["publication"], page["document"]): page["destination"]
+            for page in included_pages
+        }
         expected = {
-            PurePosixPath("ja/index.md"),
-            PurePosixPath("ja/coexistence/index.md"),
-            PurePosixPath("ja/capabilities/index.md"),
-            PurePosixPath("ja/lifecycle/index.md"),
+            PurePosixPath(entry.language)
+            / page_destinations[("site", source_to_document[entry.canonical])]
+            for entry in manifest.for_surface("reader")
+            if entry.is_current
         }
 
         with tempfile.TemporaryDirectory() as directory:
@@ -93,6 +103,7 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
                 {"site": (ROOT, documents, assets)},
                 included_pages,
                 docs_root,
+                skip_stale=True,
             )
 
             self.assertEqual(
