@@ -12,7 +12,7 @@ This rule does not prohibit non-English text when the text itself is the subject
 
 ## Translation layout
 
-The authority that owns a canonical document also owns its translation files and translation synchronization metadata. For provider publications, the `policy` and `composition` branches therefore own translations of their own canonical documents; `site` does not maintain independent copies of those translations.
+The authority that owns a canonical document also owns its translation files and translation synchronization metadata. For provider publications, the `policy` and `composition` branches therefore own translations of their own canonical documents; `site` does not maintain independent copies of those translations. Site-owned canonical reader documents follow the same rule: `site` owns their translations and synchronization metadata in the Site history.
 
 A translated document should mirror the canonical repository path under `translations/<language>/`.
 
@@ -32,11 +32,11 @@ translations/ja/README.md
 
 Translations must identify themselves as non-authoritative and must not introduce requirements absent from the English canonical source.
 
-Provider-owned translation metadata must make the canonical/translation relationship explicit and must record enough source identity to detect when the canonical content changes. A canonical edit invalidates the translation's synchronized state until the translation has been reviewed against the new canonical content.
+Translation metadata must make the canonical/translation relationship explicit and must record enough source identity to detect when the canonical content changes. A canonical edit invalidates the translation's synchronized state until the translation has been reviewed against the new canonical content.
 
 ## Translation availability
 
-Translation availability is derived from canonical bytes and provider-owned synchronization metadata. For each declared translation, `canonical_blob_sha` identifies the exact canonical Git blob against which the derivative was reviewed.
+Translation availability is derived from canonical bytes and authority-owned synchronization metadata. For each declared translation, `canonical_blob_sha` identifies the exact canonical Git blob against which the derivative was reviewed.
 
 A declared translation has one of two synchronization states:
 
@@ -53,18 +53,18 @@ A stale derivative must not be published. It is treated as unavailable for the a
 
 `docs/publication-catalog.json` remains the allowlist of canonical documents and canonical supporting assets. Translation metadata is separate from that canonical publication contract.
 
-The `site` branch may expose translated reader routes only from explicit provider-owned translation metadata at the same reviewed full commit SHA used for the provider's canonical publication. It must not discover translations by unrestricted directory scanning or infer authority from file names alone.
+The `site` branch may expose translated reader routes only from explicit translation metadata owned by the same authority as the canonical document. For external provider publications, both canonical content and translation metadata come from the same reviewed full provider commit SHA selected by Site. For Site-owned documents, both come from the exact Site revision being built. Site must not discover translations by unrestricted directory scanning, infer authority from file names alone, or maintain shadow copies of provider translations.
 
 A translated route must:
 
 - retain a link or other unambiguous reference to the corresponding English canonical page;
 - state that the translation is non-authoritative;
-- use the same locked provider revision as the canonical page; and
+- use the same owning-authority revision as the canonical page; and
 - fail closed when translation metadata is malformed, unsafe, structurally inconsistent, or not synchronized with the canonical source identity.
 
 For a stale declaration, "fail closed" means the translated route or localized overlay is omitted; it does not mean that an otherwise valid canonical publication fails. The absence or staleness of a translation must not replace, hide, or invalidate an otherwise valid English canonical page.
 
-The Site build may emit derived translation-coverage diagnostics. Such diagnostics are not authority metadata: they are regenerated from the canonical publication graph, provider translation manifests, and current canonical blob identities.
+The Site build may emit derived translation-coverage diagnostics. Such diagnostics are not authority metadata: they are regenerated from the canonical publication graph, authority-owned translation manifests, and current canonical blob identities.
 
 ## Copyable artifacts
 
@@ -78,6 +78,6 @@ When a canonical document changes:
 2. identify every declared translation of that canonical path;
 3. review and update each translation that should remain synchronized;
 4. update the owning authority's translation synchronization metadata only after that review; and
-5. validate both the canonical publication boundary and translation metadata before integrating the provider revision into `site`.
+5. validate both the canonical publication boundary and translation metadata before integrating or publishing that authority revision.
 
 A translation may be intentionally removed instead of updated. It must not remain declared as synchronized when it has not been reviewed against the current canonical bytes. If a canonical change is integrated before its translation is refreshed, the Site must omit that stale derivative and report it as stale rather than suppressing the canonical English page.
