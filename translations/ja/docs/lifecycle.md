@@ -1,4 +1,4 @@
-# Lifecycle contract
+# Lifecycle contracts
 
 > **参考訳（非正本）:** このページは英語正本の参考訳です。内容に差異がある場合は英語正本が優先されます。
 
