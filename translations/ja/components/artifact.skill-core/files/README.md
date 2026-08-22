@@ -11,7 +11,7 @@
 
 単純な Skill に application runtime は不要です。まず `SKILL.md` から始め、workflow が必要とする場合にだけ reference、asset、helper script を追加してください。使用しない interface document を残しておくのではなく、application capability は Composition を通じて選択します。
 
-## Skill profile
+## Skill profiles
 
 Skill 固有の profile は意図的に小さく保たれています。
 
@@ -24,7 +24,7 @@ Skill 固有の profile は意図的に小さく保たれています。
 
 未カスタマイズの seed では、scaffold sentinel として `Selected profiles: template-scaffold` を使用します。これは5つ目の具体的な Skill profile ではありません。repository を実運用の Skill にする前に置き換えてください。具体的な Skill が使用できるのは上記4つの profile だけです。
 
-## Public interface
+## Public interfaces
 
 capability を選択した場合は、その materialized contract を完成させ、推奨する agent route と fallback を `SKILL.md` に要約してください。
 
