@@ -14,6 +14,12 @@ if __package__ in (None, ""):
 from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages, parse_publications
 from scripts.assemble_publications_v3 import load_catalog
+from scripts.reader_navigation_locales import (
+    ReaderNavigationLocaleError,
+    build_runtime_map,
+    load_overlays,
+    write_runtime_map,
+)
 from scripts.translation_coverage import (
     TranslationCoverageError,
     build_reader_coverage,
@@ -21,6 +27,10 @@ from scripts.translation_coverage import (
 )
 from scripts.translation_link_selection import rewrite_current_localized_links
 from scripts.translation_reader_metadata import exclude_translation_from_search
+
+
+SITE_SOURCE_ROOT = Path(__file__).resolve().parents[1]
+READER_NAVIGATION_LOCALES = SITE_SOURCE_ROOT / "reader-navigation-locales.json"
 
 
 def write_publication_map(
@@ -53,6 +63,11 @@ def main() -> int:
     parser.add_argument("--publication", action="append", default=[])
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--output-root", required=True, type=Path)
+    parser.add_argument(
+        "--reader-navigation-locales",
+        type=Path,
+        default=READER_NAVIGATION_LOCALES,
+    )
     args = parser.parse_args()
 
     try:
@@ -64,6 +79,7 @@ def main() -> int:
             publications[name] = (resolved, documents, assets)
 
         _, navigation = load_manifest(args.site_root / "site-manifest.json")
+        overlays = load_overlays(args.reader_navigation_locales, navigation)
         docs_root = args.output_root / "docs"
         included_pages = [
             page
@@ -85,6 +101,10 @@ def main() -> int:
             args.output_root / "translation-publication.json",
             records,
         )
+        write_runtime_map(
+            docs_root / "reader-navigation-runtime.json",
+            build_runtime_map(overlays, records),
+        )
         coverage = build_reader_coverage(publications, included_pages)
         write_coverage(
             args.output_root / "translation-coverage.json",
@@ -93,6 +113,10 @@ def main() -> int:
         print(f"translations published: {len(records)}")
         print(f"localized reader links selected: {localized_link_count}")
         print(
+            "reader navigation locales: "
+            + ", ".join(sorted(overlays))
+        )
+        print(
             "reader translation coverage: "
             f"current={coverage['summary']['current']} "
             f"stale={coverage['summary']['stale']} "
@@ -100,6 +124,7 @@ def main() -> int:
         )
     except (
         OSError,
+        ReaderNavigationLocaleError,
         TranslationCoverageError,
         translation_publisher.TranslationPublicationError,
         RuntimeError,

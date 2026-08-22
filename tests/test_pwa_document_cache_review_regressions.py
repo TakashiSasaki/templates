@@ -22,6 +22,7 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
             "glossary-inline.js",
             "guided-copy.js",
             "pwa.js",
+            "reader-navigation.js",
             "repository-browser.js",
             "repository-tree-viewer.js",
         ):
