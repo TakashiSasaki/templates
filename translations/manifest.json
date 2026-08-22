@@ -31,6 +31,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/architecture/composition-model.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/architecture/composition-model.md",
+      "canonical_blob_sha": "ffd3bdb2b97fe471de19b5de5eb1fd919f0e56be",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
