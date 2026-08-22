@@ -22,8 +22,8 @@
       "term": "Capability component",
       "localized_labels": {"ja": {"term": "ケイパビリティコンポーネント"}},
       "origin": "repository",
-      "definition": "An artifact-neutral composition component that adds an optional application capability such as a runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
-      "related_terms": ["templates-composition-component", "templates-runtime-decision-record", "external-mcp-model-context-protocol"]
+      "definition": "An artifact-neutral composition component that adds an optional application capability such as an implementation runtime, packaged CLI, MCP interface, MCP Apps extension, standalone browser interface, or headless service.",
+      "related_terms": ["templates-composition-component", "templates-implementation-runtime", "templates-runtime-decision-record", "external-mcp-model-context-protocol"]
     },
     {
       "id": "templates-composition-lifecycle-component",
@@ -115,12 +115,21 @@
       "related_terms": ["templates-skill-profile", "templates-composition-artifact-component"]
     },
     {
-      "id": "templates-runtime-decision-record",
-      "term": "Runtime decision record",
-      "localized_labels": {"ja": {"term": "ランタイム決定記録"}},
+      "id": "templates-implementation-runtime",
+      "term": "Implementation runtime",
+      "localized_labels": {"ja": {"term": "実装ランタイム"}},
       "origin": "repository",
-      "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill or Webapp semantics.",
-      "related_terms": ["templates-composition-capability-component"]
+      "definition": "The implementation ecosystem and operational choices used to build and run a composed artifact, including its language/runtime, runtime version, dependency and package workflow, exact commands, environment, distribution, and deployment.",
+      "related_terms": ["templates-composition-capability-component", "templates-runtime-decision-record"]
+    },
+    {
+      "id": "templates-runtime-decision-record",
+      "term": "Implementation runtime decision record",
+      "aliases": ["Runtime decision record"],
+      "localized_labels": {"ja": {"term": "実装ランタイム決定記録", "aliases": ["ランタイム決定記録"]}},
+      "origin": "repository",
+      "definition": "The consumer-owned RUNTIME.md decision record materialized by capability.runtime. It records the selected implementation runtime, dependency workflow, exact commands, protocol selections, environment, distribution, and deployment lifecycle without belonging specifically to Skill or Webapp semantics.",
+      "related_terms": ["templates-implementation-runtime", "templates-composition-capability-component"]
     },
     {
       "id": "templates-contract-manifest",

@@ -217,6 +217,8 @@ class CompositionPublicationContractTests(unittest.TestCase):
         self.assertIn("templates-skill-profile", ids)
         self.assertIn("templates-composition-component", ids)
         self.assertIn("templates-contract-manifest", ids)
+        self.assertIn("templates-implementation-runtime", ids)
+        self.assertIn("templates-runtime-decision-record", ids)
         for term_id in (
             "templates-composition-material-ownership",
             "templates-composition-component-owner",

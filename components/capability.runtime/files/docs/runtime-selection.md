@@ -1,6 +1,6 @@
-# Runtime selection guidance
+# Choosing an implementation runtime
 
-Select a runtime after identifying the artifact's actual requirements. Runtime neutrality is a composition-source property, not a requirement that every consumer support every ecosystem.
+An **implementation runtime** is the implementation ecosystem and operational choices used to build and run the artifact. Select one after identifying the artifact's actual requirements. The selection starts with the implementation language/runtime and dependency workflow; `RUNTIME.md` records the exact commands, environment, distribution, and deployment choices. Runtime neutrality is a composition-source property, not a requirement that every consumer support every ecosystem.
 
 ## Questions to answer
 
