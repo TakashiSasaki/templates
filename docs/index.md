@@ -24,8 +24,8 @@
 
 ## Reusable application capabilities
 
-- [Runtime decision record](../components/capability.runtime/files/RUNTIME.md) — runtime, commands, dependencies, environment, distribution, and deployment.
-- [Runtime selection guidance](../components/capability.runtime/files/docs/runtime-selection.md) — criteria for selecting an implementation ecosystem.
+- [Implementation runtime decision record](../components/capability.runtime/files/RUNTIME.md) — implementation ecosystem, commands, dependencies, environment, distribution, and deployment choices.
+- [Choosing an implementation runtime](../components/capability.runtime/files/docs/runtime-selection.md) — criteria for selecting an implementation ecosystem and dependency workflow.
 - [Packaged CLI interface](../components/capability.cli/files/CLI_INTERFACE.md) — caller-visible CLI behavior.
 - [MCP interface](../components/capability.mcp/files/MCP_INTERFACE.md) — MCP protocol, transports, client roles, and semantic equivalence.
 - [MCP transport guidance](../components/capability.mcp/files/docs/mcp-transports.md) — stdio and Streamable HTTP guidance.
