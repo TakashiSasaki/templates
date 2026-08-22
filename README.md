@@ -8,7 +8,7 @@ A consumer repository is produced from an artifact recipe plus explicit consumer
 
 If you are creating or maintaining a concrete Agent Skill or Web application repository, start with [Using Composition](docs/consumer-guide.md). It provides the task-oriented `initial` / `update` / `upgrade` / recovery workflow, file-editing rules, conflict handling, and the reproducible consumer runtime setup.
 
-Normal consumers use the installable `skills/composition/` runner. Git and CPython 3.11 through 3.14 are its supported prerequisites. The runner selects an immutable full-SHA Composition source revision, builds the exact `requirements-runtime.lock` environment with dependency resolution disabled, and invokes the existing Composer with the consumer repository as its target. The direct source-checkout entrypoint remains available for repository maintainers; the clean consumer-runtime matrix validates Ubuntu 24.04 and Windows Server 2022.
+Normal consumers use the installable `skills/composition/` runner. Git and CPython 3.11 through 3.14 are its supported prerequisites. The runner selects an immutable full-SHA Composition source revision, builds the exact `requirements-runtime.lock` environment with dependency resolution disabled, and invokes the existing Composer with the consumer repository as its target. Composition authority maintainers can still use the direct source-checkout entrypoint; the clean consumer-runtime matrix validates Ubuntu 24.04 and Windows Server 2022.
 
 For exact CLI options, inspect states, plan fields, ownership semantics, recovery rules, diagnostic codes, and exit behavior, use the [Composer reference](docs/reference/composer.md).
 
@@ -60,7 +60,9 @@ The Skill artifact materializes `AGENTS.md` as `seed`; after initial composition
 
 Site is separately responsible for reader-facing information architecture, publication mapping, and the generic schema-v3 publication protocol. Composition owns its provider declarations and provider-specific validation, while Site locks and publishes an exact reviewed Composition revision. See the [publication boundary](docs/publication-catalog.md) for the provider contract.
 
-## Maintainer references
+## Composition authority maintainer references
+
+Here, a **Composition authority maintainer** means someone changing or maintaining the `composition` authority itself in `TakashiSasaki/templates`—for example, the Composer, production catalog, schemas, architecture, or provider publication contract. It does not mean a maintainer of a consumer Skill or Web application repository; consumer repository maintainers should start with [Using Composition](docs/consumer-guide.md) and the [Composer reference](docs/reference/composer.md).
 
 The main deeper references are:
 
@@ -72,4 +74,4 @@ The main deeper references are:
 - [Production catalog guide](catalog/README.md)
 - [Composition schema guide](schemas/README.md)
 
-Historical migration provenance is intentionally separated from the current operational and architecture documentation. The reader-facing summary is [Composition authority migration history](docs/migrations/composition-authority-migration.md); stage-specific implementation notes remain repository-maintainer records rather than portal pages.
+Historical migration provenance is intentionally separated from the current operational and architecture documentation. The reader-facing summary is [Composition authority migration history](docs/migrations/composition-authority-migration.md); stage-specific implementation notes remain Composition authority maintenance records rather than portal pages.

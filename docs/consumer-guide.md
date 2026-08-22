@@ -2,6 +2,8 @@
 
 This guide is for consumers who use Composition to create and maintain a concrete Agent Skill or Web application repository. Normal consumers use the installed Composition skill runner; the Composer remains the semantic authority underneath that runner.
 
+In this guide, maintainers of a concrete Skill or Web application repository are consumers. **Composition authority maintainer** refers only to someone changing or maintaining the `composition` authority itself in `TakashiSasaki/templates`.
+
 For exact Composer options, plan fields, ownership definitions, and diagnostic codes, see the [Composer reference](reference/composer.md).
 
 ## Choose the operation
@@ -54,7 +56,7 @@ The runner owns the Composer target. Do not also pass `--target`; use runner `--
 
 ### Install from a reviewed checkout
 
-Repository maintainers may instead install the skill from an exact reviewed Composition checkout:
+Composition authority maintainers may instead install the skill from an exact reviewed Composition checkout:
 
 ```sh
 python skills/composition/scripts/install.py /path/to/agent-skills/composition
@@ -86,7 +88,7 @@ Cache layout and reuse are performance details. They do not change revision sele
 
 ### Direct source-checkout execution
 
-Repository maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. Normal consumers should prefer the installed skill because it owns immutable source selection and runtime setup.
+Composition authority maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. Normal consumers should prefer the installed skill because it owns immutable source selection and runtime setup.
 
 Managed `update` and `upgrade` require the old revision recorded in the consumer lock to be available in the selected source revision's Git ancestry. The runner's exact-SHA source cache retains and validates traversable ancestor history for that check.
 
@@ -326,7 +328,7 @@ See the [Composer reference](reference/composer.md) for exact diagnostic meaning
 
 ## Deeper design information
 
-Normal consumer operation should not require the architecture documents. Use them when you need the design rationale or are maintaining Composition itself:
+Normal consumer operation should not require the architecture documents. Use them when you need the design rationale or are maintaining the Composition authority itself:
 
 - [Composition model](architecture/composition-model.md) — authority, intent, lock, component, and ownership model;
 - [Composer MVP](architecture/composer-mvp.md) — deterministic resolver, reconciliation, transaction, digest precondition, and crash-recovery contract;

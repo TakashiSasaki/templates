@@ -10,7 +10,7 @@ consumer repository は、artifact recipe と明示的な consumer intent から
 
 具体的な Agent Skill または Web アプリケーション repository を作成・保守する場合は、まず [Using Composition](docs/consumer-guide.md) を参照してください。ここでは、タスク指向の `initial` / `update` / `upgrade` / recovery workflow、ファイル編集規則、conflict handling、および再現可能な consumer runtime setup を説明しています。
 
-通常の consumer は installable な `skills/composition/` runner を使用します。Git と CPython 3.11 から 3.14 が対応 prerequisite です。runner は immutable な full-SHA Composition source revision を選択し、dependency resolution を無効にして正確な `requirements-runtime.lock` environment を構築し、consumer repository を target として既存の Composer を呼び出します。repository maintainer 向けには direct source-checkout entrypoint も引き続き利用でき、clean consumer-runtime matrix では Ubuntu 24.04 と Windows Server 2022 を検証しています。
+通常の consumer は installable な `skills/composition/` runner を使用します。Git と CPython 3.11 から 3.14 が対応 prerequisite です。runner は immutable な full-SHA Composition source revision を選択し、dependency resolution を無効にして正確な `requirements-runtime.lock` environment を構築し、consumer repository を target として既存の Composer を呼び出します。Composition authority 自体を保守する担当者は direct source-checkout entrypoint も引き続き利用でき、clean consumer-runtime matrix では Ubuntu 24.04 と Windows Server 2022 を検証しています。
 
 正確な CLI options、inspect states、plan fields、ownership semantics、recovery rules、diagnostic codes、および exit behavior については、[Composer reference](docs/reference/composer.md) を参照してください。
 
@@ -62,7 +62,9 @@ Skill artifact は `AGENTS.md` を `seed` として materialize します。init
 
 Site は reader-facing information architecture、publication mapping、および generic schema-v3 publication protocol を別途担当します。Composition は provider declarations と provider-specific validation を所有し、Site は review 済みの正確な Composition revision を lock して公開します。provider contract については [publication boundary](docs/publication-catalog.md) を参照してください。
 
-## Maintainer 向けリファレンス
+## Composition authority 保守者向けリファレンス
+
+ここでいう **Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人を指します。たとえば Composer、production catalog、schemas、architecture、provider publication contract などを変更する側です。consumer Skill または Web application repository の保守者を意味するものではありません。consumer repository を保守する場合は、まず [Using Composition](docs/consumer-guide.md) と [Composer reference](docs/reference/composer.md) を参照してください。
 
 主要な詳細リファレンスは次のとおりです。
 
@@ -74,4 +76,4 @@ Site は reader-facing information architecture、publication mapping、およ�
 - [Production catalog guide](catalog/README.md)
 - [Composition schema guide](schemas/README.md)
 
-過去の migration provenance は、現在の operation および architecture documentation から意図的に分離されています。reader-facing summary は [Composition authority migration history](docs/migrations/composition-authority-migration.md) です。stage-specific implementation notes は portal pages ではなく、repository maintainer records として保持されます。
+過去の migration provenance は、現在の operation および architecture documentation から意図的に分離されています。reader-facing summary は [Composition authority migration history](docs/migrations/composition-authority-migration.md) です。stage-specific implementation notes は portal pages ではなく、Composition authority の保守記録として保持されます。
