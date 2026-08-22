@@ -12,6 +12,8 @@ CANONICAL = ROOT / "docs" / "index.md"
 TRANSLATION = ROOT / "translations" / "ja" / "docs" / "index.md"
 LINK_TARGET = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 HEADING = re.compile(r"^(#{1,6})\s+", re.MULTILINE)
+GUIDED_LINK = re.compile(r"^- \[[^\]]+\]\(.+\)[ \t]+[-–—][ \t]+\S.+$")
+JA_NOTICE = "> **参考訳（非正本）:**"
 
 
 class GuidedIndexTranslationTests(unittest.TestCase):
@@ -42,6 +44,23 @@ class GuidedIndexTranslationTests(unittest.TestCase):
             LINK_TARGET.findall(translation),
             LINK_TARGET.findall(canonical),
         )
+
+    def test_guided_translation_lines_use_overlay_shape(self) -> None:
+        for number, raw_line in enumerate(
+            TRANSLATION.read_text(encoding="utf-8").splitlines(),
+            start=1,
+        ):
+            line = raw_line.strip()
+            if not line:
+                continue
+            with self.subTest(line=number):
+                self.assertTrue(
+                    line.startswith("#")
+                    or line.startswith(JA_NOTICE)
+                    or bool(GUIDED_LINK.fullmatch(line)),
+                    f"invalid guided translation content at "
+                    f"translations/ja/docs/index.md:{number}: {raw_line!r}",
+                )
 
 
 if __name__ == "__main__":
