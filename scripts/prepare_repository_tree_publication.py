@@ -220,6 +220,14 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
     if assets_source.exists():
         copy_tree(assets_source, output_root / "assets", "site assets")
 
+    translations_source = site_root / "translations"
+    if translations_source.exists():
+        copy_tree(
+            translations_source,
+            output_root / "translations",
+            "site translations",
+        )
+
     template_source = site_root / "zensical.template.toml"
     if template_source.is_symlink() or not template_source.is_file():
         raise PreparationError(
