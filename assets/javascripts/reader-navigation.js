@@ -5,6 +5,7 @@
   const PRIMARY_NAV_SELECTOR = "nav.md-nav--primary";
   const LANGUAGE_PATH = /^\/([a-z]{2,3}(?:-[a-z0-9]{2,8})*)\//;
   let runtimePromise;
+  let applyGeneration = 0;
 
   function currentLanguage() {
     const match = window.location.pathname.match(LANGUAGE_PATH);
@@ -90,10 +91,10 @@
       if (!canonical) {
         continue;
       }
-      if (element.classList.contains("md-ellipsis")) {
-        element.textContent = canonical;
-      } else if (element.matches("label.md-nav__title")) {
+      if (element.matches("label.md-nav__title")) {
         replaceDirectText(element, canonical);
+      } else if (element.classList.contains("md-ellipsis")) {
+        element.textContent = canonical;
       }
       delete element.dataset.readerNavCanonicalLabel;
     }
@@ -173,14 +174,15 @@
   }
 
   async function applyReaderNavigation() {
-    const navigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);
-    if (!navigations.length) {
+    const generation = ++applyGeneration;
+    const initialNavigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);
+    if (!initialNavigations.length) {
       return;
     }
 
-    const language = currentLanguage();
-    if (!language) {
-      for (const nav of navigations) {
+    const initialLanguage = currentLanguage();
+    if (!initialLanguage) {
+      for (const nav of initialNavigations) {
         restoreNavigation(nav);
       }
       return;
@@ -190,17 +192,33 @@
     try {
       model = await loadRuntimeMap();
     } catch (error) {
-      console.warn("Reader navigation localization unavailable", error);
+      if (generation === applyGeneration) {
+        console.warn("Reader navigation localization unavailable", error);
+      }
       return;
     }
-    const locale = localeFor(model, language);
-    if (!locale) {
-      for (const nav of navigations) {
+
+    if (generation !== applyGeneration) {
+      return;
+    }
+
+    const activeLanguage = currentLanguage();
+    const currentNavigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);
+    if (!activeLanguage) {
+      for (const nav of currentNavigations) {
         restoreNavigation(nav);
       }
       return;
     }
-    for (const nav of navigations) {
+
+    const locale = localeFor(model, activeLanguage);
+    if (!locale) {
+      for (const nav of currentNavigations) {
+        restoreNavigation(nav);
+      }
+      return;
+    }
+    for (const nav of currentNavigations) {
       localizeNavigation(nav, locale);
     }
   }
