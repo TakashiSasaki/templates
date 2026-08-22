@@ -31,6 +31,7 @@ REQUIRED_PROVIDER_BY_TERM_ID = {
     "templates-composition-generated-material": "composition",
     "templates-skill-profile": "composition",
     "templates-skill-template-scaffold": "composition",
+    "templates-implementation-runtime": "composition",
     "templates-runtime-decision-record": "composition",
     "templates-contract-manifest": "composition",
     "templates-implementation-evidence": "composition",
@@ -121,6 +122,22 @@ class LockedProviderGlossaryTests(unittest.TestCase):
             "マテリアル所有権",
         )
         self.assertNotIn("File ownership", ownership.get("aliases", []))
+
+        implementation_runtime = by_id["templates-implementation-runtime"]
+        self.assertEqual(implementation_runtime["provider"], "composition")
+        self.assertEqual(implementation_runtime["term"], "Implementation runtime")
+        self.assertEqual(
+            implementation_runtime["localized_labels"]["ja"]["term"],
+            "実装ランタイム",
+        )
+        self.assertNotIn("Runtime", implementation_runtime.get("aliases", []))
+
+        runtime_record = by_id["templates-runtime-decision-record"]
+        self.assertEqual(runtime_record["term"], "Implementation runtime decision record")
+        self.assertIn("Runtime decision record", runtime_record["aliases"])
+        self.assertIn(
+            "templates-implementation-runtime", runtime_record["related_terms"]
+        )
 
         mcp = by_id["external-mcp-model-context-protocol"]
         self.assertEqual(mcp["provider"], "composition")
