@@ -12,6 +12,7 @@ from scripts.reader_navigation_locales import (
     load_overlays,
     markdown_route,
     navigation_titles,
+    read_json,
     write_runtime_map,
 )
 
@@ -121,6 +122,27 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
             source_file=Path("translation.md"),
         )
 
+    def test_read_json_failure_paths_are_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            duplicate = root / "duplicate.json"
+            duplicate.write_text('{"locales": [], "locales": []}', encoding="utf-8")
+            malformed = root / "malformed.json"
+            malformed.write_text('{"locales": ', encoding="utf-8")
+            array = root / "array.json"
+            array.write_text("[]", encoding="utf-8")
+
+            cases = (
+                (duplicate, "contains duplicate member"),
+                (malformed, "unable to parse"),
+                (array, "must be an object"),
+                (root / "missing.json", "unable to read"),
+            )
+            for path, message in cases:
+                with self.subTest(path=path.name):
+                    with self.assertRaisesRegex(ReaderNavigationLocaleError, message):
+                        read_json(path, "test overlay")
+
     def test_overlay_must_exactly_cover_prepared_navigation_titles(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
@@ -207,7 +229,11 @@ class ReaderNavigationLocaleTests(unittest.TestCase):
     def test_markdown_route_uses_directory_style_public_urls(self) -> None:
         cases = {
             "index.md": "/",
+            "ja/index.md": "/ja/",
             "composition/index.md": "/composition/",
+            "ja/composition/index.md": "/ja/composition/",
+            "capabilities.md": "/capabilities/",
+            "ja/capabilities.md": "/ja/capabilities/",
             "policy/cli.md": "/policy/cli/",
             "ja/policy/cli.md": "/ja/policy/cli/",
         }
