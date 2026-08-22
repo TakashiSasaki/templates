@@ -85,7 +85,7 @@ class TranslationPublicationTests(unittest.TestCase):
         ).write_text(nested_translation, encoding="utf-8")
 
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2,
             "canonical_language": "en",
             "translations": [
                 {
@@ -93,18 +93,21 @@ class TranslationPublicationTests(unittest.TestCase):
                     "language": "ja",
                     "translation": "translations/ja/docs/overview.md",
                     "canonical_blob_sha": blob_sha(canonical["overview"]),
+                    "surfaces": ["reader"],
                 },
                 {
                     "canonical": "docs/details.md",
                     "language": "ja",
                     "translation": "translations/ja/docs/details.md",
                     "canonical_blob_sha": blob_sha(canonical["details"]),
+                    "surfaces": ["reader"],
                 },
                 {
                     "canonical": "docs/nested/guide.md",
                     "language": "ja",
                     "translation": "translations/ja/docs/nested/guide.md",
                     "canonical_blob_sha": blob_sha(canonical["nested-guide"]),
+                    "surfaces": ["reader"],
                 },
             ],
         }
@@ -192,6 +195,26 @@ class TranslationPublicationTests(unittest.TestCase):
                 (docs / "ja" / "policy" / "nested" / "guide.md").is_file()
             )
             self.assertFalse((docs / "ja" / "policy" / "english.md").exists())
+
+    def test_guided_only_entry_is_not_published_as_reader_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "policy"
+            documents, assets, pages = self.prepare_publication(root)
+            manifest_path = root / "translations" / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["translations"][0]["surfaces"] = ["guided"]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            docs_root = base / "output" / "docs"
+            docs_root.mkdir(parents=True)
+
+            records = publish_translations(
+                {"policy": (root, documents, assets)},
+                pages,
+                docs_root,
+            )
+            self.assertEqual(len(records), 2)
+            self.assertFalse((docs_root / "ja" / "policy" / "index.md").exists())
 
     def test_links_images_and_references_are_rewritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -287,14 +310,14 @@ class TranslationPublicationTests(unittest.TestCase):
             documents, assets, pages = self.prepare_publication(root)
             manifest_path = root / "translations" / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest["schema_version"] = 1.0
+            manifest["schema_version"] = 2.0
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             docs_root = base / "output" / "docs"
             docs_root.mkdir(parents=True)
 
             with self.assertRaisesRegex(
                 TranslationPublicationError,
-                "schema_version must be integer 1",
+                "schema_version must be integer 2",
             ):
                 publish_translations(
                     {"policy": (root, documents, assets)},
