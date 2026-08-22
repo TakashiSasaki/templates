@@ -7,7 +7,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -15,27 +14,7 @@ if __package__ in (None, ""):
 from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages, parse_publications
 from scripts.assemble_publications_v3 import load_catalog
-from scripts.translation_manifest_surfaces import (
-    TranslationManifestSurfaceError,
-    project_reader_manifest,
-)
 from scripts.translation_reader_metadata import exclude_translation_from_search
-
-
-def install_reader_manifest_surface_adapter() -> None:
-    """Project schema-v2 manifests before the reader-only publisher consumes them."""
-    original = translation_publisher._read_json
-    if getattr(original, "_reader_surface_adapter", False):
-        return
-
-    def read_json(path: Path, label: str) -> dict[str, Any]:
-        value = original(path, label)
-        if path.name == "manifest.json" and path.parent.name == "translations":
-            return project_reader_manifest(value, label)
-        return value
-
-    setattr(read_json, "_reader_surface_adapter", True)
-    translation_publisher._read_json = read_json
 
 
 def write_publication_map(
@@ -85,7 +64,6 @@ def main() -> int:
             for page in pages(navigation)
             if docs_root.joinpath(*page["destination"].parts).is_file()
         ]
-        install_reader_manifest_surface_adapter()
         records = translation_publisher.publish_translations(
             publications,
             included_pages,
@@ -102,7 +80,6 @@ def main() -> int:
         print(f"translations published: {len(records)}")
     except (
         OSError,
-        TranslationManifestSurfaceError,
         translation_publisher.TranslationPublicationError,
         RuntimeError,
     ) as exc:
