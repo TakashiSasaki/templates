@@ -18,6 +18,7 @@ extra_css = [
 extra_javascript = [
   "javascripts/repository-tree-viewer.js",
   "javascripts/pwa.js",
+  "javascripts/reader-navigation.js",
   "javascripts/glossary-inline.js"
 ]
 nav = __GENERATED_NAV__
