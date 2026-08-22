@@ -8,6 +8,27 @@
       "translation": "translations/ja/README.md",
       "canonical_blob_sha": "97d21db46b1aea89eb22672cf6489901fda7b05c",
       "surfaces": ["reader"]
+    },
+    {
+      "canonical": "catalog/README.md",
+      "language": "ja",
+      "translation": "translations/ja/catalog/README.md",
+      "canonical_blob_sha": "fb02c1e0bd63a5a3f1bac67ac1a2116e0c7f46fd",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/publication-catalog.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/publication-catalog.md",
+      "canonical_blob_sha": "55b2288be1721ab435ac735928073730f8e8a16e",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "schemas/README.md",
+      "language": "ja",
+      "translation": "translations/ja/schemas/README.md",
+      "canonical_blob_sha": "34c12fd31372732f11c296f72b1110453a03fa84",
+      "surfaces": ["reader"]
     }
   ]
 }
