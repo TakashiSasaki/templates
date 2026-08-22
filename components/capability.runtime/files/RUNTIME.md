@@ -1,8 +1,8 @@
-# Runtime decision record
+# Implementation runtime decision record
 
-This contract is materialized by `capability.runtime`. Complete it when the composed artifact needs a maintained implementation runtime, package, public command, network listener, service, or deployment authority.
+This contract is materialized by `capability.runtime`. Here, **implementation runtime** means the implementation ecosystem and operational choices used to build and run the composed artifact, including its language/runtime, dependency workflow, exact commands, environment, distribution, and deployment. Complete this record when the artifact needs maintained implementation, packaging, public commands, network listeners, services, or deployment authority.
 
-Caller-visible behavior belongs in the applicable interface contract (`CLI_INTERFACE.md`, `MCP_INTERFACE.md`, `WEB_INTERFACE.md`, or `SERVICE_INTERFACE.md`). This file owns implementation runtime, exact commands, dependency/package choices, protocol and transport selections, environment, and deployment lifecycle.
+Caller-visible behavior belongs in the applicable interface contract (`CLI_INTERFACE.md`, `MCP_INTERFACE.md`, `WEB_INTERFACE.md`, or `SERVICE_INTERFACE.md`). This file owns implementation-runtime choices, exact commands, dependency/package choices, protocol and transport selections, environment, and deployment lifecycle.
 
 ## Status
 
@@ -24,7 +24,7 @@ Change the status to `SELECTED` only after the common fields and every section a
 | Headless service deployment | `capability.service` |
 | Environment and rationale | `capability.runtime` |
 
-A product may select `capability.runtime` directly without selecting a public interface, for example when private helpers need a maintained runtime record.
+A product may select `capability.runtime` directly without selecting a public interface, for example when private helpers need a maintained implementation runtime decision record.
 
 ## Primary implementation
 
