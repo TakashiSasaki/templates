@@ -79,11 +79,40 @@ def prepare_translation(root: Path) -> bytes:
 
 class TranslationContractTests(unittest.TestCase):
     def test_repository_translation_manifest_is_valid(self) -> None:
+        manifest = json.loads(
+            (ROOT / "translations" / "manifest.json").read_text(encoding="utf-8")
+        )
+        translations = manifest["translations"]
+        reader_count = sum(
+            "reader" in entry["surfaces"] for entry in translations
+        )
+        guided_count = sum(
+            "guided" in entry["surfaces"] for entry in translations
+        )
+
         result = validate(ROOT)
         self.assertIn("canonical language: en", result)
-        self.assertIn("translations validated: 1", result)
-        self.assertIn("reader translations: 1", result)
-        self.assertIn("guided translations: 0", result)
+        self.assertIn(f"translations validated: {len(translations)}", result)
+        self.assertIn(f"reader translations: {reader_count}", result)
+        self.assertIn(f"guided translations: {guided_count}", result)
+
+    def test_repository_reader_translations_include_authority_guides(self) -> None:
+        manifest = json.loads(
+            (ROOT / "translations" / "manifest.json").read_text(encoding="utf-8")
+        )
+        reader_canonicals = {
+            entry["canonical"]
+            for entry in manifest["translations"]
+            if "reader" in entry["surfaces"]
+        }
+        self.assertTrue(
+            {
+                "README.md",
+                "catalog/README.md",
+                "docs/publication-catalog.md",
+                "schemas/README.md",
+            }.issubset(reader_canonicals)
+        )
 
     def test_canonical_change_makes_translation_stale(self) -> None:
         with tempfile.TemporaryDirectory(prefix="composition-translation-") as directory:

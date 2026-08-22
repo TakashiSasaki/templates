@@ -42,7 +42,7 @@ The current explicit exclusions are:
 - repository-level immutable installer publication guidance (`release/README.md`), which documents operational release identities while reader-facing installation guidance is assembled separately by Site;
 - repository-facing Composition skill instructions (`skills/composition/SKILL.md`), which are distributed as executable skill material rather than canonical reader publication;
 - provider-owned translation maintenance guidance (`translations/README.md`); and
-- the non-authoritative Japanese reader derivative (`translations/ja/README.md`), which is exposed only through explicit translation metadata rather than the canonical publication catalog.
+- provider-owned non-authoritative Japanese reader derivatives under `translations/ja/`, each exposed only through explicit translation metadata rather than the canonical publication catalog.
 
 The classification file is Composition maintenance metadata, not a Site publication asset, and does not change publication-catalog schema version 3.
 
