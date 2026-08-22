@@ -85,7 +85,8 @@ class SiteChromeLocaleTests(unittest.TestCase):
                 ({**valid, "schema_version": True}, "schema_version must be integer 1"),
                 ({**valid, "schema_version": 2}, "schema_version must be integer 1"),
                 ({**valid, "extra": True}, "must contain schema_version"),
-                ({**valid, "canonical_language": "EN"}, "lowercase language tag"),
+                ({**valid, "canonical_language": "EN"}, "canonical_language must be en"),
+                ({**valid, "canonical_language": "fr"}, "canonical_language must be en"),
                 ({**valid, "locales": []}, "non-empty array"),
             )
             for payload, message in cases:
@@ -123,11 +124,29 @@ class SiteChromeLocaleTests(unittest.TestCase):
             with self.assertRaisesRegex(SiteChromeLocaleError, "canonical_link"):
                 load_site_chrome_locales(path)
 
+    def test_reader_fields_must_be_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "locales.json"
+            for mutation in ("missing", "extra"):
+                payload = self.payload()
+                reader = payload["locales"][1]["translation_reader"]  # type: ignore[index]
+                if mutation == "missing":
+                    del reader["group_label"]
+                else:
+                    reader["extra_field"] = "extra"
+                with self.subTest(mutation=mutation):
+                    self.write(path, payload)
+                    with self.assertRaisesRegex(
+                        SiteChromeLocaleError,
+                        "translation_reader must contain",
+                    ):
+                        load_site_chrome_locales(path)
+
     def test_missing_canonical_locale_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
             payload = self.payload()
-            payload["locales"] = [payload["locales"][1]]
+            payload["locales"] = [payload["locales"][1]]  # type: ignore[index]
             self.write(path, payload)
 
             with self.assertRaisesRegex(
