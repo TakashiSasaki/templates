@@ -12,6 +12,12 @@ from scripts.translation_manifest import load_translation_manifest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_CANONICALS = {
+    PurePosixPath("docs/landing.md"),
+    PurePosixPath("docs/policy-composition-coexistence.md"),
+    PurePosixPath("docs/capabilities.md"),
+    PurePosixPath("docs/lifecycle.md"),
+}
 
 
 class SiteOwnedTranslationContractTests(unittest.TestCase):
@@ -25,8 +31,9 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
         ]
         return documents, assets, included_pages
 
-    def test_site_reader_manifest_covers_current_site_documents(self) -> None:
+    def test_site_reader_manifest_declares_current_site_documents(self) -> None:
         documents, _, _ = self.site_publication()
+        catalog_sources = {document["source"] for document in documents.values()}
         manifest = load_translation_manifest(
             ROOT / "translations" / "manifest.json",
             "site translation manifest",
@@ -36,8 +43,9 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
 
         self.assertEqual(
             {entry.canonical for entry in reader_entries},
-            {document["source"] for document in documents.values()},
+            EXPECTED_CANONICALS,
         )
+        self.assertTrue(EXPECTED_CANONICALS.issubset(catalog_sources))
         for entry in reader_entries:
             with self.subTest(canonical=entry.canonical.as_posix()):
                 self.assertIsNotNone(entry.current_blob_sha)
