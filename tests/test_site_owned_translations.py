@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
 from scripts.assemble_publications import load_manifest, pages
 from scripts.assemble_publications_v3 import load_catalog
-from scripts.prepare_repository_tree_publication import prepare
+from scripts.prepare_repository_tree_publication import PreparationError, prepare
 from scripts.publish_translations import publish_translations
 from scripts.translation_manifest import load_translation_manifest
 
@@ -18,6 +20,14 @@ EXPECTED_CANONICALS = {
     PurePosixPath("docs/capabilities.md"),
     PurePosixPath("docs/lifecycle.md"),
 }
+
+
+def copy_site_fixture(root: Path, *, translations: bool) -> None:
+    shutil.copytree(ROOT / "docs", root / "docs")
+    shutil.copy2(ROOT / "site-manifest.json", root / "site-manifest.json")
+    shutil.copy2(ROOT / "zensical.template.toml", root / "zensical.template.toml")
+    if translations:
+        shutil.copytree(ROOT / "translations", root / "translations")
 
 
 class SiteOwnedTranslationContractTests(unittest.TestCase):
@@ -118,6 +128,87 @@ class SiteOwnedTranslationContractTests(unittest.TestCase):
                         "> **参考訳（非正本）:**",
                         translated.read_text(encoding="utf-8"),
                     )
+
+    def test_stale_site_translation_is_omitted_without_touching_english(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site_root = base / "site"
+            site_root.mkdir()
+            copy_site_fixture(site_root, translations=True)
+            landing = site_root / "docs" / "landing.md"
+            landing.write_text(
+                landing.read_text(encoding="utf-8") + "\n<!-- canonical changed -->\n",
+                encoding="utf-8",
+            )
+
+            documents, assets = load_catalog("site", site_root)
+            _, navigation = load_manifest(site_root / "site-manifest.json")
+            included_pages = [
+                page
+                for page in pages(navigation)
+                if page["publication"] == "site"
+            ]
+            docs_root = base / "output" / "docs"
+            docs_root.mkdir(parents=True)
+            english = docs_root / "index.md"
+            english.write_text("# Canonical English\n", encoding="utf-8")
+
+            records = publish_translations(
+                {"site": (site_root, documents, assets)},
+                included_pages,
+                docs_root,
+                skip_stale=True,
+            )
+
+            self.assertEqual(len(records), 3)
+            self.assertFalse((docs_root / "ja" / "index.md").exists())
+            self.assertEqual(
+                english.read_text(encoding="utf-8"),
+                "# Canonical English\n",
+            )
+            self.assertNotIn(
+                PurePosixPath("docs/landing.md"),
+                {record.canonical_source for record in records},
+            )
+
+    @unittest.skipIf(os.name == "nt", "symlink creation is not reliably available on Windows")
+    def test_preparation_rejects_broken_symlinked_translations_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site_root = base / "site"
+            site_root.mkdir()
+            copy_site_fixture(site_root, translations=False)
+            (site_root / "translations").symlink_to(
+                base / "missing-translations",
+                target_is_directory=True,
+            )
+
+            with self.assertRaisesRegex(
+                PreparationError,
+                "site translations must not be a symlink",
+            ):
+                prepare(site_root, base / "prepared")
+
+    @unittest.skipIf(os.name == "nt", "symlink creation is not reliably available on Windows")
+    def test_preparation_rejects_symlink_inside_translations_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            site_root = base / "site"
+            site_root.mkdir()
+            copy_site_fixture(site_root, translations=True)
+            translated_landing = (
+                site_root / "translations" / "ja" / "docs" / "landing.md"
+            )
+            translated_landing.unlink()
+            external = base / "external-landing.md"
+            external.write_text("# External\n", encoding="utf-8")
+            translated_landing.symlink_to(external)
+
+            with self.assertRaisesRegex(
+                PreparationError,
+                "site translations contains a symlink",
+            ):
+                prepare(site_root, base / "prepared")
 
 
 if __name__ == "__main__":
