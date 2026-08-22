@@ -221,7 +221,7 @@ def prepare(site_root: Path, output_root: Path) -> list[str]:
         copy_tree(assets_source, output_root / "assets", "site assets")
 
     translations_source = site_root / "translations"
-    if translations_source.exists():
+    if translations_source.is_symlink() or translations_source.exists():
         copy_tree(
             translations_source,
             output_root / "translations",
