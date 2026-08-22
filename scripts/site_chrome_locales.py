@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate and resolve Site-owned reader chrome locale data."""
 
 from __future__ import annotations
@@ -58,13 +57,8 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         raise SiteChromeLocaleError("Site chrome locales schema_version must be integer 1")
     canonical_language = data["canonical_language"]
-    if (
-        not isinstance(canonical_language, str)
-        or not LANGUAGE_TAG.fullmatch(canonical_language)
-    ):
-        raise SiteChromeLocaleError(
-            "Site chrome locales canonical_language must be a lowercase language tag"
-        )
+    if canonical_language != "en":
+        raise SiteChromeLocaleError("Site chrome locales canonical_language must be en")
     raw_locales = data["locales"]
     if not isinstance(raw_locales, list) or not raw_locales:
         raise SiteChromeLocaleError("Site chrome locales locales must be a non-empty array")
@@ -145,6 +139,7 @@ def reader_strings(model: dict[str, Any], language: str) -> dict[str, str]:
 
 def translation_status(model: dict[str, Any], language: str) -> str:
     locale = locale_record(model, language)
-    if locale is not None and language.split("-", 1)[0] != model["canonical_language"]:
+    canonical_primary = model["canonical_language"].split("-", 1)[0]
+    if locale is not None and language.split("-", 1)[0] != canonical_primary:
         return locale["translation_reader"]["translation_status"]
     return f"{language_label(model, language)} translation · Non-authoritative"
