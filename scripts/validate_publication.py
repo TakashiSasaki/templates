@@ -18,6 +18,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSIFICATION_PATH = ROOT / "docs" / "publication-classification.json"
+TRANSLATION_MANIFEST_PATH = ROOT / "translations" / "manifest.json"
 SITE_PROTOCOL_ENV = "SITE_PUBLICATION_PROTOCOL_ROOT"
 SITE_PROTOCOL_RELATIVE = Path("scripts/publication_contract.py")
 TERM_RE = re.compile(r"^(?:templates|external)-[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -207,6 +208,47 @@ def parse_publication_classification() -> dict[PurePosixPath, str]:
     return exclusions
 
 
+def parse_translation_classification() -> set[PurePosixPath]:
+    """Return derivative Markdown paths declared by the translation manifest.
+
+    Full translation semantics are validated by ``validate_translations.py``.
+    Publication classification only needs a safe, existing, unique derivative
+    path set so translations form a third disjoint Markdown class instead of
+    being duplicated in ``publication-classification.json``.
+    """
+    data = strict_json(TRANSLATION_MANIFEST_PATH, "translation manifest")
+    if set(data) != {"schema_version", "canonical_language", "translations"}:
+        raise PublicationError(
+            "translation manifest must contain schema_version, canonical_language, "
+            "and translations"
+        )
+    if data.get("schema_version") != 2 or type(data.get("schema_version")) is not int:
+        raise PublicationError("translation manifest schema_version must be integer 2")
+    if data.get("canonical_language") != "en":
+        raise PublicationError("translation manifest canonical_language must be en")
+    raw_translations = data.get("translations")
+    if not isinstance(raw_translations, list):
+        raise PublicationError("translation manifest translations must be an array")
+
+    translations: set[PurePosixPath] = set()
+    for index, raw in enumerate(raw_translations):
+        field = f"translations[{index}]"
+        if not isinstance(raw, dict) or "translation" not in raw:
+            raise PublicationError(f"{field} must declare a translation path")
+        translation = safe_composition_path(raw["translation"], f"{field}.translation")
+        if translation.suffix.lower() != ".md":
+            raise PublicationError(f"{field}.translation must be Markdown")
+        if not translation.parts or translation.parts[0] != "translations":
+            raise PublicationError(
+                f"{field}.translation must be beneath the translations directory"
+            )
+        if translation in translations:
+            raise PublicationError(f"duplicate translation Markdown source: {translation}")
+        resolve_regular(translation, f"{field}.translation")
+        translations.add(translation)
+    return translations
+
+
 def discover_repository_markdown() -> set[PurePosixPath]:
     discovered: set[PurePosixPath] = set()
     pending = [ROOT]
@@ -239,21 +281,36 @@ def validate_composition_catalog_declarations(catalog: Any) -> None:
 def validate_markdown_partition(
     published: set[PurePosixPath],
     excluded: set[PurePosixPath],
+    translated: set[PurePosixPath],
     discovered: set[PurePosixPath],
 ) -> None:
-    overlap = sorted(path.as_posix() for path in published & excluded)
-    if overlap:
+    published_excluded = sorted(path.as_posix() for path in published & excluded)
+    if published_excluded:
         raise PublicationError(
             "Markdown must not be both published and explicitly excluded: "
-            + ", ".join(overlap)
+            + ", ".join(published_excluded)
         )
-    missing = sorted(path.as_posix() for path in discovered - published - excluded)
+    published_translated = sorted(path.as_posix() for path in published & translated)
+    if published_translated:
+        raise PublicationError(
+            "Markdown must not be both published and translation-declared: "
+            + ", ".join(published_translated)
+        )
+    excluded_translated = sorted(path.as_posix() for path in excluded & translated)
+    if excluded_translated:
+        raise PublicationError(
+            "Markdown must not be both explicitly excluded and translation-declared: "
+            + ", ".join(excluded_translated)
+        )
+
+    classified = published | excluded | translated
+    missing = sorted(path.as_posix() for path in discovered - classified)
     if missing:
         raise PublicationError(
             "repository Markdown lacks explicit publication classification: "
             + ", ".join(missing)
         )
-    unknown = sorted(path.as_posix() for path in (published | excluded) - discovered)
+    unknown = sorted(path.as_posix() for path in classified - discovered)
     if unknown:
         raise PublicationError(
             "Markdown publication classification references undiscovered source: "
@@ -264,11 +321,13 @@ def validate_markdown_partition(
 def validate_markdown_classification(
     catalog: Any,
     exclusions: dict[PurePosixPath, str],
+    translations: set[PurePosixPath],
 ) -> None:
     published = {document.source for document in catalog.documents}
     validate_markdown_partition(
         published,
         set(exclusions),
+        translations,
         discover_repository_markdown(),
     )
 
@@ -377,9 +436,10 @@ def main() -> int:
     try:
         catalog = load_publication_catalog()
         exclusions = parse_publication_classification()
+        translations = parse_translation_classification()
         validate_composition_catalog_declarations(catalog)
         validate_reader_coverage(catalog)
-        validate_markdown_classification(catalog, exclusions)
+        validate_markdown_classification(catalog, exclusions, translations)
         validate_machine_coverage(catalog)
         validate_glossary(catalog)
     except PublicationError as exc:
