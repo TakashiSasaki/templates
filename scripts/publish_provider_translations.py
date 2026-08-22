@@ -14,6 +14,11 @@ if __package__ in (None, ""):
 from scripts import publish_translations as translation_publisher
 from scripts.assemble_publications import load_manifest, pages, parse_publications
 from scripts.assemble_publications_v3 import load_catalog
+from scripts.translation_coverage import (
+    TranslationCoverageError,
+    build_reader_coverage,
+    write_coverage,
+)
 from scripts.translation_reader_metadata import exclude_translation_from_search
 
 
@@ -68,6 +73,7 @@ def main() -> int:
             publications,
             included_pages,
             docs_root,
+            skip_stale=True,
         )
         for record in records:
             exclude_translation_from_search(
@@ -77,9 +83,21 @@ def main() -> int:
             args.output_root / "translation-publication.json",
             records,
         )
+        coverage = build_reader_coverage(publications, included_pages)
+        write_coverage(
+            args.output_root / "translation-coverage.json",
+            coverage,
+        )
         print(f"translations published: {len(records)}")
+        print(
+            "reader translation coverage: "
+            f"current={coverage['summary']['current']} "
+            f"stale={coverage['summary']['stale']} "
+            f"missing={coverage['summary']['missing']}"
+        )
     except (
         OSError,
+        TranslationCoverageError,
         translation_publisher.TranslationPublicationError,
         RuntimeError,
     ) as exc:
