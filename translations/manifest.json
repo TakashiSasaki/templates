@@ -17,6 +17,20 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "components/artifact.skill-core/files/README.md",
+      "language": "ja",
+      "translation": "translations/ja/components/artifact.skill-core/files/README.md",
+      "canonical_blob_sha": "5097bab9fc4945387bf18f768ad2c34225eb5c20",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "components/artifact.webapp-core/files/README.md",
+      "language": "ja",
+      "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
+      "canonical_blob_sha": "e59d7708971393c4396059d53d0c6d6ec350b65b",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
