@@ -46,6 +46,10 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
 def navigation_titles(nodes: Iterable[dict[str, Any]]) -> set[str]:
     result: set[str] = set()
     for node in nodes:
+        if not isinstance(node, dict):
+            raise ReaderNavigationLocaleError(
+                "canonical navigation node must be an object"
+            )
         title = node.get("title")
         if not isinstance(title, str) or not title:
             raise ReaderNavigationLocaleError("canonical navigation contains an invalid title")
