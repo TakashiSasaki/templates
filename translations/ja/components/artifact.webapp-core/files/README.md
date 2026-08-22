@@ -8,7 +8,7 @@
 
 この scaffold は、frontend framework、rendering model、package manager、backend、persistence layer、authentication provider、deployment platform、browser matrix、observability vendor を意図的に選択しません。
 
-## Contract
+## Contracts
 
 - `contracts/surfaces.json` — browser-facing な surface boundary と audience。
 - `contracts/routes.json` — canonical navigation と access failure の presentation。
@@ -17,7 +17,7 @@
 - `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。
 - Webapp は release lifecycle chain を必要とするため、lifecycle contract も materialize されます。
 
-## Optional application capability
+## Optional application capabilities
 
 Webapp レシピでは、runtime、CLI、MCP、MCP Apps、standalone operational Web exposure、headless service capability を追加で選択できます。artifact が browser-facing であるという理由だけで、これらが必須になることはありません。static / CDN Web application は application runtime component がなくても妥当です。
 
