@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
-from scripts import publish_provider_translations as provider_publisher
 from scripts import publish_translations as translation_publisher
 
 
@@ -81,16 +80,11 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
             (output / "composition" / "index.md").write_bytes(overview)
             (output / "composition" / "use" / "index.md").write_bytes(guide)
 
-            original_read_json = translation_publisher._read_json
-            try:
-                provider_publisher.install_reader_manifest_surface_adapter()
-                records = translation_publisher.publish_translations(
-                    {"composition": (provider, documents, [])},
-                    pages,
-                    output,
-                )
-            finally:
-                translation_publisher._read_json = original_read_json
+            records = translation_publisher.publish_translations(
+                {"composition": (provider, documents, [])},
+                pages,
+                output,
+            )
 
             self.assertEqual(len(records), 1)
             translated = output / "ja" / "composition" / "index.md"

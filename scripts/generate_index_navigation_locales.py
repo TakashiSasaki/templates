@@ -5,21 +5,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 try:
     from scripts.generate_index_navigation import parse_index
+    from scripts.translation_manifest import (
+        TranslationManifestError,
+        load_translation_manifest,
+    )
 except ModuleNotFoundError:
     from generate_index_navigation import parse_index
+    from translation_manifest import TranslationManifestError, load_translation_manifest
 
 PROVIDER_ORDER = ("skill", "policy", "webapp")
-LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
-BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
 JA_NOTICE = "> **参考訳（非正本）:**"
-ALLOWED_SURFACES = {"reader", "guided"}
 
 
 class IndexNavigationLocaleError(RuntimeError):
@@ -47,18 +48,6 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise IndexNavigationLocaleError(f"{label} must be an object")
     return value
-
-
-def safe_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
-        raise IndexNavigationLocaleError(f"{field} must be a safe relative POSIX path")
-    parts = value.split("/")
-    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
-        raise IndexNavigationLocaleError(f"{field} must be a safe relative POSIX path")
-    path = PurePosixPath(value)
-    if path.is_absolute():
-        raise IndexNavigationLocaleError(f"{field} must be a safe relative POSIX path")
-    return path
 
 
 def regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
@@ -95,21 +84,6 @@ def optional_manifest(root: Path, provider: str) -> Path | None:
             f"{provider} translation manifest must be a regular file"
         )
     return current
-
-
-def surfaces(value: Any, field: str) -> tuple[str, ...]:
-    if not isinstance(value, list) or not value:
-        raise IndexNavigationLocaleError(f"{field} must be a non-empty array")
-    result: list[str] = []
-    for index, surface in enumerate(value):
-        if not isinstance(surface, str) or surface not in ALLOWED_SURFACES:
-            raise IndexNavigationLocaleError(
-                f"{field}[{index}] must be one of reader or guided"
-            )
-        if surface in result:
-            raise IndexNavigationLocaleError(f"{field} must not contain duplicate surfaces")
-        result.append(surface)
-    return tuple(result)
 
 
 def strip_translation_preamble(text: str, language: str, field: str) -> str:
@@ -193,25 +167,11 @@ def collect_provider_overlays(
     manifest_path = optional_manifest(root, provider)
     if manifest_path is None:
         return []
-    manifest = read_json(manifest_path, f"{provider} translation manifest")
-    if set(manifest) != {"schema_version", "canonical_language", "translations"}:
-        raise IndexNavigationLocaleError(f"{provider} translation manifest has unsupported fields")
-    version = manifest.get("schema_version")
-    if type(version) is not int or version not in {1, 2}:
-        raise IndexNavigationLocaleError(
-            f"{provider} translation manifest schema_version must be integer 1 or 2"
-        )
-    if manifest.get("canonical_language") != "en":
-        raise IndexNavigationLocaleError(
-            f"{provider} translation manifest canonical_language must be en"
-        )
-    entries = manifest.get("translations")
-    if not isinstance(entries, list):
-        raise IndexNavigationLocaleError(
-            f"{provider} translation manifest translations must be an array"
-        )
-    if version == 1:
-        return []
+    label = f"{provider} translation manifest"
+    try:
+        manifest = load_translation_manifest(manifest_path, label)
+    except TranslationManifestError as exc:
+        raise IndexNavigationLocaleError(str(exc)) from exc
 
     indexes = graph.get("indexes")
     edges = graph.get("edges")
@@ -222,46 +182,18 @@ def collect_provider_overlays(
         for index in indexes
         if isinstance(index, dict) and isinstance(index.get("path"), str)
     }
-    seen: set[tuple[str, PurePosixPath]] = set()
     overlays: list[tuple[str, dict[str, Any]]] = []
-    required = {"canonical", "language", "translation", "canonical_blob_sha", "surfaces"}
 
-    for index, entry in enumerate(entries):
-        field = f"{provider}.translations[{index}]"
-        if not isinstance(entry, dict) or set(entry) != required:
-            raise IndexNavigationLocaleError(
-                f"{field} must contain canonical, language, translation, canonical_blob_sha, and surfaces"
-            )
-        declared_surfaces = surfaces(entry["surfaces"], f"{field}.surfaces")
-        if "guided" not in declared_surfaces:
-            continue
-        canonical = safe_path(entry["canonical"], f"{field}.canonical")
-        translation = safe_path(entry["translation"], f"{field}.translation")
-        language = entry["language"]
-        blob_sha = entry["canonical_blob_sha"]
-        if not isinstance(language, str) or not LANGUAGE.fullmatch(language) or language == "en":
-            raise IndexNavigationLocaleError(
-                f"{field}.language must be a non-English lowercase language tag"
-            )
-        if not isinstance(blob_sha, str) or not BLOB_SHA.fullmatch(blob_sha):
-            raise IndexNavigationLocaleError(
-                f"{field}.canonical_blob_sha must be a full lowercase Git blob SHA"
-            )
+    for entry in manifest.for_surface("guided"):
+        field = f"{provider}.translations[{entry.index}]"
+        canonical = entry.canonical
+        translation = entry.translation
+        language = entry.language
+        blob_sha = entry.canonical_blob_sha
         if canonical.name != "index.md":
             raise IndexNavigationLocaleError(
                 f"{field}.canonical must be an index.md document for guided use"
             )
-        expected = PurePosixPath("translations") / language / canonical
-        if translation != expected:
-            raise IndexNavigationLocaleError(
-                f"{field}.translation must mirror canonical at {expected}"
-            )
-        key = (language, canonical)
-        if key in seen:
-            raise IndexNavigationLocaleError(
-                f"duplicate guided translation pair: {provider} {language} {canonical}"
-            )
-        seen.add(key)
 
         canonical_index = index_by_path.get(canonical.as_posix())
         if canonical_index is None:

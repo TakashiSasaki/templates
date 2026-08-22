@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import posixpath
 import re
 from dataclasses import dataclass
@@ -12,8 +11,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-LANGUAGE = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
-BLOB_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
+from scripts.translation_manifest import (
+    TranslationManifestError,
+    load_translation_manifest,
+)
+
 INLINE_LINK = re.compile(
     r"(?P<image>!?)\[(?P<label>[^\]\n]*)\]\((?P<target>[^)\n]+)\)"
 )
@@ -45,49 +47,6 @@ class AssetRoute:
     source: PurePosixPath
     destination: PurePosixPath
     directory: bool
-
-
-def _read_json(path: Path, label: str) -> dict[str, Any]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise TranslationPublicationError(f"unable to read {label} {path}: {exc}") from exc
-
-    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        for key, value in pairs:
-            if key in result:
-                raise TranslationPublicationError(
-                    f"{label} contains duplicate member: {key}"
-                )
-            result[key] = value
-        return result
-
-    try:
-        value = json.loads(text, object_pairs_hook=unique)
-    except json.JSONDecodeError as exc:
-        raise TranslationPublicationError(f"unable to parse {label} {path}: {exc}") from exc
-    if not isinstance(value, dict):
-        raise TranslationPublicationError(f"{label} must be an object")
-    return value
-
-
-def _safe_path(value: Any, field: str) -> PurePosixPath:
-    if not isinstance(value, str) or not value or "\\" in value or ":" in value:
-        raise TranslationPublicationError(
-            f"{field} must be a safe relative POSIX path"
-        )
-    parts = value.split("/")
-    if any(part in ("", ".", "..") or part.casefold() == ".git" for part in parts):
-        raise TranslationPublicationError(
-            f"{field} must be a safe relative POSIX path"
-        )
-    path = PurePosixPath(value)
-    if path.is_absolute():
-        raise TranslationPublicationError(
-            f"{field} must be a safe relative POSIX path"
-        )
-    return path
 
 
 def _walk_path(root: Path, relative: PurePosixPath, field: str) -> Path:
@@ -405,9 +364,7 @@ def _rewrite_markdown(
                 translated_destinations,
                 asset_routes,
             )
-            return (
-                f"{match.group('image')}[{match.group('label')}]({target})"
-            )
+            return f"{match.group('image')}[{match.group('label')}]({target})"
 
         rewritten = INLINE_LINK.sub(replace_inline, line)
         reference = REFERENCE_TARGET.match(rewritten.rstrip("\r\n"))
@@ -459,75 +416,28 @@ def _load_records(
         )
 
     records: list[TranslationRecord] = []
-    seen_pairs: set[tuple[str, str, PurePosixPath]] = set()
-    seen_translation_paths: set[tuple[str, PurePosixPath]] = set()
-
     manifest_relative = PurePosixPath("translations/manifest.json")
     for publication, (root, documents, _) in sorted(publications.items()):
-        manifest_path = _optional_regular_file(
-            root,
-            manifest_relative,
-            f"{publication} translation manifest",
-        )
+        label = f"{publication} translation manifest"
+        manifest_path = _optional_regular_file(root, manifest_relative, label)
         if manifest_path is None:
             continue
-        manifest = _read_json(manifest_path, f"{publication} translation manifest")
-        if set(manifest) != {"schema_version", "canonical_language", "translations"}:
-            raise TranslationPublicationError(
-                f"{publication} translation manifest has unsupported fields"
-            )
-        version = manifest["schema_version"]
-        if type(version) is not int or version != 1:
-            raise TranslationPublicationError(
-                f"{publication} translation manifest schema_version must be integer 1"
-            )
-        if manifest["canonical_language"] != "en":
-            raise TranslationPublicationError(
-                f"{publication} translation manifest canonical_language must be en"
-            )
-        entries = manifest["translations"]
-        if not isinstance(entries, list):
-            raise TranslationPublicationError(
-                f"{publication} translation manifest translations must be an array"
-            )
+        try:
+            manifest = load_translation_manifest(manifest_path, label)
+        except TranslationManifestError as exc:
+            raise TranslationPublicationError(str(exc)) from exc
 
         source_to_document = {
             document["source"]: document_id
             for document_id, document in documents.items()
         }
-        for index, entry in enumerate(entries):
-            field = f"{publication}.translations[{index}]"
-            required = {
-                "canonical",
-                "language",
-                "translation",
-                "canonical_blob_sha",
-            }
-            if not isinstance(entry, dict) or set(entry) != required:
-                raise TranslationPublicationError(
-                    f"{field} must contain canonical, language, translation, "
-                    "and canonical_blob_sha"
-                )
-            canonical = _safe_path(entry["canonical"], f"{field}.canonical")
-            translation = _safe_path(entry["translation"], f"{field}.translation")
-            language = entry["language"]
-            blob_sha = entry["canonical_blob_sha"]
-            if (
-                not isinstance(language, str)
-                or not LANGUAGE.fullmatch(language)
-                or language == "en"
-            ):
-                raise TranslationPublicationError(
-                    f"{field}.language must be a non-English lowercase language tag"
-                )
-            if not isinstance(blob_sha, str) or not BLOB_SHA.fullmatch(blob_sha):
-                raise TranslationPublicationError(
-                    f"{field}.canonical_blob_sha must be a full lowercase Git blob SHA"
-                )
-            if canonical.suffix.lower() != ".md" or translation.suffix.lower() != ".md":
-                raise TranslationPublicationError(
-                    f"{field} canonical and translation paths must be Markdown"
-                )
+        for entry in manifest.for_surface("reader"):
+            field = f"{publication}.translations[{entry.index}]"
+            canonical = entry.canonical
+            translation = entry.translation
+            language = entry.language
+            blob_sha = entry.canonical_blob_sha
+
             document_id = source_to_document.get(canonical)
             if document_id is None:
                 raise TranslationPublicationError(
@@ -538,24 +448,6 @@ def _load_records(
                 raise TranslationPublicationError(
                     f"{field}.canonical is not included in the assembled site"
                 )
-            expected_translation = PurePosixPath("translations") / language / canonical
-            if translation != expected_translation:
-                raise TranslationPublicationError(
-                    f"{field}.translation must mirror canonical at {expected_translation}"
-                )
-
-            pair = (publication, language, canonical)
-            translation_key = (publication, translation)
-            if pair in seen_pairs:
-                raise TranslationPublicationError(
-                    f"duplicate translation pair: {publication} {language} {canonical}"
-                )
-            if translation_key in seen_translation_paths:
-                raise TranslationPublicationError(
-                    f"duplicate translation path: {publication} {translation}"
-                )
-            seen_pairs.add(pair)
-            seen_translation_paths.add(translation_key)
 
             canonical_file = _regular_file(root, canonical, f"{field}.canonical")
             source_file = _regular_file(root, translation, f"{field}.translation")
@@ -598,7 +490,7 @@ def publish_translations(
     included_pages: list[dict[str, Any]],
     docs_root: Path,
 ) -> list[TranslationRecord]:
-    """Publish only explicitly declared, synchronized provider translations."""
+    """Publish only explicitly declared, synchronized reader translations."""
     records, canonical_destinations, asset_routes = _load_records(
         publications,
         included_pages,
