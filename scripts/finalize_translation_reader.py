@@ -22,6 +22,7 @@ from site_chrome_locales import (
     SiteChromeLocaleError,
     language_label,
     load_site_chrome_locales,
+    locale_record,
     reader_strings,
     translation_status,
 )
@@ -197,12 +198,22 @@ def publication_label(publication: str) -> str:
     return " ".join(part.capitalize() for part in publication.split("-"))
 
 
-def switcher_link(label: str, target_url: str, language: str) -> str:
+def switcher_link(
+    label: str,
+    target_url: str,
+    target_language: str,
+    text_language: str | None = None,
+) -> str:
+    lang_attribute = (
+        f'lang="{html.escape(text_language, quote=True)}" '
+        if text_language is not None
+        else ""
+    )
     return (
         f'<a class="translation-switcher__link" '
         f'href="{html.escape(target_url, quote=True)}" '
-        f'lang="{html.escape(language, quote=True)}" '
-        f'hreflang="{html.escape(language, quote=True)}">'
+        f'{lang_attribute}'
+        f'hreflang="{html.escape(target_language, quote=True)}">'
         f"{html.escape(label)}</a>"
     )
 
@@ -219,7 +230,12 @@ def canonical_switcher_markup(
         f"{html.escape(strings['canonical_status'])}"
     )
     links = "".join(
-        switcher_link(language_label(chrome, language), target_url, language)
+        switcher_link(
+            language_label(chrome, language),
+            target_url,
+            language,
+            language,
+        )
         for language, target_url in translations
     )
     return (
@@ -241,7 +257,14 @@ def translated_switcher_markup(
         f"{html.escape(publication_label(publication))} · "
         f"{html.escape(translation_status(chrome, language))}"
     )
-    link = switcher_link(strings["canonical_link"], canonical_url, "en")
+    canonical_language = chrome["canonical_language"]
+    text_language = language if locale_record(chrome, language) is not None else canonical_language
+    link = switcher_link(
+        strings["canonical_link"],
+        canonical_url,
+        canonical_language,
+        text_language,
+    )
     return (
         '\n<div class="translation-switcher" role="group" '
         f'aria-label="{html.escape(strings["group_label"], quote=True)}">'
@@ -307,7 +330,7 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
         if (
             not isinstance(language, str)
             or not LANGUAGE_TAG.fullmatch(language)
-            or language == "en"
+            or language.split("-", 1)[0] == "en"
         ):
             raise TranslationReaderError(
                 f"{field}.language must be a non-English lowercase language tag"
@@ -356,6 +379,7 @@ def finalize(
     site_root = site_root.resolve(strict=True)
     pairs = load_pairs(map_path)
     chrome = load_site_chrome_locales(chrome_path)
+    canonical_language = chrome["canonical_language"]
 
     html_files = sorted(path for path in site_root.rglob("*.html") if path.is_file())
     if not html_files:
@@ -408,12 +432,16 @@ def finalize(
         )
 
     for canonical_path, publication, canonical_url, translations in resolved_groups:
-        alternates = [("en", canonical_url)] + [
+        alternates = [(canonical_language, canonical_url)] + [
             (pair["language"], translation_url)
             for pair, _, translation_url in translations
         ]
         canonical_source = updates[canonical_path]
-        canonical_source = replace_html_language(canonical_source, "en", canonical_path)
+        canonical_source = replace_html_language(
+            canonical_source,
+            canonical_language,
+            canonical_path,
+        )
         canonical_source = replace_alternates(
             canonical_source,
             alternates,
