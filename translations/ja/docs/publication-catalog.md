@@ -25,16 +25,17 @@ publication home は branch の `README.md` です。`docs/index.md` は guided 
 
 ## Markdown classification boundary
 
-catalog は allowlist ですが、allowlist に含まれないこと自体も意図的でなければなりません。そのため `docs/publication-classification.json` は、repository-source Markdown をすべて reader publication にすることなく、Composition maintenance boundary を閉じます。この classification contract は Composition-owned であり、generic Site publication protocol の一部ではありません。
+catalog は allowlist ですが、allowlist に含まれないこと自体も意図的でなければなりません。そのため Composition は、non-authoritative derivative のための `translations/manifest.json` と、明示的な非公開 exclusion のための `docs/publication-classification.json` という、2つの追加の Composition-owned declaration によって repository-source Markdown の maintenance boundary を閉じます。どちらの declaration も generic Site publication protocol の一部ではありません。
 
-Composition source tree 内のすべての Markdown file は、正確に次のどちらか1つでなければなりません。
+Composition source tree 内のすべての Markdown file は、正確に次のいずれか1つでなければなりません。
 
 1. **published** — source path が `docs/publication-catalog.json` の `documents` に現れる。
-2. **explicitly excluded** — source path が `docs/publication-classification.json` に、空でない maintenance reason とともに現れる。
+2. **translation-declared** — path が `translations/manifest.json` の `translation` として現れ、canonical document の non-authoritative derivative として宣言される。
+3. **explicitly excluded** — source path が `docs/publication-classification.json` に、空でない maintenance reason とともに現れる。
 
-Git metadata、virtual environment、tool cache、一時的な `.site-publication-protocol` checkout などの local execution-state directory は repository source ではなく discovery から除外されます。したがって `docs/guides/*.md` のような新しい Markdown class、新しい component-local documentation subtree、新しい top-level Markdown file を導入すると、その publication intent が明示的に classification されるまで validation は失敗します。
+Git metadata、virtual environment、tool cache、一時的な `.site-publication-protocol` checkout などの local execution-state directory は repository source ではなく discovery から除外されます。したがって `docs/guides/*.md` のような新しい Markdown class、新しい component-local documentation subtree、新しい top-level Markdown file、または manifest に未宣言の translation を導入すると、その publication intent が明示的に classification されるまで validation は失敗します。
 
-exclusion が既知の reader-facing requirement を無効にすることはありません。既存の Composition-owned reader-coverage rule は引き続き、provider root、current architecture、統合された authority-migration history、schema / catalog guide、production component が宣言する reader material が公開されることを要求します。同じ path を published と excluded の両方にすることもできません。
+exclusion が既知の reader-facing requirement を無効にすることはありません。既存の Composition-owned reader-coverage rule は引き続き、provider root、current architecture、統合された authority-migration history、schema / catalog guide、production component が宣言する reader material が公開されることを要求します。published、translation-declared、explicitly excluded の3つの Markdown class は互いに重複できません。
 
 現在の explicit exclusion は次のとおりです。
 
@@ -44,9 +45,10 @@ exclusion が既知の reader-facing requirement を無効にすることはあ�
 - repository-level immutable installer publication guidance (`release/README.md`)。これは operational release identity を文書化しますが、reader-facing installation guidance は Site が別途 assemble します。
 - repository-facing Composition skill instruction (`skills/composition/SKILL.md`)。これは canonical reader documentation ではなく executable skill material として配布されます。
 - provider-owned translation maintenance guidance (`translations/README.md`)。
-- `translations/ja/` 以下の provider-owned かつ non-authoritative な Japanese reader derivative。各 derivative は canonical publication catalog ではなく、explicit translation metadata を通じてのみ公開されます。
 
-classification file は Composition maintenance metadata であり、Site publication asset ではありません。また publication-catalog schema version 3 を変更するものでもありません。
+provider-owned translation derivative は exclusion list に重複して記載しません。その path の classification authority は `translations/manifest.json` だけです。translation validator は別途、canonical path の mirror、current canonical blob identity、notice requirement、surface eligibility、すべての translation Markdown が manifest に宣言されていることを検証します。
+
+classification file と translation manifest は Composition maintenance metadata であり、Site publication asset ではありません。また publication-catalog schema version 3 を変更するものでもありません。
 
 ## Machine-readable boundary
 
@@ -99,6 +101,6 @@ Site-owned step は generic schema-v3 publication protocol を validation しま
 
 pin update は意図的かつ review 済みでなければなりません。Composition CI は今後も40文字の full commit SHA を使い、`site`、tag、pull-request merge ref を暗黙に追従してはなりません。
 
-Composition-specific validation は、undeclared reader documentation、unclassified repository Markdown、published / excluded classification overlap、stale Markdown exclusion、missing production descriptor / schema / recipe、malformed Composition glossary record、retired copyable-template model を再導入する obsolete glossary ID、inconsistent immutable installer release identity に対して引き続き fail closed します。unsafe path、symbolic-link traversal、duplicate ID / source / destination、invalid home declaration、asset tree 内に隠された Markdown などの generic catalog failure は、Composition layer が実行される前に Site-owned protocol が拒否します。
+Composition-specific validation は、undeclared reader documentation、unclassified repository Markdown、published / translation-declared / explicitly-excluded Markdown class 間の overlap、stale Markdown exclusion、missing または unsafe な translation declaration、missing production descriptor / schema / recipe、malformed Composition glossary record、retired copyable-template model を再導入する obsolete glossary ID、inconsistent immutable installer release identity に対して引き続き fail closed します。unsafe path、symbolic-link traversal、duplicate ID / source / destination、invalid home declaration、asset tree 内に隠された Markdown などの generic catalog failure は、Composition layer が実行される前に Site-owned protocol が拒否します。
 
 Site PR #270 は、review 済みの正確な Composition revision を lock して利用することで publication cutover を完了しました。その後の Composition publication change では、mutable branch reference ではなく、明示的に review された Site pin-forward が必要です。

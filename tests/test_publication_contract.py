@@ -120,22 +120,24 @@ class CompositionPublicationContractTests(unittest.TestCase):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
         exclusions = validator.parse_publication_classification()
+        translations = validator.parse_translation_classification()
         validator.validate_composition_catalog_declarations(catalog)
         validator.validate_reader_coverage(catalog)
-        validator.validate_markdown_classification(catalog, exclusions)
+        validator.validate_markdown_classification(catalog, exclusions, translations)
         validator.validate_machine_coverage(catalog)
         self.assertEqual(catalog.glossary_source.as_posix(), "docs/glossary.yml")
 
-    def test_all_repository_markdown_is_published_or_explicitly_excluded(self):
+    def test_all_repository_markdown_is_classified_once(self):
         validator = load_validator()
         catalog = validator.load_publication_catalog()
         exclusions = validator.parse_publication_classification()
+        translations = validator.parse_translation_classification()
         published = {entry.source for entry in catalog.documents}
         discovered = validator.discover_repository_markdown()
         translation_manifest = json.loads(
             (ROOT / "translations" / "manifest.json").read_text(encoding="utf-8")
         )
-        translation_exclusions = {
+        manifest_translations = {
             PurePosixPath(entry["translation"])
             for entry in translation_manifest["translations"]
         }
@@ -147,12 +149,15 @@ class CompositionPublicationContractTests(unittest.TestCase):
             PurePosixPath("release/README.md"),
             PurePosixPath("skills/composition/SKILL.md"),
             PurePosixPath("translations/README.md"),
-        } | translation_exclusions
+        }
 
-        self.assertEqual(published | set(exclusions), discovered)
+        self.assertEqual(published | set(exclusions) | translations, discovered)
         self.assertFalse(published & set(exclusions))
+        self.assertFalse(published & translations)
+        self.assertFalse(set(exclusions) & translations)
         self.assertEqual(set(exclusions), expected_exclusions)
         self.assertTrue(all(reason.strip() for reason in exclusions.values()))
+        self.assertEqual(translations, manifest_translations)
 
     def test_only_root_execution_state_directories_are_ignored(self):
         validator = load_validator()
@@ -192,7 +197,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
         published = {PurePosixPath("README.md")}
         discovered = published | {PurePosixPath("docs/guides/new-guide.md")}
         with self.assertRaises(validator.PublicationError) as raised:
-            validator.validate_markdown_partition(published, set(), discovered)
+            validator.validate_markdown_partition(published, set(), set(), discovered)
         self.assertIn("lacks explicit publication classification", str(raised.exception))
         self.assertIn("docs/guides/new-guide.md", str(raised.exception))
 
@@ -200,8 +205,25 @@ class CompositionPublicationContractTests(unittest.TestCase):
         validator = load_validator()
         source = PurePosixPath("README.md")
         with self.assertRaises(validator.PublicationError) as raised:
-            validator.validate_markdown_partition({source}, {source}, {source})
+            validator.validate_markdown_partition({source}, {source}, set(), {source})
         self.assertIn("both published and explicitly excluded", str(raised.exception))
+
+    def test_markdown_cannot_be_both_published_and_translation_declared(self):
+        validator = load_validator()
+        source = PurePosixPath("README.md")
+        with self.assertRaises(validator.PublicationError) as raised:
+            validator.validate_markdown_partition({source}, set(), {source}, {source})
+        self.assertIn("both published and translation-declared", str(raised.exception))
+
+    def test_markdown_cannot_be_both_excluded_and_translation_declared(self):
+        validator = load_validator()
+        source = PurePosixPath("translations/ja/README.md")
+        with self.assertRaises(validator.PublicationError) as raised:
+            validator.validate_markdown_partition(set(), {source}, {source}, {source})
+        self.assertIn(
+            "both explicitly excluded and translation-declared",
+            str(raised.exception),
+        )
 
     def test_classification_cannot_reference_undiscovered_markdown(self):
         validator = load_validator()
@@ -209,6 +231,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             validator.validate_markdown_partition(
                 {PurePosixPath("README.md")},
                 {PurePosixPath("removed/README.md")},
+                set(),
                 {PurePosixPath("README.md")},
             )
         self.assertIn("references undiscovered source", str(raised.exception))
