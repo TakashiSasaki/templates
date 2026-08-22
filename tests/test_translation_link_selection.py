@@ -158,6 +158,52 @@ class TranslationLinkSelectionTests(unittest.TestCase):
                 japanese.read_text(encoding="utf-8"),
             )
 
+    def test_conflicting_current_route_mapping_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            docs = Path(directory) / "docs"
+            docs.mkdir()
+            records = [
+                record("ja", "policy/cli.md", "ja/policy/cli.md"),
+                record("ja", "policy/cli.md", "ja/policy/cli-v2.md"),
+            ]
+
+            with self.assertRaisesRegex(
+                TranslationLinkSelectionError,
+                "conflicting localized route",
+            ):
+                rewrite_current_localized_links(records, docs)
+
+    def test_translation_destination_must_remain_inside_docs_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            docs = base / "docs"
+            docs.mkdir()
+            outside = base / "outside.md"
+            outside.write_text("# outside\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                TranslationLinkSelectionError,
+                "translation destination escapes documentation root",
+            ):
+                rewrite_current_localized_links(
+                    [record("ja", "index.md", "../outside.md")],
+                    docs,
+                )
+
+    def test_published_translation_must_exist_as_regular_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            docs = Path(directory) / "docs"
+            docs.mkdir()
+
+            with self.assertRaisesRegex(
+                TranslationLinkSelectionError,
+                "published translation must be a regular file",
+            ):
+                rewrite_current_localized_links(
+                    [record("ja", "index.md", "ja/index.md")],
+                    docs,
+                )
+
     def test_site_translation_sources_keep_cross_authority_routes_canonical(self) -> None:
         landing = (ROOT / "translations" / "ja" / "docs" / "landing.md").read_text(
             encoding="utf-8"
