@@ -7,6 +7,11 @@ import unittest
 from pathlib import Path, PurePosixPath
 
 from scripts import publish_translations as translation_publisher
+from scripts.assemble_publications import load_manifest, pages
+from scripts.assemble_publications_v3 import load_catalog
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def blob_sha(data: bytes) -> str:
@@ -65,7 +70,7 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
                     "home": False,
                 },
             }
-            pages = [
+            pages_fixture = [
                 {
                     "publication": "composition",
                     "document": "overview",
@@ -82,7 +87,7 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
 
             records = translation_publisher.publish_translations(
                 {"composition": (provider, documents, [])},
-                pages,
+                pages_fixture,
                 output,
             )
 
@@ -177,7 +182,7 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
                     "home": False,
                 },
             }
-            pages = [
+            pages_fixture = [
                 {
                     "publication": "composition",
                     "document": "documentation-index",
@@ -200,7 +205,7 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
 
             records = translation_publisher.publish_translations(
                 {"composition": (provider, documents, [])},
-                pages,
+                pages_fixture,
                 output,
             )
 
@@ -212,6 +217,48 @@ class CompositionTranslationReaderIntegrationTests(unittest.TestCase):
             self.assertIn(
                 "[Composer リファレンス](../../../composition/reference/composer.md)",
                 text,
+            )
+
+    def test_locked_provider_publishes_japanese_composer_reference(self) -> None:
+        provider = ROOT.parent / "composition-source"
+        if not provider.is_dir():
+            self.skipTest("Composition provider checkout is only available in Pages CI")
+
+        documents, assets = load_catalog("composition", provider.resolve(strict=True))
+        _, navigation = load_manifest(ROOT / "site-manifest.json")
+        composition_pages = [
+            page for page in pages(navigation) if page["publication"] == "composition"
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            docs_root = Path(directory) / "docs"
+            records = translation_publisher.publish_translations(
+                {"composition": (provider, documents, assets)},
+                composition_pages,
+                docs_root,
+                skip_stale=True,
+            )
+
+            composer_record = next(
+                record
+                for record in records
+                if record.canonical_source
+                == PurePosixPath("docs/reference/composer.md")
+            )
+            self.assertEqual(composer_record.language, "ja")
+            self.assertEqual(
+                composer_record.translation_destination,
+                PurePosixPath("ja/composition/reference/composer.md"),
+            )
+            composer = docs_root / "ja" / "composition" / "reference" / "composer.md"
+            self.assertTrue(composer.is_file())
+            self.assertIn("# Composer リファレンス", composer.read_text(encoding="utf-8"))
+
+            index = docs_root / "ja" / "composition" / "docs" / "index.md"
+            self.assertTrue(index.is_file())
+            self.assertIn(
+                "[Composer リファレンス](../reference/composer.md)",
+                index.read_text(encoding="utf-8"),
             )
 
 
