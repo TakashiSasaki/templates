@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Load and validate the canonical schema-v2 translation manifest contract."""
+"""Load, validate, and optionally bind schema-v2 translation manifests."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -30,9 +31,22 @@ class TranslationEntry:
     translation: PurePosixPath
     canonical_blob_sha: str
     surfaces: tuple[str, ...]
+    current_blob_sha: str | None = None
 
     def supports(self, surface: str) -> bool:
         return surface in self.surfaces
+
+    @property
+    def freshness(self) -> str:
+        if self.current_blob_sha is None:
+            return "unchecked"
+        if self.current_blob_sha == self.canonical_blob_sha:
+            return "current"
+        return "stale"
+
+    @property
+    def is_current(self) -> bool:
+        return self.freshness == "current"
 
 
 @dataclass(frozen=True)
@@ -96,8 +110,50 @@ def _surfaces(value: Any, field: str) -> tuple[str, ...]:
     return tuple(result)
 
 
-def load_translation_manifest(path: Path, label: str) -> TranslationManifest:
-    """Load one provider-owned translation manifest using schema version 2 only."""
+def _regular_file(root: Path, relative: PurePosixPath, field: str) -> Path:
+    try:
+        root = root.resolve(strict=True)
+    except OSError as exc:
+        raise TranslationManifestError(f"unable to resolve publication root {root}: {exc}") from exc
+    current = root
+    for part in relative.parts:
+        current /= part
+        try:
+            current.relative_to(root)
+        except ValueError as exc:
+            raise TranslationManifestError(
+                f"{field} must remain within publication root: {relative}"
+            ) from exc
+        if current.is_symlink():
+            raise TranslationManifestError(
+                f"{field} must not traverse a symlink: {relative}"
+            )
+    if not current.is_file():
+        raise TranslationManifestError(
+            f"{field} must be an existing regular file: {relative}"
+        )
+    return current
+
+
+def git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
+
+
+def load_translation_manifest(
+    path: Path,
+    label: str,
+    *,
+    publication_root: Path | None = None,
+) -> TranslationManifest:
+    """Load schema v2 and optionally bind entries to current provider bytes.
+
+    When ``publication_root`` is supplied, every declared canonical and translation
+    path must resolve to a regular file without symlink traversal. Each entry then
+    records the current canonical Git blob identity, allowing consumers to treat a
+    stale derivative as unavailable without weakening structural validation.
+    """
     data = _read_json(path, label)
     if set(data) != TOP_LEVEL_KEYS:
         raise TranslationManifestError(f"{label} has unsupported fields")
@@ -153,6 +209,26 @@ def load_translation_manifest(path: Path, label: str) -> TranslationManifest:
             raise TranslationManifestError(f"duplicate translation path: {translation}")
         seen_pairs.add(pair)
         seen_paths.add(translation)
+
+        current_blob_sha: str | None = None
+        if publication_root is not None:
+            canonical_file = _regular_file(
+                publication_root,
+                canonical,
+                f"{field}.canonical",
+            )
+            _regular_file(
+                publication_root,
+                translation,
+                f"{field}.translation",
+            )
+            try:
+                current_blob_sha = git_blob_sha(canonical_file)
+            except OSError as exc:
+                raise TranslationManifestError(
+                    f"unable to hash {field}.canonical {canonical}: {exc}"
+                ) from exc
+
         entries.append(
             TranslationEntry(
                 index=index,
@@ -161,6 +237,7 @@ def load_translation_manifest(path: Path, label: str) -> TranslationManifest:
                 translation=translation,
                 canonical_blob_sha=blob_sha,
                 surfaces=declared_surfaces,
+                current_blob_sha=current_blob_sha,
             )
         )
 

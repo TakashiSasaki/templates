@@ -169,7 +169,11 @@ def collect_provider_overlays(
         return []
     label = f"{provider} translation manifest"
     try:
-        manifest = load_translation_manifest(manifest_path, label)
+        manifest = load_translation_manifest(
+            manifest_path,
+            label,
+            publication_root=root,
+        )
     except TranslationManifestError as exc:
         raise IndexNavigationLocaleError(str(exc)) from exc
 
@@ -189,7 +193,6 @@ def collect_provider_overlays(
         canonical = entry.canonical
         translation = entry.translation
         language = entry.language
-        blob_sha = entry.canonical_blob_sha
         if canonical.name != "index.md":
             raise IndexNavigationLocaleError(
                 f"{field}.canonical must be an index.md document for guided use"
@@ -200,13 +203,19 @@ def collect_provider_overlays(
             raise IndexNavigationLocaleError(
                 f"{field}.canonical is not reachable in the canonical navigation graph"
             )
-        if canonical_index.get("object_id") != blob_sha:
+        if entry.current_blob_sha is None:
             raise IndexNavigationLocaleError(
-                f"stale guided translation for {provider}:{canonical}: expected graph blob "
-                f"{canonical_index.get('object_id')}, manifest records {blob_sha}"
+                f"{field}.canonical freshness was not bound to provider bytes"
+            )
+        if canonical_index.get("object_id") != entry.current_blob_sha:
+            raise IndexNavigationLocaleError(
+                f"canonical graph blob differs from provider bytes for {provider}:{canonical}: "
+                f"graph {canonical_index.get('object_id')}, current {entry.current_blob_sha}"
             )
 
         translation_file = regular_file(root, translation, f"{field}.translation")
+        if not entry.is_current:
+            continue
         try:
             translated_text = translation_file.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:

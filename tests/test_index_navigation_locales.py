@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -10,7 +11,15 @@ from scripts.generate_index_navigation_locales import (
     generate_locale_overlays,
 )
 
-SHA = "a" * 40
+CANONICAL_INDEX = b"# Policy navigation\n"
+
+
+def blob_sha(data: bytes) -> str:
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()  # noqa: S324 - Git object identity
+
+
+SHA = blob_sha(CANONICAL_INDEX)
 
 
 def graph() -> dict[str, object]:
@@ -59,11 +68,13 @@ def graph() -> dict[str, object]:
     }
 
 
-def prepare_roots(base: Path, *, target: str = "overview.md", blob_sha: str = SHA) -> dict[str, Path]:
+def prepare_roots(base: Path, *, target: str = "overview.md", blob_sha_value: str = SHA) -> dict[str, Path]:
     roots = {name: base / name for name in ("skill", "policy", "webapp")}
     for root in roots.values():
         root.mkdir()
     policy = roots["policy"]
+    (policy / "docs").mkdir()
+    (policy / "docs" / "index.md").write_bytes(CANONICAL_INDEX)
     (policy / "translations" / "ja" / "docs").mkdir(parents=True)
     (policy / "translations" / "ja" / "docs" / "index.md").write_text(
         "# ポリシーナビゲーション\n\n"
@@ -80,7 +91,7 @@ def prepare_roots(base: Path, *, target: str = "overview.md", blob_sha: str = SH
                 "canonical": "docs/index.md",
                 "language": "ja",
                 "translation": "translations/ja/docs/index.md",
-                "canonical_blob_sha": blob_sha,
+                "canonical_blob_sha": blob_sha_value,
                 "surfaces": ["guided"],
             }
         ],
@@ -113,13 +124,25 @@ class IndexNavigationLocaleTests(unittest.TestCase):
             with self.assertRaisesRegex(IndexNavigationLocaleError, "target differs"):
                 generate_locale_overlays(graph(), roots)
 
-    def test_stale_blob_binding_is_rejected(self) -> None:
+    def test_stale_blob_binding_is_omitted_without_invalidating_canonical_graph(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            roots = prepare_roots(Path(directory), blob_sha="b" * 40)
-            with self.assertRaisesRegex(IndexNavigationLocaleError, "stale guided translation"):
-                generate_locale_overlays(graph(), roots)
+            roots = prepare_roots(Path(directory), blob_sha_value="b" * 40)
+            payload = generate_locale_overlays(graph(), roots)
+            self.assertEqual(payload["locales"], [])
 
-    def test_guided_canonical_must_be_reachable(self) -> None:
+    def test_graph_blob_must_still_match_current_provider_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            roots = prepare_roots(Path(directory))
+            broken = graph()
+            policy = broken["providers"][1]
+            policy["indexes"][0]["object_id"] = "b" * 40
+            with self.assertRaisesRegex(
+                IndexNavigationLocaleError,
+                "canonical graph blob differs from provider bytes",
+            ):
+                generate_locale_overlays(broken, roots)
+
+    def test_guided_canonical_must_be_reachable_even_when_declared(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             roots = prepare_roots(Path(directory))
             manifest_path = roots["policy"] / "translations" / "manifest.json"
@@ -127,6 +150,11 @@ class IndexNavigationLocaleTests(unittest.TestCase):
             entry = manifest["translations"][0]
             entry["canonical"] = "docs/hidden/index.md"
             entry["translation"] = "translations/ja/docs/hidden/index.md"
+            hidden_canonical = roots["policy"] / "docs" / "hidden"
+            hidden_canonical.mkdir()
+            hidden_canonical_bytes = b"# Hidden\n"
+            (hidden_canonical / "index.md").write_bytes(hidden_canonical_bytes)
+            entry["canonical_blob_sha"] = blob_sha(hidden_canonical_bytes)
             hidden = roots["policy"] / "translations" / "ja" / "docs" / "hidden"
             hidden.mkdir()
             (hidden / "index.md").write_text(
