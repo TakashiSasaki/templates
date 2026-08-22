@@ -19,6 +19,12 @@ Provider-owned translations remain in their provider histories. Do not copy Poli
 
 ## Cross-publication links
 
-The translation publisher rewrites relative links only when their canonical target belongs to the same publication. A Site-owned reader index can also link to documents whose canonical source is owned by another publication, such as Composition capability or lifecycle documents. Those cross-publication links are deliberately written as root-relative canonical Site destinations in the Site-owned translation.
+Translation sources use canonical reader destinations for links that cross publication-authority boundaries. For example, a Site-owned Japanese index may link to a Composition-owned page with a root-relative canonical route such as `/composition/` or `/capabilities/runtime/`. Translation sources must not hard-code `/ja/` provider routes, because a provider translation can later become stale or unavailable.
 
-This is a conservative availability rule: the link always reaches the valid English canonical destination even when the provider translation is missing or stale. It does mean that a Site-owned Japanese page does not currently switch such a link to a provider-owned `/ja/` destination when that provider translation happens to be available. Availability-aware cross-publication localized link selection requires an explicit cross-publication destination mapping and is outside the current Site-owned translation contract; it must not be approximated by hard-coding `/ja/` links that can become unavailable when a provider translation goes stale.
+After all publication manifests have been resolved at their reviewed revisions, the integrated Site translation publisher builds one availability map from the translations that are both current and actually published. Root-relative reader links in translated pages are then selected against that map across publication boundaries:
+
+- when the target has a current translation in the same language, the generated translated page links to that localized reader route;
+- when the target translation is missing or stale, the canonical root-relative route remains unchanged;
+- external URLs, assets, fragments, code fences, and already-localized routes are not inferred or rewritten merely from path similarity.
+
+This selection is derived from the assembled canonical and translated destinations. It does not create a second translation authority and does not require Site-owned copies of provider translations. Relative links whose canonical source belongs to the same publication continue to be resolved by the provider translation publisher before this cross-publication availability pass.
