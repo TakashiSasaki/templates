@@ -56,6 +56,20 @@ class ReaderNavigationLocaleRejectionTests(unittest.TestCase):
             ):
                 load_overlays(path, [{"title": "Home"}])
 
+    def test_non_array_navigation_children_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "locales.json"
+            self.write(path, "ja", "ホーム")
+
+            with self.assertRaisesRegex(
+                ReaderNavigationLocaleError,
+                "canonical navigation children must be an array",
+            ):
+                load_overlays(
+                    path,
+                    [{"title": "Home", "children": "not-a-list"}],  # type: ignore[list-item]
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
