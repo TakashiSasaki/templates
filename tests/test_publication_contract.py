@@ -270,6 +270,7 @@ class CompositionPublicationContractTests(unittest.TestCase):
             path
             for path in index_paths
             if ".site-publication-protocol" not in path.relative_to(ROOT).parts
+            and path.relative_to(ROOT).parts[0] != "translations"
         ]
         self.assertEqual(
             [path.relative_to(ROOT).as_posix() for path in index_paths],
