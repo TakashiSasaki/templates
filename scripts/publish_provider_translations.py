@@ -19,6 +19,7 @@ from scripts.translation_coverage import (
     build_reader_coverage,
     write_coverage,
 )
+from scripts.translation_link_selection import rewrite_current_localized_links
 from scripts.translation_reader_metadata import exclude_translation_from_search
 
 
@@ -75,6 +76,7 @@ def main() -> int:
             docs_root,
             skip_stale=True,
         )
+        localized_link_count = rewrite_current_localized_links(records, docs_root)
         for record in records:
             exclude_translation_from_search(
                 docs_root.joinpath(*record.translation_destination.parts)
@@ -89,6 +91,7 @@ def main() -> int:
             coverage,
         )
         print(f"translations published: {len(records)}")
+        print(f"localized reader links selected: {localized_link_count}")
         print(
             "reader translation coverage: "
             f"current={coverage['summary']['current']} "
