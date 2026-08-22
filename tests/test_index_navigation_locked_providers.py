@@ -25,6 +25,39 @@ POLICY_LAYER_INDEXES = {
 }
 
 
+def checked_out_providers(test_case: unittest.TestCase) -> dict[str, Path]:
+    providers = {name: ROOT.parent / f"{name}-source" for name in PROVIDER_ORDER}
+    missing = [name for name, path in providers.items() if not path.is_dir()]
+    if missing:
+        test_case.skipTest(
+            "provider checkouts are not available outside the Pages CI layout: "
+            + ", ".join(missing)
+        )
+    return providers
+
+
+def run_navigation(
+    command_name: str,
+    providers: dict[str, Path],
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        sys.executable,
+        str(ROOT / "scripts" / "run_composition_navigation.py"),
+        command_name,
+        *arguments,
+    ]
+    for name in PROVIDER_ORDER:
+        command.extend(["--provider", f"{name}={providers[name]}"])
+    return subprocess.run(
+        command,
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 class InlineCodeDescriptionTests(unittest.TestCase):
     def test_code_spans_are_rendered_as_literal_description_text(self) -> None:
         parsed = parse_index(
@@ -100,36 +133,17 @@ class InlineCodeDescriptionTests(unittest.TestCase):
 
 class LockedProviderGraphTests(unittest.TestCase):
     def test_checked_out_provider_revisions_generate_graph_end_to_end(self) -> None:
-        providers = {
-            name: ROOT.parent / f"{name}-source"
-            for name in PROVIDER_ORDER
-        }
-        missing = [name for name, path in providers.items() if not path.is_dir()]
-        if missing:
-            self.skipTest(
-                "provider checkouts are not available outside the Pages CI layout: "
-                + ", ".join(missing)
-            )
+        providers = checked_out_providers(self)
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "graph.json"
-            command = [
-                sys.executable,
-                str(ROOT / "scripts" / "run_composition_navigation.py"),
+            result = run_navigation(
                 "graph",
+                providers,
                 "--repository",
                 REPOSITORY,
                 "--output",
                 str(output),
-            ]
-            for name in PROVIDER_ORDER:
-                command.extend(["--provider", f"{name}={providers[name]}"])
-            result = subprocess.run(
-                command,
-                cwd=ROOT,
-                text=True,
-                capture_output=True,
-                check=False,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             graph = json.loads(output.read_text(encoding="utf-8"))
@@ -169,6 +183,56 @@ class LockedProviderGraphTests(unittest.TestCase):
                 self.assertTrue(path.is_file())
             with self.subTest(policy_overview_target=target):
                 self.assertIn(f"]({target})", overview)
+
+    def test_checked_out_composition_translation_generates_guided_overlay(self) -> None:
+        providers = checked_out_providers(self)
+
+        with tempfile.TemporaryDirectory() as directory:
+            graph_path = Path(directory) / "graph.json"
+            locale_path = Path(directory) / "locales.json"
+            graph_result = run_navigation(
+                "graph",
+                providers,
+                "--repository",
+                REPOSITORY,
+                "--output",
+                str(graph_path),
+            )
+            self.assertEqual(
+                graph_result.returncode,
+                0,
+                graph_result.stdout + graph_result.stderr,
+            )
+            locale_result = run_navigation(
+                "locales",
+                providers,
+                "--graph",
+                str(graph_path),
+                "--output",
+                str(locale_path),
+            )
+            self.assertEqual(
+                locale_result.returncode,
+                0,
+                locale_result.stdout + locale_result.stderr,
+            )
+            payload = json.loads(locale_path.read_text(encoding="utf-8"))
+
+        japanese = next(locale for locale in payload["locales"] if locale["language"] == "ja")
+        composition = next(
+            provider
+            for provider in japanese["providers"]
+            if provider["name"] == "composition"
+        )
+        overlay = next(
+            index for index in composition["indexes"] if index["path"] == "docs/index.md"
+        )
+        self.assertEqual(composition["revision"], checked_revision(providers["composition"]))
+        self.assertEqual(overlay["title"], "Composition ドキュメント索引")
+        self.assertEqual(overlay["sections"][0]["title"], "ここから始める")
+        self.assertEqual(overlay["links"][0]["label"], "Composition の利用方法")
+        self.assertNotIn("target", overlay["links"][0])
+        self.assertNotIn("raw_target", overlay["links"][0])
 
 
 if __name__ == "__main__":
