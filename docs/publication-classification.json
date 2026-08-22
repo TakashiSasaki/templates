@@ -7,11 +7,11 @@
     },
     {
       "source": "docs/migrations/pr2-skill-capabilities.md",
-      "reason": "Stage-specific authority-migration provenance is retained for repository maintainers but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
+      "reason": "Stage-specific authority-migration provenance is retained for Composition authority maintenance but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
     },
     {
       "source": "docs/migrations/pr3-webapp-lifecycle.md",
-      "reason": "Stage-specific authority-migration provenance is retained for repository maintainers but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
+      "reason": "Stage-specific authority-migration provenance is retained for Composition authority maintenance but is redundant with the consolidated migration history and immutable PR record, so it is not part of the reader-facing publication."
     },
     {
       "source": "examples/README.md",
