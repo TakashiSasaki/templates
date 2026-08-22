@@ -38,6 +38,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/index.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/index.md",
+      "canonical_blob_sha": "cc8b52814df780c2bb0f6b5920c1898ef9d2bf21",
+      "surfaces": ["reader", "guided"]
+    },
+    {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
