@@ -31,6 +31,13 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/architecture/catalog.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/architecture/catalog.md",
+      "canonical_blob_sha": "415766a7edadf7e7c6e2d0966505cb37e034360e",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/architecture/composition-model.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composition-model.md",
