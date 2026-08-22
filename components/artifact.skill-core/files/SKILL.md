@@ -151,7 +151,7 @@ Document bounded recovery behavior, when to stop, and what must be reported rath
 
 - TODO
 
-## Maintainer profile selection
+## Skill profile selection
 
 Skill profiles describe Skill-specific resource structure only. Record exactly one machine-readable line:
 
