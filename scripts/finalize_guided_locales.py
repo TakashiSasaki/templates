@@ -32,7 +32,6 @@ try:
         TranslationReaderError,
         html_public_url,
         inject_switcher,
-        language_label,
         replace_alternates,
         replace_html_language,
     )
@@ -55,13 +54,15 @@ except ModuleNotFoundError:
         TranslationReaderError,
         html_public_url,
         inject_switcher,
-        language_label,
         replace_alternates,
         replace_html_language,
     )
 
 HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
+GUIDED_LANGUAGE_LABELS = {
+    "ja": "日本語",
+}
 LOCALIZED_PAGE_PATH_PATTERN = re.compile(
     r'<p class="page-path"><span class="page-path-label">(?P<label>[^<]+)</span>\s*'
     r'<code>(?P<path>[^<]+)</code></p>'
@@ -80,6 +81,11 @@ STYLE = """<style id="guided-translation-reader-style">
 
 class GuidedLocaleFinalizeError(RuntimeError):
     """Raised when localized guided page metadata is malformed or ambiguous."""
+
+
+def guided_language_label(language: str) -> str:
+    primary = language.split("-", 1)[0]
+    return GUIDED_LANGUAGE_LABELS.get(primary, language)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -185,7 +191,7 @@ def switch_link(label: str, target: str, language: str) -> str:
 
 def canonical_markup(translations: list[tuple[str, str]]) -> str:
     links = "".join(
-        switch_link(language_label(language), target, language)
+        switch_link(guided_language_label(language), target, language)
         for language, target in translations
     )
     return (
@@ -199,7 +205,7 @@ def translated_markup(language: str, canonical_url: str) -> str:
     status = (
         "Site · 日本語参考表示"
         if language.split("-", 1)[0] == "ja"
-        else f"Site · {language_label(language)} localized view · Non-authoritative"
+        else f"Site · {guided_language_label(language)} localized view · Non-authoritative"
     )
     return (
         '\n<div class="translation-switcher" role="group" aria-label="Navigation language">'
