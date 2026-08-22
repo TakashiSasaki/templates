@@ -38,6 +38,26 @@ class ReaderNavigationRuntimeContractTests(unittest.TestCase):
         self.assertIn("data-reader-nav-canonical-href", script)
         self.assertIn("restoreNavigation(nav);", script)
         self.assertIn('link.setAttribute("href", canonicalHref)', script)
+        label_branch = script.index('if (element.matches("label.md-nav__title"))')
+        ellipsis_branch = script.index(
+            'else if (element.classList.contains("md-ellipsis"))'
+        )
+        self.assertLess(label_branch, ellipsis_branch)
+
+    def test_async_navigation_rechecks_live_document_before_mutating(self) -> None:
+        script = self.script()
+        self.assertIn("let applyGeneration = 0;", script)
+        self.assertIn("const generation = ++applyGeneration;", script)
+        self.assertIn("if (generation !== applyGeneration)", script)
+        self.assertIn("const activeLanguage = currentLanguage();", script)
+        self.assertIn(
+            "const currentNavigations = document.querySelectorAll(PRIMARY_NAV_SELECTOR);",
+            script,
+        )
+        self.assertLess(
+            script.index("model = await loadRuntimeMap();"),
+            script.index("const activeLanguage = currentLanguage();"),
+        )
 
     def test_runtime_tracks_instant_navigation_and_fails_open_to_canonical_ui(self) -> None:
         script = self.script()
