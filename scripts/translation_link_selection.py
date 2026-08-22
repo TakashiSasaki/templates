@@ -103,6 +103,12 @@ def _rewrite_target(
         or parsed.path.startswith("//")
     ):
         return raw, False
+    # A translated document can have different heading text and therefore a
+    # different generated fragment identifier. Page-level translation
+    # availability is not proof that a canonical fragment exists on the
+    # localized page, so cross-page fragment links remain canonical.
+    if parsed.fragment:
+        return raw, False
     localized = routes.get((language, parsed.path))
     if localized is None:
         return raw, False
@@ -195,7 +201,8 @@ def rewrite_current_localized_links(
 
     ``records`` must contain only translations that are current and actually
     published. A canonical route therefore remains untouched when its localized
-    derivative is missing or stale.
+    derivative is missing or stale. Cross-page fragment links also remain
+    canonical because translated headings may generate different fragment IDs.
     """
     current = list(records)
     routes = _current_route_map(current)
