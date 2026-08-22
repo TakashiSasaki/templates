@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "canonical_language": "en",
+  "translations": [
+    {
+      "canonical": "docs/landing.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/landing.md",
+      "canonical_blob_sha": "7b6f093e6c64c0ec9533fc7f0eac295ba0652c9c",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/policy-composition-coexistence.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/policy-composition-coexistence.md",
+      "canonical_blob_sha": "db0b35a71c6b3bad9e89aab786461bf52c6d0a54",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/capabilities.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/capabilities.md",
+      "canonical_blob_sha": "a7aaf3a7a677bb36e668acfd3e25c1143fc34062",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/lifecycle.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/lifecycle.md",
+      "canonical_blob_sha": "aad3a912f61849e087ad30766ab31fe9a530b035",
+      "surfaces": ["reader"]
+    }
+  ]
+}
