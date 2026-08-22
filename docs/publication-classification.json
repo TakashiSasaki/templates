@@ -38,6 +38,14 @@
       "reason": "The Japanese production catalog guide is a non-authoritative derivative published only through explicit translation metadata, not through the canonical publication catalog."
     },
     {
+      "source": "translations/ja/components/artifact.skill-core/files/README.md",
+      "reason": "The Japanese Agent Skill overview is a non-authoritative derivative published only through explicit translation metadata, not through the canonical publication catalog."
+    },
+    {
+      "source": "translations/ja/components/artifact.webapp-core/files/README.md",
+      "reason": "The Japanese Web application overview is a non-authoritative derivative published only through explicit translation metadata, not through the canonical publication catalog."
+    },
+    {
       "source": "translations/ja/docs/publication-catalog.md",
       "reason": "The Japanese Composition publication-boundary guide is a non-authoritative derivative published only through explicit translation metadata, not through the canonical publication catalog."
     },
