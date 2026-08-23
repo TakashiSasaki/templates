@@ -63,14 +63,19 @@ class ComposerGeneratedMaterialTests(unittest.TestCase):
                 [entry["id"] for entry in manifest["contracts"]],
                 [
                     "implementation_evidence",
-                    "release_bundle",
-                    "release_evidence",
-                    "release_execution",
                     "routes",
                     "surfaces",
                     "ui_states",
                     "viewports",
                 ],
+            )
+            self.assertFalse(
+                {
+                    "release_bundle",
+                    "release_evidence",
+                    "release_execution",
+                }
+                & {entry["id"] for entry in manifest["contracts"]}
             )
 
             lock = json.loads(
