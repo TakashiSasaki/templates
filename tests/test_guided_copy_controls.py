@@ -10,6 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
+from site_chrome_locales import (  # noqa: E402
+    SITE_CHROME_LOCALES,
+    guided_copy_strings,
+    load_site_chrome_locales,
+)
 
 
 CSP = (
@@ -43,6 +48,11 @@ def guided_page(*, page_path: str, github_source: str | None = None) -> str:
 
 
 class GuidedCopyControlTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        chrome = load_site_chrome_locales(SITE_CHROME_LOCALES)
+        cls.english_copy = guided_copy_strings(chrome, "en")
+
     def test_index_page_gets_immutable_github_and_public_copy_targets(self) -> None:
         rendered = finalize_site_metadata.enhance_guided_copy_controls(
             guided_page(
@@ -51,15 +61,20 @@ class GuidedCopyControlTests(unittest.TestCase):
             ),
             PUBLIC_SITE_URL,
             Path("guided/skill/docs/reference/index.html"),
+            self.english_copy,
         )
 
         self.assertIn('data-copy-name="GitHub URL"', rendered)
         self.assertIn(f'data-copy-url="{GITHUB_SOURCE}"', rendered)
+        self.assertIn('data-copy-success="Copied GitHub URL"', rendered)
+        self.assertIn('data-copy-failure="Copy failed: GitHub URL"', rendered)
+        self.assertIn('>Copy GitHub URL</button>', rendered)
         self.assertIn('data-copy-name="public URL"', rendered)
         self.assertIn(
             'data-copy-url="https://templates.moukaeritai.work/guided/skill/docs/reference/"',
             rendered,
         )
+        self.assertIn('data-copy-success="Copied public URL"', rendered)
         self.assertIn("script-src 'self'", rendered)
         self.assertIn(
             '<script src="/javascripts/guided-copy.js" defer></script>',
@@ -71,6 +86,7 @@ class GuidedCopyControlTests(unittest.TestCase):
             guided_page(page_path="/guided/"),
             PUBLIC_SITE_URL,
             Path("guided/index.html"),
+            self.english_copy,
         )
 
         self.assertNotIn('data-copy-name="GitHub URL"', rendered)
@@ -103,6 +119,7 @@ class GuidedCopyControlTests(unittest.TestCase):
                 source,
                 PUBLIC_SITE_URL,
                 Path("guided/skill/docs/reference/index.html"),
+                self.english_copy,
             )
 
     def test_non_guided_page_path_is_rejected(self) -> None:
@@ -114,6 +131,7 @@ class GuidedCopyControlTests(unittest.TestCase):
                 guided_page(page_path="/other/"),
                 PUBLIC_SITE_URL,
                 Path("other/index.html"),
+                self.english_copy,
             )
 
     def test_normalization_enhances_guided_page_when_page_path_marker_exists(self) -> None:
@@ -133,16 +151,23 @@ class GuidedCopyControlTests(unittest.TestCase):
             self.assertEqual((canonical_count, pwa_count), (1, 1))
             rendered = page.read_text(encoding="utf-8")
             self.assertIn("Copy public URL", rendered)
+            self.assertIn('data-copy-success="Copied public URL"', rendered)
             self.assertNotIn("Copy GitHub URL", rendered)
             self.assertIn("script-src 'self'", rendered)
 
-    def test_copy_script_uses_clipboard_api_with_a_legacy_fallback(self) -> None:
+    def test_copy_script_uses_generated_status_strings_with_clipboard_fallback(self) -> None:
         script = (ROOT / "assets/javascripts/guided-copy.js").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("navigator.clipboard.writeText", script)
         self.assertIn('document.execCommand("copy")', script)
+        self.assertIn("button.dataset.copySuccess", script)
+        self.assertIn("button.dataset.copyFailure", script)
+        self.assertIn("status.textContent = successMessage", script)
+        self.assertIn("status.textContent = failureMessage", script)
+        self.assertNotIn("status.textContent = `Copied", script)
+        self.assertNotIn("status.textContent = `Copy failed", script)
         self.assertNotIn("onclick=", script.casefold())
         self.assertNotIn("innerHTML", script)
 
