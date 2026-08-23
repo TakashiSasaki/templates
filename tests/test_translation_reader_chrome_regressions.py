@@ -82,6 +82,18 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            glossary_inline = {
+                "eyebrow": "Glossary",
+                "close_definition": "Close definition",
+                "open_in_glossary": "Open in Glossary",
+                "definition_unavailable": "Definition unavailable.",
+                "cached_unverified": "Saved glossary data · latest version not verified.",
+                "external_term_prefix": "External term · curated by ",
+                "repository_term_prefix": "Templates-defined · ",
+                "data_unavailable": "Glossary data unavailable.",
+                "definition_load_failed": "Definition could not be loaded.",
+                "definition_not_found": "Definition could not be found.",
+            }
             registry = root / "custom-chrome.json"
             registry.write_text(
                 json.dumps(
@@ -107,6 +119,7 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                                     "reload": "Reload",
                                     "offline_unavailable": "Unavailable offline.",
                                 },
+                                "glossary_inline": glossary_inline,
                             },
                             {
                                 "language": "ja",
@@ -126,6 +139,7 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                                     "reload": "再読込",
                                     "offline_unavailable": "オフライン。",
                                 },
+                                "glossary_inline": glossary_inline,
                             },
                         ],
                     },
