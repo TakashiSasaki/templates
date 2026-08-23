@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from agent_policy import cli
 from agent_policy.cli import parser
 from agent_policy.commands import check, init, validate
 from agent_policy.manifest import build_manifest
@@ -81,6 +82,38 @@ def test_init_defaults_emit_schema_v2() -> None:
     }
     assert manifest["skills"] == {"enabled": ["validate-agent-policy"]}
     assert args.verification_command == "./scripts/verify.sh"
+
+
+def test_cli_defaults_fresh_and_migration_adoption_to_baseline_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observed: list[tuple[str, list[str]]] = []
+
+    monkeypatch.setattr(cli, "find_repository_root", lambda _value: tmp_path)
+    monkeypatch.setattr(cli, "resolve_toolchain_revision", lambda _value: TEST_REVISION)
+
+    def fake_init_run(_root: Path, _config: str, **kwargs: object) -> list[object]:
+        profiles = kwargs["profiles"]
+        assert isinstance(profiles, list)
+        observed.append(("fresh", profiles))
+        return []
+
+    def fake_prepare_run(_root: Path, _config: str, **kwargs: object) -> list[object]:
+        profiles = kwargs["profiles"]
+        assert isinstance(profiles, list)
+        observed.append(("migration", profiles))
+        return []
+
+    monkeypatch.setattr(cli.init_command, "run", fake_init_run)
+    monkeypatch.setattr(cli.onboard_command, "prepare_run", fake_prepare_run)
+
+    assert cli.main(["init"]) == 0
+    assert cli.main(["adopt", "prepare"]) == 0
+    assert observed == [
+        ("fresh", ["core", "security-baseline"]),
+        ("migration", ["core", "security-baseline"]),
+    ]
 
 
 def test_init_applies_custom_manifest_options(tmp_path: Path) -> None:
