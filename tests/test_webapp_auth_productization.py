@@ -78,6 +78,13 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         )
         self.write_json(routes_path, routes)
 
+    def target_locator(self, evidence_target: dict) -> str:
+        if evidence_target.get("contractId") == "viewports":
+            return "product/client.html"
+        if evidence_target.get("kind") == "contract-transition":
+            return "product/prove_auth_fixture.py"
+        return "product/auth_app.py"
+
     def scaffold_product_evidence(self, target: Path) -> list[dict]:
         scaffold = subprocess.run(
             [sys.executable, "scripts/scaffold_webapp_evidence.py"],
@@ -113,6 +120,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         records: list[dict] = []
         for skeleton in worklist["records"]:
             identifier = skeleton["id"]
+            implementation_locator = self.target_locator(skeleton["target"])
             records.append(
                 {
                     "id": identifier,
@@ -120,10 +128,10 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     "implementationBoundary": {
                         "status": "verified",
                         "description": (
-                            "The executable auth fixture implements this generated "
-                            "Webapp target."
+                            "The executable browser auth fixture implements this "
+                            "generated Webapp target."
                         ),
-                        "locator": "product/auth_app.py",
+                        "locator": implementation_locator,
                     },
                     "positiveEvidence": [
                         {
@@ -131,14 +139,14 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                             "status": "verified",
                             "kind": "integration-test",
                             "description": (
-                                "The auth proof exercises the target through contract "
-                                "and HTTP behavior checks."
+                                "The auth proof exercises the target through contract, "
+                                "browser-surface, and HTTP behavior checks."
                             ),
                             "locator": "product/prove_auth_fixture.py",
                             "commandId": "auth-product-proof",
                             "expectedResult": (
-                                "The declared route, state, access, and lifecycle "
-                                "checks pass."
+                                "The declared route, state, access, viewport, input, "
+                                "and lifecycle checks pass."
                             ),
                         }
                     ],
@@ -149,13 +157,13 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                             "kind": "integration-test",
                             "description": (
                                 "The auth proof rejects contract drift or incorrect "
-                                "role behavior."
+                                "role/browser behavior."
                             ),
                             "locator": "product/prove_auth_fixture.py",
                             "commandId": "auth-product-proof",
                             "expectedResult": (
-                                "Invalid access behavior or contract state causes the "
-                                "proof to fail."
+                                "Invalid access, browser, or contract behavior causes "
+                                "the proof to fail."
                             ),
                         }
                     ],
@@ -177,10 +185,11 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         product = target / "product"
         product.mkdir()
         (product / "auth_app.py").write_text(auth_source, encoding="utf-8")
-        (product / "prove_auth_fixture.py").write_text(
-            (FIXTURE_DIR / "prove_auth_fixture.py").read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
+        for name in ("prove_auth_fixture.py", "client.html"):
+            (product / name).write_text(
+                (FIXTURE_DIR / name).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
 
     def materialize_candidate(
         self, root: Path, *, allow_admin_without_role: bool = False
@@ -214,8 +223,8 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         "id": "auth-product-proof",
                         "command": AUTH_PROOF_COMMAND,
                         "purpose": (
-                            "Exercise realistic Webapp authentication, authorization, "
-                            "and route-state behavior."
+                            "Exercise realistic browser Webapp authentication, "
+                            "authorization, route-state, viewport, and input behavior."
                         ),
                     }
                 ],
@@ -223,7 +232,8 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     {
                         "id": "auth-product-release",
                         "purpose": (
-                            "Block release unless the realistic Webapp auth proof passes."
+                            "Block release unless the realistic browser Webapp proof "
+                            "passes."
                         ),
                         "commandIds": ["auth-product-proof"],
                     }
@@ -281,7 +291,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             result = self.run_release(target, revision)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(
-                "Webapp auth product proof: route access and UI-state behavior passed",
+                "Webapp auth product proof: route access, UI-state, and viewport behavior passed",
                 result.stdout,
             )
             self.assertIn("Release evidence and bundle produced", result.stdout)
