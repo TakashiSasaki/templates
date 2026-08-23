@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "active",
   "reason": "composition authority migration, Site publication cutover, legacy Skill/Webapp branch retirement, and the Policy–Composition coexistence boundary are established; the legacy branch refs are deleted while Skill and Webapp remain distinct artifact semantics under one composition provider",
-  "locked_composition_revision": "c7168b5a32e153aad5ddf92cd67b3b04757dae73",
+  "locked_composition_revision": "4b8945fb6feba22a6aa6e579946c25c38f6ed074",
   "completed_conditions": [
     "the composition branch owns the production artifact, capability, lifecycle, recipe, schema, composer, and publication contracts",
     "site locks the reviewed composition publication merge commit by full SHA",
