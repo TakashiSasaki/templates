@@ -4,7 +4,7 @@ Use this worksheet when adapting the scaffold to a concrete product. The machine
 
 ## Surface inventory
 
-For each browser-facing surface, identify its audience, authentication and authorization shape, data classification, stability expectation, diagnostics role, and startup dependencies.
+For each browser-facing surface, identify its audience, authentication and authorization shape, data classification, stability expectation, diagnostics role, and surface dependencies.
 
 ## Route inventory
 
