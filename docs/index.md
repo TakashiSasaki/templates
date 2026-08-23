@@ -3,6 +3,7 @@
 ## Start here
 
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
+- [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
 - [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
 
