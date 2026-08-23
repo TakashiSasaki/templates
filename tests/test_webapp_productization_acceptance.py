@@ -582,23 +582,11 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             / "components/artifact.webapp-core/files/.github/workflows/validate-webapp.yml"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("validate_release_execution.py", workflow)
-        self.assertIn("id: release-modes", workflow)
-        self.assertIn("release_mode=", workflow)
-        self.assertIn("bundle_mode=", workflow)
-        self.assertIn(
-            "if: steps.release-modes.outputs.release_mode == 'template'",
-            workflow,
-        )
-        self.assertIn(
-            "if: steps.release-modes.outputs.bundle_mode == 'template'",
-            workflow,
-        )
-        self.assertIn(
-            "Product release evidence and release bundles are revision-bound.",
-            workflow,
-        )
+        self.assertIn("python .template-composition/validate.py .", workflow)
+        self.assertNotIn("validate_release_execution.py", workflow)
+        self.assertNotIn("release-modes", workflow)
         self.assertNotIn("--expected-revision", workflow)
+        self.assertNotIn("shell: bash", workflow)
 
 
 if __name__ == "__main__":
