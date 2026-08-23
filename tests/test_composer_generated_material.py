@@ -65,6 +65,7 @@ class ComposerGeneratedMaterialTests(unittest.TestCase):
                     "implementation_evidence",
                     "release_bundle",
                     "release_evidence",
+                    "release_execution",
                     "routes",
                     "surfaces",
                     "ui_states",
