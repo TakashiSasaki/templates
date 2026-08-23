@@ -73,7 +73,10 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             {
                 "schema_version": 1,
                 "recipe": "webapp",
-                "components": {"include": [], "exclude": []},
+                "components": {
+                    "include": ["lifecycle.release-bundle"],
+                    "exclude": [],
+                },
                 "parameters": {},
             },
         )
