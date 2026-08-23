@@ -78,6 +78,10 @@ class HistoricalNavigationTests(unittest.TestCase):
             documents["ui-states-migration"]["destination"],
             "webapp/docs/migrations/ui-states-v1-to-v2.md",
         )
+        self.assertEqual(
+            documents["surfaces-v2-migration"]["destination"],
+            "webapp/docs/migrations/surfaces-v1-to-v2.md",
+        )
 
 
 if __name__ == "__main__":
