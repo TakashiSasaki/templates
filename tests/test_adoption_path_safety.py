@@ -6,6 +6,8 @@ import pytest
 from agent_policy.adoption import inspect_repository
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 def test_inspect_rejects_instruction_symlink_escape(tmp_path: Path) -> None:
     repository = tmp_path / "repository"
@@ -29,7 +31,7 @@ def test_prepare_rejects_state_path_escape(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         state_path="../adoption.json",
     )
@@ -95,7 +97,7 @@ def test_prepare_rejects_dangling_project_policy_scaffold_symlink(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=[],
     )
@@ -169,7 +171,7 @@ def test_prepare_rejects_dangling_management_output_symlink(
         tmp_path,
         config_path,
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         state_path=state_path,
         preview_output_path=preview_output_path,
