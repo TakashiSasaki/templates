@@ -2,11 +2,11 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "kind": "artifact",
-  "version": 3,
+  "version": 4,
   "summary": "Framework-neutral browser application surfaces, routes, visible states, viewports, and Web-specific validation.",
   "requires": [
     "lifecycle.composition-state",
-    "lifecycle.release-bundle"
+    "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
   "contract_registrations": [
