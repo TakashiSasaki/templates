@@ -441,7 +441,8 @@ def _render_human(result: dict[str, Any]) -> None:
         print(f"{label}: {check['id']} ({check['component']})")
         detail = check.get("stderr") or check.get("stdout")
         if check["status"] in {"failed", "deferred"} and detail:
-            print(f"  {detail.strip()}")
+            indented = "\n".join(f"  {line}" for line in detail.strip().splitlines())
+            print(indented)
     print(f"Composition validation: {result['status'].upper()}")
 
 
