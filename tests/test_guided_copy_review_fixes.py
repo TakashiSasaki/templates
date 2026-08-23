@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
+from site_chrome_locales import (  # noqa: E402
+    SITE_CHROME_LOCALES,
+    guided_copy_strings,
+    load_site_chrome_locales,
+)
 
 
 SHA = "a" * 40
@@ -20,6 +25,11 @@ CSP_META_PREFIX = '<meta http-equiv="Content-Security-Policy" content="'
 
 
 class GuidedCopyReviewFixTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        chrome = load_site_chrome_locales(SITE_CHROME_LOCALES)
+        cls.copy_strings = guided_copy_strings(chrome, "en")
+
     def test_source_link_attribute_order_is_irrelevant(self) -> None:
         source = (
             "<html><head>"
@@ -36,6 +46,7 @@ class GuidedCopyReviewFixTests(unittest.TestCase):
             source,
             "https://templates.moukaeritai.work/",
             PAGE,
+            self.copy_strings,
         )
 
         self.assertIn(f'data-copy-url="{GITHUB_SOURCE}"', rendered)
