@@ -100,7 +100,9 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 "() => document.querySelector('#glossary-inline-dialog')?.open === true"
             )
 
-            eyebrow = dialog.locator(".glossary-inline-dialog__eyebrow").inner_text()
+            eyebrow = (
+                dialog.locator(".glossary-inline-dialog__eyebrow").text_content() or ""
+            ).strip()
             close_label = dialog.locator(".glossary-inline-dialog__close").get_attribute(
                 "aria-label"
             )
@@ -143,9 +145,9 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             page.wait_for_function(
                 "() => document.querySelector('#glossary-inline-dialog')?.open === true"
             )
-            fallback_eyebrow = dialog.locator(
-                ".glossary-inline-dialog__eyebrow"
-            ).inner_text()
+            fallback_eyebrow = (
+                dialog.locator(".glossary-inline-dialog__eyebrow").text_content() or ""
+            ).strip()
             fallback_action = dialog.locator(
                 ".glossary-inline-dialog__actions a"
             ).inner_text()
