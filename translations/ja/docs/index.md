@@ -4,6 +4,7 @@
 
 ## ここから始める
 
+- [Recipe と component の選び方](../catalog/README.md) — `skill` と `webapp` のどちらを使うかを決め、product が実際に必要とする application capability または Skill lifecycle behavior だけを選択します。
 - [Composition の利用方法](consumer-guide.md) — consumer repository の作成、inspect、update、upgrade、recovery、ownership、conflict を扱うタスク指向の workflow です。
 - [プロダクトリリースの生成](release-guide.md) — product evidence、fixed executable argv、exact candidate revision、transactional release production、rollback、recovery を説明します。
 - [Composer リファレンス](reference/composer.md) — 正確な CLI mode/options、inspect states、plan fields、ownership semantics、recovery rules、managed lifecycle diagnostics を説明します。
@@ -56,5 +57,5 @@
 
 ## Machine-readable authorities
 
-- [Production catalog guide](../catalog/README.md) — catalog closure rules と path conventions を説明します。
+- [Production catalog guide](../catalog/README.md) — catalog closure rules、path conventions、consumer recipe/component selection guidance を説明します。
 - [Composition schema guide](../schemas/README.md) — component、recipe、configuration、lock、transaction、catalog schema responsibilities を説明します。

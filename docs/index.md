@@ -2,6 +2,7 @@
 
 ## Start here
 
+- [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or Skill lifecycle behavior the product actually needs.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
 - [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
@@ -54,5 +55,5 @@
 
 ## Machine-readable authorities
 
-- [Production catalog guide](../catalog/README.md) — catalog closure rules and path conventions.
+- [Production catalog guide](../catalog/README.md) — catalog closure rules, path conventions, and consumer recipe/component selection guidance.
 - [Composition schema guide](../schemas/README.md) — component, recipe, configuration, lock, transaction, and catalog schema responsibilities.

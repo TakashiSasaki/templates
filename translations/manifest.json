@@ -13,7 +13,7 @@
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
-      "canonical_blob_sha": "fb02c1e0bd63a5a3f1bac67ac1a2116e0c7f46fd",
+      "canonical_blob_sha": "e7ce28865c7560e45b31b280c5ac16d5c49e4eb7",
       "surfaces": ["reader"]
     },
     {
@@ -69,7 +69,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "7a9b42f04b44c0e13a046113fd1a902afd68646c",
+      "canonical_blob_sha": "2a03f649c4bde3d79dd4fc229455880629a1988a",
       "surfaces": ["reader", "guided"]
     },
     {

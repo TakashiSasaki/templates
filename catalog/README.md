@@ -4,6 +4,67 @@
 
 Every component ID resolves to `components/<component-id>/component.json`; every recipe ID resolves to `recipes/<recipe-id>.json`. Catalog arrays are unique and lexically ordered, and validation requires exact agreement with the physical authority directories/files.
 
+## Consumer selection guide
+
+Choose the recipe from the artifact you are building, not from the language, framework, or deployment platform.
+
+| You are building | Recipe | Base material and behavior | Lifecycle baseline |
+| --- | --- | --- | --- |
+| An Agent Skill repository | `skill` | Skill structure including `SKILL.md`, development guidance, and Skill-specific validation | `lifecycle.composition-state` only; application capabilities and contract/release lifecycle components are opt-in |
+| A browser-facing Web application repository | `webapp` | Routes, surfaces, visible UI states, viewports, Web-specific validation, and framework-neutral browser application structure | The full release lifecycle is included transitively through `artifact.webapp-core -> lifecycle.release-bundle`; application capabilities remain opt-in |
+
+Select optional application capabilities according to externally visible behavior. Include the capability you need directly; the Composer resolves its dependencies transitively.
+
+| Need | Include | Automatically adds | What it contributes |
+| --- | --- | --- | --- |
+| A maintained implementation runtime, dependency/distribution rules, commands, environment, or deployment lifecycle | `capability.runtime` | — | Runtime selection and maintenance contract |
+| A packaged command-line interface | `capability.cli` | `capability.runtime` | Caller-visible CLI contract |
+| An MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` | MCP protocol, transport, client, security, and semantic-equivalence contract |
+| An MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp` and therefore `capability.runtime` | MCP Apps resources, bridge, visibility, sandbox, and fallback contract |
+| An independently reachable non-browser service | `capability.service` | `capability.runtime` | Service interface contract |
+| A standalone browser-facing interface backed by an application runtime | `capability.web-interface` | `capability.runtime` | Web interface, routing, security, health, and failure-isolation contract |
+
+A browser-facing artifact does **not** imply `capability.runtime` or `capability.web-interface`. For example, a static/CDN Webapp can use the `webapp` recipe with no optional components. Add runtime-bound capabilities only when the product actually exposes those behaviors.
+
+The `skill` recipe also exposes lifecycle components as explicit options. Choose the highest-level lifecycle behavior you need; its prerequisites are resolved automatically:
+
+| Need | Include | Dependency closure |
+| --- | --- | --- |
+| Versioned contract evolution and migrations | `lifecycle.contract-evolution` | contract evolution only |
+| Implementation boundaries, proofs, authoritative commands, and release gates | `lifecycle.implementation-evidence` | implementation evidence -> contract evolution |
+| Product-owned fixed-argv release execution and candidate verification | `lifecycle.release-execution` | release execution -> implementation evidence -> contract evolution |
+| Revision-bound release evidence production | `lifecycle.release-evidence` | release evidence -> release execution -> implementation evidence -> contract evolution |
+| Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
+
+The `webapp` recipe does not expose those lifecycle components as optional selections because `artifact.webapp-core` already requires `lifecycle.release-bundle`, which resolves the complete chain. Do not repeat transitive lifecycle dependencies in consumer configuration.
+
+A minimal static Webapp therefore uses an empty include list:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {"include": [], "exclude": []},
+  "parameters": {}
+}
+```
+
+A Skill that exposes an MCP Apps UI and uses the complete release workflow can request only the two top-level choices; the resolver adds their prerequisites:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "skill",
+  "components": {
+    "include": ["capability.mcp-apps", "lifecycle.release-bundle"],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+Use `plan` before `apply` to inspect the exact resolved component closure and materialized file actions. The recipe descriptors remain the machine-readable source of truth for which direct selections are permitted.
+
 ## Closure rules
 
 Production catalog validation establishes:
