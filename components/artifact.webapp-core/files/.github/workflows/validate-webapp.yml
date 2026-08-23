@@ -30,7 +30,31 @@ jobs:
         run: python .template-composition/validators/validate_implementation_evidence.py .
       - name: Validate Webapp evidence coverage
         run: python scripts/validate_webapp_evidence.py
-      - name: Validate release evidence
+      - name: Detect release document modes
+        id: release-modes
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          release = json.loads(
+              Path("contracts/release-evidence.json").read_text(encoding="utf-8")
+          )
+          bundle = json.loads(
+              Path("contracts/release-bundle.json").read_text(encoding="utf-8")
+          )
+          print(f"release_mode={release['mode']}")
+          print(f"bundle_mode={bundle['mode']}")
+          PY
+      - name: Validate template release evidence
+        if: steps.release-modes.outputs.release_mode == 'template'
         run: python .template-composition/validators/validate_release_evidence.py .
-      - name: Validate release bundle
+      - name: Validate template release bundle
+        if: steps.release-modes.outputs.bundle_mode == 'template'
         run: python .template-composition/validators/validate_release_bundle.py .
+      - name: Explain product release validation boundary
+        if: steps.release-modes.outputs.release_mode == 'product' || steps.release-modes.outputs.bundle_mode == 'product'
+        run: |
+          echo "Product release evidence and release bundles are revision-bound."
+          echo "Run their exact-candidate validation in the product-owned release operation."
