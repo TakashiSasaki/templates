@@ -101,9 +101,7 @@ def inject_pwa_locale_metadata(
     path: Path,
     strings: dict[str, str],
 ) -> str:
-    missing = set(PWA_META_NAMES) - set(strings)
-    extra = set(strings) - set(PWA_META_NAMES)
-    if missing or extra:
+    if set(strings) != set(PWA_META_NAMES):
         raise PwaLocaleFinalizeError(
             f"{path}: PWA freshness strings do not match the metadata contract"
         )
@@ -121,6 +119,18 @@ def inject_pwa_locale_metadata(
     return source[:position] + tags + source[position:]
 
 
+def localize_pwa_source(
+    source: str,
+    path: Path,
+    chrome: dict[str, object],
+) -> tuple[str, bool]:
+    language = page_language_if_pwa(source, path)
+    if language is None:
+        return source, False
+    strings = pwa_freshness_strings(chrome, language)
+    return inject_pwa_locale_metadata(source, path, strings), True
+
+
 def finalize(
     site_root: Path,
     chrome_path: Path = SITE_CHROME_LOCALES,
@@ -136,11 +146,9 @@ def finalize(
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
             raise PwaLocaleFinalizeError(f"unable to read generated HTML {path}: {exc}") from exc
-        language = page_language_if_pwa(source, path)
-        if language is None:
-            continue
-        strings = pwa_freshness_strings(chrome, language)
-        updates[path] = inject_pwa_locale_metadata(source, path, strings)
+        localized, changed = localize_pwa_source(source, path, chrome)
+        if changed:
+            updates[path] = localized
 
     for path, source in updates.items():
         path.write_text(source, encoding="utf-8")
