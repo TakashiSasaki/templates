@@ -8,6 +8,15 @@ ACCESS_BY_PATH = {
     "/app": ("application", "application-user"),
     "/admin": ("admin", "admin"),
 }
+ROUTE_STATE_STATUS = {
+    "loading": 200,
+    "empty": 200,
+    "populated": 200,
+    "partial": 206,
+    "recoverable-error": 503,
+    "retrying": 202,
+    "offline": 503,
+}
 ALLOW_ADMIN_WITHOUT_ROLE = __ALLOW_ADMIN_WITHOUT_ROLE__
 CLIENT_TEMPLATE = Path(__file__).with_name("client.html").read_text(encoding="utf-8")
 
@@ -42,6 +51,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/status":
             self.respond(200, "status", "populated", "Service status")
             return
+        if path == "/__fatal":
+            self.respond(500, "public", "fatal-error", "Fatal application error")
+            return
         if path not in ACCESS_BY_PATH:
             self.respond(404, "public", "not-found", "Route not found")
             return
@@ -64,16 +76,12 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         state = parse_qs(parsed.query).get("state", ["populated"])[0]
-        if state == "loading":
-            self.respond(200, surface, "loading", "Loading")
-            return
-        if state == "recoverable-error":
-            self.respond(503, surface, "recoverable-error", "Retry available")
-            return
-        if state != "populated":
+        if state not in ROUTE_STATE_STATUS:
             self.respond(400, surface, "recoverable-error", "Unsupported state")
             return
-        self.respond(200, surface, "populated", "Content available")
+        status = ROUTE_STATE_STATUS[state]
+        message = state.replace("-", " ").title()
+        self.respond(status, surface, state, message)
 
 
 def make_server() -> ThreadingHTTPServer:
