@@ -16,6 +16,7 @@
   let pendingDocumentCommit = null;
   let workerInstanceId = null;
   let lastCommitGeneration = 0;
+  let lastNetworkCommitGeneration = 0;
   let lastFreshnessGeneration = 0;
   let preserveInitialEmbeddedCachedCommit =
     document.documentElement?.dataset.templatesCachedFallback === "true" ||
@@ -139,11 +140,7 @@
     return status;
   }
 
-  async function showFreshnessStatus(state) {
-    const strings = await currentPwaFreshnessStrings();
-    if (!strings) {
-      return false;
-    }
+  function showFreshnessStatus(state, strings) {
     const status = ensureFreshnessStatus();
     if (!status) {
       return false;
@@ -193,6 +190,7 @@
     workerInstanceId = nextWorkerInstanceId;
     pendingDocumentCommit = null;
     lastCommitGeneration = 0;
+    lastNetworkCommitGeneration = 0;
     lastFreshnessGeneration = 0;
   }
 
@@ -234,25 +232,24 @@
     return true;
   }
 
-  async function applyFreshnessState(data) {
-    const normalizedUrl = normalizedDocumentUrl(data.url);
-    if (!normalizedUrl) {
-      return false;
-    }
+  function freshnessStateIsApplicable(data, normalizedUrl) {
     if (
       data.awaitingCommit !== true &&
       normalizedUrl !== normalizedDocumentUrl(window.location.href)
     ) {
       return false;
     }
-    if (
-      !acceptGeneration(data.requestGeneration, lastFreshnessGeneration)
-    ) {
+    return acceptGeneration(data.requestGeneration, lastFreshnessGeneration);
+  }
+
+  async function applyFreshnessState(data) {
+    const normalizedUrl = normalizedDocumentUrl(data.url);
+    if (!normalizedUrl || !freshnessStateIsApplicable(data, normalizedUrl)) {
       return false;
     }
-    lastFreshnessGeneration = data.requestGeneration;
 
     if (data.state === "verified-current") {
+      lastFreshnessGeneration = data.requestGeneration;
       const pending = pendingDocumentCommit;
       if (
         pending &&
@@ -267,6 +264,18 @@
       clearFreshnessStatus();
       return true;
     }
+
+    const strings = await currentPwaFreshnessStrings();
+    if (
+      !strings ||
+      !freshnessStateIsApplicable(data, normalizedUrl) ||
+      (data.awaitingCommit === true &&
+        lastNetworkCommitGeneration >= data.requestGeneration)
+    ) {
+      return false;
+    }
+    lastFreshnessGeneration = data.requestGeneration;
+
     if (
       data.awaitingCommit === true &&
       (data.state === "checking" || data.state === "cached-unverified")
@@ -281,7 +290,7 @@
         return false;
       }
     }
-    return await showFreshnessStatus(data.state);
+    return showFreshnessStatus(data.state, strings);
   }
 
   function handleCommittedDocument() {
@@ -395,6 +404,15 @@
     if (data.type === "templates:document-commit") {
       if (data.representation !== "network") {
         return;
+      }
+      if (
+        Number.isSafeInteger(data.requestGeneration) &&
+        data.requestGeneration > 0
+      ) {
+        lastNetworkCommitGeneration = Math.max(
+          lastNetworkCommitGeneration,
+          data.requestGeneration
+        );
       }
       setPendingDocumentCommit(
         data.url,
