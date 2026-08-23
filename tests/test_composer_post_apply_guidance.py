@@ -170,7 +170,7 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertIn("review-consumer-owned-extras", step_ids)
             self.assertEqual(step_ids[-1], "validate")
 
-    def test_interrupted_upgrade_recovery_uses_transaction_old_lock_for_extras(self) -> None:
+    def test_interrupted_upgrade_recovery_reports_transaction_seed_extras(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             target = root / "consumer"
