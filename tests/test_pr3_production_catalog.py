@@ -271,6 +271,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         for component_id in (
             "lifecycle.contract-evolution",
             "lifecycle.implementation-evidence",
+            "lifecycle.release-execution",
             "lifecycle.release-evidence",
             "lifecycle.release-bundle",
         ):
@@ -285,6 +286,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "lifecycle.implementation-evidence",
                 "lifecycle.release-bundle",
                 "lifecycle.release-evidence",
+                "lifecycle.release-execution",
             ],
         )
 
@@ -336,6 +338,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             for script in (
                 ".template-composition/validators/validate_contract_evolution.py",
                 ".template-composition/validators/validate_implementation_evidence.py",
+                ".template-composition/validators/validate_release_execution.py",
                 ".template-composition/validators/validate_release_evidence.py",
                 ".template-composition/validators/validate_release_bundle.py",
             ):
@@ -355,6 +358,10 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 ),
                 (
                     ".template-composition/validators/validate_implementation_evidence.py",
+                    (".",),
+                ),
+                (
+                    ".template-composition/validators/validate_release_execution.py",
                     (".",),
                 ),
                 ("scripts/validate_webapp_evidence.py", ()),
@@ -387,6 +394,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "implementation_evidence",
                 "release_bundle",
                 "release_evidence",
+                "release_execution",
                 "routes",
                 "surfaces",
                 "ui_states",
@@ -395,6 +403,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         )
         self.assertEqual(entries["routes"]["documentSchemaVersion"], 2)
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
+        self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 1)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
             [1, 2],
