@@ -41,7 +41,9 @@
     }
 
     const value = button.dataset.copyUrl;
-    if (!value) {
+    const successMessage = button.dataset.copySuccess;
+    const failureMessage = button.dataset.copyFailure;
+    if (!value || !successMessage || !failureMessage) {
       return;
     }
 
@@ -53,12 +55,12 @@
     try {
       await copyText(value);
       if (status) {
-        status.textContent = `Copied ${name}`;
+        status.textContent = successMessage;
       }
     } catch (error) {
       console.warn(`Unable to copy ${name}`, error);
       if (status) {
-        status.textContent = `Copy failed: ${name}`;
+        status.textContent = failureMessage;
       }
     } finally {
       button.disabled = false;
