@@ -205,6 +205,26 @@ class SelectedComponentValidationTests(unittest.TestCase):
                 self.assertIn("revision-bound", checks[check_id]["stderr"])
                 self.assertIn("exact-candidate", checks[check_id]["stderr"])
 
+    def test_malformed_condition_document_is_reported_as_failed_check(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            self.apply(target, self.write_config(root, "webapp"))
+            (target / "contracts" / "release-bundle.json").write_text(
+                "{not-json\n", encoding="utf-8"
+            )
+
+            result, payload = self.run_consumer_validation(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(payload["status"], "invalid")
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(checks["composition-state"]["status"], "passed")
+            self.assertEqual(checks["release-bundle-template"]["status"], "failed")
+            self.assertIn(
+                "cannot read validation condition document contracts/release-bundle.json",
+                checks["release-bundle-template"]["stderr"],
+            )
+
     def test_tampered_managed_validator_halts_before_dispatch(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
