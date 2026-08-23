@@ -13,7 +13,7 @@ recipe は、言語、framework、deployment platform ではなく、作成す�
 | 作成するもの | Recipe | 基本 material と挙動 | Lifecycle の基準 |
 | --- | --- | --- | --- |
 | Agent Skill repository | `skill` | `SKILL.md` を含む Skill 構造、開発ガイダンス、Skill 固有 validation | `lifecycle.composition-state` のみ。application capability と contract/release lifecycle component は opt-in |
-| browser-facing Web application repository | `webapp` | route、surface、可視 UI state、viewport、Web 固有 validation、framework-neutral な browser application 構造 | `artifact.webapp-core -> lifecycle.release-bundle` を通じて release lifecycle 全体を推移的に含む。application capability は opt-in |
+| browser-facing Web application repository | `webapp` | route、surface、可視 UI state、viewport、Web 固有 validation、framework-neutral な browser application 構造 | `lifecycle.composition-state` + implementation evidence + contract evolution。release lifecycle は `lifecycle.release-bundle` による opt-in |
 
 optional application capability は、外部から見える product の挙動に基づいて選択します。必要な capability を直接 include すれば、Composer が dependency を推移的に解決します。
 
@@ -28,25 +28,51 @@ optional application capability は、外部から見える product の挙動に
 
 browser-facing artifact であることだけでは、`capability.runtime` や `capability.web-interface` は必要になりません。たとえば static/CDN Webapp は optional component なしで `webapp` recipe を使用できます。runtime-bound capability は、product が実際にその挙動を公開するときだけ追加します。
 
-`skill` recipe では lifecycle component も明示的な option として選択できます。必要な lifecycle 挙動のうち最上位のものだけを選択すれば、その prerequisite は自動解決されます。
+lifecycle component は product workflow に応じて選択します。`skill` recipe は各 lifecycle level を独立して公開します。`webapp` recipe は contract evolution と implementation evidence を baseline に含み、`lifecycle.release-bundle` を top-level の release choice として公開します。recipe が公開している必要な lifecycle behavior のうち最上位のものを選択すれば、その prerequisite は自動解決されます。
 
 | 必要なもの | Include | Dependency closure |
 | --- | --- | --- |
-| versioned contract evolution と migration | `lifecycle.contract-evolution` | contract evolution のみ |
-| implementation boundary、proof、authoritative command、release gate | `lifecycle.implementation-evidence` | implementation evidence -> contract evolution |
-| product-owned fixed-argv release execution と candidate verification | `lifecycle.release-execution` | release execution -> implementation evidence -> contract evolution |
-| revision-bound release evidence production | `lifecycle.release-evidence` | release evidence -> release execution -> implementation evidence -> contract evolution |
-| deterministic release bundle と one-command release orchestration | `lifecycle.release-bundle` | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
+| versioned contract evolution と migration | `lifecycle.contract-evolution` (`skill`) | contract evolution のみ |
+| implementation boundary、proof、authoritative command、release gate | `lifecycle.implementation-evidence` (`skill`; Webapp baseline) | implementation evidence -> contract evolution |
+| product-owned fixed-argv release execution と candidate verification | `lifecycle.release-execution` (`skill`) | release execution -> implementation evidence -> contract evolution |
+| revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
+| deterministic release bundle と one-command release orchestration | `lifecycle.release-bundle` (`skill` または `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
-`webapp` recipe は、これらの lifecycle component を optional selection として公開していません。`artifact.webapp-core` がすでに `lifecycle.release-bundle` を要求し、その dependency から完全な lifecycle chain が解決されるためです。consumer configuration に推移的な lifecycle dependency を重複して記述しないでください。
-
-したがって最小の static Webapp は空の include list を使用します。
+したがって最小の static Webapp は空の include list を使用し、browser contract と implementation-evidence / contract-evolution support を受け取りますが、release execution / evidence / bundle material は含みません。
 
 ```json
 {
   "schema_version": 1,
   "recipe": "webapp",
   "components": {"include": [], "exclude": []},
+  "parameters": {}
+}
+```
+
+release-ready Webapp は top-level の release component だけを選択します。
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {
+    "include": ["lifecycle.release-bundle"],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+Composition release lifecycle を使用しない runtime-backed Webapp では、runtime を独立して選択できます。
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {
+    "include": ["capability.runtime"],
+    "exclude": []
+  },
   "parameters": {}
 }
 ```
@@ -64,6 +90,12 @@ MCP Apps UI を公開し、完全な release workflow を使用する Skill で�
   "parameters": {}
 }
 ```
+
+### Webapp v3 から v4 への upgrade
+
+`artifact.webapp-core` v4 では artifact dependency closure が変わるため、既存の managed Webapp が v3 から移行する場合は明示的な component-version compatibility boundary を越えます。ordinary `update` ではなく `upgrade` を使用してください。
+
+v3 が推移的に選択していた完全な release lifecycle を repository で維持する場合、v4 の upgrade configuration で `lifecycle.release-bundle` を明示的に include する必要があります。release execution / evidence / bundle behavior が不要なら include せず、apply 前に upgrade plan を確認してください。repository に同名の lifecycle file が残っているだけで validator が選択されることはありません。selection authority は `.template-composition/lock.json` の resolved component set です。
 
 `apply` の前に `plan` を使い、正確に解決された component closure と materialized file action を確認してください。直接選択可能な component の machine-readable source of truth は recipe descriptor です。
 
