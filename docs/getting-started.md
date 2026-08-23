@@ -53,6 +53,18 @@ The bootstrap operation executes `agent-policy adopt inspect` through the pinned
 
 The adoption strategy is derived from inspection. Users do not select an `init` or `adopt` route.
 
+### Choose the policy profile baseline
+
+Policy profiles select which shared policy modules participate in a context. For a normal coding or maintenance repository, use `core` and `security-baseline` as the baseline. The normal bootstrap path uses exactly that pair for both fresh adoption and migration preparation.
+
+Add operation-specific profiles only to contexts that perform those operations:
+
+- add `pull-request` when the context owns pull-request lifecycle work;
+- add `review` when the context reviews changes for blocking defects; and
+- add `external-artifact-intake` when the context receives or stages externally produced artifacts.
+
+Fresh adoption creates `.agent-policy.yml` with the baseline profiles. After adoption, edit that human-owned configuration when the repository needs additional contexts or profiles, then run the normal managed validation and rendering commands. See [Policy profiles](shared-policy/profiles.md) for the profile catalog, composition semantics, and detailed selection guidance.
+
 ## 2A. Apply fresh adoption
 
 For `unmanaged-empty`, review the dry-run plan and then apply the inspected transition:
