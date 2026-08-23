@@ -186,7 +186,7 @@ def _failed_check_messages(checks: object) -> list[str]:
 
 
 def _run_public_validation() -> int:
-    parser = argparse.ArgumentParser(prog=f"{Path(sys.argv[0]).name} validate")
+    parser = argparse.ArgumentParser(prog=Path(sys.argv[0]).name)
     parser.add_argument("command", choices=["validate"])
     parser.add_argument("--target", required=True, type=Path)
     args = parser.parse_args(sys.argv[1:])
@@ -271,10 +271,11 @@ def main() -> int:
         return 0
 
     _normalize_command_position()
-    mode = _mode_from_argv()
     command = sys.argv[1] if len(sys.argv) > 1 else ""
-    if mode is None and command == "validate":
+    if command == "validate":
         return _run_public_validation()
+
+    mode = _mode_from_argv()
     if mode is None:
         return _initial_main()
     if mode == "initial":
