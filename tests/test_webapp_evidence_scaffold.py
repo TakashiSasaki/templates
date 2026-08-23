@@ -28,6 +28,9 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
     def write_json(self, path: Path, value: object) -> None:
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
+    def load_json(self, path: Path) -> dict:
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def materialize_webapp(self, root: Path) -> Path:
         target = root / "consumer"
         config = root / "composition.json"
@@ -156,6 +159,52 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     0,
                     f"{script}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
                 )
+
+    def test_scaffold_rejects_duplicate_contract_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            surfaces_path = target / "contracts/surfaces.json"
+            surfaces = self.load_json(surfaces_path)
+            surfaces["surfaces"].append(
+                json.loads(json.dumps(surfaces["surfaces"][0]))
+            )
+            self.write_json(surfaces_path, surfaces)
+
+            result = self.scaffold(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "Webapp contracts produce duplicate implementation-evidence targets",
+                result.stderr,
+            )
+
+    def test_scaffold_rejects_noncanonical_generated_record_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            surfaces_path = target / "contracts/surfaces.json"
+            surfaces = self.load_json(surfaces_path)
+            surfaces["surfaces"][0]["id"] = "Bad_ID"
+            self.write_json(surfaces_path, surfaces)
+
+            result = self.scaffold(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "cannot derive implementation-evidence record id",
+                result.stderr,
+            )
+
+    def test_validator_reports_malformed_evidence_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            evidence_path = target / "contracts/implementation-evidence.json"
+            evidence_path.write_text("{", encoding="utf-8")
+
+            result = self.run_python(target, "scripts/validate_webapp_evidence.py")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "ERROR: cannot load Webapp implementation evidence:",
+                result.stderr,
+            )
+            self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
