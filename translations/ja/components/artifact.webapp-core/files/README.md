@@ -4,7 +4,7 @@
 
 この repository は、`webapp` Composition レシピによって生成される framework-neutral な Web application contract scaffold です。
 
-`artifact.webapp-core` は browser-specific な semantics を所有します。対象は surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution、implementation evidence、release evidence、release bundle の behavior は、再利用可能な `lifecycle.*` component から提供されます。
+`artifact.webapp-core` は browser-specific な semantics を所有します。対象は surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
 
 この scaffold は、frontend framework、rendering model、package manager、backend、persistence layer、authentication provider、deployment platform、browser matrix、observability vendor を意図的に選択しません。
 
@@ -14,13 +14,16 @@
 - `contracts/routes.json` — canonical navigation に加え、access failure の behavior と semantic な state / route target。
 - `contracts/ui-states.json` — 再利用可能な visible state と recovery / focus behavior。
 - `contracts/viewports.json` — responsive lower bound と input capability。
+- `contracts/implementation-evidence.json` — Webapp contract target と implementation / proof evidence を対応づける baseline contract。
 - `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。
-- Webapp は release lifecycle chain を必要とするため、lifecycle contract も materialize されます。
+- release execution / evidence / bundle contract は `lifecycle.release-bundle` を選択した場合だけ materialize されます。
 
-## Optional application capabilities
+## Optional capability と release lifecycle
 
 Webapp レシピでは、runtime、CLI、MCP、MCP Apps、standalone operational Web exposure、headless service capability を追加で選択できます。artifact が browser-facing であるという理由だけで、これらが必須になることはありません。static / CDN Web application は application runtime component がなくても妥当です。
 
+Composition-managed release workflow が必要な repository では `lifecycle.release-bundle` を選択します。その dependency closure により release execution と revision-bound release evidence が追加され、baseline の implementation-evidence と contract-evolution component が再利用されます。
+
 ## Validation
 
-`.template-composition/requirements-validation.lock` をインストールしたうえで、Webapp validator と lifecycle validator を実行します。付属の GitHub Actions workflow が template mode の完全な validation sequence を実行します。
+`.template-composition/requirements-validation.lock` をインストールしたうえで、`python .template-composition/validate.py .` を実行します。validation は Composition lock の resolved component set から選択されます。minimal Webapp や runtime-backed Webapp では release validator は実行されず、`lifecycle.release-bundle` を選択した release-ready Webapp では実行されます。
