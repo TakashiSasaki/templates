@@ -48,6 +48,22 @@ def test_consumer_and_cli_docs_distinguish_execution_context() -> None:
     assert "scripts/run.py" in documents["docs/adoption.md"]
 
 
+def test_getting_started_surfaces_profile_selection_for_first_time_consumers() -> None:
+    getting_started = read_doc("docs/getting-started.md")
+    japanese = read_doc("translations/ja/docs/getting-started.md")
+
+    for text in [getting_started, japanese]:
+        assert "`core`" in text
+        assert "`security-baseline`" in text
+        assert "`pull-request`" in text
+        assert "`review`" in text
+        assert "`external-artifact-intake`" in text
+        assert "[Policy profiles](shared-policy/profiles.md)" in text
+
+    assert "normal bootstrap path uses exactly that pair" in getting_started
+    assert "通常のbootstrap path" in japanese
+
+
 def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> None:
     getting_started = read_doc("docs/getting-started.md")
     bootstrap_doc = read_doc("docs/bootstrap.md")
