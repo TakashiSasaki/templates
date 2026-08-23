@@ -57,6 +57,8 @@ class PwaLocaleChromeTests(unittest.TestCase):
         self.assertIn('EXPECTED_JA["update_available"]', self.checker)
         self.assertIn('EXPECTED_JA["unverified"]', self.checker)
         self.assertIn('EXPECTED_JA["offline_unavailable"]', self.checker)
+        self.assertIn("arg=DOCUMENT_CACHE_NAME", self.checker)
+        self.assertIn('arg=EXPECTED_JA["update_available"]', self.checker)
 
     def test_checker_fails_before_browser_start_when_assets_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
