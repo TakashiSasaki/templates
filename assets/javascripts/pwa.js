@@ -2,6 +2,17 @@
   const manifestHref = "/app.webmanifest";
   const themeColor = "#3f51b5";
   const freshnessStatusId = "templates-freshness-status";
+  const siteChromeLocalesHref = "/site-chrome-locales.json";
+  const pwaFreshnessFields = Object.freeze([
+    "saved_copy",
+    "checking",
+    "unverified",
+    "update_available",
+    "published_changed",
+    "reload",
+    "offline_unavailable",
+  ]);
+  let siteChromeLocalesPromise = null;
   let pendingDocumentCommit = null;
   let workerInstanceId = null;
   let lastCommitGeneration = 0;
@@ -11,6 +22,96 @@
     ["checking", "cached-unverified", "update-available"].includes(
       document.getElementById(freshnessStatusId)?.dataset.freshnessState
     );
+
+  function parseSiteChromeLocales(value) {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      value.schema_version !== 1 ||
+      value.canonical_language !== "en" ||
+      !Array.isArray(value.locales) ||
+      value.locales.length === 0
+    ) {
+      throw new Error("invalid Site chrome locale root");
+    }
+    const locales = new Map();
+    for (const locale of value.locales) {
+      if (
+        !locale ||
+        typeof locale !== "object" ||
+        Array.isArray(locale) ||
+        typeof locale.language !== "string" ||
+        !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(locale.language) ||
+        !locale.pwa_freshness ||
+        typeof locale.pwa_freshness !== "object" ||
+        Array.isArray(locale.pwa_freshness) ||
+        Object.keys(locale.pwa_freshness).length !== pwaFreshnessFields.length ||
+        pwaFreshnessFields.some(
+          (field) =>
+            typeof locale.pwa_freshness[field] !== "string" ||
+            locale.pwa_freshness[field].trim().length === 0
+        )
+      ) {
+        throw new Error("invalid Site chrome locale entry");
+      }
+      if (
+        Object.keys(locale.pwa_freshness).some(
+          (field) => !pwaFreshnessFields.includes(field)
+        ) ||
+        locales.has(locale.language)
+      ) {
+        throw new Error("ambiguous Site chrome locale entry");
+      }
+      locales.set(locale.language, Object.freeze({ ...locale.pwa_freshness }));
+    }
+    if (!locales.has(value.canonical_language)) {
+      throw new Error("missing canonical Site chrome locale");
+    }
+    return Object.freeze({
+      canonicalLanguage: value.canonical_language,
+      locales,
+    });
+  }
+
+  async function loadSiteChromeLocales() {
+    if (!siteChromeLocalesPromise) {
+      siteChromeLocalesPromise = fetch(siteChromeLocalesHref, { cache: "no-cache" })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Site chrome locale request failed: ${response.status}`);
+          }
+          return parseSiteChromeLocales(await response.json());
+        })
+        .catch((error) => {
+          siteChromeLocalesPromise = null;
+          console.warn("PWA chrome locale load failed", error);
+          return null;
+        });
+    }
+    return await siteChromeLocalesPromise;
+  }
+
+  function pwaFreshnessStrings(model, language) {
+    if (!model || typeof language !== "string") {
+      return null;
+    }
+    const exact = model.locales.get(language);
+    if (exact) {
+      return exact;
+    }
+    const primary = language.split("-", 1)[0];
+    return (
+      model.locales.get(primary) ||
+      model.locales.get(model.canonicalLanguage) ||
+      null
+    );
+  }
+
+  async function currentPwaFreshnessStrings() {
+    const model = await loadSiteChromeLocales();
+    return pwaFreshnessStrings(model, document.documentElement?.lang || "");
+  }
 
   function normalizedDocumentUrl(url) {
     try {
@@ -38,7 +139,11 @@
     return status;
   }
 
-  function showFreshnessStatus(state) {
+  async function showFreshnessStatus(state) {
+    const strings = await currentPwaFreshnessStrings();
+    if (!strings) {
+      return false;
+    }
     const status = ensureFreshnessStatus();
     if (!status) {
       return false;
@@ -49,22 +154,22 @@
 
     const label = document.createElement("strong");
     if (state === "checking") {
-      label.textContent = "Saved copy.";
-      status.append(label, " Checking for the latest version…");
+      label.textContent = strings.saved_copy;
+      status.append(label, ` ${strings.checking}`);
       return true;
     }
     if (state === "cached-unverified") {
-      label.textContent = "Saved copy.";
-      status.append(label, " The latest version could not be verified.");
+      label.textContent = strings.saved_copy;
+      status.append(label, ` ${strings.unverified}`);
       return true;
     }
     if (state === "update-available") {
-      label.textContent = "Update available.";
-      status.append(label, " The published page changed. ");
+      label.textContent = strings.update_available;
+      status.append(label, ` ${strings.published_changed} `);
       const reload = document.createElement("button");
       reload.type = "button";
       reload.className = "freshness-status__reload";
-      reload.textContent = "Reload";
+      reload.textContent = strings.reload;
       reload.addEventListener("click", () => window.location.reload());
       status.append(reload);
       return true;
@@ -129,7 +234,7 @@
     return true;
   }
 
-  function applyFreshnessState(data) {
+  async function applyFreshnessState(data) {
     const normalizedUrl = normalizedDocumentUrl(data.url);
     if (!normalizedUrl) {
       return false;
@@ -176,7 +281,7 @@
         return false;
       }
     }
-    return showFreshnessStatus(data.state);
+    return await showFreshnessStatus(data.state);
   }
 
   function handleCommittedDocument() {
@@ -243,6 +348,8 @@
     documentObservable.subscribe(handleCommittedDocument);
   }
 
+  void loadSiteChromeLocales();
+
   if (!window.isSecureContext || !("serviceWorker" in navigator)) {
     return;
   }
@@ -265,7 +372,7 @@
     requestCurrentFreshnessState();
   });
 
-  navigator.serviceWorker.addEventListener("message", (event) => {
+  navigator.serviceWorker.addEventListener("message", async (event) => {
     const data = event.data;
     const controller = navigator.serviceWorker.controller;
     if (
@@ -297,7 +404,7 @@
       return;
     }
 
-    const applied = applyFreshnessState(data);
+    const applied = await applyFreshnessState(data);
     const acknowledgementPort = event.ports?.[0];
     if (applied && acknowledgementPort) {
       acknowledgementPort.postMessage({
