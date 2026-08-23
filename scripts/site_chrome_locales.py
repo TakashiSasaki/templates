@@ -22,6 +22,7 @@ PWA_FRESHNESS_FIELDS = {
     "update_available",
     "published_changed",
     "reload",
+    "offline_unavailable",
 }
 
 
