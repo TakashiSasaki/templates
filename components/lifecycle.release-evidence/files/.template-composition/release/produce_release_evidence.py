@@ -21,19 +21,29 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 CANDIDATE_PATH = HERE / "candidate.py"
+LIFECYCLE_LOCK_PATH = HERE / "lifecycle_lock.py"
 EVIDENCE_RELATIVE = "contracts/release-evidence.json"
 
 
-def load_candidate_module():
-    spec = importlib.util.spec_from_file_location("composition_release_candidate", CANDIDATE_PATH)
+def load_managed_module(name: str, path: Path, label: str):
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load managed candidate verification helper")
+        raise RuntimeError(f"cannot load managed {label}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-candidate = load_candidate_module()
+candidate = load_managed_module(
+    "composition_release_candidate",
+    CANDIDATE_PATH,
+    "candidate verification helper",
+)
+lifecycle_lock = load_managed_module(
+    "composition_release_lifecycle_lock",
+    LIFECYCLE_LOCK_PATH,
+    "release lifecycle lock helper",
+)
 
 
 def fail(message: str, *, code: int = 2) -> None:
@@ -134,20 +144,7 @@ def command_index(items: object, key: str, label: str) -> dict[str, dict]:
     return result
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("root", nargs="?", default=".")
-    parser.add_argument("--revision", required=True)
-    parser.add_argument(
-        "--provenance-kind",
-        choices=("local-run", "ci-run", "other"),
-        default="local-run",
-    )
-    parser.add_argument("--provenance-id")
-    parser.add_argument("--provenance-locator")
-    args = parser.parse_args()
-
-    root = Path(args.root).resolve()
+def produce_locked(root: Path, args: argparse.Namespace) -> int:
     try:
         evidence_path = candidate.ensure_output_path(root, EVIDENCE_RELATIVE)
     except candidate.CandidateError as exc:
@@ -321,6 +318,27 @@ def main() -> int:
 
     print(f"Release evidence produced for {args.revision}")
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", default=".")
+    parser.add_argument("--revision", required=True)
+    parser.add_argument(
+        "--provenance-kind",
+        choices=("local-run", "ci-run", "other"),
+        default="local-run",
+    )
+    parser.add_argument("--provenance-id")
+    parser.add_argument("--provenance-locator")
+    args = parser.parse_args()
+
+    root = Path(args.root).resolve()
+    try:
+        with lifecycle_lock.release_lifecycle_lock(root):
+            return produce_locked(root, args)
+    except lifecycle_lock.ReleaseLifecycleLockError as exc:
+        fail(str(exc))
 
 
 if __name__ == "__main__":

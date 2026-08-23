@@ -17,4 +17,12 @@ The managed helper `.template-composition/release/candidate.py` provides the com
 
 Ignored ambient local state is not treated as part of the candidate byte claim. For example, an ignored `.venv/` may exist without changing the asserted Git candidate. The v1 execution contract also does not claim a hermetic environment identity; a stronger environment claim requires an explicit future contract rather than implicit dependence on ignored files.
 
+## Release lifecycle serialization
+
+The managed helper `.template-composition/release/lifecycle_lock.py` provides one repository-local cooperative lock shared by release-evidence and release-bundle producers. The lock file lives under the repository `.git` directory, not in the candidate worktree. A producer acquires this lock before candidate/evidence snapshot preflight and keeps it through proof or digest work, canonical output validation, and rollback.
+
+On POSIX systems the helper uses an exclusive `flock`; on Windows it uses `msvcrt` byte-range locking behind the same API. The lock file must be a regular non-symbolic file and its opened identity must still match the path identity. OS locks are released when the descriptor closes or the process exits, so a crashed producer does not leave an authoritative stale-lock state.
+
+This lock serializes cooperating Composition release producers. It is not a claim that a hostile process with filesystem or repository-administration privileges cannot alter state; candidate verification and snapshot validation remain the integrity boundary for repository inputs.
+
 Execution results remain the responsibility of `lifecycle.release-evidence`. The release-evidence command digest continues to bind the authoritative command text from implementation evidence; the execution contract supplies the separate executable binding that the managed producer can run and observe.
