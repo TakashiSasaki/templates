@@ -52,8 +52,8 @@ def build_post_apply_guidance(
             {
                 "id": "respect-composition-ownership",
                 "message": (
-                    "Treat Composition-owned managed/generated files as authoritative "
-                    "Composition output; do not edit them directly."
+                    "Treat active managed/generated paths as Composition-owned output; "
+                    "do not edit them directly."
                 ),
             }
         )
@@ -62,8 +62,8 @@ def build_post_apply_guidance(
             {
                 "id": "edit-consumer-owned-seeds",
                 "message": (
-                    "Edit consumer-owned seed files as needed; later managed operations "
-                    "preserve their current consumer bytes."
+                    "Edit active consumer-owned seed paths as needed; later managed "
+                    "operations preserve their current consumer bytes."
                 ),
             }
         )
