@@ -23,6 +23,7 @@ BOOTSTRAP_DISTRIBUTIONS = frozenset({"pip", "setuptools", "wheel"})
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = SKILL_ROOT / "runtime-manifest.json"
 CACHE_SCHEMA = 1
+CLI_MODULE = "agent_policy.cli"
 
 
 @dataclass(frozen=True)
@@ -303,6 +304,10 @@ def executable_path(root: Path, executable: str) -> Path:
     return directory / f"{executable}{suffix}"
 
 
+def cli_command(root: Path) -> list[str]:
+    return [str(venv_python(root)), "-I", "-m", CLI_MODULE]
+
+
 def marker_path(root: Path) -> Path:
     return root / "runtime.json"
 
@@ -352,6 +357,7 @@ def marker_matches(root: Path, identity: RuntimeIdentity, pin: RuntimePin) -> bo
         and marker.get("identity") == identity.payload()
         and project.get("distribution") == pin.project_distribution
         and project.get("executable") == pin.executable
+        and venv_python(root).is_file()
         and executable_path(root, pin.executable).is_file()
     )
 
@@ -524,6 +530,14 @@ def build_runtime(
                 shutil.rmtree(backup)
             target.rename(backup)
         stage.rename(target)
+        try:
+            run([*cli_command(target), "--help"], env=env)
+        except Exception:
+            shutil.rmtree(target, ignore_errors=True)
+            if backup is not None and backup.exists():
+                backup.rename(target)
+                backup = None
+            raise
         if backup is not None:
             shutil.rmtree(backup, ignore_errors=True)
         return target
@@ -561,7 +575,7 @@ def ensure_runtime(pin: RuntimePin, *, root: Path | None = None) -> Path:
     return build_runtime(target, identity, pin, lock_data)
 
 
-def runtime_executable(repository_root: Path) -> Path:
+def runtime_command(repository_root: Path) -> list[str]:
     pin = select_pin(repository_root)
     runtime = ensure_runtime(pin)
-    return executable_path(runtime, pin.executable)
+    return cli_command(runtime)
