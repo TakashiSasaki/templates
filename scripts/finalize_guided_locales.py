@@ -20,6 +20,7 @@ try:
         SiteMetadataError,
         allow_guided_copy_script,
         discover_page_path_routes,
+        ensure_guided_pwa_runtime,
         ensure_pwa_metadata,
         generated_html_files,
         guided_copy_button,
@@ -42,6 +43,7 @@ except ModuleNotFoundError:
         SiteMetadataError,
         allow_guided_copy_script,
         discover_page_path_routes,
+        ensure_guided_pwa_runtime,
         ensure_pwa_metadata,
         generated_html_files,
         guided_copy_button,
@@ -359,6 +361,7 @@ def finalize(
                 page_routes,
             )
             source = ensure_pwa_metadata(source, translation_file)
+            source = ensure_guided_pwa_runtime(source, translation_file)
             source = rewrite_canonical_link(source, canonical_url, translation_file)
             source = replace_alternates(source, alternates, translation_file)
             source = replace_html_language(source, record["language"], translation_file)
@@ -372,6 +375,7 @@ def finalize(
 
         source = canonical_file.read_text(encoding="utf-8")
         source = ensure_pwa_metadata(source, canonical_file)
+        source = ensure_guided_pwa_runtime(source, canonical_file)
         source = rewrite_canonical_link(source, canonical_url, canonical_file)
         source = replace_alternates(source, alternates, canonical_file)
         source = replace_html_language(source, "en", canonical_file)
