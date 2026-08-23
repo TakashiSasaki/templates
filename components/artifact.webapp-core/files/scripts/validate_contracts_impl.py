@@ -126,7 +126,7 @@ def _has_visible_character(value: str) -> bool:
 
 
 def _surface_dependency_cycles(surfaces: list[dict[str, Any]]) -> list[list[str]]:
-    graph = {surface["id"]: surface["startupDependencies"] for surface in surfaces}
+    graph = {surface["id"]: surface["surfaceDependencies"] for surface in surfaces}
     visited: set[str] = set()
     cycles: list[list[str]] = []
 
@@ -308,16 +308,16 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(
                 f"surface {surface_id}: required authentication must not include anonymous audience"
             )
-        for dependency in surface["startupDependencies"]:
+        for dependency in surface["surfaceDependencies"]:
             if dependency not in known_surfaces:
                 errors.append(
-                    f"surface {surface_id}: unknown startup dependency {dependency}"
+                    f"surface {surface_id}: unknown surface dependency {dependency}"
                 )
             if dependency == surface_id:
                 errors.append(f"surface {surface_id}: must not depend on itself")
 
     for cycle in _surface_dependency_cycles(surfaces):
-        errors.append(f"surface startup dependency cycle: {' -> '.join(cycle)}")
+        errors.append(f"surface dependency cycle: {' -> '.join(cycle)}")
 
     for state in states:
         state_id = state["id"]

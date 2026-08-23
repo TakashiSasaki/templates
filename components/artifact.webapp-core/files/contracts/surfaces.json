@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/surfaces.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "surfaces": [
     {
       "id": "public",
@@ -14,7 +14,7 @@
       },
       "dataClassifications": ["public"],
       "stability": "stable",
-      "startupDependencies": [],
+      "surfaceDependencies": [],
       "diagnostic": false
     },
     {
@@ -29,7 +29,7 @@
       },
       "dataClassifications": ["internal", "personal"],
       "stability": "stable",
-      "startupDependencies": [],
+      "surfaceDependencies": [],
       "diagnostic": false
     },
     {
@@ -44,7 +44,7 @@
       },
       "dataClassifications": ["public"],
       "stability": "experimental",
-      "startupDependencies": [],
+      "surfaceDependencies": [],
       "diagnostic": true
     }
   ]

@@ -27,7 +27,7 @@ RELEASE_SEEDS = {
 }
 
 
-class WebappV4UpgradeTests(unittest.TestCase):
+class WebappLegacyUpgradeTests(unittest.TestCase):
     def run_composer(
         self, *arguments: str
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
@@ -71,13 +71,13 @@ class WebappV4UpgradeTests(unittest.TestCase):
         return path
 
     def materialize_simulated_v3_webapp(self, root: Path) -> Path:
-        """Build the v3-equivalent release closure, then rewrite lock intent/version.
+        """Build the legacy release closure, then rewrite lock intent/version.
 
         The v3 Webapp artifact selected the complete release chain transitively from an
-        empty include list. v4 can materialize the same file/component closure by
-        explicitly selecting lifecycle.release-bundle. Rewriting only lock intent and
-        the artifact version gives the managed planners the relevant v3 state shape
-        without maintaining a second historical source tree inside the test suite.
+        empty include list. The current artifact can materialize the same file/component
+        closure by explicitly selecting lifecycle.release-bundle. Rewriting only lock
+        intent and the artifact version gives the managed planners the relevant v3 state
+        shape without maintaining a second historical source tree inside the test suite.
         """
 
         target = root / "consumer"
@@ -105,13 +105,13 @@ class WebappV4UpgradeTests(unittest.TestCase):
             for entry in lock["resolved_components"]
             if entry["id"] == "artifact.webapp-core"
         )
-        self.assertEqual(artifact["version"], 4)
+        self.assertEqual(artifact["version"], 5)
         artifact["version"] = 3
         artifact["descriptor_sha256"] = "3" * 64
         lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
         return target
 
-    def test_ordinary_update_rejects_webapp_v3_to_v4_component_boundary(self) -> None:
+    def test_ordinary_update_rejects_webapp_v3_to_current_component_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_simulated_v3_webapp(Path(temp_dir))
             result, plan = self.run_composer(
@@ -154,7 +154,7 @@ class WebappV4UpgradeTests(unittest.TestCase):
             self.assertEqual(plan["components"]["removed"], [])
             changed = {entry["id"]: entry for entry in plan["components"]["changed"]}
             self.assertEqual(changed["artifact.webapp-core"]["from_version"], 3)
-            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 4)
+            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 5)
             self.assertEqual(
                 changed["artifact.webapp-core"]["compatibility_boundary"],
                 "component-version",
