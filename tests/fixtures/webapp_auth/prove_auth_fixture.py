@@ -74,6 +74,7 @@ surfaces = {
 ui_states = json.loads(
     (ROOT / "contracts/ui-states.json").read_text(encoding="utf-8")
 )["states"]
+states_by_id = {state["id"]: state for state in ui_states}
 for route_id, surface_id, required_role in (
     ("application-home", "application", "application-user"),
     ("admin", "admin", "admin"),
@@ -94,6 +95,10 @@ for route_id, surface_id, required_role in (
     } <= set(route["states"])
     assert surface["authorization"] == {"mode": "role", "roles": [required_role]}
 
+for route in routes.values():
+    assert route["accessibility"]["documentTitleRequired"] is True
+    assert route["accessibility"]["focusTarget"] == "main-heading"
+
 viewports = json.loads(
     (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
 )
@@ -109,6 +114,10 @@ assert viewports["constraints"] == {
 }
 
 client_source = (ROOT / "product/client.html").read_text(encoding="utf-8")
+assert '<title>Composition Webapp auth fixture</title>' in client_source
+assert 'id="main-heading"' in client_source
+assert 'id="error-summary"' in client_source
+assert 'id="error-heading"' in client_source
 assert 'name="viewport"' in client_source
 assert "width=device-width" in client_source
 assert "user-scalable=no" not in client_source
@@ -157,6 +166,15 @@ def assert_view(
     assert f'data-state="{expected_state}"' in body, body
     assert '<meta name="viewport"' in body, body
     assert '<button type="button"' in body, body
+
+    state = states_by_id[expected_state]
+    expected_aria_live = (
+        "off" if state["announcement"] == "none" else state["announcement"]
+    )
+    assert f'data-focus-strategy="{state["focusStrategy"]}"' in body, body
+    assert f'aria-live="{expected_aria_live}"' in body, body
+    recovery_actions = ",".join(state["recoveryActions"])
+    assert f'data-recovery-actions="{recovery_actions}"' in body, body
     return expected_state
 
 
@@ -232,7 +250,7 @@ finally:
     thread.join(timeout=5)
     assert not thread.is_alive()
 
-assert observed_states == {state["id"] for state in ui_states}
+assert observed_states == set(states_by_id)
 print(
-    "Webapp auth product proof: route access, complete UI-state, and viewport behavior passed"
+    "Webapp auth product proof: route access, complete UI-state, viewport, and accessibility behavior passed"
 )
