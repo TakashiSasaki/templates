@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -29,7 +30,7 @@ runtime = load_script("agent_policy_runtime_relocation_runtime", RUNTIME_PATH)
 bootstrap = load_script("agent_policy_runtime_relocation_bootstrap", BOOTSTRAP_PATH)
 
 
-def pin() -> object:
+def pin() -> Any:
     return runtime.RuntimePin(
         repository="TakashiSasaki/templates",
         revision="a" * 40,
@@ -41,7 +42,7 @@ def pin() -> object:
     )
 
 
-def identity() -> object:
+def identity() -> Any:
     return runtime.RuntimeIdentity(
         repository="TakashiSasaki/templates",
         revision="a" * 40,
@@ -54,7 +55,7 @@ def identity() -> object:
 def fake_runtime_builder(
     monkeypatch: pytest.MonkeyPatch,
     target: Path,
-    runtime_pin: object,
+    runtime_pin: Any,
     *,
     fail_smoke: bool = False,
 ) -> list[list[str]]:
@@ -98,7 +99,10 @@ def test_build_runtime_smokes_module_entrypoint_after_final_rename(
     assert target.is_dir()
     assert commands[-1] == [*runtime.cli_command(target), "--help"]
     assert str(target) in commands[-1][0]
-    assert not any(path.name.startswith(f".{target.name}.build-") for path in target.parent.iterdir())
+    assert not any(
+        path.name.startswith(f".{target.name}.build-")
+        for path in target.parent.iterdir()
+    )
 
 
 def test_build_runtime_restores_previous_cache_when_post_rename_smoke_fails(
@@ -122,8 +126,14 @@ def test_build_runtime_restores_previous_cache_when_post_rename_smoke_fails(
 
     assert (target / "previous-runtime.txt").read_text(encoding="utf-8") == "preserve"
     assert not runtime.marker_path(target).exists()
-    assert not any(path.name.startswith(f".{target.name}.backup-") for path in target.parent.iterdir())
-    assert not any(path.name.startswith(f".{target.name}.build-") for path in target.parent.iterdir())
+    assert not any(
+        path.name.startswith(f".{target.name}.backup-")
+        for path in target.parent.iterdir()
+    )
+    assert not any(
+        path.name.startswith(f".{target.name}.build-")
+        for path in target.parent.iterdir()
+    )
 
 
 def test_bootstrap_toolchain_preserves_module_entrypoint_prefix(
