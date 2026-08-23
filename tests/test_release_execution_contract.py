@@ -159,6 +159,63 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                 result.stderr,
             )
 
+            target = self.materialize_webapp(Path(temp_dir) / "inverse")
+            self.write_json(
+                target / "contracts/release-execution.json",
+                self.product_execution(),
+            )
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "product release execution requires product implementation evidence",
+                result.stderr,
+            )
+
+    def test_validator_rejects_invalid_argv_elements(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            self.write_json(
+                target / "contracts/implementation-evidence.json",
+                self.product_implementation(),
+            )
+
+            for invalid_argument in ("", "proof\x00.py"):
+                with self.subTest(invalid_argument=invalid_argument):
+                    execution = self.product_execution()
+                    execution["commands"][0]["argv"] = ["python", invalid_argument]
+                    self.write_json(
+                        target / "contracts/release-execution.json", execution
+                    )
+                    result = self.run_validator(target)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(
+                        "argv must be a non-empty array of non-empty NUL-free strings",
+                        result.stderr,
+                    )
+
+    def test_validator_rejects_duplicate_command_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            self.write_json(
+                target / "contracts/implementation-evidence.json",
+                self.product_implementation(),
+            )
+            execution = self.product_execution()
+            execution["commands"].append(
+                {
+                    "commandId": "product-proof",
+                    "argv": ["python", "product/alternate.py"],
+                    "workingDirectory": ".",
+                }
+            )
+            self.write_json(target / "contracts/release-execution.json", execution)
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "duplicate release execution command commandId: product-proof",
+                result.stderr,
+            )
+
     def test_schema_rejects_unsafe_working_directories_and_empty_argv(self) -> None:
         schema = json.loads(
             (
