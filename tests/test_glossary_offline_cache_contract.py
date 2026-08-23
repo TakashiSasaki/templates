@@ -138,10 +138,11 @@ class GlossaryOfflineCacheContractTests(unittest.TestCase):
 
         self.assertIn('response.headers.get("X-Templates-Freshness")', runtime)
         self.assertIn('const CACHED_FRESHNESS = "cached-unverified";', runtime)
-        self.assertIn("Saved glossary data · latest version not verified.", runtime)
+        self.assertIn("status.textContent = strings.cached_unverified;", runtime)
+        self.assertNotIn("Saved glossary data · latest version not verified.", runtime)
         self.assertIn('class="glossary-inline-dialog__freshness"', runtime)
-        self.assertIn("setFreshness(panel, freshness)", runtime)
-        self.assertIn('setFreshness(panel, "unavailable")', runtime)
+        self.assertIn("setFreshness(panel, freshness, strings)", runtime)
+        self.assertIn('setFreshness(panel, "unavailable", strings)', runtime)
         self.assertIn(".glossary-inline-dialog__freshness", stylesheet)
 
     def test_cached_unverified_runtime_retries_network_on_later_activation(self) -> None:
