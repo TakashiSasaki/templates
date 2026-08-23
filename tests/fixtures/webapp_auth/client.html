@@ -31,13 +31,35 @@
       <div id="error-summary" tabindex="-1">Recoverable error summary</div>
       <div id="error-heading" tabindex="-1">Fatal error heading</div>
       <p class="scroll-region">Responsive fixture content for contract verification.</p>
+      <div id="recovery-actions" aria-label="Recovery actions"></div>
       <button type="button" id="primary-action">Continue</button>
     </main>
     <aside class="context" aria-label="Context">Optional wide-screen context</aside>
   </div>
   <script>
+    const main = document.getElementById("main-content");
+    const focusStrategy = main.dataset.focusStrategy;
+    if (focusStrategy !== "preserve") {
+      document.getElementById(focusStrategy).focus();
+    }
+
+    const recoveryContainer = document.getElementById("recovery-actions");
+    const recoveryActions = main.dataset.recoveryActions
+      .split(",")
+      .filter((value) => value.length > 0);
+    for (const action of recoveryActions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.recoveryAction = action;
+      button.textContent = action;
+      button.addEventListener("click", () => {
+        main.dataset.action = action;
+      });
+      recoveryContainer.appendChild(button);
+    }
+
     document.getElementById("primary-action").addEventListener("click", () => {
-      document.getElementById("main-content").dataset.action = "activated";
+      main.dataset.action = "activated";
     });
   </script>
 </body>
