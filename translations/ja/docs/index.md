@@ -57,4 +57,5 @@
 
 ## Machine-readable authorities
 
+- [Production catalog guide](../catalog/README.md) — catalog closure rules、path conventions、consumer recipe/component selection guidance を説明します。
 - [Composition schema guide](../schemas/README.md) — component、recipe、configuration、lock、transaction、catalog schema responsibilities を説明します。
