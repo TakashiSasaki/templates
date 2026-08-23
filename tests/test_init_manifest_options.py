@@ -7,13 +7,15 @@ from agent_policy.commands import check, init, validate
 from agent_policy.manifest import build_manifest
 from agent_policy.yamlutil import load_yaml
 
+TEST_REVISION = "a" * 40
+
 
 def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
     profiles = ["core"]
     project_policy_files = ["policy/a.md", "policy/b.md"]
     enabled_skills: list[str] = []
     manifest = build_manifest(
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=profiles,
         project_policy_files=project_policy_files,
         verification_command=None,
@@ -47,7 +49,7 @@ def test_manifest_builder_supports_adoption_shaped_inputs() -> None:
 def test_manifest_builder_rejects_empty_verification_command() -> None:
     with pytest.raises(ValueError, match="Verification command must not be empty"):
         build_manifest(
-            toolchain_revision="LOCAL-DEVELOPMENT",
+            toolchain_revision=TEST_REVISION,
             profiles=["core"],
             project_policy_files=["policy/project.md"],
             verification_command="   ",
@@ -58,7 +60,7 @@ def test_manifest_builder_rejects_empty_verification_command() -> None:
 
 
 def test_init_defaults_emit_schema_v2() -> None:
-    manifest = init.proposed_manifest("LOCAL-DEVELOPMENT", ["core"])
+    manifest = init.proposed_manifest(TEST_REVISION, ["core"])
     args = parser().parse_args(["init"])
 
     assert manifest["schema_version"] == 2
@@ -88,7 +90,7 @@ def test_init_applies_custom_manifest_options(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=["config/agent-policy.md"],
         verification_command=None,
@@ -132,7 +134,7 @@ def test_init_rejects_multiple_policy_scaffolds(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=["policy/a.md", "policy/b.md"],
     )
@@ -148,7 +150,7 @@ def test_init_rejects_disabled_output_escape_before_writing(tmp_path: Path) -> N
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         agents_output_enabled=False,
         agents_output_path=f"../{escaped_name}",
@@ -169,7 +171,7 @@ def test_init_rejects_disabled_output_collision_before_writing(tmp_path: Path) -
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         agents_output_enabled=False,
         agents_output_path=".agent-policy.lock",
@@ -189,7 +191,7 @@ def test_init_rejects_empty_verification_before_writing(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         verification_command="   ",
         enabled_skills=[],
@@ -208,7 +210,7 @@ def test_init_rejects_config_policy_collision_before_writing(tmp_path: Path) -> 
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=[".agent-policy.yml"],
         enabled_skills=[],
@@ -227,7 +229,7 @@ def test_init_rejects_policy_skill_collision_before_writing(tmp_path: Path) -> N
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=[skill_path],
         enabled_skills=["validate-agent-policy"],
@@ -246,7 +248,7 @@ def test_init_rejects_invalid_skill_name_before_writing(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=["../templates"],
     )
@@ -265,7 +267,7 @@ def test_init_rejects_parent_child_output_collision_before_writing(tmp_path: Pat
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         agents_output_path=agents_output,
         enabled_skills=["validate-agent-policy"],
@@ -285,7 +287,7 @@ def test_init_rejects_non_directory_ancestor_before_writing(tmp_path: Path) -> N
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=["docs/policy.md"],
         enabled_skills=[],
