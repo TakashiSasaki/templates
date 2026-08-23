@@ -128,7 +128,7 @@ def _wait_for_document_cache(page: Any) -> None:
           const cache = await caches.open(cacheName);
           return Boolean(await cache.match(window.location.href));
         }""",
-        DOCUMENT_CACHE_NAME,
+        arg=DOCUMENT_CACHE_NAME,
     )
 
 
@@ -193,7 +193,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                   const status = document.getElementById("templates-freshness-status");
                   return status && status.textContent.includes(expected);
                 }""",
-                EXPECTED_JA["update_available"],
+                arg=EXPECTED_JA["update_available"],
             )
             update_text = page.locator("#templates-freshness-status").inner_text()
             reload_text = page.locator("#templates-freshness-status button").inner_text()
