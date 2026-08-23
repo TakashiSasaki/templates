@@ -40,7 +40,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 "authorization": {"mode": "role", "roles": ["admin"]},
                 "dataClassifications": ["internal"],
                 "stability": "experimental",
-                "startupDependencies": [],
+                "surfaceDependencies": [],
                 "diagnostic": False,
             }
         )
