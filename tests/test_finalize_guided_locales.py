@@ -21,6 +21,9 @@ REVISION = "a" * 40
 def page(title: str) -> str:
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta http-equiv="Content-Security-Policy" '
+        'content="default-src \'none\'; style-src \'unsafe-inline\'; '
+        'manifest-src \'self\'; base-uri \'none\'; form-action \'none\'">'
         '<link rel="canonical" href="https://templates.moukaeritai.work/">'
         f'<title>{title}</title></head><body><main><h1>{title}</h1></main></body></html>'
     )
@@ -96,6 +99,17 @@ class FinalizeGuidedLocalesTests(unittest.TestCase):
             self.assertIn('English · Canonical', japanese)
             self.assertIn('rel="manifest" href="/app.webmanifest"', japanese)
             self.assertIn('name="theme-color" content="#3f51b5"', japanese)
+            for source in (english, japanese):
+                self.assertIn('<script src="/javascripts/pwa.js" defer></script>', source)
+                self.assertIn(
+                    '<link rel="stylesheet" href="/stylesheets/freshness-status.css">',
+                    source,
+                )
+                self.assertIn("script-src 'self'", source)
+                self.assertIn("style-src 'self' 'unsafe-inline'", source)
+                self.assertIn("connect-src 'self'", source)
+                self.assertIn("worker-src 'self'", source)
+                self.assertIn("manifest-src 'self'", source)
 
     def test_localized_guided_page_receives_public_and_github_copy_controls(self) -> None:
         with tempfile.TemporaryDirectory(prefix="guided-locale-") as directory:
@@ -135,7 +149,10 @@ class FinalizeGuidedLocalesTests(unittest.TestCase):
                 japanese,
             )
             self.assertIn('<script src="/javascripts/guided-copy.js" defer></script>', japanese)
+            self.assertIn('<script src="/javascripts/pwa.js" defer></script>', japanese)
             self.assertIn("script-src 'self'", japanese)
+            self.assertIn("connect-src 'self'", japanese)
+            self.assertIn("worker-src 'self'", japanese)
             self.assertIn('<span class="page-path-label">ページパス:</span>', japanese)
 
     def test_every_translation_receives_complete_alternate_set(self) -> None:
