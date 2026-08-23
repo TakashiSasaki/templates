@@ -117,6 +117,7 @@ class ComposerMVPTests(unittest.TestCase):
                     "lifecycle.implementation-evidence",
                     "lifecycle.release-bundle",
                     "lifecycle.release-evidence",
+                    "lifecycle.release-execution",
                 ],
             )
             self.assertNotIn("capability.runtime", payload["resolved_components"])
