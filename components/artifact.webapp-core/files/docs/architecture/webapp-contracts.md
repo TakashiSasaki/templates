@@ -4,7 +4,9 @@
 
 These families are framework-neutral but not artifact-neutral. They define observable browser experience semantics and therefore remain with the Web application artifact rather than moving into generic runtime or lifecycle components.
 
-The component retains the current Webapp source contract versions and their registered breaking-change histories. Routes are at v3 with v1→v2 and v2→v3 migrations; UI states remain at v2 with their v1→v2 migration. The composition contract manifest itself starts at a new bootstrap version because its authority model changed from a monolithic static file to deterministic generation from component registrations.
+The component retains the current Webapp source contract versions and their registered breaking-change histories. Surfaces are at v2 with their v1→v2 migration; routes are at v3 with v1→v2 and v2→v3 migrations; UI states remain at v2 with their v1→v2 migration. The composition contract manifest itself starts at a new bootstrap version because its authority model changed from a monolithic static file to deterministic generation from component registrations.
+
+Surfaces v2 uses `surfaceDependencies` for references from one declared browser-facing surface to other surface IDs in the same surfaces contract. These dependencies describe relationships among application surfaces. They are not package dependencies, runtime requirements, backend-service dependencies, operating-system processes, or process startup ordering. Validation rejects unknown surface IDs, self-dependencies, and cycles. See `docs/migrations/surfaces-v1-to-v2.md` when migrating an older seed contract.
 
 Routes v3 makes access-failure targets explicit. A `render-state` behavior names the route-scoped access state to render, while a `redirect` behavior names the semantic destination route. URL shape, query-parameter names, cookies, sessions, framework callbacks, and other transport details remain product-owned implementation concerns.
 
