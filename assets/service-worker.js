@@ -116,18 +116,21 @@ async function loadSiteChromeLocales() {
 }
 
 function pwaFreshnessStrings(model, language) {
-  if (!model || typeof language !== "string") {
+  if (!model) {
     return undefined;
   }
-  const exact = model.locales.get(language);
-  if (exact) {
-    return exact;
+  if (typeof language === "string") {
+    const exact = model.locales.get(language);
+    if (exact) {
+      return exact;
+    }
+    const primary = language.split("-", 1)[0];
+    const primaryLocale = model.locales.get(primary);
+    if (primaryLocale) {
+      return primaryLocale;
+    }
   }
-  const primary = language.split("-", 1)[0];
-  return (
-    model.locales.get(primary) ||
-    model.locales.get(model.canonicalLanguage)
-  );
+  return model.locales.get(model.canonicalLanguage);
 }
 
 function htmlLanguage(source) {
