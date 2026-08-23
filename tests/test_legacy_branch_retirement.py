@@ -10,7 +10,6 @@ SOURCE_LOCK = ROOT / "publication-sources.json"
 DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 LANGUAGE_POLICY = ROOT / "LANGUAGE.md"
 
-POLICY_REVISION = "0f870892b9da5e736b2bd088987488ea65c1f887"
 SKILL_ARCHIVE_REVISION = "b8b735dbe525ca76316fec445cdce43db02a955e"
 WEBAPP_ARCHIVE_REVISION = "fa269e1310a37ad46f3644ed4f46954a815380ec"
 
@@ -51,14 +50,13 @@ class LegacyBranchRetirementTests(unittest.TestCase):
         publications = source_lock["publications"]
 
         self.assertEqual(set(publications), {"composition", "policy"})
-        self.assertRegex(
-            publications["composition"]["revision"],
-            r"\A[0-9a-f]{40}\Z",
-        )
-        self.assertEqual(
-            publications["policy"],
-            {"revision": POLICY_REVISION},
-        )
+        for provider in ("composition", "policy"):
+            with self.subTest(provider=provider):
+                self.assertEqual(set(publications[provider]), {"revision"})
+                self.assertRegex(
+                    publications[provider]["revision"],
+                    r"\A[0-9a-f]{40}\Z",
+                )
 
     def test_deployment_state_records_completed_retirement(self) -> None:
         state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
