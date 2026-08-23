@@ -36,6 +36,16 @@ GLOSSARY_INLINE_FIELDS = {
     "definition_load_failed",
     "definition_not_found",
 }
+GUIDED_COPY_FIELDS = {
+    "github_url_name",
+    "public_url_name",
+    "copy_github_url",
+    "copy_public_url",
+    "copied_github_url",
+    "copied_public_url",
+    "copy_failed_github_url",
+    "copy_failed_public_url",
+}
 
 
 class SiteChromeLocaleError(RuntimeError):
@@ -104,17 +114,20 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
         raise SiteChromeLocaleError("Site chrome locales locales must be a non-empty array")
 
     locales: dict[str, dict[str, Any]] = {}
+    required_locale_fields = {
+        "language",
+        "language_label",
+        "translation_reader",
+        "pwa_freshness",
+        "glossary_inline",
+        "guided_copy",
+    }
     for index, raw in enumerate(raw_locales):
         field = f"locales[{index}]"
-        if not isinstance(raw, dict) or set(raw) != {
-            "language",
-            "language_label",
-            "translation_reader",
-            "pwa_freshness",
-            "glossary_inline",
-        }:
+        if not isinstance(raw, dict) or set(raw) != required_locale_fields:
             raise SiteChromeLocaleError(
-                f"{field} must contain language, language_label, translation_reader, pwa_freshness, and glossary_inline"
+                f"{field} must contain language, language_label, translation_reader, "
+                "pwa_freshness, glossary_inline, and guided_copy"
             )
         language = raw["language"]
         if not isinstance(language, str) or not LANGUAGE_TAG.fullmatch(language):
@@ -145,6 +158,11 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
                 field=f"{field}.glossary_inline",
                 required_fields=GLOSSARY_INLINE_FIELDS,
             ),
+            "guided_copy": _normalized_strings(
+                raw["guided_copy"],
+                field=f"{field}.guided_copy",
+                required_fields=GUIDED_COPY_FIELDS,
+            ),
         }
 
     if canonical_language not in locales:
@@ -172,25 +190,31 @@ def language_label(model: dict[str, Any], language: str) -> str:
     return locale["language_label"] if locale is not None else language
 
 
-def reader_strings(model: dict[str, Any], language: str) -> dict[str, str]:
+def _section_strings(
+    model: dict[str, Any],
+    language: str,
+    section: str,
+) -> dict[str, str]:
     locale = locale_record(model, language)
     if locale is None:
         locale = model["locales"][model["canonical_language"]]
-    return locale["translation_reader"]
+    return locale[section]
+
+
+def reader_strings(model: dict[str, Any], language: str) -> dict[str, str]:
+    return _section_strings(model, language, "translation_reader")
 
 
 def pwa_freshness_strings(model: dict[str, Any], language: str) -> dict[str, str]:
-    locale = locale_record(model, language)
-    if locale is None:
-        locale = model["locales"][model["canonical_language"]]
-    return locale["pwa_freshness"]
+    return _section_strings(model, language, "pwa_freshness")
 
 
 def glossary_inline_strings(model: dict[str, Any], language: str) -> dict[str, str]:
-    locale = locale_record(model, language)
-    if locale is None:
-        locale = model["locales"][model["canonical_language"]]
-    return locale["glossary_inline"]
+    return _section_strings(model, language, "glossary_inline")
+
+
+def guided_copy_strings(model: dict[str, Any], language: str) -> dict[str, str]:
+    return _section_strings(model, language, "guided_copy")
 
 
 def translation_status(model: dict[str, Any], language: str) -> str:
