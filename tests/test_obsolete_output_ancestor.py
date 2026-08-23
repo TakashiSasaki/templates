@@ -3,7 +3,7 @@ from pathlib import Path
 from agent_policy.commands import render
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
-TEST_TOOLCHAIN_SHA = "6" * 40
+TEST_TOOLCHAIN_SHA = "6a" * 20
 
 PROJECT_POLICY = """---
 id: project.rule
