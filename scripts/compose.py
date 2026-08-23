@@ -117,13 +117,14 @@ def _mode_from_argv() -> str | None:
 
 def _argument_value(option: str) -> str | None:
     arguments = sys.argv[1:]
-    for index, argument in enumerate(arguments):
+    for index in range(len(arguments) - 1, -1, -1):
+        argument = arguments[index]
+        if argument.startswith(option + "="):
+            return argument.split("=", 1)[1]
         if argument == option:
             if index + 1 >= len(arguments):
                 return None
             return arguments[index + 1]
-        if argument.startswith(option + "="):
-            return argument.split("=", 1)[1]
     return None
 
 
