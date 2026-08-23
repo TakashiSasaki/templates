@@ -11,6 +11,13 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
+from site_chrome_locales import (
+    SITE_CHROME_LOCALES,
+    SiteChromeLocaleError,
+    guided_copy_strings,
+    load_site_chrome_locales,
+)
+
 
 LINK_TAG_PATTERN = re.compile(r"<link\b[^>]*>", re.IGNORECASE | re.DOTALL)
 HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
@@ -77,6 +84,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--canonical-url", required=True)
+    parser.add_argument(
+        "--site-chrome-locales",
+        type=Path,
+        default=SITE_CHROME_LOCALES,
+    )
     return parser.parse_args()
 
 
@@ -289,12 +301,19 @@ def allow_guided_copy_script(source: str, path: Path) -> str:
     return source[: match.start()] + replacement + source[match.end() :]
 
 
-def guided_copy_button(name: str, url: str) -> str:
-    escaped_name = html.escape(name, quote=True)
-    escaped_url = html.escape(url, quote=True)
+def guided_copy_button(kind: str, url: str, strings: dict[str, str]) -> str:
+    if kind not in {"github_url", "public_url"}:
+        raise SiteMetadataError(f"unsupported guided copy kind: {kind}")
+    name = strings[f"{kind}_name"]
+    label = strings[f"copy_{kind}"]
+    success = strings[f"copied_{kind}"]
+    failure = strings[f"copy_failed_{kind}"]
     return (
-        f'<button type="button" data-copy-name="{escaped_name}" '
-        f'data-copy-url="{escaped_url}">Copy {escaped_name}</button>'
+        f'<button type="button" data-copy-name="{html.escape(name, quote=True)}" '
+        f'data-copy-url="{html.escape(url, quote=True)}" '
+        f'data-copy-success="{html.escape(success, quote=True)}" '
+        f'data-copy-failure="{html.escape(failure, quote=True)}">'
+        f"{html.escape(label)}</button>"
     )
 
 
@@ -354,6 +373,7 @@ def enhance_guided_copy_controls(
     source: str,
     canonical_url: str,
     path: Path,
+    copy_strings: dict[str, str],
     page_routes: set[str] | None = None,
 ) -> str:
     page_path_matches = list(PAGE_PATH_PATTERN.finditer(source))
@@ -384,8 +404,8 @@ def enhance_guided_copy_controls(
             html.unescape(github_matches[0].group("href")),
             path,
         )
-        buttons.append(guided_copy_button("GitHub URL", github_url))
-    buttons.append(guided_copy_button("public URL", public_url))
+        buttons.append(guided_copy_button("github_url", github_url, copy_strings))
+    buttons.append(guided_copy_button("public_url", public_url, copy_strings))
 
     replacement = (
         '<nav class="page-path" aria-label="Page path">'
@@ -454,8 +474,14 @@ def normalize_canonical_links(site_root: Path, canonical_url: str) -> int:
 def normalize_site_metadata(
     site_root: Path,
     canonical_url: str,
+    chrome_path: Path = SITE_CHROME_LOCALES,
 ) -> tuple[int, int]:
     canonical_url = validate_canonical_url(canonical_url)
+    chrome = load_site_chrome_locales(chrome_path)
+    canonical_copy_strings = guided_copy_strings(
+        chrome,
+        chrome["canonical_language"],
+    )
     resolved_root, html_files = generated_html_files(site_root)
     page_routes = discover_page_path_routes(html_files)
 
@@ -474,6 +500,7 @@ def normalize_site_metadata(
             updated,
             canonical_url,
             path,
+            canonical_copy_strings,
             page_routes,
         )
         updates[path] = updated
@@ -489,8 +516,9 @@ def main() -> int:
         canonical_count, pwa_count = normalize_site_metadata(
             args.site_root,
             args.canonical_url,
+            args.site_chrome_locales,
         )
-    except (OSError, SiteMetadataError) as exc:
+    except (OSError, SiteChromeLocaleError, SiteMetadataError) as exc:
         print(f"finalize_site_metadata.py: {exc}", file=sys.stderr)
         return 1
     print(
