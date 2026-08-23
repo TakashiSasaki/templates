@@ -48,11 +48,14 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_runtime_preserves_static_link_fallback_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
-        self.assertIn('const FALLBACK_SELECTOR = "a.glossary-term[data-glossary-id]";', source)
+        self.assertIn("data-glossary-static-fallback", source)
+        self.assertIn(':not([data-glossary-static-fallback="true"])', source)
         self.assertIn('trigger.dataset.glossaryHref = link.getAttribute("href")', source)
         self.assertIn('panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);', source)
         self.assertIn("function restoreFallbackLink(trigger)", source)
+        self.assertIn('link.dataset.glossaryStaticFallback = "true";', source)
         self.assertIn('link.setAttribute("href", fallbackHref(trigger));', source)
+        self.assertIn('control.dataset.glossaryStaticFallback === "true"', source)
         self.assertNotIn("window.location.assign", source)
         for modifier in ("event.metaKey", "event.ctrlKey", "event.shiftKey", "event.altKey"):
             self.assertIn(modifier, source)
