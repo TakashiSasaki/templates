@@ -250,7 +250,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 "commands": [
                     {
                         "commandId": "auth-product-proof",
-                        "argv": ["python", "product/prove_auth_fixture.py"],
+                        "argv": [sys.executable, "product/prove_auth_fixture.py"],
                         "workingDirectory": ".",
                     }
                 ],
