@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "skill",
-  "summary": "Minimal Agent Skill artifact with optional reusable application and lifecycle capabilities.",
+  "summary": "Agent Skill core with SKILL.md and structural validation; application capabilities and contract/release lifecycle components are explicit opt-ins.",
   "artifact": "artifact.skill-core",
   "required_components": [],
   "default_components": [],
