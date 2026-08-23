@@ -21,6 +21,11 @@ SKILL_LIFECYCLE_OPTIONS = {
     "lifecycle.release-evidence",
     "lifecycle.release-execution",
 }
+WEBAPP_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
+WEBAPP_BASELINE_LIFECYCLE = {
+    "lifecycle.contract-evolution",
+    "lifecycle.implementation-evidence",
+}
 RELEASE_LIFECYCLE_CLOSURE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
@@ -72,7 +77,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
         self.assertEqual(webapp["artifact"], "artifact.webapp-core")
         self.assertEqual(
             set(webapp["optional_components"]),
-            APPLICATION_CAPABILITIES,
+            APPLICATION_CAPABILITIES | WEBAPP_LIFECYCLE_OPTIONS,
         )
 
     def test_machine_readable_dependency_closures_match_selection_contract(self) -> None:
@@ -105,10 +110,38 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             {
                 "artifact.webapp-core",
                 "lifecycle.composition-state",
-                *RELEASE_LIFECYCLE_CLOSURE,
+                *WEBAPP_BASELINE_LIFECYCLE,
             },
         )
         self.assertFalse(minimal_webapp & APPLICATION_CAPABILITIES)
+        self.assertFalse(
+            minimal_webapp
+            & {
+                "lifecycle.release-execution",
+                "lifecycle.release-evidence",
+                "lifecycle.release-bundle",
+            }
+        )
+
+        runtime_webapp = dependency_closure(
+            "artifact.webapp-core", "capability.runtime"
+        )
+        self.assertEqual(
+            runtime_webapp,
+            minimal_webapp | {"capability.runtime"},
+        )
+
+        release_webapp = dependency_closure(
+            "artifact.webapp-core", "lifecycle.release-bundle"
+        )
+        self.assertEqual(
+            release_webapp,
+            {
+                "artifact.webapp-core",
+                "lifecycle.composition-state",
+                *RELEASE_LIFECYCLE_CLOSURE,
+            },
+        )
 
 
 if __name__ == "__main__":
