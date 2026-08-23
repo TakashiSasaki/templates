@@ -36,7 +36,7 @@ production catalog は、再利用可能な authority を次の3種類に分離�
 - `capability.*` は runtime、CLI、MCP、MCP Apps、browser、headless service など、再利用可能な runtime/interface/service behavior を定義します。
 - `lifecycle.*` は composition-state、contract-evolution、implementation-evidence、release-evidence、および release-bundle behavior を定義します。
 
-`recipes/skill.json` は `artifact.skill-core` を選択し、application capabilities と product lifecycle components は opt-in です。`recipes/webapp.json` は `artifact.webapp-core` を選択します。その release lifecycle は `lifecycle.release-bundle` を介して transitively に解決されますが、runtime と interface capabilities は引き続き optional です。したがって、static/CDN Web アプリケーションが browser-facing であるという理由だけで application runtime を持つことはありません。
+`recipes/skill.json` は `artifact.skill-core` を選択し、application capability と product lifecycle component は opt-in です。`recipes/webapp.json` は `artifact.webapp-core` を選択し、contract evolution と implementation evidence を baseline とします。release lifecycle は `lifecycle.release-bundle` による明示的な opt-in であり、runtime と interface capability も独立して optional です。したがって static / CDN Web application は、browser-facing であるという理由だけで application runtime や release lifecycle を持つ必要はありません。
 
 すべての artifact は `lifecycle.composition-state` を必要とします。これにより、自己完結した consumer validator と lock schema が `.template-composition/` 以下に materialize されます。
 
