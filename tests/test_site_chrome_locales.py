@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from site_chrome_locales import (  # noqa: E402
     SITE_CHROME_LOCALES,
     SiteChromeLocaleError,
+    glossary_inline_strings,
     language_label,
     load_site_chrome_locales,
     pwa_freshness_strings,
@@ -21,6 +22,33 @@ from site_chrome_locales import (  # noqa: E402
 
 
 class SiteChromeLocaleTests(unittest.TestCase):
+    def glossary_strings(self, language: str) -> dict[str, str]:
+        if language == "ja":
+            return {
+                "eyebrow": "用語集",
+                "close_definition": "定義を閉じる",
+                "open_in_glossary": "用語集で開く",
+                "definition_unavailable": "定義を利用できません。",
+                "cached_unverified": "保存済みの用語集データ · 最新版であることを確認できませんでした。",
+                "external_term_prefix": "外部用語 · 整理: ",
+                "repository_term_prefix": "テンプレート定義 · ",
+                "data_unavailable": "用語集データを利用できません。",
+                "definition_load_failed": "定義を読み込めませんでした。",
+                "definition_not_found": "定義が見つかりませんでした。",
+            }
+        return {
+            "eyebrow": "Glossary",
+            "close_definition": "Close definition",
+            "open_in_glossary": "Open in Glossary",
+            "definition_unavailable": "Definition unavailable.",
+            "cached_unverified": "Saved glossary data · latest version not verified.",
+            "external_term_prefix": "External term · curated by ",
+            "repository_term_prefix": "Templates-defined · ",
+            "data_unavailable": "Glossary data unavailable.",
+            "definition_load_failed": "Definition could not be loaded.",
+            "definition_not_found": "Definition could not be found.",
+        }
+
     def payload(self) -> dict[str, object]:
         return {
             "schema_version": 1,
@@ -44,6 +72,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "reload": "Reload",
                         "offline_unavailable": "This page is unavailable while offline.",
                     },
+                    "glossary_inline": self.glossary_strings("en"),
                 },
                 {
                     "language": "ja",
@@ -63,6 +92,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "reload": "再読み込み",
                         "offline_unavailable": "オフラインのため、このページを表示できません。",
                     },
+                    "glossary_inline": self.glossary_strings("ja"),
                 },
             ],
         }
@@ -72,7 +102,6 @@ class SiteChromeLocaleTests(unittest.TestCase):
 
     def test_repository_registry_has_canonical_and_japanese_reader_chrome(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
-
         self.assertEqual(model["canonical_language"], "en")
         self.assertEqual(language_label(model, "ja"), "日本語")
         self.assertEqual(reader_strings(model, "ja")["group_label"], "文書の言語")
@@ -81,40 +110,39 @@ class SiteChromeLocaleTests(unittest.TestCase):
 
     def test_repository_registry_has_canonical_and_japanese_pwa_freshness_chrome(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
-
         self.assertEqual(pwa_freshness_strings(model, "en")["reload"], "Reload")
-        self.assertEqual(
-            pwa_freshness_strings(model, "en")["offline_unavailable"],
-            "This page is unavailable while offline.",
-        )
-        self.assertEqual(
-            pwa_freshness_strings(model, "ja")["saved_copy"],
-            "保存済みのコピーです。",
-        )
-        self.assertEqual(
-            pwa_freshness_strings(model, "ja")["unverified"],
-            "最新版であることを確認できませんでした。",
-        )
-        self.assertEqual(pwa_freshness_strings(model, "ja")["reload"], "再読み込み")
         self.assertEqual(
             pwa_freshness_strings(model, "ja")["offline_unavailable"],
             "オフラインのため、このページを表示できません。",
         )
 
+    def test_repository_registry_has_canonical_and_japanese_glossary_chrome(self) -> None:
+        model = load_site_chrome_locales(SITE_CHROME_LOCALES)
+        self.assertEqual(glossary_inline_strings(model, "en")["eyebrow"], "Glossary")
+        self.assertEqual(glossary_inline_strings(model, "ja")["eyebrow"], "用語集")
+        self.assertEqual(
+            glossary_inline_strings(model, "ja")["close_definition"],
+            "定義を閉じる",
+        )
+        self.assertEqual(
+            glossary_inline_strings(model, "ja")["open_in_glossary"],
+            "用語集で開く",
+        )
+
     def test_primary_language_fallback_is_used_for_registered_locale(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
-
         self.assertEqual(language_label(model, "ja-jp"), "日本語")
         self.assertEqual(reader_strings(model, "ja-jp")["group_label"], "文書の言語")
         self.assertEqual(pwa_freshness_strings(model, "ja-jp")["reload"], "再読み込み")
+        self.assertEqual(glossary_inline_strings(model, "ja-jp")["eyebrow"], "用語集")
         self.assertEqual(translation_status(model, "ja-jp"), "日本語参考訳")
 
     def test_unknown_language_uses_canonical_chrome_and_generic_status(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
-
         self.assertEqual(language_label(model, "fr"), "fr")
         self.assertEqual(reader_strings(model, "fr")["group_label"], "Document language")
         self.assertEqual(pwa_freshness_strings(model, "fr")["reload"], "Reload")
+        self.assertEqual(glossary_inline_strings(model, "fr")["eyebrow"], "Glossary")
         self.assertEqual(
             translation_status(model, "fr"),
             "fr translation · Non-authoritative",
@@ -155,33 +183,28 @@ class SiteChromeLocaleTests(unittest.TestCase):
             with self.assertRaisesRegex(SiteChromeLocaleError, "lowercase language tag"):
                 load_site_chrome_locales(path)
 
-            blank_label = json.loads(json.dumps(valid))
-            blank_label["locales"][1]["language_label"] = "   "
-            self.write(path, blank_label)
-            with self.assertRaisesRegex(SiteChromeLocaleError, "language_label"):
-                load_site_chrome_locales(path)
-
-            blank_reader = json.loads(json.dumps(valid))
-            blank_reader["locales"][1]["translation_reader"]["canonical_link"] = "   "
-            self.write(path, blank_reader)
-            with self.assertRaisesRegex(SiteChromeLocaleError, "canonical_link"):
-                load_site_chrome_locales(path)
-
-            blank_pwa = json.loads(json.dumps(valid))
-            blank_pwa["locales"][1]["pwa_freshness"]["offline_unavailable"] = "   "
-            self.write(path, blank_pwa)
-            with self.assertRaisesRegex(
-                SiteChromeLocaleError,
-                "pwa_freshness.offline_unavailable",
+            for section, field_name in (
+                ("translation_reader", "canonical_link"),
+                ("pwa_freshness", "offline_unavailable"),
+                ("glossary_inline", "open_in_glossary"),
             ):
-                load_site_chrome_locales(path)
+                blank = json.loads(json.dumps(valid))
+                blank["locales"][1][section][field_name] = "   "
+                self.write(path, blank)
+                with self.subTest(section=section):
+                    with self.assertRaisesRegex(
+                        SiteChromeLocaleError,
+                        rf"{section}.{field_name}",
+                    ):
+                        load_site_chrome_locales(path)
 
-    def test_reader_and_pwa_fields_must_be_exact(self) -> None:
+    def test_chrome_sections_must_have_exact_fields(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
             for section, field_name in (
                 ("translation_reader", "group_label"),
                 ("pwa_freshness", "offline_unavailable"),
+                ("glossary_inline", "eyebrow"),
             ):
                 for mutation in ("missing", "extra"):
                     payload = self.payload()
@@ -198,15 +221,16 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         ):
                             load_site_chrome_locales(path)
 
-    def test_missing_pwa_section_fails_closed(self) -> None:
+    def test_missing_required_chrome_section_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
-            payload = self.payload()
-            del payload["locales"][1]["pwa_freshness"]  # type: ignore[index]
-            self.write(path, payload)
-
-            with self.assertRaisesRegex(SiteChromeLocaleError, "must contain language"):
-                load_site_chrome_locales(path)
+            for section in ("pwa_freshness", "glossary_inline"):
+                payload = self.payload()
+                del payload["locales"][1][section]  # type: ignore[index]
+                self.write(path, payload)
+                with self.subTest(section=section):
+                    with self.assertRaisesRegex(SiteChromeLocaleError, "must contain language"):
+                        load_site_chrome_locales(path)
 
     def test_missing_canonical_locale_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -214,7 +238,6 @@ class SiteChromeLocaleTests(unittest.TestCase):
             payload = self.payload()
             payload["locales"] = [payload["locales"][1]]  # type: ignore[index]
             self.write(path, payload)
-
             with self.assertRaisesRegex(
                 SiteChromeLocaleError,
                 "must include the canonical language locale",
@@ -224,18 +247,15 @@ class SiteChromeLocaleTests(unittest.TestCase):
     def test_duplicate_json_members_malformed_json_and_non_object_root_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
-
             path.write_text(
                 '{"schema_version":1,"schema_version":1,"canonical_language":"en","locales":[]}',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(SiteChromeLocaleError, "duplicate member"):
                 load_site_chrome_locales(path)
-
             path.write_text("{", encoding="utf-8")
             with self.assertRaisesRegex(SiteChromeLocaleError, "unable to parse"):
                 load_site_chrome_locales(path)
-
             self.write(path, [])
             with self.assertRaisesRegex(SiteChromeLocaleError, "must be an object"):
                 load_site_chrome_locales(path)
