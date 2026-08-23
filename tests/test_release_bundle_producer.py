@@ -113,6 +113,40 @@ class ReleaseBundleProducerTests(unittest.TestCase):
                 validated.stdout + validated.stderr,
             )
 
+    def test_template_release_evidence_is_rejected_without_bundle_mutation(self) -> None:
+        helper = self.helper()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target, revision, _ = helper.materialize_candidate(
+                Path(temp_dir),
+                "print('producer proof passed')\n",
+            )
+            bundle_path = target / "contracts/release-bundle.json"
+            original_bundle = bundle_path.read_bytes()
+
+            result = self.run_bundle(target, revision)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("release evidence must be in product mode", result.stderr)
+            self.assertEqual(bundle_path.read_bytes(), original_bundle)
+
+    def test_rejected_release_evidence_is_rejected_without_bundle_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            _, target, revision, original_bundle = self.approved_candidate(Path(temp_dir))
+            evidence_path = target / "contracts/release-evidence.json"
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+            evidence["decision"]["status"] = "rejected"
+            evidence_path.write_text(
+                json.dumps(evidence, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_bundle(target, revision)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("release bundle precondition/validation failed", result.stderr)
+            self.assertEqual(
+                (target / "contracts/release-bundle.json").read_bytes(),
+                original_bundle,
+            )
+
     def test_revision_mismatch_and_tracked_drift_leave_bundle_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             _, target, revision, original = self.approved_candidate(Path(temp_dir))
