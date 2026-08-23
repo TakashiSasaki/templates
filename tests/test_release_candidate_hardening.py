@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,7 +22,12 @@ def load_candidate_module():
     if spec is None or spec.loader is None:
         raise RuntimeError("cannot load candidate helper")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 
@@ -82,10 +88,19 @@ class ReleaseCandidateHardeningTests(unittest.TestCase):
         self.assertRegex(revision, r"^[0-9a-f]{40}$")
         return revision
 
-    def test_output_path_rejects_final_dot_segments(self) -> None:
+    def test_output_path_rejects_unsafe_raw_segments_and_portable_forms(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            for relative in (".", "..", "sub/..", "sub/."):
+            for relative in (
+                ".",
+                "..",
+                "sub/..",
+                "sub/.",
+                "sub//file",
+                "../outside",
+                "sub\\..\\outside",
+                "C:/outside",
+            ):
                 with self.subTest(relative=relative):
                     with self.assertRaisesRegex(
                         candidate.CandidateError,
