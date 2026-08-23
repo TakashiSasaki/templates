@@ -73,6 +73,22 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
         return result, payload
 
+    def run_public_validation(self, target: Path) -> tuple[subprocess.CompletedProcess[str], dict]:
+        result = subprocess.run(
+            [sys.executable, str(COMPOSER), "validate", "--target", str(target)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            self.fail(
+                f"public validation did not emit JSON: {exc}\nstdout={result.stdout}\nstderr={result.stderr}"
+            )
+        return result, payload
+
     def test_registry_entrypoints_are_managed_by_the_declared_components(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         self.assertEqual(registry["schema_version"], 1)
@@ -121,6 +137,27 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertFalse(
                 any(check["id"].startswith("release-") for check in payload["checks"])
             )
+
+            public_result, public_payload = self.run_public_validation(target)
+            self.assertEqual(public_result.returncode, 0, public_payload)
+            self.assertEqual(public_payload["status"], "valid")
+            self.assertEqual(
+                [check["id"] for check in public_payload["checks"]],
+                ["composition-state", "skill-scaffold"],
+            )
+
+            runner = target / ".template-composition" / "validate.py"
+            human = subprocess.run(
+                [sys.executable, str(runner), str(target)],
+                cwd=target,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
+            self.assertIn("PASSED: composition-state", human.stdout)
+            self.assertIn("PASSED: skill-scaffold", human.stdout)
+            self.assertIn("Composition validation: VALID", human.stdout)
 
     def test_webapp_runs_full_current_selected_validation_chain(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
