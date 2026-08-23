@@ -4,7 +4,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from runtime import find_repository_root, runtime_executable, sanitized_environment
+from runtime import find_repository_root, runtime_command, sanitized_environment
 
 
 def parser() -> argparse.ArgumentParser:
@@ -22,9 +22,8 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     repository = find_repository_root(args.repository)
-    executable = runtime_executable(repository)
     command = [
-        str(executable),
+        *runtime_command(repository),
         "--repository",
         str(repository),
         *args.arguments,
