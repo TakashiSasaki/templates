@@ -89,6 +89,30 @@ for route_id, surface_id, required_role in (
     } <= set(route["states"])
     assert surface["authorization"] == {"mode": "role", "roles": [required_role]}
 
+viewports = json.loads(
+    (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
+)
+assert [
+    (viewport["id"], viewport["minWidthPx"])
+    for viewport in viewports["viewports"]
+] == [("compact", 0), ("regular", 768), ("wide", 1280)]
+assert set(viewports["inputCapabilities"]) == {"touch", "pointer", "keyboard"}
+assert viewports["constraints"] == {
+    "zoomSupported": True,
+    "horizontalScrolling": "content-specific",
+    "orientationIndependent": True,
+}
+
+client_source = (ROOT / "product/client.html").read_text(encoding="utf-8")
+assert 'name="viewport"' in client_source
+assert "width=device-width" in client_source
+assert "user-scalable=no" not in client_source
+assert "@media (min-width: 768px)" in client_source
+assert "@media (min-width: 1280px)" in client_source
+assert "overflow-x: auto" in client_source
+assert '<button type="button"' in client_source
+assert "orientation:" not in client_source
+
 server = auth_app.make_server()
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
@@ -108,39 +132,85 @@ def request(
         headers["X-Roles"] = ",".join(roles)
     try:
         with urlopen(Request(base + path, headers=headers), timeout=5) as response:
-            return response.status, response.read().decode("utf-8").strip()
+            return response.status, response.read().decode("utf-8")
     except HTTPError as exc:
-        return exc.code, exc.read().decode("utf-8").strip()
+        return exc.code, exc.read().decode("utf-8")
+
+
+def assert_view(
+    expected_status: int,
+    expected_surface: str,
+    expected_state: str,
+    path: str,
+    *,
+    user: str | None = None,
+    roles: tuple[str, ...] = (),
+) -> None:
+    status, body = request(path, user=user, roles=roles)
+    assert status == expected_status, (path, status, body)
+    assert f'data-surface="{expected_surface}"' in body, body
+    assert f'data-state="{expected_state}"' in body, body
+    assert '<meta name="viewport"' in body, body
+    assert '<button type="button"' in body, body
 
 
 try:
-    assert request("/") == (200, "public:populated")
-    assert request("/status") == (200, "status:populated")
-    assert request("/app") == (401, "unauthorized")
-    assert request(
-        "/app", user="alice", roles=("application-user",)
-    ) == (200, "app:populated")
-    assert request("/app", user="alice", roles=("admin",)) == (403, "forbidden")
-    assert request("/admin") == (401, "unauthorized")
-    assert request(
-        "/admin", user="alice", roles=("application-user",)
-    ) == (403, "forbidden")
-    assert request("/admin", user="alice", roles=("admin",)) == (
+    assert_view(200, "public", "populated", "/")
+    assert_view(200, "status", "populated", "/status")
+    assert_view(401, "application", "unauthorized", "/app")
+    assert_view(
         200,
-        "admin:populated",
+        "application",
+        "populated",
+        "/app",
+        user="alice",
+        roles=("application-user",),
     )
-    assert request(
-        "/app?state=loading", user="alice", roles=("application-user",)
-    ) == (200, "app:loading")
-    assert request(
+    assert_view(
+        403,
+        "application",
+        "forbidden",
+        "/app",
+        user="alice",
+        roles=("admin",),
+    )
+    assert_view(401, "admin", "unauthorized", "/admin")
+    assert_view(
+        403,
+        "admin",
+        "forbidden",
+        "/admin",
+        user="alice",
+        roles=("application-user",),
+    )
+    assert_view(
+        200,
+        "admin",
+        "populated",
+        "/admin",
+        user="alice",
+        roles=("admin",),
+    )
+    assert_view(
+        200,
+        "application",
+        "loading",
+        "/app?state=loading",
+        user="alice",
+        roles=("application-user",),
+    )
+    assert_view(
+        503,
+        "application",
+        "recoverable-error",
         "/app?state=recoverable-error",
         user="alice",
         roles=("application-user",),
-    ) == (503, "recoverable-error")
+    )
 finally:
     server.shutdown()
     server.server_close()
     thread.join(timeout=5)
     assert not thread.is_alive()
 
-print("Webapp auth product proof: route access and UI-state behavior passed")
+print("Webapp auth product proof: route access, UI-state, and viewport behavior passed")
