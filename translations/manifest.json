@@ -6,14 +6,14 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "97d21db46b1aea89eb22672cf6489901fda7b05c",
+      "canonical_blob_sha": "7b66a7791cad04c9e5303e2e4e0ef4655448d421",
       "surfaces": ["reader"]
     },
     {
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
-      "canonical_blob_sha": "e7ce28865c7560e45b31b280c5ac16d5c49e4eb7",
+      "canonical_blob_sha": "fac18e42137720e7850dd233106cec5fb4a851ff",
       "surfaces": ["reader"]
     },
     {
@@ -27,14 +27,14 @@
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
-      "canonical_blob_sha": "2aa72f4b6c49ae1d9221149ad7e271ff4c9aa224",
+      "canonical_blob_sha": "6c6a96bf8f295dda0a56a42acbd39a9703145b8e",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/catalog.md",
-      "canonical_blob_sha": "415766a7edadf7e7c6e2d0966505cb37e034360e",
+      "canonical_blob_sha": "3eed38ada5cd37e008b653d930739f3e2ff7933f",
       "surfaces": ["reader"]
     },
     {
@@ -69,7 +69,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "2a03f649c4bde3d79dd4fc229455880629a1988a",
+      "canonical_blob_sha": "509f69b08dc92dfa28db9dcdc7fe139d7f9ed9e6",
       "surfaces": ["reader", "guided"]
     },
     {

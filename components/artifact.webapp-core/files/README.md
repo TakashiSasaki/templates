@@ -2,7 +2,7 @@
 
 This repository is a framework-neutral Web application contract scaffold produced by the `webapp` composition recipe.
 
-`artifact.webapp-core` owns browser-specific semantics: surfaces, canonical routes, visible UI states, responsive viewports/input capabilities, and their cross-contract validation. Generic contract evolution, implementation evidence, release evidence, and release-bundle behavior come from reusable `lifecycle.*` components.
+`artifact.webapp-core` owns browser-specific semantics: surfaces, canonical routes, visible UI states, responsive viewports/input capabilities, and their cross-contract validation. Generic contract evolution and implementation evidence are part of the Webapp baseline through reusable `lifecycle.*` components. Release execution, release evidence, and release-bundle behavior are added only when the consumer explicitly selects `lifecycle.release-bundle`.
 
 The scaffold intentionally does not choose a frontend framework, rendering model, package manager, backend, persistence layer, authentication provider, deployment platform, browser matrix, or observability vendor.
 
@@ -12,13 +12,16 @@ The scaffold intentionally does not choose a frontend framework, rendering model
 - `contracts/routes.json` — canonical navigation plus access-failure behavior and semantic state/route targets.
 - `contracts/ui-states.json` — reusable visible states and recovery/focus behavior.
 - `contracts/viewports.json` — responsive lower bounds and input capabilities.
+- `contracts/implementation-evidence.json` — baseline mapping from Webapp contract targets to implementation/proof evidence.
 - `contracts/manifest.json` — generated closed registry from resolved component metadata.
-- lifecycle contracts appear because Webapp requires the release-lifecycle chain.
+- release execution/evidence/bundle contracts appear only when `lifecycle.release-bundle` is selected.
 
-## Optional application capabilities
+## Optional capabilities and release lifecycle
 
 The Webapp recipe may additionally select runtime, CLI, MCP, MCP Apps, standalone operational Web exposure, or headless service capabilities. None is required merely because the artifact is browser-facing; a static/CDN Web application remains valid without an application runtime component.
 
+Select `lifecycle.release-bundle` when the repository needs the Composition-managed release workflow. Its dependency closure adds release execution and revision-bound release evidence while reusing the baseline implementation-evidence and contract-evolution components.
+
 ## Validation
 
-Install `.template-composition/requirements-validation.lock`, then run the Webapp and lifecycle validators. The supplied GitHub Actions workflow performs the complete template-mode validation sequence.
+Install `.template-composition/requirements-validation.lock`, then run `python .template-composition/validate.py .`. Validation is selected from the resolved component set in the Composition lock: a minimal or runtime-backed Webapp does not run release validators, while a release-ready Webapp that selects `lifecycle.release-bundle` does.

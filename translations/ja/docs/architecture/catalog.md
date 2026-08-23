@@ -33,7 +33,9 @@ Catalog validation は dependency reference が存在することと production 
 
 すべての production recipe は catalog 内の artifact を1つ指定し、capability/lifecycle selection には catalog 内のものだけを使用します。required/default/optional group は pairwise disjoint です。
 
-`skill` recipe は意図的に default application capability を持ちません。これにより minimal Agent Skill が維持され、runtime と public interface は暗黙に materialize されるのではなく opt-in になります。`webapp` recipe も application capability を optional のままにしますが、`artifact.webapp-core` は reusable release-lifecycle requirement を通常の component dependency を通じて導入します。
+`skill` recipe は意図的に default application capability を持ちません。これにより minimal Agent Skill が維持され、runtime と public interface は暗黙に materialize されるのではなく opt-in になります。`webapp` recipe も application capability を optional のままにします。`artifact.webapp-core` は reusable implementation-evidence baseline を要求し、そこから contract evolution が推移的に追加されます。一方、`lifecycle.release-bundle` は recipe が明示的な top-level release selection として公開します。したがって runtime selection と release selection は独立した consumer intent です。
+
+この分離は `artifact.webapp-core` v4 の compatibility boundary です。以前の v3 Webapp は complete release chain を推移的に受け取っていました。v4 upgrade でその挙動を維持したい場合は `lifecycle.release-bundle` を明示的に選択し、選択しない場合は Webapp evidence baseline のみになります。
 
 ## Portable destination ownership
 
@@ -47,6 +49,6 @@ production catalog と Composer は異なる responsibility を持ちます。ca
 
 new repository では、`initial` composition が explicit consumer configuration から lock を導出します。existing managed repository では、`update` は lock schema version 2 にすでに保存された normalized intent を再利用し、`upgrade` は compatibility-boundary change のための explicit replacement intent を受け取ります。planning は read-only のままで、apply が managed state を mutate する前に complete target closure と lock preview を生成します。
 
-したがって lock が記録するのは concrete resolution であり、第2の source catalog ではありません。その consumer state について、exact Composition source revision、normalized consumer intent、recipe/component descriptor identity、materialized destination ownership/digest を bind します。
+したがって lock が記録するのは concrete resolution であり、第2の source catalog ではありません。その consumer state について、exact Composition source revision、normalized consumer intent、recipe/component descriptor identity、materialized destination ownership/digest を bind します。validator dispatch は disk 上に残っている file から intent を推測するのではなく、この resolved component set を使用します。
 
 完全な authority / ownership model については [Composition model](composition-model.md) を、resolution、managed reconciliation、transaction、recovery behavior については [Composer architecture](composer-mvp.md) を参照してください。

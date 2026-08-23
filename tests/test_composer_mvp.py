@@ -100,10 +100,33 @@ class ComposerMVPTests(unittest.TestCase):
                 ],
             )
 
-    def test_minimal_webapp_resolves_release_lifecycle_without_runtime(self):
+    def test_minimal_webapp_resolves_evidence_baseline_without_release_or_runtime(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             config_path = self.write_config(root, config("webapp"))
+            result, payload = self.run_composer(
+                "plan", target=root / "consumer", config_path=config_path
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                payload["resolved_components"],
+                [
+                    "artifact.webapp-core",
+                    "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                ],
+            )
+            self.assertNotIn("capability.runtime", payload["resolved_components"])
+            self.assertNotIn("lifecycle.release-bundle", payload["resolved_components"])
+
+    def test_webapp_release_bundle_include_resolves_complete_release_lifecycle(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = self.write_config(
+                root,
+                config("webapp", include=["lifecycle.release-bundle"]),
+            )
             result, payload = self.run_composer(
                 "plan", target=root / "consumer", config_path=config_path
             )
@@ -120,7 +143,6 @@ class ComposerMVPTests(unittest.TestCase):
                     "lifecycle.release-execution",
                 ],
             )
-            self.assertNotIn("capability.runtime", payload["resolved_components"])
 
     def test_excluding_transitive_dependency_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp_dir:

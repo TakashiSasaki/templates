@@ -11,7 +11,7 @@ Choose the recipe from the artifact you are building, not from the language, fra
 | You are building | Recipe | Base material and behavior | Lifecycle baseline |
 | --- | --- | --- | --- |
 | An Agent Skill repository | `skill` | Skill structure including `SKILL.md`, development guidance, and Skill-specific validation | `lifecycle.composition-state` only; application capabilities and contract/release lifecycle components are opt-in |
-| A browser-facing Web application repository | `webapp` | Routes, surfaces, visible UI states, viewports, Web-specific validation, and framework-neutral browser application structure | The full release lifecycle is included transitively through `artifact.webapp-core -> lifecycle.release-bundle`; application capabilities remain opt-in |
+| A browser-facing Web application repository | `webapp` | Routes, surfaces, visible UI states, viewports, Web-specific validation, and framework-neutral browser application structure | `lifecycle.composition-state` + implementation evidence + contract evolution; the release lifecycle is opt-in through `lifecycle.release-bundle` |
 
 Select optional application capabilities according to externally visible behavior. Include the capability you need directly; the Composer resolves its dependencies transitively.
 
@@ -26,25 +26,51 @@ Select optional application capabilities according to externally visible behavio
 
 A browser-facing artifact does **not** imply `capability.runtime` or `capability.web-interface`. For example, a static/CDN Webapp can use the `webapp` recipe with no optional components. Add runtime-bound capabilities only when the product actually exposes those behaviors.
 
-The `skill` recipe also exposes lifecycle components as explicit options. Choose the highest-level lifecycle behavior you need; its prerequisites are resolved automatically:
+Lifecycle components are selected according to the product workflow. The `skill` recipe exposes each lifecycle level independently. The `webapp` recipe already includes contract evolution and implementation evidence in its baseline, and exposes `lifecycle.release-bundle` as the one top-level release choice. Choose the highest-level lifecycle behavior exposed by the recipe; prerequisites are resolved automatically:
 
 | Need | Include | Dependency closure |
 | --- | --- | --- |
-| Versioned contract evolution and migrations | `lifecycle.contract-evolution` | contract evolution only |
-| Implementation boundaries, proofs, authoritative commands, and release gates | `lifecycle.implementation-evidence` | implementation evidence -> contract evolution |
-| Product-owned fixed-argv release execution and candidate verification | `lifecycle.release-execution` | release execution -> implementation evidence -> contract evolution |
-| Revision-bound release evidence production | `lifecycle.release-evidence` | release evidence -> release execution -> implementation evidence -> contract evolution |
-| Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
+| Versioned contract evolution and migrations | `lifecycle.contract-evolution` (`skill`) | contract evolution only |
+| Implementation boundaries, proofs, authoritative commands, and release gates | `lifecycle.implementation-evidence` (`skill`; Webapp baseline) | implementation evidence -> contract evolution |
+| Product-owned fixed-argv release execution and candidate verification | `lifecycle.release-execution` (`skill`) | release execution -> implementation evidence -> contract evolution |
+| Revision-bound release evidence production | `lifecycle.release-evidence` (`skill`) | release evidence -> release execution -> implementation evidence -> contract evolution |
+| Deterministic release bundle and one-command release orchestration | `lifecycle.release-bundle` (`skill` or `webapp`) | release bundle -> release evidence -> release execution -> implementation evidence -> contract evolution |
 
-The `webapp` recipe does not expose those lifecycle components as optional selections because `artifact.webapp-core` already requires `lifecycle.release-bundle`, which resolves the complete chain. Do not repeat transitive lifecycle dependencies in consumer configuration.
-
-A minimal static Webapp therefore uses an empty include list:
+A minimal static Webapp therefore uses an empty include list and receives browser contracts plus implementation-evidence/contract-evolution support, but no release execution/evidence/bundle materials:
 
 ```json
 {
   "schema_version": 1,
   "recipe": "webapp",
   "components": {"include": [], "exclude": []},
+  "parameters": {}
+}
+```
+
+A release-ready Webapp selects only the top-level release component:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {
+    "include": ["lifecycle.release-bundle"],
+    "exclude": []
+  },
+  "parameters": {}
+}
+```
+
+A runtime-backed Webapp that does not use the Composition release lifecycle can instead select runtime independently:
+
+```json
+{
+  "schema_version": 1,
+  "recipe": "webapp",
+  "components": {
+    "include": ["capability.runtime"],
+    "exclude": []
+  },
   "parameters": {}
 }
 ```
@@ -62,6 +88,16 @@ A Skill that exposes an MCP Apps UI and uses the complete release workflow can r
   "parameters": {}
 }
 ```
+
+### Upgrading Webapp v3 to v4
+
+`artifact.webapp-core` v4 changes the artifact dependency closure, so an existing managed Webapp at v3 crosses an explicit component-version compatibility boundary and must use `upgrade`, not ordinary `update`.
+
+If the repository should keep the complete release lifecycle that v3 selected transitively, the v4 upgrade configuration must explicitly include `lifecycle.release-bundle`. If release execution/evidence/bundle behavior is not needed, omit it and review the upgrade plan before apply.
+
+The v3 release contract files were `seed` material, so an upgrade that deselects the release lifecycle preserves their consumer-owned bytes rather than deleting them. After apply, any preserved `contracts/release-execution.json`, `contracts/release-evidence.json`, or `contracts/release-bundle.json` is no longer registered by the v4 baseline. The contract registry is intentionally closed, so validation fails until the consumer either archives those files outside `contracts/` (for example under `release-history/`) or deletes them after deciding the historical bytes are no longer needed. This cleanup is consumer-owned: perform it after the upgrade apply, then rerun `validate`.
+
+Deselected lifecycle files do not select validators merely because similarly named files remain in the repository; the resolved component set in `.template-composition/lock.json` is the selection authority. The cleanup requirement above comes from the closed contract-document inventory, not from release-validator dispatch.
 
 Use `plan` before `apply` to inspect the exact resolved component closure and materialized file actions. The recipe descriptors remain the machine-readable source of truth for which direct selections are permitted.
 

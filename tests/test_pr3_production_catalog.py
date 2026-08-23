@@ -252,7 +252,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             ],
         )
 
-    def test_webapp_recipe_resolves_complete_lifecycle_chain(self):
+    def test_webapp_recipe_exposes_release_bundle_without_defaulting_release_chain(self):
         recipe = self.recipes["webapp"]
         self.assertEqual(recipe["artifact"], "artifact.webapp-core")
         self.assertEqual(recipe["required_components"], [])
@@ -265,17 +265,28 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "capability.runtime",
                 "capability.service",
                 "capability.web-interface",
+                "lifecycle.release-bundle",
             ],
         )
         closure = self.resolve({recipe["artifact"]})
+        self.assertEqual(
+            closure,
+            [
+                "artifact.webapp-core",
+                "lifecycle.composition-state",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            ],
+        )
+        release_closure = self.resolve(
+            {recipe["artifact"], "lifecycle.release-bundle"}
+        )
         for component_id in (
-            "lifecycle.contract-evolution",
-            "lifecycle.implementation-evidence",
             "lifecycle.release-execution",
             "lifecycle.release-evidence",
             "lifecycle.release-bundle",
         ):
-            self.assertIn(component_id, closure)
+            self.assertIn(component_id, release_closure)
         self.assertNotIn("capability.runtime", closure)
 
     def test_release_bundle_dependency_closure_is_artifact_neutral(self):
@@ -345,7 +356,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 result = self.run_script(target, script, ".")
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_webapp_template_projection_validates(self):
+    def test_minimal_webapp_template_projection_validates_without_release_materials(self):
         selected = self.resolve({"artifact.webapp-core"})
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
@@ -360,19 +371,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                     ".template-composition/validators/validate_implementation_evidence.py",
                     (".",),
                 ),
-                (
-                    ".template-composition/validators/validate_release_execution.py",
-                    (".",),
-                ),
                 ("scripts/validate_webapp_evidence.py", ()),
-                (
-                    ".template-composition/validators/validate_release_evidence.py",
-                    (".",),
-                ),
-                (
-                    ".template-composition/validators/validate_release_bundle.py",
-                    (".",),
-                ),
             )
             for script, arguments in scripts:
                 result = self.run_script(target, script, *arguments)
@@ -381,8 +380,24 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                     0,
                     f"{script}\n{result.stdout}{result.stderr}",
                 )
+            self.assertFalse((target / "contracts/release-bundle.json").exists())
 
-    def test_webapp_manifest_preserves_domain_versions(self):
+    def test_release_ready_webapp_template_projection_validates(self):
+        selected = self.resolve(
+            {"artifact.webapp-core", "lifecycle.release-bundle"}
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            self.materialize(selected, target)
+            for script in (
+                ".template-composition/validators/validate_release_execution.py",
+                ".template-composition/validators/validate_release_evidence.py",
+                ".template-composition/validators/validate_release_bundle.py",
+            ):
+                result = self.run_script(target, script, ".")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_minimal_webapp_manifest_preserves_domain_versions(self):
         selected = self.resolve({"artifact.webapp-core"})
         entries = {
             entry["id"]: entry
@@ -392,9 +407,6 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             set(entries),
             {
                 "implementation_evidence",
-                "release_bundle",
-                "release_evidence",
-                "release_execution",
                 "routes",
                 "surfaces",
                 "ui_states",
@@ -403,7 +415,6 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         )
         self.assertEqual(entries["routes"]["documentSchemaVersion"], 3)
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
-        self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 1)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
             [1, 2, 3],
@@ -412,6 +423,19 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             [entry["version"] for entry in entries["ui_states"]["versionHistory"]],
             [1, 2],
         )
+
+    def test_release_ready_webapp_manifest_adds_release_contracts(self):
+        selected = self.resolve(
+            {"artifact.webapp-core", "lifecycle.release-bundle"}
+        )
+        entries = {
+            entry["id"]: entry
+            for entry in self.render_manifest(selected)["contracts"]
+        }
+        self.assertTrue(
+            {"release_execution", "release_evidence", "release_bundle"} <= set(entries)
+        )
+        self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 1)
 
 
 if __name__ == "__main__":

@@ -350,9 +350,9 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             expected="public authorization requires forbidden access failure not-applicable",
         )
 
-    def test_component_history_and_migration_publish_routes_v3(self) -> None:
+    def test_component_v4_preserves_routes_v3_history_and_migration(self) -> None:
         component = self.load_json(WEBAPP_COMPONENT)
-        self.assertEqual(component["version"], 3)
+        self.assertEqual(component["version"], 4)
         registration = next(
             item
             for item in component["contract_registrations"]

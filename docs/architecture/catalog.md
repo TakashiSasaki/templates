@@ -31,7 +31,9 @@ This is source-graph validation, not concrete consumer resolution. The Composer 
 
 Every production recipe names one catalog artifact and only catalog capability/lifecycle selections. Required/default/optional groups are pairwise disjoint.
 
-The `skill` recipe intentionally has no default application capabilities. This preserves the minimal Agent Skill: runtime and public interfaces are opt-in rather than silently materialized. The `webapp` recipe likewise keeps application capabilities optional while `artifact.webapp-core` brings its reusable release-lifecycle requirements through normal component dependencies.
+The `skill` recipe intentionally has no default application capabilities. This preserves the minimal Agent Skill: runtime and public interfaces are opt-in rather than silently materialized. The `webapp` recipe likewise keeps application capabilities optional. `artifact.webapp-core` requires the reusable implementation-evidence baseline, which brings contract evolution transitively, while `lifecycle.release-bundle` is exposed by the recipe as an explicit top-level release selection. Runtime selection and release selection are therefore independent consumer intent.
+
+This separation is a compatibility boundary of `artifact.webapp-core` v4. Earlier v3 Webapps received the complete release chain transitively. A v4 upgrade that intends to retain that behavior explicitly selects `lifecycle.release-bundle`; an upgrade that omits it receives only the Webapp evidence baseline.
 
 ## Portable destination ownership
 
@@ -45,6 +47,6 @@ The production catalog and the Composer have separate responsibilities. The cata
 
 For a new repository, `initial` composition derives the lock from explicit consumer configuration. For an existing managed repository, `update` reuses the normalized intent already stored in lock schema version 2, while `upgrade` accepts explicit replacement intent for compatibility-boundary changes. Planning remains read-only and produces the complete target closure and lock preview before apply mutates managed state.
 
-The lock therefore records a concrete resolution, not a second source catalog. It binds the exact Composition source revision, normalized consumer intent, recipe and component descriptor identities, and materialized destination ownership/digests for that consumer state.
+The lock therefore records a concrete resolution, not a second source catalog. It binds the exact Composition source revision, normalized consumer intent, recipe and component descriptor identities, and materialized destination ownership/digests for that consumer state. Validator dispatch uses that resolved component set rather than inferring intent from files that happen to remain on disk.
 
 See the [Composition model](composition-model.md) for the full authority and ownership model and [Composer architecture](composer-mvp.md) for resolution, managed reconciliation, transaction, and recovery behavior.

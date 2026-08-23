@@ -20,17 +20,31 @@ REGISTRY = (
     / ".template-composition"
     / "validation-registry.json"
 )
+WEBAPP_BASE_CHECKS = {
+    "composition-state",
+    "webapp-contracts",
+    "webapp-implementation-coverage",
+    "contract-evolution",
+    "implementation-evidence",
+}
+WEBAPP_RELEASE_CHECKS = {
+    "release-execution",
+    "release-evidence-template",
+    "release-bundle-template",
+}
 
 
 class SelectedComponentValidationTests(unittest.TestCase):
-    def write_config(self, root: Path, recipe: str) -> Path:
+    def write_config(
+        self, root: Path, recipe: str, *, include: list[str] | None = None
+    ) -> Path:
         path = root / "composition.json"
         path.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
                     "recipe": recipe,
-                    "components": {"include": [], "exclude": []},
+                    "components": {"include": include or [], "exclude": []},
                     "parameters": {},
                 },
                 indent=2,
@@ -162,7 +176,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertIn("PASSED: skill-scaffold", human.stdout)
             self.assertIn("Composition validation: VALID", human.stdout)
 
-    def test_webapp_runs_full_current_selected_validation_chain(self) -> None:
+    def test_minimal_webapp_runs_baseline_without_release_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             target = root / "consumer"
@@ -171,23 +185,59 @@ class SelectedComponentValidationTests(unittest.TestCase):
             result, payload = self.run_consumer_validation(target)
             self.assertEqual(result.returncode, 0, payload)
             self.assertEqual(payload["status"], "valid")
+            self.assertEqual(
+                set(payload["resolved_components"]),
+                {
+                    "artifact.webapp-core",
+                    "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                },
+            )
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(set(checks), WEBAPP_BASE_CHECKS)
+            self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
+            self.assertFalse((target / "contracts" / "release-execution.json").exists())
+            self.assertFalse((target / "contracts" / "release-evidence.json").exists())
+            self.assertFalse((target / "contracts" / "release-bundle.json").exists())
+
+    def test_runtime_backed_webapp_keeps_release_lifecycle_unselected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            self.apply(
+                target,
+                self.write_config(root, "webapp", include=["capability.runtime"]),
+            )
+
+            result, payload = self.run_consumer_validation(target)
+            self.assertEqual(result.returncode, 0, payload)
+            self.assertEqual(payload["status"], "valid")
+            self.assertIn("capability.runtime", payload["resolved_components"])
+            self.assertNotIn("lifecycle.release-bundle", payload["resolved_components"])
+            self.assertEqual({check["id"] for check in payload["checks"]}, WEBAPP_BASE_CHECKS)
+            self.assertFalse((target / "contracts" / "release-bundle.json").exists())
+
+    def test_release_ready_webapp_runs_full_selected_validation_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            self.apply(
+                target,
+                self.write_config(
+                    root, "webapp", include=["lifecycle.release-bundle"]
+                ),
+            )
+
+            result, payload = self.run_consumer_validation(target)
+            self.assertEqual(result.returncode, 0, payload)
+            self.assertEqual(payload["status"], "valid")
             component_ids = set(payload["resolved_components"])
             self.assertIn("lifecycle.release-bundle", component_ids)
             checks = {check["id"]: check for check in payload["checks"]}
-            self.assertEqual(
-                set(checks),
-                {
-                    "composition-state",
-                    "webapp-contracts",
-                    "webapp-implementation-coverage",
-                    "contract-evolution",
-                    "implementation-evidence",
-                    "release-execution",
-                    "release-evidence-template",
-                    "release-bundle-template",
-                },
-            )
+            self.assertEqual(set(checks), WEBAPP_BASE_CHECKS | WEBAPP_RELEASE_CHECKS)
             self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
+            self.assertTrue((target / "contracts" / "release-bundle.json").is_file())
 
     def test_product_release_checks_are_explicitly_deferred(self) -> None:
         helper = product_helpers.WebappProductizationAcceptanceTests(
@@ -209,7 +259,12 @@ class SelectedComponentValidationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             target = root / "consumer"
-            self.apply(target, self.write_config(root, "webapp"))
+            self.apply(
+                target,
+                self.write_config(
+                    root, "webapp", include=["lifecycle.release-bundle"]
+                ),
+            )
             (target / "contracts" / "release-bundle.json").write_text(
                 "{not-json\n", encoding="utf-8"
             )
