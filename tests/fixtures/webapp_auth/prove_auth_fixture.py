@@ -8,6 +8,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+sys.dont_write_bytecode = True
+
 import auth_app
 
 ROOT = Path(__file__).resolve().parents[1]
