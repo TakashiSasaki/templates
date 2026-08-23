@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.release-bundle",
   "kind": "lifecycle",
-  "version": 2,
-  "summary": "Deterministic digest-closed handoff and managed bundle production for approved release contract bytes.",
+  "version": 3,
+  "summary": "Deterministic digest-closed handoff, managed bundle production, and serialized release lifecycle publication.",
   "requires": ["lifecycle.release-evidence"],
   "conflicts": [],
   "contract_registrations": [{
