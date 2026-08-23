@@ -13,6 +13,7 @@ from site_chrome_locales import (  # noqa: E402
     SITE_CHROME_LOCALES,
     SiteChromeLocaleError,
     glossary_inline_strings,
+    guided_copy_strings,
     language_label,
     load_site_chrome_locales,
     pwa_freshness_strings,
@@ -49,6 +50,29 @@ class SiteChromeLocaleTests(unittest.TestCase):
             "definition_not_found": "Definition could not be found.",
         }
 
+    def guided_copy(self, language: str) -> dict[str, str]:
+        if language == "ja":
+            return {
+                "github_url_name": "GitHub URL",
+                "public_url_name": "公開URL",
+                "copy_github_url": "GitHub URL をコピー",
+                "copy_public_url": "公開URLをコピー",
+                "copied_github_url": "GitHub URL をコピーしました",
+                "copied_public_url": "公開URLをコピーしました",
+                "copy_failed_github_url": "GitHub URL のコピーに失敗しました",
+                "copy_failed_public_url": "公開URLのコピーに失敗しました",
+            }
+        return {
+            "github_url_name": "GitHub URL",
+            "public_url_name": "public URL",
+            "copy_github_url": "Copy GitHub URL",
+            "copy_public_url": "Copy public URL",
+            "copied_github_url": "Copied GitHub URL",
+            "copied_public_url": "Copied public URL",
+            "copy_failed_github_url": "Copy failed: GitHub URL",
+            "copy_failed_public_url": "Copy failed: public URL",
+        }
+
     def payload(self) -> dict[str, object]:
         return {
             "schema_version": 1,
@@ -73,6 +97,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "offline_unavailable": "This page is unavailable while offline.",
                     },
                     "glossary_inline": self.glossary_strings("en"),
+                    "guided_copy": self.guided_copy("en"),
                 },
                 {
                     "language": "ja",
@@ -93,6 +118,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "offline_unavailable": "オフラインのため、このページを表示できません。",
                     },
                     "glossary_inline": self.glossary_strings("ja"),
+                    "guided_copy": self.guided_copy("ja"),
                 },
             ],
         }
@@ -129,12 +155,22 @@ class SiteChromeLocaleTests(unittest.TestCase):
             "用語集で開く",
         )
 
+    def test_repository_registry_has_canonical_and_japanese_guided_copy_chrome(self) -> None:
+        model = load_site_chrome_locales(SITE_CHROME_LOCALES)
+        self.assertEqual(guided_copy_strings(model, "en")["copy_public_url"], "Copy public URL")
+        self.assertEqual(guided_copy_strings(model, "ja")["copy_public_url"], "公開URLをコピー")
+        self.assertEqual(
+            guided_copy_strings(model, "ja")["copied_github_url"],
+            "GitHub URL をコピーしました",
+        )
+
     def test_primary_language_fallback_is_used_for_registered_locale(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
         self.assertEqual(language_label(model, "ja-jp"), "日本語")
         self.assertEqual(reader_strings(model, "ja-jp")["group_label"], "文書の言語")
         self.assertEqual(pwa_freshness_strings(model, "ja-jp")["reload"], "再読み込み")
         self.assertEqual(glossary_inline_strings(model, "ja-jp")["eyebrow"], "用語集")
+        self.assertEqual(guided_copy_strings(model, "ja-jp")["public_url_name"], "公開URL")
         self.assertEqual(translation_status(model, "ja-jp"), "日本語参考訳")
 
     def test_unknown_language_uses_canonical_chrome_and_generic_status(self) -> None:
@@ -143,6 +179,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
         self.assertEqual(reader_strings(model, "fr")["group_label"], "Document language")
         self.assertEqual(pwa_freshness_strings(model, "fr")["reload"], "Reload")
         self.assertEqual(glossary_inline_strings(model, "fr")["eyebrow"], "Glossary")
+        self.assertEqual(guided_copy_strings(model, "fr")["public_url_name"], "public URL")
         self.assertEqual(
             translation_status(model, "fr"),
             "fr translation · Non-authoritative",
@@ -187,6 +224,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                 ("translation_reader", "canonical_link"),
                 ("pwa_freshness", "offline_unavailable"),
                 ("glossary_inline", "open_in_glossary"),
+                ("guided_copy", "copy_public_url"),
             ):
                 blank = json.loads(json.dumps(valid))
                 blank["locales"][1][section][field_name] = "   "
@@ -205,6 +243,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                 ("translation_reader", "group_label"),
                 ("pwa_freshness", "offline_unavailable"),
                 ("glossary_inline", "eyebrow"),
+                ("guided_copy", "copy_public_url"),
             ):
                 for mutation in ("missing", "extra"):
                     payload = self.payload()
@@ -224,7 +263,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
     def test_missing_required_chrome_section_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "locales.json"
-            for section in ("pwa_freshness", "glossary_inline"):
+            for section in ("pwa_freshness", "glossary_inline", "guided_copy"):
                 payload = self.payload()
                 del payload["locales"][1][section]  # type: ignore[index]
                 self.write(path, payload)
