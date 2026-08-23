@@ -6,6 +6,7 @@ from agent_policy.commands import check, render, validate
 from agent_policy.lockfile import sha256_file
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
+TEST_REVISION = "a" * 40
 PROJECT_POLICY = """---
 id: project.rule
 severity: mandatory
@@ -32,7 +33,7 @@ def _write_repository(
         f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
+  revision: {TEST_REVISION}
 contexts:
   default:
     profiles:
