@@ -3,6 +3,7 @@ from pathlib import Path
 from agent_policy.commands import check, init, validate
 from agent_policy.renderer import render_skill
 
+TEST_REVISION = "a" * 40
 SKILL_NAME = "work-in-google-ai-studio"
 
 
@@ -31,7 +32,7 @@ def test_google_ai_studio_skill_is_generated_only_when_selected(tmp_path: Path) 
         selected,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=["validate-agent-policy", SKILL_NAME],
     )
@@ -52,7 +53,7 @@ def test_google_ai_studio_skill_is_generated_only_when_selected(tmp_path: Path) 
         unselected,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=["validate-agent-policy"],
     )
