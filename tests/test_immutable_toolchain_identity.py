@@ -7,6 +7,7 @@ import pytest
 
 from agent_policy import cli, identity
 from agent_policy.manifest import build_manifest
+from agent_policy.yamlutil import load_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FULL_SHA = "a" * 40
@@ -138,6 +139,43 @@ def test_cli_parser_rejects_mutable_explicit_toolchain_revision() -> None:
         cli.parser().parse_args(
             ["adopt", "prepare", "--toolchain-revision", "LOCAL-DEVELOPMENT"]
         )
+
+
+def test_direct_cli_init_uses_installed_full_sha_in_config_and_lock(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr(
+        identity,
+        "distribution",
+        lambda _name: FakeDistribution(
+            vcs_direct_url(requested=FULL_SHA, commit_id=FULL_SHA)
+        ),
+    )
+
+    result = cli.main(
+        [
+            "--repository",
+            str(tmp_path),
+            "init",
+            "--apply",
+            "--no-verification",
+            "--disable-agents-output",
+        ]
+    )
+
+    assert result == 0
+    config = load_yaml(tmp_path / ".agent-policy.yml")
+    lock = load_yaml(tmp_path / ".agent-policy.lock")
+    assert isinstance(config, dict)
+    assert isinstance(lock, dict)
+    expected = {
+        "repository": "TakashiSasaki/templates",
+        "revision": FULL_SHA,
+    }
+    assert config["toolchain"] == expected
+    assert lock["toolchain"] == expected
 
 
 def test_consumer_state_schemas_require_full_sha() -> None:
