@@ -51,8 +51,13 @@ def _open_lock_file(git_dir: Path) -> int:
         ) from exc
 
     try:
-        opened = os.fstat(descriptor)
-        current = os.stat(lock_path, follow_symlinks=False)
+        try:
+            opened = os.fstat(descriptor)
+            current = os.stat(lock_path, follow_symlinks=False)
+        except OSError as exc:
+            raise ReleaseLifecycleLockError(
+                f"cannot verify release lifecycle lock path: {exc}"
+            ) from exc
         if not stat.S_ISREG(opened.st_mode) or not stat.S_ISREG(current.st_mode):
             raise ReleaseLifecycleLockError(
                 "release lifecycle lock must remain a regular non-symbolic file"
@@ -72,17 +77,19 @@ def _open_lock_file(git_dir: Path) -> int:
 def _lock_windows(descriptor: int) -> None:
     import msvcrt
 
-    if os.fstat(descriptor).st_size == 0:
-        os.lseek(descriptor, 0, os.SEEK_SET)
-        os.write(descriptor, b"\0")
-        os.fsync(descriptor)
+    retry_errnos = {errno.EACCES, errno.EDEADLK}
+    deadlock_errno = getattr(errno, "EDEADLOCK", None)
+    if deadlock_errno is not None:
+        retry_errnos.add(deadlock_errno)
     while True:
         os.lseek(descriptor, 0, os.SEEK_SET)
         try:
+            # Windows permits locking a byte range beyond EOF, so no sentinel
+            # byte needs to be written before acquiring the lock.
             msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
             return
         except OSError as exc:
-            if exc.errno not in {errno.EACCES, errno.EDEADLK}:
+            if exc.errno not in retry_errnos:
                 raise ReleaseLifecycleLockError(
                     f"cannot acquire release lifecycle lock: {exc}"
                 ) from exc
