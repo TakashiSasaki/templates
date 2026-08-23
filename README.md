@@ -34,7 +34,7 @@ The production catalog separates three kinds of reusable authority:
 - `capability.*` defines reusable runtime/interface/service behavior such as runtime, CLI, MCP, MCP Apps, browser, and headless-service capabilities; and
 - `lifecycle.*` defines reusable composition-state, contract-evolution, implementation-evidence, release-evidence, and release-bundle behavior.
 
-`recipes/skill.json` selects `artifact.skill-core`; application capabilities and product lifecycle components are opt-in. `recipes/webapp.json` selects `artifact.webapp-core`; its release lifecycle resolves transitively through `lifecycle.release-bundle`, while runtime and interface capabilities remain optional. A static/CDN Web application therefore does not acquire an application runtime merely because it is browser-facing.
+`recipes/skill.json` selects `artifact.skill-core`; application capabilities and product lifecycle components are opt-in. `recipes/webapp.json` selects `artifact.webapp-core`; contract evolution and implementation evidence form its baseline, while the release lifecycle is an explicit opt-in through `lifecycle.release-bundle`. Runtime and interface capabilities are independently optional. A static/CDN Web application therefore needs neither an application runtime nor a release lifecycle merely because it is browser-facing.
 
 Every artifact requires `lifecycle.composition-state`, which materializes the self-contained consumer validator and lock schema under `.template-composition/`.
 
