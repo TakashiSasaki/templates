@@ -65,7 +65,7 @@ Policy profileは、あるcontextにどのshared policy moduleを参加させる
 - blocking defectを調べるreview contextには `review` を追加します。
 - 外部で生成されたartifactを受領またはstagingするcontextには `external-artifact-intake` を追加します。
 
-Fresh adoptionではbaseline profileを含む `.agent-policy.yml` が作成されます。adoption後に追加contextやprofileが必要になった場合は、このhuman-owned configurationを編集し、その後に通常のmanaged validationとrendering commandを実行してください。profile catalog、composition semantics、詳しい選択指針は [Policy profiles](../../../docs/shared-policy/profiles.md) を参照してください。
+Fresh adoptionではbaseline profileを含む `.agent-policy.yml` が作成されます。adoption後に追加contextやprofileが必要になった場合は、このhuman-owned configurationを編集し、その後に通常のmanaged validationとrendering commandを実行してください。profile catalog、composition semantics、詳しい選択指針は [Policy profiles](shared-policy/profiles.md) を参照してください。
 
 ## 2A. Fresh adoptionを適用する
 
