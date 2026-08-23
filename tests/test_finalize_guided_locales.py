@@ -97,7 +97,7 @@ class FinalizeGuidedLocalesTests(unittest.TestCase):
             self.assertIn('rel="manifest" href="/app.webmanifest"', japanese)
             self.assertIn('name="theme-color" content="#3f51b5"', japanese)
 
-    def test_localized_guided_page_receives_public_and_github_copy_controls(self) -> None:
+    def test_localized_guided_page_receives_localized_public_and_github_copy_controls(self) -> None:
         with tempfile.TemporaryDirectory(prefix="guided-locale-") as directory:
             root = Path(directory)
             canonical = root / "guided" / "policy" / "index.html"
@@ -129,11 +129,19 @@ class FinalizeGuidedLocalesTests(unittest.TestCase):
 
             self.assertIn('data-copy-name="GitHub URL"', japanese)
             self.assertIn(f'data-copy-url="{source_url}"', japanese)
-            self.assertIn('data-copy-name="public URL"', japanese)
+            self.assertIn('data-copy-success="GitHub URL をコピーしました"', japanese)
+            self.assertIn('data-copy-failure="GitHub URL のコピーに失敗しました"', japanese)
+            self.assertIn('>GitHub URL をコピー</button>', japanese)
+            self.assertIn('data-copy-name="公開URL"', japanese)
             self.assertIn(
                 'data-copy-url="https://templates.moukaeritai.work/ja/guided/policy/"',
                 japanese,
             )
+            self.assertIn('data-copy-success="公開URLをコピーしました"', japanese)
+            self.assertIn('data-copy-failure="公開URLのコピーに失敗しました"', japanese)
+            self.assertIn('>公開URLをコピー</button>', japanese)
+            self.assertNotIn('>Copy GitHub URL</button>', japanese)
+            self.assertNotIn('>Copy public URL</button>', japanese)
             self.assertIn('<script src="/javascripts/guided-copy.js" defer></script>', japanese)
             self.assertIn("script-src 'self'", japanese)
             self.assertIn('<span class="page-path-label">ページパス:</span>', japanese)
