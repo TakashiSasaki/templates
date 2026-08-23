@@ -16,7 +16,7 @@ The catalog publishes explanatory Markdown for:
 - the Agent Skill artifact model;
 - the Web application artifact model;
 - reusable runtime, CLI, MCP, MCP Apps, browser, and service capabilities;
-- reusable composition-state, contract-evolution, implementation-evidence, release-evidence, and release-bundle lifecycle contracts; and
+- reusable composition-state, contract-evolution, implementation-evidence, release-execution, release-evidence, and release-bundle lifecycle contracts; and
 - one consolidated authority-migration history that explains why former monolithic Skill/Webapp responsibilities moved to their present authorities and points to immutable PR provenance for stage-level detail.
 
 The publication home is the branch `README.md`. `docs/index.md` is the provider-owned progressive-disclosure root used by guided navigation.
