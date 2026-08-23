@@ -18,6 +18,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
     def materialize_webapp(self, root: Path) -> Path:
+        root.mkdir(parents=True, exist_ok=True)
         target = root / "consumer"
         config = root / "composition.json"
         self.write_json(
