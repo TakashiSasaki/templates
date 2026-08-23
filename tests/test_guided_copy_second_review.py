@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
+from site_chrome_locales import (  # noqa: E402
+    SITE_CHROME_LOCALES,
+    guided_copy_strings,
+    load_site_chrome_locales,
+)
 
 
 CSP_PREFIX = '<meta http-equiv="Content-Security-Policy" content="'
@@ -33,6 +38,11 @@ def guided_source(*, body_close: str = "</body>", page_markers: int = 1) -> str:
 
 
 class GuidedCopySecondReviewTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        chrome = load_site_chrome_locales(SITE_CHROME_LOCALES)
+        cls.copy_strings = guided_copy_strings(chrome, "en")
+
     def test_csp_allows_existing_script_src_self(self) -> None:
         source = CSP_PREFIX + "default-src 'none'; script-src 'self'" + '">'
         rendered = finalize_site_metadata.allow_guided_copy_script(source, PAGE)
@@ -44,7 +54,10 @@ class GuidedCopySecondReviewTests(unittest.TestCase):
             "multiple guided page path markers",
         ):
             finalize_site_metadata.enhance_guided_copy_controls(
-                guided_source(page_markers=2), PUBLIC_SITE_URL, PAGE
+                guided_source(page_markers=2),
+                PUBLIC_SITE_URL,
+                PAGE,
+                self.copy_strings,
             )
 
     def test_rejects_invalid_body_tag_count(self) -> None:
@@ -55,7 +68,10 @@ class GuidedCopySecondReviewTests(unittest.TestCase):
                     "expected exactly one closing body tag",
                 ):
                     finalize_site_metadata.enhance_guided_copy_controls(
-                        guided_source(body_close=body_close), PUBLIC_SITE_URL, PAGE
+                        guided_source(body_close=body_close),
+                        PUBLIC_SITE_URL,
+                        PAGE,
+                        self.copy_strings,
                     )
 
     def test_status_timer_is_replaced_after_async_copy_finishes(self) -> None:
