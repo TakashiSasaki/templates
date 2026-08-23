@@ -281,8 +281,10 @@ Argparse usage errors follow Python `argparse` behavior. Runner-local acquisitio
 
 ## Consumer validator
 
-Every artifact includes `lifecycle.composition-state`, which materializes a stdlib-only validator under `.template-composition/`. The source-side `compose.py validate` command invokes the source authority version of that validator.
+Every artifact includes `lifecycle.composition-state`, which materializes a stdlib-only state validator, a managed validation registry, and a selected-component validation runner under `.template-composition/`.
 
-Consumer validation checks lock shape/semantics and materialized repository state. `managed` and `generated` bytes must equal the lock digest. Active `seed` files must remain present but may differ from their provenance digest.
+The source-side `compose.py validate` command first runs the source-authority Composition-state validator, then invokes the consumer's canonical `.template-composition/validate.py` entrypoint. That runner reads `resolved_components` only after state validation succeeds and dispatches only validators registered for those selected components.
 
-The consumer validator does not re-resolve the source component graph or verify source descriptor bytes; those checks belong to the source-side Composer.
+Consumer validation checks lock shape/semantics, materialized repository state, and selected-component validation. `managed` and `generated` bytes must equal the lock digest. Active `seed` files must remain present but may differ from their provenance digest. Product-mode release evidence and bundles remain exact-candidate checks and are reported as deferred by ordinary repository validation.
+
+Consumer validation does not re-resolve the source component graph or verify source descriptor bytes; those checks remain source-side Composer responsibilities.
