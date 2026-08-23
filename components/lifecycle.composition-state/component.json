@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.composition-state",
   "kind": "lifecycle",
-  "version": 1,
-  "summary": "Self-contained consumer validation for resolved composition state and material ownership.",
+  "version": 2,
+  "summary": "Self-contained consumer validation for resolved composition state, material ownership, and selected-component validator dispatch.",
   "requires": [],
   "conflicts": [],
   "materials": [
@@ -15,6 +15,16 @@
     {
       "source": "files/.template-composition/validate_composition.py",
       "destination": ".template-composition/validate_composition.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validation-registry.json",
+      "destination": ".template-composition/validation-registry.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validate.py",
+      "destination": ".template-composition/validate.py",
       "ownership": "managed"
     },
     {
