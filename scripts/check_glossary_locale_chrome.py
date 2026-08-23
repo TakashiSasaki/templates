@@ -96,7 +96,9 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             trigger.wait_for(state="visible")
             trigger.click()
             dialog = page.locator("#glossary-inline-dialog")
-            dialog.wait_for(state="visible")
+            page.wait_for_function(
+                "() => document.querySelector('#glossary-inline-dialog')?.open === true"
+            )
 
             eyebrow = dialog.locator(".glossary-inline-dialog__eyebrow").inner_text()
             close_label = dialog.locator(".glossary-inline-dialog__close").get_attribute(
@@ -134,11 +136,13 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
 
             dialog.locator(".glossary-inline-dialog__close").click()
             page.wait_for_function(
-                "() => !document.querySelector('#glossary-inline-dialog')?.open"
+                "() => document.querySelector('#glossary-inline-dialog')?.open === false"
             )
             page.evaluate("() => { document.documentElement.lang = 'de'; }")
             trigger.click()
-            dialog.wait_for(state="visible")
+            page.wait_for_function(
+                "() => document.querySelector('#glossary-inline-dialog')?.open === true"
+            )
             fallback_eyebrow = dialog.locator(
                 ".glossary-inline-dialog__eyebrow"
             ).inner_text()
@@ -147,7 +151,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             ).inner_text()
             if fallback_eyebrow != "Glossary" or fallback_action != "Open in Glossary":
                 raise GlossaryLocaleChromeError(
-                    "unregistered Glossary locale did not fall back to canonical English"
+                    "unregistered Glossary locale did not fall back to canonical English: "
+                    f"eyebrow={fallback_eyebrow!r}, action={fallback_action!r}"
                 )
             evidence["unregistered_locale"] = {
                 "eyebrow": fallback_eyebrow,
