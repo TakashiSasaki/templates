@@ -12,7 +12,6 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/install_agent_policy_skill.py"
-SKILL_SOURCE_REVISION = "b063d78ece8f5a8e9cab2e34093e6989a9a6c783"
 
 
 def load_script() -> ModuleType:
@@ -64,9 +63,14 @@ def skill_archive(*, extra_members: list[tarfile.TarInfo] | None = None) -> byte
 
 def test_remote_installer_pins_the_policy_owned_skill_revision() -> None:
     assert installer.TOOLCHAIN_REPOSITORY == "TakashiSasaki/templates"
-    assert installer.SKILL_SOURCE_REVISION == SKILL_SOURCE_REVISION
+    assert (
+        installer.SKILL_SOURCE_REVISION
+        == "b063d78ece8f5a8e9cab2e34093e6989a9a6c783"
+    )
     assert installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION)
-    assert installer.archive_url().endswith(f"/tar.gz/{SKILL_SOURCE_REVISION}")
+    assert installer.archive_url().endswith(
+        "/tar.gz/b063d78ece8f5a8e9cab2e34093e6989a9a6c783"
+    )
 
 
 def test_archive_url_rejects_mutable_or_short_revisions() -> None:
