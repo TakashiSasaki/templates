@@ -44,8 +44,8 @@ jobs:
           bundle = json.loads(
               Path("contracts/release-bundle.json").read_text(encoding="utf-8")
           )
-          print(f"release_mode={release['mode']}")
-          print(f"bundle_mode={bundle['mode']}")
+          print(f"release_mode={release.get('mode', 'unknown')}")
+          print(f"bundle_mode={bundle.get('mode', 'unknown')}")
           PY
       - name: Validate template release evidence
         if: steps.release-modes.outputs.release_mode == 'template'
