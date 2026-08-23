@@ -94,6 +94,15 @@ def run_validator(root: Path, relative: str, *arguments: str) -> None:
         fail(f"precondition/produced evidence validation failed: {diagnostic}")
 
 
+def verify_candidate(root: Path, revision: str, *, context: str | None = None) -> None:
+    try:
+        candidate.verify_candidate(root, revision)
+    except candidate.CandidateError as exc:
+        if context is None:
+            fail(str(exc))
+        fail(f"{context}: {exc}")
+
+
 def command_index(items: object, key: str, label: str) -> dict[str, dict]:
     if not isinstance(items, list):
         fail(f"{label} must be an array")
@@ -124,8 +133,8 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
+    verify_candidate(root, args.revision)
     try:
-        candidate.verify_candidate(root, args.revision)
         evidence_path = candidate.ensure_output_path(
             root, "contracts/release-evidence.json"
         )
@@ -175,6 +184,12 @@ def main() -> int:
         binding = bindings[command_id]
         argv = binding["argv"]
         working_directory = binding["workingDirectory"]
+
+        verify_candidate(
+            root,
+            args.revision,
+            context=f"candidate changed before release command {command_id}",
+        )
         try:
             cwd = candidate.resolve_working_directory(root, working_directory)
         except candidate.CandidateError as exc:
@@ -194,6 +209,15 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+
+        verify_candidate(
+            root,
+            args.revision,
+            context=(
+                "candidate changed while release commands were running "
+                f"(after {command_id})"
+            ),
+        )
         command_results.append(
             {
                 "commandId": command_id,
@@ -210,12 +234,11 @@ def main() -> int:
             }
         )
 
-    try:
-        candidate.verify_candidate(root, args.revision)
-    except candidate.CandidateError as exc:
-        fail(
-            "candidate changed while release commands were running: " + str(exc)
-        )
+    verify_candidate(
+        root,
+        args.revision,
+        context="candidate changed before release evidence generation",
+    )
 
     decided_ns, decided_at = timestamp_after(previous_ns)
     _, generated_at = timestamp_after(decided_ns)
