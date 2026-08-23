@@ -20,7 +20,9 @@ Declare viewport lower bounds independently from input capabilities. Do not infe
 
 ## Implementation and release evidence
 
-Template mode deliberately contains no implementation claims. When product code exists, switch implementation evidence to product mode and provide one verified record for every Webapp target and registered Webapp contract transition. Define authoritative commands and release gates before producing release evidence.
+Template mode deliberately contains no implementation claims. Before switching to product mode, run `python scripts/scaffold_webapp_evidence.py` to obtain the deterministic current Webapp target worklist. The command writes only to standard output and does not modify the canonical evidence document.
+
+Use the worklist to identify concrete implementation boundaries, positive and negative proofs, authoritative commands, and release gates. Then switch `contracts/implementation-evidence.json` to product mode and provide one fully verified record for every Webapp target and registered Webapp contract transition before producing release evidence.
 
 ## Product-owned decisions
 
