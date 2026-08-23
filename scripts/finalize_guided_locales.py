@@ -35,6 +35,12 @@ try:
         replace_alternates,
         replace_html_language,
     )
+    from scripts.site_chrome_locales import (
+        SITE_CHROME_LOCALES,
+        SiteChromeLocaleError,
+        guided_copy_strings,
+        load_site_chrome_locales,
+    )
 except ModuleNotFoundError:
     from finalize_site_metadata import (
         BODY_CLOSE_PATTERN,
@@ -56,6 +62,12 @@ except ModuleNotFoundError:
         inject_switcher,
         replace_alternates,
         replace_html_language,
+    )
+    from site_chrome_locales import (
+        SITE_CHROME_LOCALES,
+        SiteChromeLocaleError,
+        guided_copy_strings,
+        load_site_chrome_locales,
     )
 
 HEAD_CLOSE = re.compile(r"</head\s*>", re.IGNORECASE)
@@ -252,6 +264,7 @@ def enhance_localized_guided_copy_controls(
     canonical_base: str,
     language: str,
     path: Path,
+    copy_strings: dict[str, str],
     page_routes: set[str] | None = None,
 ) -> str:
     """Apply the canonical guided copy-control contract to one localized page."""
@@ -282,8 +295,8 @@ def enhance_localized_guided_copy_controls(
         github_url = validate_github_source_url(
             html.unescape(github_matches[0].group("href")), path
         )
-        buttons.append(guided_copy_button("GitHub URL", github_url))
-    buttons.append(guided_copy_button("public URL", public_url))
+        buttons.append(guided_copy_button("github_url", github_url, copy_strings))
+    buttons.append(guided_copy_button("public_url", public_url, copy_strings))
 
     label = html.unescape(page_path_match.group("label"))
     replacement = (
@@ -315,9 +328,11 @@ def finalize(
     site_root: Path,
     pair_map: Path,
     canonical_base: str,
+    chrome_path: Path = SITE_CHROME_LOCALES,
 ) -> list[str]:
     canonical_base = validate_canonical_url(canonical_base)
     pairs = load_pairs(pair_map)
+    chrome = load_site_chrome_locales(chrome_path)
     _resolved_root, html_files = generated_html_files(site_root)
     page_routes = discover_page_path_routes(html_files)
     groups: dict[PurePosixPath, list[dict[str, Any]]] = defaultdict(list)
@@ -356,6 +371,7 @@ def finalize(
                 canonical_base,
                 record["language"],
                 translation_file,
+                guided_copy_strings(chrome, record["language"]),
                 page_routes,
             )
             source = ensure_pwa_metadata(source, translation_file)
@@ -396,11 +412,22 @@ def main() -> int:
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--pair-map", required=True, type=Path)
     parser.add_argument("--canonical-url", required=True)
+    parser.add_argument(
+        "--site-chrome-locales",
+        type=Path,
+        default=SITE_CHROME_LOCALES,
+    )
     args = parser.parse_args()
     try:
-        messages = finalize(args.site_root, args.pair_map, args.canonical_url)
+        messages = finalize(
+            args.site_root,
+            args.pair_map,
+            args.canonical_url,
+            args.site_chrome_locales,
+        )
     except (
         GuidedLocaleFinalizeError,
+        SiteChromeLocaleError,
         SiteMetadataError,
         TranslationReaderError,
         OSError,
