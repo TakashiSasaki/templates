@@ -19,7 +19,12 @@ def load(relative: str) -> dict:
 
 
 def main() -> int:
-    evidence = load("contracts/implementation-evidence.json")
+    try:
+        evidence = load("contracts/implementation-evidence.json")
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        print(f"ERROR: cannot load Webapp implementation evidence: {exc}", file=sys.stderr)
+        return 1
+
     if evidence.get("mode") == "template":
         print("Webapp evidence coverage: template mode OK")
         return 0
