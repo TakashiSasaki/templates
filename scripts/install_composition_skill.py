@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import re
 import subprocess
 import sys
@@ -18,6 +19,7 @@ FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ARCHIVE_LIMIT = 16 * 1024 * 1024
 SKILL_LIMIT = 8 * 1024 * 1024
 SKILL_PREFIX = ("skills", "composition")
+INSTALLATION_RECEIPT = PurePosixPath("installation-receipt.json")
 REQUIRED_SKILL_PATHS = frozenset(
     {
         PurePosixPath("SKILL.md"),
@@ -97,7 +99,12 @@ def safe_relative_member(member: tarfile.TarInfo) -> PurePosixPath | None:
         for part in relative_parts
     ):
         raise RuntimeError(f"unsafe path in skill archive: {member.name}")
-    return PurePosixPath(*relative_parts)
+    relative = PurePosixPath(*relative_parts)
+    if relative == INSTALLATION_RECEIPT:
+        raise RuntimeError(
+            "skill archive must not provide the reserved installation receipt path"
+        )
+    return relative
 
 
 def extract_skill_archive(data: bytes, destination: Path) -> Path:
@@ -183,6 +190,44 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
     return destination
 
 
+def installation_receipt_payload(
+    repository: str = TOOLCHAIN_REPOSITORY,
+    revision: str = SKILL_SOURCE_REVISION,
+) -> dict[str, object]:
+    if repository != TOOLCHAIN_REPOSITORY:
+        raise ValueError("skill source repository is unsupported")
+    if FULL_SHA.fullmatch(revision) is None:
+        raise ValueError("skill source revision must be a full lowercase commit SHA")
+    return {
+        "schema_version": 1,
+        "source": {
+            "repository": repository,
+            "revision": revision,
+        },
+    }
+
+
+def write_installation_receipt(
+    source: Path,
+    *,
+    repository: str = TOOLCHAIN_REPOSITORY,
+    revision: str = SKILL_SOURCE_REVISION,
+) -> Path:
+    path = source / INSTALLATION_RECEIPT.as_posix()
+    if path.exists() or path.is_symlink():
+        raise RuntimeError("reserved installation receipt path already exists")
+    path.write_text(
+        json.dumps(
+            installation_receipt_payload(repository, revision),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def install_downloaded_skill(
     archive_data: bytes,
     target: Path,
@@ -191,6 +236,7 @@ def install_downloaded_skill(
 ) -> None:
     with tempfile.TemporaryDirectory(prefix="composition-remote-install-") as temporary:
         source = extract_skill_archive(archive_data, Path(temporary) / "skill")
+        write_installation_receipt(source)
         installer = source / "scripts" / "install.py"
         command = [sys.executable, "-I", str(installer), str(target)]
         if replace:
