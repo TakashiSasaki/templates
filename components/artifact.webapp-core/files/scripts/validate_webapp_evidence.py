@@ -6,7 +6,10 @@ import json
 import sys
 from pathlib import Path
 
-from webapp_evidence_targets import expected_targets, target_key
+if __package__:
+    from .webapp_evidence_targets import expected_targets, target_key
+else:
+    from webapp_evidence_targets import expected_targets, target_key
 
 ROOT = Path(__file__).resolve().parents[1]
 
