@@ -14,7 +14,9 @@ RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 class WebappEvidenceScaffoldTests(unittest.TestCase):
-    def run(self, cwd: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def run_python(
+        self, cwd: Path, *arguments: str
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, *arguments],
             cwd=cwd,
@@ -38,7 +40,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 "parameters": {},
             },
         )
-        result = self.run(
+        result = self.run_python(
             ROOT,
             str(COMPOSER),
             "apply",
@@ -55,7 +57,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
         return target
 
     def scaffold(self, target: Path) -> subprocess.CompletedProcess[str]:
-        return self.run(target, "scripts/scaffold_webapp_evidence.py")
+        return self.run_python(target, "scripts/scaffold_webapp_evidence.py")
 
     def test_scaffold_is_deterministic_non_destructive_and_validator_aligned(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -65,7 +67,9 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
 
             first = self.scaffold(target)
             second = self.scaffold(target)
-            module = self.run(target, "-m", "scripts.scaffold_webapp_evidence")
+            module = self.run_python(
+                target, "-m", "scripts.scaffold_webapp_evidence"
+            )
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(module.returncode, 0, module.stderr)
@@ -146,7 +150,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 ("scripts/validate_webapp_evidence.py", ()),
                 ("-m", ("scripts.validate_webapp_evidence",)),
             ):
-                result = self.run(target, script, *arguments)
+                result = self.run_python(target, script, *arguments)
                 self.assertEqual(
                     result.returncode,
                     0,
