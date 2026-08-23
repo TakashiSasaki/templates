@@ -115,6 +115,7 @@ def request(
 
 try:
     assert request("/") == (200, "public:populated")
+    assert request("/status") == (200, "status:populated")
     assert request("/app") == (401, "unauthorized")
     assert request(
         "/app", user="alice", roles=("application-user",)
@@ -140,5 +141,6 @@ finally:
     server.shutdown()
     server.server_close()
     thread.join(timeout=5)
+    assert not thread.is_alive()
 
 print("Webapp auth product proof: route access and UI-state behavior passed")
