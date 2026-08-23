@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.release-bundle",
   "kind": "lifecycle",
-  "version": 3,
-  "summary": "Deterministic digest-closed handoff, managed bundle production, and serialized release lifecycle publication.",
+  "version": 4,
+  "summary": "Deterministic digest-closed handoff, serialized producers, and recoverable one-command release orchestration.",
   "requires": ["lifecycle.release-evidence"],
   "conflicts": [],
   "contract_registrations": [{
@@ -19,6 +19,7 @@
     {"source":"files/contracts/release-bundle.json","destination":"contracts/release-bundle.json","ownership":"seed"},
     {"source":"files/schemas/release-bundle.schema.json","destination":"schemas/release-bundle.schema.json","ownership":"managed"},
     {"source":"files/.template-composition/release/produce_release_bundle.py","destination":".template-composition/release/produce_release_bundle.py","ownership":"managed"},
+    {"source":"files/.template-composition/release/produce_release.py","destination":".template-composition/release/produce_release.py","ownership":"managed"},
     {"source":"files/.template-composition/validators/validate_release_bundle.py","destination":".template-composition/validators/validate_release_bundle.py","ownership":"managed"},
     {"source":"files/docs/architecture/release-bundle.md","destination":"docs/architecture/release-bundle.md","ownership":"managed"}
   ]
