@@ -24,6 +24,13 @@ EXPECTED_JA = {
     "offline_unavailable": "オフラインのため、このページを表示できません。",
 }
 EXPECTED_EN_OFFLINE = "This page is unavailable while offline."
+GUIDED_RUNTIME_DIRECTIVES = (
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+)
 
 
 class PwaLocaleChromeError(RuntimeError):
@@ -42,6 +49,7 @@ def _discover_japanese_pwa_page(site_root: Path) -> tuple[Path, str]:
             '<html lang="ja"' not in source
             or 'rel="manifest" href="/app.webmanifest"' not in source
             or "/javascripts/pwa.js" not in source
+            or path == site_root / "ja" / "guided" / "index.html"
         ):
             continue
         relative = path.relative_to(site_root)
@@ -49,6 +57,32 @@ def _discover_japanese_pwa_page(site_root: Path) -> tuple[Path, str]:
         route = "/" if parent == "." else f"/{parent}/"
         return path, route
     raise PwaLocaleChromeError("built site has no Japanese PWA HTML page")
+
+
+def _validate_guided_runtime_source(
+    site_root: Path,
+    relative: str,
+    language: str,
+) -> Path:
+    path = site_root / relative
+    if not path.is_file():
+        raise PwaLocaleChromeError(f"built site is missing guided PWA page: {relative}")
+    source = path.read_text(encoding="utf-8")
+    expected = (
+        f'<html lang="{language}"',
+        'rel="manifest" href="/app.webmanifest"',
+        '<link rel="stylesheet" href="/stylesheets/freshness-status.css">',
+        '<script src="/javascripts/pwa.js" defer></script>',
+    )
+    missing = [value for value in expected if value not in source]
+    missing.extend(
+        directive for directive in GUIDED_RUNTIME_DIRECTIVES if directive not in source
+    )
+    if missing:
+        raise PwaLocaleChromeError(
+            f"guided PWA page {relative} is missing runtime contract: {missing!r}"
+        )
+    return path
 
 
 def _fixture_handler(site_root: Path) -> type[BaseHTTPRequestHandler]:
@@ -143,11 +177,72 @@ def _offline_fetch(page: Any, path: str) -> dict[str, Any]:
     )
 
 
+def _exercise_guided_runtime(browser: Any, base_url: str) -> dict[str, Any]:
+    context = browser.new_context(service_workers="allow")
+    page = context.new_page()
+    try:
+        response = page.goto(base_url + "/ja/guided/", wait_until="load")
+        if response is None or response.status != 200:
+            raise PwaLocaleChromeError("Japanese guided PWA page did not load")
+        page.evaluate("() => navigator.serviceWorker.ready.then(() => undefined)")
+        page.wait_for_function("() => navigator.serviceWorker.controller !== null")
+
+        locale_fetch_ok = page.evaluate(
+            """async () => {
+              const response = await fetch("/site-chrome-locales.json");
+              return response.ok;
+            }"""
+        )
+        if locale_fetch_ok is not True:
+            raise PwaLocaleChromeError("guided CSP blocked the Site chrome locale fetch")
+
+        stylesheet_loaded = page.evaluate(
+            """() => Array.from(document.styleSheets).some((sheet) => {
+              if (!sheet.href) return false;
+              return new URL(sheet.href).pathname === "/stylesheets/freshness-status.css";
+            })"""
+        )
+        if stylesheet_loaded is not True:
+            raise PwaLocaleChromeError("guided freshness stylesheet did not load")
+
+        response = page.reload(wait_until="load")
+        if response is None or response.status != 200:
+            raise PwaLocaleChromeError("controlled Japanese guided PWA reload failed")
+        _wait_for_document_cache(page)
+
+        context.set_offline(True)
+        response = page.reload(wait_until="load")
+        if response is None or response.status != 200:
+            status = None if response is None else response.status
+            raise PwaLocaleChromeError(
+                f"Japanese guided cached fallback returned {status}, expected 200"
+            )
+        page.wait_for_selector("#templates-freshness-status")
+        cached_text = page.locator("#templates-freshness-status").inner_text()
+        if (
+            EXPECTED_JA["saved_copy"] not in cached_text
+            or EXPECTED_JA["unverified"] not in cached_text
+        ):
+            raise PwaLocaleChromeError(
+                f"Japanese guided cached warning mismatch: {cached_text!r}"
+            )
+        return {
+            "route": "/ja/guided/",
+            "locale_fetch": True,
+            "freshness_stylesheet": True,
+            "cached_unverified": cached_text,
+        }
+    finally:
+        context.set_offline(False)
+        context.close()
+
+
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     required = (
         site_root / "service-worker.js",
         site_root / "javascripts/pwa.js",
         site_root / "site-chrome-locales.json",
+        site_root / "stylesheets/freshness-status.css",
     )
     missing = [path for path in required if not path.is_file()]
     if missing:
@@ -156,6 +251,16 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             + ", ".join(path.as_posix() for path in missing)
         )
     page_path, route = _discover_japanese_pwa_page(site_root)
+    canonical_guided = _validate_guided_runtime_source(
+        site_root,
+        "guided/index.html",
+        "en",
+    )
+    japanese_guided = _validate_guided_runtime_source(
+        site_root,
+        "ja/guided/index.html",
+        "ja",
+    )
 
     try:
         from playwright.sync_api import sync_playwright
@@ -170,6 +275,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
         "base_url": base_url,
         "japanese_page": page_path.relative_to(site_root).as_posix(),
         "route": route,
+        "canonical_guided_page": canonical_guided.relative_to(site_root).as_posix(),
+        "japanese_guided_page": japanese_guided.relative_to(site_root).as_posix(),
     }
 
     try:
@@ -257,6 +364,12 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 )
             evidence["unregistered_locale_cache_miss"] = canonical_miss
             context.set_offline(False)
+            context.close()
+
+            # Use a fresh storage partition so the guided page must bootstrap the
+            # Service Worker itself under its own CSP rather than inheriting the
+            # registration established by the regular reader page above.
+            evidence["guided_runtime"] = _exercise_guided_runtime(browser, base_url)
             browser.close()
     finally:
         server.shutdown()
