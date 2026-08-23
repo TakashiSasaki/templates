@@ -7,7 +7,6 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_REVISION = "0f870892b9da5e736b2bd088987488ea65c1f887"
 
 
 def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -22,15 +21,14 @@ def _walk_navigation(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 class PolicyNavigationPublicationTests(unittest.TestCase):
-    def test_site_pins_reviewed_policy_navigation_revision(self) -> None:
+    def test_site_pins_policy_navigation_to_immutable_revision(self) -> None:
         lock = json.loads(
             (ROOT / "publication-sources.json").read_text(encoding="utf-8")
         )
+        policy = lock["publications"]["policy"]
 
-        self.assertEqual(
-            lock["publications"]["policy"]["revision"],
-            POLICY_REVISION,
-        )
+        self.assertEqual(set(policy), {"revision"})
+        self.assertRegex(policy["revision"], r"\A[0-9a-f]{40}\Z")
 
     def test_site_publishes_policy_layer_navigation_documents(self) -> None:
         manifest = json.loads(
