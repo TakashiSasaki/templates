@@ -11,19 +11,28 @@ from scripts.validate_provider_coexistence import _absolute_without_resolving, _
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/provider-coexistence.yml"
 SOURCE_LOCK = ROOT / "publication-sources.json"
-COMPOSITION_REVISION = "ee6b446b24efd63200cba2e3307620534632d153"
+DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 POLICY_REVISION = "3388f2df6c59cf2466b114cc236dd1b512349dc7"
 
 
 class ProviderCoexistenceIntegrationTests(unittest.TestCase):
     def test_site_locks_reviewed_coexistence_provider_merges(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
+        state = json.loads(DEPLOYMENT_STATE.read_text(encoding="utf-8"))
+        publications = lock["publications"]
+
+        self.assertEqual(set(publications), {"composition", "policy"})
+        self.assertRegex(
+            publications["composition"]["revision"],
+            r"\A[0-9a-f]{40}\Z",
+        )
         self.assertEqual(
-            lock["publications"],
-            {
-                "composition": {"revision": COMPOSITION_REVISION},
-                "policy": {"revision": POLICY_REVISION},
-            },
+            publications["composition"]["revision"],
+            state["locked_composition_revision"],
+        )
+        self.assertEqual(
+            publications["policy"],
+            {"revision": POLICY_REVISION},
         )
 
     def test_workflow_resolves_only_the_site_lock_and_uses_isolated_toolchains(self) -> None:

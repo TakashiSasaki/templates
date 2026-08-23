@@ -22,6 +22,7 @@
       "children": [
         {"title": "Overview", "publication": "composition", "document": "overview", "destination": "composition/index.md"},
         {"title": "Use Composition", "publication": "composition", "document": "consumer-guide", "destination": "composition/use/index.md"},
+        {"title": "Produce a product release", "publication": "composition", "document": "release-guide", "destination": "composition/release/index.md"},
         {"title": "Composer reference", "publication": "composition", "document": "composer-reference", "destination": "composition/reference/composer.md"},
         {"title": "Documentation index", "publication": "composition", "document": "documentation-index", "destination": "composition/docs/index.md"},
         {
@@ -88,6 +89,7 @@
           "title": "Domain migrations",
           "children": [
             {"title": "Routes v1 to v2", "publication": "composition", "document": "routes-migration", "destination": "webapp/docs/migrations/routes-v1-to-v2.md"},
+            {"title": "Routes v2 to v3", "publication": "composition", "document": "routes-v3-migration", "destination": "webapp/docs/migrations/routes-v2-to-v3.md"},
             {"title": "UI states v1 to v2", "publication": "composition", "document": "ui-states-migration", "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md"}
           ]
         }
@@ -100,6 +102,7 @@
         {"title": "Composition state", "publication": "composition", "document": "composition-state", "destination": "lifecycle/composition-state/index.md"},
         {"title": "Contract evolution", "publication": "composition", "document": "contract-evolution", "destination": "lifecycle/contract-evolution/index.md"},
         {"title": "Implementation evidence", "publication": "composition", "document": "implementation-evidence", "destination": "lifecycle/implementation-evidence/index.md"},
+        {"title": "Release execution", "publication": "composition", "document": "release-execution", "destination": "lifecycle/release-execution/index.md"},
         {"title": "Release evidence", "publication": "composition", "document": "release-evidence", "destination": "lifecycle/release-evidence/index.md"},
         {"title": "Release bundle", "publication": "composition", "document": "release-bundle", "destination": "lifecycle/release-bundle/index.md"}
       ]

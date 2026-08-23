@@ -8,6 +8,7 @@ entry point and groups the published destinations.
 - [Composition state](composition-state/)
 - [Contract evolution](contract-evolution/)
 - [Implementation evidence](implementation-evidence/)
+- [Release execution](release-execution/)
 - [Release evidence](release-evidence/)
 - [Release bundle](release-bundle/)
 
