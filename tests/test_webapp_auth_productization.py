@@ -10,196 +10,9 @@ from pathlib import Path
 import test_webapp_productization_acceptance as product_helpers
 
 
-AUTH_PROOF_COMMAND = "python product/prove_auth_fixture.py"
-AUTH_APP_TEMPLATE = r'''from __future__ import annotations
-
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
-
-ROLE_BY_PATH = {
-    "/app": "application-user",
-    "/admin": "admin",
-}
-
-
-class Handler(BaseHTTPRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
-        return
-
-    def respond(self, status: int, body: str) -> None:
-        payload = (body + "\n").encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
-
-    def do_GET(self) -> None:
-        parsed = urlsplit(self.path)
-        path = parsed.path
-        if path == "/":
-            self.respond(200, "public:populated")
-            return
-        if path == "/status":
-            self.respond(200, "status:populated")
-            return
-        if path not in ROLE_BY_PATH:
-            self.respond(404, "not-found")
-            return
-
-        user = self.headers.get("X-User", "").strip()
-        roles = {
-            value.strip()
-            for value in self.headers.get("X-Roles", "").split(",")
-            if value.strip()
-        }
-        if not user:
-            self.respond(401, "unauthorized")
-            return
-
-        required_role = ROLE_BY_PATH[path]
-        if required_role not in roles and not ({allow_admin_without_role!r} and path == "/admin"):
-            self.respond(403, "forbidden")
-            return
-
-        state = parse_qs(parsed.query).get("state", ["populated"])[0]
-        if state == "loading":
-            self.respond(200, path.removeprefix("/") + ":loading")
-            return
-        if state == "recoverable-error":
-            self.respond(503, "recoverable-error")
-            return
-        if state != "populated":
-            self.respond(400, "unsupported-state")
-            return
-        self.respond(200, path.removeprefix("/") + ":populated")
-
-
-def make_server() -> ThreadingHTTPServer:
-    return ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-'''
-
-AUTH_PROOF_SCRIPT = r'''from __future__ import annotations
-
-import json
-import subprocess
-import sys
-import threading
-from pathlib import Path
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
-
-import auth_app
-
 ROOT = Path(__file__).resolve().parents[1]
-CHECKS = (
-    ("contracts", (sys.executable, "scripts/validate_contracts.py")),
-    (
-        "contract evolution",
-        (
-            sys.executable,
-            ".template-composition/validators/validate_contract_evolution.py",
-            ".",
-        ),
-    ),
-    (
-        "implementation evidence",
-        (
-            sys.executable,
-            ".template-composition/validators/validate_implementation_evidence.py",
-            ".",
-        ),
-    ),
-    (
-        "release execution",
-        (
-            sys.executable,
-            ".template-composition/validators/validate_release_execution.py",
-            ".",
-        ),
-    ),
-    (
-        "Webapp evidence coverage",
-        (sys.executable, "scripts/validate_webapp_evidence.py"),
-    ),
-)
-
-for label, command in CHECKS:
-    result = subprocess.run(
-        command,
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(f"{label} failed", file=sys.stderr)
-        print(result.stdout, file=sys.stderr, end="")
-        print(result.stderr, file=sys.stderr, end="")
-        raise SystemExit(result.returncode)
-
-routes = {
-    route["id"]: route
-    for route in json.loads(
-        (ROOT / "contracts/routes.json").read_text(encoding="utf-8")
-    )["routes"]
-}
-surfaces = {
-    surface["id"]: surface
-    for surface in json.loads(
-        (ROOT / "contracts/surfaces.json").read_text(encoding="utf-8")
-    )["surfaces"]
-}
-for route_id, surface_id, required_role in (
-    ("application-home", "application", "application-user"),
-    ("admin", "admin", "admin"),
-):
-    route = routes[route_id]
-    surface = surfaces[surface_id]
-    assert route["authentication"] == "required"
-    assert route["accessFailures"] == {
-        "unauthenticated": "render-state",
-        "forbidden": "render-state",
-    }
-    assert {"loading", "populated", "recoverable-error", "unauthorized", "forbidden"} <= set(route["states"])
-    assert surface["authorization"] == {"mode": "role", "roles": [required_role]}
-
-server = auth_app.make_server()
-thread = threading.Thread(target=server.serve_forever, daemon=True)
-thread.start()
-base = f"http://127.0.0.1:{server.server_address[1]}"
-
-
-def request(path: str, *, user: str | None = None, roles: tuple[str, ...] = ()) -> tuple[int, str]:
-    headers = {}
-    if user is not None:
-        headers["X-User"] = user
-    if roles:
-        headers["X-Roles"] = ",".join(roles)
-    try:
-        with urlopen(Request(base + path, headers=headers), timeout=5) as response:
-            return response.status, response.read().decode("utf-8").strip()
-    except HTTPError as exc:
-        return exc.code, exc.read().decode("utf-8").strip()
-
-
-try:
-    assert request("/") == (200, "public:populated")
-    assert request("/app") == (401, "unauthorized")
-    assert request("/app", user="alice", roles=("application-user",)) == (200, "app:populated")
-    assert request("/app", user="alice", roles=("admin",)) == (403, "forbidden")
-    assert request("/admin") == (401, "unauthorized")
-    assert request("/admin", user="alice", roles=("application-user",)) == (403, "forbidden")
-    assert request("/admin", user="alice", roles=("admin",)) == (200, "admin:populated")
-    assert request("/app?state=loading", user="alice", roles=("application-user",)) == (200, "app:loading")
-    assert request("/app?state=recoverable-error", user="alice", roles=("application-user",)) == (503, "recoverable-error")
-finally:
-    server.shutdown()
-    server.server_close()
-    thread.join(timeout=5)
-
-print("Webapp auth product proof: route access and UI-state behavior passed")
-'''
+FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_auth"
+AUTH_PROOF_COMMAND = "python product/prove_auth_fixture.py"
 
 
 class WebappAuthenticationProductizationTests(unittest.TestCase):
@@ -228,7 +41,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 "dataClassifications": ["internal"],
                 "stability": "experimental",
                 "startupDependencies": [],
-                "diagnostic": false,
+                "diagnostic": False,
             }
         )
         self.write_json(surfaces_path, surfaces)
@@ -275,27 +88,27 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         )
         self.assertEqual(scaffold.returncode, 0, scaffold.stdout + scaffold.stderr)
         worklist = json.loads(scaffold.stdout)
-        self.assertEqual(worklist["format"], "webapp-implementation-evidence-worklist")
+        self.assertEqual(
+            worklist["format"], "webapp-implementation-evidence-worklist"
+        )
         self.assertEqual(worklist["recordCount"], len(worklist["records"]))
+
         targets = [record["target"] for record in worklist["records"]]
-        self.assertIn(
+        for expected in (
             {
                 "kind": "contract-item",
                 "contractId": "surfaces",
                 "itemKind": "surface",
                 "itemId": "admin",
             },
-            targets,
-        )
-        self.assertIn(
             {
                 "kind": "contract-item",
                 "contractId": "routes",
                 "itemKind": "route",
                 "itemId": "admin",
             },
-            targets,
-        )
+        ):
+            self.assertIn(expected, targets)
 
         records: list[dict] = []
         for skeleton in worklist["records"]:
@@ -306,7 +119,10 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     "target": skeleton["target"],
                     "implementationBoundary": {
                         "status": "verified",
-                        "description": "The executable auth fixture implements this generated Webapp target.",
+                        "description": (
+                            "The executable auth fixture implements this generated "
+                            "Webapp target."
+                        ),
                         "locator": "product/auth_app.py",
                     },
                     "positiveEvidence": [
@@ -314,10 +130,16 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                             "id": f"{identifier}-positive",
                             "status": "verified",
                             "kind": "integration-test",
-                            "description": "The auth proof exercises the target through contract and HTTP behavior checks.",
+                            "description": (
+                                "The auth proof exercises the target through contract "
+                                "and HTTP behavior checks."
+                            ),
                             "locator": "product/prove_auth_fixture.py",
                             "commandId": "auth-product-proof",
-                            "expectedResult": "The declared route, state, access, and lifecycle checks pass.",
+                            "expectedResult": (
+                                "The declared route, state, access, and lifecycle "
+                                "checks pass."
+                            ),
                         }
                     ],
                     "negativeEvidence": [
@@ -325,16 +147,40 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                             "id": f"{identifier}-negative",
                             "status": "verified",
                             "kind": "integration-test",
-                            "description": "The auth proof rejects contract drift or incorrect role behavior.",
+                            "description": (
+                                "The auth proof rejects contract drift or incorrect "
+                                "role behavior."
+                            ),
                             "locator": "product/prove_auth_fixture.py",
                             "commandId": "auth-product-proof",
-                            "expectedResult": "Invalid access behavior or contract state causes the proof to fail.",
+                            "expectedResult": (
+                                "Invalid access behavior or contract state causes the "
+                                "proof to fail."
+                            ),
                         }
                     ],
                     "releaseGateIds": ["auth-product-release"],
                 }
             )
         return records
+
+    def write_product_files(
+        self, target: Path, *, allow_admin_without_role: bool
+    ) -> None:
+        auth_source = (FIXTURE_DIR / "auth_app.py").read_text(encoding="utf-8")
+        replacement = "True" if allow_admin_without_role else "False"
+        auth_source = auth_source.replace(
+            "__ALLOW_ADMIN_WITHOUT_ROLE__", replacement
+        )
+        self.assertNotIn("__ALLOW_ADMIN_WITHOUT_ROLE__", auth_source)
+
+        product = target / "product"
+        product.mkdir()
+        (product / "auth_app.py").write_text(auth_source, encoding="utf-8")
+        (product / "prove_auth_fixture.py").write_text(
+            (FIXTURE_DIR / "prove_auth_fixture.py").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
 
     def materialize_candidate(
         self, root: Path, *, allow_admin_without_role: bool = False
@@ -351,7 +197,9 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             str(target),
         )
         self.assertEqual(result.returncode, 0, payload)
-        self.assertTrue((target / ".template-composition/release/produce_release.py").is_file())
+        self.assertTrue(
+            (target / ".template-composition/release/produce_release.py").is_file()
+        )
 
         self.add_admin_contracts(target)
         records = self.scaffold_product_evidence(target)
@@ -365,13 +213,18 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     {
                         "id": "auth-product-proof",
                         "command": AUTH_PROOF_COMMAND,
-                        "purpose": "Exercise realistic Webapp authentication, authorization, and route-state behavior.",
+                        "purpose": (
+                            "Exercise realistic Webapp authentication, authorization, "
+                            "and route-state behavior."
+                        ),
                     }
                 ],
                 "releaseGates": [
                     {
                         "id": "auth-product-release",
-                        "purpose": "Block release unless the realistic Webapp auth proof passes.",
+                        "purpose": (
+                            "Block release unless the realistic Webapp auth proof passes."
+                        ),
                         "commandIds": ["auth-product-proof"],
                     }
                 ],
@@ -393,25 +246,19 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 ],
             },
         )
+        self.write_product_files(
+            target,
+            allow_admin_without_role=allow_admin_without_role,
+        )
 
-        product = target / "product"
-        product.mkdir()
-        (product / "auth_app.py").write_text(
-            AUTH_APP_TEMPLATE.format(
-                allow_admin_without_role=allow_admin_without_role
-            ),
-            encoding="utf-8",
-        )
-        (product / "prove_auth_fixture.py").write_text(
-            AUTH_PROOF_SCRIPT,
-            encoding="utf-8",
-        )
         original_evidence = (target / "contracts/release-evidence.json").read_bytes()
         original_bundle = (target / "contracts/release-bundle.json").read_bytes()
         revision = helper.commit_candidate(target)
         return helper, target, revision, original_evidence, original_bundle
 
-    def run_release(self, target: Path, revision: str) -> subprocess.CompletedProcess[str]:
+    def run_release(
+        self, target: Path, revision: str
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
                 sys.executable,
@@ -428,8 +275,8 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
 
     def test_realistic_auth_fixture_reaches_transactional_release(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            _, target, revision, original_evidence, original_bundle = self.materialize_candidate(
-                Path(temp_dir)
+            _, target, revision, original_evidence, original_bundle = (
+                self.materialize_candidate(Path(temp_dir))
             )
             result = self.run_release(target, revision)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -475,9 +322,11 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
 
     def test_role_bypass_candidate_fails_release_and_restores_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            _, target, revision, original_evidence, original_bundle = self.materialize_candidate(
-                Path(temp_dir),
-                allow_admin_without_role=True,
+            _, target, revision, original_evidence, original_bundle = (
+                self.materialize_candidate(
+                    Path(temp_dir),
+                    allow_admin_without_role=True,
+                )
             )
             result = self.run_release(target, revision)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
