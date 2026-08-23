@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -9,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
+RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 class WebappEvidenceScaffoldTests(unittest.TestCase):
@@ -63,9 +65,12 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
 
             first = self.scaffold(target)
             second = self.scaffold(target)
+            module = self.run(target, "-m", "scripts.scaffold_webapp_evidence")
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(module.returncode, 0, module.stderr)
             self.assertEqual(first.stdout, second.stdout)
+            self.assertEqual(first.stdout, module.stdout)
             self.assertEqual(evidence_path.read_bytes(), original_evidence)
 
             worklist = json.loads(first.stdout)
@@ -82,6 +87,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
             self.assertEqual(len(record_ids), len(set(record_ids)))
             self.assertEqual(len(targets), len(set(targets)))
             for record in worklist["records"]:
+                self.assertRegex(record["id"], RECORD_ID)
                 self.assertEqual(record["implementationBoundary"]["status"], "required")
                 self.assertEqual(record["positiveEvidence"][0]["status"], "required")
                 self.assertEqual(record["negativeEvidence"][0]["status"], "required")
@@ -138,6 +144,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     (".",),
                 ),
                 ("scripts/validate_webapp_evidence.py", ()),
+                ("-m", ("scripts.validate_webapp_evidence",)),
             ):
                 result = self.run(target, script, *arguments)
                 self.assertEqual(
