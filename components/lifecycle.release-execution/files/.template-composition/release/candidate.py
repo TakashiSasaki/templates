@@ -157,12 +157,12 @@ def _candidate_entries(root: Path, git_dir: Path, revision: str) -> list[tuple[s
 
 def _assert_no_symlink_ancestors(root: Path, relative: str) -> Path:
     pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts:
+    if pure.is_absolute() or not pure.parts or any(
+        part in {"", ".", ".."} for part in pure.parts
+    ):
         raise CandidateError(f"unsafe repository-relative path: {relative!r}")
     current = root
     for part in pure.parts[:-1]:
-        if part in {"", ".", ".."}:
-            raise CandidateError(f"unsafe repository-relative path: {relative!r}")
         current = current / part
         if current.is_symlink():
             raise CandidateError(f"repository path crosses a symlink: {relative}")
