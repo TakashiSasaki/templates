@@ -17,7 +17,8 @@
         "unverified": "The latest version could not be verified.",
         "update_available": "Update available.",
         "published_changed": "The published page changed.",
-        "reload": "Reload"
+        "reload": "Reload",
+        "offline_unavailable": "This page is unavailable while offline."
       }
     },
     {
@@ -35,7 +36,8 @@
         "unverified": "最新版であることを確認できませんでした。",
         "update_available": "更新があります。",
         "published_changed": "公開済みページが更新されました。",
-        "reload": "再読み込み"
+        "reload": "再読み込み",
+        "offline_unavailable": "オフラインのため、このページを表示できません。"
       }
     }
   ]
