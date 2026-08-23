@@ -9,15 +9,15 @@ The target must be a Git repository. Python 3.11 or later and Git are required. 
 Use the published installer whose script URL is pinned to a full immutable commit SHA:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/17ac1aae0e9fa3fa272ce2798ab5d3be71c1bd61/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/f9a3b7698a19bba1d2b7e9debd8a3de41a01b570/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 Append `--replace` only when replacing an existing `agent-policy` skill installation.
 
 Three full-SHA identities intentionally remain separate:
 
-- **installer script revision** `17ac1aae0e9fa3fa272ce2798ab5d3be71c1bd61` identifies the remotely executed installer;
-- **skill source revision** `a7123c4bb12942d690193e9e73f64cd12e33c00d` identifies the installed `skills/agent-policy/` subtree; and
+- **installer script revision** `f9a3b7698a19bba1d2b7e9debd8a3de41a01b570` identifies the remotely executed installer;
+- **skill source revision** `b063d78ece8f5a8e9cab2e34093e6989a9a6c783` identifies the installed `skills/agent-policy/` subtree; and
 - the **stable runtime revision** in the installed `runtime-manifest.json` identifies the canonical CLI runtime used by the skill.
 
 `release/skill-installer.json` records the first two identities. The command does not execute `policy`, a tag, or an abbreviated SHA.
