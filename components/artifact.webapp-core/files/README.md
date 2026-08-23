@@ -9,7 +9,7 @@ The scaffold intentionally does not choose a frontend framework, rendering model
 ## Contracts
 
 - `contracts/surfaces.json` — browser-facing surface boundaries and audiences.
-- `contracts/routes.json` — canonical navigation and access-failure presentation.
+- `contracts/routes.json` — canonical navigation plus access-failure behavior and semantic state/route targets.
 - `contracts/ui-states.json` — reusable visible states and recovery/focus behavior.
 - `contracts/viewports.json` — responsive lower bounds and input capabilities.
 - `contracts/manifest.json` — generated closed registry from resolved component metadata.

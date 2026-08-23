@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "kind": "artifact",
-  "version": 2,
+  "version": 3,
   "summary": "Framework-neutral browser application surfaces, routes, visible states, viewports, and Web-specific validation.",
   "requires": [
     "lifecycle.composition-state",
@@ -11,9 +11,9 @@
   "conflicts": [],
   "contract_registrations": [
     {
-      "id":"routes","document":"contracts/routes.json","schema":"schemas/routes.schema.json","migration_slug":"routes","document_schema_version":2,
-      "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/routes-v1-to-v2.md"}],
-      "purpose":"Declare canonical routes, aliases, access-failure behavior, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
+      "id":"routes","document":"contracts/routes.json","schema":"schemas/routes.schema.json","migration_slug":"routes","document_schema_version":3,
+      "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/routes-v1-to-v2.md"},{"version":3,"change_type":"breaking","migration":"docs/migrations/routes-v2-to-v3.md"}],
+      "purpose":"Declare canonical routes, aliases, explicit access-failure targets, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
     },
     {
       "id":"surfaces","document":"contracts/surfaces.json","schema":"schemas/surfaces.schema.json","migration_slug":"surfaces","document_schema_version":1,
@@ -45,6 +45,7 @@
     {"source":"files/schemas/ui-states.schema.json","destination":"schemas/ui-states.schema.json","ownership":"managed"},
     {"source":"files/schemas/viewports.schema.json","destination":"schemas/viewports.schema.json","ownership":"managed"},
     {"source":"files/docs/migrations/routes-v1-to-v2.md","destination":"docs/migrations/routes-v1-to-v2.md","ownership":"managed"},
+    {"source":"files/docs/migrations/routes-v2-to-v3.md","destination":"docs/migrations/routes-v2-to-v3.md","ownership":"managed"},
     {"source":"files/docs/migrations/ui-states-v1-to-v2.md","destination":"docs/migrations/ui-states-v1-to-v2.md","ownership":"managed"},
     {"source":"files/docs/index.md","destination":"docs/index.md","ownership":"managed"},
     {"source":"files/docs/architecture/webapp-contracts.md","destination":"docs/architecture/webapp-contracts.md","ownership":"managed"},

@@ -8,7 +8,7 @@ For each browser-facing surface, identify its audience, authentication and autho
 
 ## Route inventory
 
-For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure presentation, supported UI states, document-title requirement, and focus target.
+For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure behavior and semantic target, supported UI states, document-title requirement, and focus target. For `render-state`, bind the failure to a declared route-scoped access state. For `redirect`, bind it to the semantic destination route; keep concrete URL/query/cookie/session transport product-owned.
 
 ## Visible states
 

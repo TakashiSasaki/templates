@@ -401,12 +401,12 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "viewports",
             },
         )
-        self.assertEqual(entries["routes"]["documentSchemaVersion"], 2)
+        self.assertEqual(entries["routes"]["documentSchemaVersion"], 3)
         self.assertEqual(entries["ui_states"]["documentSchemaVersion"], 2)
         self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 1)
         self.assertEqual(
             [entry["version"] for entry in entries["routes"]["versionHistory"]],
-            [1, 2],
+            [1, 2, 3],
         )
         self.assertEqual(
             [entry["version"] for entry in entries["ui_states"]["versionHistory"]],

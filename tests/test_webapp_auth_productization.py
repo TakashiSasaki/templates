@@ -60,8 +60,14 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 "historyBehavior": "push",
                 "authenticationReturn": "same-route",
                 "accessFailures": {
-                    "unauthenticated": "render-state",
-                    "forbidden": "render-state",
+                    "unauthenticated": {
+                        "behavior": "render-state",
+                        "stateId": "unauthorized",
+                    },
+                    "forbidden": {
+                        "behavior": "render-state",
+                        "stateId": "forbidden",
+                    },
                 },
                 "states": [
                     "loading",
