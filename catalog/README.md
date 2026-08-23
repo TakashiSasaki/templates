@@ -93,7 +93,11 @@ A Skill that exposes an MCP Apps UI and uses the complete release workflow can r
 
 `artifact.webapp-core` v4 changes the artifact dependency closure, so an existing managed Webapp at v3 crosses an explicit component-version compatibility boundary and must use `upgrade`, not ordinary `update`.
 
-If the repository should keep the complete release lifecycle that v3 selected transitively, the v4 upgrade configuration must explicitly include `lifecycle.release-bundle`. If release execution/evidence/bundle behavior is not needed, omit it and review the upgrade plan before apply. Deselected lifecycle files do not select validators merely because similarly named files remain in the repository; the resolved component set in `.template-composition/lock.json` is the selection authority.
+If the repository should keep the complete release lifecycle that v3 selected transitively, the v4 upgrade configuration must explicitly include `lifecycle.release-bundle`. If release execution/evidence/bundle behavior is not needed, omit it and review the upgrade plan before apply.
+
+The v3 release contract files were `seed` material, so an upgrade that deselects the release lifecycle preserves their consumer-owned bytes rather than deleting them. After apply, any preserved `contracts/release-execution.json`, `contracts/release-evidence.json`, or `contracts/release-bundle.json` is no longer registered by the v4 baseline. The contract registry is intentionally closed, so validation fails until the consumer either archives those files outside `contracts/` (for example under `release-history/`) or deletes them after deciding the historical bytes are no longer needed. This cleanup is consumer-owned: perform it after the upgrade apply, then rerun `validate`.
+
+Deselected lifecycle files do not select validators merely because similarly named files remain in the repository; the resolved component set in `.template-composition/lock.json` is the selection authority. The cleanup requirement above comes from the closed contract-document inventory, not from release-validator dispatch.
 
 Use `plan` before `apply` to inspect the exact resolved component closure and materialized file actions. The recipe descriptors remain the machine-readable source of truth for which direct selections are permitted.
 
