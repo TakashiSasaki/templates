@@ -274,7 +274,7 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             )
             result = self.run_producer(target, revision)
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-            self.assertIn("canonical release evidence was not changed", result.stderr)
+            self.assertIn("canonical release evidence was restored", result.stderr)
             self.assert_seed_unchanged(target, original)
 
     def test_revision_and_preexisting_candidate_drift_fail_closed(self) -> None:
