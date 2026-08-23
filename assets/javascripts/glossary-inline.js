@@ -6,14 +6,28 @@
   const CONTROL_SELECTOR = ".glossary-term[data-glossary-id]";
   const DIALOG_ID = "glossary-inline-dialog";
   const GLOSSARY_URL = "/glossary/index.json";
+  const SITE_CHROME_LOCALES_URL = "/site-chrome-locales.json";
   const CACHED_FRESHNESS = "cached-unverified";
   const CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
+  const GLOSSARY_INLINE_FIELDS = Object.freeze([
+    "eyebrow",
+    "close_definition",
+    "open_in_glossary",
+    "definition_unavailable",
+    "cached_unverified",
+    "external_term_prefix",
+    "repository_term_prefix",
+    "data_unavailable",
+    "definition_load_failed",
+    "definition_not_found",
+  ]);
   const PROVIDER_LABELS = {
     site: "Site",
     composition: "Composition",
     policy: "Policy",
   };
   let glossaryPromise;
+  let chromePromise;
   let glossaryFreshness = "verified-current";
   let dialog;
   let activeTrigger;
@@ -66,6 +80,94 @@
     return glossaryPromise;
   }
 
+  function parseGlossaryChrome(value) {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      value.schema_version !== 1 ||
+      value.canonical_language !== "en" ||
+      !Array.isArray(value.locales) ||
+      value.locales.length === 0
+    ) {
+      throw new Error("Glossary chrome locale root is invalid");
+    }
+    const locales = new Map();
+    for (const locale of value.locales) {
+      if (
+        !locale ||
+        typeof locale !== "object" ||
+        Array.isArray(locale) ||
+        typeof locale.language !== "string" ||
+        !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(locale.language) ||
+        !locale.glossary_inline ||
+        typeof locale.glossary_inline !== "object" ||
+        Array.isArray(locale.glossary_inline) ||
+        Object.keys(locale.glossary_inline).length !== GLOSSARY_INLINE_FIELDS.length ||
+        GLOSSARY_INLINE_FIELDS.some(
+          (field) =>
+            typeof locale.glossary_inline[field] !== "string" ||
+            locale.glossary_inline[field].trim().length === 0,
+        ) ||
+        Object.keys(locale.glossary_inline).some(
+          (field) => !GLOSSARY_INLINE_FIELDS.includes(field),
+        ) ||
+        locales.has(locale.language)
+      ) {
+        throw new Error("Glossary chrome locale entry is invalid");
+      }
+      locales.set(locale.language, Object.freeze({ ...locale.glossary_inline }));
+    }
+    if (!locales.has(value.canonical_language)) {
+      throw new Error("Glossary chrome canonical locale is missing");
+    }
+    return Object.freeze({
+      canonicalLanguage: value.canonical_language,
+      locales,
+    });
+  }
+
+  function loadGlossaryChrome() {
+    if (!chromePromise) {
+      chromePromise = fetch(SITE_CHROME_LOCALES_URL, {
+        credentials: "same-origin",
+        cache: "no-cache",
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Glossary chrome request failed: ${response.status}`);
+          }
+          return parseGlossaryChrome(await response.json());
+        })
+        .catch((error) => {
+          chromePromise = undefined;
+          throw error;
+        });
+    }
+    return chromePromise;
+  }
+
+  function glossaryStrings(model, language) {
+    if (!model || typeof language !== "string") {
+      return null;
+    }
+    const exact = model.locales.get(language);
+    if (exact) {
+      return exact;
+    }
+    const primary = language.split("-", 1)[0];
+    return model.locales.get(primary) || model.locales.get(model.canonicalLanguage) || null;
+  }
+
+  async function currentGlossaryStrings() {
+    const model = await loadGlossaryChrome();
+    const strings = glossaryStrings(model, document.documentElement?.lang || "");
+    if (!strings) {
+      throw new Error("Glossary chrome strings are unavailable");
+    }
+    return strings;
+  }
+
   function fallbackHref(trigger) {
     const href = trigger.dataset.glossaryHref;
     if (href) {
@@ -97,6 +199,24 @@
     trigger.setAttribute("aria-expanded", "false");
     link.replaceWith(trigger);
     return trigger;
+  }
+
+  function restoreFallbackLink(trigger) {
+    if (!(trigger instanceof HTMLButtonElement) || !trigger.isConnected) {
+      return null;
+    }
+    const link = document.createElement("a");
+    link.className = trigger.className;
+    while (trigger.firstChild) {
+      link.appendChild(trigger.firstChild);
+    }
+    const termId = trigger.dataset.glossaryId;
+    if (termId) {
+      link.dataset.glossaryId = termId;
+    }
+    link.setAttribute("href", fallbackHref(trigger));
+    trigger.replaceWith(link);
+    return link;
   }
 
   function enhanceGlossaryLinks(root) {
@@ -160,12 +280,22 @@
     });
   }
 
-  function ensureDialog() {
+  function applyDialogChrome(panel, strings) {
+    panel.querySelector(".glossary-inline-dialog__eyebrow").textContent = strings.eyebrow;
+    panel.querySelector(".glossary-inline-dialog__close").setAttribute(
+      "aria-label",
+      strings.close_definition,
+    );
+    panel.querySelector(".glossary-inline-dialog__actions a").textContent = strings.open_in_glossary;
+  }
+
+  function ensureDialog(strings) {
     if (dialog) {
       if (!dialog.isConnected) {
         document.body.appendChild(dialog);
         observeNavigationBody();
       }
+      applyDialogChrome(dialog, strings);
       return dialog;
     }
 
@@ -177,16 +307,17 @@
     dialog.innerHTML = `
       <div class="glossary-inline-dialog__header">
         <div>
-          <p class="glossary-inline-dialog__eyebrow">Glossary</p>
+          <p class="glossary-inline-dialog__eyebrow"></p>
           <h2 id="glossary-inline-title"></h2>
         </div>
-        <button class="glossary-inline-dialog__close" type="button" aria-label="Close definition">×</button>
+        <button class="glossary-inline-dialog__close" type="button">×</button>
       </div>
       <p class="glossary-inline-dialog__definition" id="glossary-inline-definition"></p>
       <p class="glossary-inline-dialog__meta"></p>
       <p class="glossary-inline-dialog__freshness" role="status" hidden></p>
-      <p class="glossary-inline-dialog__actions"><a href="/glossary/">Open in Glossary</a></p>
+      <p class="glossary-inline-dialog__actions"><a href="/glossary/"></a></p>
     `;
+    applyDialogChrome(dialog, strings);
     document.body.appendChild(dialog);
     observeNavigationBody();
 
@@ -244,14 +375,14 @@
     }
   }
 
-  function explanation(term) {
+  function explanation(term, strings) {
     if (term.origin === "repository" && typeof term.definition === "string") {
       return term.definition;
     }
     if (typeof term.summary === "string") {
       return term.summary;
     }
-    return "Definition unavailable.";
+    return strings.definition_unavailable;
   }
 
   function providerLabel(provider) {
@@ -261,33 +392,36 @@
     return PROVIDER_LABELS[provider] || provider;
   }
 
-  function setFreshness(panel, freshness) {
+  function setFreshness(panel, freshness, strings) {
     const status = panel.querySelector(".glossary-inline-dialog__freshness");
     if (freshness === CACHED_FRESHNESS) {
       status.hidden = false;
-      status.textContent = "Saved glossary data · latest version not verified.";
+      status.textContent = strings.cached_unverified;
       return;
     }
     status.hidden = true;
     status.textContent = "";
   }
 
-  function fillDialog(panel, term, trigger, freshness) {
+  function fillDialog(panel, term, trigger, freshness, strings) {
     panel.querySelector("#glossary-inline-title").textContent = term.term;
-    panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term);
+    panel.querySelector(".glossary-inline-dialog__definition").textContent = explanation(term, strings);
     const meta = panel.querySelector(".glossary-inline-dialog__meta");
     const owner = providerLabel(term.provider);
-    meta.textContent = term.origin === "external" ? `External term · curated by ${owner}` : `Templates-defined · ${owner}`;
-    setFreshness(panel, freshness);
+    meta.textContent =
+      term.origin === "external"
+        ? `${strings.external_term_prefix}${owner}`
+        : `${strings.repository_term_prefix}${owner}`;
+    setFreshness(panel, freshness, strings);
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
-  function fillErrorDialog(panel, trigger, message) {
+  function fillErrorDialog(panel, trigger, message, strings) {
     const label = (trigger.textContent || "").trim();
-    panel.querySelector("#glossary-inline-title").textContent = label || "Glossary";
+    panel.querySelector("#glossary-inline-title").textContent = label || strings.eyebrow;
     panel.querySelector(".glossary-inline-dialog__definition").textContent = message;
-    panel.querySelector(".glossary-inline-dialog__meta").textContent = "Glossary data unavailable.";
-    setFreshness(panel, "unavailable");
+    panel.querySelector(".glossary-inline-dialog__meta").textContent = strings.data_unavailable;
+    setFreshness(panel, "unavailable", strings);
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
 
@@ -313,37 +447,52 @@
     }
     setPendingTrigger(trigger);
 
-    let terms;
-    try {
-      terms = await loadGlossary();
-    } catch (error) {
-      const canPresent = pendingTrigger === trigger && trigger.isConnected;
-      clearPendingTrigger(trigger);
-      if (!canPresent) {
-        return;
-      }
-      console.warn("Glossary definition loading failed", error);
-      const panel = ensureDialog();
-      fillErrorDialog(panel, trigger, "Definition could not be loaded.");
-      presentDialog(trigger, panel);
-      return;
-    }
+    const glossaryResultPromise = loadGlossary().then(
+      (value) => ({ ok: true, value }),
+      (error) => ({ ok: false, error }),
+    );
+    const chromeResultPromise = currentGlossaryStrings().then(
+      (value) => ({ ok: true, value }),
+      (error) => ({ ok: false, error }),
+    );
+    const [glossaryResult, chromeResult] = await Promise.all([
+      glossaryResultPromise,
+      chromeResultPromise,
+    ]);
+
     if (pendingTrigger !== trigger || !trigger.isConnected) {
       clearPendingTrigger(trigger);
       return;
     }
-    const term = terms.get(termId);
-    if (!term) {
+    if (!chromeResult.ok) {
+      console.warn("Glossary chrome loading failed", chromeResult.error);
       clearPendingTrigger(trigger);
-      const panel = ensureDialog();
-      fillErrorDialog(panel, trigger, "Definition could not be found.");
+      restoreFallbackLink(trigger);
+      return;
+    }
+    const strings = chromeResult.value;
+    if (!glossaryResult.ok) {
+      console.warn("Glossary definition loading failed", glossaryResult.error);
+      clearPendingTrigger(trigger);
+      const panel = ensureDialog(strings);
+      fillErrorDialog(panel, trigger, strings.definition_load_failed, strings);
       presentDialog(trigger, panel);
       return;
     }
 
-    const panel = ensureDialog();
+    const terms = glossaryResult.value;
+    const term = terms.get(termId);
+    if (!term) {
+      clearPendingTrigger(trigger);
+      const panel = ensureDialog(strings);
+      fillErrorDialog(panel, trigger, strings.definition_not_found, strings);
+      presentDialog(trigger, panel);
+      return;
+    }
+
+    const panel = ensureDialog(strings);
     clearPendingTrigger(trigger);
-    fillDialog(panel, term, trigger, glossaryFreshness);
+    fillDialog(panel, term, trigger, glossaryFreshness, strings);
     presentDialog(trigger, panel);
   }
 
