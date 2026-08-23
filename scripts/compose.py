@@ -22,6 +22,7 @@ from composer_core import (
     TRANSACTION_RELATIVE,
     CompositionError,
     _assert_tracked_authority,
+    _parent_chain_is_safe,
     load_json_bytes,
     main as _initial_main,
     validate_consumer_with_source_validator,
@@ -143,7 +144,9 @@ def _remove_initial_mode() -> None:
     sys.argv[:] = [sys.argv[0], *rewritten]
 
 
-def _read_regular_json_object(path: Path) -> dict[str, Any] | None:
+def _read_regular_json_object(root: Path, path: Path) -> dict[str, Any] | None:
+    if not _parent_chain_is_safe(root, path):
+        return None
     if path.is_symlink() or not path.is_file():
         return None
     try:
@@ -160,13 +163,13 @@ def _previous_lock_for_apply() -> dict[str, Any] | None:
         return None
     target = Path(target_value).absolute()
 
-    transaction = _read_regular_json_object(target / TRANSACTION_RELATIVE)
+    transaction = _read_regular_json_object(target, target / TRANSACTION_RELATIVE)
     if transaction is not None:
         old_lock = transaction.get("old_lock")
         if isinstance(old_lock, dict):
             return old_lock
 
-    return _read_regular_json_object(target / LOCK_RELATIVE)
+    return _read_regular_json_object(target, target / LOCK_RELATIVE)
 
 
 def _add_post_apply_guidance(
@@ -178,7 +181,8 @@ def _add_post_apply_guidance(
     target_value = payload.get("target")
     if not isinstance(target_value, str):
         return
-    final_lock = _read_regular_json_object(Path(target_value) / LOCK_RELATIVE)
+    target = Path(target_value)
+    final_lock = _read_regular_json_object(target, target / LOCK_RELATIVE)
     if final_lock is None:
         return
     payload.update(
