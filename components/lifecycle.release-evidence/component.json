@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.release-evidence",
   "kind": "lifecycle",
-  "version": 4,
-  "summary": "Revision-bound command execution provenance, managed evidence production, and serialized release lifecycle publication.",
+  "version": 5,
+  "summary": "Revision-bound command execution provenance, managed evidence production, and orchestration-safe serialized publication.",
   "requires": ["lifecycle.release-execution"],
   "conflicts": [],
   "contract_registrations": [{

@@ -106,12 +106,19 @@ def run_validator(root: Path, relative: str, *arguments: str) -> None:
         fail(f"precondition/produced evidence validation failed: {diagnostic}")
 
 
-def verify_candidate(root: Path, revision: str, *, context: str | None = None) -> None:
+def verify_candidate(
+    root: Path,
+    revision: str,
+    *,
+    context: str | None = None,
+    additional_allowed_modified: frozenset[str] = frozenset(),
+) -> None:
+    allowed_modified = frozenset({EVIDENCE_RELATIVE}) | additional_allowed_modified
     try:
         candidate.verify_candidate(
             root,
             revision,
-            allowed_modified=frozenset({EVIDENCE_RELATIVE}),
+            allowed_modified=allowed_modified,
         )
     except candidate.CandidateError as exc:
         if context is None:
@@ -144,7 +151,12 @@ def command_index(items: object, key: str, label: str) -> dict[str, dict]:
     return result
 
 
-def produce_locked(root: Path, args: argparse.Namespace) -> int:
+def produce_locked(
+    root: Path,
+    args: argparse.Namespace,
+    *,
+    additional_allowed_modified: frozenset[str] = frozenset(),
+) -> int:
     try:
         evidence_path = candidate.ensure_output_path(root, EVIDENCE_RELATIVE)
     except candidate.CandidateError as exc:
@@ -155,7 +167,11 @@ def produce_locked(root: Path, args: argparse.Namespace) -> int:
         fail(f"cannot read canonical release evidence: {exc}")
 
     try:
-        verify_candidate(root, args.revision)
+        verify_candidate(
+            root,
+            args.revision,
+            additional_allowed_modified=additional_allowed_modified,
+        )
         run_validator(
             root,
             ".template-composition/validators/validate_implementation_evidence.py",
@@ -208,6 +224,7 @@ def produce_locked(root: Path, args: argparse.Namespace) -> int:
                 root,
                 args.revision,
                 context=f"candidate changed before release command {command_id}",
+                additional_allowed_modified=additional_allowed_modified,
             )
             try:
                 cwd = candidate.resolve_working_directory(root, working_directory)
@@ -237,6 +254,7 @@ def produce_locked(root: Path, args: argparse.Namespace) -> int:
                     "candidate changed while release commands were running "
                     f"(after {command_id})"
                 ),
+                additional_allowed_modified=additional_allowed_modified,
             )
             verify_evidence_unchanged(
                 evidence_path,
@@ -268,6 +286,7 @@ def produce_locked(root: Path, args: argparse.Namespace) -> int:
             root,
             args.revision,
             context="candidate changed before release evidence generation",
+            additional_allowed_modified=additional_allowed_modified,
         )
 
         decided_ns, decided_at = timestamp_after(previous_ns)
