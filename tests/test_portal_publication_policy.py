@@ -126,6 +126,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "webapp/docs/migrations/routes-v2-to-v3.md",
         )
         self.assertEqual(
+            indexed[("composition", "surfaces-v2-migration")],
+            "webapp/docs/migrations/surfaces-v1-to-v2.md",
+        )
+        self.assertEqual(
             indexed[("composition", "contract-evolution")],
             "lifecycle/contract-evolution/index.md",
         )
