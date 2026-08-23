@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Composition Webapp auth fixture</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; }
+    body { margin: 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: 1rem; }
+    .context { display: none; }
+    .scroll-region { overflow-x: auto; max-width: 100%; }
+    @media (min-width: 768px) {
+      .layout { grid-template-columns: minmax(0, 2fr) minmax(12rem, 1fr); }
+      .context { display: block; }
+    }
+    @media (min-width: 1280px) {
+      .layout { max-width: 72rem; margin-inline: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <main id="main-content" data-surface="__SURFACE__" data-state="__STATE__">
+      <h1 tabindex="-1">__MESSAGE__</h1>
+      <p class="scroll-region">Responsive fixture content for contract verification.</p>
+      <button type="button" id="primary-action">Continue</button>
+    </main>
+    <aside class="context" aria-label="Context">Optional wide-screen context</aside>
+  </div>
+  <script>
+    document.getElementById("primary-action").addEventListener("click", () => {
+      document.getElementById("main-content").dataset.action = "activated";
+    });
+  </script>
+</body>
+</html>
