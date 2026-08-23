@@ -94,6 +94,16 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                 "definition_load_failed": "Definition could not be loaded.",
                 "definition_not_found": "Definition could not be found.",
             }
+            guided_copy = {
+                "github_url_name": "GitHub URL",
+                "public_url_name": "public URL",
+                "copy_github_url": "Copy GitHub URL",
+                "copy_public_url": "Copy public URL",
+                "copied_github_url": "Copied GitHub URL",
+                "copied_public_url": "Copied public URL",
+                "copy_failed_github_url": "Copy failed: GitHub URL",
+                "copy_failed_public_url": "Copy failed: public URL",
+            }
             registry = root / "custom-chrome.json"
             registry.write_text(
                 json.dumps(
@@ -120,6 +130,7 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                                     "offline_unavailable": "Unavailable offline.",
                                 },
                                 "glossary_inline": glossary_inline,
+                                "guided_copy": guided_copy,
                             },
                             {
                                 "language": "ja",
@@ -140,6 +151,7 @@ class TranslationReaderChromeRegressionTests(unittest.TestCase):
                                     "offline_unavailable": "オフライン。",
                                 },
                                 "glossary_inline": glossary_inline,
+                                "guided_copy": guided_copy,
                             },
                         ],
                     },
