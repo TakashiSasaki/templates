@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Derive the deterministic Webapp implementation-evidence target inventory."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
+
+
+def load_json(root: Path, relative: str) -> dict[str, Any]:
+    return json.loads((root / relative).read_text(encoding="utf-8"))
+
+
+def target_key(target: dict[str, Any]) -> tuple[Any, ...]:
+    if target.get("kind") == "contract-transition":
+        return (
+            "contract-transition",
+            target.get("contractId"),
+            target.get("fromVersion"),
+            target.get("toVersion"),
+        )
+    return (
+        "contract-item",
+        target.get("contractId"),
+        target.get("itemKind"),
+        target.get("itemId"),
+    )
+
+
+def _sort_key(target: dict[str, Any]) -> str:
+    return json.dumps(target, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
+    root = root.resolve()
+    manifest = load_json(root, "contracts/manifest.json")
+    surfaces = load_json(root, "contracts/surfaces.json")
+    routes = load_json(root, "contracts/routes.json")
+    states = load_json(root, "contracts/ui-states.json")
+    viewports = load_json(root, "contracts/viewports.json")
+
+    expected: list[dict[str, Any]] = []
+    expected.extend(
+        {
+            "kind": "contract-item",
+            "contractId": "surfaces",
+            "itemKind": "surface",
+            "itemId": item["id"],
+        }
+        for item in surfaces["surfaces"]
+    )
+    expected.extend(
+        {
+            "kind": "contract-item",
+            "contractId": "routes",
+            "itemKind": "route",
+            "itemId": item["id"],
+        }
+        for item in routes["routes"]
+    )
+    expected.extend(
+        {
+            "kind": "contract-item",
+            "contractId": "ui_states",
+            "itemKind": "ui-state",
+            "itemId": item["id"],
+        }
+        for item in states["states"]
+    )
+    expected.extend(
+        {
+            "kind": "contract-item",
+            "contractId": "viewports",
+            "itemKind": "viewport",
+            "itemId": item["id"],
+        }
+        for item in viewports["viewports"]
+    )
+    expected.extend(
+        {
+            "kind": "contract-item",
+            "contractId": "viewports",
+            "itemKind": "input-capability",
+            "itemId": item,
+        }
+        for item in viewports["inputCapabilities"]
+    )
+    for entry in manifest["contracts"]:
+        if entry["id"] not in DOMAIN_IDS:
+            continue
+        for transition in entry["versionHistory"][1:]:
+            expected.append(
+                {
+                    "kind": "contract-transition",
+                    "contractId": entry["id"],
+                    "fromVersion": transition["version"] - 1,
+                    "toVersion": transition["version"],
+                }
+            )
+
+    keys = [target_key(target) for target in expected]
+    if len(keys) != len(set(keys)):
+        raise ValueError("Webapp contracts produce duplicate implementation-evidence targets")
+    return tuple(sorted(expected, key=_sort_key))
+
+
+def record_id(target: dict[str, Any]) -> str:
+    if target.get("kind") == "contract-transition":
+        raw = (
+            f"{target['contractId']}-transition-"
+            f"{target['fromVersion']}-to-{target['toVersion']}"
+        )
+    else:
+        raw = (
+            f"{target['contractId']}-{target['itemKind']}-{target['itemId']}"
+        )
+    normalized = raw.replace("_", "-")
+    if not normalized or not normalized[0].isalpha():
+        raise ValueError(f"cannot derive implementation-evidence record id from {target!r}")
+    return normalized
