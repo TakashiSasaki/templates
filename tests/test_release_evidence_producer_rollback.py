@@ -4,12 +4,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_release_evidence_producer import ReleaseEvidenceProducerTests
+import test_release_evidence_producer as producer_helpers
 
 
 class ReleaseEvidenceProducerRollbackTests(unittest.TestCase):
-    def helper(self) -> ReleaseEvidenceProducerTests:
-        return ReleaseEvidenceProducerTests(
+    def helper(self) -> producer_helpers.ReleaseEvidenceProducerTests:
+        return producer_helpers.ReleaseEvidenceProducerTests(
             methodName="test_success_produces_revision_bound_valid_evidence"
         )
 
