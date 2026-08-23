@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test installed Composition skill acquisition and offline cache reuse."""
+"""Smoke-test installed Composition skill acquisition, provenance, and offline cache reuse."""
 
 from __future__ import annotations
 
@@ -54,6 +54,26 @@ def run(
     subprocess.run(command, env=env, cwd=cwd, check=True)
 
 
+def run_json(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    cwd: Path | None = None,
+) -> dict[str, object]:
+    result = subprocess.run(
+        command,
+        env=env,
+        cwd=cwd,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    value = json.loads(result.stdout)
+    if not isinstance(value, dict):
+        raise RuntimeError("expected JSON object from Composition runner")
+    return value
+
+
 def single_directory(path: Path, label: str) -> Path:
     entries = [entry for entry in path.iterdir() if entry.is_dir()]
     if len(entries) != 1:
@@ -97,6 +117,34 @@ def main() -> int:
             env=env,
         )
         runner = installed / "scripts" / "run.py"
+
+        before = run_json(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "provenance",
+            ],
+            env=offline_environment(env),
+            cwd=root,
+        )
+        before_roles = before["roles"]
+        if not isinstance(before_roles, dict):
+            raise RuntimeError("provenance roles must be an object")
+        if before_roles["skill_source"]["status"] != "unrecorded":
+            raise RuntimeError("direct local skill install must not invent a source revision")
+        if before_roles["selected_toolchain"]["source"] != {
+            "repository": EXPECTED_REPOSITORY,
+            "revision": expected_revision,
+        }:
+            raise RuntimeError("provenance selected unexpected stable toolchain")
+        if before_roles["consumer_lock"]["status"] != "absent":
+            raise RuntimeError("unmanaged consumer unexpectedly reported a lock")
+        if cache.exists():
+            raise RuntimeError("provenance must not acquire a source or runtime cache")
+
         run(
             [
                 sys.executable,
@@ -125,6 +173,29 @@ def main() -> int:
             raise RuntimeError(
                 f"runner materialized unexpected source identity: {source!r}"
             )
+
+        after = run_json(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "provenance",
+            ],
+            env=offline_environment(env),
+            cwd=root,
+        )
+        after_roles = after["roles"]
+        if not isinstance(after_roles, dict):
+            raise RuntimeError("provenance roles must be an object")
+        if after_roles["consumer_lock"]["source"] != source:
+            raise RuntimeError("provenance did not report the materialized lock source")
+        relationships = after["relationships"]
+        if not isinstance(relationships, dict):
+            raise RuntimeError("provenance relationships must be an object")
+        if relationships["consumer_lock_matches_selected"] is not True:
+            raise RuntimeError("provenance did not correlate lock and selected toolchain")
 
         source_entry = single_directory(cache / "sources", "source")
         runtime_entry = single_directory(cache / "runtimes", "runtime")
@@ -159,7 +230,7 @@ def main() -> int:
         )
 
     print(
-        "Composition installed-skill runner cache smoke test: OK "
+        "Composition installed-skill runner cache/provenance smoke test: OK "
         f"({expected_revision})"
     )
     return 0
