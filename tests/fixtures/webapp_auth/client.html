@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Composition Webapp auth fixture</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; }
+    body { margin: 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: 1rem; }
+    .context { display: none; }
+    .scroll-region { overflow-x: auto; max-width: 100%; }
+    @media (min-width: 768px) {
+      .layout { grid-template-columns: minmax(0, 2fr) minmax(12rem, 1fr); }
+      .context { display: block; }
+    }
+    @media (min-width: 1280px) {
+      .layout { max-width: 72rem; margin-inline: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <main id="main-content"
+          data-surface="__SURFACE__"
+          data-state="__STATE__"
+          data-focus-strategy="__FOCUS_STRATEGY__"
+          data-recovery-actions="__RECOVERY_ACTIONS__">
+      <h1 id="main-heading" tabindex="-1">__MESSAGE__</h1>
+      <div id="state-announcement" aria-live="__ANNOUNCEMENT__">__MESSAGE__</div>
+      <div id="error-summary" tabindex="-1">Recoverable error summary</div>
+      <div id="error-heading" tabindex="-1">Fatal error heading</div>
+      <p class="scroll-region">Responsive fixture content for contract verification.</p>
+      <div id="recovery-actions" aria-label="Recovery actions"></div>
+      <button type="button" id="primary-action">Continue</button>
+    </main>
+    <aside class="context" aria-label="Context">Optional wide-screen context</aside>
+  </div>
+  <script>
+    const main = document.getElementById("main-content");
+    const focusStrategy = main.dataset.focusStrategy;
+    if (focusStrategy !== "preserve") {
+      document.getElementById(focusStrategy).focus();
+    }
+
+    const recoveryContainer = document.getElementById("recovery-actions");
+    const recoveryActions = main.dataset.recoveryActions
+      .split(",")
+      .filter((value) => value.length > 0);
+    for (const action of recoveryActions) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.recoveryAction = action;
+      button.textContent = action;
+      button.addEventListener("click", () => {
+        main.dataset.action = action;
+      });
+      recoveryContainer.appendChild(button);
+    }
+
+    document.getElementById("primary-action").addEventListener("click", () => {
+      main.dataset.action = "activated";
+    });
+  </script>
+</body>
+</html>
