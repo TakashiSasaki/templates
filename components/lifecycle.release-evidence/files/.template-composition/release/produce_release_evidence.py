@@ -287,7 +287,7 @@ def main() -> int:
             "--expected-revision",
             args.revision,
         )
-    except SystemExit:
+    except BaseException:
         atomic_write(evidence_path, original_evidence)
         raise
 
