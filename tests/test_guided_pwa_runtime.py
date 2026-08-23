@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts import finalize_site_metadata
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import finalize_site_metadata  # noqa: E402
 
 
 PUBLIC_SITE_URL = "https://templates.moukaeritai.work/"
@@ -138,21 +143,11 @@ class GuidedPwaRuntimeTests(unittest.TestCase):
             first = root / "first.html"
             second = root / "second.html"
             first.write_text(guided_source("/guided/first/"), encoding="utf-8")
-            second.write_text(
-                guided_source("/guided/second/").replace(
-                    "connect-src 'self'",
-                    "connect-src https://example.com",
-                ),
-                encoding="utf-8",
+            invalid_second = guided_source("/guided/second/").replace(
+                "manifest-src 'self'",
+                "connect-src https://example.com; manifest-src 'self'",
             )
-            # Make the second page invalid without changing the shared source helper.
-            second.write_text(
-                second.read_text(encoding="utf-8").replace(
-                    "manifest-src 'self'",
-                    "connect-src https://example.com; manifest-src 'self'",
-                ),
-                encoding="utf-8",
-            )
+            second.write_text(invalid_second, encoding="utf-8")
             first_before = first.read_bytes()
 
             with self.assertRaisesRegex(
