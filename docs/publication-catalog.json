@@ -34,6 +34,7 @@
     {"id":"webapp-responsibility-boundaries","source":"components/artifact.webapp-core/files/docs/architecture/responsibility-boundaries.md","optional":false,"home":false},
     {"id":"webapp-validation-toolchain","source":"components/artifact.webapp-core/files/docs/architecture/validation-toolchain.md","optional":false,"home":false},
     {"id":"routes-migration","source":"components/artifact.webapp-core/files/docs/migrations/routes-v1-to-v2.md","optional":false,"home":false},
+    {"id":"routes-v3-migration","source":"components/artifact.webapp-core/files/docs/migrations/routes-v2-to-v3.md","optional":false,"home":false},
     {"id":"ui-states-migration","source":"components/artifact.webapp-core/files/docs/migrations/ui-states-v1-to-v2.md","optional":false,"home":false},
     {"id":"composition-state","source":"components/lifecycle.composition-state/files/docs/architecture/composition-state.md","optional":false,"home":false},
     {"id":"contract-evolution","source":"components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md","optional":false,"home":false},

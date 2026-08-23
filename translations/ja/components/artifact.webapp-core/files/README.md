@@ -11,7 +11,7 @@
 ## Contracts
 
 - `contracts/surfaces.json` — browser-facing な surface boundary と audience。
-- `contracts/routes.json` — canonical navigation と access failure の presentation。
+- `contracts/routes.json` — canonical navigation に加え、access failure の behavior と semantic な state / route target。
 - `contracts/ui-states.json` — 再利用可能な visible state と recovery / focus behavior。
 - `contracts/viewports.json` — responsive lower bound と input capability。
 - `contracts/manifest.json` — 解決済み component metadata から生成される閉じた registry。

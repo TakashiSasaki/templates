@@ -268,7 +268,12 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
             errors.append(f"duplicate {label} id: {duplicate}")
 
     known_surfaces = set(surface_ids)
+    known_routes = set(route_ids)
     known_states = set(state_ids)
+    states_by_id = {state["id"]: state for state in states}
+    routes_by_id: dict[str, dict[str, Any]] = {}
+    for route in routes:
+        routes_by_id.setdefault(route["id"], route)
     state_scopes_by_id: dict[str, set[str]] = {}
     for state in states:
         state_scopes_by_id.setdefault(state["id"], set()).add(state["scope"])
@@ -350,8 +355,10 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
                 )
 
         access_failures = route["accessFailures"]
-        unauthenticated_behavior = access_failures["unauthenticated"]
-        forbidden_behavior = access_failures["forbidden"]
+        unauthenticated = access_failures["unauthenticated"]
+        forbidden = access_failures["forbidden"]
+        unauthenticated_behavior = unauthenticated["behavior"]
+        forbidden_behavior = forbidden["behavior"]
 
         if route["authentication"] == "required":
             if unauthenticated_behavior not in {"render-state", "redirect"}:
@@ -380,20 +387,55 @@ def cross_validate(documents: dict[str, Any]) -> list[str]:
                 )
 
         route_state_ids = set(route["states"])
-        for condition, behavior, state_id in (
-            ("unauthenticated", unauthenticated_behavior, "unauthorized"),
-            ("forbidden", forbidden_behavior, "forbidden"),
+        for condition, failure in (
+            ("unauthenticated", unauthenticated),
+            ("forbidden", forbidden),
         ):
-            if behavior == "render-state" and state_id not in route_state_ids:
-                errors.append(
-                    f"route {route_id}: {condition} access failure render-state "
-                    f"requires UI state {state_id}"
-                )
-            elif behavior != "render-state" and state_id in route_state_ids:
-                errors.append(
-                    f"route {route_id}: {condition} access failure {behavior} "
-                    f"must not declare UI state {state_id}"
-                )
+            behavior = failure["behavior"]
+            if behavior == "render-state":
+                state_id = failure["stateId"]
+                if state_id not in known_states:
+                    errors.append(
+                        f"route {route_id}: {condition} access failure references "
+                        f"unknown UI state {state_id}"
+                    )
+                else:
+                    state = states_by_id[state_id]
+                    if state["scope"] != "route":
+                        errors.append(
+                            f"route {route_id}: {condition} access failure UI state "
+                            f"{state_id} must be route-scoped"
+                        )
+                    if state["category"] != "access":
+                        errors.append(
+                            f"route {route_id}: {condition} access failure UI state "
+                            f"{state_id} must have category access"
+                        )
+                if state_id not in route_state_ids:
+                    errors.append(
+                        f"route {route_id}: {condition} access failure render-state "
+                        f"target {state_id} must be declared by the route"
+                    )
+            elif behavior == "redirect":
+                target_id = failure["routeId"]
+                if target_id not in known_routes:
+                    errors.append(
+                        f"route {route_id}: {condition} access failure references "
+                        f"unknown redirect route {target_id}"
+                    )
+                elif target_id == route_id:
+                    errors.append(
+                        f"route {route_id}: {condition} access failure must not redirect "
+                        "to the same route"
+                    )
+                elif (
+                    condition == "unauthenticated"
+                    and routes_by_id[target_id]["authentication"] == "required"
+                ):
+                    errors.append(
+                        f"route {route_id}: unauthenticated redirect target {target_id} "
+                        "must not require authentication"
+                    )
 
         for state_id in route["states"]:
             if state_id not in known_states:

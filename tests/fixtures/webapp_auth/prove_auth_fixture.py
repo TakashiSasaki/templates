@@ -83,8 +83,14 @@ for route_id, surface_id, required_role in (
     surface = surfaces[surface_id]
     assert route["authentication"] == "required"
     assert route["accessFailures"] == {
-        "unauthenticated": "render-state",
-        "forbidden": "render-state",
+        "unauthenticated": {
+            "behavior": "render-state",
+            "stateId": "unauthorized",
+        },
+        "forbidden": {
+            "behavior": "render-state",
+            "stateId": "forbidden",
+        },
     }
     assert {
         "loading",
