@@ -102,6 +102,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "composition/use/index.md",
         )
         self.assertEqual(
+            indexed[("composition", "release-guide")],
+            "composition/release/index.md",
+        )
+        self.assertEqual(
             indexed[("composition", "composer-reference")],
             "composition/reference/composer.md",
         )
@@ -118,8 +122,16 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "webapp/index.md",
         )
         self.assertEqual(
+            indexed[("composition", "routes-v3-migration")],
+            "webapp/docs/migrations/routes-v2-to-v3.md",
+        )
+        self.assertEqual(
             indexed[("composition", "contract-evolution")],
             "lifecycle/contract-evolution/index.md",
+        )
+        self.assertEqual(
+            indexed[("composition", "release-execution")],
+            "lifecycle/release-execution/index.md",
         )
         self.assertEqual(indexed[("policy", "overview")], "policy/index.md")
         self.assertEqual(
@@ -136,8 +148,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             node for node in manifest["navigation"] if node["title"] == "Composition"
         )
         self.assertEqual(
-            [child["title"] for child in composition_group["children"][:4]],
-            ["Overview", "Use Composition", "Composer reference", "Documentation index"],
+            [child["title"] for child in composition_group["children"][:5]],
+            [
+                "Overview",
+                "Use Composition",
+                "Produce a product release",
+                "Composer reference",
+                "Documentation index",
+            ],
         )
 
         top_level_titles = [node["title"] for node in manifest["navigation"]]

@@ -71,6 +71,10 @@ class HistoricalNavigationTests(unittest.TestCase):
             "webapp/docs/migrations/routes-v1-to-v2.md",
         )
         self.assertEqual(
+            documents["routes-v3-migration"]["destination"],
+            "webapp/docs/migrations/routes-v2-to-v3.md",
+        )
+        self.assertEqual(
             documents["ui-states-migration"]["destination"],
             "webapp/docs/migrations/ui-states-v1-to-v2.md",
         )

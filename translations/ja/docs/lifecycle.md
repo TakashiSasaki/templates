@@ -7,6 +7,7 @@
 - [Composition state](/lifecycle/composition-state/)
 - [Contract evolution](/lifecycle/contract-evolution/)
 - [Implementation evidence](/lifecycle/implementation-evidence/)
+- [Release execution](/lifecycle/release-execution/)
 - [Release evidence](/lifecycle/release-evidence/)
 - [Release bundle](/lifecycle/release-bundle/)
 
