@@ -95,7 +95,11 @@ MCP Apps UI を公開し、完全な release workflow を使用する Skill で�
 
 `artifact.webapp-core` v4 では artifact dependency closure が変わるため、既存の managed Webapp が v3 から移行する場合は明示的な component-version compatibility boundary を越えます。ordinary `update` ではなく `upgrade` を使用してください。
 
-v3 が推移的に選択していた完全な release lifecycle を repository で維持する場合、v4 の upgrade configuration で `lifecycle.release-bundle` を明示的に include する必要があります。release execution / evidence / bundle behavior が不要なら include せず、apply 前に upgrade plan を確認してください。repository に同名の lifecycle file が残っているだけで validator が選択されることはありません。selection authority は `.template-composition/lock.json` の resolved component set です。
+v3 が推移的に選択していた完全な release lifecycle を repository で維持する場合、v4 の upgrade configuration で `lifecycle.release-bundle` を明示的に include する必要があります。release execution / evidence / bundle behavior が不要なら include せず、apply 前に upgrade plan を確認してください。
+
+v3 の release contract file は `seed` material だったため、release lifecycle を deselect する upgrade でも、Composer は consumer-owned bytes を自動削除せず保存します。apply 後に保存されている `contracts/release-execution.json`、`contracts/release-evidence.json`、`contracts/release-bundle.json` は、v4 baseline では登録済み contract ではありません。contract registry は意図的に closed なので、consumer がこれらを `contracts/` の外（たとえば `release-history/`）へ archive するか、履歴として不要であることを確認して削除するまで validation は失敗します。この cleanup は consumer-owned です。upgrade apply の後に cleanup を行い、その後 `validate` を再実行してください。
+
+repository に同名の lifecycle file が残っているだけで release validator が選択されることはありません。selection authority は `.template-composition/lock.json` の resolved component set です。上記 cleanup が必要なのは closed な contract-document inventory のためであり、release-validator dispatch のためではありません。
 
 `apply` の前に `plan` を使い、正確に解決された component closure と materialized file action を確認してください。直接選択可能な component の machine-readable source of truth は recipe descriptor です。
 
