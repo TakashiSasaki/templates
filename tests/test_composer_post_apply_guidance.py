@@ -188,6 +188,8 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, initial)
 
+            cli_before = (target / "CLI_INTERFACE.md").read_bytes()
+            runtime_before = (target / "RUNTIME.md").read_bytes()
             upgrade_config = self.write_config(root, "minimal.json", include=[])
             old_lock_path = target / core.LOCK_RELATIVE
             old_lock_bytes = old_lock_path.read_bytes()
@@ -226,14 +228,19 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
                 recovered["ownership"]["consumer_owned"]["extras"],
                 ["CLI_INTERFACE.md", "RUNTIME.md"],
             )
-            self.assertTrue((target / "CLI_INTERFACE.md").is_file())
-            self.assertTrue((target / "RUNTIME.md").is_file())
+            self.assertEqual((target / "CLI_INTERFACE.md").read_bytes(), cli_before)
+            self.assertEqual((target / "RUNTIME.md").read_bytes(), runtime_before)
             self.assertFalse((target / core.TRANSACTION_RELATIVE).exists())
             self.assertIn(
                 "review-consumer-owned-extras",
                 [entry["id"] for entry in recovered["next_steps"]],
             )
             self.assertEqual(recovered["next_steps"][-1]["id"], "validate")
+
+            lock = json.loads((target / LOCK_RELATIVE).read_text(encoding="utf-8"))
+            locked_destinations = {entry["destination"] for entry in lock["files"]}
+            self.assertNotIn("CLI_INTERFACE.md", locked_destinations)
+            self.assertNotIn("RUNTIME.md", locked_destinations)
 
 
 if __name__ == "__main__":
