@@ -42,6 +42,35 @@ MANIFEST_HREF = "/app.webmanifest"
 THEME_COLOR = "#3f51b5"
 GUIDED_COPY_SCRIPT = "/javascripts/guided-copy.js"
 GUIDED_COPY_SCRIPT_TAG = f'<script src="{GUIDED_COPY_SCRIPT}" defer></script>'
+PWA_RUNTIME_SCRIPT = "/javascripts/pwa.js"
+PWA_RUNTIME_SCRIPT_TAG = f'<script src="{PWA_RUNTIME_SCRIPT}" defer></script>'
+FRESHNESS_STYLESHEET = "/stylesheets/freshness-status.css"
+FRESHNESS_STYLESHEET_TAG = f'<link rel="stylesheet" href="{FRESHNESS_STYLESHEET}">'
+GUIDED_RUNTIME_CSP = {
+    "script-src": (
+        "script-src 'self'",
+        {"script-src 'self'"},
+    ),
+    "style-src": (
+        "style-src 'self' 'unsafe-inline'",
+        {
+            "style-src 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+        },
+    ),
+    "connect-src": (
+        "connect-src 'self'",
+        {"connect-src 'self'"},
+    ),
+    "worker-src": (
+        "worker-src 'self'",
+        {"worker-src 'self'"},
+    ),
+    "manifest-src": (
+        "manifest-src 'self'",
+        {"manifest-src 'self'"},
+    ),
+}
 
 
 class SiteMetadataError(RuntimeError):
@@ -53,6 +82,7 @@ class HeadElementParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.links: list[dict[str, str | None]] = []
         self.metas: list[dict[str, str | None]] = []
+        self.scripts: list[dict[str, str | None]] = []
 
     def handle_starttag(
         self,
@@ -64,6 +94,8 @@ class HeadElementParser(HTMLParser):
             self.links.append(attributes)
         elif tag.lower() == "meta":
             self.metas.append(attributes)
+        elif tag.lower() == "script":
+            self.scripts.append(attributes)
 
     def handle_startendtag(
         self,
@@ -261,7 +293,11 @@ def ensure_pwa_metadata(source: str, path: Path) -> str:
     return updated
 
 
-def allow_guided_copy_script(source: str, path: Path) -> str:
+def _rewrite_guided_csp(
+    source: str,
+    path: Path,
+    required: dict[str, tuple[str, set[str]]],
+) -> str:
     matches = list(CSP_META_PATTERN.finditer(source))
     if len(matches) != 1:
         raise SiteMetadataError(
@@ -270,23 +306,112 @@ def allow_guided_copy_script(source: str, path: Path) -> str:
     match = matches[0]
     policy = html.unescape(match.group("policy"))
     directives = [directive.strip() for directive in policy.split(";") if directive.strip()]
-    script_directives = [
-        directive
-        for directive in directives
-        if directive.split(maxsplit=1)[0].casefold() == "script-src"
-    ]
-    if len(script_directives) > 1:
-        raise SiteMetadataError(f"{path}: duplicate script-src directives")
-    if script_directives and script_directives[0] != "script-src 'self'":
-        raise SiteMetadataError(
-            f"{path}: guided script-src must be exactly script-src 'self'"
-        )
-    if not script_directives:
-        directives.append("script-src 'self'")
+
+    for name, (desired, allowed) in required.items():
+        indexes = [
+            index
+            for index, directive in enumerate(directives)
+            if directive.split(maxsplit=1)[0].casefold() == name
+        ]
+        if len(indexes) > 1:
+            raise SiteMetadataError(f"{path}: duplicate {name} directives")
+        if indexes:
+            index = indexes[0]
+            if directives[index] not in allowed:
+                raise SiteMetadataError(
+                    f"{path}: guided {name} has unsupported sources: {directives[index]}"
+                )
+            directives[index] = desired
+        else:
+            directives.append(desired)
+
     updated_policy = "; ".join(directives)
     escaped_policy = html.escape(updated_policy, quote=True).replace("&#x27;", "'")
     replacement = match.group("prefix") + escaped_policy + match.group("suffix")
     return source[: match.start()] + replacement + source[match.end() :]
+
+
+def allow_guided_copy_script(source: str, path: Path) -> str:
+    return _rewrite_guided_csp(
+        source,
+        path,
+        {
+            "script-src": (
+                "script-src 'self'",
+                {"script-src 'self'"},
+            )
+        },
+    )
+
+
+def allow_guided_pwa_runtime(source: str, path: Path) -> str:
+    return _rewrite_guided_csp(source, path, GUIDED_RUNTIME_CSP)
+
+
+def ensure_guided_pwa_runtime(source: str, path: Path) -> str:
+    updated = allow_guided_pwa_runtime(source, path)
+    parsed = parse_head_elements(updated)
+
+    stylesheet_matches = [
+        link for link in parsed.links if link.get("href") == FRESHNESS_STYLESHEET
+    ]
+    if len(stylesheet_matches) > 1:
+        raise SiteMetadataError(
+            f"{path}: duplicate guided freshness stylesheet references"
+        )
+    if stylesheet_matches and "stylesheet" not in (
+        stylesheet_matches[0].get("rel") or ""
+    ).casefold().split():
+        raise SiteMetadataError(
+            f"{path}: guided freshness asset must be a stylesheet"
+        )
+    if not stylesheet_matches:
+        head_closes = list(HEAD_CLOSE_PATTERN.finditer(updated))
+        if len(head_closes) != 1:
+            raise SiteMetadataError(
+                f"{path}: expected exactly one closing head tag, found {len(head_closes)}"
+            )
+        position = head_closes[0].start()
+        updated = (
+            updated[:position]
+            + FRESHNESS_STYLESHEET_TAG
+            + "\n"
+            + updated[position:]
+        )
+
+    parsed = parse_head_elements(updated)
+    runtime_scripts = [
+        script for script in parsed.scripts if script.get("src") == PWA_RUNTIME_SCRIPT
+    ]
+    if len(runtime_scripts) > 1:
+        raise SiteMetadataError(f"{path}: duplicate guided PWA runtime scripts")
+    if not runtime_scripts:
+        body_closes = list(BODY_CLOSE_PATTERN.finditer(updated))
+        if len(body_closes) != 1:
+            raise SiteMetadataError(
+                f"{path}: expected exactly one closing body tag, found {len(body_closes)}"
+            )
+        position = body_closes[0].start()
+        updated = (
+            updated[:position]
+            + PWA_RUNTIME_SCRIPT_TAG
+            + "\n"
+            + updated[position:]
+        )
+
+    verified = parse_head_elements(updated)
+    verified_stylesheets = [
+        link
+        for link in verified.links
+        if link.get("href") == FRESHNESS_STYLESHEET
+        and "stylesheet" in (link.get("rel") or "").casefold().split()
+    ]
+    verified_scripts = [
+        script for script in verified.scripts if script.get("src") == PWA_RUNTIME_SCRIPT
+    ]
+    if len(verified_stylesheets) != 1 or len(verified_scripts) != 1:
+        raise SiteMetadataError(f"{path}: guided PWA runtime normalization failed")
+    return updated
 
 
 def guided_copy_button(name: str, url: str) -> str:
@@ -466,6 +591,7 @@ def normalize_site_metadata(
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
             raise SiteMetadataError(f"unable to read generated HTML {path}: {exc}") from exc
+        guided_page = PAGE_PATH_PATTERN.search(source) is not None
         updated = rewrite_canonical_link(source, canonical_url, path)
         if not is_inline_preview(path, resolved_root):
             updated = ensure_pwa_metadata(updated, path)
@@ -476,6 +602,8 @@ def normalize_site_metadata(
             path,
             page_routes,
         )
+        if guided_page:
+            updated = ensure_guided_pwa_runtime(updated, path)
         updates[path] = updated
 
     for path, source in updates.items():
