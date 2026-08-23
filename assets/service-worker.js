@@ -16,7 +16,7 @@ const PWA_FRESHNESS_FIELDS = Object.freeze([
 const STATIC_ASSETS = [
   "/app.webmanifest",
   "/icon.svg",
-  SITE_CHROME_LOCALES_PATH,
+  "/site-chrome-locales.json",
   "/stylesheets/extra.css",
   "/stylesheets/landing-cover.css",
   "/stylesheets/landing-shell.css",
