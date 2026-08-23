@@ -122,6 +122,60 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertEqual(updated["ownership"]["consumer_owned"]["extras"], [])
             self.assertEqual(updated["next_steps"][-1]["id"], "validate")
 
+    def test_duplicate_target_guidance_matches_argparse_last_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            first_target = root / "first"
+            second_target = root / "second"
+            minimal_config = self.write_config(root, "minimal.json", include=[])
+            cli_config = self.write_config(
+                root,
+                "with-cli.json",
+                include=["capability.cli"],
+            )
+
+            result, first = self.run_composer(
+                "apply",
+                "--config",
+                str(minimal_config),
+                "--target",
+                str(first_target),
+            )
+            self.assertEqual(result.returncode, 0, first)
+            result, second = self.run_composer(
+                "apply",
+                "--config",
+                str(cli_config),
+                "--target",
+                str(second_target),
+            )
+            self.assertEqual(result.returncode, 0, second)
+
+            first_lock_before = (first_target / LOCK_RELATIVE).read_bytes()
+            result, upgraded = self.run_composer(
+                "apply",
+                "--mode",
+                "upgrade",
+                "--config",
+                str(minimal_config),
+                "--target",
+                str(first_target),
+                "--target",
+                str(second_target),
+            )
+            self.assertEqual(result.returncode, 0, upgraded)
+            self.assertEqual(upgraded["target"], str(second_target.absolute()))
+            self.assertEqual(
+                upgraded["ownership"]["consumer_owned"]["extras"],
+                ["CLI_INTERFACE.md", "RUNTIME.md"],
+            )
+            self.assertEqual(
+                (first_target / LOCK_RELATIVE).read_bytes(),
+                first_lock_before,
+            )
+            self.assertTrue((second_target / "CLI_INTERFACE.md").is_file())
+            self.assertTrue((second_target / "RUNTIME.md").is_file())
+
     def test_upgrade_reports_removed_seeds_as_consumer_owned_extras(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
