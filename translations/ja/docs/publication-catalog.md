@@ -18,7 +18,7 @@ catalog は次の explanatory Markdown を公開します。
 - Agent Skill artifact model。
 - Web application artifact model。
 - 再利用可能な runtime、CLI、MCP、MCP Apps、browser、service capability。
-- 再利用可能な composition-state、contract-evolution、implementation-evidence、release-evidence、release-bundle lifecycle contract。
+- 再利用可能な composition-state、contract-evolution、implementation-evidence、release-execution、release-evidence、release-bundle lifecycle contract。
 - 旧 monolithic Skill / Webapp responsibility が現在の authority へ移動した理由を説明し、stage-level detail の immutable PR provenance を示す、統合された1つの authority-migration history。
 
 publication home は branch の `README.md` です。`docs/index.md` は guided navigation が使う provider-owned progressive-disclosure root です。
