@@ -17,14 +17,40 @@ ROUTE_STATE_STATUS = {
     "retrying": 202,
     "offline": 503,
 }
+STATE_PRESENTATION = {
+    "loading": ("preserve", "polite", ()),
+    "empty": ("main-heading", "polite", ("create", "change-filter")),
+    "populated": ("preserve", "none", ()),
+    "partial": ("preserve", "polite", ("retry-failed-part",)),
+    "recoverable-error": ("error-summary", "assertive", ("retry", "edit-input")),
+    "retrying": ("preserve", "polite", ("cancel-retry",)),
+    "offline": ("preserve", "polite", ("retry-when-online",)),
+    "unauthorized": ("main-heading", "assertive", ("sign-in",)),
+    "forbidden": (
+        "main-heading",
+        "assertive",
+        ("return-safe-route", "request-access"),
+    ),
+    "fatal-error": (
+        "error-heading",
+        "assertive",
+        ("return-safe-route", "contact-support"),
+    ),
+    "not-found": ("main-heading", "assertive", ("return-home", "search")),
+}
 ALLOW_ADMIN_WITHOUT_ROLE = __ALLOW_ADMIN_WITHOUT_ROLE__
 CLIENT_TEMPLATE = Path(__file__).with_name("client.html").read_text(encoding="utf-8")
 
 
 def render_view(surface: str, state: str, message: str) -> bytes:
+    focus_strategy, announcement, recovery_actions = STATE_PRESENTATION[state]
+    aria_live = "off" if announcement == "none" else announcement
     return (
         CLIENT_TEMPLATE.replace("__SURFACE__", surface)
         .replace("__STATE__", state)
+        .replace("__FOCUS_STRATEGY__", focus_strategy)
+        .replace("__ANNOUNCEMENT__", aria_live)
+        .replace("__RECOVERY_ACTIONS__", ",".join(recovery_actions))
         .replace("__MESSAGE__", message)
         .encode("utf-8")
     )
