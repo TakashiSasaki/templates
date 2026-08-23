@@ -160,6 +160,32 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     f"{script}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}",
                 )
 
+    def test_scaffold_and_validator_accept_explicit_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+
+            implicit_scaffold = self.scaffold(target)
+            explicit_scaffold = self.run_python(
+                ROOT,
+                str(target / "scripts/scaffold_webapp_evidence.py"),
+                str(target),
+            )
+            self.assertEqual(implicit_scaffold.returncode, 0, implicit_scaffold.stderr)
+            self.assertEqual(explicit_scaffold.returncode, 0, explicit_scaffold.stderr)
+            self.assertEqual(implicit_scaffold.stdout, explicit_scaffold.stdout)
+
+            explicit_validator = self.run_python(
+                ROOT,
+                str(target / "scripts/validate_webapp_evidence.py"),
+                str(target),
+            )
+            self.assertEqual(
+                explicit_validator.returncode,
+                0,
+                explicit_validator.stderr,
+            )
+            self.assertIn("template mode OK", explicit_validator.stdout)
+
     def test_scaffold_rejects_duplicate_contract_targets(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_webapp(Path(temp_dir))
@@ -196,15 +222,28 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_webapp(Path(temp_dir))
             evidence_path = target / "contracts/implementation-evidence.json"
-            evidence_path.write_text("{", encoding="utf-8")
-
-            result = self.run_python(target, "scripts/validate_webapp_evidence.py")
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn(
-                "ERROR: cannot load Webapp implementation evidence:",
-                result.stderr,
+            malformed_cases = (
+                "{",
+                "[]",
+                json.dumps({"mode": "product", "records": "not-a-list"}),
+                json.dumps({"mode": "product", "records": [{}]}),
+                json.dumps(
+                    {"mode": "product", "records": [{"target": "not-an-object"}]}
+                ),
             )
-            self.assertNotIn("Traceback", result.stderr)
+
+            for malformed_content in malformed_cases:
+                with self.subTest(malformed_content=malformed_content):
+                    evidence_path.write_text(malformed_content, encoding="utf-8")
+                    result = self.run_python(
+                        target, "scripts/validate_webapp_evidence.py"
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(
+                        "ERROR: cannot load Webapp implementation evidence:",
+                        result.stderr,
+                    )
+                    self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
