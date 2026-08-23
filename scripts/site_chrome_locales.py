@@ -1,4 +1,4 @@
-"""Validate and resolve Site-owned reader chrome locale data."""
+"""Validate and resolve Site-owned chrome locale data."""
 
 from __future__ import annotations
 
@@ -14,6 +14,15 @@ READER_FIELDS = {
     "canonical_status",
     "canonical_link",
     "translation_status",
+}
+PWA_FRESHNESS_FIELDS = {
+    "saved_copy",
+    "checking",
+    "unverified",
+    "update_available",
+    "published_changed",
+    "reload",
+    "offline_unavailable",
 }
 
 
@@ -48,6 +57,25 @@ def read_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def _normalized_strings(
+    value: Any,
+    *,
+    field: str,
+    required_fields: set[str],
+) -> dict[str, str]:
+    if not isinstance(value, dict) or set(value) != required_fields:
+        raise SiteChromeLocaleError(
+            f"{field} must contain " + ", ".join(sorted(required_fields))
+        )
+    normalized: dict[str, str] = {}
+    for key in sorted(required_fields):
+        item = value[key]
+        if not isinstance(item, str) or not item.strip():
+            raise SiteChromeLocaleError(f"{field}.{key} must be a non-empty string")
+        normalized[key] = item.strip()
+    return normalized
+
+
 def load_site_chrome_locales(path: Path) -> dict[str, Any]:
     data = read_json(path)
     if set(data) != {"schema_version", "canonical_language", "locales"}:
@@ -70,9 +98,10 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
             "language",
             "language_label",
             "translation_reader",
+            "pwa_freshness",
         }:
             raise SiteChromeLocaleError(
-                f"{field} must contain language, language_label, and translation_reader"
+                f"{field} must contain language, language_label, translation_reader, and pwa_freshness"
             )
         language = raw["language"]
         if not isinstance(language, str) or not LANGUAGE_TAG.fullmatch(language):
@@ -86,23 +115,18 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
             raise SiteChromeLocaleError(
                 f"{field}.language_label must be a non-empty string"
             )
-        reader = raw["translation_reader"]
-        if not isinstance(reader, dict) or set(reader) != READER_FIELDS:
-            raise SiteChromeLocaleError(
-                f"{field}.translation_reader must contain "
-                + ", ".join(sorted(READER_FIELDS))
-            )
-        normalized_reader: dict[str, str] = {}
-        for key in sorted(READER_FIELDS):
-            value = reader[key]
-            if not isinstance(value, str) or not value.strip():
-                raise SiteChromeLocaleError(
-                    f"{field}.translation_reader.{key} must be a non-empty string"
-                )
-            normalized_reader[key] = value.strip()
         locales[language] = {
             "language_label": language_label.strip(),
-            "translation_reader": normalized_reader,
+            "translation_reader": _normalized_strings(
+                raw["translation_reader"],
+                field=f"{field}.translation_reader",
+                required_fields=READER_FIELDS,
+            ),
+            "pwa_freshness": _normalized_strings(
+                raw["pwa_freshness"],
+                field=f"{field}.pwa_freshness",
+                required_fields=PWA_FRESHNESS_FIELDS,
+            ),
         }
 
     if canonical_language not in locales:
@@ -135,6 +159,13 @@ def reader_strings(model: dict[str, Any], language: str) -> dict[str, str]:
     if locale is None:
         locale = model["locales"][model["canonical_language"]]
     return locale["translation_reader"]
+
+
+def pwa_freshness_strings(model: dict[str, Any], language: str) -> dict[str, str]:
+    locale = locale_record(model, language)
+    if locale is None:
+        locale = model["locales"][model["canonical_language"]]
+    return locale["pwa_freshness"]
 
 
 def translation_status(model: dict[str, Any], language: str) -> str:

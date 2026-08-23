@@ -56,6 +56,20 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         self.assertIn('data-freshness-state="${state}"', self.worker)
         self.assertIn('headers.set("X-Templates-Freshness", state)', self.worker)
 
+    def test_async_locale_loading_cannot_overwrite_network_commit(self) -> None:
+        self.assertIn("let lastNetworkCommitGeneration = 0", self.client)
+        self.assertIn("lastNetworkCommitGeneration = 0", self.client)
+        self.assertIn("const strings = await currentPwaFreshnessStrings()", self.client)
+        self.assertGreaterEqual(self.client.count("freshnessStateIsApplicable(data, normalizedUrl)"), 2)
+        self.assertIn(
+            "lastNetworkCommitGeneration >= data.requestGeneration",
+            self.client,
+        )
+        self.assertIn(
+            "lastNetworkCommitGeneration = Math.max(",
+            self.client,
+        )
+
     def test_worker_instance_scopes_generation_ordering(self) -> None:
         self.assertIn("const WORKER_INSTANCE_ID = self.crypto.randomUUID()", self.worker)
         self.assertIn("workerInstanceId: WORKER_INSTANCE_ID", self.worker)
@@ -203,7 +217,8 @@ class PwaSlowConvergenceTests(unittest.TestCase):
         for state in ("checking", "cached-unverified", "update-available", "verified-current"):
             with self.subTest(state=state):
                 self.assertIn(f'"{state}"', self.client)
-        self.assertIn('reload.textContent = "Reload"', self.client)
+        self.assertIn("reload.textContent = strings.reload", self.client)
+        self.assertNotIn('reload.textContent = "Reload"', self.client)
         self.assertIn("window.location.reload()", self.client)
         self.assertIn('type: "templates:get-current-freshness-state"', self.client)
         self.assertIn("lastFreshnessGeneration", self.client)

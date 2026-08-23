@@ -28,6 +28,7 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 self.assertIn(f"/javascripts/{name}", static_assets)
+        self.assertIn("/site-chrome-locales.json", static_assets)
 
     def test_document_cache_mutations_use_request_generation_order(self) -> None:
         self.assertIn("const documentCacheMutationQueues = new Map()", self.worker)
@@ -59,7 +60,11 @@ class PwaDocumentCacheReviewRegressionTests(unittest.TestCase):
         self.assertIn("return await decorateCachedDocument(response, request, state)", self.worker)
 
     def test_cached_notice_is_inserted_after_an_unambiguous_body_open(self) -> None:
-        self.assertIn("function injectCachedDocumentNotice(source, state)", self.worker)
+        self.assertIn("function injectCachedDocumentNotice(source, state, strings)", self.worker)
+        self.assertIn("const notice = freshnessNoticeHtml(state, strings)", self.worker)
+        self.assertIn("const model = await loadSiteChromeLocales()", self.worker)
+        self.assertIn("const language = htmlLanguage(source)", self.worker)
+        self.assertIn("const strings = pwaFreshnessStrings(model, language)", self.worker)
         self.assertIn("source.matchAll(/<html\\b[^>]*>/gi)", self.worker)
         self.assertIn("source.matchAll(/<body\\b[^>]*>/gi)", self.worker)
         self.assertIn("source.matchAll(/<\\/body\\s*>/gi)", self.worker)

@@ -3,9 +3,20 @@ const DOCUMENT_CACHE_NAME = "templates-portal-documents-v1";
 const GLOSSARY_CACHE_NAME = "templates-portal-glossary-v1";
 const GLOSSARY_MODEL_PATH = "/glossary/index.json";
 const GLOSSARY_CACHED_ACCEPT_HEADER = "X-Templates-Glossary-Accepts-Cached";
+const SITE_CHROME_LOCALES_PATH = "/site-chrome-locales.json";
+const PWA_FRESHNESS_FIELDS = Object.freeze([
+  "saved_copy",
+  "checking",
+  "unverified",
+  "update_available",
+  "published_changed",
+  "reload",
+  "offline_unavailable",
+]);
 const STATIC_ASSETS = [
   "/app.webmanifest",
   "/icon.svg",
+  "/site-chrome-locales.json",
   "/stylesheets/extra.css",
   "/stylesheets/landing-cover.css",
   "/stylesheets/landing-shell.css",
@@ -43,6 +54,132 @@ let glossaryCacheMutationGeneration = 0;
 let glossaryCacheMutationQueue = Promise.resolve();
 let authoritativeGlossaryDeletionGeneration = 0;
 
+function parseSiteChromeLocales(value) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    value.schema_version !== 1 ||
+    value.canonical_language !== "en" ||
+    !Array.isArray(value.locales) ||
+    value.locales.length === 0
+  ) {
+    return undefined;
+  }
+  const locales = new Map();
+  for (const locale of value.locales) {
+    if (
+      !locale ||
+      typeof locale !== "object" ||
+      Array.isArray(locale) ||
+      typeof locale.language !== "string" ||
+      !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(locale.language) ||
+      !locale.pwa_freshness ||
+      typeof locale.pwa_freshness !== "object" ||
+      Array.isArray(locale.pwa_freshness) ||
+      Object.keys(locale.pwa_freshness).length !== PWA_FRESHNESS_FIELDS.length ||
+      PWA_FRESHNESS_FIELDS.some(
+        (field) =>
+          typeof locale.pwa_freshness[field] !== "string" ||
+          locale.pwa_freshness[field].trim().length === 0
+      ) ||
+      Object.keys(locale.pwa_freshness).some(
+        (field) => !PWA_FRESHNESS_FIELDS.includes(field)
+      ) ||
+      locales.has(locale.language)
+    ) {
+      return undefined;
+    }
+    locales.set(locale.language, Object.freeze({ ...locale.pwa_freshness }));
+  }
+  if (!locales.has(value.canonical_language)) {
+    return undefined;
+  }
+  return Object.freeze({
+    canonicalLanguage: value.canonical_language,
+    locales,
+  });
+}
+
+async function loadSiteChromeLocales() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const response = await cache.match(SITE_CHROME_LOCALES_PATH);
+    if (!response || !response.ok) {
+      return undefined;
+    }
+    return parseSiteChromeLocales(await response.json());
+  } catch (error) {
+    console.warn("PWA chrome locale cache read failed", error);
+    return undefined;
+  }
+}
+
+function pwaFreshnessStrings(model, language) {
+  if (!model) {
+    return undefined;
+  }
+  if (typeof language === "string") {
+    const exact = model.locales.get(language);
+    if (exact) {
+      return exact;
+    }
+    const primary = language.split("-", 1)[0];
+    const primaryLocale = model.locales.get(primary);
+    if (primaryLocale) {
+      return primaryLocale;
+    }
+  }
+  return model.locales.get(model.canonicalLanguage);
+}
+
+function htmlLanguage(source) {
+  const htmlTags = source.match(/<html\b[^>]*>/gi) || [];
+  if (htmlTags.length !== 1) {
+    return undefined;
+  }
+  const attributes = extractMetaAttributes(htmlTags[0]);
+  const language = attributes.get("lang");
+  return typeof language === "string" &&
+    /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(language)
+    ? language
+    : undefined;
+}
+
+function requestLanguage(model, request) {
+  if (!model) {
+    return undefined;
+  }
+  try {
+    const url = new URL(request.url);
+    if (url.origin !== self.location.origin) {
+      return model.canonicalLanguage;
+    }
+    const firstSegment = decodeURIComponent(url.pathname.split("/")[1] || "");
+    if (/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(firstSegment)) {
+      if (
+        model.locales.has(firstSegment) ||
+        model.locales.has(firstSegment.split("-", 1)[0])
+      ) {
+        return firstSegment;
+      }
+    }
+  } catch (error) {
+    console.warn("PWA offline request locale is invalid", error);
+  }
+  return model.canonicalLanguage;
+}
+
+function escapeHtmlText(value) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+}
+
 function freshnessInlineStyle() {
   return (
     '<style id="templates-freshness-status-inline-style">' +
@@ -58,15 +195,16 @@ function freshnessInlineStyle() {
   );
 }
 
-function freshnessNoticeHtml(state) {
+function freshnessNoticeHtml(state, strings) {
   let className;
   let message;
+  const savedCopy = escapeHtmlText(strings.saved_copy);
   if (state === "checking") {
     className = "freshness-status freshness-status--checking";
-    message = '<strong>Saved copy.</strong> Checking for the latest version…';
+    message = `<strong>${savedCopy}</strong> ${escapeHtmlText(strings.checking)}`;
   } else if (state === "cached-unverified") {
     className = "freshness-status freshness-status--cached-unverified";
-    message = '<strong>Saved copy.</strong> The latest version could not be verified.';
+    message = `<strong>${savedCopy}</strong> ${escapeHtmlText(strings.unverified)}`;
   } else {
     return undefined;
   }
@@ -80,8 +218,12 @@ function freshnessNoticeHtml(state) {
   );
 }
 
-function offlineResponse() {
-  return new Response("This page is unavailable while offline.\n", {
+async function offlineResponse(request) {
+  const model = await loadSiteChromeLocales();
+  const language = requestLanguage(model, request);
+  const strings = pwaFreshnessStrings(model, language);
+  const message = strings?.offline_unavailable || "Offline.";
+  return new Response(`${message}\n`, {
     status: 503,
     statusText: "Service Unavailable",
     headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -322,8 +464,8 @@ async function lookupCachedDocument(request) {
   }
 }
 
-function injectCachedDocumentNotice(source, state) {
-  const notice = freshnessNoticeHtml(state);
+function injectCachedDocumentNotice(source, state, strings) {
+  const notice = freshnessNoticeHtml(state, strings);
   if (!notice) {
     return undefined;
   }
@@ -376,7 +518,13 @@ async function decorateCachedDocument(response, request, state) {
     console.warn("PWA cached document read failed", error);
     return undefined;
   }
-  const decorated = injectCachedDocumentNotice(source, state);
+  const model = await loadSiteChromeLocales();
+  const language = htmlLanguage(source);
+  const strings = pwaFreshnessStrings(model, language);
+  if (!strings) {
+    return undefined;
+  }
+  const decorated = injectCachedDocumentNotice(source, state, strings);
   if (decorated === undefined) {
     return undefined;
   }
@@ -580,7 +728,7 @@ async function fallbackForCompletedFailure(event, generation, response) {
     "cached-unverified"
   );
   if (!cached) {
-    return response || offlineResponse();
+    return response || (await offlineResponse(event.request));
   }
   if (event.request.mode === "navigate") {
     rememberFreshnessState(event, "cached-unverified", generation);
@@ -593,7 +741,7 @@ async function fallbackForCompletedFailure(event, generation, response) {
     true
   );
   if (!acknowledged) {
-    return response || offlineResponse();
+    return response || (await offlineResponse(event.request));
   }
   return cached;
 }
@@ -1135,7 +1283,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       cached
         .then((response) => response || refresh)
-        .catch(() => offlineResponse())
+        .catch(() => offlineResponse(event.request))
     );
   }
 });

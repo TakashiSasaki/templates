@@ -10,6 +10,15 @@
         "canonical_status": "Canonical English",
         "canonical_link": "English · Canonical",
         "translation_status": "English translation · Non-authoritative"
+      },
+      "pwa_freshness": {
+        "saved_copy": "Saved copy.",
+        "checking": "Checking for the latest version…",
+        "unverified": "The latest version could not be verified.",
+        "update_available": "Update available.",
+        "published_changed": "The published page changed.",
+        "reload": "Reload",
+        "offline_unavailable": "This page is unavailable while offline."
       }
     },
     {
@@ -20,6 +29,15 @@
         "canonical_status": "英語正本",
         "canonical_link": "英語 · 正本",
         "translation_status": "日本語参考訳"
+      },
+      "pwa_freshness": {
+        "saved_copy": "保存済みのコピーです。",
+        "checking": "最新版を確認しています…",
+        "unverified": "最新版であることを確認できませんでした。",
+        "update_available": "更新があります。",
+        "published_changed": "公開済みページが更新されました。",
+        "reload": "再読み込み",
+        "offline_unavailable": "オフラインのため、このページを表示できません。"
       }
     }
   ]

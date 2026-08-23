@@ -107,6 +107,12 @@ jobs:
             --site-root build/site \
             --output build/mobile-visual/pwa-freshness.json
 
+      - name: Check localized PWA freshness chrome
+        run: |
+          python scripts/check_pwa_locale_chrome.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-locale-chrome.json
+
       - name: Check PWA document commit correlation
         run: |
           python scripts/check_pwa_commit_regressions.py \
