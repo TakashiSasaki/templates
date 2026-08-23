@@ -31,12 +31,12 @@ Composer の正確な options、plan fields、ownership definitions、および 
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/e643a4ac7c8f82b06f38352f869fe1718b6d4a94/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/2689bec83de815985a87cd287beba9ae414292b3/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`e643a4ac7c8f82b06f38352f869fe1718b6d4a94` の installer は skill source `06799100af1e2f139a94f24507e33548dd510157` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `907da7416b726fb44f14844364c789c675db3477` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`2689bec83de815985a87cd287beba9ae414292b3` の installer は skill source `da2e169e1a650a2150936ca92d49596286e34a30` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `1e982fb4c02e54c683a6d9215a9ca65e72fc0ffc` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
