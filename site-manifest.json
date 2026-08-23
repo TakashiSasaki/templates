@@ -90,6 +90,7 @@
           "children": [
             {"title": "Routes v1 to v2", "publication": "composition", "document": "routes-migration", "destination": "webapp/docs/migrations/routes-v1-to-v2.md"},
             {"title": "Routes v2 to v3", "publication": "composition", "document": "routes-v3-migration", "destination": "webapp/docs/migrations/routes-v2-to-v3.md"},
+            {"title": "Surfaces v1 to v2", "publication": "composition", "document": "surfaces-v2-migration", "destination": "webapp/docs/migrations/surfaces-v1-to-v2.md"},
             {"title": "UI states v1 to v2", "publication": "composition", "document": "ui-states-migration", "destination": "webapp/docs/migrations/ui-states-v1-to-v2.md"}
           ]
         }
