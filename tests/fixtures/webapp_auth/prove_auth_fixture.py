@@ -126,6 +126,8 @@ assert "@media (min-width: 1280px)" in client_source
 assert "overflow-x: auto" in client_source
 assert '<button type="button"' in client_source
 assert "orientation:" not in client_source
+assert 'document.getElementById(focusStrategy).focus()' in client_source
+assert 'button.dataset.recoveryAction = action' in client_source
 
 server = auth_app.make_server()
 thread = threading.Thread(target=server.serve_forever, daemon=True)
