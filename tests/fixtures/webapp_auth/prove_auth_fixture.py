@@ -69,6 +69,9 @@ surfaces = {
         (ROOT / "contracts/surfaces.json").read_text(encoding="utf-8")
     )["surfaces"]
 }
+ui_states = json.loads(
+    (ROOT / "contracts/ui-states.json").read_text(encoding="utf-8")
+)["states"]
 for route_id, surface_id, required_role in (
     ("application-home", "application", "application-user"),
     ("admin", "admin", "admin"),
@@ -145,72 +148,89 @@ def assert_view(
     *,
     user: str | None = None,
     roles: tuple[str, ...] = (),
-) -> None:
+) -> str:
     status, body = request(path, user=user, roles=roles)
     assert status == expected_status, (path, status, body)
     assert f'data-surface="{expected_surface}"' in body, body
     assert f'data-state="{expected_state}"' in body, body
     assert '<meta name="viewport"' in body, body
     assert '<button type="button"' in body, body
+    return expected_state
 
 
+observed_states: set[str] = set()
 try:
-    assert_view(200, "public", "populated", "/")
-    assert_view(200, "status", "populated", "/status")
-    assert_view(401, "application", "unauthorized", "/app")
-    assert_view(
-        200,
-        "application",
-        "populated",
-        "/app",
-        user="alice",
-        roles=("application-user",),
+    observed_states.add(assert_view(200, "public", "populated", "/"))
+    observed_states.add(assert_view(200, "status", "populated", "/status"))
+    observed_states.add(assert_view(401, "application", "unauthorized", "/app"))
+    observed_states.add(
+        assert_view(
+            200,
+            "application",
+            "populated",
+            "/app",
+            user="alice",
+            roles=("application-user",),
+        )
     )
-    assert_view(
-        403,
-        "application",
-        "forbidden",
-        "/app",
-        user="alice",
-        roles=("admin",),
+    observed_states.add(
+        assert_view(
+            403,
+            "application",
+            "forbidden",
+            "/app",
+            user="alice",
+            roles=("admin",),
+        )
     )
-    assert_view(401, "admin", "unauthorized", "/admin")
-    assert_view(
-        403,
-        "admin",
-        "forbidden",
-        "/admin",
-        user="alice",
-        roles=("application-user",),
+    observed_states.add(assert_view(401, "admin", "unauthorized", "/admin"))
+    observed_states.add(
+        assert_view(
+            403,
+            "admin",
+            "forbidden",
+            "/admin",
+            user="alice",
+            roles=("application-user",),
+        )
     )
-    assert_view(
-        200,
-        "admin",
-        "populated",
-        "/admin",
-        user="alice",
-        roles=("admin",),
+    observed_states.add(
+        assert_view(
+            200,
+            "admin",
+            "populated",
+            "/admin",
+            user="alice",
+            roles=("admin",),
+        )
     )
-    assert_view(
-        200,
-        "application",
-        "loading",
-        "/app?state=loading",
-        user="alice",
-        roles=("application-user",),
-    )
-    assert_view(
-        503,
-        "application",
-        "recoverable-error",
-        "/app?state=recoverable-error",
-        user="alice",
-        roles=("application-user",),
-    )
+    for state, status in (
+        ("loading", 200),
+        ("empty", 200),
+        ("partial", 206),
+        ("recoverable-error", 503),
+        ("retrying", 202),
+        ("offline", 503),
+    ):
+        observed_states.add(
+            assert_view(
+                status,
+                "application",
+                state,
+                f"/app?state={state}",
+                user="alice",
+                roles=("application-user",),
+            )
+        )
+    observed_states.add(assert_view(500, "public", "fatal-error", "/__fatal"))
+    observed_states.add(assert_view(404, "public", "not-found", "/missing"))
 finally:
     server.shutdown()
     server.server_close()
     thread.join(timeout=5)
     assert not thread.is_alive()
 
-print("Webapp auth product proof: route access, UI-state, and viewport behavior passed")
+assert observed_states == {state["id"] for state in ui_states}
+print(
+    "Webapp auth product proof: route access, complete UI-state, and viewport behavior passed"
+)
