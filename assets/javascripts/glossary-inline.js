@@ -410,8 +410,8 @@
     const owner = providerLabel(term.provider);
     meta.textContent =
       term.origin === "external"
-        ? `${strings.external_term_prefix}${owner}`
-        : `${strings.repository_term_prefix}${owner}`;
+        ? `${strings.external_term_prefix} ${owner}`
+        : `${strings.repository_term_prefix} ${owner}`;
     setFreshness(panel, freshness, strings);
     panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);
   }
