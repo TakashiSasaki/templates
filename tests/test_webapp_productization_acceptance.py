@@ -40,6 +40,14 @@ CHECKS = (
         ),
     ),
     (
+        "release execution",
+        (
+            sys.executable,
+            ".template-composition/validators/validate_release_execution.py",
+            ".",
+        ),
+    ),
+    (
         "Webapp evidence coverage",
         (sys.executable, "scripts/validate_webapp_evidence.py"),
     ),
@@ -290,6 +298,21 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                 "records": records,
             },
         )
+        self.write_json(
+            target / "contracts/release-execution.json",
+            {
+                "$schema": "../schemas/release-execution.schema.json",
+                "schemaVersion": 1,
+                "mode": "product",
+                "commands": [
+                    {
+                        "commandId": "webapp-proof",
+                        "argv": ["python", "product/prove_webapp.py"],
+                        "workingDirectory": ".",
+                    }
+                ],
+            },
+        )
         product = target / "product"
         product.mkdir()
         (product / "prove_webapp.py").write_text(PROOF_SCRIPT, encoding="utf-8")
@@ -471,6 +494,10 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                     ".template-composition/validators/validate_implementation_evidence.py",
                     (".",),
                 ),
+                (
+                    ".template-composition/validators/validate_release_execution.py",
+                    (".",),
+                ),
                 ("scripts/validate_webapp_evidence.py", ()),
                 (
                     ".template-composition/validators/validate_release_evidence.py",
@@ -555,6 +582,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             / "components/artifact.webapp-core/files/.github/workflows/validate-webapp.yml"
         ).read_text(encoding="utf-8")
 
+        self.assertIn("validate_release_execution.py", workflow)
         self.assertIn("id: release-modes", workflow)
         self.assertIn("release_mode=", workflow)
         self.assertIn("bundle_mode=", workflow)

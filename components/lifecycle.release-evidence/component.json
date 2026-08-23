@@ -2,9 +2,9 @@
   "schema_version": 1,
   "id": "lifecycle.release-evidence",
   "kind": "lifecycle",
-  "version": 1,
+  "version": 2,
   "summary": "Revision-bound execution provenance, command/gate results, and release decision.",
-  "requires": ["lifecycle.implementation-evidence"],
+  "requires": ["lifecycle.release-execution"],
   "conflicts": [],
   "contract_registrations": [{
     "id": "release_evidence",

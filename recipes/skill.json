@@ -15,6 +15,7 @@
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
     "lifecycle.release-bundle",
-    "lifecycle.release-evidence"
+    "lifecycle.release-evidence",
+    "lifecycle.release-execution"
   ]
 }

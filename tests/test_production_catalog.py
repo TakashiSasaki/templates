@@ -173,6 +173,7 @@ class ProductionCatalogTests(unittest.TestCase):
                 "lifecycle.implementation-evidence",
                 "lifecycle.release-bundle",
                 "lifecycle.release-evidence",
+                "lifecycle.release-execution",
             ],
         )
 

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode", "commands"],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "nonBlankText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0000]+$"
+    },
+    "workingDirectory": {
+      "type": "string",
+      "pattern": "^(?:\\.|(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*)$"
+    },
+    "executionCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "argv", "workingDirectory"],
+      "properties": {
+        "commandId": {"$ref": "#/$defs/identifier"},
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/nonBlankText"}
+        },
+        "workingDirectory": {"$ref": "#/$defs/workingDirectory"}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/release-execution.schema.json"},
+    "schemaVersion": {"const": 1},
+    "mode": {"enum": ["template", "product"]},
+    "commands": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/executionCommand"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"mode": {"const": "template"}},
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {"commands": {"maxItems": 0}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"mode": {"const": "product"}},
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {"commands": {"minItems": 1}}
+      }
+    }
+  ]
+}

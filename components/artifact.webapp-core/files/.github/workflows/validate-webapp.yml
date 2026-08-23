@@ -28,6 +28,8 @@ jobs:
         run: python .template-composition/validators/validate_contract_evolution.py .
       - name: Validate implementation evidence
         run: python .template-composition/validators/validate_implementation_evidence.py .
+      - name: Validate release execution bindings
+        run: python .template-composition/validators/validate_release_execution.py .
       - name: Validate Webapp evidence coverage
         run: python scripts/validate_webapp_evidence.py
       - name: Detect release document modes
