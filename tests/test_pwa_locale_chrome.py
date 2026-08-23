@@ -62,6 +62,17 @@ class PwaLocaleChromeTests(unittest.TestCase):
         self.assertIn("arg=DOCUMENT_CACHE_NAME", self.checker)
         self.assertIn('arg=EXPECTED_JA["update_available"]', self.checker)
 
+    def test_browser_checker_requires_guided_pages_to_bootstrap_their_own_runtime(self) -> None:
+        self.assertIn("GUIDED_RUNTIME_DIRECTIVES", self.checker)
+        self.assertIn('"guided/index.html"', self.checker)
+        self.assertIn('"ja/guided/index.html"', self.checker)
+        self.assertIn("_exercise_guided_runtime(browser, base_url)", self.checker)
+        self.assertIn('browser.new_context(service_workers="allow")', self.checker)
+        self.assertIn('page.goto(base_url + "/ja/guided/"', self.checker)
+        self.assertIn('fetch("/site-chrome-locales.json")', self.checker)
+        self.assertIn('"/stylesheets/freshness-status.css"', self.checker)
+        self.assertIn('evidence["guided_runtime"]', self.checker)
+
     def test_checker_fails_before_browser_start_when_assets_are_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(check_pwa_locale_chrome.PwaLocaleChromeError) as context:
