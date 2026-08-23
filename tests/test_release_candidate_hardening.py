@@ -108,6 +108,23 @@ class ReleaseCandidateHardeningTests(unittest.TestCase):
                     ):
                         candidate.ensure_output_path(root, relative)
 
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlink support required")
+    def test_resolve_working_directory_rejects_symlink_components(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            real = root / "real"
+            real.mkdir()
+            link = root / "linked"
+            try:
+                os.symlink(real, link, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"cannot create directory symlink: {exc}")
+            with self.assertRaisesRegex(
+                candidate.CandidateError,
+                "release working directory crosses a symlink",
+            ):
+                candidate.resolve_working_directory(root, "linked")
+
     def test_staged_changes_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
