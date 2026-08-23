@@ -8,6 +8,7 @@ from agent_policy.commands import adopt, check
 from agent_policy.renderer import GENERATED_MARKER
 from agent_policy.yamlutil import load_yaml
 
+TEST_REVISION = "a" * 40
 POLICY_HEADER = """---
 id: project.repository
 severity: mandatory
@@ -26,7 +27,7 @@ def _prepare_repository(path: Path) -> bytes:
         path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )
@@ -72,7 +73,7 @@ def test_existing_project_policy_can_change_before_preview(tmp_path: Path) -> No
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         project_policy_files=[".agents/policies/repository.md"],
         verification_command="npm run verify:pr",
@@ -391,7 +392,7 @@ def test_finalize_rejects_other_immutable_source_change_at_transaction_boundary(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )

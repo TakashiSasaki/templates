@@ -111,4 +111,4 @@ The installed `agent-policy` skill follows `.agent-policy.lock` for an already-m
 
 During adoption preparation, `.agent-policy/adoption.json` must match the configuration toolchain exactly. Finalization refuses a mismatched adoption state. Consumer repositories must never combine a manifest pin from one release with generated artifacts or a workflow from another release.
 
-`LOCAL-DEVELOPMENT` remains available only for repository-local development and tests. It is not valid in the stable release descriptor, single-skill runtime manifest, or installer publication descriptor.
+Every consumer configuration and adoption state requires an exact 40-character lowercase commit SHA. When execution starts from a source checkout without an explicit `--toolchain-revision`, the toolchain resolves the exact commit SHA of that checkout's `HEAD`; installed VCS runtimes resolve and verify their immutable PEP 610 provenance instead of using a development sentinel.

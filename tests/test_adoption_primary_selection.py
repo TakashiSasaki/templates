@@ -4,6 +4,8 @@ import pytest
 
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 @pytest.mark.parametrize(
     "source_path",
@@ -26,7 +28,7 @@ def test_prepare_requires_a_discovered_instruction_file(
             tmp_path,
             ".agent-policy.yml",
             apply=True,
-            toolchain_revision="LOCAL-DEVELOPMENT",
+            toolchain_revision=TEST_REVISION,
             profiles=["core"],
             primary_instructions=primary,
             enabled_skills=[],

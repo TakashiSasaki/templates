@@ -2,6 +2,8 @@ from pathlib import Path
 
 from agent_policy.commands import check, onboard, validate
 
+TEST_TOOLCHAIN_SHA = "8" * 40
+
 
 def test_adopt_prepare_handles_unmanaged_empty_as_fresh_adoption(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
@@ -10,7 +12,7 @@ def test_adopt_prepare_handles_unmanaged_empty_as_fresh_adoption(tmp_path: Path)
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core", "security-baseline"],
     )
 
@@ -30,7 +32,7 @@ def test_fresh_adoption_apply_reaches_managed_state(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core", "security-baseline"],
     )
 
@@ -50,7 +52,7 @@ def test_fresh_adoption_rejects_primary_instructions_option(tmp_path: Path) -> N
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         primary_instructions="AGENTS.md",
     )
@@ -67,7 +69,7 @@ def test_existing_repository_auto_selects_single_migration_primary(tmp_path: Pat
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
     )
 
@@ -88,7 +90,7 @@ def test_existing_repository_requires_primary_when_discovery_is_ambiguous(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
     )
 
@@ -109,7 +111,7 @@ def test_existing_repository_honors_explicit_discovered_primary(tmp_path: Path) 
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         primary_instructions="CLAUDE.md",
     )

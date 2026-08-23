@@ -2,6 +2,8 @@ from pathlib import Path
 
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 def test_prepare_rejects_invalid_skill_name_before_writing(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
@@ -11,7 +13,7 @@ def test_prepare_rejects_invalid_skill_name_before_writing(tmp_path: Path) -> No
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=["../../.."],
     )

@@ -40,7 +40,7 @@
         },
         "revision": {
           "type": "string",
-          "pattern": "^([0-9a-f]{40}|LOCAL-DEVELOPMENT)$"
+          "pattern": "^[0-9a-f]{40}$"
         }
       }
     },

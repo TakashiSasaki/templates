@@ -4,6 +4,7 @@ from agent_policy.commands import check, init, validate
 from agent_policy.policy_loader import load_rules
 from agent_policy.renderer import render_skill
 
+TEST_REVISION = "a" * 40
 CORE_ADDITIONS = {
     "changes.preserve-acceptance-baseline",
     "decisions.escalate-semantic-ambiguity",
@@ -77,7 +78,7 @@ def test_init_round_trip_with_artifact_profile_and_skills(tmp_path: Path) -> Non
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "external-artifact-intake"],
         enabled_skills=GENERATED_SKILLS,
     )

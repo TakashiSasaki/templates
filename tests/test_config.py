@@ -3,6 +3,8 @@ from pathlib import Path
 from agent_policy.commands import validate
 from agent_policy.config import load_config, validate_config
 
+TEST_REVISION = "a" * 40
+
 
 def _write_project_policy(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
@@ -22,14 +24,17 @@ Body.
     )
 
 
+def _revision_line() -> str:
+    return f"  revision: {TEST_REVISION}\n"
+
+
 def test_example_configuration_is_valid(tmp_path: Path) -> None:
     _write_project_policy(tmp_path)
     (tmp_path / ".agent-policy.yml").write_text(
-        """schema_version: 2
-toolchain:
-  repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
-contexts:
+        "schema_version: 2\ntoolchain:\n"
+        "  repository: TakashiSasaki/templates\n"
+        + _revision_line()
+        + """contexts:
   default:
     profiles:
       - core
@@ -55,11 +60,10 @@ skills:
 def test_schema_version_one_is_rejected(tmp_path: Path) -> None:
     _write_project_policy(tmp_path)
     (tmp_path / ".agent-policy.yml").write_text(
-        """schema_version: 1
-toolchain:
-  repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
-profiles:
+        "schema_version: 1\ntoolchain:\n"
+        "  repository: TakashiSasaki/templates\n"
+        + _revision_line()
+        + """profiles:
   - core
 project_policy:
   files:
@@ -84,11 +88,10 @@ skills:
 def test_v2_rejects_top_level_profiles_and_project_policy(tmp_path: Path) -> None:
     _write_project_policy(tmp_path)
     (tmp_path / ".agent-policy.yml").write_text(
-        """schema_version: 2
-toolchain:
-  repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
-profiles:
+        "schema_version: 2\ntoolchain:\n"
+        "  repository: TakashiSasaki/templates\n"
+        + _revision_line()
+        + """profiles:
   - core
 project_policy:
   files:

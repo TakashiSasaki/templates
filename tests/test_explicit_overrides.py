@@ -4,6 +4,7 @@ from pathlib import Path
 
 from agent_policy.commands import render, validate
 
+TEST_REVISION = "a" * 40
 OVERRIDABLE_ID = "consistency.synchronize-derived-artifacts"
 NON_OVERRIDABLE_ID = "changes.minimize-scope"
 
@@ -32,7 +33,7 @@ def _write_v2(
         "schema_version: 2",
         "toolchain:",
         "  repository: TakashiSasaki/templates",
-        "  revision: LOCAL-DEVELOPMENT",
+        f"  revision: {TEST_REVISION}",
         "contexts:",
         "  coding:",
         "    profiles:",

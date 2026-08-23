@@ -6,6 +6,7 @@ from agent_policy.commands import render
 from agent_policy.lockfile import sha256_file
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
+TEST_REVISION = "a" * 40
 PROJECT_POLICY = """---
 id: project.rule
 severity: mandatory
@@ -23,10 +24,10 @@ def _write_repository(repository: Path) -> None:
     (repository / "policy").mkdir()
     (repository / "policy/project.md").write_text(PROJECT_POLICY, encoding="utf-8")
     (repository / ".agent-policy.yml").write_text(
-        """schema_version: 2
+        f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
+  revision: {TEST_REVISION}
 contexts:
   default:
     profiles:

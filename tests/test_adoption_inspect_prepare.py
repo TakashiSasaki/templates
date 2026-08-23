@@ -9,6 +9,8 @@ from agent_policy.cli import parser
 from agent_policy.commands import adopt, check, validate
 from agent_policy.renderer import GENERATED_MARKER
 
+TEST_REVISION = "a" * 40
+
 
 def _initialize_repository(path: Path) -> None:
     (path / ".git").mkdir()
@@ -66,7 +68,7 @@ def test_inspect_and_prepare_preserve_symlink_source_names(tmp_path: Path) -> No
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         primary_instructions="AGENTS.md",
         enabled_skills=[],
@@ -99,7 +101,7 @@ def test_prepare_dry_run_validates_without_writing(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
     )
 
@@ -119,7 +121,7 @@ def test_prepare_dry_run_rejects_unknown_profile_before_writing(tmp_path: Path) 
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["missing-profile"],
     )
 
@@ -138,7 +140,7 @@ def test_prepare_preserves_primary_and_creates_preview_state(tmp_path: Path) -> 
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )
@@ -182,7 +184,7 @@ def test_prepare_reuses_multiple_existing_project_policies(tmp_path: Path) -> No
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         project_policy_files=[
             ".agents/policies/first.md",
@@ -214,7 +216,7 @@ def test_prepare_rejects_existing_generated_skill_tree_overlap(tmp_path: Path) -
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
     )
 
@@ -240,7 +242,7 @@ def test_prepare_without_generated_skills_preserves_handwritten_default_skill(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=[],
     )
@@ -269,7 +271,7 @@ def test_prepare_rejects_wrong_primary_and_managed_repository(tmp_path: Path) ->
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
     )
     assert diagnostics[0].code == "PRIMARY_INSTRUCTIONS"
@@ -279,7 +281,7 @@ def test_prepare_rejects_wrong_primary_and_managed_repository(tmp_path: Path) ->
         tmp_path,
         ".agent-policy.yml",
         apply=False,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         primary_instructions="CLAUDE.md",
     )

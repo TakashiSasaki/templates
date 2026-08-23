@@ -6,6 +6,8 @@ import yaml
 
 from agent_policy.commands import check, init, validate
 
+TEST_TOOLCHAIN_SHA = "5" * 40
+
 
 def test_init_render_check_round_trip(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
@@ -13,7 +15,7 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core", "security-baseline"],
     )
     assert diagnostics == []
@@ -22,13 +24,13 @@ def test_init_render_check_round_trip(tmp_path: Path) -> None:
     agents = agents_path.read_text(encoding="utf-8")
     assert "configuration: .agent-policy.yml" in agents
     assert "Semantic configuration: `.agent-policy.yml`" in agents
-    assert "Pinned shared toolchain: `TakashiSasaki/templates@LOCAL-DEVELOPMENT`" in agents
+    assert f"Pinned shared toolchain: `TakashiSasaki/templates@{TEST_TOOLCHAIN_SHA}`" in agents
     assert "Repository policy inputs:" in agents
     assert "`policy/project.md`" in agents
     assert "Generated operational skills:" in agents
     assert "`.agents/skills/validate-agent-policy/SKILL.md`" in agents
     assert (
-        "_Source: `TakashiSasaki/templates@LOCAL-DEVELOPMENT:"
+        f"_Source: `TakashiSasaki/templates@{TEST_TOOLCHAIN_SHA}:"
         "policy/core/change-contract.md`"
         in agents
     )
@@ -50,7 +52,7 @@ def test_custom_config_path_is_discoverable_in_generated_instructions(tmp_path: 
         tmp_path,
         config_path,
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
     )
 
@@ -83,7 +85,7 @@ def test_generated_skill_quotes_shell_sensitive_config_path(tmp_path: Path) -> N
         tmp_path,
         config_path,
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
     )
 
@@ -109,7 +111,7 @@ def test_init_refuses_handwritten_agents_file(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
     )
     assert diagnostics[0].code == "FILE_CONFLICT"

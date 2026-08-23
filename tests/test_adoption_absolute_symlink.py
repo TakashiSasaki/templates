@@ -5,6 +5,8 @@ import pytest
 from agent_policy.adoption import LOCK_PATH, inspect_repository
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 def test_prepare_rejects_absolute_secondary_source_symlink(tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
@@ -23,7 +25,7 @@ def test_prepare_rejects_absolute_secondary_source_symlink(tmp_path: Path) -> No
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )
@@ -37,6 +39,7 @@ def test_prepare_rejects_absolute_secondary_source_symlink(tmp_path: Path) -> No
     assert not (tmp_path / ".agent-policy.yml").exists()
     assert not (tmp_path / adopt.DEFAULT_STATE_PATH).exists()
     assert not (tmp_path / LOCK_PATH).exists()
+
 
 @pytest.mark.parametrize(
     ("link_name", "source_relative"),
@@ -67,7 +70,7 @@ def test_prepare_rejects_absolute_symlink_in_source_parent_component(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )
@@ -81,4 +84,3 @@ def test_prepare_rejects_absolute_symlink_in_source_parent_component(
     assert not (tmp_path / ".agent-policy.yml").exists()
     assert not (tmp_path / adopt.DEFAULT_STATE_PATH).exists()
     assert not (tmp_path / LOCK_PATH).exists()
-

@@ -6,6 +6,8 @@ import pytest
 from agent_policy.adoption import inspect_repository
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 @pytest.mark.parametrize(
     ("artifact_name", "referent_name"),
@@ -38,7 +40,7 @@ def test_dangling_known_source_symlink_is_inconsistent(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=[],
     )
@@ -82,7 +84,7 @@ def test_dangling_source_tree_symlink_is_inconsistent(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=[],
     )
@@ -130,7 +132,7 @@ def test_source_tree_directory_symlink_is_inconsistent(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core"],
         enabled_skills=[],
     )

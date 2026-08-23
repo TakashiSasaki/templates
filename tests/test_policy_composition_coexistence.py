@@ -7,6 +7,7 @@ from agent_policy.commands import adopt, init, render, validate
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+TEST_TOOLCHAIN_SHA = "7b" * 20
 
 
 def _write_project_policy(path: Path) -> None:
@@ -38,7 +39,7 @@ def test_default_init_preserves_composition_metadata(tmp_path: Path) -> None:
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         enabled_skills=[],
     )
@@ -58,7 +59,7 @@ def test_init_rejects_output_inside_composition_namespace_before_writing(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         agents_output_path=".template-composition/AGENTS.md",
         enabled_skills=[],
@@ -76,10 +77,10 @@ def test_validate_rejects_composition_namespace_as_policy_input(tmp_path: Path) 
     foreign_policy = tmp_path / ".template-composition/policy.md"
     _write_project_policy(foreign_policy)
     (tmp_path / ".agent-policy.yml").write_text(
-        """schema_version: 2
+        f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
+  revision: {TEST_TOOLCHAIN_SHA}
 contexts:
   default:
     profiles:
@@ -114,7 +115,7 @@ def test_adoption_rejects_composition_namespace_as_policy_state(tmp_path: Path) 
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         state_path=".template-composition/adoption.json",
         enabled_skills=[],
@@ -134,7 +135,7 @@ def test_render_does_not_clean_up_foreign_path_claimed_by_old_policy_lock(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_TOOLCHAIN_SHA,
         profiles=["core"],
         enabled_skills=[],
     )

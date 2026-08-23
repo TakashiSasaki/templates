@@ -5,6 +5,7 @@ from pathlib import Path
 from agent_policy.commands import check, render, validate
 from agent_policy.yamlutil import load_yaml
 
+TEST_REVISION = "a" * 40
 LOCAL_POLICY = """---
 id: {rule_id}
 severity: mandatory
@@ -37,10 +38,10 @@ def _write_v2_repository(repository: Path) -> None:
         encoding="utf-8",
     )
     (repository / ".agent-policy.yml").write_text(
-        """schema_version: 2
+        f"""schema_version: 2
 toolchain:
   repository: TakashiSasaki/templates
-  revision: LOCAL-DEVELOPMENT
+  revision: {TEST_REVISION}
 contexts:
   coding:
     profiles:
