@@ -10,7 +10,7 @@ import subprocess
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -18,11 +18,15 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from composer_cli_messages import remediate_payload
 from composer_core import (
+    LOCK_RELATIVE,
+    TRANSACTION_RELATIVE,
     CompositionError,
     _assert_tracked_authority,
+    load_json_bytes,
     main as _initial_main,
     validate_consumer_with_source_validator,
 )
+from composer_post_apply import build_post_apply_guidance
 
 __all__ = ["CompositionError", "_assert_tracked_authority", "main"]
 
@@ -110,6 +114,18 @@ def _mode_from_argv() -> str | None:
     return None
 
 
+def _argument_value(option: str) -> str | None:
+    arguments = sys.argv[1:]
+    for index, argument in enumerate(arguments):
+        if argument == option:
+            if index + 1 >= len(arguments):
+                return None
+            return arguments[index + 1]
+        if argument.startswith(option + "="):
+            return argument.split("=", 1)[1]
+    return None
+
+
 def _remove_initial_mode() -> None:
     arguments = sys.argv[1:]
     rewritten: list[str] = []
@@ -127,9 +143,61 @@ def _remove_initial_mode() -> None:
     sys.argv[:] = [sys.argv[0], *rewritten]
 
 
-def _run_managed_adapter(adapter: Callable[[], int]) -> int:
-    """Run an internal managed adapter and improve only its public JSON presentation."""
+def _read_regular_json_object(path: Path) -> dict[str, Any] | None:
+    if path.is_symlink() or not path.is_file():
+        return None
+    try:
+        raw = path.read_bytes()
+        value = load_json_bytes(raw, label=str(path))
+    except (OSError, CompositionError):
+        return None
+    return value if isinstance(value, dict) else None
 
+
+def _previous_lock_for_apply() -> dict[str, Any] | None:
+    target_value = _argument_value("--target")
+    if target_value is None:
+        return None
+    target = Path(target_value).absolute()
+
+    transaction = _read_regular_json_object(target / TRANSACTION_RELATIVE)
+    if transaction is not None:
+        old_lock = transaction.get("old_lock")
+        if isinstance(old_lock, dict):
+            return old_lock
+
+    return _read_regular_json_object(target / LOCK_RELATIVE)
+
+
+def _add_post_apply_guidance(
+    payload: dict[str, Any],
+    previous_lock: dict[str, Any] | None,
+) -> None:
+    if payload.get("status") not in {"applied", "updated", "upgraded"}:
+        return
+    target_value = payload.get("target")
+    if not isinstance(target_value, str):
+        return
+    final_lock = _read_regular_json_object(Path(target_value) / LOCK_RELATIVE)
+    if final_lock is None:
+        return
+    payload.update(
+        build_post_apply_guidance(
+            final_lock,
+            previous_lock=previous_lock,
+        )
+    )
+
+
+def _run_adapter(
+    adapter: Callable[[], int],
+    *,
+    remediate: bool,
+    post_apply: bool,
+) -> int:
+    """Run an internal adapter and present its public JSON response."""
+
+    previous_lock = _previous_lock_for_apply() if post_apply else None
     stream = io.StringIO()
     try:
         with redirect_stdout(stream):
@@ -149,8 +217,18 @@ def _run_managed_adapter(adapter: Callable[[], int]) -> int:
     if not isinstance(payload, dict):
         print(rendered, end="")
         return status
-    print(json.dumps(remediate_payload(payload), ensure_ascii=False, indent=2))
+
+    presented = remediate_payload(payload) if remediate else payload
+    if status == 0 and post_apply:
+        _add_post_apply_guidance(presented, previous_lock)
+    print(json.dumps(presented, ensure_ascii=False, indent=2))
     return status
+
+
+def _run_managed_adapter(adapter: Callable[[], int], *, post_apply: bool = False) -> int:
+    """Run an internal managed adapter and improve its public JSON presentation."""
+
+    return _run_adapter(adapter, remediate=True, post_apply=post_apply)
 
 
 def _emit_validation(payload: dict[str, object]) -> None:
@@ -277,18 +355,22 @@ def main() -> int:
 
     mode = _mode_from_argv()
     if mode is None:
+        if command == "apply":
+            return _run_adapter(_initial_main, remediate=False, post_apply=True)
         return _initial_main()
     if mode == "initial":
         _remove_initial_mode()
+        if command == "apply":
+            return _run_adapter(_initial_main, remediate=False, post_apply=True)
         return _initial_main()
     if mode == "upgrade":
         from composer_upgrade import main as upgrade_main
 
-        return _run_managed_adapter(upgrade_main)
+        return _run_managed_adapter(upgrade_main, post_apply=command == "apply")
     if mode == "update" and command == "apply":
         from composer_apply import main as apply_main
 
-        return _run_managed_adapter(apply_main)
+        return _run_managed_adapter(apply_main, post_apply=True)
     from composer_update_plan import main as update_plan_main
 
     return _run_managed_adapter(update_plan_main)
