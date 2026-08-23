@@ -439,8 +439,9 @@ def _render_human(result: dict[str, Any]) -> None:
     for check in result["checks"]:
         label = check["status"].upper()
         print(f"{label}: {check['id']} ({check['component']})")
-        if check["status"] in {"failed", "deferred"} and check["stderr"]:
-            print(f"  {check['stderr'].strip()}")
+        detail = check.get("stderr") or check.get("stdout")
+        if check["status"] in {"failed", "deferred"} and detail:
+            print(f"  {detail.strip()}")
     print(f"Composition validation: {result['status'].upper()}")
 
 
