@@ -129,8 +129,8 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn('policy: "Policy"', source)
         self.assertNotIn('skill: "Skill"', source)
         self.assertNotIn('webapp: "Webapp"', source)
-        self.assertIn("`${strings.external_term_prefix}${owner}`", source)
-        self.assertIn("`${strings.repository_term_prefix}${owner}`", source)
+        self.assertIn("`${strings.external_term_prefix} ${owner}`", source)
+        self.assertIn("`${strings.repository_term_prefix} ${owner}`", source)
 
     def test_enhanced_trigger_uses_native_button_dialog_semantics(self) -> None:
         source = JS.read_text(encoding="utf-8")
