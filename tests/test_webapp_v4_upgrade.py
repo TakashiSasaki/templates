@@ -180,10 +180,13 @@ class WebappV4UpgradeTests(unittest.TestCase):
                 ["lifecycle.release-bundle"],
             )
 
-    def test_upgrade_can_drop_release_lifecycle_and_preserve_old_release_seeds_as_extras(self) -> None:
+    def test_upgrade_can_drop_release_lifecycle_after_consumer_cleans_preserved_seeds(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             target = self.materialize_simulated_v3_webapp(root)
+            original_seed_bytes = {
+                relative: (target / relative).read_bytes() for relative in RELEASE_SEEDS
+            }
             upgrade_config = self.write_config(
                 root,
                 "upgrade-minimal.json",
@@ -229,14 +232,37 @@ class WebappV4UpgradeTests(unittest.TestCase):
             destinations = {entry["destination"] for entry in lock["files"]}
             self.assertFalse(resolved & RELEASE_COMPONENTS)
             self.assertFalse(destinations & RELEASE_SEEDS)
-            for relative in RELEASE_SEEDS:
-                self.assertTrue((target / relative).is_file(), relative)
+            for relative, expected_bytes in original_seed_bytes.items():
+                self.assertEqual((target / relative).read_bytes(), expected_bytes, relative)
             self.assertFalse(
                 (
                     target
                     / ".template-composition/validators/validate_release_bundle.py"
                 ).exists()
             )
+
+            # Preserved release seeds remain ordinary consumer files, but contracts/
+            # is a closed active registry. Until the consumer archives or removes the
+            # retired release documents, semantic validation must reject them rather
+            # than silently treating file existence as lifecycle selection authority.
+            result, validation = self.run_composer(
+                "validate",
+                "--target",
+                str(target),
+            )
+            self.assertEqual(result.returncode, 2, validation)
+            self.assertEqual(validation["status"], "invalid")
+            self.assertTrue(
+                any("unregistered contract document" in error for error in validation["errors"])
+            )
+
+            archive = target / "release-history"
+            archive.mkdir()
+            for relative, expected_bytes in original_seed_bytes.items():
+                source = target / relative
+                destination = archive / Path(relative).name
+                source.replace(destination)
+                self.assertEqual(destination.read_bytes(), expected_bytes)
 
             result, validation = self.run_composer(
                 "validate",
