@@ -178,6 +178,48 @@ def test_direct_cli_init_uses_installed_full_sha_in_config_and_lock(
     assert lock["toolchain"] == expected
 
 
+def test_direct_cli_adopt_prepare_uses_installed_full_sha_in_all_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "AGENTS.md").write_text("handwritten instructions\n", encoding="utf-8")
+    monkeypatch.setattr(
+        identity,
+        "distribution",
+        lambda _name: FakeDistribution(
+            vcs_direct_url(requested=FULL_SHA, commit_id=FULL_SHA)
+        ),
+    )
+
+    result = cli.main(
+        [
+            "--repository",
+            str(tmp_path),
+            "adopt",
+            "prepare",
+            "--apply",
+            "--no-verification",
+            "--no-skills",
+        ]
+    )
+
+    assert result == 0
+    config = load_yaml(tmp_path / ".agent-policy.yml")
+    lock = load_yaml(tmp_path / ".agent-policy.lock")
+    adoption = load_yaml(tmp_path / ".agent-policy/adoption.json")
+    assert isinstance(config, dict)
+    assert isinstance(lock, dict)
+    assert isinstance(adoption, dict)
+    expected = {
+        "repository": "TakashiSasaki/templates",
+        "revision": FULL_SHA,
+    }
+    assert config["toolchain"] == expected
+    assert lock["toolchain"] == expected
+    assert adoption["toolchain"] == expected
+
+
 def test_consumer_state_schemas_require_full_sha() -> None:
     config_schema = json.loads(
         (ROOT / "schemas/agent-policy.schema.json").read_text(encoding="utf-8")
