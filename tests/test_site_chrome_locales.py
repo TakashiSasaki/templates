@@ -42,6 +42,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "update_available": "Update available.",
                         "published_changed": "The published page changed.",
                         "reload": "Reload",
+                        "offline_unavailable": "This page is unavailable while offline.",
                     },
                 },
                 {
@@ -60,6 +61,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
                         "update_available": "更新があります。",
                         "published_changed": "公開済みページが更新されました。",
                         "reload": "再読み込み",
+                        "offline_unavailable": "オフラインのため、このページを表示できません。",
                     },
                 },
             ],
@@ -82,6 +84,10 @@ class SiteChromeLocaleTests(unittest.TestCase):
 
         self.assertEqual(pwa_freshness_strings(model, "en")["reload"], "Reload")
         self.assertEqual(
+            pwa_freshness_strings(model, "en")["offline_unavailable"],
+            "This page is unavailable while offline.",
+        )
+        self.assertEqual(
             pwa_freshness_strings(model, "ja")["saved_copy"],
             "保存済みのコピーです。",
         )
@@ -90,6 +96,10 @@ class SiteChromeLocaleTests(unittest.TestCase):
             "最新版であることを確認できませんでした。",
         )
         self.assertEqual(pwa_freshness_strings(model, "ja")["reload"], "再読み込み")
+        self.assertEqual(
+            pwa_freshness_strings(model, "ja")["offline_unavailable"],
+            "オフラインのため、このページを表示できません。",
+        )
 
     def test_primary_language_fallback_is_used_for_registered_locale(self) -> None:
         model = load_site_chrome_locales(SITE_CHROME_LOCALES)
@@ -158,9 +168,12 @@ class SiteChromeLocaleTests(unittest.TestCase):
                 load_site_chrome_locales(path)
 
             blank_pwa = json.loads(json.dumps(valid))
-            blank_pwa["locales"][1]["pwa_freshness"]["reload"] = "   "
+            blank_pwa["locales"][1]["pwa_freshness"]["offline_unavailable"] = "   "
             self.write(path, blank_pwa)
-            with self.assertRaisesRegex(SiteChromeLocaleError, "pwa_freshness.reload"):
+            with self.assertRaisesRegex(
+                SiteChromeLocaleError,
+                "pwa_freshness.offline_unavailable",
+            ):
                 load_site_chrome_locales(path)
 
     def test_reader_and_pwa_fields_must_be_exact(self) -> None:
@@ -168,7 +181,7 @@ class SiteChromeLocaleTests(unittest.TestCase):
             path = Path(directory) / "locales.json"
             for section, field_name in (
                 ("translation_reader", "group_label"),
-                ("pwa_freshness", "reload"),
+                ("pwa_freshness", "offline_unavailable"),
             ):
                 for mutation in ("missing", "extra"):
                     payload = self.payload()
