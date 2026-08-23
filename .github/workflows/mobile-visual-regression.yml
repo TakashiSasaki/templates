@@ -101,6 +101,12 @@ jobs:
             --site-root build/site \
             --output-root build/mobile-visual
 
+      - name: Check localized inline Glossary chrome
+        run: |
+          python scripts/check_glossary_locale_chrome.py \
+            --site-root build/site \
+            --output build/mobile-visual/glossary-locale-chrome.json
+
       - name: Check PWA freshness lifecycle
         run: |
           python scripts/check_pwa_freshness.py \

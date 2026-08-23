@@ -24,6 +24,18 @@ PWA_FRESHNESS_FIELDS = {
     "reload",
     "offline_unavailable",
 }
+GLOSSARY_INLINE_FIELDS = {
+    "eyebrow",
+    "close_definition",
+    "open_in_glossary",
+    "definition_unavailable",
+    "cached_unverified",
+    "external_term_prefix",
+    "repository_term_prefix",
+    "data_unavailable",
+    "definition_load_failed",
+    "definition_not_found",
+}
 
 
 class SiteChromeLocaleError(RuntimeError):
@@ -99,9 +111,10 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
             "language_label",
             "translation_reader",
             "pwa_freshness",
+            "glossary_inline",
         }:
             raise SiteChromeLocaleError(
-                f"{field} must contain language, language_label, translation_reader, and pwa_freshness"
+                f"{field} must contain language, language_label, translation_reader, pwa_freshness, and glossary_inline"
             )
         language = raw["language"]
         if not isinstance(language, str) or not LANGUAGE_TAG.fullmatch(language):
@@ -126,6 +139,11 @@ def load_site_chrome_locales(path: Path) -> dict[str, Any]:
                 raw["pwa_freshness"],
                 field=f"{field}.pwa_freshness",
                 required_fields=PWA_FRESHNESS_FIELDS,
+            ),
+            "glossary_inline": _normalized_strings(
+                raw["glossary_inline"],
+                field=f"{field}.glossary_inline",
+                required_fields=GLOSSARY_INLINE_FIELDS,
             ),
         }
 
@@ -166,6 +184,13 @@ def pwa_freshness_strings(model: dict[str, Any], language: str) -> dict[str, str
     if locale is None:
         locale = model["locales"][model["canonical_language"]]
     return locale["pwa_freshness"]
+
+
+def glossary_inline_strings(model: dict[str, Any], language: str) -> dict[str, str]:
+    locale = locale_record(model, language)
+    if locale is None:
+        locale = model["locales"][model["canonical_language"]]
+    return locale["glossary_inline"]
 
 
 def translation_status(model: dict[str, Any], language: str) -> str:

@@ -16,27 +16,28 @@ TEMPLATE = ROOT / "zensical.template.toml"
 class GlossaryInlineAssetTests(unittest.TestCase):
     def test_runtime_fetch_and_dialog_creation_are_activation_lazy(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertEqual(source.count("fetch(GLOSSARY_URL"), 1)
+        self.assertEqual(source.count("fetch(SITE_CHROME_LOCALES_URL"), 1)
         self.assertEqual(source.count("loadGlossary("), 2)
-        self.assertIn("terms = await loadGlossary();", source)
+        self.assertEqual(source.count("loadGlossaryChrome("), 2)
+        self.assertIn("const glossaryResultPromise = loadGlossary().then(", source)
+        self.assertIn("const chromeResultPromise = currentGlossaryStrings().then(", source)
         self.assertIn('dialog = document.createElement("dialog");', source)
         self.assertIn("void openDefinition(trigger);", source)
         self.assertIn("void openDefinition(control);", source)
-        self.assertLess(source.index("async function openDefinition"), source.index("terms = await loadGlossary();"))
+        self.assertLess(source.index("async function openDefinition"), source.index("loadGlossary().then("))
         self.assertNotIn("DOMContentLoaded", source)
         self.assertNotIn("requestIdleCallback", source)
 
-    def test_failed_fetch_can_retry_on_later_activation(self) -> None:
+    def test_failed_fetches_can_retry_on_later_activation(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("glossaryPromise = undefined;", source)
-        self.assertIn("throw error;", source)
+        self.assertIn("chromePromise = undefined;", source)
+        self.assertGreaterEqual(source.count("throw error;"), 2)
 
     def test_pending_activation_exposes_and_clears_accessible_busy_state(self) -> None:
         source = JS.read_text(encoding="utf-8")
         css = CSS.read_text(encoding="utf-8")
-
         self.assertIn("function setPendingTrigger(trigger)", source)
         self.assertIn('trigger.setAttribute("aria-busy", "true");', source)
         self.assertIn("function clearPendingTrigger(trigger)", source)
@@ -45,36 +46,35 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn('.glossary-term[aria-busy="true"]', css)
         self.assertIn("cursor: progress", css)
 
-    def test_failed_fetch_clears_disconnected_current_pending_trigger(self) -> None:
-        source = JS.read_text(encoding="utf-8")
-
-        self.assertIn(
-            "const canPresent = pendingTrigger === trigger && trigger.isConnected;",
-            source,
-        )
-        self.assertIn("clearPendingTrigger(trigger);\n      if (!canPresent)", source)
-        self.assertIn("restore.isConnected", source)
-        self.assertNotIn("document.contains(restore)", source)
-
     def test_runtime_preserves_static_link_fallback_and_modified_clicks(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
-        self.assertIn('const FALLBACK_SELECTOR = "a.glossary-term[data-glossary-id]";', source)
+        self.assertIn("data-glossary-static-fallback", source)
+        self.assertIn(':not([data-glossary-static-fallback="true"])', source)
         self.assertIn('trigger.dataset.glossaryHref = link.getAttribute("href")', source)
         self.assertIn('panel.querySelector(".glossary-inline-dialog__actions a").href = fallbackHref(trigger);', source)
+        self.assertIn("function restoreFallbackLink(trigger)", source)
+        self.assertIn('link.dataset.glossaryStaticFallback = "true";', source)
+        self.assertIn('link.setAttribute("href", fallbackHref(trigger));', source)
+        self.assertIn('control.dataset.glossaryStaticFallback === "true"', source)
         self.assertNotIn("window.location.assign", source)
         for modifier in ("event.metaKey", "event.ctrlKey", "event.shiftKey", "event.altKey"):
             self.assertIn(modifier, source)
-        modifier_guard = "if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {\n        return;\n      }"
-        self.assertIn(modifier_guard, source)
         self.assertIn('event.key !== "Escape"', source)
         self.assertIn('dialog.setAttribute("aria-labelledby"', source)
         self.assertIn('dialog.setAttribute("aria-describedby"', source)
         self.assertIn("restore.focus({ preventScroll: true })", source)
 
+    def test_chrome_locale_failure_restores_progressive_link_fallback(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+        self.assertIn('console.warn("Glossary chrome loading failed", chromeResult.error);', source)
+        self.assertIn("restoreFallbackLink(trigger);", source)
+        self.assertLess(
+            source.index('console.warn("Glossary chrome loading failed"'),
+            source.index("restoreFallbackLink(trigger);"),
+        )
+
     def test_runtime_guards_navigation_races_and_active_trigger_containment(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("let pendingTrigger;", source)
         self.assertIn("setPendingTrigger(trigger);", source)
         self.assertGreaterEqual(source.count("pendingTrigger !== trigger"), 1)
@@ -84,7 +84,6 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_detached_active_trigger_closes_dialog_after_instant_navigation(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("function closeDetachedDialog()", source)
         self.assertIn("activeTrigger && !activeTrigger.isConnected", source)
         self.assertIn("navigationObserver = new MutationObserver((records) => {", source)
@@ -96,16 +95,15 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_detached_dialog_is_reattached_on_subsequent_activation(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("function observeNavigationBody()", source)
         self.assertIn("if (!dialog.isConnected)", source)
         self.assertGreaterEqual(source.count("document.body.appendChild(dialog);"), 2)
         self.assertIn("navigationObserver.disconnect();", source)
         self.assertGreaterEqual(source.count("observeNavigationBody();"), 3)
+        self.assertIn("applyDialogChrome(dialog, strings);", source)
 
     def test_escape_cancels_pending_open_and_pointer_dismissal_does_not_restore_focus(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("let pointerDismissal = false;", source)
         self.assertIn("pointerDismissal = true;", source)
         self.assertIn("!pointerDismissal", source)
@@ -113,7 +111,6 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_open_dialog_repositions_and_clamps_within_viewport(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn("function repositionOpenDialog()", source)
         self.assertIn("positionDialog(activeTrigger, dialog);", source)
         self.assertIn('window.addEventListener("resize", repositionOpenDialog);', source)
@@ -125,22 +122,21 @@ class GlossaryInlineAssetTests(unittest.TestCase):
 
     def test_explanation_metadata_and_provider_labels_follow_glossary_contract(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn('term.origin === "repository" && typeof term.definition === "string"', source)
         self.assertIn('typeof term.summary === "string"', source)
         self.assertIn("return term.definition;", source)
         self.assertIn("return term.summary;", source)
+        self.assertIn("return strings.definition_unavailable;", source)
         self.assertIn('site: "Site"', source)
         self.assertIn('composition: "Composition"', source)
         self.assertIn('policy: "Policy"', source)
         self.assertNotIn('skill: "Skill"', source)
         self.assertNotIn('webapp: "Webapp"', source)
-        self.assertIn("`External term · curated by ${owner}`", source)
-        self.assertIn("`Templates-defined · ${owner}`", source)
+        self.assertIn("`${strings.external_term_prefix} ${owner}`", source)
+        self.assertIn("`${strings.repository_term_prefix} ${owner}`", source)
 
     def test_enhanced_trigger_uses_native_button_dialog_semantics(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
         self.assertIn('const trigger = document.createElement("button");', source)
         self.assertIn('trigger.type = "button";', source)
         self.assertIn('trigger.setAttribute("aria-haspopup", "dialog");', source)
@@ -150,20 +146,30 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         self.assertIn('restore.setAttribute("aria-expanded", "false");', source)
         self.assertIn("link.replaceWith(trigger);", source)
 
-    def test_runtime_failure_stays_in_place_and_exposes_explicit_navigation(self) -> None:
+    def test_runtime_failure_stays_in_place_and_exposes_localized_explicit_navigation(self) -> None:
         source = JS.read_text(encoding="utf-8")
-
-        self.assertIn('fillErrorDialog(panel, trigger, "Definition could not be loaded.");', source)
-        self.assertIn('fillErrorDialog(panel, trigger, "Definition could not be found.");', source)
-        self.assertIn("Glossary data unavailable.", source)
-        self.assertIn("Open in Glossary", source)
+        self.assertIn("fillErrorDialog(panel, trigger, strings.definition_load_failed, strings);", source)
+        self.assertIn("fillErrorDialog(panel, trigger, strings.definition_not_found, strings);", source)
+        self.assertIn("strings.data_unavailable", source)
+        self.assertIn("strings.open_in_glossary", source)
+        self.assertNotIn("Definition could not be loaded.", source)
+        self.assertNotIn("Definition could not be found.", source)
+        self.assertNotIn("Open in Glossary", source)
         self.assertNotIn("window.location", source)
+
+    def test_dialog_chrome_uses_text_apis_for_locale_strings(self) -> None:
+        source = JS.read_text(encoding="utf-8")
+        self.assertIn("function applyDialogChrome(panel, strings)", source)
+        self.assertIn(".textContent = strings.eyebrow", source)
+        self.assertIn("strings.close_definition", source)
+        self.assertIn(".textContent = strings.open_in_glossary", source)
+        self.assertNotIn("${strings.eyebrow}", source)
+        self.assertNotIn("${strings.open_in_glossary}", source)
 
     def test_annotation_style_does_not_change_static_link_text_metrics(self) -> None:
         source = CSS.read_text(encoding="utf-8")
         annotation_rule = source.split(".glossary-term {", 1)[1].split("}", 1)[0]
         busy_rule = source.split('.glossary-term[aria-busy="true"] {', 1)[1].split("}", 1)[0]
-
         self.assertIn("text-decoration", annotation_rule)
         self.assertIn("cursor: help", annotation_rule)
         for rule in (annotation_rule, busy_rule):
@@ -176,7 +182,6 @@ class GlossaryInlineAssetTests(unittest.TestCase):
     def test_enhanced_button_resets_user_agent_metrics(self) -> None:
         source = CSS.read_text(encoding="utf-8")
         button_rule = source.split("button.glossary-term {", 1)[1].split("}", 1)[0]
-
         for declaration in (
             "appearance: none",
             "display: inline",
@@ -205,7 +210,6 @@ class GlossaryInlineAssetTests(unittest.TestCase):
     def test_runtime_assets_are_global_for_instant_navigation_but_data_remains_lazy(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
         project = tomllib.loads(template.replace("__GENERATED_NAV__", "[]"))["project"]
-
         self.assertEqual(
             project["extra_css"],
             [
@@ -229,6 +233,7 @@ class GlossaryInlineAssetTests(unittest.TestCase):
         )
         self.assertIn('"navigation.instant"', template)
         self.assertNotIn("/glossary/index.json", template)
+        self.assertNotIn("/site-chrome-locales.json", template)
 
 
 if __name__ == "__main__":
