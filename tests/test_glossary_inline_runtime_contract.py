@@ -12,7 +12,6 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
             encoding="utf-8"
         )
-
         self.assertIn('document.createElement("button")', script)
         self.assertIn('trigger.type = "button"', script)
         self.assertIn('trigger.dataset.glossaryHref', script)
@@ -24,26 +23,46 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
             encoding="utf-8"
         )
-
         self.assertIn("while (link.firstChild)", script)
         self.assertIn("trigger.appendChild(link.firstChild)", script)
         self.assertNotIn("trigger.textContent = link.textContent", script)
 
-    def test_runtime_never_uses_implicit_navigation_after_enhancement(self) -> None:
+    def test_runtime_keeps_explicit_fallback_without_implicit_navigation(self) -> None:
         script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
             encoding="utf-8"
         )
-
         self.assertNotIn("window.location.assign", script)
-        self.assertIn("Definition could not be loaded.", script)
-        self.assertIn("Definition could not be found.", script)
-        self.assertIn("Open in Glossary", script)
+        self.assertNotIn("window.location =", script)
+        self.assertIn("function restoreFallbackLink(trigger)", script)
+        self.assertIn('link.setAttribute("href", fallbackHref(trigger));', script)
+        self.assertIn("restoreFallbackLink(trigger);", script)
+        self.assertIn("strings.definition_load_failed", script)
+        self.assertIn("strings.definition_not_found", script)
+        self.assertIn("strings.open_in_glossary", script)
+
+    def test_glossary_chrome_is_resolved_from_shared_locale_registry(self) -> None:
+        script = (ROOT / "assets/javascripts/glossary-inline.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('const SITE_CHROME_LOCALES_URL = "/site-chrome-locales.json";', script)
+        self.assertIn("function parseGlossaryChrome(value)", script)
+        self.assertIn("function glossaryStrings(model, language)", script)
+        self.assertIn("model.locales.get(primary)", script)
+        self.assertIn("model.locales.get(model.canonicalLanguage)", script)
+        self.assertIn("document.documentElement?.lang", script)
+        for literal in (
+            "Close definition",
+            "Open in Glossary",
+            "Definition could not be loaded.",
+            "Definition could not be found.",
+            "Saved glossary data · latest version not verified.",
+        ):
+            self.assertNotIn(literal, script)
 
     def test_glossary_controls_have_non_navigation_visual_semantics(self) -> None:
         stylesheet = (ROOT / "assets/stylesheets/glossary-inline.css").read_text(
             encoding="utf-8"
         )
-
         self.assertIn("cursor: help", stylesheet)
         self.assertIn("button.glossary-term", stylesheet)
         self.assertIn("appearance: none", stylesheet)
@@ -55,7 +74,6 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         dialog_rule = stylesheet.split(".glossary-inline-dialog {", 1)[1].split("}", 1)[0]
-
         fallback = "background: var(--md-default-bg-color, Canvas);"
         tint = "background: color-mix("
         self.assertIn(fallback, dialog_rule)
@@ -72,7 +90,6 @@ class GlossaryInlineRuntimeContractTests(unittest.TestCase):
         definition_rule = stylesheet.split(
             ".glossary-inline-dialog__definition {", 1
         )[1].split("}", 1)[0]
-
         self.assertIn("var(--md-primary-fg-color, #3f51b5) 30%", dialog_rule)
         self.assertIn("var(--md-primary-fg-color, #3f51b5) 14%", dialog_rule)
         self.assertIn("font-size: 0.9rem;", definition_rule)
