@@ -23,6 +23,7 @@ EXPECTED_JA = {
     "reload": "再読み込み",
     "offline_unavailable": "オフラインのため、このページを表示できません。",
 }
+EXPECTED_EN_OFFLINE = "This page is unavailable while offline."
 
 
 class PwaLocaleChromeError(RuntimeError):
@@ -132,6 +133,16 @@ def _wait_for_document_cache(page: Any) -> None:
     )
 
 
+def _offline_fetch(page: Any, path: str) -> dict[str, Any]:
+    return page.evaluate(
+        """async (path) => {
+          const response = await fetch(path);
+          return { status: response.status, body: await response.text() };
+        }""",
+        path,
+    )
+
+
 def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     required = (
         site_root / "service-worker.js",
@@ -224,20 +235,27 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                 )
             evidence["cached_unverified"] = cached_text
 
-            miss = page.evaluate(
-                """async () => {
-                  const response = await fetch("/ja/__pwa-locale-cache-miss__/");
-                  return { status: response.status, body: await response.text() };
-                }"""
-            )
+            ja_miss = _offline_fetch(page, "/ja/__pwa-locale-cache-miss__/")
             if (
-                miss["status"] != 503
-                or EXPECTED_JA["offline_unavailable"] not in miss["body"]
+                ja_miss["status"] != 503
+                or EXPECTED_JA["offline_unavailable"] not in ja_miss["body"]
             ):
                 raise PwaLocaleChromeError(
-                    f"Japanese offline cache-miss response mismatch: {miss!r}"
+                    f"Japanese offline cache-miss response mismatch: {ja_miss!r}"
                 )
-            evidence["offline_cache_miss"] = miss
+            evidence["offline_cache_miss"] = ja_miss
+
+            canonical_miss = _offline_fetch(page, "/de/__pwa-locale-cache-miss__/")
+            if (
+                canonical_miss["status"] != 503
+                or EXPECTED_EN_OFFLINE not in canonical_miss["body"]
+                or EXPECTED_JA["offline_unavailable"] in canonical_miss["body"]
+            ):
+                raise PwaLocaleChromeError(
+                    "unregistered locale did not fall back to canonical English: "
+                    f"{canonical_miss!r}"
+                )
+            evidence["unregistered_locale_cache_miss"] = canonical_miss
             context.set_offline(False)
             browser.close()
     finally:
