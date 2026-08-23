@@ -21,8 +21,15 @@
 </head>
 <body>
   <div class="layout">
-    <main id="main-content" data-surface="__SURFACE__" data-state="__STATE__">
-      <h1 tabindex="-1">__MESSAGE__</h1>
+    <main id="main-content"
+          data-surface="__SURFACE__"
+          data-state="__STATE__"
+          data-focus-strategy="__FOCUS_STRATEGY__"
+          data-recovery-actions="__RECOVERY_ACTIONS__">
+      <h1 id="main-heading" tabindex="-1">__MESSAGE__</h1>
+      <div id="state-announcement" aria-live="__ANNOUNCEMENT__">__MESSAGE__</div>
+      <div id="error-summary" tabindex="-1">Recoverable error summary</div>
+      <div id="error-heading" tabindex="-1">Fatal error heading</div>
       <p class="scroll-region">Responsive fixture content for contract verification.</p>
       <button type="button" id="primary-action">Continue</button>
     </main>
