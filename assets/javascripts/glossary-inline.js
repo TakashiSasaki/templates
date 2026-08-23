@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const FALLBACK_SELECTOR = "a.glossary-term[data-glossary-id]";
+  const FALLBACK_SELECTOR =
+    'a.glossary-term[data-glossary-id]:not([data-glossary-static-fallback="true"])';
   const TRIGGER_SELECTOR = "button.glossary-term[data-glossary-id]";
   const CONTROL_SELECTOR = ".glossary-term[data-glossary-id]";
   const DIALOG_ID = "glossary-inline-dialog";
@@ -214,6 +215,7 @@
     if (termId) {
       link.dataset.glossaryId = termId;
     }
+    link.dataset.glossaryStaticFallback = "true";
     link.setAttribute("href", fallbackHref(trigger));
     trigger.replaceWith(link);
     return link;
@@ -511,6 +513,9 @@
     }
 
     if (control instanceof HTMLAnchorElement) {
+      if (control.dataset.glossaryStaticFallback === "true") {
+        return;
+      }
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
