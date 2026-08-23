@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
@@ -12,19 +11,15 @@ from .commands import onboard as onboard_command
 from .commands import render as render_command
 from .commands import validate as validate_command
 from .diagnostics import print_diagnostics
+from .identity import immutable_toolchain_reference, resolve_toolchain_revision
 from .paths import find_repository_root
 
 
-def current_revision() -> str:
+def immutable_revision_argument(value: str) -> str:
     try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).resolve().parents[2],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        return "LOCAL-DEVELOPMENT"
+        return immutable_toolchain_reference(value)["revision"]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def parser() -> argparse.ArgumentParser:
@@ -41,7 +36,7 @@ def parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init", help=argparse.SUPPRESS)
     init.add_argument("--config", default=".agent-policy.yml")
     init.add_argument("--apply", action="store_true")
-    init.add_argument("--toolchain-revision", default=current_revision())
+    init.add_argument("--toolchain-revision", type=immutable_revision_argument)
     init.add_argument("--profile", action="append", dest="profiles")
     init.add_argument("--project-policy")
     verification = init.add_mutually_exclusive_group()
@@ -72,7 +67,7 @@ def parser() -> argparse.ArgumentParser:
     prepare.add_argument("--config", default=".agent-policy.yml")
     prepare.add_argument("--state", default=adopt_command.DEFAULT_STATE_PATH)
     prepare.add_argument("--apply", action="store_true")
-    prepare.add_argument("--toolchain-revision", default=current_revision())
+    prepare.add_argument("--toolchain-revision", type=immutable_revision_argument)
     prepare.add_argument("--profile", action="append", dest="profiles")
     prepare.add_argument("--primary-instructions", default=None)
     prepare.add_argument("--project-policy", action="append", dest="project_policy_files")
@@ -117,6 +112,18 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"ERROR REPOSITORY: {exc}", file=sys.stderr)
         return 2
+
+    needs_revision = args.command == "init" or (
+        args.command == "adopt" and args.adopt_command == "prepare"
+    )
+    toolchain_revision: str | None = None
+    if needs_revision:
+        try:
+            toolchain_revision = resolve_toolchain_revision(args.toolchain_revision)
+        except ValueError as exc:
+            print(f"ERROR TOOLCHAIN: {exc}", file=sys.stderr)
+            return 2
+
     if args.command == "validate":
         diagnostics = validate_command.run(repository_root, args.config)
     elif args.command == "render":
@@ -131,11 +138,12 @@ def main(argv: list[str] | None = None) -> int:
                 state_path=args.state,
             )
         elif args.adopt_command == "prepare":
+            assert toolchain_revision is not None
             diagnostics = onboard_command.prepare_run(
                 repository_root,
                 args.config,
                 apply=args.apply,
-                toolchain_revision=args.toolchain_revision,
+                toolchain_revision=toolchain_revision,
                 profiles=args.profiles or ["core", "security-baseline"],
                 primary_instructions=args.primary_instructions,
                 state_path=args.state,
@@ -157,12 +165,13 @@ def main(argv: list[str] | None = None) -> int:
                 apply=args.apply,
             )
     else:
+        assert toolchain_revision is not None
         project_policy_files = [args.project_policy] if args.project_policy else None
         diagnostics = init_command.run(
             repository_root,
             args.config,
             apply=args.apply,
-            toolchain_revision=args.toolchain_revision,
+            toolchain_revision=toolchain_revision,
             profiles=args.profiles or ["core", "security-baseline"],
             project_policy_files=project_policy_files,
             verification_command=args.verification_command,
