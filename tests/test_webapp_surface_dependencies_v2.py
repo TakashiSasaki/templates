@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
 import sys
+import types
 import unittest
 from pathlib import Path
 
@@ -14,16 +14,18 @@ WEBAPP = ROOT / "components" / "artifact.webapp-core" / "files"
 VALIDATOR_IMPL = WEBAPP / "scripts" / "validate_contracts_impl.py"
 
 
-def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
+def load_module_without_bytecode(name: str, path: Path):
+    module = types.ModuleType(name)
+    module.__file__ = str(path)
     sys.modules[name] = module
-    spec.loader.exec_module(module)
+    source = path.read_text(encoding="utf-8")
+    exec(compile(source, str(path), "exec"), module.__dict__)
     return module
 
 
-validator_impl = load_module("webapp_surface_dependencies_v2_validator", VALIDATOR_IMPL)
+validator_impl = load_module_without_bytecode(
+    "webapp_surface_dependencies_v2_validator", VALIDATOR_IMPL
+)
 
 
 def load_json(path: Path) -> object:
