@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from runtime import (
+    cli_command,
     ensure_runtime,
-    executable_path,
     load_manifest,
     pin_from_manifest,
     sanitized_environment,
@@ -40,8 +40,8 @@ class Inspection:
 
 
 class Toolchain:
-    def __init__(self, executable: Path, cwd: Path) -> None:
-        self.executable = executable
+    def __init__(self, command: list[str], cwd: Path) -> None:
+        self.command = tuple(command)
         self.cwd = cwd
 
     def run(
@@ -51,7 +51,7 @@ class Toolchain:
         capture_output: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [str(self.executable), *arguments],
+            [*self.command, *arguments],
             cwd=self.cwd,
             env=sanitized_environment(),
             text=True,
@@ -244,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         root = repository_root(args.repository)
         pin = pin_from_manifest(manifest)
         runtime = ensure_runtime(pin)
-        runner = Toolchain(executable_path(runtime, pin.executable), root)
+        runner = Toolchain(cli_command(runtime), root)
 
         print(f"Toolchain: {pin.repository}@{pin.revision}")
         print(f"Repository: {root}")

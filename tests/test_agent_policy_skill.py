@@ -57,6 +57,15 @@ def identity(
     )
 
 
+def write_fake_runtime_entrypoints(target: Path, executable_name: str) -> None:
+    python = runtime.venv_python(target)
+    python.parent.mkdir(parents=True, exist_ok=True)
+    python.write_text("cached-python", encoding="utf-8")
+    executable = runtime.executable_path(target, executable_name)
+    executable.parent.mkdir(parents=True, exist_ok=True)
+    executable.write_text("cached-executable", encoding="utf-8")
+
+
 def test_single_skill_layout_and_release_pin() -> None:
     expected = {
         "README.md",
@@ -188,6 +197,16 @@ def test_runtime_identity_separates_revision_lock_python_and_platform() -> None:
     assert len({base.digest(), *(item.digest() for item in variants)}) == 5
 
 
+def test_cli_command_uses_cached_python_module_entrypoint(tmp_path: Path) -> None:
+    target = tmp_path / "runtime"
+    assert runtime.cli_command(target) == [
+        str(runtime.venv_python(target)),
+        "-I",
+        "-m",
+        "agent_policy.cli",
+    ]
+
+
 def test_valid_default_cache_hit_requires_no_network(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -202,9 +221,7 @@ def test_valid_default_cache_hit_requires_no_network(
     )
     target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)
-    executable = runtime.executable_path(target, pin.executable)
-    executable.parent.mkdir(parents=True)
-    executable.write_text("cached", encoding="utf-8")
+    write_fake_runtime_entrypoints(target, pin.executable)
     runtime.marker_path(target).write_text(
         json.dumps(runtime.expected_marker(cache_identity, pin)),
         encoding="utf-8",
@@ -237,9 +254,7 @@ def test_cached_nondefault_revision_can_be_reused_offline(tmp_path: Path) -> Non
     )
     target = tmp_path / cache_identity.digest()
     target.mkdir(parents=True)
-    executable = runtime.executable_path(target, pin.executable)
-    executable.parent.mkdir(parents=True)
-    executable.write_text("cached", encoding="utf-8")
+    write_fake_runtime_entrypoints(target, pin.executable)
     runtime.marker_path(target).write_text(
         json.dumps(runtime.expected_marker(cache_identity, pin, "9.9.9")),
         encoding="utf-8",
@@ -270,12 +285,12 @@ def test_cached_runner_places_global_repository_option_before_command(
 ) -> None:
     repository = tmp_path / "repo"
     repository.mkdir()
-    executable = tmp_path / "agent-policy"
-    executable.write_text("", encoding="utf-8")
+    cached_python = tmp_path / "runtime" / "venv" / "python"
+    command_prefix = [str(cached_python), "-I", "-m", "agent_policy.cli"]
     observed: dict[str, object] = {}
 
     monkeypatch.setattr(runner, "find_repository_root", lambda _value: repository)
-    monkeypatch.setattr(runner, "runtime_executable", lambda _value: executable)
+    monkeypatch.setattr(runner, "runtime_command", lambda _value: command_prefix)
     monkeypatch.setattr(
         runner,
         "sanitized_environment",
@@ -296,7 +311,7 @@ def test_cached_runner_places_global_repository_option_before_command(
 
     assert runner.main() == 0
     assert observed["command"] == [
-        str(executable),
+        *command_prefix,
         "--repository",
         str(repository),
         "validate",
