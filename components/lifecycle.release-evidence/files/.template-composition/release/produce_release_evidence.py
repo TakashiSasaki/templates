@@ -7,6 +7,7 @@ import sys
 if not sys.flags.isolated:
     print("release evidence producer requires Python isolated mode (-I)", file=sys.stderr)
     raise SystemExit(2)
+sys.dont_write_bytecode = True
 
 import argparse
 import hashlib
