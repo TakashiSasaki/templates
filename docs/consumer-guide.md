@@ -29,12 +29,12 @@ The supported runner prerequisites are:
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/e643a4ac7c8f82b06f38352f869fe1718b6d4a94/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/2689bec83de815985a87cd287beba9ae414292b3/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `e643a4ac7c8f82b06f38352f869fe1718b6d4a94` installs skill source `06799100af1e2f139a94f24507e33548dd510157`; that skill's runtime manifest selects stable Composition toolchain revision `907da7416b726fb44f14844364c789c675db3477`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `2689bec83de815985a87cd287beba9ae414292b3` installs skill source `da2e169e1a650a2150936ca92d49596286e34a30`; that skill's runtime manifest selects stable Composition toolchain revision `1e982fb4c02e54c683a6d9215a9ca65e72fc0ffc`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
