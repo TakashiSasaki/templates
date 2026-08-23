@@ -7,7 +7,7 @@ from agent_policy.commands import adopt, init, render, validate
 from agent_policy.yamlutil import dump_yaml, load_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-TEST_TOOLCHAIN_SHA = "7" * 40
+TEST_TOOLCHAIN_SHA = "7b" * 20
 
 
 def _write_project_policy(path: Path) -> None:
