@@ -4,9 +4,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+_DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _GIT_CONFIG_OVERRIDES = (
     "-c",
     "core.fsmonitor=false",
@@ -51,16 +52,15 @@ def _execute_git(
     binary: bool = False,
     check: bool = True,
 ) -> subprocess.CompletedProcess:
-    command = [
-        *_git_prefix(),
-        "--git-dir",
-        str(git_dir),
-        "--work-tree",
-        str(root),
-        *arguments,
-    ]
     completed = subprocess.run(
-        command,
+        [
+            *_git_prefix(),
+            "--git-dir",
+            str(git_dir),
+            "--work-tree",
+            str(root),
+            *arguments,
+        ],
         cwd=root,
         env=git_environment(),
         check=False,
@@ -80,13 +80,11 @@ def _execute_git(
 
 
 def _git_text(root: Path, git_dir: Path, *arguments: str) -> str:
-    completed = _execute_git(root, git_dir, arguments)
-    return completed.stdout.strip()
+    return _execute_git(root, git_dir, arguments).stdout.strip()
 
 
 def _git_bytes(root: Path, git_dir: Path, *arguments: str) -> bytes:
-    completed = _execute_git(root, git_dir, arguments, binary=True)
-    return completed.stdout
+    return _execute_git(root, git_dir, arguments, binary=True).stdout
 
 
 def _resolve_repository(root: Path) -> tuple[Path, Path]:
@@ -133,7 +131,11 @@ def _resolve_repository(root: Path) -> tuple[Path, Path]:
     return root, git_dir.resolve()
 
 
-def _candidate_entries(root: Path, git_dir: Path, revision: str) -> list[tuple[str, str, bytes, str]]:
+def _candidate_entries(
+    root: Path,
+    git_dir: Path,
+    revision: str,
+) -> list[tuple[str, str, bytes, str]]:
     raw = _git_bytes(root, git_dir, "ls-tree", "-r", "-z", "--full-tree", revision)
     entries: list[tuple[str, str, bytes, str]] = []
     for encoded in raw.split(b"\0"):
@@ -155,18 +157,30 @@ def _candidate_entries(root: Path, git_dir: Path, revision: str) -> list[tuple[s
     return entries
 
 
-def _assert_no_symlink_ancestors(root: Path, relative: str) -> Path:
-    pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts or any(
-        part in {"", ".", ".."} for part in pure.parts
+def _relative_parts(relative: str) -> tuple[str, ...]:
+    if (
+        not isinstance(relative, str)
+        or not relative
+        or relative.startswith("/")
+        or "\\" in relative
+        or "\x00" in relative
+        or _DRIVE_PREFIX_PATTERN.match(relative)
     ):
         raise CandidateError(f"unsafe repository-relative path: {relative!r}")
+    parts = tuple(relative.split("/"))
+    if any(part in {"", ".", ".."} for part in parts):
+        raise CandidateError(f"unsafe repository-relative path: {relative!r}")
+    return parts
+
+
+def _assert_no_symlink_ancestors(root: Path, relative: str) -> Path:
+    parts = _relative_parts(relative)
     current = root
-    for part in pure.parts[:-1]:
+    for part in parts[:-1]:
         current = current / part
         if current.is_symlink():
             raise CandidateError(f"repository path crosses a symlink: {relative}")
-    return root.joinpath(*pure.parts)
+    return root.joinpath(*parts)
 
 
 def _verify_raw_candidate_bytes(
@@ -181,7 +195,13 @@ def _verify_raw_candidate_bytes(
         if relative in allowed_modified:
             continue
         path = _assert_no_symlink_ancestors(root, relative)
-        candidate_bytes = _git_bytes(root, git_dir, "cat-file", "blob", object_id.decode("ascii"))
+        candidate_bytes = _git_bytes(
+            root,
+            git_dir,
+            "cat-file",
+            "blob",
+            object_id.decode("ascii"),
+        )
         if mode == "120000" and kind == "blob":
             if not path.is_symlink():
                 mismatches.append(relative)
@@ -278,13 +298,12 @@ def verify_candidate(
 def resolve_working_directory(root: Path, relative: str) -> Path:
     if relative == ".":
         return root
-    pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts or any(
-        part in {"", ".", ".."} for part in pure.parts
-    ):
-        raise CandidateError(f"unsafe release working directory: {relative!r}")
+    try:
+        parts = _relative_parts(relative)
+    except CandidateError as exc:
+        raise CandidateError(f"unsafe release working directory: {relative!r}") from exc
     current = root
-    for part in pure.parts:
+    for part in parts:
         current = current / part
         if current.is_symlink():
             raise CandidateError(
