@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "canonical_language": "en",
+  "locales": [
+    {
+      "language": "en",
+      "language_label": "English",
+      "translation_reader": {
+        "group_label": "Document language",
+        "canonical_status": "Canonical English",
+        "canonical_link": "English · Canonical",
+        "translation_status": "English translation · Non-authoritative"
+      }
+    },
+    {
+      "language": "ja",
+      "language_label": "日本語",
+      "translation_reader": {
+        "group_label": "文書の言語",
+        "canonical_status": "英語正本",
+        "canonical_link": "英語 · 正本",
+        "translation_status": "日本語参考訳"
+      }
+    }
+  ]
+}

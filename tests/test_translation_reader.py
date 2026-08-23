@@ -77,6 +77,7 @@ class TranslationReaderTests(unittest.TestCase):
 
             self.assertIn('lang="en"', canonical)
             self.assertIn("Policy · Canonical English", canonical)
+            self.assertIn('aria-label="Document language"', canonical)
             self.assertIn(
                 'href="https://templates.moukaeritai.work/ja/policy/cli/"',
                 canonical,
@@ -90,7 +91,9 @@ class TranslationReaderTests(unittest.TestCase):
 
             self.assertIn('lang="ja"', translation)
             self.assertIn("Policy · 日本語参考訳", translation)
-            self.assertIn("English · Canonical", translation)
+            self.assertIn('aria-label="文書の言語"', translation)
+            self.assertIn("英語 · 正本", translation)
+            self.assertNotIn("English · Canonical", translation)
             self.assertIn(
                 '<link rel="canonical" href="https://templates.moukaeritai.work/policy/cli/">',
                 translation,
@@ -139,6 +142,7 @@ class TranslationReaderTests(unittest.TestCase):
                 self.assertIn('hreflang="ja"', rendered)
             self.assertIn('lang="fr"', french_text)
             self.assertIn("Policy · fr translation · Non-authoritative", french_text)
+            self.assertIn('aria-label="Document language"', french_text)
             self.assertIn("English · Canonical", french_text)
 
     def test_kebab_case_publication_label_is_humanized(self) -> None:

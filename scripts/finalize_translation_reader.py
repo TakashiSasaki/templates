@@ -17,6 +17,15 @@ from finalize_site_metadata import (
     rewrite_canonical_link,
     validate_canonical_url,
 )
+from site_chrome_locales import (
+    SITE_CHROME_LOCALES,
+    SiteChromeLocaleError,
+    language_label,
+    load_site_chrome_locales,
+    locale_record,
+    reader_strings,
+    translation_status,
+)
 
 HTML_TAG_PATTERN = re.compile(r"<html\b[^>]*>", re.IGNORECASE)
 HEAD_CLOSE_PATTERN = re.compile(r"</head\s*>", re.IGNORECASE)
@@ -29,9 +38,6 @@ ALTERNATE_TAG_PATTERN = re.compile(
 SWITCHER_MARKER = 'class="translation-switcher"'
 LANGUAGE_TAG = re.compile(r"\A[a-z]{2,3}(?:-[a-z0-9]{2,8})*\Z")
 PUBLICATION_NAME = re.compile(r"\A[a-z0-9]+(?:-[a-z0-9]+)*\Z")
-LANGUAGE_LABELS = {
-    "ja": "日本語",
-}
 
 
 class TranslationReaderError(RuntimeError):
@@ -192,23 +198,22 @@ def publication_label(publication: str) -> str:
     return " ".join(part.capitalize() for part in publication.split("-"))
 
 
-def language_label(language: str) -> str:
-    primary = language.split("-", 1)[0]
-    return LANGUAGE_LABELS.get(primary, language)
-
-
-def translation_status(language: str) -> str:
-    if language.split("-", 1)[0] == "ja":
-        return "日本語参考訳"
-    return f"{language_label(language)} translation · Non-authoritative"
-
-
-def switcher_link(label: str, target_url: str, language: str) -> str:
+def switcher_link(
+    label: str,
+    target_url: str,
+    target_language: str,
+    text_language: str | None = None,
+) -> str:
+    lang_attribute = (
+        f'lang="{html.escape(text_language, quote=True)}" '
+        if text_language is not None
+        else ""
+    )
     return (
         f'<a class="translation-switcher__link" '
         f'href="{html.escape(target_url, quote=True)}" '
-        f'lang="{html.escape(language, quote=True)}" '
-        f'hreflang="{html.escape(language, quote=True)}">'
+        f'{lang_attribute}'
+        f'hreflang="{html.escape(target_language, quote=True)}">'
         f"{html.escape(label)}</a>"
     )
 
@@ -216,15 +221,26 @@ def switcher_link(label: str, target_url: str, language: str) -> str:
 def canonical_switcher_markup(
     publication: str,
     translations: list[tuple[str, str]],
+    chrome: dict[str, Any],
 ) -> str:
-    status = f"{html.escape(publication_label(publication))} · Canonical English"
+    canonical_language = chrome["canonical_language"]
+    strings = reader_strings(chrome, canonical_language)
+    status = (
+        f"{html.escape(publication_label(publication))} · "
+        f"{html.escape(strings['canonical_status'])}"
+    )
     links = "".join(
-        switcher_link(language_label(language), target_url, language)
+        switcher_link(
+            language_label(chrome, language),
+            target_url,
+            language,
+            language,
+        )
         for language, target_url in translations
     )
     return (
         '\n<div class="translation-switcher" role="group" '
-        'aria-label="Document language">'
+        f'aria-label="{html.escape(strings["group_label"], quote=True)}">'
         f'<span class="translation-switcher__status">{status}</span>'
         f'<span class="translation-switcher__links">{links}</span></div>'
     )
@@ -234,15 +250,24 @@ def translated_switcher_markup(
     publication: str,
     language: str,
     canonical_url: str,
+    chrome: dict[str, Any],
 ) -> str:
+    strings = reader_strings(chrome, language)
     status = (
         f"{html.escape(publication_label(publication))} · "
-        f"{html.escape(translation_status(language))}"
+        f"{html.escape(translation_status(chrome, language))}"
     )
-    link = switcher_link("English · Canonical", canonical_url, "en")
+    canonical_language = chrome["canonical_language"]
+    text_language = language if locale_record(chrome, language) is not None else canonical_language
+    link = switcher_link(
+        strings["canonical_link"],
+        canonical_url,
+        canonical_language,
+        text_language,
+    )
     return (
         '\n<div class="translation-switcher" role="group" '
-        'aria-label="Document language">'
+        f'aria-label="{html.escape(strings["group_label"], quote=True)}">'
         f'<span class="translation-switcher__status">{status}</span>'
         f'<span class="translation-switcher__links">{link}</span></div>'
     )
@@ -305,7 +330,7 @@ def load_pairs(path: Path) -> list[dict[str, Any]]:
         if (
             not isinstance(language, str)
             or not LANGUAGE_TAG.fullmatch(language)
-            or language == "en"
+            or language.split("-", 1)[0] == "en"
         ):
             raise TranslationReaderError(
                 f"{field}.language must be a non-English lowercase language tag"
@@ -348,10 +373,13 @@ def finalize(
     site_root: Path,
     map_path: Path,
     canonical_base: str,
+    chrome_path: Path = SITE_CHROME_LOCALES,
 ) -> tuple[int, int]:
     canonical_base = validate_canonical_url(canonical_base)
     site_root = site_root.resolve(strict=True)
     pairs = load_pairs(map_path)
+    chrome = load_site_chrome_locales(chrome_path)
+    canonical_language = chrome["canonical_language"]
 
     html_files = sorted(path for path in site_root.rglob("*.html") if path.is_file())
     if not html_files:
@@ -404,12 +432,16 @@ def finalize(
         )
 
     for canonical_path, publication, canonical_url, translations in resolved_groups:
-        alternates = [("en", canonical_url)] + [
+        alternates = [(canonical_language, canonical_url)] + [
             (pair["language"], translation_url)
             for pair, _, translation_url in translations
         ]
         canonical_source = updates[canonical_path]
-        canonical_source = replace_html_language(canonical_source, "en", canonical_path)
+        canonical_source = replace_html_language(
+            canonical_source,
+            canonical_language,
+            canonical_path,
+        )
         canonical_source = replace_alternates(
             canonical_source,
             alternates,
@@ -423,6 +455,7 @@ def finalize(
                     (pair["language"], translation_url)
                     for pair, _, translation_url in translations
                 ],
+                chrome,
             ),
             canonical_path,
         )
@@ -454,6 +487,7 @@ def finalize(
                     publication,
                     pair["language"],
                     canonical_url,
+                    chrome,
                 ),
                 translation_path,
             )
@@ -469,6 +503,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-root", required=True, type=Path)
     parser.add_argument("--translation-map", required=True, type=Path)
     parser.add_argument("--canonical-url", required=True)
+    parser.add_argument(
+        "--site-chrome-locales",
+        type=Path,
+        default=SITE_CHROME_LOCALES,
+    )
     return parser.parse_args()
 
 
@@ -479,8 +518,14 @@ def main() -> int:
             args.site_root,
             args.translation_map,
             args.canonical_url,
+            args.site_chrome_locales,
         )
-    except (OSError, TranslationReaderError, SiteMetadataError) as exc:
+    except (
+        OSError,
+        TranslationReaderError,
+        SiteChromeLocaleError,
+        SiteMetadataError,
+    ) as exc:
         print(f"finalize_translation_reader.py: {exc}", file=sys.stderr)
         return 1
     print(f"page canonicals finalized: {page_count}")
