@@ -7,7 +7,10 @@ import json
 import sys
 from pathlib import Path
 
-from webapp_evidence_targets import expected_targets, record_id
+if __package__:
+    from .webapp_evidence_targets import expected_targets, record_id
+else:
+    from webapp_evidence_targets import expected_targets, record_id
 
 
 def record_skeleton(target: dict) -> dict:
