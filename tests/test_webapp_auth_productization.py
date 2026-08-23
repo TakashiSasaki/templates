@@ -291,7 +291,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             result = self.run_release(target, revision)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(
-                "Webapp auth product proof: route access, UI-state, and viewport behavior passed",
+                "Webapp auth product proof: route access, complete UI-state, and viewport behavior passed",
                 result.stdout,
             )
             self.assertIn("Release evidence and bundle produced", result.stdout)
