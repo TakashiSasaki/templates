@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "webapp",
-  "summary": "Framework-neutral Web application artifact with required reusable lifecycle closure and optional application capabilities.",
+  "summary": "Framework-neutral Web application core with routes, surfaces, UI states, viewports, and the release lifecycle included transitively; application capabilities remain explicit opt-ins.",
   "artifact": "artifact.webapp-core",
   "required_components": [],
   "default_components": [],
