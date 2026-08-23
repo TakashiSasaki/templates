@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import errno
 import importlib.util
+import os
 import subprocess
 import sys
 import tempfile
 import time
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_SOURCE = (
@@ -113,6 +117,64 @@ class ReleaseLifecycleLockTests(unittest.TestCase):
             ):
                 with lifecycle_lock.release_lifecycle_lock(root):
                     self.fail("symlinked lock must never be acquired")
+
+    def test_post_open_path_verification_errors_are_normalized(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            git_dir = Path(temp_dir) / ".git"
+            git_dir.mkdir()
+            real_stat = lifecycle_lock.os.stat
+
+            def fail_lock_stat(path, *args, **kwargs):
+                if Path(path).name == lifecycle_lock.LOCK_FILENAME:
+                    raise PermissionError(errno.EACCES, "simulated lock path denial")
+                return real_stat(path, *args, **kwargs)
+
+            with mock.patch.object(
+                lifecycle_lock.os,
+                "stat",
+                side_effect=fail_lock_stat,
+            ):
+                with self.assertRaisesRegex(
+                    lifecycle_lock.ReleaseLifecycleLockError,
+                    "cannot verify release lifecycle lock path",
+                ):
+                    lifecycle_lock._open_lock_file(git_dir)
+
+    def test_windows_lock_retries_without_writing_a_sentinel_byte(self) -> None:
+        fake_msvcrt = types.ModuleType("msvcrt")
+        fake_msvcrt.LK_NBLCK = 1
+        fake_msvcrt.LK_UNLCK = 2
+        calls: list[tuple[int, int, int]] = []
+
+        def fake_locking(descriptor: int, mode: int, nbytes: int) -> None:
+            calls.append((descriptor, mode, nbytes))
+            if len(calls) == 1:
+                raise OSError(errno.EACCES, "simulated contention")
+
+        fake_msvcrt.locking = fake_locking
+        previous_msvcrt = sys.modules.get("msvcrt")
+        sys.modules["msvcrt"] = fake_msvcrt
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                lock_path = Path(temp_dir) / "lock"
+                descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+                try:
+                    self.assertEqual(os.fstat(descriptor).st_size, 0)
+                    with mock.patch.object(lifecycle_lock.time, "sleep", return_value=None):
+                        lifecycle_lock._lock_windows(descriptor)
+                    self.assertEqual(os.fstat(descriptor).st_size, 0)
+                    self.assertEqual(len(calls), 2)
+                    self.assertEqual(
+                        [(mode, nbytes) for _, mode, nbytes in calls],
+                        [(fake_msvcrt.LK_NBLCK, 1), (fake_msvcrt.LK_NBLCK, 1)],
+                    )
+                finally:
+                    os.close(descriptor)
+        finally:
+            if previous_msvcrt is None:
+                del sys.modules["msvcrt"]
+            else:
+                sys.modules["msvcrt"] = previous_msvcrt
 
     def test_competing_processes_are_serialized(self) -> None:
         worker_source = """from __future__ import annotations
