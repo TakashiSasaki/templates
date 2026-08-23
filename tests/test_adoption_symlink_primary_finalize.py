@@ -2,6 +2,8 @@ from pathlib import Path
 
 from agent_policy.commands import adopt
 
+TEST_REVISION = "a" * 40
+
 
 def _prepare_with_symlinked_primary(path: Path) -> tuple[Path, Path, bytes]:
     (path / ".git").mkdir()
@@ -15,7 +17,7 @@ def _prepare_with_symlinked_primary(path: Path) -> tuple[Path, Path, bytes]:
         path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         primary_instructions="AGENTS.md",
         verification_command="npm run verify:pr",
@@ -54,7 +56,7 @@ def test_finalize_rejects_primary_replaced_by_symlink_before_transaction(
         tmp_path,
         ".agent-policy.yml",
         apply=True,
-        toolchain_revision="LOCAL-DEVELOPMENT",
+        toolchain_revision=TEST_REVISION,
         profiles=["core", "security-baseline"],
         verification_command="npm run verify:pr",
     )
