@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.release-bundle",
   "kind": "lifecycle",
-  "version": 1,
-  "summary": "Deterministic digest-closed handoff for approved release contract bytes.",
+  "version": 2,
+  "summary": "Deterministic digest-closed handoff and managed bundle production for approved release contract bytes.",
   "requires": ["lifecycle.release-evidence"],
   "conflicts": [],
   "contract_registrations": [{
@@ -18,6 +18,7 @@
   "materials": [
     {"source":"files/contracts/release-bundle.json","destination":"contracts/release-bundle.json","ownership":"seed"},
     {"source":"files/schemas/release-bundle.schema.json","destination":"schemas/release-bundle.schema.json","ownership":"managed"},
+    {"source":"files/.template-composition/release/produce_release_bundle.py","destination":".template-composition/release/produce_release_bundle.py","ownership":"managed"},
     {"source":"files/.template-composition/validators/validate_release_bundle.py","destination":".template-composition/validators/validate_release_bundle.py","ownership":"managed"},
     {"source":"files/docs/architecture/release-bundle.md","destination":"docs/architecture/release-bundle.md","ownership":"managed"}
   ]
