@@ -283,8 +283,10 @@ Argparse usage error は Python `argparse` behavior に従います。runner-loc
 
 ## Consumer validator
 
-すべての artifact は `lifecycle.composition-state` を含み、`.template-composition/` 以下に stdlib-only validator を materialize します。source-side の `compose.py validate` command は、その source authority version の validator を invoke します。
+すべての artifact は `lifecycle.composition-state` を含み、`.template-composition/` 以下に stdlib-only state validator、managed validation registry、selected-component validation runner を materialize します。
 
-Consumer validation は lock shape/semantics と materialized repository state を検証します。`managed` と `generated` bytes は lock digest と一致しなければなりません。active `seed` file は存在し続ける必要がありますが、provenance digest と異なっていても構いません。
+source-side の `compose.py validate` command は、まず source-authority Composition-state validator を実行し、その後 consumer の canonical `.template-composition/validate.py` entrypoint を invoke します。この runner は state validation が成功した後にのみ `resolved_components` を読み、その selected component に登録された validator だけを dispatch します。
 
-consumer validator は source component graph を再解決したり source descriptor bytes を検証したりしません。これらの check は source-side Composer の責務です。
+Consumer validation は lock shape/semantics、materialized repository state、selected-component validation を検証します。`managed` と `generated` bytes は lock digest と一致しなければなりません。active `seed` file は存在し続ける必要がありますが、provenance digest と異なっていても構いません。product-mode release evidence と release bundle は exact-candidate check のままであり、ordinary repository validation では deferred と報告されます。
+
+Consumer validation は source component graph を再解決したり source descriptor bytes を検証したりしません。これらの check は引き続き source-side Composer の責務です。
