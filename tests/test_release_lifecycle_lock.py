@@ -59,6 +59,42 @@ class ReleaseLifecycleLockTests(unittest.TestCase):
             f"timed out waiting for {path.name}\nstdout:\n{stdout}\nstderr:\n{stderr}"
         )
 
+    def test_repository_git_directory_preconditions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_root = Path(temp_dir) / "missing"
+            missing_root.mkdir()
+            with self.assertRaisesRegex(
+                lifecycle_lock.ReleaseLifecycleLockError,
+                "repository \\.git must be a regular directory",
+            ):
+                with lifecycle_lock.release_lifecycle_lock(missing_root):
+                    self.fail("missing .git must never acquire the lifecycle lock")
+
+            file_root = Path(temp_dir) / "file"
+            file_root.mkdir()
+            (file_root / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                lifecycle_lock.ReleaseLifecycleLockError,
+                "repository \\.git must be a regular directory",
+            ):
+                with lifecycle_lock.release_lifecycle_lock(file_root):
+                    self.fail("file .git must never acquire the lifecycle lock")
+
+            symlink_root = Path(temp_dir) / "symlink"
+            symlink_root.mkdir()
+            real_git = Path(temp_dir) / "real-git"
+            real_git.mkdir()
+            try:
+                (symlink_root / ".git").symlink_to(real_git, target_is_directory=True)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"directory symlink creation unavailable: {exc}")
+            with self.assertRaisesRegex(
+                lifecycle_lock.ReleaseLifecycleLockError,
+                "repository \\.git must be a regular directory",
+            ):
+                with lifecycle_lock.release_lifecycle_lock(symlink_root):
+                    self.fail("symlinked .git must never acquire the lifecycle lock")
+
     def test_lock_path_rejects_symbolic_leaf(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -114,52 +150,60 @@ with module.release_lifecycle_lock(root):
             second_acquired = root / "second.locked"
             release_first = root / "release-first"
 
-            first = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-B",
-                    str(worker),
-                    str(LOCK_SOURCE),
-                    str(root),
-                    str(first_ready),
-                    str(first_acquired),
-                    str(release_first),
-                ],
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.wait_for_path(first_ready, first)
-            self.wait_for_path(first_acquired, first)
+            first: subprocess.Popen[str] | None = None
+            second: subprocess.Popen[str] | None = None
+            try:
+                first = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-B",
+                        str(worker),
+                        str(LOCK_SOURCE),
+                        str(root),
+                        str(first_ready),
+                        str(first_acquired),
+                        str(release_first),
+                    ],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                self.wait_for_path(first_ready, first)
+                self.wait_for_path(first_acquired, first)
 
-            second = subprocess.Popen(
-                [
-                    sys.executable,
-                    "-B",
-                    str(worker),
-                    str(LOCK_SOURCE),
-                    str(root),
-                    str(second_ready),
-                    str(second_acquired),
-                    "-",
-                ],
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.wait_for_path(second_ready, second)
-            time.sleep(0.05)
-            self.assertFalse(
-                second_acquired.exists(),
-                "second producer entered the lifecycle critical section concurrently",
-            )
+                second = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-B",
+                        str(worker),
+                        str(LOCK_SOURCE),
+                        str(root),
+                        str(second_ready),
+                        str(second_acquired),
+                        "-",
+                    ],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                self.wait_for_path(second_ready, second)
+                time.sleep(0.05)
+                self.assertFalse(
+                    second_acquired.exists(),
+                    "second producer entered the lifecycle critical section concurrently",
+                )
 
-            release_first.write_text("release\n", encoding="utf-8")
-            first_stdout, first_stderr = first.communicate(timeout=5)
-            second_stdout, second_stderr = second.communicate(timeout=5)
-            self.assertEqual(first.returncode, 0, first_stdout + first_stderr)
-            self.assertEqual(second.returncode, 0, second_stdout + second_stderr)
-            self.assertTrue(second_acquired.is_file())
+                release_first.write_text("release\n", encoding="utf-8")
+                first_stdout, first_stderr = first.communicate(timeout=5)
+                second_stdout, second_stderr = second.communicate(timeout=5)
+                self.assertEqual(first.returncode, 0, first_stdout + first_stderr)
+                self.assertEqual(second.returncode, 0, second_stdout + second_stderr)
+                self.assertTrue(second_acquired.is_file())
+            finally:
+                for process in (first, second):
+                    if process is not None and process.poll() is None:
+                        process.kill()
+                        process.communicate()
 
     def test_both_release_producers_use_the_shared_lock(self) -> None:
         expected = "with lifecycle_lock.release_lifecycle_lock(root):"
