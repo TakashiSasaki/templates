@@ -87,16 +87,18 @@ from pathlib import Path
 
 source = Path(sys.argv[1])
 root = Path(sys.argv[2])
-marker = Path(sys.argv[3])
-release = None if sys.argv[4] == '-' else Path(sys.argv[4])
+ready = Path(sys.argv[3])
+acquired = Path(sys.argv[4])
+release = None if sys.argv[5] == '-' else Path(sys.argv[5])
 spec = importlib.util.spec_from_file_location('release_lifecycle_lock_worker', source)
 if spec is None or spec.loader is None:
     raise SystemExit('cannot load lifecycle lock helper')
 module = importlib.util.module_from_spec(spec)
 sys.dont_write_bytecode = True
 spec.loader.exec_module(module)
+ready.write_text('ready\\n', encoding='utf-8')
 with module.release_lifecycle_lock(root):
-    marker.write_text('locked\\n', encoding='utf-8')
+    acquired.write_text('locked\\n', encoding='utf-8')
     if release is not None:
         while not release.exists():
             time.sleep(0.02)
@@ -106,8 +108,10 @@ with module.release_lifecycle_lock(root):
             (root / ".git").mkdir()
             worker = root / "worker.py"
             worker.write_text(worker_source, encoding="utf-8")
-            first_marker = root / "first.locked"
-            second_marker = root / "second.locked"
+            first_ready = root / "first.ready"
+            first_acquired = root / "first.locked"
+            second_ready = root / "second.ready"
+            second_acquired = root / "second.locked"
             release_first = root / "release-first"
 
             first = subprocess.Popen(
@@ -117,14 +121,16 @@ with module.release_lifecycle_lock(root):
                     str(worker),
                     str(LOCK_SOURCE),
                     str(root),
-                    str(first_marker),
+                    str(first_ready),
+                    str(first_acquired),
                     str(release_first),
                 ],
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            self.wait_for_path(first_marker, first)
+            self.wait_for_path(first_ready, first)
+            self.wait_for_path(first_acquired, first)
 
             second = subprocess.Popen(
                 [
@@ -133,16 +139,18 @@ with module.release_lifecycle_lock(root):
                     str(worker),
                     str(LOCK_SOURCE),
                     str(root),
-                    str(second_marker),
+                    str(second_ready),
+                    str(second_acquired),
                     "-",
                 ],
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            time.sleep(0.2)
+            self.wait_for_path(second_ready, second)
+            time.sleep(0.05)
             self.assertFalse(
-                second_marker.exists(),
+                second_acquired.exists(),
                 "second producer entered the lifecycle critical section concurrently",
             )
 
@@ -151,7 +159,7 @@ with module.release_lifecycle_lock(root):
             second_stdout, second_stderr = second.communicate(timeout=5)
             self.assertEqual(first.returncode, 0, first_stdout + first_stderr)
             self.assertEqual(second.returncode, 0, second_stdout + second_stderr)
-            self.assertTrue(second_marker.is_file())
+            self.assertTrue(second_acquired.is_file())
 
     def test_both_release_producers_use_the_shared_lock(self) -> None:
         expected = "with lifecycle_lock.release_lifecycle_lock(root):"
