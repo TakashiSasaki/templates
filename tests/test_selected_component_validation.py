@@ -201,8 +201,9 @@ class SelectedComponentValidationTests(unittest.TestCase):
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(checks["release-evidence-template"]["status"], "deferred")
             self.assertEqual(checks["release-bundle-template"]["status"], "deferred")
-            self.assertIn("exact product candidate", checks["release-evidence-template"]["stderr"])
-            self.assertIn("exact product candidate", checks["release-bundle-template"]["stderr"])
+            for check_id in ("release-evidence-template", "release-bundle-template"):
+                self.assertIn("revision-bound", checks[check_id]["stderr"])
+                self.assertIn("exact-candidate", checks[check_id]["stderr"])
 
     def test_tampered_managed_validator_halts_before_dispatch(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
