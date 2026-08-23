@@ -48,6 +48,7 @@ class PwaAssetTests(unittest.TestCase):
         manifest = json.loads((ROOT / "assets/app.webmanifest").read_text(encoding="utf-8"))
         self.assertIn("/app.webmanifest", static_assets)
         self.assertLessEqual({icon["src"] for icon in manifest["icons"]}, static_assets)
+        self.assertIn("/site-chrome-locales.json", static_assets)
         self.assertIn("/stylesheets/freshness-status.css", static_assets)
         self.assertIn("/javascripts/pwa.js", static_assets)
 
@@ -98,6 +99,14 @@ class PwaAssetTests(unittest.TestCase):
         self.assertIn('type === "templates:document-commit"', registration)
         self.assertIn('type: "templates:get-current-freshness-state"', registration)
         self.assertIn("requestCurrentFreshnessState()", registration)
+        self.assertIn('const siteChromeLocalesHref = "/site-chrome-locales.json"', registration)
+        self.assertIn("async function loadSiteChromeLocales()", registration)
+        self.assertIn("document.documentElement?.lang", registration)
+        self.assertIn("const applied = await applyFreshnessState(data)", registration)
+        self.assertIn("strings.saved_copy", registration)
+        self.assertIn("strings.reload", registration)
+        self.assertNotIn('label.textContent = "Saved copy."', registration)
+        self.assertNotIn('reload.textContent = "Reload"', registration)
 
     def test_generated_pages_receive_static_pwa_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -193,13 +202,17 @@ class PwaAssetTests(unittest.TestCase):
         stylesheet = (ROOT / "assets/stylesheets/freshness-status.css").read_text(encoding="utf-8")
         self.assertIn('id="templates-freshness-status"', worker)
         self.assertIn('data-freshness-state="${state}"', worker)
-        self.assertIn("Checking for the latest version…", worker)
-        self.assertIn("The latest version could not be verified.", worker)
+        self.assertIn('const SITE_CHROME_LOCALES_PATH = "/site-chrome-locales.json"', worker)
+        self.assertIn("const model = await loadSiteChromeLocales()", worker)
+        self.assertIn("const language = htmlLanguage(source)", worker)
+        self.assertIn("freshnessNoticeHtml(state, strings)", worker)
+        self.assertIn("injectCachedDocumentNotice(source, state, strings)", worker)
+        self.assertNotIn("Checking for the latest version…", worker)
+        self.assertNotIn("The latest version could not be verified.", worker)
         self.assertIn('headers.set("X-Templates-Freshness", state)', worker)
         self.assertIn('headers.set("Cache-Control", "no-store")', worker)
         for header in ("Content-Encoding", "Content-Length", "ETag", "Last-Modified"):
             self.assertIn(f'"{header}"', worker)
-        self.assertIn("const decorated = injectCachedDocumentNotice(source, state)", worker)
         self.assertIn('state !== "checking" && state !== "cached-unverified"', worker)
         self.assertIn("bodyClosures.length !== 1", worker)
         self.assertIn('id="templates-freshness-status-inline-style"', worker)
@@ -277,7 +290,9 @@ class PwaAssetTests(unittest.TestCase):
 
     def test_service_worker_cache_miss_offline_response_contract(self) -> None:
         worker = (ROOT / "assets/service-worker.js").read_text(encoding="utf-8")
-        self.assertIn("function offlineResponse()", worker)
+        self.assertIn("async function offlineResponse(request)", worker)
+        self.assertIn("const language = requestLanguage(model, request)", worker)
+        self.assertIn("strings?.offline_unavailable", worker)
         self.assertIn("status: 503", worker)
         self.assertIn('statusText: "Service Unavailable"', worker)
         self.assertIn('headers: { "Content-Type": "text/plain; charset=utf-8" }', worker)
