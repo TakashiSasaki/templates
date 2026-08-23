@@ -47,6 +47,7 @@
         {"id": "domain-migrations", "canonical": "Domain migrations", "localized": "Domain migration"},
         {"id": "routes-v1-v2", "canonical": "Routes v1 to v2", "localized": "Routes v1 → v2"},
         {"id": "routes-v2-v3", "canonical": "Routes v2 to v3", "localized": "Routes v2 → v3"},
+        {"id": "surfaces-v1-v2", "canonical": "Surfaces v1 to v2", "localized": "Surfaces v1 → v2"},
         {"id": "ui-states-v1-v2", "canonical": "UI states v1 to v2", "localized": "UI states v1 → v2"},
         {"id": "lifecycle-contracts", "canonical": "Lifecycle contracts", "localized": "Lifecycle contracts"},
         {"id": "composition-state", "canonical": "Composition state", "localized": "Composition state"},
