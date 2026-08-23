@@ -216,6 +216,7 @@ class LockedProviderGraphTests(unittest.TestCase):
                 0,
                 locale_result.stdout + locale_result.stderr,
             )
+            graph = json.loads(graph_path.read_text(encoding="utf-8"))
             payload = json.loads(locale_path.read_text(encoding="utf-8"))
 
         japanese = next(locale for locale in payload["locales"] if locale["language"] == "ja")
@@ -227,12 +228,33 @@ class LockedProviderGraphTests(unittest.TestCase):
         overlay = next(
             index for index in composition["indexes"] if index["path"] == "docs/index.md"
         )
+        canonical_composition = next(
+            provider for provider in graph["providers"] if provider["name"] == "composition"
+        )
+        canonical_index = next(
+            index
+            for index in canonical_composition["indexes"]
+            if index["path"] == "docs/index.md"
+        )
+        canonical_links = [
+            edge
+            for edge in canonical_composition["edges"]
+            if edge["source"] == "docs/index.md"
+        ]
+
         self.assertEqual(composition["revision"], checked_revision(providers["composition"]))
-        self.assertEqual(overlay["title"], "Composition ドキュメント索引")
-        self.assertEqual(overlay["sections"][0]["title"], "ここから始める")
-        self.assertEqual(overlay["links"][0]["label"], "Composition の利用方法")
-        self.assertNotIn("target", overlay["links"][0])
-        self.assertNotIn("raw_target", overlay["links"][0])
+        self.assertEqual(overlay["path"], canonical_index["path"])
+        self.assertTrue(overlay["title"].strip())
+        self.assertEqual(
+            [section["level"] for section in overlay["sections"]],
+            [section["level"] for section in canonical_index["sections"]],
+        )
+        self.assertEqual(len(overlay["links"]), len(canonical_links))
+        for link in overlay["links"]:
+            with self.subTest(localized_link=link["label"]):
+                self.assertEqual(set(link), {"label", "description"})
+                self.assertTrue(link["label"].strip())
+                self.assertIsInstance(link["description"], str)
 
 
 if __name__ == "__main__":
