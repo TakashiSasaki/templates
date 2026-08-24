@@ -33,11 +33,23 @@ def _set_query(page: Any, value: str) -> None:
         (value) => {
           const input = document.querySelector('[data-md-component="search-query"]');
           if (!input) throw new Error('search query input is missing');
+          input.focus();
           input.value = value;
           input.dispatchEvent(new Event('input', { bubbles: true }));
         }
         """,
         value,
+    )
+
+
+def _activate_without_navigation(control: Any) -> None:
+    control.evaluate(
+        """
+        (element) => {
+          element.addEventListener('click', (event) => event.preventDefault(), { once: true });
+          element.click();
+        }
+        """
     )
 
 
@@ -109,8 +121,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                     "search-as-you-type input was stored before result activation"
                 )
             first_href = first_result.get_attribute("href")
-            first_result.click(force=True)
-            page.wait_for_load_state("load")
+            _activate_without_navigation(first_result)
             if _history(page) != ["policy"]:
                 raise SearchHistoryCheckError(
                     f"first activated query was not stored: {_history(page)!r}"
@@ -119,8 +130,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             _set_query(page, "composition")
             second_result = _wait_for_results(page)
             second_href = second_result.get_attribute("href")
-            second_result.click(force=True)
-            page.wait_for_load_state("load")
+            _activate_without_navigation(second_result)
             if _history(page) != ["composition", "policy"]:
                 raise SearchHistoryCheckError(
                     f"second activated query did not preserve recency: {_history(page)!r}"
@@ -151,7 +161,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             replay = history_section.locator(
                 'button[data-site-search-history-query="policy"]'
             )
-            replay.click(force=True)
+            _activate_without_navigation(replay)
             page.wait_for_function(
                 """
                 () => document.querySelector('[data-md-component="search-query"]')?.value === 'policy'
@@ -176,7 +186,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                     f"Japanese clear-history label mismatch: {clear.text_content()!r}"
                 )
 
-            clear.click(force=True)
+            _activate_without_navigation(clear)
             if _history(page):
                 raise SearchHistoryCheckError("Clear history did not remove stored queries")
             if not history_section.is_hidden():
