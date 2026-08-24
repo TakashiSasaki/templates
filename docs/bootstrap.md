@@ -11,15 +11,15 @@ The skill never executes the mutable `policy` branch tip. `runtime-manifest.json
 The recommended remote installation command executes an installer script from one immutable full-SHA URL:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/f9a3b7698a19bba1d2b7e9debd8a3de41a01b570/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/b330f517ad2a348fafc7cb9f690b4df298ee24f4/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 Append `--replace` only when replacing an existing `agent-policy` skill installation.
 
 The distribution uses three distinct revision roles:
 
-- **installer script revision** `f9a3b7698a19bba1d2b7e9debd8a3de41a01b570` pins the remotely executed bootstrap script;
-- **skill source revision** `b063d78ece8f5a8e9cab2e34093e6989a9a6c783` pins the `skills/agent-policy/` subtree downloaded by that script; and
+- **installer script revision** `b330f517ad2a348fafc7cb9f690b4df298ee24f4` pins the remotely executed bootstrap script;
+- **skill source revision** `1656a0a18076dcb90d5ccadc0c6271fb557fe2a7` pins the `skills/agent-policy/` subtree downloaded by that script; and
 - the **stable runtime revision** in `runtime-manifest.json` independently pins the canonical CLI runtime used after installation.
 
 `release/skill-installer.json` publishes the installer/skill-source pair. Neither the command nor the remote installer executes the mutable `policy` branch, a tag, or a short SHA.
