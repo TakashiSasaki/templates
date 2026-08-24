@@ -4,6 +4,21 @@
 
 `agent-policy` は、複数の製品リポジトリと複数のコーディング／汎用エージェントで共有する規約を、検証可能かつ再現可能な形で管理するためのポリシーツールチェーンです。開発上の正本は `TakashiSasaki/templates` の `policy` ブランチです。
 
+## ここから始める
+
+製品リポジトリへ Policy を適用することが目的なら、最初に Provider / toolchain の内部構造を理解する必要はありません。通常の consumer workflow は次の順序です。
+
+1. **単一の `agent-policy` skill をインストールする。** レビュー済み full-SHA installer は [Getting started](getting-started.md) に記載されています。
+2. **未管理 repository を inspect する。** `python scripts/bootstrap.py --repository /path/to/product-repository` は dry run で `unmanaged-empty`、`unmanaged-existing`、`managed`、`inconsistent` のいずれかに分類し、対応する adoption path を選択します。
+3. **plan を確認してから fresh adoption を apply、または migration を prepare する。** fresh adoption は `--apply` を使用できます。migration adoption は既存の primary instructions を保持し、preview 後に別の明示的 finalization を必要とします。
+4. **managed repository を同じ installed skill で運用する。** `python scripts/run.py --repository . validate`、続いて `render`、`check` を実行します。
+
+installation と adoption は [Getting started](getting-started.md) から始めてください。`.agent-policy.lock` が存在するようになった後は [Managed operation](managed-operation.md) で通常の validate / render / check loop を確認します。context にどの shared rule set を選ぶべきか判断するときは [Policy profiles](shared-policy/profiles.md) を参照してください。
+
+Policy が制御するのは coding-agent の operating rules です。Web application、CLI、service、library などの **architecture や product requirements は定義しません**。それらの artifact / capability semantics は Composition が別の authority として管理します。
+
+以下の節では、より深い architecture、provenance、maintenance context が必要な場合に Policy model と Provider 内部を説明します。
+
 ## 目的
 
 - 共通規約を中央で一度だけ管理する

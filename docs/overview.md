@@ -2,6 +2,21 @@
 
 `agent-policy` is a policy toolchain for managing operating rules shared across multiple product repositories and multiple coding or general-purpose agents in a verifiable and reproducible form. The canonical development source is the `policy` branch of `TakashiSasaki/templates`.
 
+## Start here
+
+If your goal is to apply Policy to a product repository, you do not need to understand the Provider/toolchain internals first. The normal consumer path is:
+
+1. **Install the single `agent-policy` skill** using the reviewed full-SHA installer documented in [Getting started](getting-started.md).
+2. **Inspect an unmanaged repository** with `python scripts/bootstrap.py --repository /path/to/product-repository`. The dry run classifies it as `unmanaged-empty`, `unmanaged-existing`, `managed`, or `inconsistent` and selects the supported adoption path.
+3. **Apply fresh adoption or prepare migration** only after reviewing that plan. Fresh adoption can use `--apply`; migration adoption preserves existing primary instructions and requires a separate explicit finalization step after preview.
+4. **Operate the managed repository** through the same installed skill: `python scripts/run.py --repository . validate`, then `render`, then `check`.
+
+Start with [Getting started](getting-started.md) for installation and adoption. Once `.agent-policy.lock` exists, use [Managed operation](managed-operation.md) for the normal validation/render/check loop. Use [Policy profiles](shared-policy/profiles.md) when you need to decide which shared rule sets a context should select.
+
+Policy controls coding-agent operating rules. It **does not define the architecture or product requirements** of your Web application, CLI, service, library, or other artifact. Composition owns those artifact and capability semantics separately.
+
+The sections below explain the Policy model and Provider internals when you need deeper architecture, provenance, or maintenance context.
+
 ## Purpose
 
 - manage shared policy once at a central source;
