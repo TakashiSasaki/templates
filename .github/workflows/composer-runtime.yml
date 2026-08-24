@@ -59,6 +59,46 @@ jobs:
       - name: Build and exercise clean consumer runtime
         run: python -I scripts/smoke_test_runtime_distribution.py
 
+  materialized-validation:
+    name: materialized validation / ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+          - os: windows-2022
+            pip-config-file: NUL
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Exercise materialized validation without host site packages
+        run: python -I scripts/smoke_test_materialized_validation.py
+
   skill-runner:
     name: installed skill / ${{ matrix.platform.os }} / Python 3.12
     strategy:
