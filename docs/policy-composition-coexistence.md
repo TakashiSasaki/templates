@@ -106,6 +106,45 @@ For a repository using both authorities:
 
 These invariants are candidates for exact-revision integration tests in Site. Provider-local tests remain responsible for each provider's own semantics.
 
+## Consumer coexistence validation checklist
+
+After a repository has adopted both authorities, verify them independently rather than treating one successful command as proof of the other provider's state. This checklist is a consumer verification sequence; Site does not execute it on the consumer's behalf and does not introduce an umbrella management command.
+
+1. Inspect and validate Composition using the installed Composition skill:
+
+   ```sh
+   python /path/to/agent-skills/composition/scripts/run.py \
+     --repository /path/to/repository \
+     inspect
+   python /path/to/agent-skills/composition/scripts/run.py \
+     --repository /path/to/repository \
+     validate
+   ```
+
+   Expect `inspect` to report `managed-valid` before relying on the managed Composition state.
+
+2. Validate, render, and check Policy using the separately installed `agent-policy` skill:
+
+   ```sh
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     validate
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     render
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     check
+   ```
+
+3. After Policy render/finalization, run Composition `inspect` and `validate` again. A legitimate `AGENTS.md` handoff remains valid because Composition transferred that active seed to consumer ownership; Policy must still leave Composition-managed metadata and managed/generated material intact.
+
+4. Review the repository diff or equivalent before/after snapshots. Policy operations must not modify `.template-composition/**`; Composition operations must not modify `.agent-policy.yml`, `.agent-policy.lock`, or `.agent-policy/**`. Ordinary consumer-owned paths such as a handed-off `AGENTS.md` must be judged by their explicit ownership contract rather than by namespace alone.
+
+5. Treat failures independently. Diagnose a Policy failure with Policy tooling and a Composition failure with Composition tooling. Do not use one provider to repair, rewrite, delete, or regenerate the other provider's private state.
+
+Repeat the relevant side of this checklist after a managed operation from either provider, and repeat both sides when an ownership handoff or cross-authority configuration change is involved.
+
 ## Shared mechanisms versus shared authority
 
 Code duplication alone is not sufficient reason to couple the providers. A mechanism should be shared only when it implements one genuinely shared protocol with one semantic owner.
