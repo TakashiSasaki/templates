@@ -163,6 +163,26 @@ class WebappEvidenceScaffoldOutputTests(unittest.TestCase):
             self.assertFalse((target / "missing").exists())
             self.assertEqual(canonical.read_bytes(), original)
 
+    def test_output_refuses_broken_symlink_leaf(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir).resolve()
+            destination = root / "worklist.json"
+            target = root / "missing-target.json"
+            try:
+                destination.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symbolic links are unavailable: {exc}")
+
+            self.assertTrue(os.path.lexists(destination))
+            with self.assertRaisesRegex(FileExistsError, "--output path already exists"):
+                scaffold_module.write_worklist(
+                    root,
+                    "worklist.json",
+                    {"format": "test"},
+                )
+            self.assertTrue(destination.is_symlink())
+            self.assertFalse(target.exists())
+
     def test_output_write_failure_removes_partial_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir).resolve()
