@@ -189,6 +189,22 @@ class _WebDriverSession:
             {"width": width, "height": height, "x": 0, "y": 0},
         )
 
+    def set_viewport(self, width: int, height: int) -> None:
+        self.cdp(
+            "Emulation.setDeviceMetricsOverride",
+            {
+                "width": width,
+                "height": height,
+                "deviceScaleFactor": 1,
+                "mobile": False,
+            },
+        )
+        actual = self.execute("return [window.innerWidth, window.innerHeight];")
+        if actual != [width, height]:
+            raise BrowserProbeError(
+                f"Chrome viewport override did not take effect: expected {[width, height]!r}, got {actual!r}"
+            )
+
     def execute(self, script: str, *arguments: Any) -> Any:
         return self._request(
             "POST",
@@ -407,7 +423,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
 
         snapshots: list[dict[str, Any]] = []
         for width in sample_widths:
-            session.set_window(width, 800)
+            session.set_viewport(width, 800)
             snapshot = _layout_snapshot(session)
             _assert(snapshot.get("missing") is False, "browser fixture UI is incomplete")
             _assert(
@@ -447,7 +463,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             "browser proof fixture does not exercise distinct responsive layout structures across sampled widths",
         )
 
-        session.set_window(390, 800)
+        session.set_viewport(390, 800)
         if horizontal_scrolling == "content-specific":
             scroll_result = session.execute(
                 """
@@ -489,7 +505,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             "viewport metadata disables user zoom",
         )
 
-        session.set_window(800, 800)
+        session.set_viewport(800, 800)
         session.cdp("Emulation.setPageScaleFactor", {"pageScaleFactor": 2.0})
         try:
             time.sleep(0.05)
@@ -527,7 +543,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
         finally:
             session.cdp("Emulation.setPageScaleFactor", {"pageScaleFactor": 1.0})
 
-        session.set_window(844, 390)
+        session.set_viewport(844, 390)
         landscape = _layout_snapshot(session)
         _assert(
             landscape.get("missing") is False
