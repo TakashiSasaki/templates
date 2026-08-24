@@ -38,12 +38,12 @@ Use environment-appropriate paths and keep these caches outside the product repo
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/7412e9545e7648ddd8b3f4c05fe9ef171887d15b/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/39ee8eca1c560955de4cde609d9ec439f2f58068/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `7412e9545e7648ddd8b3f4c05fe9ef171887d15b` installs skill source `5b93c5628cd3cf7e72393dc3999a70aeb2b2a826`; that skill's runtime manifest selects stable Composition toolchain revision `cd19bf8edacc146cd928b6175429e62985f17670`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `39ee8eca1c560955de4cde609d9ec439f2f58068` installs skill source `8dcc177614155d43e660857aabb7485d8f50320c`; that skill's runtime manifest selects stable Composition toolchain revision `5d4b5a2e8a9b86e4d39e25a49340bb5f08d1a854`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
@@ -155,6 +155,16 @@ python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   plan --config composition.json
 ```
+
+A relative `--config` path is resolved from the process current working directory where you invoke the runner, not from `--repository`. If the configuration file is stored in the target repository but you invoke the runner from somewhere else, use an absolute path (or change to the intended directory first). For example:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --config /path/to/repository/composition.json
+```
+
+The same path rule applies to every initial or new-upgrade command that accepts `--config`.
 
 Initial planning is read-only. Review every action and conflict before applying. `create` means Composition will create a new destination. `adopt-identical` means the destination already has exactly the desired bytes and may be adopted without overwriting it. Any conflict prevents apply from proceeding.
 

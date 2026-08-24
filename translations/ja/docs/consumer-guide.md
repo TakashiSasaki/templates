@@ -40,12 +40,12 @@ export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cac
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/7412e9545e7648ddd8b3f4c05fe9ef171887d15b/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/39ee8eca1c560955de4cde609d9ec439f2f58068/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`7412e9545e7648ddd8b3f4c05fe9ef171887d15b` の installer は skill source `5b93c5628cd3cf7e72393dc3999a70aeb2b2a826` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `cd19bf8edacc146cd928b6175429e62985f17670` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`39ee8eca1c560955de4cde609d9ec439f2f58068` の installer は skill source `8dcc177614155d43e660857aabb7485d8f50320c` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `5d4b5a2e8a9b86e4d39e25a49340bb5f08d1a854` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
@@ -157,6 +157,16 @@ python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   plan --config composition.json
 ```
+
+relative な `--config` path は `--repository` を基準にせず、runner を呼び出した process の current working directory を基準に解決されます。configuration file が target repository 内にあっても別の directory から runner を呼び出す場合は、absolute path を使用するか、先に意図した directory へ移動してください。例:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --config /path/to/repository/composition.json
+```
+
+この path rule は `--config` を受け付けるすべての initial command と新しい upgrade command に適用されます。
 
 initial planning は read-only です。apply の前に、すべての action と conflict を確認してください。`create` は Composition が新しい destination を作成することを意味します。`adopt-identical` は destination がすでに desired bytes と完全一致しており、上書きせずに adopt できることを意味します。conflict が1つでもあれば apply は進みません。
 
