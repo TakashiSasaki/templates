@@ -24,4 +24,4 @@ Select `lifecycle.release-bundle` when the repository needs the Composition-mana
 
 ## Validation
 
-Install `.template-composition/requirements-validation.lock`, then run `python .template-composition/validate.py .`. Validation is selected from the resolved component set in the Composition lock: a minimal or runtime-backed Webapp does not run release validators, while a release-ready Webapp that selects `lifecycle.release-bundle` does.
+Run `python .template-composition/validate.py .`. The validator automatically provisions and reuses an isolated validation runtime from the exact dependency set carried by the managed Composition validation registry; no manual validation-environment installation is required. Validation is selected from the resolved component set in the Composition lock: a minimal or runtime-backed Webapp does not run release validators, while a release-ready Webapp that selects `lifecycle.release-bundle` does.
