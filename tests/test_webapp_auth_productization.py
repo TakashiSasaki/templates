@@ -138,11 +138,20 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         records: list[dict] = []
         for skeleton in worklist["records"]:
             identifier = skeleton["id"]
-            implementation_locator = self.target_locator(skeleton["target"])
+            evidence_target = skeleton["target"]
+            implementation_locator = self.target_locator(evidence_target)
+            proof_kind = (
+                "end-to-end-test"
+                if evidence_target.get("kind") == "contract-item"
+                and evidence_target.get("contractId") == "viewports"
+                and evidence_target.get("itemKind")
+                in {"viewport", "input-capability"}
+                else "integration-test"
+            )
             records.append(
                 {
                     "id": identifier,
-                    "target": skeleton["target"],
+                    "target": evidence_target,
                     "implementationBoundary": {
                         "status": "verified",
                         "description": (
@@ -155,7 +164,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         {
                             "id": f"{identifier}-positive",
                             "status": "verified",
-                            "kind": "integration-test",
+                            "kind": proof_kind,
                             "description": (
                                 "The auth proof exercises the target through contract, "
                                 "browser-surface, and HTTP behavior checks."
@@ -172,7 +181,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         {
                             "id": f"{identifier}-negative",
                             "status": "verified",
-                            "kind": "integration-test",
+                            "kind": proof_kind,
                             "description": (
                                 "The auth proof rejects contract drift or incorrect "
                                 "role/browser behavior."
