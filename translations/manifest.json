@@ -6,7 +6,7 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "7b66a7791cad04c9e5303e2e4e0ef4655448d421",
+      "canonical_blob_sha": "6b5532ff528cd9d4ad025bdc6f5f834ca4ffbad1",
       "surfaces": ["reader"]
     },
     {
@@ -27,7 +27,7 @@
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
-      "canonical_blob_sha": "d06eabfd2441d30fe356b914b36959b3d3b9039c",
+      "canonical_blob_sha": "8ab56d76673782e2488002f21ba69f4c9e267270",
       "surfaces": ["reader"]
     },
     {
@@ -69,14 +69,14 @@
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "7f153f63ccf695e1a1ba2a4c69f64581e2a0ac98",
+      "canonical_blob_sha": "ca0df861369cf3e06a1a15ae2a963b8d66a921ff",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "c16a68bd9d879424849cbf6f283977e45415f458",
+      "canonical_blob_sha": "8a32d954496a8cf01df75d99f02469ed7a29f82c",
       "surfaces": ["reader", "guided"]
     },
     {
