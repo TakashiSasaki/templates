@@ -12,6 +12,7 @@ import test_webapp_productization_acceptance as product_helpers
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_auth"
+BROWSER_FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_browser"
 AUTH_PROOF_COMMAND = "python product/prove_auth_fixture.py"
 
 
@@ -138,11 +139,34 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
         records: list[dict] = []
         for skeleton in worklist["records"]:
             identifier = skeleton["id"]
-            implementation_locator = self.target_locator(skeleton["target"])
+            evidence_target = skeleton["target"]
+            implementation_locator = self.target_locator(evidence_target)
+            browser_sensitive = (
+                evidence_target.get("kind") == "contract-item"
+                and evidence_target.get("contractId") == "viewports"
+                and evidence_target.get("itemKind")
+                in {"viewport", "input-capability"}
+            )
+            proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
+            proof_locator = (
+                "product/browser_probe.py"
+                if browser_sensitive
+                else "product/prove_auth_fixture.py"
+            )
+            positive_description = (
+                "The ChromeDriver proof exercises responsive layout and declared browser input behavior."
+                if browser_sensitive
+                else "The auth proof exercises the target through contract and HTTP behavior checks."
+            )
+            negative_description = (
+                "The ChromeDriver proof rejects page-wide overflow, zoom locking, and failed browser input activation."
+                if browser_sensitive
+                else "The auth proof rejects contract drift or incorrect role behavior."
+            )
             records.append(
                 {
                     "id": identifier,
-                    "target": skeleton["target"],
+                    "target": evidence_target,
                     "implementationBoundary": {
                         "status": "verified",
                         "description": (
@@ -155,12 +179,9 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         {
                             "id": f"{identifier}-positive",
                             "status": "verified",
-                            "kind": "integration-test",
-                            "description": (
-                                "The auth proof exercises the target through contract, "
-                                "browser-surface, and HTTP behavior checks."
-                            ),
-                            "locator": "product/prove_auth_fixture.py",
+                            "kind": proof_kind,
+                            "description": positive_description,
+                            "locator": proof_locator,
                             "commandId": "auth-product-proof",
                             "expectedResult": (
                                 "The declared route, state, access, viewport, input, "
@@ -172,12 +193,9 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         {
                             "id": f"{identifier}-negative",
                             "status": "verified",
-                            "kind": "integration-test",
-                            "description": (
-                                "The auth proof rejects contract drift or incorrect "
-                                "role/browser behavior."
-                            ),
-                            "locator": "product/prove_auth_fixture.py",
+                            "kind": proof_kind,
+                            "description": negative_description,
+                            "locator": proof_locator,
                             "commandId": "auth-product-proof",
                             "expectedResult": (
                                 "Invalid access, browser, or contract behavior causes "
@@ -208,6 +226,10 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 (FIXTURE_DIR / name).read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
+        (product / "browser_probe.py").write_text(
+            (BROWSER_FIXTURE_DIR / "browser_probe.py").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
 
     def materialize_candidate(
         self, root: Path, *, allow_admin_without_role: bool = False
@@ -309,7 +331,11 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             result = self.run_release(target, revision)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(
-                "Webapp auth product proof: route access, complete UI-state, viewport, and accessibility behavior passed",
+                "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, and declared input capabilities passed",
+                result.stdout,
+            )
+            self.assertIn(
+                "Webapp auth product proof: route access, complete UI-state, real-browser viewport/input, and accessibility behavior passed",
                 result.stdout,
             )
             self.assertIn("Release evidence and bundle produced", result.stdout)

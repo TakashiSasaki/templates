@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 sys.dont_write_bytecode = True
 
 import auth_app
+from browser_probe import run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = (
@@ -188,6 +189,7 @@ def assert_view(
 
 observed_states: set[str] = set()
 try:
+    run_browser_contract_probe(base + "/", viewports)
     observed_states.add(assert_view(200, "public", "populated", "/"))
     observed_states.add(assert_view(200, "status", "populated", "/status"))
     observed_states.add(assert_view(401, "application", "unauthorized", "/app"))
@@ -260,5 +262,5 @@ finally:
 
 assert observed_states == set(states_by_id)
 print(
-    "Webapp auth product proof: route access, complete UI-state, viewport, and accessibility behavior passed"
+    "Webapp auth product proof: route access, complete UI-state, real-browser viewport/input, and accessibility behavior passed"
 )

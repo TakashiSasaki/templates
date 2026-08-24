@@ -109,11 +109,20 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     }
                 )
                 record["releaseGateIds"] = ["product-release"]
+                evidence_target = record["target"]
+                proof_kind = (
+                    "end-to-end-test"
+                    if evidence_target.get("kind") == "contract-item"
+                    and evidence_target.get("contractId") == "viewports"
+                    and evidence_target.get("itemKind")
+                    in {"viewport", "input-capability"}
+                    else "integration-test"
+                )
                 for proof in record["positiveEvidence"] + record["negativeEvidence"]:
                     proof.update(
                         {
                             "status": "verified",
-                            "kind": "integration-test",
+                            "kind": proof_kind,
                             "locator": "product/prove.py",
                             "commandId": "product-proof",
                             "expectedResult": "The declared target is covered by the product proof.",

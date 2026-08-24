@@ -77,5 +77,10 @@ jobs:
       - name: Verify Composition installer release
         run: .venv/bin/python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 
+      - name: Verify real-browser evidence runtime
+        run: |
+          google-chrome --version
+          chromedriver --version
+
       - name: Run schema and semantic contract tests
         run: .venv/bin/python -m unittest discover -s tests -v
