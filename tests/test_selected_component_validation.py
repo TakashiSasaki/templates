@@ -203,7 +203,34 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS)
-            self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
+            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
+            self.assertIn("TEMPLATE mode", checks["implementation-evidence"]["stderr"])
+            self.assertIn(
+                "no product implementation claim",
+                checks["implementation-evidence"]["stderr"],
+            )
+            self.assertTrue(
+                all(
+                    check["status"] == "passed"
+                    for check_id, check in checks.items()
+                    if check_id != "implementation-evidence"
+                )
+            )
+
+            runner = target / ".template-composition" / "validate.py"
+            human = subprocess.run(
+                [sys.executable, str(runner), str(target)],
+                cwd=target,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
+            self.assertIn("DEFERRED: implementation-evidence", human.stdout)
+            self.assertIn("TEMPLATE mode", human.stdout)
+            self.assertIn("no product implementation claim", human.stdout)
+            self.assertIn("Composition validation: VALID", human.stdout)
+
             self.assertFalse((target / "contracts" / "release-execution.json").exists())
             self.assertFalse((target / "contracts" / "release-evidence.json").exists())
             self.assertFalse((target / "contracts" / "release-bundle.json").exists())
@@ -223,6 +250,8 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertIn("capability.runtime", payload["resolved_components"])
             self.assertNotIn("lifecycle.release-bundle", payload["resolved_components"])
             self.assertEqual({check["id"] for check in payload["checks"]}, WEBAPP_BASE_CHECKS)
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
             self.assertFalse((target / "contracts" / "release-bundle.json").exists())
 
     def test_release_ready_webapp_runs_full_selected_validation_chain(self) -> None:
@@ -243,7 +272,14 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertIn("lifecycle.release-bundle", component_ids)
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS | WEBAPP_RELEASE_CHECKS)
-            self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
+            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
+            self.assertTrue(
+                all(
+                    check["status"] == "passed"
+                    for check_id, check in checks.items()
+                    if check_id != "implementation-evidence"
+                )
+            )
             self.assertTrue((target / "contracts" / "release-bundle.json").is_file())
 
     def test_product_release_checks_are_explicitly_deferred(self) -> None:
@@ -256,6 +292,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, payload)
             self.assertEqual(payload["status"], "valid")
             checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
             self.assertEqual(checks["release-evidence-template"]["status"], "deferred")
             self.assertEqual(checks["release-bundle-template"]["status"], "deferred")
             for check_id in ("release-evidence-template", "release-bundle-template"):
