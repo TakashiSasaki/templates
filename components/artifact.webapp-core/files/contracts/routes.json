@@ -5,58 +5,18 @@
     {
       "id": "home",
       "path": "/",
-      "surface": "public",
-      "canonical": true,
-      "aliases": [],
-      "authentication": "optional",
-      "deepLink": true,
-      "historyBehavior": "push",
-      "authenticationReturn": "same-route",
-      "accessFailures": {
-        "unauthenticated": {"behavior": "not-applicable"},
-        "forbidden": {"behavior": "not-applicable"}
-      },
-      "states": ["loading", "populated", "recoverable-error", "retrying", "offline"],
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "application-home",
-      "path": "/app",
       "surface": "application",
       "canonical": true,
       "aliases": [],
-      "authentication": "required",
+      "authentication": "none",
       "deepLink": true,
       "historyBehavior": "push",
-      "authenticationReturn": "same-route",
-      "accessFailures": {
-        "unauthenticated": {"behavior": "render-state", "stateId": "unauthorized"},
-        "forbidden": {"behavior": "render-state", "stateId": "forbidden"}
-      },
-      "states": ["loading", "empty", "populated", "partial", "recoverable-error", "retrying", "offline", "unauthorized", "forbidden"],
-      "accessibility": {
-        "documentTitleRequired": true,
-        "focusTarget": "main-heading"
-      }
-    },
-    {
-      "id": "status",
-      "path": "/status",
-      "surface": "status",
-      "canonical": true,
-      "aliases": [],
-      "authentication": "optional",
-      "deepLink": true,
-      "historyBehavior": "replace",
       "authenticationReturn": "not-applicable",
       "accessFailures": {
         "unauthenticated": {"behavior": "not-applicable"},
         "forbidden": {"behavior": "not-applicable"}
       },
-      "states": ["loading", "populated", "partial", "recoverable-error", "retrying"],
+      "states": ["loading", "empty", "populated", "recoverable-error", "offline"],
       "accessibility": {
         "documentTitleRequired": true,
         "focusTarget": "main-heading"
