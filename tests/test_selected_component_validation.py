@@ -12,6 +12,7 @@ import test_webapp_productization_acceptance as product_helpers
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
+RUNTIME_LOCK = ROOT / "requirements-runtime.lock"
 REGISTRY = (
     ROOT
     / "components"
@@ -108,7 +109,13 @@ class SelectedComponentValidationTests(unittest.TestCase):
 
     def test_registry_entrypoints_are_managed_by_the_declared_components(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-        self.assertEqual(registry["schema_version"], 1)
+        self.assertEqual(registry["schema_version"], 2)
+        expected_runtime = [
+            line.strip()
+            for line in RUNTIME_LOCK.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        self.assertEqual(registry["runtime"], {"requirements": expected_runtime})
         ids: list[str] = []
         for validator in registry["validators"]:
             ids.append(validator["id"])

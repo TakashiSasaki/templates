@@ -26,4 +26,4 @@ Composition-managed release workflow が必要な repository では `lifecycle.r
 
 ## Validation
 
-`.template-composition/requirements-validation.lock` をインストールしたうえで、`python .template-composition/validate.py .` を実行します。validation は Composition lock の resolved component set から選択されます。minimal Webapp や runtime-backed Webapp では release validator は実行されず、`lifecycle.release-bundle` を選択した release-ready Webapp では実行されます。
+`python .template-composition/validate.py .` を実行します。validator は managed な Composition validation registry に記録された exact dependency set から isolated validation runtime を自動的に構築・再利用するため、validation environment を手動でインストールする必要はありません。validation は Composition lock の resolved component set から選択されます。minimal Webapp や runtime-backed Webapp では release validator は実行されず、`lifecycle.release-bundle` を選択した release-ready Webapp では実行されます。

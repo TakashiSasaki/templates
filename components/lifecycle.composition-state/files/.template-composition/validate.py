@@ -4,10 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +23,21 @@ RUNNER_RELATIVE = ".template-composition/validate.py"
 COMPONENT_RE = re.compile(
     r"^(artifact|capability|lifecycle)\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 )
+EXACT_REQUIREMENT = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_.-]*===([A-Za-z0-9][A-Za-z0-9_.+!-]*)$"
+)
+SUPPORTED_MIN = (3, 11)
+SUPPORTED_MAX_EXCLUSIVE = (3, 15)
+CACHE_SCHEMA = 1
+CACHE_OVERRIDE = "COMPOSITION_VALIDATION_CACHE"
+BOOTSTRAP_DISTRIBUTIONS = frozenset({"pip", "setuptools", "wheel"})
 
 
 class ValidationRegistryError(ValueError):
+    pass
+
+
+class ValidationRuntimeError(RuntimeError):
     pass
 
 
@@ -61,6 +78,38 @@ def _portable_path(value: Any) -> str:
     return value
 
 
+def _normalize_distribution_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _parse_runtime_requirements(value: Any) -> tuple[list[str], dict[str, str]]:
+    if not isinstance(value, dict) or set(value) != {"requirements"}:
+        raise ValidationRegistryError(
+            "validation registry runtime must contain exactly requirements"
+        )
+    raw_requirements = value.get("requirements")
+    if not isinstance(raw_requirements, list) or not raw_requirements:
+        raise ValidationRegistryError(
+            "validation registry runtime requirements must be a non-empty array"
+        )
+    rendered: list[str] = []
+    parsed: dict[str, str] = {}
+    for index, requirement in enumerate(raw_requirements):
+        if not isinstance(requirement, str) or EXACT_REQUIREMENT.fullmatch(requirement) is None:
+            raise ValidationRegistryError(
+                f"validation runtime requirements[{index}] must be exact name===version"
+            )
+        name, version = requirement.split("===", 1)
+        normalized = _normalize_distribution_name(name)
+        if normalized in parsed:
+            raise ValidationRegistryError(
+                f"validation runtime contains duplicate distribution {name!r}"
+            )
+        parsed[normalized] = version
+        rendered.append(requirement)
+    return rendered, parsed
+
+
 def _validate_when(value: Any, *, validator_id: str) -> dict[str, str] | None:
     if value is None:
         return None
@@ -82,11 +131,17 @@ def _validate_when(value: Any, *, validator_id: str) -> dict[str, str] | None:
     if not isinstance(field, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", field):
         raise ValidationRegistryError(f"validator {validator_id}: invalid condition field")
     if not isinstance(expected, str) or not expected:
-        raise ValidationRegistryError(f"validator {validator_id}: condition equals must be a non-empty string")
+        raise ValidationRegistryError(
+            f"validator {validator_id}: condition equals must be a non-empty string"
+        )
     if otherwise != "defer":
-        raise ValidationRegistryError(f"validator {validator_id}: unsupported condition outcome {otherwise!r}")
+        raise ValidationRegistryError(
+            f"validator {validator_id}: unsupported condition outcome {otherwise!r}"
+        )
     if not isinstance(message, str) or not message:
-        raise ValidationRegistryError(f"validator {validator_id}: deferred validation message is required")
+        raise ValidationRegistryError(
+            f"validator {validator_id}: deferred validation message is required"
+        )
     return {
         "document": document,
         "field": field,
@@ -96,14 +151,19 @@ def _validate_when(value: Any, *, validator_id: str) -> dict[str, str] | None:
     }
 
 
-def _load_registry(path: Path) -> list[dict[str, Any]]:
+def _load_registry(path: Path) -> tuple[list[str], dict[str, str], list[dict[str, Any]]]:
     value = _load_json(path)
-    if not isinstance(value, dict) or set(value) != {"schema_version", "validators"}:
+    if not isinstance(value, dict) or set(value) != {
+        "schema_version",
+        "runtime",
+        "validators",
+    }:
         raise ValidationRegistryError(
-            "validation registry must contain exactly schema_version and validators"
+            "validation registry must contain exactly schema_version, runtime, and validators"
         )
-    if value.get("schema_version") != 1:
-        raise ValidationRegistryError("validation registry schema_version must be 1")
+    if value.get("schema_version") != 2:
+        raise ValidationRegistryError("validation registry schema_version must be 2")
+    runtime_lines, runtime_requirements = _parse_runtime_requirements(value.get("runtime"))
     validators = value.get("validators")
     if not isinstance(validators, list):
         raise ValidationRegistryError("validation registry validators must be an array")
@@ -136,10 +196,14 @@ def _load_registry(path: Path) -> list[dict[str, Any]]:
         if not isinstance(arguments, list) or any(
             not isinstance(argument, str) or "\x00" in argument for argument in arguments
         ):
-            raise ValidationRegistryError(f"validator {validator_id}: arguments must be strings")
+            raise ValidationRegistryError(
+                f"validator {validator_id}: arguments must be strings"
+            )
         purpose = entry.get("purpose")
         if not isinstance(purpose, str) or not purpose:
-            raise ValidationRegistryError(f"validator {validator_id}: purpose is required")
+            raise ValidationRegistryError(
+                f"validator {validator_id}: purpose is required"
+            )
         condition = _validate_when(entry.get("when"), validator_id=validator_id)
         normalized.append(
             {
@@ -151,7 +215,11 @@ def _load_registry(path: Path) -> list[dict[str, Any]]:
                 "when": condition,
             }
         )
-    return sorted(normalized, key=lambda entry: (entry["component"], entry["id"]))
+    return (
+        runtime_lines,
+        runtime_requirements,
+        sorted(normalized, key=lambda entry: (entry["component"], entry["id"])),
+    )
 
 
 def _lock_files(lock: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -161,12 +229,18 @@ def _lock_files(lock: dict[str, Any]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for entry in files:
         if not isinstance(entry, dict):
-            raise ValidationRegistryError("composition lock contains a non-object file entry")
+            raise ValidationRegistryError(
+                "composition lock contains a non-object file entry"
+            )
         destination = entry.get("destination")
         if not isinstance(destination, str):
-            raise ValidationRegistryError("composition lock file entry has an invalid destination")
+            raise ValidationRegistryError(
+                "composition lock file entry has an invalid destination"
+            )
         if destination in result:
-            raise ValidationRegistryError(f"duplicate lock destination: {destination}")
+            raise ValidationRegistryError(
+                f"duplicate lock destination: {destination}"
+            )
         result[destination] = entry
     return result
 
@@ -194,14 +268,402 @@ def _require_locked_material(
     return entry
 
 
-def _run_process(root: Path, entrypoint: str, arguments: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(root / entrypoint), *arguments],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
+def _verify_host_python() -> None:
+    if sys.implementation.name != "cpython":
+        raise ValidationRuntimeError("Composition validation requires CPython")
+    version = sys.version_info[:2]
+    if not (SUPPORTED_MIN <= version < SUPPORTED_MAX_EXCLUSIVE):
+        raise ValidationRuntimeError(
+            f"unsupported CPython {version[0]}.{version[1]}; "
+            "supported versions are 3.11 through 3.14"
+        )
+
+
+def _python_token() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}"
+
+
+def _platform_token() -> str:
+    machine = platform.machine().lower() or "unknown"
+    return f"{sys.platform}-{machine}"
+
+
+def _validation_cache_root() -> Path:
+    try:
+        override = os.environ.get(CACHE_OVERRIDE)
+        if override:
+            return Path(override).expanduser().resolve()
+        if os.name == "nt":
+            local = os.environ.get("LOCALAPPDATA")
+            base = Path(local) if local else Path.home() / ".cache"
+        else:
+            xdg = os.environ.get("XDG_CACHE_HOME")
+            base = Path(xdg) if xdg else Path.home() / ".cache"
+        return base / "composition" / "validation-v1"
+    except (OSError, RuntimeError) as exc:
+        raise ValidationRuntimeError(
+            f"cannot determine Composition validation cache directory: {exc}. "
+            f"Set {CACHE_OVERRIDE} to a writable directory."
+        ) from exc
+
+
+def _runtime_environment() -> dict[str, str]:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.upper().startswith("PIP_")
+        and not key.upper().startswith("PYTHON")
+    }
+    environment["PYTHONNOUSERSITE"] = "1"
+    environment["PIP_CONFIG_FILE"] = os.devnull
+    environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    return environment
+
+
+def _cache_error(path: Path, exc: BaseException) -> ValidationRuntimeError:
+    return ValidationRuntimeError(
+        f"Composition validation cache is unusable at {path}: {exc}. "
+        f"Set {CACHE_OVERRIDE} to a writable directory."
     )
+
+
+def _remove_path(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink(missing_ok=True)
+    elif path.is_dir():
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def _ensure_cache_parent(parent: Path) -> None:
+    probe: Path | None = None
+    renamed: Path | None = None
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+        probe = Path(
+            tempfile.mkdtemp(prefix=".composition-validation-probe-", dir=parent)
+        )
+        (probe / "probe").write_text("ok\n", encoding="utf-8")
+        renamed = probe.with_name(f"{probe.name}.renamed")
+        probe.rename(renamed)
+        probe = None
+        _remove_path(renamed)
+        renamed = None
+    except OSError as exc:
+        if probe is not None:
+            _remove_path(probe)
+        if renamed is not None:
+            _remove_path(renamed)
+        raise _cache_error(parent, exc) from exc
+
+
+def _runtime_identity(lock_data: bytes) -> dict[str, str]:
+    return {
+        "requirements_sha256": hashlib.sha256(lock_data).hexdigest(),
+        "python": _python_token(),
+        "platform": _platform_token(),
+    }
+
+
+def _runtime_digest(identity: dict[str, str]) -> str:
+    encoded = json.dumps(
+        identity, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _runtime_entry(cache: Path, identity: dict[str, str]) -> Path:
+    return cache / "runtimes" / _runtime_digest(identity)
+
+
+def _runtime_marker(entry: Path) -> Path:
+    return entry / "runtime.json"
+
+
+def _runtime_marker_payload(identity: dict[str, str]) -> dict[str, Any]:
+    return {"schema_version": CACHE_SCHEMA, "identity": identity}
+
+
+def _venv_python(entry: Path) -> Path:
+    if os.name == "nt":
+        return entry / "venv" / "Scripts" / "python.exe"
+    return entry / "venv" / "bin" / "python"
+
+
+def _run_checked(
+    command: list[str],
+    *,
+    environment: dict[str, str],
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except OSError as exc:
+        raise ValidationRuntimeError(
+            f"cannot execute validation runtime command {command[0]}: {exc}"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        suffix = f": {detail}" if detail else ""
+        raise ValidationRuntimeError(
+            f"validation runtime command failed with exit {exc.returncode}: "
+            f"{' '.join(command)}{suffix}"
+        ) from exc
+
+
+_RUNTIME_PROBE = (
+    "import importlib.metadata,json,platform,sys;"
+    "normalize=lambda name:__import__('re').sub(r'[-_.]+','-',name).lower();"
+    "d={};"
+    "\nfor item in importlib.metadata.distributions():"
+    "\n name=item.metadata.get('Name');"
+    "\n assert name;"
+    "\n key=normalize(name);"
+    "\n assert key not in d;"
+    "\n d[key]=item.version;"
+    "\nmachine=platform.machine().lower() or 'unknown';"
+    "\nprint(json.dumps({'implementation':sys.implementation.name,"
+    "'python':str(sys.version_info.major)+'.'+str(sys.version_info.minor),"
+    "'platform':sys.platform+'-'+machine,'distributions':d},sort_keys=True))"
+)
+
+
+def _runtime_valid(
+    entry: Path,
+    identity: dict[str, str],
+    expected: dict[str, str],
+    environment: dict[str, str],
+) -> bool:
+    if entry.is_symlink() or not entry.is_dir():
+        return False
+    marker = _runtime_marker(entry)
+    try:
+        if marker.is_symlink() or not marker.is_file():
+            return False
+        if _load_json(marker) != _runtime_marker_payload(identity):
+            return False
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return False
+
+    lock = entry / "requirements-runtime.lock"
+    python = _venv_python(entry)
+    if lock.is_symlink() or not lock.is_file() or not python.is_file():
+        return False
+    try:
+        if hashlib.sha256(lock.read_bytes()).hexdigest() != identity["requirements_sha256"]:
+            return False
+        probe = _run_checked(
+            [str(python), "-I", "-c", _RUNTIME_PROBE],
+            environment=environment,
+        )
+        value = json.loads(probe.stdout)
+        if not isinstance(value, dict):
+            return False
+        if value.get("implementation") != "cpython":
+            return False
+        if value.get("python") != identity["python"]:
+            return False
+        if value.get("platform") != identity["platform"]:
+            return False
+        installed = value.get("distributions")
+        if not isinstance(installed, dict):
+            return False
+        checked = {
+            name: version
+            for name, version in installed.items()
+            if name not in BOOTSTRAP_DISTRIBUTIONS
+        }
+        if checked != expected:
+            return False
+        _run_checked(
+            [str(python), "-I", "-m", "pip", "check"],
+            environment=environment,
+        )
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        json.JSONDecodeError,
+        ValidationRuntimeError,
+    ):
+        return False
+    return True
+
+
+def _install_cache_directory(
+    stage: Path,
+    target: Path,
+    identity: dict[str, str],
+    expected: dict[str, str],
+    environment: dict[str, str],
+) -> Path:
+    if _runtime_valid(target, identity, expected, environment):
+        _remove_path(stage)
+        return target
+
+    backup: Path | None = None
+    if target.exists() or target.is_symlink():
+        placeholder = Path(
+            tempfile.mkdtemp(prefix=f".{target.name}.backup-", dir=target.parent)
+        )
+        placeholder.rmdir()
+        backup = placeholder
+        try:
+            target.rename(backup)
+        except FileNotFoundError:
+            backup = None
+
+    try:
+        stage.rename(target)
+    except OSError as rename_error:
+        if _runtime_valid(target, identity, expected, environment):
+            _remove_path(stage)
+            if backup is not None:
+                _remove_path(backup)
+            return target
+        if (
+            backup is not None
+            and (backup.exists() or backup.is_symlink())
+            and not (target.exists() or target.is_symlink())
+        ):
+            try:
+                backup.rename(target)
+            except OSError as restore_error:
+                raise ValidationRuntimeError(
+                    f"validation cache installation failed for {target}: "
+                    f"{rename_error}; previous cache entry could not be restored: "
+                    f"{restore_error}"
+                ) from restore_error
+        raise
+
+    if backup is not None:
+        _remove_path(backup)
+    return target
+
+
+def _build_validation_runtime(
+    target: Path,
+    identity: dict[str, str],
+    requirement_lines: list[str],
+    expected: dict[str, str],
+    environment: dict[str, str],
+) -> Path:
+    _ensure_cache_parent(target.parent)
+    stage: Path | None = None
+    try:
+        stage = Path(
+            tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent)
+        )
+        lock = stage / "requirements-runtime.lock"
+        lock_data = ("\n".join(requirement_lines) + "\n").encode("utf-8")
+        lock.write_bytes(lock_data)
+        _run_checked(
+            [sys.executable, "-I", "-m", "venv", str(stage / "venv")],
+            environment=environment,
+        )
+        python = _venv_python(stage)
+        _run_checked(
+            [
+                str(python),
+                "-I",
+                "-m",
+                "pip",
+                "install",
+                "--isolated",
+                "--disable-pip-version-check",
+                "--no-cache-dir",
+                "--no-deps",
+                "--requirement",
+                str(lock),
+            ],
+            environment=environment,
+        )
+        _run_checked(
+            [str(python), "-I", "-m", "pip", "check"],
+            environment=environment,
+        )
+        _runtime_marker(stage).write_text(
+            json.dumps(
+                _runtime_marker_payload(identity),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        if not _runtime_valid(stage, identity, expected, environment):
+            raise ValidationRuntimeError(
+                "new Composition validation runtime cache failed validation"
+            )
+        return _install_cache_directory(
+            stage,
+            target,
+            identity,
+            expected,
+            environment,
+        )
+    except OSError as exc:
+        if stage is not None:
+            _remove_path(stage)
+        raise _cache_error(target.parent, exc) from exc
+    except Exception:
+        if stage is not None:
+            _remove_path(stage)
+        raise
+
+
+def _ensure_validation_python(
+    requirement_lines: list[str],
+    expected: dict[str, str],
+) -> tuple[Path, dict[str, str]]:
+    _verify_host_python()
+    lock_data = ("\n".join(requirement_lines) + "\n").encode("utf-8")
+    identity = _runtime_identity(lock_data)
+    environment = _runtime_environment()
+    target = _runtime_entry(_validation_cache_root(), identity)
+    if _runtime_valid(target, identity, expected, environment):
+        return _venv_python(target), environment
+    entry = _build_validation_runtime(
+        target,
+        identity,
+        requirement_lines,
+        expected,
+        environment,
+    )
+    return _venv_python(entry), environment
+
+
+def _run_process(
+    root: Path,
+    entrypoint: str,
+    arguments: list[str],
+    *,
+    python: Path | str | None = None,
+    environment: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    executable = str(python) if python is not None else sys.executable
+    try:
+        return subprocess.run(
+            [executable, str(root / entrypoint), *arguments],
+            cwd=root,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        return subprocess.CompletedProcess(
+            [executable, str(root / entrypoint), *arguments],
+            126,
+            "",
+            f"cannot execute validator with {executable}: {exc}",
+        )
 
 
 def _process_check(
@@ -258,7 +720,10 @@ def _condition_decision(
     except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError) as exc:
         return "failed", f"cannot read validation condition document {document}: {exc}"
     if not isinstance(value, dict):
-        return "failed", f"validation condition document must contain a JSON object: {document}"
+        return (
+            "failed",
+            f"validation condition document must contain a JSON object: {document}",
+        )
     actual = value.get(condition["field"])
     if actual == condition["equals"]:
         return "run", None
@@ -279,7 +744,10 @@ def validate(root: Path) -> dict[str, Any]:
                     component="lifecycle.composition-state",
                     entrypoint=STATE_VALIDATOR_RELATIVE,
                     purpose="Validate the resolved Composition lock and material ownership state.",
-                    message=f"composition state validator is missing or unsafe: {STATE_VALIDATOR_RELATIVE}",
+                    message=(
+                        "composition state validator is missing or unsafe: "
+                        f"{STATE_VALIDATOR_RELATIVE}"
+                    ),
                 )
             ],
         }
@@ -304,17 +772,23 @@ def validate(root: Path) -> dict[str, Any]:
     try:
         lock = _load_json(root / LOCK_RELATIVE)
         if not isinstance(lock, dict):
-            raise ValidationRegistryError("composition lock must contain a JSON object")
+            raise ValidationRegistryError(
+                "composition lock must contain a JSON object"
+            )
         resolved_entries = lock.get("resolved_components")
         if not isinstance(resolved_entries, list):
-            raise ValidationRegistryError("composition lock resolved_components must be an array")
+            raise ValidationRegistryError(
+                "composition lock resolved_components must be an array"
+            )
         selected = [
             entry.get("id")
             for entry in resolved_entries
             if isinstance(entry, dict) and isinstance(entry.get("id"), str)
         ]
         if len(selected) != len(resolved_entries):
-            raise ValidationRegistryError("composition lock has invalid resolved component entries")
+            raise ValidationRegistryError(
+                "composition lock has invalid resolved component entries"
+            )
         selected_set = set(selected)
         files = _lock_files(lock)
         _require_locked_material(
@@ -329,7 +803,9 @@ def validate(root: Path) -> dict[str, Any]:
             component="lifecycle.composition-state",
             ownership="managed",
         )
-        registry = _load_registry(root / REGISTRY_RELATIVE)
+        runtime_lines, runtime_requirements, registry = _load_registry(
+            root / REGISTRY_RELATIVE
+        )
     except (
         OSError,
         UnicodeError,
@@ -348,7 +824,36 @@ def validate(root: Path) -> dict[str, Any]:
                     check_id="validation-registry",
                     component="lifecycle.composition-state",
                     entrypoint=REGISTRY_RELATIVE,
-                    purpose="Resolve validator dispatch from the trusted managed registry and composition lock.",
+                    purpose=(
+                        "Resolve validator dispatch and validation runtime from "
+                        "the trusted managed registry and composition lock."
+                    ),
+                    message=str(exc),
+                ),
+            ],
+        }
+
+    try:
+        validation_python, validation_environment = _ensure_validation_python(
+            runtime_lines,
+            runtime_requirements,
+        )
+    except ValidationRuntimeError as exc:
+        return {
+            "schema_version": 1,
+            "status": "invalid",
+            "target": str(root),
+            "resolved_components": selected,
+            "checks": [
+                state_check,
+                _failed_check(
+                    check_id="validation-runtime",
+                    component="lifecycle.composition-state",
+                    entrypoint=REGISTRY_RELATIVE,
+                    purpose=(
+                        "Provide the exact isolated Python dependency set used "
+                        "by selected component validators."
+                    ),
                     message=str(exc),
                 ),
             ],
@@ -415,7 +920,13 @@ def validate(root: Path) -> dict[str, Any]:
                 )
                 continue
 
-        process = _run_process(root, entry["entrypoint"], entry["arguments"])
+        process = _run_process(
+            root,
+            entry["entrypoint"],
+            entry["arguments"],
+            python=validation_python,
+            environment=validation_environment,
+        )
         checks.append(
             _process_check(
                 check_id=entry["id"],
@@ -428,7 +939,11 @@ def validate(root: Path) -> dict[str, Any]:
 
     return {
         "schema_version": 1,
-        "status": "invalid" if any(check["status"] == "failed" for check in checks) else "valid",
+        "status": (
+            "invalid"
+            if any(check["status"] == "failed" for check in checks)
+            else "valid"
+        ),
         "target": str(root),
         "resolved_components": selected,
         "checks": checks,
@@ -441,7 +956,9 @@ def _render_human(result: dict[str, Any]) -> None:
         print(f"{label}: {check['id']} ({check['component']})")
         detail = check.get("stderr") or check.get("stdout")
         if check["status"] in {"failed", "deferred"} and detail:
-            indented = "\n".join(f"  {line}" for line in detail.strip().splitlines())
+            indented = "\n".join(
+                f"  {line}" for line in detail.strip().splitlines()
+            )
             print(indented)
     print(f"Composition validation: {result['status'].upper()}")
 
