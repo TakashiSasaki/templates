@@ -142,9 +142,12 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
         }
         self.assert_valid(value)
 
-        nonempty = copy.deepcopy(value)
-        nonempty["commands"] = product_document()["commands"]
-        self.assert_invalid(nonempty)
+        product = product_document()
+        for key in ("commands", "releaseGates", "records"):
+            nonempty = copy.deepcopy(value)
+            nonempty[key] = product[key]
+            with self.subTest(rejected_key=key):
+                self.assert_invalid(nonempty)
 
 
 if __name__ == "__main__":
