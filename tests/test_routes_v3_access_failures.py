@@ -352,7 +352,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
 
     def test_current_component_preserves_routes_v3_history_and_migration(self) -> None:
         component = self.load_json(WEBAPP_COMPONENT)
-        self.assertEqual(component["version"], 5)
+        self.assertEqual(component["version"], 6)
         registration = next(
             item
             for item in component["contract_registrations"]
