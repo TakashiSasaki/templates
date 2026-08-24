@@ -4,6 +4,14 @@
 
 この repository は、`webapp` Composition レシピによって生成される framework-neutral な Web application contract scaffold です。
 
+## Composition が初めてなら worked example から始める
+
+この repository を使って初めて Web application を作る場合は、以下の contracts を最初から読み解くところから始めないでください。別 product repository から [Webapp product walkthrough](../../../docs/guides/webapp-product-walkthrough.md) を順に進めます。prerequisites と Composition install から始まり、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を実行し、生成後にどの file を編集できるかを具体的に確認した後、product implementation と evidence まで進みます。
+
+walkthrough の最初の milestone は **valid な Composition scaffold** であり、完成した Web application ではありません。product implementation と product verification は引き続き consumer の責任です。
+
+## Webapp recipe が定義するもの
+
 `artifact.webapp-core` は browser-specific な semantics を所有します。対象は surface、canonical route、visible UI state、responsive viewport / input capability、およびそれらの cross-contract validation です。generic な contract evolution と implementation evidence は、再利用可能な `lifecycle.*` component を通じて Webapp baseline に含まれます。release execution、release evidence、release bundle の behavior は、consumer が `lifecycle.release-bundle` を明示的に選択した場合だけ追加されます。
 
 この scaffold は、frontend framework、rendering model、package manager、backend、persistence layer、authentication provider、deployment platform、browser matrix、observability vendor を意図的に選択しません。
