@@ -108,6 +108,45 @@ cross-authority collision は次の規則に従います。
 
 これらの invariant は Site の exact-revision integration test の候補です。各 provider の意味論については provider-local test が引き続き責任を負います。
 
+## Consumer 向け共存 validation checklist
+
+両 authority を adopt 済みの repository では、一方の command が成功したことを他方の provider state の証明とみなさず、それぞれを独立して検証します。この checklist は consumer verification の手順です。Site が consumer の代わりに実行するものではなく、umbrella management command を新設するものでもありません。
+
+1. インストール済み Composition skill を使って Composition を inspect / validate します。
+
+   ```sh
+   python /path/to/agent-skills/composition/scripts/run.py \
+     --repository /path/to/repository \
+     inspect
+   python /path/to/agent-skills/composition/scripts/run.py \
+     --repository /path/to/repository \
+     validate
+   ```
+
+   managed Composition state を前提に作業する前に、`inspect` が `managed-valid` を報告することを確認します。
+
+2. 別途インストールした `agent-policy` skill を使って Policy を validate / render / check します。
+
+   ```sh
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     validate
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     render
+   python /path/to/agent-skills/agent-policy/scripts/run.py \
+     --repository /path/to/repository \
+     check
+   ```
+
+3. Policy の render / finalization 後に Composition の `inspect` と `validate` をもう一度実行します。正当な `AGENTS.md` handoff は、Composition が active seed を consumer ownership へ移譲済みなので引き続き valid です。一方、Policy は Composition-managed metadata と managed / generated material を変更してはなりません。
+
+4. repository diff または同等の before / after snapshot を確認します。Policy operation は `.template-composition/**` を変更してはならず、Composition operation は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を変更してはなりません。handoff 済み `AGENTS.md` のような通常の consumer-owned path は namespace だけでなく、明示された ownership contract に基づいて判断します。
+
+5. failure は独立して扱います。Policy failure は Policy tooling で、Composition failure は Composition tooling で診断します。一方の provider を使って他方の private state を repair / rewrite / delete / regenerate してはいけません。
+
+いずれかの provider で managed operation を行った後は、該当側の checklist を繰り返します。ownership handoff または cross-authority configuration change が関係する場合は、両側の手順を繰り返します。
+
 ## Shared mechanism と shared authority
 
 code duplication があるだけでは provider を結合する十分な理由にはなりません。mechanism を共有するのは、一つの semantic owner を持つ、本当に共有された一つの protocol を実装する場合だけです。
