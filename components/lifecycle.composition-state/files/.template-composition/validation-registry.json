@@ -44,7 +44,14 @@
       "component": "lifecycle.implementation-evidence",
       "entrypoint": ".template-composition/validators/validate_implementation_evidence.py",
       "arguments": ["."],
-      "purpose": "Validate implementation boundaries, proof commands, and release-gate coverage."
+      "purpose": "Validate product implementation boundaries, proof commands, and release-gate coverage.",
+      "when": {
+        "document": "contracts/implementation-evidence.json",
+        "field": "mode",
+        "equals": "product",
+        "otherwise": "defer",
+        "message": "Implementation evidence is in TEMPLATE mode; no product implementation claim is active. Switch to product mode only after the claimed implementation boundaries and evidence actually exist."
+      }
     },
     {
       "id": "release-bundle-template",
