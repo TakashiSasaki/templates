@@ -244,6 +244,14 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         records = []
         for index, evidence_target in enumerate(targets, 1):
             record_id = f"record-{index:03d}"
+            proof_kind = (
+                "end-to-end-test"
+                if evidence_target.get("kind") == "contract-item"
+                and evidence_target.get("contractId") == "viewports"
+                and evidence_target.get("itemKind")
+                in {"viewport", "input-capability"}
+                else "integration-test"
+            )
             records.append(
                 {
                     "id": record_id,
@@ -257,7 +265,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                         {
                             "id": f"{record_id}-positive",
                             "status": "verified",
-                            "kind": "integration-test",
+                            "kind": proof_kind,
                             "description": "The product proof validates the positive contract path.",
                             "locator": "product/prove_webapp.py",
                             "commandId": "webapp-proof",
@@ -268,7 +276,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                         {
                             "id": f"{record_id}-negative",
                             "status": "verified",
-                            "kind": "integration-test",
+                            "kind": proof_kind,
                             "description": "The product proof keeps the declared target under validation.",
                             "locator": "product/prove_webapp.py",
                             "commandId": "webapp-proof",
