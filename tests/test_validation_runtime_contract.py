@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,8 @@ REGISTRY = (
 )
 RUNNER = REGISTRY.with_name("validate.py")
 RUNTIME_LOCK = ROOT / "requirements-runtime.lock"
+ROOT_LOCK_SCHEMA = ROOT / "schemas" / "composition-lock.schema.json"
+COMPONENT_LOCK_SCHEMA = REGISTRY.with_name("composition-lock.schema.json")
 
 
 def runtime_lock_entries() -> list[str]:
@@ -39,6 +42,12 @@ def load_runner():
 
 
 class ValidationRuntimeContractTests(unittest.TestCase):
+    def test_materialized_lock_schema_matches_root_authority(self) -> None:
+        self.assertEqual(
+            COMPONENT_LOCK_SCHEMA.read_bytes(),
+            ROOT_LOCK_SCHEMA.read_bytes(),
+        )
+
     def test_registry_runtime_exactly_matches_provider_runtime_lock(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         self.assertEqual(registry["schema_version"], 2)
@@ -106,6 +115,35 @@ class ValidationRuntimeContractTests(unittest.TestCase):
             ):
                 runner._load_registry(path)
 
+    def test_host_python_verification_rejects_unsupported_environments(self) -> None:
+        runner = load_runner()
+        with mock.patch.object(
+            runner.sys,
+            "implementation",
+            SimpleNamespace(name="pypy"),
+        ):
+            with self.assertRaisesRegex(
+                runner.ValidationRuntimeError,
+                "requires CPython",
+            ):
+                runner._verify_host_python()
+
+        for version in ((3, 10, 0), (3, 15, 0)):
+            with self.subTest(version=version):
+                with (
+                    mock.patch.object(
+                        runner.sys,
+                        "implementation",
+                        SimpleNamespace(name="cpython"),
+                    ),
+                    mock.patch.object(runner.sys, "version_info", version),
+                ):
+                    with self.assertRaisesRegex(
+                        runner.ValidationRuntimeError,
+                        "unsupported CPython",
+                    ):
+                        runner._verify_host_python()
+
     def test_validation_cache_has_one_explicit_override(self) -> None:
         runner = load_runner()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -119,6 +157,26 @@ class ValidationRuntimeContractTests(unittest.TestCase):
                     runner._validation_cache_root(),
                     Path(override).resolve(),
                 )
+
+    def test_validation_cache_home_failure_is_actionable(self) -> None:
+        runner = load_runner()
+        with (
+            mock.patch.dict(runner.os.environ, {}, clear=True),
+            mock.patch.object(
+                runner.Path,
+                "home",
+                side_effect=RuntimeError("cannot determine home directory"),
+            ),
+        ):
+            with self.assertRaisesRegex(
+                runner.ValidationRuntimeError,
+                "COMPOSITION_VALIDATION_CACHE",
+            ) as raised:
+                runner._validation_cache_root()
+        self.assertIn(
+            "cannot determine Composition validation cache directory",
+            str(raised.exception),
+        )
 
     def test_validation_runtime_ignores_user_python_and_pip_settings(self) -> None:
         runner = load_runner()
