@@ -8,9 +8,9 @@ import sys
 from pathlib import Path
 
 if __package__:
-    from .webapp_evidence_targets import expected_targets, target_key
+    from .webapp_evidence_targets import allowed_targets, expected_targets, target_key
 else:
-    from webapp_evidence_targets import expected_targets, target_key
+    from webapp_evidence_targets import allowed_targets, expected_targets, target_key
 
 
 def load(root: Path, relative: str) -> object:
@@ -67,6 +67,7 @@ def main() -> int:
 
     try:
         expected = {target_key(target) for target in expected_targets(root)}
+        allowed = {target_key(target) for target in allowed_targets(root)}
     except (AttributeError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"ERROR: cannot derive Webapp implementation-evidence targets: {exc}", file=sys.stderr)
         return 1
@@ -74,7 +75,7 @@ def main() -> int:
     actual_set = set(actual)
     for missing in sorted(expected - actual_set, key=str):
         errors.append(f"missing Webapp implementation-evidence target: {missing}")
-    for extra in sorted(actual_set - expected, key=str):
+    for extra in sorted(actual_set - allowed, key=str):
         errors.append(f"unknown Webapp implementation-evidence target: {extra}")
 
     if errors:
