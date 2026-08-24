@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,9 @@ if __package__:
     from .webapp_evidence_targets import expected_targets, record_id
 else:
     from webapp_evidence_targets import expected_targets, record_id
+
+
+CANONICAL_EVIDENCE = Path("contracts/implementation-evidence.json")
 
 
 def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
@@ -55,6 +59,55 @@ def render_worklist(root: Path) -> dict[str, Any]:
     }
 
 
+def resolve_output(root: Path, value: str) -> Path:
+    requested = Path(value)
+    candidate = requested if requested.is_absolute() else root / requested
+    candidate = candidate.absolute()
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(
+            "--output must stay within the Webapp repository root: "
+            f"{resolved} is outside {root}"
+        ) from exc
+
+    canonical = (root / CANONICAL_EVIDENCE).resolve(strict=False)
+    if resolved == canonical:
+        raise ValueError(
+            "--output refuses the canonical implementation-evidence document; "
+            "write the non-canonical worklist to a separate consumer-owned file"
+        )
+    return candidate
+
+
+def write_worklist(root: Path, output: str, worklist: dict[str, Any]) -> None:
+    destination = resolve_output(root, output)
+    parent = destination.parent
+    if not parent.exists():
+        raise ValueError(f"--output parent does not exist: {parent}")
+    if not parent.is_dir():
+        raise ValueError(f"--output parent is not a directory: {parent}")
+    if os.path.lexists(destination):
+        raise FileExistsError(f"--output path already exists: {destination}")
+
+    payload = json.dumps(worklist, indent=2, ensure_ascii=False) + "\n"
+    created = False
+    try:
+        with destination.open("x", encoding="utf-8", newline="\n") as stream:
+            created = True
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except Exception:
+        if created:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -63,13 +116,25 @@ def main() -> int:
         default=".",
         help="Webapp repository root; defaults to the current directory",
     )
+    parser.add_argument(
+        "--output",
+        help=(
+            "write the worklist to a new consumer-owned file relative to the Webapp "
+            "repository root instead of standard output; existing paths and the canonical "
+            "implementation-evidence document are refused"
+        ),
+    )
     args = parser.parse_args()
     try:
-        worklist = render_worklist(Path(args.root))
+        root = Path(args.root).resolve()
+        worklist = render_worklist(root)
+        if args.output is None:
+            print(json.dumps(worklist, indent=2, ensure_ascii=False))
+        else:
+            write_worklist(root, args.output, worklist)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         print(f"Webapp evidence scaffold failed: {exc}", file=sys.stderr)
         return 1
-    print(json.dumps(worklist, indent=2, ensure_ascii=False))
     return 0
 
 
