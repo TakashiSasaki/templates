@@ -5,6 +5,7 @@
     {"id":"documentation-index","source":"docs/index.md","optional":false,"home":false},
     {"id":"consumer-guide","source":"docs/consumer-guide.md","optional":false,"home":false},
     {"id":"webapp-product-walkthrough","source":"docs/guides/webapp-product-walkthrough.md","optional":false,"home":false},
+    {"id":"skill-first-use-walkthrough","source":"docs/guides/skill-first-use-walkthrough.md","optional":false,"home":false},
     {"id":"release-guide","source":"docs/release-guide.md","optional":false,"home":false},
     {"id":"composer-reference","source":"docs/reference/composer.md","optional":false,"home":false},
     {"id":"publication-boundary","source":"docs/publication-catalog.md","optional":false,"home":false},
