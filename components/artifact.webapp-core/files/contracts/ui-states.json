@@ -16,7 +16,7 @@
       "scope": "route",
       "category": "content",
       "description": "The request succeeded but no user-visible content is available yet.",
-      "recoveryActions": ["create", "change-filter"],
+      "recoveryActions": [],
       "announcement": "polite",
       "focusStrategy": "main-heading"
     },
@@ -33,8 +33,8 @@
       "id": "recoverable-error",
       "scope": "route",
       "category": "error",
-      "description": "The operation failed and can be retried or corrected without leaving the workflow.",
-      "recoveryActions": ["retry", "edit-input"],
+      "description": "The operation failed and can be retried without leaving the workflow.",
+      "recoveryActions": ["retry"],
       "announcement": "assertive",
       "focusStrategy": "error-summary"
     },
