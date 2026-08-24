@@ -15,7 +15,7 @@
       "id": "empty",
       "scope": "route",
       "category": "content",
-      "description": "The request succeeded but no user-visible records exist.",
+      "description": "The request succeeded but no user-visible content is available yet.",
       "recoveryActions": ["create", "change-filter"],
       "announcement": "polite",
       "focusStrategy": "main-heading"
@@ -30,15 +30,6 @@
       "focusStrategy": "preserve"
     },
     {
-      "id": "partial",
-      "scope": "route",
-      "category": "degraded",
-      "description": "Useful content is available but one or more components failed or remain unavailable.",
-      "recoveryActions": ["retry-failed-part"],
-      "announcement": "polite",
-      "focusStrategy": "preserve"
-    },
-    {
       "id": "recoverable-error",
       "scope": "route",
       "category": "error",
@@ -48,15 +39,6 @@
       "focusStrategy": "error-summary"
     },
     {
-      "id": "fatal-error",
-      "scope": "global",
-      "category": "error",
-      "description": "The current workflow cannot continue safely.",
-      "recoveryActions": ["return-safe-route", "contact-support"],
-      "announcement": "assertive",
-      "focusStrategy": "error-heading"
-    },
-    {
       "id": "offline",
       "scope": "route",
       "category": "connectivity",
@@ -64,42 +46,6 @@
       "recoveryActions": ["retry-when-online"],
       "announcement": "polite",
       "focusStrategy": "preserve"
-    },
-    {
-      "id": "retrying",
-      "scope": "route",
-      "category": "progress",
-      "description": "A previously failed operation is being attempted again.",
-      "recoveryActions": ["cancel-retry"],
-      "announcement": "polite",
-      "focusStrategy": "preserve"
-    },
-    {
-      "id": "unauthorized",
-      "scope": "route",
-      "category": "access",
-      "description": "Authentication is required before the request can continue.",
-      "recoveryActions": ["sign-in"],
-      "announcement": "assertive",
-      "focusStrategy": "main-heading"
-    },
-    {
-      "id": "forbidden",
-      "scope": "route",
-      "category": "access",
-      "description": "The authenticated principal is not authorized for the requested operation.",
-      "recoveryActions": ["return-safe-route", "request-access"],
-      "announcement": "assertive",
-      "focusStrategy": "main-heading"
-    },
-    {
-      "id": "not-found",
-      "scope": "global",
-      "category": "navigation",
-      "description": "No canonical resource or route matches the request.",
-      "recoveryActions": ["return-home", "search"],
-      "announcement": "assertive",
-      "focusStrategy": "main-heading"
     }
   ]
 }
