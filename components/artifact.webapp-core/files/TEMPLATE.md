@@ -22,9 +22,11 @@ Declare viewport lower bounds independently from input capabilities. Do not infe
 
 ## Implementation and release evidence
 
-Template mode deliberately contains no implementation claims. Before switching to product mode, run `python scripts/scaffold_webapp_evidence.py` to obtain the deterministic current Webapp target worklist. The command writes only to standard output and does not modify the canonical evidence document.
+Template mode deliberately contains no implementation claims. Before switching to product mode, run `python scripts/scaffold_webapp_evidence.py` to obtain the deterministic current Webapp target worklist. By default the command writes only to standard output and does not modify the canonical evidence document.
 
-Use the worklist to identify concrete implementation boundaries, positive and negative proofs, authoritative commands, and release gates. Then switch `contracts/implementation-evidence.json` to product mode and provide one fully verified record for every current Webapp target. Add `contract-transition` evidence only when this consumer actually underwent a registered contract migration; provider history that predates the product is not a fresh-product implementation obligation.
+To persist a consumer-owned worklist for editing, use `python scripts/scaffold_webapp_evidence.py --output implementation-evidence-worklist.json`. The output path is resolved from the Webapp repository root, must stay inside that repository, and must name a new file whose parent already exists. The scaffold refuses existing paths and refuses `contracts/implementation-evidence.json`, including equivalent resolved paths, so it cannot silently replace canonical evidence. A failed write removes a newly created partial output.
+
+The generated worklist is still non-canonical and contains TODO placeholders rather than fabricated implementation claims. Use it to identify concrete implementation boundaries, positive and negative proofs, authoritative commands, and release gates. Then switch `contracts/implementation-evidence.json` to product mode and provide one fully verified record for every current Webapp target. Add `contract-transition` evidence only when this consumer actually underwent a registered contract migration; provider history that predates the product is not a fresh-product implementation obligation.
 
 ## Product-owned decisions
 
