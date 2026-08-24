@@ -40,12 +40,12 @@ export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cac
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/39ee8eca1c560955de4cde609d9ec439f2f58068/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/452cef1960612353b9ea206447b97a022ac1c2d7/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`39ee8eca1c560955de4cde609d9ec439f2f58068` の installer は skill source `8dcc177614155d43e660857aabb7485d8f50320c` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `5d4b5a2e8a9b86e4d39e25a49340bb5f08d1a854` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`452cef1960612353b9ea206447b97a022ac1c2d7` の installer は skill source `8f8c36aa4bdf3060f9217edde644856d1da9d72d` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `e09966b72e0d3ca7bdaee0ee9ed2cb8bae2b4b21` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
