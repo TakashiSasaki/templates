@@ -515,7 +515,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             session.execute(
                 'document.querySelector("#main-content").dataset.action = "";'
             )
-            session.click("#primary-action")
+            session.send_keys("#primary-action", "\ue007")
             _assert(
                 session.execute(
                     'return document.querySelector("#main-content").dataset.action;'
