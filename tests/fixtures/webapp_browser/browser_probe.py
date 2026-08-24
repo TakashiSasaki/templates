@@ -287,13 +287,37 @@ def _layout_snapshot(session: _WebDriverSession) -> dict[str, Any]:
         if (!layout || !scrollRegion || !action) {
           return {missing: true};
         }
+        const layoutStyle = getComputedStyle(layout);
+        const columns = layoutStyle.gridTemplateColumns.trim();
+        const contextRect = context ? context.getBoundingClientRect() : null;
+        const horizontalScrollers = Array.from(document.querySelectorAll("*"))
+          .filter((element) => {
+            const style = getComputedStyle(element);
+            if (style.display === "none" || style.visibility === "hidden") {
+              return false;
+            }
+            if (style.overflowX !== "auto" && style.overflowX !== "scroll") {
+              return false;
+            }
+            return element.scrollWidth > element.clientWidth + 1;
+          })
+          .map((element) => element.id || element.className || element.tagName);
         return {
           missing: false,
           innerWidth: window.innerWidth,
-          columns: getComputedStyle(layout).gridTemplateColumns,
-          contextDisplay: context ? getComputedStyle(context).display : null,
+          columnCount: columns ? columns.split(/\\s+/).length : 0,
+          contextVisible: Boolean(
+            context &&
+            getComputedStyle(context).display !== "none" &&
+            contextRect &&
+            contextRect.width > 0 &&
+            contextRect.height > 0
+          ),
+          layoutMaxWidth: layoutStyle.maxWidth,
           pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
           scrollOverflowX: getComputedStyle(scrollRegion).overflowX,
+          scrollRegionScrollable: scrollRegion.scrollWidth > scrollRegion.clientWidth + 1,
+          horizontalScrollers,
           actionVisible: action.getBoundingClientRect().width > 0 &&
                          action.getBoundingClientRect().height > 0,
         };
@@ -304,15 +328,61 @@ def _layout_snapshot(session: _WebDriverSession) -> dict[str, Any]:
     return value
 
 
+def _zoom_snapshot(session: _WebDriverSession) -> dict[str, Any]:
+    value = session.execute(
+        """
+        const action = document.querySelector("#primary-action");
+        const viewport = window.visualViewport;
+        if (!action || !viewport) {
+          return {missing: true};
+        }
+        action.scrollIntoView({block: "center", inline: "center"});
+        const rect = action.getBoundingClientRect();
+        const left = viewport.offsetLeft;
+        const top = viewport.offsetTop;
+        const right = left + viewport.width;
+        const bottom = top + viewport.height;
+        const centerX = Math.min(Math.max(rect.left + rect.width / 2, left + 1), right - 1);
+        const centerY = Math.min(Math.max(rect.top + rect.height / 2, top + 1), bottom - 1);
+        const topElement = document.elementFromPoint(centerX, centerY);
+        return {
+          missing: false,
+          scale: viewport.scale,
+          actionVisible: rect.width > 0 && rect.height > 0,
+          actionInVisualViewport:
+            rect.right > left && rect.left < right && rect.bottom > top && rect.top < bottom,
+          actionUnobscured:
+            topElement === action || (topElement !== null && action.contains(topElement)),
+          pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        };
+        """
+    )
+    if not isinstance(value, dict):
+        raise BrowserProbeError(f"browser zoom probe returned invalid data: {value!r}")
+    return value
+
+
 def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> None:
     viewports = viewports_contract.get("viewports")
     capabilities = viewports_contract.get("inputCapabilities")
+    constraints = viewports_contract.get("constraints")
     if not isinstance(viewports, list) or not viewports:
         raise BrowserProbeError("viewports contract must contain at least one viewport")
     if not isinstance(capabilities, list) or not all(
         isinstance(item, str) for item in capabilities
     ):
         raise BrowserProbeError("viewports contract inputCapabilities must be strings")
+    if not isinstance(constraints, dict):
+        raise BrowserProbeError("viewports contract constraints must be an object")
+    horizontal_scrolling = constraints.get("horizontalScrolling")
+    if horizontal_scrolling not in {"never", "content-specific"}:
+        raise BrowserProbeError(
+            "viewports contract horizontalScrolling must be never or content-specific"
+        )
+    if constraints.get("zoomSupported") is not True:
+        raise BrowserProbeError("browser probe requires zoomSupported=true")
+    if constraints.get("orientationIndependent") is not True:
+        raise BrowserProbeError("browser probe requires orientationIndependent=true")
 
     sample_widths: list[int] = []
     for item in viewports:
@@ -335,48 +405,67 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
                 f"page-wide horizontal overflow at viewport width {width}",
             )
             _assert(
-                snapshot.get("scrollOverflowX") == "auto",
-                "content-specific scroll region is not browser-computed as overflow-x:auto",
-            )
-            _assert(
                 snapshot.get("actionVisible") is True,
                 f"primary action is not visible at viewport width {width}",
             )
+            if horizontal_scrolling == "never":
+                _assert(
+                    snapshot.get("scrollRegionScrollable") is False,
+                    f"horizontalScrolling=never but the declared scroll region requires horizontal scrolling at viewport width {width}",
+                )
+                _assert(
+                    snapshot.get("horizontalScrollers") == [],
+                    f"horizontalScrolling=never but a visible horizontal scroller exists at viewport width {width}: {snapshot.get('horizontalScrollers')}",
+                )
+            else:
+                _assert(
+                    snapshot.get("scrollOverflowX") in {"auto", "scroll"},
+                    "content-specific scroll region is not browser-computed as horizontally scrollable",
+                )
             snapshots.append(snapshot)
 
         if len(snapshots) >= 2:
+            structural_signatures = {
+                (
+                    int(item.get("columnCount", 0)),
+                    bool(item.get("contextVisible")),
+                    str(item.get("layoutMaxWidth")),
+                )
+                for item in snapshots
+            }
             _assert(
-                len({str(item.get("columns")) for item in snapshots}) >= 2,
-                "declared multi-viewport fixture does not change browser layout",
+                len(structural_signatures) == len(snapshots),
+                "declared viewport breakpoints do not produce distinct browser layout structures",
             )
 
         session.set_window(390, 800)
-        scroll_result = session.execute(
-            """
-            const region = document.querySelector(".scroll-region");
-            const probe = document.createElement("span");
-            probe.id = "browser-wide-content-probe";
-            probe.style.display = "inline-block";
-            probe.style.width = "2000px";
-            probe.textContent = "wide content";
-            region.appendChild(probe);
-            const result = {
-              regionScrollable: region.scrollWidth > region.clientWidth,
-              pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-            };
-            probe.remove();
-            return result;
-            """
-        )
-        _assert(
-            isinstance(scroll_result, dict)
-            and scroll_result.get("regionScrollable") is True,
-            "content-specific scroll region does not contain wide content",
-        )
-        _assert(
-            scroll_result.get("pageOverflow") is False,
-            "content-specific scrolling leaks into page-wide horizontal overflow",
-        )
+        if horizontal_scrolling == "content-specific":
+            scroll_result = session.execute(
+                """
+                const region = document.querySelector(".scroll-region");
+                const probe = document.createElement("span");
+                probe.id = "browser-wide-content-probe";
+                probe.style.display = "inline-block";
+                probe.style.width = "2000px";
+                probe.textContent = "wide content";
+                region.appendChild(probe);
+                const result = {
+                  regionScrollable: region.scrollWidth > region.clientWidth + 1,
+                  pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+                };
+                probe.remove();
+                return result;
+                """
+            )
+            _assert(
+                isinstance(scroll_result, dict)
+                and scroll_result.get("regionScrollable") is True,
+                "content-specific scroll region does not contain wide content",
+            )
+            _assert(
+                scroll_result.get("pageOverflow") is False,
+                "content-specific scrolling leaks into page-wide horizontal overflow",
+            )
 
         viewport_meta = session.execute(
             """
@@ -390,23 +479,44 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             and "maximum-scale=1" not in viewport_meta,
             "viewport metadata disables user zoom",
         )
-        zoom_result = session.execute(
-            """
-            const action = document.querySelector("#primary-action");
-            const before = action.getBoundingClientRect().width;
-            document.body.style.zoom = "200%";
-            const after = action.getBoundingClientRect().width;
-            document.body.style.zoom = "";
-            return {before, after};
-            """
-        )
-        _assert(
-            isinstance(zoom_result, dict)
-            and isinstance(zoom_result.get("before"), (int, float))
-            and isinstance(zoom_result.get("after"), (int, float))
-            and zoom_result["after"] > zoom_result["before"] * 1.5,
-            "browser rendering does not scale under a 200% zoom probe",
-        )
+
+        session.set_window(800, 800)
+        session.cdp("Emulation.setPageScaleFactor", {"pageScaleFactor": 2.0})
+        try:
+            time.sleep(0.05)
+            zoom_result = _zoom_snapshot(session)
+            _assert(zoom_result.get("missing") is False, "browser zoom fixture UI is incomplete")
+            _assert(
+                isinstance(zoom_result.get("scale"), (int, float))
+                and float(zoom_result["scale"]) >= 1.9,
+                f"Chrome page scale did not reach 200%: {zoom_result.get('scale')!r}",
+            )
+            _assert(
+                zoom_result.get("actionVisible") is True
+                and zoom_result.get("actionInVisualViewport") is True,
+                "primary action is not visible in the 200% visual viewport",
+            )
+            _assert(
+                zoom_result.get("actionUnobscured") is True,
+                "primary action is obscured at 200% browser page scale",
+            )
+            _assert(
+                zoom_result.get("pageOverflow") is False,
+                "layout introduces page-wide horizontal overflow at 200% browser page scale",
+            )
+            session.execute(
+                'document.querySelector("#main-content").dataset.action = "";'
+            )
+            session.pointer_activate("#primary-action", "mouse")
+            _assert(
+                session.execute(
+                    'return document.querySelector("#main-content").dataset.action;'
+                )
+                == "activated",
+                "primary action is not operable at 200% browser page scale",
+            )
+        finally:
+            session.cdp("Emulation.setPageScaleFactor", {"pageScaleFactor": 1.0})
 
         session.set_window(844, 390)
         landscape = _layout_snapshot(session)
@@ -465,6 +575,6 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             )
 
     print(
-        "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, "
-        "and declared input capabilities passed"
+        "Browser Webapp proof: responsive structure, declared scrolling policy, "
+        "browser page scale, orientation, and declared input capabilities passed"
     )
