@@ -29,12 +29,12 @@ The supported runner prerequisites are:
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/279a573c11033f7c2da2650a7939ca045635c304/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ad07c2b809d2017c9a1dbcd20a7590e281d9276a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `279a573c11033f7c2da2650a7939ca045635c304` installs skill source `668e9ac82ca55c9332c45fae4bc6129b576b3ced`; that skill's runtime manifest selects stable Composition toolchain revision `3c8ccac8ffa348ed56059815d7ac8e44fa95b3e0`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `ad07c2b809d2017c9a1dbcd20a7590e281d9276a` installs skill source `3e497069429aa1f0e7bb0f152ab7aa943ca1d369`; that skill's runtime manifest selects stable Composition toolchain revision `0179727447278051765e623c0bdf5530c2401949`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
@@ -83,6 +83,8 @@ An advanced `--revision <full-sha>` may select another exact Composition revisio
 If `.template-composition/transaction.json` exists, managed recovery is stricter: the transaction's exact source revision overrides the stable manifest pin. A conflicting `--revision` is rejected rather than silently changing the recovery context. Malformed transaction metadata also fails closed.
 
 A valid source/runtime cache hit requires no network acquisition. By default the runner uses the platform cache location under a `composition/runner-v1` namespace. `COMPOSITION_RUNTIME_CACHE=/path/to/cache` may override that root for controlled environments or tests. Invalid cache entries are treated as misses and are never trusted from marker metadata alone.
+
+Materialized validation is self-contained. Normal consumers run `validate` without manually creating a validation virtual environment. On a cold validation, the validator may construct an isolated validation runtime in the platform cache and perform package acquisition for the exact reviewed validation requirement set. A valid warm validation cache is reused without package acquisition. Validation cache state lives outside the product repository and does not modify the product repository. Its identity includes the exact requirement-set SHA-256, CPython major/minor version, and platform/machine. The default platform cache uses a `composition/validation-v1` namespace; controlled or read-only environments and tests may set `COMPOSITION_VALIDATION_CACHE=/path/to/writable/cache` to select a writable cache root.
 
 Cache layout and reuse are performance details. They do not change revision selection, recovery, Composer arguments, lock/transaction semantics, or material ownership.
 

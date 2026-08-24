@@ -31,12 +31,12 @@ Composer の正確な options、plan fields、ownership definitions、および 
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/279a573c11033f7c2da2650a7939ca045635c304/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/ad07c2b809d2017c9a1dbcd20a7590e281d9276a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`279a573c11033f7c2da2650a7939ca045635c304` の installer は skill source `668e9ac82ca55c9332c45fae4bc6129b576b3ced` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `3c8ccac8ffa348ed56059815d7ac8e44fa95b3e0` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`ad07c2b809d2017c9a1dbcd20a7590e281d9276a` の installer は skill source `3e497069429aa1f0e7bb0f152ab7aa943ca1d369` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `0179727447278051765e623c0bdf5530c2401949` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
@@ -85,6 +85,8 @@ python skills/composition/scripts/install.py /path/to/agent-skills/composition
 `.template-composition/transaction.json` が存在する場合、managed recovery はより厳密です。transaction の exact source revision が stable manifest pin より優先されます。競合する `--revision` は recovery context を暗黙に変更せず拒否されます。malformed transaction metadata も fail closed します。
 
 有効な source/runtime cache hit では network acquisition は不要です。既定では、runner は platform cache location の `composition/runner-v1` namespace を使用します。controlled environment または test では `COMPOSITION_RUNTIME_CACHE=/path/to/cache` で root を上書きできます。invalid cache entry は miss として扱われ、marker metadata だけを根拠に trust されることはありません。
+
+materialized validation は自己完結しています。通常の consumer は validation virtual environment を手動作成せずに `validate` を実行します。cold validation では、validator が platform cache 内に isolated validation runtime を構築し、exact な review 済み validation requirement set の package acquisition を行う場合があります。有効な warm validation cache があれば package acquisition なしで再利用します。validation cache state は product repository の外側にあり、product repository を変更しません。その identity には exact requirement-set SHA-256、CPython major/minor version、および platform/machine が含まれます。既定の platform cache は `composition/validation-v1` namespace を使用します。controlled environment、read-only environment、または test では `COMPOSITION_VALIDATION_CACHE=/path/to/writable/cache` を設定して writable cache root を選択できます。
 
 cache layout と reuse は performance detail です。revision selection、recovery、Composer arguments、lock/transaction semantics、material ownership は変更しません。
 

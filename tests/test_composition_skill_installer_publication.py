@@ -15,9 +15,9 @@ DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 SCHEMA = ROOT / "schemas" / "composition-skill-installer-release.schema.json"
 RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
-INSTALLER_REVISION = "279a573c11033f7c2da2650a7939ca045635c304"
-SKILL_REVISION = "668e9ac82ca55c9332c45fae4bc6129b576b3ced"
-TOOLCHAIN_REVISION = "3c8ccac8ffa348ed56059815d7ac8e44fa95b3e0"
+INSTALLER_REVISION = "ad07c2b809d2017c9a1dbcd20a7590e281d9276a"
+SKILL_REVISION = "3e497069429aa1f0e7bb0f152ab7aa943ca1d369"
+TOOLCHAIN_REVISION = "0179727447278051765e623c0bdf5530c2401949"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
     f"{INSTALLER_REVISION}/scripts/install_composition_skill.py"
@@ -115,6 +115,15 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
             "raw.githubusercontent.com/TakashiSasaki/templates/main/", content
         )
         self.assertNotIn("/tar.gz/composition", content)
+
+    def test_consumer_guide_documents_self_contained_validation_cache(self) -> None:
+        content = CONSUMER_GUIDE.read_text(encoding="utf-8")
+        self.assertIn("without manually creating a validation virtual environment", content)
+        self.assertIn("cold validation", content)
+        self.assertIn("warm validation cache", content)
+        self.assertIn("package acquisition", content)
+        self.assertIn("COMPOSITION_VALIDATION_CACHE", content)
+        self.assertIn("does not modify the product repository", content)
 
     def test_duplicate_release_json_members_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "duplicate JSON member"):
