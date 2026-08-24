@@ -1,6 +1,6 @@
 # Policy toolkit
 
-Policy turns shared coding-agent rules plus repository-specific policy into reproducible agent instructions for a product repository. It governs how coding and general-purpose agents investigate, change, validate, review, and report work; it does not choose the product architecture or application stack.
+Policy turns shared coding-agent rules plus repository-specific policy into reproducible agent instructions for a product repository. It governs how coding and general-purpose agents investigate, change, validate, review, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories, and it does not choose the product stack.
 
 ## Start here: adopt Policy in a product repository
 
