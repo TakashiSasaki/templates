@@ -45,6 +45,158 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
     def load_json(self, path: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
 
+    def configure_access_fixture(self, target: Path) -> None:
+        self.write_json(
+            target / "contracts/surfaces.json",
+            {
+                "$schema": "../schemas/surfaces.schema.json",
+                "schemaVersion": 2,
+                "surfaces": [
+                    {
+                        "id": "primary",
+                        "title": "Public surface",
+                        "purpose": "Exercise public-route access-failure invariants.",
+                        "audiences": ["anonymous"],
+                        "authentication": "none",
+                        "authorization": {"mode": "public", "roles": []},
+                        "dataClassifications": ["public"],
+                        "stability": "experimental",
+                        "surfaceDependencies": [],
+                        "diagnostic": False,
+                    },
+                    {
+                        "id": "application",
+                        "title": "Protected application surface",
+                        "purpose": "Exercise authentication and role access failures.",
+                        "audiences": ["authenticated-user"],
+                        "authentication": "required",
+                        "authorization": {
+                            "mode": "role",
+                            "roles": ["application-user"],
+                        },
+                        "dataClassifications": ["internal"],
+                        "stability": "experimental",
+                        "surfaceDependencies": [],
+                        "diagnostic": False,
+                    },
+                ],
+            },
+        )
+        self.write_json(
+            target / "contracts/ui-states.json",
+            {
+                "$schema": "../schemas/ui-states.schema.json",
+                "schemaVersion": 2,
+                "states": [
+                    {
+                        "id": "ready",
+                        "scope": "route",
+                        "category": "content",
+                        "description": "Route content is ready.",
+                        "recoveryActions": [],
+                        "announcement": "none",
+                        "focusStrategy": "preserve",
+                    },
+                    {
+                        "id": "loading",
+                        "scope": "route",
+                        "category": "progress",
+                        "description": "Protected content is loading.",
+                        "recoveryActions": [],
+                        "announcement": "polite",
+                        "focusStrategy": "preserve",
+                    },
+                    {
+                        "id": "unauthorized",
+                        "scope": "route",
+                        "category": "access",
+                        "description": "Authentication is required.",
+                        "recoveryActions": [],
+                        "announcement": "assertive",
+                        "focusStrategy": "main-heading",
+                    },
+                    {
+                        "id": "forbidden",
+                        "scope": "route",
+                        "category": "access",
+                        "description": "The authenticated principal lacks the required role.",
+                        "recoveryActions": [],
+                        "announcement": "assertive",
+                        "focusStrategy": "main-heading",
+                    },
+                    {
+                        "id": "fatal-error",
+                        "scope": "global",
+                        "category": "error",
+                        "description": "A global fatal error is visible.",
+                        "recoveryActions": [],
+                        "announcement": "assertive",
+                        "focusStrategy": "main-heading",
+                    },
+                ],
+            },
+        )
+        self.write_json(
+            target / "contracts/routes.json",
+            {
+                "$schema": "../schemas/routes.schema.json",
+                "schemaVersion": 3,
+                "routes": [
+                    {
+                        "id": "home",
+                        "path": "/",
+                        "surface": "primary",
+                        "canonical": True,
+                        "aliases": [],
+                        "authentication": "none",
+                        "deepLink": True,
+                        "historyBehavior": "replace",
+                        "authenticationReturn": "not-applicable",
+                        "accessFailures": {
+                            "unauthenticated": {"behavior": "not-applicable"},
+                            "forbidden": {"behavior": "not-applicable"},
+                        },
+                        "states": ["ready"],
+                        "accessibility": {
+                            "documentTitleRequired": True,
+                            "focusTarget": "main-heading",
+                        },
+                    },
+                    {
+                        "id": "application-home",
+                        "path": "/app",
+                        "surface": "application",
+                        "canonical": True,
+                        "aliases": [],
+                        "authentication": "required",
+                        "deepLink": True,
+                        "historyBehavior": "push",
+                        "authenticationReturn": "same-route",
+                        "accessFailures": {
+                            "unauthenticated": {
+                                "behavior": "render-state",
+                                "stateId": "unauthorized",
+                            },
+                            "forbidden": {
+                                "behavior": "render-state",
+                                "stateId": "forbidden",
+                            },
+                        },
+                        "states": [
+                            "ready",
+                            "loading",
+                            "unauthorized",
+                            "forbidden",
+                        ],
+                        "accessibility": {
+                            "documentTitleRequired": True,
+                            "focusTarget": "main-heading",
+                        },
+                    },
+                ],
+            },
+        )
+
     def materialize_target(self, root: Path) -> Path:
         helper = self.helper()
         target = root / "consumer"
@@ -58,6 +210,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
             str(target),
         )
         self.assertEqual(result.returncode, 0, payload)
+        self.configure_access_fixture(target)
         return target
 
     def validate_contracts(self, target: Path) -> subprocess.CompletedProcess[str]:
@@ -126,7 +279,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
         finally:
             connection.close()
 
-    def test_generated_seed_binds_render_state_targets(self) -> None:
+    def test_explicit_access_fixture_binds_render_state_targets(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_target(Path(temp_dir))
             routes = self.load_json(target / "contracts/routes.json")
@@ -190,7 +343,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                         "unauthenticated": {"behavior": "not-applicable"},
                         "forbidden": {"behavior": "not-applicable"},
                     },
-                    "states": ["loading", "populated", "recoverable-error"],
+                    "states": ["ready"],
                     "accessibility": {
                         "documentTitleRequired": True,
                         "focusTarget": "main-heading",
@@ -241,10 +394,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                 "stateId": "missing-state",
             }
 
-        self.assert_invalid_mutation(
-            mutate,
-            expected="unknown UI state missing-state",
-        )
+        self.assert_invalid_mutation(mutate, expected="unknown UI state missing-state")
 
     def test_rejects_non_access_render_state_target(self) -> None:
         def mutate(routes: dict, _surfaces: dict, _states: dict) -> None:
@@ -283,10 +433,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
                 "routeId": "missing-route",
             }
 
-        self.assert_invalid_mutation(
-            mutate,
-            expected="unknown redirect route missing-route",
-        )
+        self.assert_invalid_mutation(mutate, expected="unknown redirect route missing-route")
 
     def test_rejects_self_redirect(self) -> None:
         def mutate(routes: dict, _surfaces: dict, _states: dict) -> None:
@@ -319,7 +466,7 @@ class RoutesV3AccessFailureTests(unittest.TestCase):
     def test_public_route_rejects_applicable_unauthenticated_failure(self) -> None:
         for behavior in (
             {"behavior": "render-state", "stateId": "unauthorized"},
-            {"behavior": "redirect", "routeId": "status"},
+            {"behavior": "redirect", "routeId": "application-home"},
         ):
             with self.subTest(behavior=behavior["behavior"]):
 

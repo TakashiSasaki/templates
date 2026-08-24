@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/viewports.schema.json",
+  "schemaVersion": 1,
+  "viewports": [
+    {"id":"compact","minWidthPx":0,"description":"Narrow layouts where content prioritization and reflow are required."},
+    {"id":"regular","minWidthPx":768,"description":"Intermediate layouts suitable for tablets and constrained desktop windows."},
+    {"id":"wide","minWidthPx":1280,"description":"Wide layouts that may expose additional context without making it mandatory."}
+  ],
+  "inputCapabilities": ["touch", "pointer", "keyboard"],
+  "constraints": {
+    "zoomSupported": true,
+    "horizontalScrolling": "content-specific",
+    "orientationIndependent": true
+  }
+}

@@ -36,12 +36,22 @@ class WebappSurfaceDependenciesV2Tests(unittest.TestCase):
     def setUp(self) -> None:
         self.schema = load_json(WEBAPP / "schemas" / "surfaces.schema.json")
         self.surfaces = load_json(WEBAPP / "contracts" / "surfaces.json")
-        self.documents = {
-            "surfaces": self.surfaces,
+        documents = {
+            "surfaces": copy.deepcopy(self.surfaces),
             "routes": load_json(WEBAPP / "contracts" / "routes.json"),
             "ui_states": load_json(WEBAPP / "contracts" / "ui-states.json"),
             "viewports": load_json(WEBAPP / "contracts" / "viewports.json"),
         }
+        application = copy.deepcopy(documents["surfaces"]["surfaces"][0])
+        application.update(
+            {
+                "id": "application",
+                "title": "Application surface",
+                "purpose": "Exercise explicit cross-surface dependency semantics.",
+            }
+        )
+        documents["surfaces"]["surfaces"].append(application)
+        self.documents = documents
 
     def test_canonical_surfaces_use_v2_surface_dependency_member(self) -> None:
         self.assertEqual(self.surfaces["schemaVersion"], 2)
@@ -81,8 +91,8 @@ class WebappSurfaceDependenciesV2Tests(unittest.TestCase):
         surfaces = {
             surface["id"]: surface for surface in documents["surfaces"]["surfaces"]
         }
-        surfaces["public"]["surfaceDependencies"] = ["application"]
-        surfaces["application"]["surfaceDependencies"] = ["public"]
+        surfaces["primary"]["surfaceDependencies"] = ["application"]
+        surfaces["application"]["surfaceDependencies"] = ["primary"]
         errors = validator_impl.cross_validate(documents)
         self.assertTrue(
             any(error.startswith("surface dependency cycle: ") for error in errors),
