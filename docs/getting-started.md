@@ -114,9 +114,19 @@ Omit `--primary-instructions` when inspection found exactly one supported instru
 
 The existing primary instruction is not replaced. The operation creates the prepared adoption state and runs `adopt preview`.
 
-Represent the semantics of the handwritten instructions in project policy and review the semantic difference against the preview. The CLI does not automatically convert free-form instructions into policy.
+Represent the semantics of the handwritten instructions in `policy/project.md` and any other human-owned Policy configuration that needs to change. The CLI does not automatically convert free-form instructions into policy.
 
-Cutover is separate. After review, use the same installed skill and the repository-pinned toolchain:
+After every such Policy edit during migration preparation, regenerate the preview before attempting cutover:
+
+```bash
+python scripts/run.py \
+  --repository /path/to/product-repository \
+  adopt preview
+```
+
+Review the regenerated preview and its semantic difference from the handwritten primary instruction. `adopt finalize` deliberately rejects a stale preview if Policy inputs changed after the last preview; do not treat `STALE_OUTPUT` as a reason to bypass or hand-edit generated state.
+
+Cutover is separate. Only after the current preview has been reviewed, use the same installed skill and the repository-pinned toolchain:
 
 ```bash
 python scripts/run.py \
