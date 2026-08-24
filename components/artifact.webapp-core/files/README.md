@@ -6,6 +6,12 @@ This repository is a framework-neutral Web application contract scaffold produce
 
 The scaffold intentionally does not choose a frontend framework, rendering model, package manager, backend, persistence layer, authentication provider, deployment platform, browser matrix, or observability vendor.
 
+## Minimal neutral seed
+
+Initial materialization deliberately starts with one unauthenticated primary application surface, one canonical `/` route, and only the common loading, empty, populated, recoverable-error, and offline UI states. The seed does not assume a sign-in flow, role model, separate public marketing surface, operational status page, CRUD/filter actions, or release lifecycle.
+
+Treat these seed contracts as a small valid starting point, not as product requirements. Add authentication and authorization semantics, additional surfaces/routes/states, diagnostic exposure, and product-specific recovery actions only when the product actually requires them. `viewports.json` remains broader because responsive layout and touch/pointer/keyboard input are browser concerns rather than a backend or authentication choice.
+
 ## Contracts
 
 - `contracts/surfaces.json` — browser-facing surface boundaries and audiences.
