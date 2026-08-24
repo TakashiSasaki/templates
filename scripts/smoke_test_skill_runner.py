@@ -91,7 +91,9 @@ def main() -> int:
         installed = root / "installed-composition"
         target = root / "consumer"
         cache = root / "runner-cache"
+        validation_cache = root / "validation-cache"
         env["COMPOSITION_RUNTIME_CACHE"] = str(cache)
+        env["COMPOSITION_VALIDATION_CACHE"] = str(validation_cache)
         config = root / "composition.json"
         config.write_text(
             json.dumps(
@@ -144,6 +146,8 @@ def main() -> int:
             raise RuntimeError("unmanaged consumer unexpectedly reported a lock")
         if cache.exists():
             raise RuntimeError("provenance must not acquire a source or runtime cache")
+        if validation_cache.exists():
+            raise RuntimeError("provenance must not acquire a validation runtime cache")
 
         run(
             [
@@ -208,17 +212,29 @@ def main() -> int:
         if not (runtime_entry / "runtime.json").is_file():
             raise RuntimeError("runtime cache marker is missing")
 
-        # A valid cache hit must require no network. If source acquisition or pip
-        # installation is attempted here, the deliberately dead proxies fail fast.
+        # The Composer runtime cache is already warm after apply, but the
+        # materialized validator owns a separate isolated dependency cache.
+        # Warm that cache once while package acquisition is permitted.
+        validate_command = [
+            sys.executable,
+            "-I",
+            str(runner),
+            "--repository",
+            str(target),
+            "validate",
+        ]
+        run(validate_command, env=env, cwd=root)
+        validation_runtime_entry = single_directory(
+            validation_cache / "runtimes", "validation runtime"
+        )
+        if not (validation_runtime_entry / "runtime.json").is_file():
+            raise RuntimeError("validation runtime cache marker is missing")
+
+        # Both valid caches must now require no network. If source acquisition,
+        # Composer runtime installation, or validator dependency installation is
+        # attempted here, the deliberately dead proxies fail fast.
         run(
-            [
-                sys.executable,
-                "-I",
-                str(runner),
-                "--repository",
-                str(target),
-                "validate",
-            ],
+            validate_command,
             env=offline_environment(env),
             cwd=root,
         )
