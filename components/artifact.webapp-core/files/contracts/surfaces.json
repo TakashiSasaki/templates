@@ -3,49 +3,19 @@
   "schemaVersion": 2,
   "surfaces": [
     {
-      "id": "public",
-      "title": "Public surface",
-      "purpose": "Present information that is safe for anonymous access.",
-      "audiences": ["anonymous", "authenticated-user"],
-      "authentication": "optional",
-      "authorization": {
-        "mode": "public",
-        "roles": []
-      },
-      "dataClassifications": ["public"],
-      "stability": "stable",
-      "surfaceDependencies": [],
-      "diagnostic": false
-    },
-    {
       "id": "application",
-      "title": "Authenticated application surface",
-      "purpose": "Provide the primary product workflow to authorized users.",
-      "audiences": ["authenticated-user"],
-      "authentication": "required",
-      "authorization": {
-        "mode": "role",
-        "roles": ["application-user"]
-      },
-      "dataClassifications": ["internal", "personal"],
-      "stability": "stable",
-      "surfaceDependencies": [],
-      "diagnostic": false
-    },
-    {
-      "id": "status",
-      "title": "Operational status surface",
-      "purpose": "Expose sanitized service-health information without exposing developer diagnostics.",
-      "audiences": ["anonymous", "operator"],
-      "authentication": "optional",
+      "title": "Primary application surface",
+      "purpose": "Provide the primary browser-facing product workflow.",
+      "audiences": ["user"],
+      "authentication": "none",
       "authorization": {
         "mode": "public",
         "roles": []
       },
-      "dataClassifications": ["public"],
-      "stability": "experimental",
+      "dataClassifications": ["application-data"],
+      "stability": "stable",
       "surfaceDependencies": [],
-      "diagnostic": true
+      "diagnostic": false
     }
   ]
 }
