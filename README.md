@@ -1,6 +1,32 @@
 # TakashiSasaki/templates
 
-This repository now separates three authorities by responsibility:
+This repository provides two reusable authorities for building and maintaining software repositories, plus one integrated documentation site:
+
+- **Composition** helps you choose and materialize Agent Skill or Web application structure, capabilities, lifecycle contracts, and validation.
+- **Policy** helps you adopt reproducible coding-agent operating rules in a product repository.
+- **Site** publishes the reviewed Composition and Policy documentation together at `https://templates.moukaeritai.work/`.
+
+## Start here
+
+Choose the path that matches the task you are trying to accomplish:
+
+| I want to… | Start with |
+|---|---|
+| Build or maintain an Agent Skill or Web application repository | [Composition](https://templates.moukaeritai.work/composition/) and its [guided view](https://templates.moukaeritai.work/guided/) |
+| Understand which runtime, CLI, browser, service, MCP, or lifecycle capability to select | [Capabilities](https://templates.moukaeritai.work/capabilities/) and [Lifecycle](https://templates.moukaeritai.work/lifecycle/) |
+| Add verifiable coding-agent operating rules to a repository | [Policy](https://templates.moukaeritai.work/policy/) |
+| Understand Agent Skill-specific artifact semantics | [Skill](https://templates.moukaeritai.work/skill/) |
+| Understand Web application-specific artifact semantics | [Webapp](https://templates.moukaeritai.work/webapp/) |
+| Look up a repository term without leaving the documentation | [Glossary](https://templates.moukaeritai.work/glossary/) |
+| Inspect the exact reviewed provider source behind a page | [Repository trees](https://templates.moukaeritai.work/repository-trees/) or [source files](https://templates.moukaeritai.work/files/) |
+
+A first-time application author normally starts with **Composition**, then uses **Policy** when the product repository also needs coding-agent operating rules. You do not need to understand Site publication internals, provider branches, or deployment workflows before using either authority.
+
+The rest of this README documents the repository authority and publication model for maintainers and readers who need provenance or Site implementation details.
+
+## Repository authority model
+
+This repository separates three authorities by responsibility:
 
 | Branch | Authority | Start here when you need to |
 |---|---|---|
