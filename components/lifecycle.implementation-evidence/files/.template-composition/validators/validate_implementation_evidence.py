@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate generic implementation-evidence semantics."""
+"""Validate generic implementation-evidence semantics after schema validation."""
 from __future__ import annotations
 import argparse, sys
 from pathlib import Path
@@ -40,14 +40,8 @@ def validate(root: Path) -> list[str]:
             if pair not in transitions: errors.append(f"{owner}: unknown contract transition {cid} {pair}")
         gate_refs=set(record.get("releaseGateIds",[])); used_gates.update(gate_refs)
         for missing in sorted(gate_refs-known_gates): errors.append(f"{owner}: unknown release gate {missing}")
-        boundary=record.get("implementationBoundary",{})
-        if boundary.get("status")!="verified" or not boundary.get("locator"): errors.append(f"{owner}: product mode requires verified boundary with locator")
-        if not gate_refs: errors.append(f"{owner}: product mode requires at least one release gate")
         record_commands=set(); proofs=list(record.get("positiveEvidence",[]))+list(record.get("negativeEvidence",[])); proof_ids.extend(p.get("id") for p in proofs)
         for proof in proofs:
-            if proof.get("status")!="verified": errors.append(f"{owner} proof {proof.get('id')}: product mode requires verified status")
-            for field in ("kind","locator","commandId","expectedResult"):
-                if not proof.get(field): errors.append(f"{owner} proof {proof.get('id')}: product mode requires {field}")
             command_id=proof.get("commandId")
             if command_id:
                 used_commands.add(command_id); record_commands.add(command_id)
