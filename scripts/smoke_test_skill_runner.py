@@ -91,7 +91,9 @@ def main() -> int:
         installed = root / "installed-composition"
         target = root / "consumer"
         cache = root / "runner-cache"
+        validation_cache = root / "validation-cache"
         env["COMPOSITION_RUNTIME_CACHE"] = str(cache)
+        env["COMPOSITION_VALIDATION_CACHE"] = str(validation_cache)
         config = root / "composition.json"
         config.write_text(
             json.dumps(
@@ -144,6 +146,8 @@ def main() -> int:
             raise RuntimeError("unmanaged consumer unexpectedly reported a lock")
         if cache.exists():
             raise RuntimeError("provenance must not acquire a source or runtime cache")
+        if validation_cache.exists():
+            raise RuntimeError("provenance must not acquire a validation cache")
 
         run(
             [
@@ -208,8 +212,33 @@ def main() -> int:
         if not (runtime_entry / "runtime.json").is_file():
             raise RuntimeError("runtime cache marker is missing")
 
-        # A valid cache hit must require no network. If source acquisition or pip
-        # installation is attempted here, the deliberately dead proxies fail fast.
+        # Warm validation while network access is available. Toolchain generations
+        # before self-contained validation do not create COMPOSITION_VALIDATION_CACHE;
+        # generations that do must leave a validated runtime marker.
+        run(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "validate",
+            ],
+            env=env,
+            cwd=root,
+        )
+        validation_runtimes = validation_cache / "runtimes"
+        if validation_runtimes.exists():
+            validation_runtime_entry = single_directory(
+                validation_runtimes, "validation runtime"
+            )
+            if not (validation_runtime_entry / "runtime.json").is_file():
+                raise RuntimeError("validation runtime cache marker is missing")
+
+        # After one successful online validation, the selected toolchain generation
+        # must validate again with network acquisition disabled. For generations with
+        # self-contained validation this proves validation-cache reuse; for older
+        # generations it preserves the existing runner-cache offline assertion.
         run(
             [
                 sys.executable,
