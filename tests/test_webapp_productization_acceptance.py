@@ -12,13 +12,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
+BROWSER_FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_browser"
 DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
 PROOF_COMMAND = "python product/prove_webapp.py"
 PROOF_SCRIPT = """from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
+
+from browser_probe import run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = (
@@ -67,7 +71,11 @@ for label, command in CHECKS:
         print(result.stderr, file=sys.stderr, end="")
         raise SystemExit(result.returncode)
 
-print("Webapp product proof: contract lifecycle checks passed")
+viewports = json.loads(
+    (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
+)
+run_browser_contract_probe((ROOT / "product/client.html").resolve().as_uri(), viewports)
+print("Webapp product proof: contract lifecycle and real-browser checks passed")
 """
 
 
@@ -244,13 +252,32 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         records = []
         for index, evidence_target in enumerate(targets, 1):
             record_id = f"record-{index:03d}"
-            proof_kind = (
-                "end-to-end-test"
-                if evidence_target.get("kind") == "contract-item"
+            browser_sensitive = (
+                evidence_target.get("kind") == "contract-item"
                 and evidence_target.get("contractId") == "viewports"
                 and evidence_target.get("itemKind")
                 in {"viewport", "input-capability"}
-                else "integration-test"
+            )
+            proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
+            implementation_locator = (
+                "product/client.html"
+                if browser_sensitive
+                else "product/prove_webapp.py"
+            )
+            proof_locator = (
+                "product/browser_probe.py"
+                if browser_sensitive
+                else "product/prove_webapp.py"
+            )
+            positive_description = (
+                "The ChromeDriver proof executes the target through the real browser interface."
+                if browser_sensitive
+                else "The product proof validates the positive contract path."
+            )
+            negative_description = (
+                "The ChromeDriver proof rejects browser overflow, zoom locking, or failed input activation."
+                if browser_sensitive
+                else "The product proof keeps the declared target under validation."
             )
             records.append(
                 {
@@ -259,17 +286,21 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                     "implementationBoundary": {
                         "status": "verified",
                         "description": "Acceptance fixture binds the target to its product proof.",
-                        "locator": "product/prove_webapp.py",
+                        "locator": implementation_locator,
                     },
                     "positiveEvidence": [
                         {
                             "id": f"{record_id}-positive",
                             "status": "verified",
                             "kind": proof_kind,
-                            "description": "The product proof validates the positive contract path.",
-                            "locator": "product/prove_webapp.py",
+                            "description": positive_description,
+                            "locator": proof_locator,
                             "commandId": "webapp-proof",
-                            "expectedResult": "The contract lifecycle checks pass.",
+                            "expectedResult": (
+                                "The real-browser target checks pass."
+                                if browser_sensitive
+                                else "The contract lifecycle checks pass."
+                            ),
                         }
                     ],
                     "negativeEvidence": [
@@ -277,10 +308,14 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                             "id": f"{record_id}-negative",
                             "status": "verified",
                             "kind": proof_kind,
-                            "description": "The product proof keeps the declared target under validation.",
-                            "locator": "product/prove_webapp.py",
+                            "description": negative_description,
+                            "locator": proof_locator,
                             "commandId": "webapp-proof",
-                            "expectedResult": "Invalid contract or evidence state causes the proof to fail.",
+                            "expectedResult": (
+                                "Invalid browser behavior causes the proof to fail."
+                                if browser_sensitive
+                                else "Invalid contract or evidence state causes the proof to fail."
+                            ),
                         }
                     ],
                     "releaseGateIds": ["product-release"],
@@ -296,7 +331,10 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                     {
                         "id": "webapp-proof",
                         "command": PROOF_COMMAND,
-                        "purpose": "Validate the generated Webapp contract lifecycle before release.",
+                        "purpose": (
+                            "Validate the generated Webapp contract lifecycle and "
+                            "browser-sensitive targets before release."
+                        ),
                     }
                 ],
                 "releaseGates": [
@@ -327,6 +365,11 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         product = target / "product"
         product.mkdir()
         (product / "prove_webapp.py").write_text(PROOF_SCRIPT, encoding="utf-8")
+        for name in ("browser_probe.py", "client.html"):
+            (product / name).write_text(
+                (BROWSER_FIXTURE_DIR / name).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
 
     def commit_candidate(self, target: Path) -> str:
         self.run_git(target, "init", "--quiet")
@@ -468,7 +511,11 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             f"stdout:\n{proof.stdout}\nstderr:\n{proof.stderr}",
         )
         self.assertIn(
-            "Webapp product proof: contract lifecycle checks passed",
+            "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, and declared input capabilities passed",
+            proof.stdout,
+        )
+        self.assertIn(
+            "Webapp product proof: contract lifecycle and real-browser checks passed",
             proof.stdout,
         )
 
