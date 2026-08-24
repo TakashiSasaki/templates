@@ -28,6 +28,15 @@ Composer の正確な options、plan fields、ownership definitions、および 
 - `PATH` 上で Git が利用できること。
 - CPython 3.11、3.12、3.13、または 3.14。
 
+sandbox、container、CI worker、または既定の user cache が writable でない環境で実行する場合は、runner を最初に呼び出す前に writable な cache root を選択してください。runner と materialized validator には、それぞれ独立した cache override があります。
+
+```sh
+export COMPOSITION_RUNTIME_CACHE=/path/to/writable/composition-runtime-cache
+export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cache
+```
+
+環境に適した path を使用し、これらの cache は product repository の外側に置いてください。既定 cache が writable でないことは環境上の問題であり、Composition ownership を変更したり mutable source revision を実行したりする理由にはなりません。
+
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
@@ -114,6 +123,19 @@ initial composition と新しい upgrade には consumer configuration file が�
 
 Web アプリケーションでは `"recipe": "webapp"` を使用します。選択した recipe が公開している場合にだけ、optional な `capability.*` または `lifecycle.*` component ID を `components.include` で追加してください。`recipes/` 以下の recipe file が selectable components の source of truth です。
 
+Web アプリケーションでは、process や listener の topology ではなく、サポート対象とする caller-visible contract に基づいて capability を選択してください。`webapp` recipe はすでに browser application artifact contract を提供しているため、implementation code が同じ process や port を共有しているという理由だけで capability を追加してはいけません。
+
+| Product requirement | Composition selection |
+| --- | --- |
+| Browser application の surfaces、routes、visible states、および responsive behavior | `webapp` recipe baseline (`artifact.webapp-core`) |
+| 独立して保守される browser-facing operational、diagnostic、demonstration、または明示的に contract 化された Web interface | `capability.web-interface` を追加 |
+| browser interface の implementation detail としてのみ使われ、独立した caller contract をサポートしない backend-for-frontend または JSON endpoint | その endpoint だけを理由に `capability.service` を追加しない |
+| browser から独立して caller が利用できる HTTP/JSON またはその他の non-browser API | `capability.service` を追加 |
+| browser interface と独立してサポートされる API が同じ process、listener、または reverse proxy を共有する | 該当する両 capability を追加する。shared topology は contract を統合しない |
+| 保守対象の command-line interface | `capability.cli` を追加 |
+
+`capability.service` は independently reachable な non-browser service contract を意味します。`capability.web-interface` は browser-facing routing、interaction、security、health、および failure behavior を所有します。したがって shared listener は capability が1つだけである根拠にはならず、private BFF route が存在するだけでは independent service contract が存在する根拠にはなりません。
+
 現在の production revision では、components は parameter-specific materialization behavior を定義していません。選択 component が対応 parameter contract を明示的に文書化していない限り、`parameters` は空のままにしてください。parameter values も normalized consumer intent の一部なので、それを変更することは明示的な `upgrade` boundary です。
 
 ## 新しい managed repository を作成する
@@ -155,6 +177,22 @@ python /path/to/agent-skills/composition/scripts/run.py \
 ```
 
 initial apply が成功すると `.template-composition/lock.json` が最後に書き込まれます。lock は runner が使用した exact Composition source revision を記録します。
+
+### Initial apply 後: scaffold を product にする
+
+initial validation が証明するのは、resolved Composition state と選択された template contracts が内部的に valid であることです。Webapp では baseline implementation evidence は product implementation claim を持たない `template` mode から意図的に開始します。この状態で validation が成功しても、application の実装、test、deployment、または release readiness が証明されたと解釈してはいけません。
+
+initial materialization 後は次の順序で進めます。
+
+1. `.template-composition/lock.json` を読み、ownership boundary を維持します。`seed` と通常の consumer files は編集できますが、`managed`、`generated`、lock、transaction material は手作業で編集しません。
+2. seed assumptions を product の実際の contract に置き換えます。Webapp では surfaces、routes、UI states、viewports、および product に適用される選択済み capability worksheet を具体化します。
+3. consumer-owned source files に product を実装します。Composition は意図的に framework、persistence layer、API design、authentication provider、deployment platform、または product-specific test implementation を選択しません。
+4. Webapp では `python scripts/scaffold_webapp_evidence.py` を実行し、現在の deterministic evidence-target worklist を生成します。この command は read-only であり、worklist を standard output にだけ出力します。
+5. authoritative product test commands と positive/negative proofs を追加し、主張する implementation boundaries と evidence が実際に存在する場合にだけ `contracts/implementation-evidence.json` を `template` mode から `product` mode に切り替えます。
+6. product 自身の verification commands と Composition `validate` を実行します。Composition validation と product verification は相補的であり、互いを代替しません。
+7. repository が coding-agent Policy も使用する場合は、Composition が seed ownership を移譲した後で明示的に adopt します。その後 Policy は Composition capability になることなく、残りの implementation と verification work をガイドできます。
+
+Webapp では `TEMPLATE.md` が生成済み product worksheet であり、contract customization と implementation-evidence の詳細な guidance を含みます。scaffold command は canonical evidence document を自動的に書き換えません。truthful evidence claim の責任は consumer に残ります。
 
 ## Composition repository で Policy を使う
 
