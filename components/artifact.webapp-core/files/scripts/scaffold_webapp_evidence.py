@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 if __package__:
     from .webapp_evidence_targets import expected_targets, record_id
@@ -13,7 +14,7 @@ else:
     from webapp_evidence_targets import expected_targets, record_id
 
 
-def record_skeleton(target: dict) -> dict:
+def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
     identifier = record_id(target)
     return {
         "id": identifier,
