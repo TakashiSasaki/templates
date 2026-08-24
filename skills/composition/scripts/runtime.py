@@ -513,8 +513,11 @@ def build_source_cache(
     env: Mapping[str, str],
 ) -> Path:
     ensure_cache_parent(target.parent)
-    stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent))
+    stage: Path | None = None
     try:
+        stage = Path(
+            tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent)
+        )
         populate_source_checkout(source_checkout(stage), revision, env)
         source_marker(stage).write_text(
             json.dumps(source_marker_payload(revision), indent=2, sort_keys=True) + "\n",
@@ -528,10 +531,12 @@ def build_source_cache(
             lambda candidate: source_valid(candidate, revision, env),
         )
     except OSError as exc:
-        remove_path(stage)
+        if stage is not None:
+            remove_path(stage)
         raise cache_write_error(target.parent, exc) from exc
     except Exception:
-        remove_path(stage)
+        if stage is not None:
+            remove_path(stage)
         raise
 
 
@@ -678,8 +683,11 @@ def build_runtime_cache(
     env: Mapping[str, str],
 ) -> Path:
     ensure_cache_parent(target.parent)
-    stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent))
+    stage: Path | None = None
     try:
+        stage = Path(
+            tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent)
+        )
         lock = stage / "requirements-runtime.lock"
         lock.write_bytes(lock_data)
         run(
@@ -721,10 +729,12 @@ def build_runtime_cache(
             lambda candidate: runtime_valid(candidate, identity, source, env),
         )
     except OSError as exc:
-        remove_path(stage)
+        if stage is not None:
+            remove_path(stage)
         raise cache_write_error(target.parent, exc) from exc
     except Exception:
-        remove_path(stage)
+        if stage is not None:
+            remove_path(stage)
         raise
 
 
