@@ -68,6 +68,44 @@ class ValidationRuntimeContractTests(unittest.TestCase):
             len(validators),
         )
 
+    def test_runtime_registry_rejects_invalid_shapes_and_requirements(self) -> None:
+        runner = load_runner()
+        invalid = [
+            (
+                None,
+                "runtime must contain exactly requirements",
+            ),
+            (
+                {"requirements": "attrs===26.1.0"},
+                "requirements must be a non-empty array",
+            ),
+            (
+                {"requirements": ["attrs==26.1.0"]},
+                "must be exact name===version",
+            ),
+            (
+                {"requirements": ["rpds_py===2026.6.3", "rpds-py===2026.6.3"]},
+                "duplicate distribution",
+            ),
+        ]
+        for value, message in invalid:
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(runner.ValidationRegistryError, message):
+                    runner._parse_runtime_requirements(value)
+
+    def test_registry_rejects_unsupported_schema_version(self) -> None:
+        runner = load_runner()
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        registry["schema_version"] = 1
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "registry.json"
+            path.write_text(json.dumps(registry) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                runner.ValidationRegistryError,
+                "schema_version must be 2",
+            ):
+                runner._load_registry(path)
+
     def test_validation_cache_has_one_explicit_override(self) -> None:
         runner = load_runner()
         with tempfile.TemporaryDirectory() as temp_dir:
