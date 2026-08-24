@@ -8,12 +8,12 @@
 
 製品リポジトリへ Policy を適用することが目的なら、最初に Provider / toolchain の内部構造を理解する必要はありません。通常の consumer workflow は次の順序です。
 
-1. **単一の `agent-policy` skill をインストールする。** レビュー済み full-SHA installer は [Getting started](../../docs/getting-started.md) に記載されています。
+1. **単一の `agent-policy` skill をインストールする。** レビュー済み full-SHA installer は [Getting started](getting-started.md) に記載されています。
 2. **未管理 repository を inspect する。** `python scripts/bootstrap.py --repository /path/to/product-repository` は dry run で `unmanaged-empty`、`unmanaged-existing`、`managed`、`inconsistent` のいずれかに分類し、対応する adoption path を選択します。
 3. **plan を確認してから fresh adoption を apply、または migration を prepare する。** fresh adoption は `--apply` を使用できます。migration adoption は既存の primary instructions を保持し、preview 後に別の明示的 finalization を必要とします。
 4. **managed repository を同じ installed skill で運用する。** `python scripts/run.py --repository . validate`、続いて `render`、`check` を実行します。
 
-installation と adoption は [Getting started](../../docs/getting-started.md) から始めてください。`.agent-policy.lock` が存在するようになった後は [Managed operation](../../docs/managed-operation.md) で通常の validate / render / check loop を確認します。context にどの shared rule set を選ぶべきか判断するときは [Policy profiles](../../docs/shared-policy/profiles.md) を参照してください。
+installation と adoption は [Getting started](getting-started.md) から始めてください。`.agent-policy.lock` が存在するようになった後は [Managed operation](managed-operation.md) で通常の validate / render / check loop を確認します。context にどの shared rule set を選ぶべきか判断するときは [Policy profiles](shared-policy/profiles.md) を参照してください。
 
 Policy が制御するのは coding-agent の operating rules です。Web application、CLI、service、library などの **architecture や product requirements は定義しません**。それらの artifact / capability semantics は Composition が別の authority として管理します。
 
@@ -41,7 +41,7 @@ Policy が制御するのは coding-agent の operating rules です。Web appli
 
 したがって、導入処理は `policy` ブランチ全体をconsumerへinjectまたはGit mergeする仕組みではありません。共有規則を **select → compose → render** し、consumer repositoryに生成projectionとlock stateを保持する仕組みです。branch間のunrelated historyは維持されます。
 
-Index-guided navigationでもこの境界を維持し、[Provider and toolchain](../../docs/provider/index.md)、[Shared policy corpus](../../docs/shared-policy/index.md)、[Applying policy to a consumer repository](../../docs/consumer/index.md) を別の入口として扱います。
+Index-guided navigationでもこの境界を維持し、[Provider and toolchain](provider/index.md)、[Shared policy corpus](shared-policy/index.md)、[Applying policy to a consumer repository](consumer/index.md) を別の入口として扱います。
 
 ## `policy`ブランチの構成
 
@@ -82,9 +82,9 @@ installed skillのgeneric bootstrap操作はmigration finalizationを公開し�
 
 ## 次に読むページ
 
-- [Provider and toolchain](../../docs/provider/index.md) — `policy`ブランチ自体とtoolchainの設計・保守・release boundaryをたどります。
-- [Shared policy corpus](../../docs/shared-policy/index.md) — consumerから選択されるcanonical shared policyとprofileをたどります。
-- [Applying policy to a consumer repository](../../docs/consumer/index.md) — adoption、configuration、effective policy、managed operationをたどります。
-- [CLIリファレンス](../../docs/cli.md) — `agent-policy` コマンドと各サブコマンドの契約を確認します。
-- [Architecture decisions](../../docs/adr/) — 現在有効なADRを短い説明付きで一覧します。
-- [脅威モデル](../../docs/threat-model.md) — toolchainが防御する脅威と信頼境界を確認します。
+- [Provider and toolchain](provider/index.md) — `policy`ブランチ自体とtoolchainの設計・保守・release boundaryをたどります。
+- [Shared policy corpus](shared-policy/index.md) — consumerから選択されるcanonical shared policyとprofileをたどります。
+- [Applying policy to a consumer repository](consumer/index.md) — adoption、configuration、effective policy、managed operationをたどります。
+- [CLIリファレンス](cli.md) — `agent-policy` コマンドと各サブコマンドの契約を確認します。
+- [Architecture decisions](adr/) — 現在有効なADRを短い説明付きで一覧します。
+- [脅威モデル](threat-model.md) — toolchainが防御する脅威と信頼境界を確認します。
