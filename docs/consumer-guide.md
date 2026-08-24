@@ -26,6 +26,15 @@ The supported runner prerequisites are:
 - Git available on `PATH`; and
 - CPython 3.11, 3.12, 3.13, or 3.14.
 
+If you are running in a sandbox, container, CI worker, or other environment whose default user cache is not writable, choose writable cache roots before the first runner invocation. The runner and materialized validator support separate cache overrides:
+
+```sh
+export COMPOSITION_RUNTIME_CACHE=/path/to/writable/composition-runtime-cache
+export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cache
+```
+
+Use environment-appropriate paths and keep these caches outside the product repository. An unwritable default cache is an environment problem, not a reason to change Composition ownership or execute a mutable source revision.
+
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
@@ -112,6 +121,19 @@ Initial composition and a new upgrade require a consumer configuration file. A m
 
 For a Web application, use `"recipe": "webapp"`. Add optional `capability.*` or `lifecycle.*` component IDs through `components.include` only when the selected recipe exposes them. Recipe files under `recipes/` are the source of truth for selectable components.
 
+For Web applications, select capabilities from the caller-visible contract you intend to support rather than from process or listener topology alone. The `webapp` recipe already provides the browser-application artifact contract; do not add a capability merely because implementation code happens to share a process or port.
+
+| Product requirement | Composition selection |
+| --- | --- |
+| Browser application surfaces, routes, visible states, and responsive behavior | `webapp` recipe baseline (`artifact.webapp-core`) |
+| A separately maintained browser-facing operational, diagnostic, demonstration, or explicitly contracted Web interface | add `capability.web-interface` |
+| A backend-for-frontend or JSON endpoint used only as an implementation detail of the browser interface, with no supported independent caller contract | do not add `capability.service` solely for that endpoint |
+| An HTTP/JSON or other non-browser API that callers may use independently of the browser | add `capability.service` |
+| Browser interface and independently supported API share one process, listener, or reverse proxy | add both applicable capabilities; shared topology does not merge their contracts |
+| A maintained command-line interface | add `capability.cli` |
+
+`capability.service` means an independently reachable non-browser service contract. `capability.web-interface` owns its browser-facing routing, interaction, security, health, and failure behavior. A shared listener is therefore not evidence that only one capability exists, and a private BFF route is not by itself evidence that an independent service contract exists.
+
 At the current production revision, components do not define parameter-specific materialization behavior. Keep `parameters` empty unless a selected component explicitly documents a supported parameter contract. Parameter values are still part of normalized consumer intent, so changing them is an explicit `upgrade` boundary.
 
 ## Create a new managed repository
@@ -153,6 +175,22 @@ python /path/to/agent-skills/composition/scripts/run.py \
 ```
 
 A successful initial apply writes `.template-composition/lock.json` last. The lock records the exact Composition source revision used by the runner.
+
+### After initial apply: turn the scaffold into a product
+
+Initial validation proves that the resolved Composition state and selected template contracts are internally valid. For a Webapp, baseline implementation evidence deliberately starts in `template` mode with no product implementation claims. A successful validation in that state must not be interpreted as proof that the application has been implemented, tested, deployed, or made release-ready.
+
+Use this sequence after initial materialization:
+
+1. Read `.template-composition/lock.json` and preserve the ownership boundary: edit `seed` and ordinary consumer files; do not hand-edit `managed`, `generated`, lock, or transaction material.
+2. Replace the seed assumptions with the product's actual contract. For a Webapp, concretize surfaces, routes, UI states, viewports, and every selected capability worksheet that applies to the product.
+3. Implement the product in consumer-owned source files. Composition intentionally does not choose the framework, persistence layer, API design, authentication provider, deployment platform, or product-specific test implementation.
+4. For a Webapp, run `python scripts/scaffold_webapp_evidence.py` to render the deterministic current evidence-target worklist. The command is read-only and writes the worklist to standard output.
+5. Add authoritative product test commands and positive/negative proofs, then switch `contracts/implementation-evidence.json` from `template` to `product` mode only when the claimed implementation boundaries and evidence actually exist.
+6. Run the product's own verification commands and Composition `validate`. Composition validation and product verification are complementary: neither substitutes for the other.
+7. If the repository also uses coding-agent Policy, adopt it explicitly after Composition has transferred seed ownership. Policy may then guide the remaining implementation and verification work without becoming a Composition capability.
+
+For Webapps, `TEMPLATE.md` is the generated product worksheet and contains the detailed contract-customization and implementation-evidence guidance. The scaffold command does not rewrite the canonical evidence document automatically; the consumer remains responsible for truthful evidence claims.
 
 ## Use Policy with a Composition repository
 
