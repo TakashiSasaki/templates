@@ -6,7 +6,9 @@ A consumer repository is produced from an artifact recipe plus explicit consumer
 
 ## Start here
 
-If you are creating or maintaining a concrete Agent Skill or Web application repository, start with [Using Composition](docs/consumer-guide.md). It provides the task-oriented `initial` / `update` / `upgrade` / recovery workflow, file-editing rules, conflict handling, and the reproducible consumer runtime setup.
+**Creating your first Web application?** Start with the [Webapp product walkthrough](docs/guides/webapp-product-walkthrough.md). It is the canonical zero-to-one path: create a separate product repository, check prerequisites, install Composition, create `composition.json`, follow `inspect -> plan -> apply -> validate`, understand the editing boundary, and continue into product implementation and evidence. You do not need to understand the Composition architecture before starting it.
+
+For other consumer work—creating an Agent Skill, maintaining an existing managed repository, updating/upgrading Composition, recovery, ownership, or conflict handling—use [Using Composition](docs/consumer-guide.md). A dedicated first-use Agent Skill walkthrough is maintained separately from the Webapp tutorial.
 
 Normal consumers use the installable `skills/composition/` runner. Git and CPython 3.11 through 3.14 are its supported prerequisites. The runner selects an immutable full-SHA Composition source revision, builds the exact `requirements-runtime.lock` environment with dependency resolution disabled, and invokes the existing Composer with the consumer repository as its target. Composition authority maintainers can still use the direct source-checkout entrypoint; the clean consumer-runtime matrix validates Ubuntu 24.04 and Windows Server 2022.
 
