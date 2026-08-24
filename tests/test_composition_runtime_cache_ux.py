@@ -35,7 +35,7 @@ class CompositionRuntimeCacheUxTests(unittest.TestCase):
                 runtime.ensure_cache_parent(blocker / "sources")
 
             message = str(raised.exception)
-            self.assertIn("not a directory", message)
+            self.assertIn("not a directory", message.lower())
             self.assertIn("COMPOSITION_RUNTIME_CACHE", message)
             self.assertIn(str(blocker / "sources"), message)
 
