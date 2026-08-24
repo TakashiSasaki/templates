@@ -555,7 +555,8 @@ def _build_validation_runtime(
             tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent)
         )
         lock = stage / "requirements-runtime.lock"
-        lock.write_text("\n".join(requirement_lines) + "\n", encoding="utf-8")
+        lock_data = ("\n".join(requirement_lines) + "\n").encode("utf-8")
+        lock.write_bytes(lock_data)
         _run_checked(
             [sys.executable, "-I", "-m", "venv", str(stage / "venv")],
             environment=environment,
