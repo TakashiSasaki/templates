@@ -4,6 +4,7 @@
 
 - [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — end-to-end example from capability selection and initial materialization through consumer implementation, product evidence, validation, Policy adoption, and later update/upgrade.
 - [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
 - [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
