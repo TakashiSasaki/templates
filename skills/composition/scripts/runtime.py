@@ -150,7 +150,7 @@ def cache_root() -> Path:
 
 def cache_write_error(path: Path, exc: OSError) -> RunnerError:
     return RunnerError(
-        f"Composition runtime cache is not writable at {path}: {exc}. "
+        f"Composition runtime cache is unusable at {path}: {exc}. "
         f"Set {CACHE_OVERRIDE} to a writable directory."
     )
 
