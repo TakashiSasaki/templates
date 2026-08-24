@@ -61,6 +61,104 @@ class CompositionRuntimeCacheUxTests(unittest.TestCase):
             self.assertEqual(source.parent, parent)
             self.assertEqual(target.parent, parent)
 
+    def test_cache_parent_preflight_cleans_probe_on_rename_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary) / "cache" / "sources"
+            with mock.patch.object(Path, "rename", side_effect=OSError("rename failed")):
+                with self.assertRaises(runtime.RunnerError) as raised:
+                    runtime.ensure_cache_parent(parent)
+
+            self.assertIn("COMPOSITION_RUNTIME_CACHE", str(raised.exception))
+            self.assertTrue(parent.is_dir())
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_stage_creation_failure_is_normalized_for_source_and_runtime_builds(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_target = root / "sources" / ("1" * 40)
+            runtime_target = root / "runtimes" / ("2" * 64)
+            identity = runtime.RuntimeIdentity(
+                repository=runtime.CANONICAL_REPOSITORY,
+                revision="1" * 40,
+                lock_sha256="2" * 64,
+                python=runtime.python_token(),
+                platform=runtime.platform_token(),
+            )
+
+            for operation in (
+                lambda: runtime.build_source_cache(source_target, "1" * 40, {}),
+                lambda: runtime.build_runtime_cache(
+                    runtime_target,
+                    identity,
+                    root / "source",
+                    b"jsonschema===4.26.0\n",
+                    {},
+                ),
+            ):
+                with self.subTest(operation=operation):
+                    with (
+                        mock.patch.object(runtime, "ensure_cache_parent"),
+                        mock.patch.object(
+                            runtime.tempfile,
+                            "mkdtemp",
+                            side_effect=OSError("disk full"),
+                        ),
+                    ):
+                        with self.assertRaises(runtime.RunnerError) as raised:
+                            operation()
+                    self.assertIn("COMPOSITION_RUNTIME_CACHE", str(raised.exception))
+                    self.assertIn("disk full", str(raised.exception))
+
+    def test_warm_cache_hits_bypass_cache_parent_preflight(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            revision = "1" * 40
+            source_target = runtime.source_cache_entry(root, revision)
+
+            with (
+                mock.patch.object(runtime.shutil, "which", return_value="git"),
+                mock.patch.object(runtime, "source_valid", return_value=True),
+                mock.patch.object(
+                    runtime,
+                    "ensure_cache_parent",
+                    side_effect=AssertionError("warm source hit must not preflight"),
+                ),
+            ):
+                self.assertEqual(
+                    runtime.ensure_source_cache(revision, root, {}),
+                    runtime.source_checkout(source_target),
+                )
+
+            source = root / "cached-source"
+            source.mkdir()
+            (source / "requirements-runtime.lock").write_text(
+                "jsonschema===4.26.0\n",
+                encoding="utf-8",
+            )
+            manifest = {
+                "toolchain": {
+                    "repository": runtime.CANONICAL_REPOSITORY,
+                    "revision": "2" * 40,
+                }
+            }
+            identity = runtime.runtime_identity(
+                revision,
+                b"jsonschema===4.26.0\n",
+            )
+            runtime_target = runtime.runtime_cache_entry(root, identity)
+            with (
+                mock.patch.object(runtime, "runtime_valid", return_value=True),
+                mock.patch.object(
+                    runtime,
+                    "ensure_cache_parent",
+                    side_effect=AssertionError("warm runtime hit must not preflight"),
+                ),
+            ):
+                self.assertEqual(
+                    runtime.ensure_runtime_cache(source, revision, manifest, root, {}),
+                    runtime.venv_python(runtime_target),
+                )
+
     def test_runtime_install_disables_pip_download_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
