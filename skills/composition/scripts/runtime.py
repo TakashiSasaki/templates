@@ -26,6 +26,7 @@ SUPPORTED_MAX_EXCLUSIVE = (3, 15)
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = SKILL_ROOT / "runtime-manifest.json"
 CACHE_SCHEMA = 1
+CACHE_OVERRIDE = "COMPOSITION_RUNTIME_CACHE"
 
 
 class RunnerError(RuntimeError):
@@ -135,7 +136,7 @@ def platform_token() -> str:
 
 
 def cache_root() -> Path:
-    override = os.environ.get("COMPOSITION_RUNTIME_CACHE")
+    override = os.environ.get(CACHE_OVERRIDE)
     if override:
         return Path(override).expanduser().resolve()
     if os.name == "nt":
@@ -145,6 +146,34 @@ def cache_root() -> Path:
         xdg = os.environ.get("XDG_CACHE_HOME")
         base = Path(xdg) if xdg else Path.home() / ".cache"
     return base / "composition" / "runner-v1"
+
+
+def cache_write_error(path: Path, exc: OSError) -> RunnerError:
+    return RunnerError(
+        f"Composition runtime cache is not writable at {path}: {exc}. "
+        f"Set {CACHE_OVERRIDE} to a writable directory."
+    )
+
+
+def ensure_cache_parent(parent: Path) -> None:
+    """Verify that a cache parent supports the writes and atomic rename we require."""
+    probe: Path | None = None
+    renamed: Path | None = None
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+        probe = Path(tempfile.mkdtemp(prefix=".composition-write-probe-", dir=parent))
+        (probe / "probe").write_text("ok\n", encoding="utf-8")
+        renamed = probe.with_name(f"{probe.name}.renamed")
+        probe.rename(renamed)
+        probe = None
+        remove_path(renamed)
+        renamed = None
+    except OSError as exc:
+        if probe is not None:
+            remove_path(probe)
+        if renamed is not None:
+            remove_path(renamed)
+        raise cache_write_error(parent, exc) from exc
 
 
 def _source_revision(value: Any, label: str) -> str:
@@ -483,7 +512,7 @@ def build_source_cache(
     revision: str,
     env: Mapping[str, str],
 ) -> Path:
-    target.parent.mkdir(parents=True, exist_ok=True)
+    ensure_cache_parent(target.parent)
     stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent))
     try:
         populate_source_checkout(source_checkout(stage), revision, env)
@@ -498,6 +527,9 @@ def build_source_cache(
             target,
             lambda candidate: source_valid(candidate, revision, env),
         )
+    except OSError as exc:
+        remove_path(stage)
+        raise cache_write_error(target.parent, exc) from exc
     except Exception:
         remove_path(stage)
         raise
@@ -645,7 +677,7 @@ def build_runtime_cache(
     lock_data: bytes,
     env: Mapping[str, str],
 ) -> Path:
-    target.parent.mkdir(parents=True, exist_ok=True)
+    ensure_cache_parent(target.parent)
     stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=target.parent))
     try:
         lock = stage / "requirements-runtime.lock"
@@ -664,6 +696,7 @@ def build_runtime_cache(
                 "install",
                 "--isolated",
                 "--disable-pip-version-check",
+                "--no-cache-dir",
                 "--no-deps",
                 "--requirement",
                 str(lock),
@@ -687,6 +720,9 @@ def build_runtime_cache(
             target,
             lambda candidate: runtime_valid(candidate, identity, source, env),
         )
+    except OSError as exc:
+        remove_path(stage)
+        raise cache_write_error(target.parent, exc) from exc
     except Exception:
         remove_path(stage)
         raise
