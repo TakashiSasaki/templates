@@ -41,7 +41,7 @@ def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def render_worklist(root: Path) -> dict:
+def render_worklist(root: Path) -> dict[str, Any]:
     targets = expected_targets(root)
     records = [record_skeleton(target) for target in targets]
     identifiers = [record["id"] for record in records]
