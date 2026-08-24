@@ -25,7 +25,7 @@ runtime = load_runtime()
 
 
 class CompositionRuntimeCacheUxTests(unittest.TestCase):
-    def test_unwritable_cache_parent_reports_override(self) -> None:
+    def test_non_directory_cache_parent_reports_override(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             blocker = root / "not-a-directory"
@@ -35,16 +35,31 @@ class CompositionRuntimeCacheUxTests(unittest.TestCase):
                 runtime.ensure_cache_parent(blocker / "sources")
 
             message = str(raised.exception)
-            self.assertIn("Composition runtime cache is not writable", message)
+            self.assertIn("not a directory", message)
             self.assertIn("COMPOSITION_RUNTIME_CACHE", message)
             self.assertIn(str(blocker / "sources"), message)
 
-    def test_cache_parent_preflight_cleans_probe(self) -> None:
+    def test_cache_parent_preflight_executes_atomic_rename_and_cleans_probe(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             parent = Path(temporary) / "cache" / "sources"
-            runtime.ensure_cache_parent(parent)
+            original_rename = Path.rename
+            renames: list[tuple[Path, Path]] = []
+
+            def rename_spy(source: Path, target: Path) -> Path:
+                renames.append((source, target))
+                return original_rename(source, target)
+
+            with mock.patch.object(Path, "rename", rename_spy):
+                runtime.ensure_cache_parent(parent)
+
             self.assertTrue(parent.is_dir())
             self.assertEqual(list(parent.iterdir()), [])
+            self.assertEqual(len(renames), 1)
+            source, target = renames[0]
+            self.assertTrue(source.name.startswith(".composition-write-probe-"))
+            self.assertEqual(target.name, f"{source.name}.renamed")
+            self.assertEqual(source.parent, parent)
+            self.assertEqual(target.parent, parent)
 
     def test_runtime_install_disables_pip_download_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
