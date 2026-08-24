@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "lifecycle.implementation-evidence",
   "kind": "lifecycle",
-  "version": 1,
+  "version": 2,
   "summary": "Artifact-neutral implementation boundaries, proofs, commands, and release-gate contract.",
   "requires": ["lifecycle.contract-evolution"],
   "conflicts": [],
