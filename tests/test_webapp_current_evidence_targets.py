@@ -1,17 +1,34 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET_SCRIPTS = ROOT / "components" / "artifact.webapp-core" / "files" / "scripts"
-if str(TARGET_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(TARGET_SCRIPTS))
+TARGET_MODULE = (
+    ROOT
+    / "components"
+    / "artifact.webapp-core"
+    / "files"
+    / "scripts"
+    / "webapp_evidence_targets.py"
+)
 
-from webapp_evidence_targets import allowed_targets, expected_targets, target_key
+
+def load_target_module():
+    module = types.ModuleType("webapp_evidence_targets_under_test")
+    module.__file__ = str(TARGET_MODULE)
+    source = TARGET_MODULE.read_text(encoding="utf-8")
+    exec(compile(source, str(TARGET_MODULE), "exec"), module.__dict__)
+    return module
+
+
+_targets = load_target_module()
+allowed_targets = _targets.allowed_targets
+expected_targets = _targets.expected_targets
+target_key = _targets.target_key
 
 
 class WebappCurrentEvidenceTargetTests(unittest.TestCase):
