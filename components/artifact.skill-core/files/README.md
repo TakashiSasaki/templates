@@ -2,6 +2,14 @@
 
 This scaffold is the Skill artifact produced by the `skill` composition recipe.
 
+## New to Composition? Start with the worked example
+
+If you are creating your first Agent Skill, follow the [Agent Skill first-use walkthrough](../../../docs/guides/skill-first-use-walkthrough.md) from a separate consumer repository. It starts with installation and `composition.json`, walks through `inspect -> plan -> apply -> validate`, explains concrete ownership, then turns the scaffold into a real knowledge-augmented Skill with a declared `references/` resource.
+
+The initial Composition-valid scaffold is not yet an operational Skill: replace the `template-scaffold` sentinel and TODO semantics before treating the repository as a concrete Skill.
+
+## Artifact model
+
 The architecture separates:
 
 - **Skill semantics** in `artifact.skill-core`: trigger, workflow, resources, agent routing, outputs, and safety;
