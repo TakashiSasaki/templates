@@ -206,6 +206,14 @@ class _WebDriverSession:
             raise BrowserProbeError(f"WebDriver could not resolve element {selector!r}")
         return {ELEMENT_KEY: value[ELEMENT_KEY]}
 
+    def click(self, selector: str) -> None:
+        element = self._element(selector)
+        self._request(
+            "POST",
+            f"{self._prefix}/element/{element[ELEMENT_KEY]}/click",
+            {},
+        )
+
     def send_keys(self, selector: str, text: str) -> None:
         element = self._element(selector)
         self._request(
@@ -507,7 +515,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             session.execute(
                 'document.querySelector("#main-content").dataset.action = "";'
             )
-            session.pointer_activate("#primary-action", "mouse")
+            session.click("#primary-action")
             _assert(
                 session.execute(
                     'return document.querySelector("#main-content").dataset.action;'
@@ -575,6 +583,6 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
             )
 
     print(
-        "Browser Webapp proof: responsive structure, declared scrolling policy, "
-        "browser page scale, orientation, and declared input capabilities passed"
+        "Browser Webapp proof: responsive layout, scrolling, zoom, orientation, "
+        "and declared input capabilities passed"
     )
