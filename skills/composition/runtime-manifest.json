@@ -2,7 +2,7 @@
   "schema_version": 1,
   "toolchain": {
     "repository": "TakashiSasaki/templates",
-    "revision": "1e982fb4c02e54c683a6d9215a9ca65e72fc0ffc"
+    "revision": "3c8ccac8ffa348ed56059815d7ac8e44fa95b3e0"
   },
   "runtime_lock": {
     "path": "requirements-runtime.lock",
