@@ -1,0 +1,85 @@
+name: Final clean-room follow-up E2E diagnostic
+
+on:
+  pull_request:
+    branches:
+      - site
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify merged Site deployment succeeded
+        uses: actions/github-script@v8
+        env:
+          TARGET_SITE_SHA: f7721b80cea40e9dcfa7fe12665e682d888dc5ef
+        with:
+          script: |
+            const target = process.env.TARGET_SITE_SHA;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-pages.yml',
+              event: 'push',
+              branch: 'site',
+              per_page: 50,
+            });
+            const run = data.workflow_runs.find((candidate) => candidate.head_sha === target);
+            if (!run) {
+              core.setFailed(`No deploy-pages push run found for ${target}`);
+              return;
+            }
+            core.info(`Deployment workflow run: ${run.html_url}`);
+            core.info(`status=${run.status} conclusion=${run.conclusion}`);
+            if (run.status !== 'completed' || run.conclusion !== 'success') {
+              core.setFailed(
+                `Deploy documentation from site is ${run.status}/${run.conclusion} for ${target}`
+              );
+            }
+
+      - name: Verify public provider docs and provenance
+        env:
+          PUBLIC_SITE_URL: https://templates.moukaeritai.work
+          EXPECTED_SITE_SHA: f7721b80cea40e9dcfa7fe12665e682d888dc5ef
+          EXPECTED_COMPOSITION_SHA: de1ec77f586bc9b624ec06bda05610aae36dc503
+          EXPECTED_POLICY_SHA: a3eed65b54c6ec60e02c5bf6b44dd4e2234691b7
+          EXPECTED_COMPOSITION_INSTALLER_SHA: 279a573c11033f7c2da2650a7939ca045635c304
+          EXPECTED_POLICY_INSTALLER_SHA: b330f517ad2a348fafc7cb9f690b4df298ee24f4
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          fetch() {
+            local path="$1"
+            local output="$2"
+            curl --fail --silent --show-error --location \
+              --retry 5 --retry-delay 2 --retry-all-errors \
+              "${PUBLIC_SITE_URL}${path}" -o "$output"
+          }
+
+          fetch /composition/use/ "$work/composition.html"
+          fetch /policy/getting-started/ "$work/policy.html"
+          fetch /build-provenance.json "$work/provenance.json"
+
+          grep -Fq "$EXPECTED_COMPOSITION_INSTALLER_SHA" "$work/composition.html"
+          grep -Fq 'COMPOSITION_RUNTIME_CACHE' "$work/composition.html"
+          grep -Fq "$EXPECTED_POLICY_INSTALLER_SHA" "$work/policy.html"
+
+          python - "$work/provenance.json" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          provenance = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert provenance["site_commit"] == os.environ["EXPECTED_SITE_SHA"], provenance
+          assert provenance["publication_commits"]["composition"] == os.environ["EXPECTED_COMPOSITION_SHA"], provenance
+          assert provenance["publication_commits"]["policy"] == os.environ["EXPECTED_POLICY_SHA"], provenance
+          print(json.dumps(provenance, sort_keys=True))
+          PY
