@@ -2,12 +2,14 @@
 
 ## Start here
 
-- [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — **Creating your first Web application? Start here.** Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
-- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — end-to-end example from capability selection and initial materialization through consumer implementation, product evidence, validation, Policy adoption, and later update/upgrade.
+- [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
 - [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
 - [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
+
+The first-use walkthrough deliberately comes before architecture and contract references. New consumers can complete the initial task first and consult the deeper model when a decision requires it.
 
 ## Composition architecture
 
@@ -39,6 +41,7 @@
 
 ## Web application artifact
 
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — canonical first-use path for a concrete Web application.
 - [Web application documentation index](../components/artifact.webapp-core/files/docs/) — Web-specific contracts and validation.
 - [Web application template contract](../components/artifact.webapp-core/files/TEMPLATE.md) — framework-neutral browser product obligations.
 
@@ -47,7 +50,7 @@
 - [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained resolved-state and material-ownership validation.
 - [Contract evolution](../components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md) — closed contract registry, schema binding, version histories, and migrations.
 - [Implementation evidence](../components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md) — implementation boundaries, proofs, commands, and release gates.
-- [Release evidence](../components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md) — revision-bound execution provenance and release decisions.
+- [Release evidence](../components/lifecycle.release-evidence/files/docs/architecture/implementation-evidence.md) — revision-bound execution provenance and release decisions.
 - [Release bundle](../components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md) — deterministic digest-closed handoff.
 
 ## Historical provenance
