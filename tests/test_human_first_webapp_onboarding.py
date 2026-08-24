@@ -33,7 +33,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         positions = [text.index(heading) for heading in headings]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("separate product repository", text[: positions[-1]])
-        self.assertIn("do not clone `TakashiSasaki/templates`", text.lower())
+        self.assertIn("do not clone `takashisasaki/templates`", text.lower())
 
     def test_initial_commands_are_in_lifecycle_order_and_config_is_absolute(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
