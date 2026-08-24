@@ -151,6 +151,7 @@ class ImplementationEvidenceProofReuseTests(unittest.TestCase):
             )
             environment = dict(os.environ)
             environment["PYTHONPATH"] = str(COMMON_DIR)
+            environment["PYTHONDONTWRITEBYTECODE"] = "1"
             result = subprocess.run(
                 [sys.executable, str(VALIDATOR), str(root)],
                 cwd=root,
