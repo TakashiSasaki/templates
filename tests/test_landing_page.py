@@ -81,17 +81,18 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-cover"', text)
         self.assertNotIn('href="overview/"', text)
         self.assertIn(
-            'class="portal-cover__button portal-cover__button--primary" href="composition/"',
+            'class="portal-cover__button portal-cover__button--primary" href="composition/use/webapp-product-walkthrough/"',
             text,
         )
         self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
+            "composition/use/webapp-product-walkthrough/",
             "composition/",
             "capabilities/",
             "lifecycle/",
             "skill/",
             "policy/",
-            "webapp/",
+            "policy/getting-started/",
             "/glossary/",
             "/guided/",
             "repository-trees/",
@@ -105,7 +106,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-artifact-card portal-artifact-card--webapp"', text)
         self.assertNotIn("portal-artifact-card--policy", text)
         self.assertIn('class="portal-policy-panel"', text)
-        self.assertIn("Independent authority · Policy", text)
+        self.assertIn("Independent task · Policy", text)
 
     def test_landing_page_references_only_declared_svg_artwork(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
@@ -129,7 +130,7 @@ class LandingPageTests(unittest.TestCase):
             "external-paint.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect fill="url(https://example.invalid/paint)"/></svg>',
             "style-element.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><style>@import url(https://example.invalid/a.css);</style></svg>',
             "style-attribute.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect style="fill:url(//example.invalid/paint)"/></svg>',
-            "data-image.svg": '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><image href="data:image/png;base64,AA=="/></svg>',
+            "data-image.svg": '<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><image href="data:image/png;base64,AA=="/></svg>',
             "external-entity.svg": '<!DOCTYPE svg [<!ENTITY ext SYSTEM "https://example.invalid/x">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>',
         }
 
