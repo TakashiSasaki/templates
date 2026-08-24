@@ -229,6 +229,31 @@ def cache_root() -> Path:
     return base / "agent-policy" / "runtime-v1"
 
 
+def cache_error(path: Path, exc: OSError) -> RuntimeError:
+    return RuntimeError(
+        f"agent-policy runtime cache is unusable at {path}: {exc}. "
+        "Set AGENT_POLICY_RUNTIME_CACHE to a writable directory and retry."
+    )
+
+
+def ensure_cache_writable(root: Path) -> None:
+    probe: Path | None = None
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        probe = Path(tempfile.mkdtemp(prefix=".agent-policy-write-probe-", dir=root))
+        source = probe / "source"
+        destination = probe / "destination"
+        source.write_text("agent-policy cache probe\n", encoding="utf-8")
+        source.rename(destination)
+        if destination.read_text(encoding="utf-8") != "agent-policy cache probe\n":
+            raise OSError("cache write/rename probe returned unexpected bytes")
+    except OSError as exc:
+        raise cache_error(root, exc) from exc
+    finally:
+        if probe is not None:
+            shutil.rmtree(probe, ignore_errors=True)
+
+
 def sanitized_environment(source: Mapping[str, str] | None = None) -> dict[str, str]:
     supplied = os.environ if source is None else source
     result = {
@@ -465,8 +490,12 @@ def build_runtime(
     lock_data: bytes,
 ) -> Path:
     root = target.parent
-    root.mkdir(parents=True, exist_ok=True)
-    stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=root))
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.build-", dir=root))
+    except OSError as exc:
+        raise cache_error(root, exc) from exc
+
     env = sanitized_environment()
     backup: Path | None = None
     try:
@@ -486,6 +515,7 @@ def build_runtime(
                 "pip",
                 "install",
                 "--disable-pip-version-check",
+                "--no-cache-dir",
                 "--no-deps",
                 "--requirement",
                 str(lock),
@@ -501,6 +531,7 @@ def build_runtime(
                 "pip",
                 "install",
                 "--disable-pip-version-check",
+                "--no-cache-dir",
                 "--no-deps",
                 requirement,
             ],
@@ -541,17 +572,22 @@ def build_runtime(
         if backup is not None:
             shutil.rmtree(backup, ignore_errors=True)
         return target
-    except Exception:
+    except Exception as exc:
         if backup is not None and backup.exists() and not target.exists():
             backup.rename(target)
         shutil.rmtree(stage, ignore_errors=True)
+        if isinstance(exc, OSError):
+            raise cache_error(root, exc) from exc
         raise
 
 
 def ensure_runtime(pin: RuntimePin, *, root: Path | None = None) -> Path:
     cache = cache_root() if root is None else root
     if pin.expected_lock_sha256 is None:
-        cached = cached_for_revision(cache, pin)
+        try:
+            cached = cached_for_revision(cache, pin)
+        except OSError as exc:
+            raise cache_error(cache, exc) from exc
         if cached is not None:
             return cached
 
@@ -567,6 +603,7 @@ def ensure_runtime(pin: RuntimePin, *, root: Path | None = None) -> Path:
         if runtime_valid(target, identity, pin):
             return target
 
+    ensure_cache_writable(cache)
     lock_data = download_runtime_lock(pin)
     identity = identity_for(pin, lock_data)
     target = cache / identity.digest()

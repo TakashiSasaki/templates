@@ -29,7 +29,9 @@ A runtime cache entry is identified by:
 
 The default cache root is the platform cache directory (`$XDG_CACHE_HOME`/`~/.cache` on POSIX, `%LOCALAPPDATA%` on Windows). Set `AGENT_POLICY_RUNTIME_CACHE` to override it.
 
-A valid cache entry is reused without network access. The first build for a new identity downloads the runtime lock from the exact full SHA, installs every locked runtime distribution with dependency resolution disabled, installs the same full-SHA `agent-policy` project with dependencies disabled, runs `pip check`, verifies the exact installed distribution set, and writes an identity marker only after validation succeeds.
+A valid cache entry is reused without network access and without requiring the cache root to be writable. On a cache miss, the runner first verifies that the selected cache root supports directory creation, file writes, cleanup, and same-filesystem atomic rename. If that preflight fails, the consumer-facing error names the cache path and instructs the user to set `AGENT_POLICY_RUNTIME_CACHE` to a writable directory.
+
+The first build for a new identity downloads the runtime lock from the exact full SHA, installs every locked runtime distribution with dependency resolution disabled, installs the same full-SHA `agent-policy` project with dependencies disabled, runs `pip check`, verifies the exact installed distribution set, and writes an identity marker only after validation succeeds. Both pip installation steps use `--no-cache-dir`, so `AGENT_POLICY_RUNTIME_CACHE` is sufficient for controlled or restricted environments; no separate pip cache or XDG cache override is required.
 
 Construction occurs in a sibling staging directory and is renamed into place only after validation. Existing invalid entries are replaced with rollback protection.
 

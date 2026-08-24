@@ -41,10 +41,11 @@ The runner reads `.agent-policy.lock` when present and requires its toolchain re
 - The default toolchain full SHA and runtime-lock SHA-256 are recorded in `runtime-manifest.json`.
 - Managed repositories prefer the full SHA in `.agent-policy.lock`.
 - Runtime identity includes repository, full revision, runtime-lock digest, Python major/minor, and platform.
-- A valid runtime identity is reused from the persistent cache without network access.
-- The first build for an identity installs the exact runtime lock with dependency resolution disabled, installs the pinned project with dependencies disabled, runs `pip check`, and verifies the installed distribution set.
+- A valid runtime identity is reused from the persistent cache without network access or a cache-writability probe.
+- Before a cache miss downloads or builds runtime material, the runner verifies that the selected cache root supports directory creation, file writes, cleanup, and same-filesystem atomic rename.
+- The first build for an identity installs the exact runtime lock with dependency resolution disabled, installs the pinned project with dependencies disabled, runs `pip check`, and verifies the installed distribution set. Both pip installation steps disable pip's independent download cache.
 - Runtime construction is staged and switched atomically; an invalid existing cache entry is not trusted.
-- `AGENT_POLICY_RUNTIME_CACHE` may override the cache root for controlled environments and tests.
+- `AGENT_POLICY_RUNTIME_CACHE` may override the cache root for controlled environments and tests. If the platform default cache is unusable, the error names the failing path and tells the consumer to set this variable to a writable directory. No separate pip cache or XDG cache override is required.
 
 ## Safety requirements
 
