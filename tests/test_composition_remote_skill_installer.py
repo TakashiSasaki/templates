@@ -19,7 +19,7 @@ def load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -75,17 +75,17 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
         self.assertEqual(
             installer.SKILL_SOURCE_REVISION,
-            "da2e169e1a650a2150936ca92d49596286e34a30",
+            "668e9ac82ca55c9332c45fae4bc6129b576b3ced",
         )
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))
         self.assertTrue(
             installer.archive_url().endswith(
-                "/tar.gz/da2e169e1a650a2150936ca92d49596286e34a30"
+                "/tar.gz/668e9ac82ca55c9332c45fae4bc6129b576b3ced"
             )
         )
 
     def test_archive_url_rejects_mutable_or_short_revisions(self) -> None:
-        for revision in ("composition", "main", "da2e169e"):
+        for revision in ("composition", "main", "668e9ac8"):
             with self.subTest(revision=revision):
                 with self.assertRaisesRegex(ValueError, "full lowercase commit SHA"):
                     installer.archive_url(revision)
