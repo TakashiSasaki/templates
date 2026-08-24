@@ -11,6 +11,7 @@
         {"id": "overview", "canonical": "Overview", "localized": "概要"},
         {"id": "composition", "canonical": "Composition", "localized": "Composition"},
         {"id": "use-composition", "canonical": "Use Composition", "localized": "Composition を使う"},
+        {"id": "webapp-product-walkthrough", "canonical": "Webapp product walkthrough", "localized": "Webapp プロダクト実装ウォークスルー"},
         {"id": "produce-product-release", "canonical": "Produce a product release", "localized": "プロダクトリリースを作成"},
         {"id": "composer-reference", "canonical": "Composer reference", "localized": "Composer リファレンス"},
         {"id": "documentation-index", "canonical": "Documentation index", "localized": "ドキュメント索引"},
