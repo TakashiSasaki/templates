@@ -17,8 +17,8 @@ Current Webapp evidence coverage is about the product that exists now: every dec
 
 The scaffold and `scripts/validate_webapp_evidence.py` share `scripts/webapp_evidence_targets.py`, so target derivation has one Webapp-specific implementation rather than duplicated generator and validator rules.
 
-The supplied managed GitHub Actions workflow installs the locked validation dependencies and then invokes `python .template-composition/validate.py .`. This keeps CI on the same selected-component-aware path used by consumer validation instead of maintaining a second handwritten validator sequence in workflow YAML.
+The supplied managed GitHub Actions workflow sets up Python and then invokes `python .template-composition/validate.py .`. The runner self-provisions and reuses the isolated validation runtime from the exact dependency set carried by the managed validation registry. This keeps CI on the same selected-component-aware path used by consumer validation without maintaining a second handwritten validator sequence or dependency-install step in workflow YAML.
 
 Product-mode release evidence and release bundles are different: their semantics are intentionally bound to one exact product candidate revision. Ordinary repository validation reports those checks as deferred rather than guessing a revision from file existence or a GitHub event SHA. A product-owned release operation must run the release-evidence and release-bundle validators with `--expected-revision <candidate-sha>` after selecting the exact candidate revision.
 
-The managed validation dependency lock is under `.template-composition/` so it does not select a product runtime or package manager.
+Validation runtime requirements are carried inside the lock-bound managed validation registry. The isolated validation environment is cached outside the product repository, so Composition does not select or modify the product runtime, dependency manifest, or package manager merely to validate the repository.
