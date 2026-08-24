@@ -62,6 +62,7 @@ def render_worklist(root: Path) -> dict[str, Any]:
 def resolve_output(root: Path, value: str) -> Path:
     requested = Path(value)
     candidate = requested if requested.is_absolute() else root / requested
+    candidate = candidate.absolute()
     resolved = candidate.resolve(strict=False)
     try:
         resolved.relative_to(root)
@@ -77,7 +78,7 @@ def resolve_output(root: Path, value: str) -> Path:
             "--output refuses the canonical implementation-evidence document; "
             "write the non-canonical worklist to a separate consumer-owned file"
         )
-    return resolved
+    return candidate
 
 
 def write_worklist(root: Path, output: str, worklist: dict[str, Any]) -> None:
