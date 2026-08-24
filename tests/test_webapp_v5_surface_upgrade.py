@@ -72,7 +72,7 @@ class WebappV5SurfaceUpgradeTests(unittest.TestCase):
             for entry in lock["resolved_components"]
             if entry["id"] == "artifact.webapp-core"
         )
-        self.assertEqual(artifact["version"], 5)
+        self.assertEqual(artifact["version"], 6)
         artifact["version"] = 4
         artifact["descriptor_sha256"] = "4" * 64
         lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
@@ -117,7 +117,7 @@ class WebappV5SurfaceUpgradeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, plan)
             changed = {entry["id"]: entry for entry in plan["components"]["changed"]}
             self.assertEqual(changed["artifact.webapp-core"]["from_version"], 4)
-            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 5)
+            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 6)
             preserved = {
                 entry["destination"] for entry in plan["files"]["preserve"]
             }
@@ -143,7 +143,7 @@ class WebappV5SurfaceUpgradeTests(unittest.TestCase):
                 for entry in lock["resolved_components"]
                 if entry["id"] == "artifact.webapp-core"
             )
-            self.assertEqual(artifact["version"], 5)
+            self.assertEqual(artifact["version"], 6)
 
             result, validation = self.run_composer(
                 "validate", "--target", str(target)

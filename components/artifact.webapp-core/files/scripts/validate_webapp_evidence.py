@@ -6,18 +6,19 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 if __package__:
-    from .webapp_evidence_targets import expected_targets, target_key
+    from .webapp_evidence_targets import allowed_targets, expected_targets, target_key
 else:
-    from webapp_evidence_targets import expected_targets, target_key
+    from webapp_evidence_targets import allowed_targets, expected_targets, target_key
 
 
 def load(root: Path, relative: str) -> object:
     return json.loads((root / relative).read_text(encoding="utf-8"))
 
 
-def actual_targets(evidence: object) -> list[str]:
+def actual_targets(evidence: object) -> list[tuple[Any, ...]]:
     if not isinstance(evidence, dict):
         raise TypeError("implementation evidence root must be a JSON object")
 
@@ -25,7 +26,7 @@ def actual_targets(evidence: object) -> list[str]:
     if not isinstance(records, list):
         raise TypeError("implementation evidence records must be a JSON array")
 
-    actual: list[str] = []
+    actual: list[tuple[Any, ...]] = []
     for index, record in enumerate(records):
         if not isinstance(record, dict):
             raise TypeError(f"implementation evidence record {index} must be a JSON object")
@@ -62,11 +63,18 @@ def main() -> int:
         return 1
 
     errors = []
-    if len(actual) != len(set(actual)):
-        errors.append("duplicate Webapp implementation-evidence target")
+    seen: set[tuple[Any, ...]] = set()
+    duplicates: set[tuple[Any, ...]] = set()
+    for item in actual:
+        if item in seen:
+            duplicates.add(item)
+        seen.add(item)
+    for duplicate in sorted(duplicates, key=str):
+        errors.append(f"duplicate Webapp implementation-evidence target: {duplicate}")
 
     try:
         expected = {target_key(target) for target in expected_targets(root)}
+        allowed = {target_key(target) for target in allowed_targets(root)}
     except (AttributeError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"ERROR: cannot derive Webapp implementation-evidence targets: {exc}", file=sys.stderr)
         return 1
@@ -74,7 +82,7 @@ def main() -> int:
     actual_set = set(actual)
     for missing in sorted(expected - actual_set, key=str):
         errors.append(f"missing Webapp implementation-evidence target: {missing}")
-    for extra in sorted(actual_set - expected, key=str):
+    for extra in sorted(actual_set - allowed, key=str):
         errors.append(f"unknown Webapp implementation-evidence target: {extra}")
 
     if errors:

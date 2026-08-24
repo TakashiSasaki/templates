@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive the deterministic Webapp implementation-evidence target inventory."""
+"""Derive deterministic Webapp implementation-evidence target inventories."""
 from __future__ import annotations
 
 import json
@@ -35,9 +35,16 @@ def _sort_key(target: dict[str, Any]) -> str:
     return json.dumps(target, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _sorted_unique(targets: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    keys = [target_key(target) for target in targets]
+    if len(keys) != len(set(keys)):
+        raise ValueError("Webapp contracts produce duplicate implementation-evidence targets")
+    return tuple(sorted(targets, key=_sort_key))
+
+
 def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
+    """Return current product targets that every Webapp product must evidence."""
     root = root.resolve()
-    manifest = load_json(root, "contracts/manifest.json")
     surfaces = load_json(root, "contracts/surfaces.json")
     routes = load_json(root, "contracts/routes.json")
     states = load_json(root, "contracts/ui-states.json")
@@ -89,11 +96,19 @@ def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
         }
         for item in viewports["inputCapabilities"]
     )
+    return _sorted_unique(expected)
+
+
+def allowed_targets(root: Path) -> tuple[dict[str, Any], ...]:
+    """Return required current targets plus optional registered transition targets."""
+    root = root.resolve()
+    manifest = load_json(root, "contracts/manifest.json")
+    allowed = list(expected_targets(root))
     for entry in manifest["contracts"]:
         if entry["id"] not in DOMAIN_IDS:
             continue
         for transition in entry["versionHistory"][1:]:
-            expected.append(
+            allowed.append(
                 {
                     "kind": "contract-transition",
                     "contractId": entry["id"],
@@ -101,11 +116,7 @@ def expected_targets(root: Path) -> tuple[dict[str, Any], ...]:
                     "toVersion": transition["version"],
                 }
             )
-
-    keys = [target_key(target) for target in expected]
-    if len(keys) != len(set(keys)):
-        raise ValueError("Webapp contracts produce duplicate implementation-evidence targets")
-    return tuple(sorted(expected, key=_sort_key))
+    return _sorted_unique(allowed)
 
 
 def record_id(target: dict[str, Any]) -> str:
