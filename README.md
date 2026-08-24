@@ -1,8 +1,42 @@
 # Policy toolkit
 
-This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `site` and `composition` authority histories. Agent Skill and Web application artifact semantics are owned by `composition`, not by separate provider branches.
+Policy turns shared coding-agent rules plus repository-specific policy into reproducible agent instructions for a product repository. It governs how coding and general-purpose agents investigate, change, validate, review, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories, and it does not choose the product stack.
 
-The toolkit compiles shared and repository-specific operating rules into reproducible agent instructions. It governs how coding and general-purpose agents investigate, change, validate, and report work; it does not define the architecture or product requirements of Web applications, command-line tools, libraries, services, or other artifact categories.
+## Start here: adopt Policy in a product repository
+
+Prerequisites are Git on `PATH`, a target Git repository, and supported CPython 3.11 through 3.14. Install the single `agent-policy` skill using the reviewed immutable installer:
+
+```bash
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/b330f517ad2a348fafc7cb9f690b4df298ee24f4/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+```
+
+From the installed skill directory, inspect an unmanaged product repository before changing it:
+
+```bash
+python scripts/bootstrap.py \
+  --repository /path/to/product-repository
+```
+
+Bootstrap is a dry run by default. Review the reported state and plan before applying anything.
+
+- `unmanaged-empty`: rerun the same command with `--apply` to complete fresh adoption.
+- `unmanaged-existing`: follow the migration flow in [Getting started](docs/getting-started.md); bootstrap can prepare and preview the migration but does not finalize it.
+- `managed`: stop using bootstrap for ordinary operation and use the repository-pinned runner below.
+- `inconsistent`: repair the reported partial or unsafe state before adoption.
+
+For a managed repository, the normal verification and regeneration loop is:
+
+```bash
+python scripts/run.py --repository /path/to/product-repository validate
+python scripts/run.py --repository /path/to/product-repository render
+python scripts/run.py --repository /path/to/product-repository check
+```
+
+`.agent-policy.yml` is the product repository's human-edited semantic configuration entry point. `.agent-policy.lock`, generated agent instructions, and generated validation skills are managed outputs. Start with [Getting started](docs/getting-started.md) for profile selection, migration adoption, and the exact unmanaged-to-managed workflow; use [Managed repository operation](docs/managed-operation.md) after adoption.
+
+## Authority and branch role
+
+This orphan branch is the development source for application-type-independent coding-agent operating policy in `TakashiSasaki/templates`. Its history is intentionally unrelated to the repository's `site` and `composition` authority histories. Agent Skill and Web application artifact semantics are owned by `composition`, not by separate provider branches.
 
 The Python package and command are named `agent-policy`.
 
