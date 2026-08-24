@@ -399,6 +399,8 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
         minimum = item["minWidthPx"]
         sample_widths.append(max(390, minimum + 64))
     sample_widths = sorted(set(sample_widths))
+    if len(sample_widths) == 1:
+        sample_widths.append(max(1024, sample_widths[0] + 512))
 
     with _WebDriverSession() as session:
         session.navigate(url)
@@ -432,19 +434,18 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
                 )
             snapshots.append(snapshot)
 
-        if len(snapshots) >= 2:
-            structural_signatures = {
-                (
-                    int(item.get("columnCount", 0)),
-                    bool(item.get("contextVisible")),
-                    str(item.get("layoutMaxWidth")),
-                )
-                for item in snapshots
-            }
-            _assert(
-                len(structural_signatures) == len(snapshots),
-                "declared viewport breakpoints do not produce distinct browser layout structures",
+        structural_signatures = {
+            (
+                int(item.get("columnCount", 0)),
+                bool(item.get("contextVisible")),
+                str(item.get("layoutMaxWidth")),
             )
+            for item in snapshots
+        }
+        _assert(
+            len(structural_signatures) == len(snapshots),
+            "browser proof fixture does not exercise distinct responsive layout structures across sampled widths",
+        )
 
         session.set_window(390, 800)
         if horizontal_scrolling == "content-specific":
