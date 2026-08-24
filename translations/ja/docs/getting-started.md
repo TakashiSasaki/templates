@@ -114,9 +114,21 @@ python scripts/bootstrap.py \
 
 inspectionで対応instruction fileが1件だけ見つかり自動選択された場合は、`--primary-instructions` を省略します。
 
-既存primary instructionは置き換えません。prepared adoption stateを作成し、`adopt preview` まで実行します。手書きinstructionのsemanticsをproject policyへ反映し、previewとの差分をレビューしてください。
+既存primary instructionは置き換えません。この操作はprepared adoption stateを作成し、`adopt preview` まで実行します。
 
-cutoverは別段階です。同じinstalled skillとrepository-pinned toolchainを使います。
+手書きinstructionのsemanticsを `policy/project.md` と、必要に応じてその他のhuman-owned Policy configurationへ反映します。CLIはfree-form instructionをpolicyへ自動変換しません。
+
+migration preparation中にこれらのPolicy入力を編集した場合は、その都度cutoverを試す前にpreviewを再生成します。
+
+```bash
+python scripts/run.py \
+  --repository /path/to/product-repository \
+  adopt preview
+```
+
+再生成したpreviewと手書きprimary instructionとの差分をレビューしてください。最後のpreview後にPolicy入力が変更されている場合、`adopt finalize` は意図的にstale previewを拒否します。`STALE_OUTPUT` をgenerated stateの手編集や検査回避の理由にしないでください。
+
+cutoverは別段階です。現在のpreviewをレビューした後にだけ、同じinstalled skillとrepository-pinned toolchainを使います。
 
 ```bash
 python scripts/run.py \
