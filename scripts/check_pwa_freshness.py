@@ -267,6 +267,18 @@ def _wait_for_worker_version(page: Any, expected: int, timeout_seconds: float = 
     raise PwaFreshnessError(message)
 
 
+def _request_worker_update(page: Any) -> None:
+    page.evaluate(
+        """async () => {
+          const registration = await navigator.serviceWorker.getRegistration("/");
+          if (!registration) {
+            throw new Error("service worker registration unavailable");
+          }
+          await registration.update();
+        }"""
+    )
+
+
 def _fetch_response(page: Any, path: str) -> dict[str, Any]:
     return page.evaluate(
         """async (path) => {
@@ -403,6 +415,8 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             evidence["manifest_versions"] = [initial_manifest, *_wait_for_manifest_version(page, 2)]
 
             state.worker_version = 2
+            _request_worker_update(page)
+            _wait_for_worker_version(page, 2)
             page.reload(wait_until="load")
             _wait_for_worker_version(page, 2)
             _wait_for_document_cache(page, "/document/", True)
