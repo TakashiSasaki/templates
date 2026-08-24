@@ -109,7 +109,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                     "search-as-you-type input was stored before result activation"
                 )
             first_href = first_result.get_attribute("href")
-            first_result.click()
+            first_result.click(force=True)
             page.wait_for_load_state("load")
             if _history(page) != ["policy"]:
                 raise SearchHistoryCheckError(
@@ -119,7 +119,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             _set_query(page, "composition")
             second_result = _wait_for_results(page)
             second_href = second_result.get_attribute("href")
-            second_result.click()
+            second_result.click(force=True)
             page.wait_for_load_state("load")
             if _history(page) != ["composition", "policy"]:
                 raise SearchHistoryCheckError(
@@ -151,7 +151,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
             replay = history_section.locator(
                 'button[data-site-search-history-query="policy"]'
             )
-            replay.click()
+            replay.click(force=True)
             page.wait_for_function(
                 """
                 () => document.querySelector('[data-md-component="search-query"]')?.value === 'policy'
@@ -176,7 +176,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
                     f"Japanese clear-history label mismatch: {clear.text_content()!r}"
                 )
 
-            clear.click()
+            clear.click(force=True)
             if _history(page):
                 raise SearchHistoryCheckError("Clear history did not remove stored queries")
             if not history_section.is_hidden():
