@@ -27,7 +27,19 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def install_auth_contract_fixture(self, target: Path) -> None:
+        contract_fixture = FIXTURE_DIR / "contracts"
+        for name in ("surfaces.json", "routes.json", "ui-states.json", "viewports.json"):
+            (target / "contracts" / name).write_text(
+                (contract_fixture / name).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
     def add_admin_contracts(self, target: Path) -> None:
+        # Authentication/status/multi-viewport behavior is product-owned. Install
+        # the explicit rich auth fixture before adding the admin-specific surface.
+        self.install_auth_contract_fixture(target)
+
         surfaces_path = target / "contracts/surfaces.json"
         surfaces = json.loads(surfaces_path.read_text(encoding="utf-8"))
         surfaces["surfaces"].append(

@@ -2,6 +2,8 @@
 
 Use this worksheet when adapting the scaffold to a concrete product. The machine-readable contracts remain authoritative.
 
+The initial Webapp contracts are deliberately minimal seeds: one public browser surface, one root route, one ready state, and one baseline responsive viewport with keyboard support. They do not imply that the product needs authentication, role-based authorization, administration, a status/diagnostic surface, multiple breakpoints, pointer input, or touch input. Add only the surfaces, routes, states, viewports, and input capabilities that the product actually implements, and replace the seed's public-access assumptions when the product handles non-public data or requires authentication.
+
 ## Surface inventory
 
 For each browser-facing surface, identify its audience, authentication and authorization shape, data classification, stability expectation, diagnostics role, and surface dependencies.
@@ -22,7 +24,7 @@ Declare viewport lower bounds independently from input capabilities. Do not infe
 
 Template mode deliberately contains no implementation claims. Before switching to product mode, run `python scripts/scaffold_webapp_evidence.py` to obtain the deterministic current Webapp target worklist. The command writes only to standard output and does not modify the canonical evidence document.
 
-Use the worklist to identify concrete implementation boundaries, positive and negative proofs, authoritative commands, and release gates. Then switch `contracts/implementation-evidence.json` to product mode and provide one fully verified record for every Webapp target and registered Webapp contract transition before producing release evidence.
+Use the worklist to identify concrete implementation boundaries, positive and negative proofs, authoritative commands, and release gates. Then switch `contracts/implementation-evidence.json` to product mode and provide one fully verified record for every current Webapp target. Add `contract-transition` evidence only when this consumer actually underwent a registered contract migration; provider history that predates the product is not a fresh-product implementation obligation.
 
 ## Product-owned decisions
 

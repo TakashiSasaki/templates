@@ -3,25 +3,15 @@
   "schemaVersion": 1,
   "viewports": [
     {
-      "id": "compact",
+      "id": "base",
       "minWidthPx": 0,
-      "description": "Narrow layouts where content prioritization and reflow are required."
-    },
-    {
-      "id": "regular",
-      "minWidthPx": 768,
-      "description": "Intermediate layouts suitable for tablets and constrained desktop windows."
-    },
-    {
-      "id": "wide",
-      "minWidthPx": 1280,
-      "description": "Wide layouts that may expose additional context without making it mandatory."
+      "description": "Baseline responsive layout; add breakpoints only when product behavior requires them."
     }
   ],
-  "inputCapabilities": ["touch", "pointer", "keyboard"],
+  "inputCapabilities": ["keyboard"],
   "constraints": {
     "zoomSupported": true,
-    "horizontalScrolling": "content-specific",
+    "horizontalScrolling": "never",
     "orientationIndependent": true
   }
 }
