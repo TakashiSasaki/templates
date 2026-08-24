@@ -232,3 +232,274 @@
     navigationDocument.subscribe(() => void applyReaderNavigation());
   }
 })();
+
+/* Site-local search history. Kept in the pre-cached reader runtime so it also works offline. */
+(() => {
+  "use strict";
+
+  const SEARCH_ROOT_SELECTOR = '[data-md-component="search"]';
+  const SEARCH_INPUT_SELECTOR = '[data-md-component="search-query"]';
+  const SEARCH_SCROLL_SELECTOR = ".md-search__scrollwrap";
+  const SEARCH_RESULT_LINK_SELECTOR = "a.md-search-result__link[href]";
+  const SEARCH_HISTORY_STORAGE_KEY = "templates.search-history.v1";
+  const MAX_SEARCH_HISTORY = 10;
+  const STRINGS = Object.freeze({
+    en: Object.freeze({
+      heading: "Recent searches",
+      clear: "Clear history",
+    }),
+    ja: Object.freeze({
+      heading: "最近の検索",
+      clear: "履歴を消去",
+    }),
+  });
+
+  function normalizeQuery(value) {
+    if (typeof value !== "string") {
+      return "";
+    }
+    return value.normalize("NFC").trim().replace(/\s+/gu, " ");
+  }
+
+  function queryKey(value) {
+    return normalizeQuery(value).toLowerCase();
+  }
+
+  function loadHistory() {
+    try {
+      const raw = window.localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      const result = [];
+      const seen = new Set();
+      for (const item of parsed) {
+        const query = normalizeQuery(item);
+        const key = queryKey(query);
+        if (!query || seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        result.push(query);
+        if (result.length >= MAX_SEARCH_HISTORY) {
+          break;
+        }
+      }
+      return result;
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function storeHistory(history) {
+    try {
+      window.localStorage.setItem(
+        SEARCH_HISTORY_STORAGE_KEY,
+        JSON.stringify(history.slice(0, MAX_SEARCH_HISTORY)),
+      );
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function rememberQuery(value) {
+    const query = normalizeQuery(value);
+    if (!query) {
+      return loadHistory();
+    }
+    const key = queryKey(query);
+    const next = [
+      query,
+      ...loadHistory().filter((item) => queryKey(item) !== key),
+    ].slice(0, MAX_SEARCH_HISTORY);
+    storeHistory(next);
+    return next;
+  }
+
+  function clearHistory() {
+    try {
+      window.localStorage.removeItem(SEARCH_HISTORY_STORAGE_KEY);
+    } catch (_error) {
+      return;
+    }
+  }
+
+  function stringsForDocument() {
+    const language = (document.documentElement?.lang || "en").toLowerCase();
+    return language.split("-", 1)[0] === "ja" ? STRINGS.ja : STRINGS.en;
+  }
+
+  function createHistorySection() {
+    const section = document.createElement("section");
+    section.className = "md-search-result site-search-history";
+    section.dataset.siteSearchHistory = "true";
+    section.hidden = true;
+
+    const meta = document.createElement("div");
+    meta.className = "md-search-result__meta";
+
+    const heading = document.createElement("span");
+    heading.dataset.siteSearchHistoryHeading = "true";
+    meta.appendChild(heading);
+
+    const separator = document.createTextNode(" · ");
+    meta.appendChild(separator);
+
+    const clear = document.createElement("a");
+    clear.href = "#";
+    clear.dataset.siteSearchHistoryClear = "true";
+    meta.appendChild(clear);
+
+    const list = document.createElement("ol");
+    list.className = "md-search-result__list";
+    list.setAttribute("role", "list");
+    list.dataset.siteSearchHistoryList = "true";
+
+    section.append(meta, list);
+    return section;
+  }
+
+  function historySection(root) {
+    return root.querySelector("[data-site-search-history]");
+  }
+
+  function renderSearchHistory(root) {
+    const input = root.querySelector(SEARCH_INPUT_SELECTOR);
+    const section = historySection(root);
+    if (!input || !section) {
+      return;
+    }
+
+    const history = loadHistory();
+    const visible = normalizeQuery(input.value) === "" && history.length > 0;
+    section.hidden = !visible;
+    if (!visible) {
+      return;
+    }
+
+    const strings = stringsForDocument();
+    const heading = section.querySelector("[data-site-search-history-heading]");
+    const clear = section.querySelector("[data-site-search-history-clear]");
+    const list = section.querySelector("[data-site-search-history-list]");
+    if (!heading || !clear || !list) {
+      return;
+    }
+    heading.textContent = strings.heading;
+    clear.textContent = strings.clear;
+    list.replaceChildren();
+
+    for (const query of history) {
+      const item = document.createElement("li");
+      item.className = "md-search-result__item";
+
+      const link = document.createElement("a");
+      link.href = "#";
+      link.className = "md-search-result__link";
+      link.dataset.siteSearchHistoryQuery = query;
+
+      const article = document.createElement("article");
+      article.className = "md-search-result__article md-typeset";
+      const title = document.createElement("h2");
+      title.textContent = query;
+      article.appendChild(title);
+      link.appendChild(article);
+      item.appendChild(link);
+      list.appendChild(item);
+    }
+  }
+
+  function selectHistoryQuery(event, root, input, link) {
+    event.preventDefault();
+    const query = normalizeQuery(link.dataset.siteSearchHistoryQuery || "");
+    if (!query) {
+      return;
+    }
+    rememberQuery(query);
+    input.value = query;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus({ preventScroll: true });
+    renderSearchHistory(root);
+  }
+
+  function enhanceSearchRoot(root) {
+    if (root.dataset.siteSearchHistoryEnhanced === "true") {
+      renderSearchHistory(root);
+      return;
+    }
+    const input = root.querySelector(SEARCH_INPUT_SELECTOR);
+    const scroll = root.querySelector(SEARCH_SCROLL_SELECTOR);
+    if (!input || !scroll) {
+      return;
+    }
+
+    const section = createHistorySection();
+    scroll.prepend(section);
+    root.dataset.siteSearchHistoryEnhanced = "true";
+
+    input.addEventListener("input", () => renderSearchHistory(root));
+    input.addEventListener("focus", () => renderSearchHistory(root));
+    input.form?.addEventListener("reset", () => {
+      queueMicrotask(() => renderSearchHistory(root));
+    });
+
+    root.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const clear = target.closest("[data-site-search-history-clear]");
+      if (clear && root.contains(clear)) {
+        event.preventDefault();
+        clearHistory();
+        renderSearchHistory(root);
+        return;
+      }
+
+      const historyLink = target.closest("[data-site-search-history-query]");
+      if (historyLink && root.contains(historyLink)) {
+        selectHistoryQuery(event, root, input, historyLink);
+        return;
+      }
+
+      const resultLink = target.closest(SEARCH_RESULT_LINK_SELECTOR);
+      if (
+        resultLink &&
+        root.contains(resultLink) &&
+        !resultLink.closest("[data-site-search-history]")
+      ) {
+        rememberQuery(input.value);
+      }
+    });
+
+    renderSearchHistory(root);
+  }
+
+  function enhanceSearchHistory() {
+    for (const root of document.querySelectorAll(SEARCH_ROOT_SELECTOR)) {
+      enhanceSearchRoot(root);
+    }
+  }
+
+  enhanceSearchHistory();
+  window.addEventListener("pageshow", enhanceSearchHistory);
+  window.addEventListener("popstate", enhanceSearchHistory);
+  window.addEventListener("storage", (event) => {
+    if (event.key !== SEARCH_HISTORY_STORAGE_KEY) {
+      return;
+    }
+    for (const root of document.querySelectorAll(SEARCH_ROOT_SELECTOR)) {
+      renderSearchHistory(root);
+    }
+  });
+
+  const navigationDocument = window.document$;
+  if (navigationDocument && typeof navigationDocument.subscribe === "function") {
+    navigationDocument.subscribe(enhanceSearchHistory);
+  }
+})();
