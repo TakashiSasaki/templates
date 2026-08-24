@@ -103,7 +103,7 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         )
         self.assertEqual(
             indexed[("composition", "webapp-product-walkthrough")],
-            "composition/guides/webapp-product-walkthrough.md",
+            "composition/use/webapp-product-walkthrough.md",
         )
         self.assertEqual(
             indexed[("composition", "release-guide")],
