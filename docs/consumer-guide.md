@@ -156,6 +156,16 @@ python /path/to/agent-skills/composition/scripts/run.py \
   plan --config composition.json
 ```
 
+A relative `--config` path is resolved from the process current working directory where you invoke the runner, not from `--repository`. If the configuration file is stored in the target repository but you invoke the runner from somewhere else, use an absolute path (or change to the intended directory first). For example:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --config /path/to/repository/composition.json
+```
+
+The same path rule applies to every initial or new-upgrade command that accepts `--config`.
+
 Initial planning is read-only. Review every action and conflict before applying. `create` means Composition will create a new destination. `adopt-identical` means the destination already has exactly the desired bytes and may be adopted without overwriting it. Any conflict prevents apply from proceeding.
 
 Apply the same configuration:
