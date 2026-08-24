@@ -336,27 +336,25 @@
 
   function createHistorySection() {
     const section = document.createElement("section");
-    section.className = "md-search-result site-search-history";
+    section.className = "site-search-history";
     section.dataset.siteSearchHistory = "true";
     section.hidden = true;
 
     const meta = document.createElement("div");
-    meta.className = "md-search-result__meta";
+    meta.className = "site-search-history__meta";
 
     const heading = document.createElement("span");
     heading.dataset.siteSearchHistoryHeading = "true";
     meta.appendChild(heading);
 
-    const separator = document.createTextNode(" · ");
-    meta.appendChild(separator);
-
-    const clear = document.createElement("a");
-    clear.href = "#";
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "site-search-history__clear";
     clear.dataset.siteSearchHistoryClear = "true";
     meta.appendChild(clear);
 
     const list = document.createElement("ol");
-    list.className = "md-search-result__list";
+    list.className = "site-search-history__list";
     list.setAttribute("role", "list");
     list.dataset.siteSearchHistoryList = "true";
 
@@ -389,33 +387,32 @@
     if (!heading || !clear || !list) {
       return;
     }
+    section.setAttribute("aria-label", strings.heading);
     heading.textContent = strings.heading;
     clear.textContent = strings.clear;
     list.replaceChildren();
 
     for (const query of history) {
       const item = document.createElement("li");
-      item.className = "md-search-result__item";
+      item.className = "site-search-history__item";
 
-      const link = document.createElement("a");
-      link.href = "#";
-      link.className = "md-search-result__link";
-      link.dataset.siteSearchHistoryQuery = query;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "site-search-history__link";
+      button.dataset.siteSearchHistoryQuery = query;
 
-      const article = document.createElement("article");
-      article.className = "md-search-result__article md-typeset";
-      const title = document.createElement("h2");
+      const title = document.createElement("span");
+      title.className = "site-search-history__query";
       title.textContent = query;
-      article.appendChild(title);
-      link.appendChild(article);
-      item.appendChild(link);
+      button.appendChild(title);
+      item.appendChild(button);
       list.appendChild(item);
     }
   }
 
-  function selectHistoryQuery(event, root, input, link) {
+  function selectHistoryQuery(event, root, input, control) {
     event.preventDefault();
-    const query = normalizeQuery(link.dataset.siteSearchHistoryQuery || "");
+    const query = normalizeQuery(control.dataset.siteSearchHistoryQuery || "");
     if (!query) {
       return;
     }
@@ -461,9 +458,9 @@
         return;
       }
 
-      const historyLink = target.closest("[data-site-search-history-query]");
-      if (historyLink && root.contains(historyLink)) {
-        selectHistoryQuery(event, root, input, historyLink);
+      const historyControl = target.closest("[data-site-search-history-query]");
+      if (historyControl && root.contains(historyControl)) {
+        selectHistoryQuery(event, root, input, historyControl);
         return;
       }
 

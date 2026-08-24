@@ -85,6 +85,77 @@
   margin-top: 0;
 }
 
+/* Site-owned search history stays separate from Zensical's result classes so
+   its keyboard navigation only sees actual search results. */
+.site-search-history[hidden] {
+  display: none !important;
+}
+
+.site-search-history__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.8rem 1.2rem 0.4rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.site-search-history__clear,
+.site-search-history__link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.site-search-history__clear {
+  flex: 0 0 auto;
+  padding: 0.1rem 0;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.site-search-history__list {
+  margin: 0;
+  padding: 0 0 0.4rem;
+  list-style: none;
+}
+
+.site-search-history__item {
+  margin: 0;
+  padding: 0;
+}
+
+.site-search-history__link {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 1.2rem;
+  text-align: start;
+}
+
+.site-search-history__link:hover,
+.site-search-history__link:focus-visible {
+  background: var(--md-default-fg-color--lightest);
+}
+
+.site-search-history__clear:focus-visible,
+.site-search-history__link:focus-visible {
+  outline: 0.1rem solid var(--md-accent-fg-color);
+  outline-offset: -0.1rem;
+}
+
+.site-search-history__query {
+  display: block;
+  color: var(--md-default-fg-color);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 @media screen and (max-width: 44.984375em) {
   .repository-file-viewer iframe {
     height: 55vh;

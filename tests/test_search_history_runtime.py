@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "assets/javascripts/reader-navigation.js"
+STYLES = ROOT / "assets/stylesheets/extra.css"
 TEMPLATE = ROOT / "zensical.template.toml"
 WORKER = ROOT / "assets/service-worker.js"
 
@@ -74,18 +75,31 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertIn('input.form?.addEventListener("reset", () => {', source)
         self.assertIn("queueMicrotask(() => renderSearchHistory(root));", source)
 
+    def test_history_controls_do_not_join_zensical_result_navigation(self) -> None:
+        source = self.history_runtime()
+        self.assertIn('button.className = "site-search-history__link";', source)
+        self.assertIn('button.type = "button";', source)
+        self.assertIn('clear.type = "button";', source)
+        self.assertNotIn('link.className = "md-search-result__link";', source)
+        self.assertNotIn('item.className = "md-search-result__item";', source)
+        self.assertNotIn('section.className = "md-search-result site-search-history";', source)
+
     def test_history_ui_is_dom_safe_clearable_and_localized_for_site_languages(self) -> None:
         source = self.history_runtime()
+        styles = STYLES.read_text(encoding="utf-8")
         self.assertIn('heading: "Recent searches"', source)
         self.assertIn('clear: "Clear history"', source)
         self.assertIn('heading: "最近の検索"', source)
         self.assertIn('clear: "履歴を消去"', source)
+        self.assertIn('section.setAttribute("aria-label", strings.heading);', source)
         self.assertIn("heading.textContent = strings.heading;", source)
         self.assertIn("clear.textContent = strings.clear;", source)
         self.assertIn("title.textContent = query;", source)
         self.assertIn("list.replaceChildren();", source)
         self.assertNotIn("innerHTML", source)
-        self.assertIn('clearHistory();', source)
+        self.assertIn("clearHistory();", source)
+        self.assertIn(".site-search-history__link:focus-visible", styles)
+        self.assertIn("overflow-wrap: anywhere", styles)
 
     def test_search_history_survives_instant_navigation_and_cross_tab_updates(self) -> None:
         source = self.history_runtime()
@@ -103,14 +117,16 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("XMLHttpRequest", source)
         self.assertNotIn("WebSocket", source)
 
-    def test_runtime_is_already_in_zensical_and_pwa_shell(self) -> None:
+    def test_runtime_and_styles_are_already_in_zensical_and_pwa_shell(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
         worker = WORKER.read_text(encoding="utf-8")
         self.assertIn('"javascripts/reader-navigation.js"', template)
+        self.assertIn('"stylesheets/extra.css"', template)
         match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", worker)
         self.assertIsNotNone(match)
         static_assets = set(json.loads(match.group(1)))
         self.assertIn("/javascripts/reader-navigation.js", static_assets)
+        self.assertIn("/stylesheets/extra.css", static_assets)
 
 
 if __name__ == "__main__":
