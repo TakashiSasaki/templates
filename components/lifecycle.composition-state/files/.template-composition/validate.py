@@ -289,16 +289,22 @@ def _platform_token() -> str:
 
 
 def _validation_cache_root() -> Path:
-    override = os.environ.get(CACHE_OVERRIDE)
-    if override:
-        return Path(override).expanduser().resolve()
-    if os.name == "nt":
-        local = os.environ.get("LOCALAPPDATA")
-        base = Path(local) if local else Path.home() / ".cache"
-    else:
-        xdg = os.environ.get("XDG_CACHE_HOME")
-        base = Path(xdg) if xdg else Path.home() / ".cache"
-    return base / "composition" / "validation-v1"
+    try:
+        override = os.environ.get(CACHE_OVERRIDE)
+        if override:
+            return Path(override).expanduser().resolve()
+        if os.name == "nt":
+            local = os.environ.get("LOCALAPPDATA")
+            base = Path(local) if local else Path.home() / ".cache"
+        else:
+            xdg = os.environ.get("XDG_CACHE_HOME")
+            base = Path(xdg) if xdg else Path.home() / ".cache"
+        return base / "composition" / "validation-v1"
+    except (OSError, RuntimeError) as exc:
+        raise ValidationRuntimeError(
+            f"cannot determine Composition validation cache directory: {exc}. "
+            f"Set {CACHE_OVERRIDE} to a writable directory."
+        ) from exc
 
 
 def _runtime_environment() -> dict[str, str]:
