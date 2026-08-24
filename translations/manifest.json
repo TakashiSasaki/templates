@@ -66,10 +66,17 @@
       "surfaces": ["reader"]
     },
     {
+      "canonical": "docs/guides/webapp-product-walkthrough.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
+      "canonical_blob_sha": "7f153f63ccf695e1a1ba2a4c69f64581e2a0ac98",
+      "surfaces": ["reader"]
+    },
+    {
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "509f69b08dc92dfa28db9dcdc7fe139d7f9ed9e6",
+      "canonical_blob_sha": "c16a68bd9d879424849cbf6f283977e45415f458",
       "surfaces": ["reader", "guided"]
     },
     {
