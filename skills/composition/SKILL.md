@@ -85,10 +85,12 @@ For the selected full SHA it:
 3. reads that revision's `requirements-runtime.lock` and, for the stable manifest revision, verifies the lock SHA-256 recorded in `runtime-manifest.json`;
 4. derives a runtime-cache identity from repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
 5. reuses a matching runtime only after checking its marker, lock digest, Python/platform identity, `pip check`, and the source revision's runtime-environment verifier;
-6. on a runtime miss or invalid entry, creates an isolated virtual environment, installs the exact lock with dependency resolution disabled, validates it, and atomically installs the cache entry; and
+6. on a runtime miss or invalid entry, creates an isolated virtual environment, installs the exact lock with dependency resolution and pip's download cache disabled, validates it, and atomically installs the cache entry; and
 7. executes the selected revision's `scripts/compose.py` with the runner repository injected as `--target`.
 
 A valid source/runtime cache hit performs no network acquisition. `COMPOSITION_RUNTIME_CACHE` may override the cache root for controlled environments and tests. Otherwise platform cache conventions are used under a `composition/runner-v1` namespace.
+
+A cache miss requires a writable cache parent with atomic rename support. The runner probes those capabilities before acquisition/build work. If the selected cache path cannot support them, the runner reports an actionable error naming the path and `COMPOSITION_RUNTIME_CACHE` instead of exposing a raw filesystem traceback. Runtime dependency installation uses `pip --no-cache-dir`, so changing `COMPOSITION_RUNTIME_CACHE` is sufficient; no separate pip/XDG cache override is required for the Composition runner.
 
 Cache layout and reuse are performance details. Revision selection, Composer arguments, managed-recovery semantics, lock/transaction semantics, and material ownership remain authoritative outside the cache implementation.
 
