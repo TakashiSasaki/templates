@@ -11,6 +11,8 @@ RUNTIME = ROOT / "assets/javascripts/reader-navigation.js"
 STYLES = ROOT / "assets/stylesheets/extra.css"
 TEMPLATE = ROOT / "zensical.template.toml"
 WORKER = ROOT / "assets/service-worker.js"
+BROWSER_CHECK = ROOT / "scripts/check_search_history.py"
+VISUAL_WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
 
 
 class SearchHistoryRuntimeContractTests(unittest.TestCase):
@@ -127,6 +129,20 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         static_assets = set(json.loads(match.group(1)))
         self.assertIn("/javascripts/reader-navigation.js", static_assets)
         self.assertIn("/stylesheets/extra.css", static_assets)
+
+    def test_real_browser_check_is_wired_into_visual_regression(self) -> None:
+        checker = BROWSER_CHECK.read_text(encoding="utf-8")
+        workflow = VISUAL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("class SearchHistoryCheckError", checker)
+        self.assertIn('service_workers="block"', checker)
+        self.assertIn('_set_query(page, "policy")', checker)
+        self.assertIn('if _history(page) != ["composition", "policy"]:', checker)
+        self.assertIn('button[data-site-search-history-query="policy"]', checker)
+        self.assertIn('!= "最近の検索"', checker)
+        self.assertIn("Clear history did not remove stored queries", checker)
+        self.assertIn("- name: Check Site search history", workflow)
+        self.assertIn("python scripts/check_search_history.py", workflow)
+        self.assertIn("--output build/mobile-visual/search-history.json", workflow)
 
 
 if __name__ == "__main__":

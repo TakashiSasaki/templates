@@ -101,6 +101,12 @@ jobs:
             --site-root build/site \
             --output-root build/mobile-visual
 
+      - name: Check Site search history
+        run: |
+          python scripts/check_search_history.py \
+            --site-root build/site \
+            --output build/mobile-visual/search-history.json
+
       - name: Check localized inline Glossary chrome
         run: |
           python scripts/check_glossary_locale_chrome.py \
