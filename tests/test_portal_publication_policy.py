@@ -102,6 +102,10 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             "composition/use/index.md",
         )
         self.assertEqual(
+            indexed[("composition", "webapp-product-walkthrough")],
+            "composition/guides/webapp-product-walkthrough.md",
+        )
+        self.assertEqual(
             indexed[("composition", "release-guide")],
             "composition/release/index.md",
         )
@@ -152,10 +156,11 @@ class PortalPublicationPolicyTests(unittest.TestCase):
             node for node in manifest["navigation"] if node["title"] == "Composition"
         )
         self.assertEqual(
-            [child["title"] for child in composition_group["children"][:5]],
+            [child["title"] for child in composition_group["children"][:6]],
             [
                 "Overview",
                 "Use Composition",
+                "Webapp product walkthrough",
                 "Produce a product release",
                 "Composer reference",
                 "Documentation index",
