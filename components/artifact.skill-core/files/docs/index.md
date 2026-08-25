@@ -2,9 +2,7 @@
 
 ## Start here
 
-- [Agent Skill first-use walkthrough](../../../../docs/guides/skill-first-use-walkthrough.md) — **New to Composition? Start here.** Build a small Release Note Helper Skill from a separate consumer repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, concrete `SKILL.md` customization, a real `references/` resource, and final validation.
-
-The references below explain the model after you know what task you are performing.
+- [Skill overview](../README.md) — First-use guidance and the canonical walkthrough entry point.
 
 ## Reference
 
