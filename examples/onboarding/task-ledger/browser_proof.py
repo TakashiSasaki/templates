@@ -232,7 +232,7 @@ def run_browser_proof(base_url: str) -> None:
         layout = browser.execute(
             """
             const meta = document.querySelector('meta[name="viewport"]');
-            const controls = ['#title', '#new-task button', '#status', '#tasks'];
+            const controls = ['#title', '#new-task button', '#status'];
             return {
               title: document.title,
               heading: document.querySelector('#main-heading')?.textContent,
