@@ -24,15 +24,16 @@ def iter_pages(nodes: list[dict[str, Any]]):
 
 
 class PortalPublicationPolicyTests(unittest.TestCase):
-    def test_portal_cover_preserves_artifact_entry_points_and_exposes_composition(self) -> None:
+    def test_portal_cover_preserves_task_entry_points_and_secondary_architecture_routes(self) -> None:
         portal = PORTAL_HOME.read_text(encoding="utf-8")
 
         for destination in (
+            "composition/use/webapp-product-walkthrough/",
+            "skill/",
+            "policy/getting-started/",
             "composition/",
             "capabilities/",
-            "skill/",
             "policy/",
-            "webapp/",
         ):
             with self.subTest(destination=destination):
                 self.assertIn(f'href="{destination}"', portal)
@@ -48,14 +49,14 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         )
         self.assertNotIn("portal-artifact-card--policy", portal)
         self.assertIn('class="portal-policy-panel"', portal)
-        self.assertIn("Independent authority · Policy", portal)
+        self.assertIn("Independent task · Policy", portal)
 
         self.assertIn(
-            "Composition defines Skill and Webapp artifact semantics plus reusable capabilities.",
+            "You normally do <strong>not</strong> turn this <code>templates</code> repository into your product repository.",
             portal,
         )
         self.assertIn(
-            "Policy independently defines verifiable coding-agent operation.",
+            "Policy is a separate authority, not a Composition capability.",
             portal,
         )
         self.assertIn(

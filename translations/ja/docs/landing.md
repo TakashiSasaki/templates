@@ -6,26 +6,28 @@
 
 <section class="portal-cover" aria-labelledby="portal-cover-title">
   <div class="portal-cover__copy">
-    <p class="portal-cover__kicker">再利用可能な開発契約</p>
+    <p class="portal-cover__kicker">まず、達成したい作業から選ぶ</p>
     <h1 id="portal-cover-title">
-      合成可能な契約から <span class="portal-accent portal-accent--skill">Agent Skill</span>
-      と <span class="portal-accent portal-accent--webapp">Web アプリケーション</span>を構築する
+      <span class="portal-accent portal-accent--webapp">Web アプリケーション</span>を作る、
+      <span class="portal-accent portal-accent--skill">Agent Skill</span>を作る、
+      または coding-agent rules を導入する
     </h1>
     <p class="portal-cover__lead">
-      Composition は Skill / Webapp のアーティファクト意味論と再利用可能な capability を定義します。
-      Policy は、検証可能なコーディングエージェントの動作を独立して定義します。
+      通常、この <code>templates</code> repository 自体を product repository にするのではありません。
+      product は別 repository に置き、そこへ目的に合った templates の tooling と contracts を適用します。
     </p>
     <div class="portal-cover__actions">
-      <a class="portal-cover__button portal-cover__button--primary" href="/composition/">
-        Composition を見る <span aria-hidden="true">→</span>
+      <a class="portal-cover__button portal-cover__button--primary" href="/composition/use/webapp-product-walkthrough/">
+        Web アプリケーションを作る <span aria-hidden="true">→</span>
       </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="/policy/">
-        Policy を見る <span aria-hidden="true">→</span>
+      <a class="portal-cover__button portal-cover__button--secondary" href="/skill/">
+        Agent Skill を作る <span aria-hidden="true">→</span>
       </a>
     </div>
     <ul class="portal-cover__signals" role="list">
-      <li>Composition: アーティファクトと capability</li>
-      <li>Policy: コーディングエージェントの動作</li>
+      <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
+      <li>Webapp の初回利用には canonical な一本道の walkthrough があります。</li>
+      <li>Policy は optional で、Composition とは独立しています。</li>
     </ul>
   </div>
 
@@ -36,26 +38,26 @@
 
 <section class="portal-authority" aria-labelledby="portal-build-title">
   <div class="portal-section-heading">
-    <p class="portal-section-heading__kicker">Composition</p>
-    <h2 id="portal-build-title">何を構築しますか？</h2>
-    <p>アーティファクト種別を選択してください。どちらも Composition authority が提供する再利用可能な capability と lifecycle contract を利用します。</p>
+    <p class="portal-section-heading__kicker">何をしたいですか？</p>
+    <h2 id="portal-build-title">内部 authority ではなく task を選ぶ</h2>
+    <p>各 entry point は、その手順を正本として所有する authority へ案内します。開始前に Composition、capability、lifecycle contract を理解する必要はありません。</p>
   </div>
 
   <div class="portal-artifact-grid">
-    <a class="portal-artifact-card portal-artifact-card--skill" href="/skill/">
-      <span class="portal-artifact-card__icon"><img src="/images/icon-skill.svg" alt=""></span>
+    <a class="portal-artifact-card portal-artifact-card--webapp" href="/composition/use/webapp-product-walkthrough/">
+      <span class="portal-artifact-card__icon"><img src="/images/icon-webapp.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
-        <strong>Agent Skill</strong>
-        <span>エージェントから起動されるワークフローとリソースの意味論。</span>
+        <strong>Web アプリケーションを作る</strong>
+        <span>Task Ledger の end-to-end walkthrough を、別 product repository の作成から valid scaffold と明確な実装開始地点まで順に進めます。</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
 
-    <a class="portal-artifact-card portal-artifact-card--webapp" href="/webapp/">
-      <span class="portal-artifact-card__icon"><img src="/images/icon-webapp.svg" alt=""></span>
+    <a class="portal-artifact-card portal-artifact-card--skill" href="/skill/">
+      <span class="portal-artifact-card__icon"><img src="/images/icon-skill.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
-        <strong>Web アプリケーション</strong>
-        <span>ブラウザ製品の route、state、viewport、evidence の意味論。</span>
+        <strong>Agent Skill を作る</strong>
+        <span>Skill artifact guidance から始め、consumer-owned workflow と resource contracts を確認します。</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
@@ -65,20 +67,39 @@
 <section class="portal-policy-panel" aria-labelledby="portal-policy-title">
   <span class="portal-policy-panel__icon"><img src="/images/icon-policy.svg" alt=""></span>
   <div class="portal-policy-panel__copy">
-    <p class="portal-policy-panel__label">独立した authority · Policy</p>
-    <h2 id="portal-policy-title">コーディングエージェントの動作を定義する</h2>
-    <p>共有 operating policy と agent-policy ツールチェーンが、選択、検証、render、adoption、release を扱います。</p>
+    <p class="portal-policy-panel__label">独立した task · Policy</p>
+    <h2 id="portal-policy-title">repository に coding-agent rules を追加する</h2>
+    <p>新規導入または既存 agent instructions の migration は Policy getting-started から始めます。Policy は独立した authority であり、Composition capability ではありません。</p>
   </div>
-  <a class="portal-policy-panel__action" href="/policy/">Policy を見る <span aria-hidden="true">→</span></a>
+  <a class="portal-policy-panel__action" href="/policy/getting-started/">Policy adoption を始める <span aria-hidden="true">→</span></a>
+</section>
+
+<section class="portal-authority" aria-labelledby="portal-repository-model-title">
+  <div class="portal-section-heading portal-section-heading--compact">
+    <p class="portal-section-heading__kicker">Mental model</p>
+    <h2 id="portal-repository-model-title">作業するのは product repository</h2>
+    <p>通常の関係は次のとおりです。</p>
+  </div>
+
+```text
+TakashiSasaki/templates
+        |
+        | tooling と contracts を提供
+        v
+あなたの別 product repository
+```
+
+<p>product repository は別に clone または作成します。provider-owned tutorial が、そこで何を install / run するかを説明します。<code>templates</code> repository 自体は主に tooling、contracts、documentation の供給元です。</p>
 </section>
 
 <nav class="portal-doc-nav" aria-labelledby="portal-doc-nav-title">
   <div class="portal-section-heading portal-section-heading--compact">
-    <p class="portal-section-heading__kicker">読者向けの導線</p>
-    <h2 id="portal-doc-nav-title">ドキュメントを見る</h2>
+    <p class="portal-section-heading__kicker">すでに始めている、または仕組みを知りたい</p>
+    <h2 id="portal-doc-nav-title">Architecture と reference を見る</h2>
   </div>
   <div class="portal-doc-links">
-    <a class="portal-doc-link" href="/composition/">Composition</a>
+    <a class="portal-doc-link" href="/composition/">Composition を見る</a>
+    <a class="portal-doc-link" href="/policy/">Policy を見る</a>
     <a class="portal-doc-link" href="/capabilities/">Capabilities</a>
     <a class="portal-doc-link" href="/lifecycle/">Lifecycle</a>
     <a class="portal-doc-link" href="/glossary/">Glossary</a>

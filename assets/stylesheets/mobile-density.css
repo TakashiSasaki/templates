@@ -91,29 +91,32 @@
   }
 
   .portal-cover {
-    gap: 0.7rem;
-    padding: 0.85rem;
+    min-height: 0;
+    gap: 0.55rem;
+    padding: 0.7rem;
     border-radius: 0.8rem;
   }
 
-  .portal-cover__kicker {
-    margin-bottom: 0.5rem;
+  /* The task choice is already explicit in the headline. Removing the kicker
+     avoids spending another line block before the first actionable control. */
+  .portal-cover .portal-cover__kicker {
+    display: none;
   }
 
   .portal-cover h1 {
-    margin-bottom: 0.6rem;
-    font-size: clamp(1.75rem, 8.8vw, 2.25rem);
-    line-height: 1.04;
+    margin-bottom: 0.45rem;
+    font-size: clamp(1.5rem, 7.4vw, 1.9rem);
+    line-height: 1.02;
   }
 
-  .portal-cover__lead {
-    margin-bottom: 0.75rem;
-    font-size: 0.85rem;
-    line-height: 1.5;
+  .portal-cover .portal-cover__lead {
+    margin-bottom: 0.55rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
   }
 
   .portal-cover__actions {
-    gap: 0.45rem;
+    gap: 0.4rem;
     margin-bottom: 0;
   }
 
@@ -124,15 +127,15 @@
   }
 
   .portal-cover__button {
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.76rem;
   }
 
-  /* The authority distinction is already explicit in the lead. On phones,
-     secondary signals and the architecture illustration would postpone the
-     first actionable artifact choices by almost a full viewport. The .md-typeset
-     qualifier is required to outrank the documentation theme's list display rule. */
-  .md-typeset .portal-cover__signals,
-  .portal-cover__visual {
+  /* Detailed signals and the decorative illustration are repeated below the
+     cover in task cards / mental-model sections. Keep mobile first paint focused
+     on the two actionable controls. */
+  .portal-cover .portal-cover__signals,
+  .portal-cover .portal-cover__visual {
     display: none;
   }
 

@@ -81,17 +81,18 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-cover"', text)
         self.assertNotIn('href="overview/"', text)
         self.assertIn(
-            'class="portal-cover__button portal-cover__button--primary" href="composition/"',
+            'class="portal-cover__button portal-cover__button--primary" href="composition/use/webapp-product-walkthrough/"',
             text,
         )
         self.assertEqual(text.count('class="portal-cover__button '), 2)
         for destination in (
+            "composition/use/webapp-product-walkthrough/",
             "composition/",
             "capabilities/",
             "lifecycle/",
             "skill/",
             "policy/",
-            "webapp/",
+            "policy/getting-started/",
             "/glossary/",
             "/guided/",
             "repository-trees/",
@@ -105,7 +106,7 @@ class LandingPageTests(unittest.TestCase):
         self.assertIn('class="portal-artifact-card portal-artifact-card--webapp"', text)
         self.assertNotIn("portal-artifact-card--policy", text)
         self.assertIn('class="portal-policy-panel"', text)
-        self.assertIn("Independent authority · Policy", text)
+        self.assertIn("Independent task · Policy", text)
 
     def test_landing_page_references_only_declared_svg_artwork(self) -> None:
         text = LANDING.read_text(encoding="utf-8")
