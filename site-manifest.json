@@ -54,6 +54,7 @@
     {
       "title": "Agent Skill",
       "children": [
+        {"title": "First-use walkthrough", "publication": "composition", "document": "skill-first-use-walkthrough", "destination": "composition/use/skill-first-use-walkthrough.md"},
         {"title": "Overview", "publication": "composition", "document": "skill-overview", "destination": "skill/index.md"},
         {"title": "Skill contract", "publication": "composition", "document": "skill-contract", "destination": "skill/SKILL.md"},
         {"title": "Documentation index", "publication": "composition", "document": "skill-documentation-index", "destination": "skill/docs/index.md"},
