@@ -14,7 +14,8 @@ from scripts.check_mobile_layout import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
+BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+REPLAY_WORKFLOW = ROOT / ".github/workflows/mobile-visual-regression.yml"
 VISUAL_REQUIREMENTS = ROOT / "requirements-visual.txt"
 
 
@@ -156,11 +157,13 @@ class MobileLayoutRegressionTests(unittest.TestCase):
             "playwright==1.61.0\n",
         )
 
-    def test_workflow_reuses_pages_artifact_and_runs_playwright_chromium(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("actions/github-script@v8", workflow)
-        self.assertIn("workflow_id: 'build-pages.yml'", workflow)
+    def test_pr_build_runs_browser_regression_after_its_own_artifact(self) -> None:
+        workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("needs: build", workflow)
+        self.assertIn("inputs.site_ref == ''", workflow)
         self.assertIn("actions/download-artifact@v5", workflow)
+        self.assertNotIn("Wait for documentation artifact build", workflow)
+        self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
         self.assertIn("actions/setup-python@v6", workflow)
         self.assertIn("requirements-visual.txt", workflow)
         self.assertIn("python -m playwright install --with-deps chromium", workflow)
@@ -173,6 +176,16 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         )
         self.assertNotIn("browser-actions/setup-chrome", workflow)
         self.assertNotIn("--no-sandbox", workflow)
+
+    def test_manual_replay_uses_explicit_build_run_without_polling(self) -> None:
+        workflow = REPLAY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("run-id: ${{ inputs.run_id }}", workflow)
+        self.assertIn("github-token: ${{ github.token }}", workflow)
+        self.assertNotIn("pull_request:", workflow)
+        self.assertNotIn("actions/github-script@v8", workflow)
+        self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
+        self.assertNotIn("Wait for documentation artifact build", workflow)
         self.assertNotIn("actions/upload-pages-artifact", workflow)
 
 

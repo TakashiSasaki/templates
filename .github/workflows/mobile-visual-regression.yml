@@ -1,74 +1,36 @@
 name: Mobile visual regression
 
 on:
-  pull_request:
-    branches:
-      - site
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build documentation artifact run ID containing the github-pages artifact
+        required: true
+        type: string
+      site_ref:
+        description: Site commit, branch, or tag whose browser regression scripts should be used
+        required: false
+        default: site
+        type: string
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: mobile-visual-${{ github.event.pull_request.number || github.ref }}
+  group: mobile-visual-manual-${{ inputs.run_id }}
   cancel-in-progress: true
 
 jobs:
   check:
-    if: >-
-      github.repository == 'TakashiSasaki/templates' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository == 'TakashiSasaki/templates'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out proposed Site revision
+      - name: Check out Site regression implementation
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Wait for documentation artifact build
-        id: documentation_build
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const headSha = context.payload.pull_request.head.sha;
-            const deadline = Date.now() + 20 * 60 * 1000;
-
-            while (Date.now() < deadline) {
-              const response = await github.rest.actions.listWorkflowRuns({
-                owner,
-                repo,
-                workflow_id: 'build-pages.yml',
-                event: 'pull_request',
-                head_sha: headSha,
-                per_page: 20,
-              });
-              const runs = response.data.workflow_runs
-                .slice()
-                .sort((left, right) => right.id - left.id);
-              const run = runs[0];
-
-              if (!run) {
-                core.info(`Documentation build for ${headSha} has not started yet.`);
-              } else if (run.status === 'completed') {
-                if (run.conclusion !== 'success') {
-                  throw new Error(
-                    `Documentation build ${run.id} concluded ${run.conclusion}.`
-                  );
-                }
-                core.setOutput('run_id', String(run.id));
-                core.info(`Using documentation build ${run.id}.`);
-                return;
-              } else {
-                core.info(`Documentation build ${run.id} is ${run.status}.`);
-              }
-
-              await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
-
-            throw new Error(`Timed out waiting for documentation build for ${headSha}.`);
+          ref: ${{ inputs.site_ref }}
 
       - name: Download built Pages artifact
         uses: actions/download-artifact@v5
@@ -76,7 +38,7 @@ jobs:
           name: github-pages
           path: pages-artifact
           github-token: ${{ github.token }}
-          run-id: ${{ steps.documentation_build.outputs.run_id }}
+          run-id: ${{ inputs.run_id }}
 
       - name: Extract built site
         run: |
@@ -141,7 +103,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-visual-${{ github.event.pull_request.number }}
+          name: mobile-visual-manual-${{ inputs.run_id }}
           path: build/mobile-visual
           if-no-files-found: warn
           retention-days: 7
