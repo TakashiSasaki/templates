@@ -11,8 +11,6 @@
 - [Composer リファレンス](reference/composer.md) — 正確な CLI mode/options、inspect states、plan fields、ownership semantics、recovery rules、managed lifecycle diagnostics を説明します。
 - [Composition 概要](../README.md) — 現在の authority、lifecycle summary、safety model、documentation entry points を説明します。
 
-first-use walkthrough を architecture / contract reference より前に置いています。新しい consumer は最初の task を完了してから、判断に必要な時点で deeper model を参照できます。
-
 ## Composition architecture
 
 - [Composition model](architecture/composition-model.md) — artifact、capability、lifecycle、ownership、intent、lock semantics を説明します。
