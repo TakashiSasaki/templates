@@ -97,6 +97,7 @@ your separate product repository
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="composition/">Explore Composition</a>
+    <a class="portal-doc-link" href="skill/">Explore Agent Skill</a>
     <a class="portal-doc-link" href="policy/">Explore Policy</a>
     <a class="portal-doc-link" href="capabilities/">Capabilities</a>
     <a class="portal-doc-link" href="lifecycle/">Lifecycle</a>
