@@ -61,7 +61,14 @@ class BrowserSession:
             text=True,
         )
         self.session_id: str | None = None
-        self.wait_ready()
+        try:
+            self.wait_ready()
+            self.start_session()
+        except BaseException:
+            self.close()
+            raise
+
+    def start_session(self) -> None:
         chrome_options: dict[str, Any] = {
             "args": [
                 "--headless=new",
@@ -276,11 +283,19 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
             "keyboard activation did not complete the task",
         )
+        browser.send_keys("#title", "Open task" + ENTER)
+        wait_for(
+            browser,
+            "return document.querySelectorAll('#tasks li').length === 2",
+            "second keyboard submission did not create an open task",
+        )
         browser.send_keys("#status", "completed" + ENTER)
         wait_for(
             browser,
-            "return document.querySelectorAll('#tasks li').length === 1",
-            "keyboard filter did not retain the completed task",
+            """return document.querySelector('#status').value === 'completed'
+                && document.querySelectorAll('#tasks li').length === 1
+                && document.querySelector('#tasks li span').textContent.includes('(completed)')""",
+            "keyboard filter did not select and isolate the completed task",
         )
         browser.send_keys("#tasks li button:last-of-type", ENTER)
         wait_for(
@@ -290,29 +305,55 @@ def run_browser_proof(base_url: str) -> None:
         )
 
         browser.set_viewport(800, 390)
-        require(
-            not browser.execute(
-                "return document.documentElement.scrollWidth > window.innerWidth + 1"
-            ),
-            "page has horizontal overflow in landscape viewport",
+        landscape = browser.execute(
+            """
+            const controls = ['#title', '#new-task button', '#status'];
+            return {
+              controlsVisible: controls.every((selector) => {
+                const rect = document.querySelector(selector)?.getBoundingClientRect();
+                return rect && rect.width > 0 && rect.height > 0
+                  && rect.left < window.innerWidth && rect.top < window.innerHeight;
+              }),
+              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+            };
+            """
         )
+        require(landscape["controlsVisible"], "primary controls are not usable in landscape")
+        require(not landscape["overflow"], "page has horizontal overflow in landscape viewport")
         browser.set_viewport(800, 800)
         browser.set_scale(2.0)
         time.sleep(0.1)
         zoom = browser.execute(
             """
-            const input = document.querySelector('#title');
-            const rect = input.getBoundingClientRect();
+            const viewport = window.visualViewport;
+            const controls = ['#title', '#new-task button', '#status'];
+            const reachable = controls.every((selector) => {
+              const rect = document.querySelector(selector)?.getBoundingClientRect();
+              return rect && rect.width > 0 && rect.height > 0
+                && rect.left >= viewport.offsetLeft
+                && rect.right <= viewport.offsetLeft + viewport.width
+                && rect.top >= viewport.offsetTop
+                && rect.bottom <= viewport.offsetTop + viewport.height;
+            });
             return {
-              scale: window.visualViewport?.scale || 0,
-              visible: rect.width > 0 && rect.height > 0,
-              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              scale: viewport?.scale || 0,
+              reachable,
+              layoutOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
             };
             """
         )
         require(float(zoom["scale"]) >= 1.9, "browser did not reach 200% page scale")
-        require(zoom["visible"], "title input is not operable at 200% scale")
-        require(not zoom["overflow"], "200% scale caused page-wide horizontal overflow")
+        require(zoom["reachable"], "primary controls are not reachable at 200% scale")
+        require(
+            not zoom["layoutOverflow"],
+            "200% scale exposed pre-existing page-wide horizontal overflow",
+        )
+        browser.send_keys("#title", "Zoom task" + ENTER)
+        wait_for(
+            browser,
+            "return document.querySelectorAll('#tasks li').length === 1",
+            "title input is not keyboard-operable at 200% scale",
+        )
 
         browser.navigate(base_url + "missing")
         require(
