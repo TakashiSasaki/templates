@@ -347,7 +347,7 @@ For this Task Ledger configuration, concrete examples are:
 | `scripts/validate_contracts.py`, `scripts/scaffold_webapp_evidence.py` and other scaffold validators | `managed` | **Do not hand-edit them.** Use them as provided. |
 | `.template-composition/validate.py` and other `.template-composition` validator material | `managed` | **Do not hand-edit them.** |
 | `.template-composition/lock.json` | Composer state | **Do not hand-edit it.** Lifecycle operations own it. |
-| new files such as `task_ledger/server.py` or `tests/test_task_ledger.py` | ordinary consumer content | **Create and edit them normally.** They are product implementation, not Composition-owned material. |
+| new files such as `task_ledger/cli.py` or `tests/test_task_ledger.py` | ordinary consumer content | **Create and edit them normally.** They are product implementation, not Composition-owned material. |
 
 The generic rule is: `seed` transfers to consumer ownership after initial materialization; `managed` and `generated` remain Composition-owned; a path absent from the lock is ordinary consumer content unless another repository-local authority says otherwise.
 
@@ -413,33 +413,378 @@ python -m task_ledger.cli --database task-ledger.db export
 
 Document stdout/stderr, exit status, invalid arguments, persistence-target selection, and whether CLI operations have semantics equivalent to corresponding API operations.
 
-## 12. Implement in consumer-owned source files
+## 12. Create the minimal consumer-owned implementation and tests
 
-A possible product tree is:
+Do not stop at a hypothetical tree. The commands below create a small but executable Python/SQLite implementation, browser UI, product tests, and the verifier that Section 13 runs. All of these paths are ordinary consumer content: none is present in the Composition lock.
 
-```text
-task-ledger/
-├── task_ledger/
-│   ├── cli.py
-│   ├── server.py
-│   ├── store.py
-│   └── static/
-│       ├── index.html
-│       ├── app.js
-│       └── style.css
-├── tests/
-│   └── test_task_ledger.py
-└── scripts/
-    └── verify.sh
+From `/absolute/path/to/task-ledger`, create the directories first:
+
+```sh
+mkdir -p task_ledger/static tests scripts
+touch task_ledger/__init__.py
 ```
 
-Composition does not require this layout. These are ordinary consumer-owned implementation and verification files; managed/generated Composition material remains untouched.
+Create `task_ledger/cli.py`:
 
-The implementation should satisfy the contracts rather than merely make the validator green. At minimum demonstrate create/list/edit/complete/delete behavior, open/completed filtering, persistence across restart, independent JSON API use, CLI `list` / `export`, and negative input/error cases corresponding to declared contracts.
+```python
+from __future__ import annotations
+
+import argparse
+import json
+import sqlite3
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+
+def connect(database: str) -> sqlite3.Connection:
+    connection = sqlite3.connect(database)
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS tasks ("
+        "id INTEGER PRIMARY KEY, title TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0)"
+    )
+    connection.commit()
+    return connection
+
+
+def task_dict(row: sqlite3.Row) -> dict[str, object]:
+    return {"id": row["id"], "title": row["title"], "completed": bool(row["completed"])}
+
+
+def list_tasks(database: str, status: str = "all") -> list[dict[str, object]]:
+    if status not in {"all", "open", "completed"}:
+        raise ValueError("status must be all, open, or completed")
+    query = "SELECT id, title, completed FROM tasks"
+    parameters: tuple[object, ...] = ()
+    if status != "all":
+        query += " WHERE completed = ?"
+        parameters = (1 if status == "completed" else 0,)
+    query += " ORDER BY id"
+    with connect(database) as connection:
+        return [task_dict(row) for row in connection.execute(query, parameters)]
+
+
+def create_task(database: str, title: object) -> dict[str, object]:
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("title must be a non-empty string")
+    with connect(database) as connection:
+        cursor = connection.execute("INSERT INTO tasks(title) VALUES (?)", (title.strip(),))
+        row = connection.execute(
+            "SELECT id, title, completed FROM tasks WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
+    assert row is not None
+    return task_dict(row)
+
+
+def get_task(database: str, task_id: int) -> dict[str, object] | None:
+    with connect(database) as connection:
+        row = connection.execute(
+            "SELECT id, title, completed FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+    return task_dict(row) if row is not None else None
+
+
+def update_task(database: str, task_id: int, changes: dict[str, object]) -> dict[str, object] | None:
+    current = get_task(database, task_id)
+    if current is None:
+        return None
+    title = changes.get("title", current["title"])
+    completed = changes.get("completed", current["completed"])
+    if not isinstance(title, str) or not title.strip() or not isinstance(completed, bool):
+        raise ValueError("title must be non-empty and completed must be boolean")
+    with connect(database) as connection:
+        connection.execute(
+            "UPDATE tasks SET title = ?, completed = ? WHERE id = ?",
+            (title.strip(), int(completed), task_id),
+        )
+    return get_task(database, task_id)
+
+
+def delete_task(database: str, task_id: int) -> bool:
+    with connect(database) as connection:
+        cursor = connection.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    return cursor.rowcount == 1
+
+
+def make_server(database: str, host: str, port: int) -> ThreadingHTTPServer:
+    static_root = Path(__file__).with_name("static")
+
+    class Handler(BaseHTTPRequestHandler):
+        def send_json(self, status: int, value: object) -> None:
+            body = json.dumps(value).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def read_json(self) -> dict[str, object]:
+            length = int(self.headers.get("Content-Length", "0"))
+            value = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(value, dict):
+                raise ValueError("JSON body must be an object")
+            return value
+
+        def task_id(self, path: str) -> int | None:
+            parts = path.strip("/").split("/")
+            if len(parts) == 3 and parts[:2] == ["api", "tasks"] and parts[2].isdigit():
+                return int(parts[2])
+            return None
+
+        def do_GET(self) -> None:
+            parsed = urlparse(self.path)
+            if parsed.path == "/healthz":
+                self.send_json(HTTPStatus.OK, {"status": "ok"})
+                return
+            if parsed.path == "/api/tasks":
+                status = parse_qs(parsed.query).get("status", ["all"])[0]
+                try:
+                    self.send_json(HTTPStatus.OK, list_tasks(database, status))
+                except ValueError as exc:
+                    self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            task_id = self.task_id(parsed.path)
+            if task_id is not None:
+                task = get_task(database, task_id)
+                self.send_json(HTTPStatus.OK, task) if task else self.send_json(
+                    HTTPStatus.NOT_FOUND, {"error": "task not found"}
+                )
+                return
+            if parsed.path == "/":
+                body = (static_root / "index.html").read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
+        def do_POST(self) -> None:
+            if urlparse(self.path).path != "/api/tasks":
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                return
+            try:
+                self.send_json(HTTPStatus.CREATED, create_task(database, self.read_json().get("title")))
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+
+        def do_PATCH(self) -> None:
+            task_id = self.task_id(urlparse(self.path).path)
+            if task_id is None:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                return
+            try:
+                task = update_task(database, task_id, self.read_json())
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self.send_json(HTTPStatus.OK, task) if task else self.send_json(
+                HTTPStatus.NOT_FOUND, {"error": "task not found"}
+            )
+
+        def do_DELETE(self) -> None:
+            task_id = self.task_id(urlparse(self.path).path)
+            if task_id is None or not delete_task(database, task_id):
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "task not found"})
+                return
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--database", required=True)
+    subcommands = parser.add_subparsers(dest="command", required=True)
+    list_parser = subcommands.add_parser("list")
+    list_parser.add_argument("--status", choices=("all", "open", "completed"), default="all")
+    subcommands.add_parser("export")
+    serve_parser = subcommands.add_parser("serve")
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    if args.command == "list":
+        for task in list_tasks(args.database, args.status):
+            marker = "x" if task["completed"] else " "
+            print(f"{task['id']}\t[{marker}]\t{task['title']}")
+        return 0
+    if args.command == "export":
+        print(json.dumps(list_tasks(args.database), ensure_ascii=False, indent=2))
+        return 0
+
+    server = make_server(args.database, args.host, args.port)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+Create `task_ledger/static/index.html`:
+
+```html
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Ledger</title>
+<h1>Task Ledger</h1>
+<form id="new-task"><input id="title" required><button>Add task</button></form>
+<label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
+<ul id="tasks"></ul>
+<p id="message" role="status"></p>
+<script>
+const tasks = document.querySelector('#tasks');
+const message = document.querySelector('#message');
+async function request(path, options = {}) {
+  const response = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...options});
+  if (!response.ok && response.status !== 204) throw new Error(await response.text());
+  return response.status === 204 ? null : response.json();
+}
+async function load() {
+  tasks.replaceChildren();
+  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+  for (const task of values) {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = task.title + (task.completed ? ' (completed)' : '');
+    const toggle = document.createElement('button');
+    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
+    const remove = document.createElement('button');
+    remove.textContent = 'Delete';
+    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
+    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+  }
+}
+document.querySelector('#new-task').onsubmit = async event => {
+  event.preventDefault();
+  const input = document.querySelector('#title');
+  await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
+  input.value = ''; await load();
+};
+document.querySelector('#status').onchange = load;
+load().catch(error => { message.textContent = error.message; });
+</script>
+```
+
+Create `tests/test_task_ledger.py`:
+
+```python
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+from task_ledger.cli import create_task, list_tasks, make_server, update_task
+
+
+class TaskLedgerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.database = str(Path(self.temporary.name) / "tasks.db")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_crud_filter_and_persistence(self) -> None:
+        first = create_task(self.database, "write docs")
+        self.assertEqual([task["title"] for task in list_tasks(self.database, "open")], ["write docs"])
+        update_task(self.database, int(first["id"]), {"title": "write guide", "completed": True})
+        self.assertEqual([task["title"] for task in list_tasks(self.database, "completed")], ["write guide"])
+        self.assertEqual(list_tasks(self.database), list_tasks(self.database))
+
+    def test_cli_export_uses_selected_database(self) -> None:
+        create_task(self.database, "export me")
+        result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "export"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(json.loads(result.stdout)[0]["title"], "export me")
+
+    def test_http_api_positive_and_negative_paths(self) -> None:
+        server = make_server(self.database, "127.0.0.1", 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        try:
+            health = json.load(urllib.request.urlopen(base + "/healthz"))
+            self.assertEqual(health, {"status": "ok"})
+            request = urllib.request.Request(
+                base + "/api/tasks",
+                data=json.dumps({"title": "from api"}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            created = json.load(urllib.request.urlopen(request))
+            open_tasks = json.load(urllib.request.urlopen(base + "/api/tasks?status=open"))
+            self.assertEqual([task["id"] for task in open_tasks], [created["id"]])
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(base + "/api/tasks?status=invalid")
+            self.assertEqual(raised.exception.code, 400)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Finally create the authoritative product verifier `scripts/verify.sh` and make it executable:
+
+```sh
+cat > scripts/verify.sh <<'SH'
+#!/bin/sh
+set -eu
+python -m unittest discover -s tests -v
+SH
+chmod +x scripts/verify.sh
+```
+
+At this point the verifier exists **before** the walkthrough asks you to run it. You can also start the application manually with:
+
+```sh
+python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --port 8080
+```
+
+Then open `http://127.0.0.1:8080/` and exercise create, complete/reopen, delete, and filter behavior. Editing an existing task title is implemented by `PATCH /api/tasks/{id}`; the minimal browser UI intentionally exercises completion/delete/filter only, so either add an edit control before declaring browser-edit evidence or narrow the browser contract accordingly. The service and CLI remain independently callable.
+
+**Repository change**
+
+Yes. The files above are ordinary consumer-owned implementation and verification material. They do not modify Composition-managed/generated paths.
+
+**Next**
+
+Run the product verifier you just created.
 
 ## 13. Define and run authoritative product verification
 
-Composition does not choose the product test runner. Task Ledger may define one independently runnable command:
+Composition does not choose the product test runner. Task Ledger now has one independently runnable consumer-owned command.
 
 **Run**
 
@@ -449,15 +794,15 @@ Composition does not choose the product test runner. Task Ledger may define one 
 
 **Expected**
 
-The consumer-owned unit/integration/product checks pass and the command exits successfully.
+The consumer-owned unit/integration checks pass and the command exits successfully. The tests exercise SQLite persistence across independent connections, filtering/update behavior, CLI export, an independently reachable JSON API, health, and a negative invalid-filter case.
 
 **Repository change**
 
-The command itself should not rewrite Composition-owned material. Adding `scripts/verify.sh` and product tests beforehand is normal consumer development.
+The verifier does not rewrite Composition-owned material.
 
 **What this means**
 
-You now have product-behavior evidence that is separate from Composition's structural/contract validation.
+You now have product-behavior evidence that is separate from Composition's structural/contract validation. Before claiming browser edit behavior, either add the corresponding UI control and browser-facing proof or narrow the browser contract so it describes only the behavior actually exposed by the UI.
 
 **Next**
 
