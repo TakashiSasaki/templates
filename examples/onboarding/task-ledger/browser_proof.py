@@ -270,12 +270,7 @@ def run_browser_proof(base_url: str) -> None:
             );
             const userScalable = directives['user-scalable'];
             const maximumScale = Number.parseFloat(directives['maximum-scale']);
-            const controls = [
-              ...['#title', '#new-task button', '#status'].map(
-                (selector) => document.querySelector(selector)
-              ),
-              ...document.querySelectorAll('#tasks li button'),
-            ];
+            const controls = ['#title', '#new-task button', '#status'];
             return {
               title: document.title,
               heading: document.querySelector('#main-heading')?.textContent,
@@ -434,7 +429,12 @@ def run_browser_proof(base_url: str) -> None:
         browser.set_viewport(800, 390)
         landscape = browser.execute(
             """
-            const controls = ['#title', '#new-task button', '#status'];
+            const controls = [
+              ...['#title', '#new-task button', '#status'].map(
+                (selector) => document.querySelector(selector)
+              ),
+              ...document.querySelectorAll('#tasks li button'),
+            ];
             return {
               controlsVisible: controls.length >= 5 && controls.every((element) => {
                 const rect = element?.getBoundingClientRect();
