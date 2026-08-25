@@ -18,16 +18,16 @@ inspect -> plan -> apply -> validate
 
 ## Command と option の対応表
 
-| Command | Mode | `--target` | `--config` | Purpose |
-| --- | --- | --- | --- | --- |
-| `inspect` | none | required | not accepted | mutation せず target state を分類する |
-| `plan` | `initial` or omitted | required | required | 最初の materialization を計画する |
-| `apply` | `initial` or omitted | required | required | 最初の materialization を実行する |
-| `plan` | `update` | required | forbidden | lock-v2 intent を保持して current descendant source へ reconcile する計画を作る |
-| `apply` | `update` | required | forbidden | managed update を適用または recovery する |
-| `plan` | `upgrade` | required | required | 明示的な intent / compatibility-boundary change を計画する |
-| `apply` | `upgrade` | required | required for a new upgrade; forbidden during recovery | 明示的な upgrade を開始または recovery する |
-| `validate` | none | required | not accepted | current consumer state を検証する |
+| Command | Mode | `--target` | `--config` | `--format` | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `inspect` | none | required | not accepted | `json` (default) / `human` | mutation せず target state を分類する |
+| `plan` | `initial` or omitted | required | required | `json` (default) / `human` | 最初の materialization を計画する |
+| `apply` | `initial` or omitted | required | required | `json` (default) / `human` | 最初の materialization を実行する |
+| `plan` | `update` | required | forbidden | `json` (default) / `human` | lock-v2 intent を保持して current descendant source へ reconcile する計画を作る |
+| `apply` | `update` | required | forbidden | `json` (default) / `human` | managed update を適用または recovery する |
+| `plan` | `upgrade` | required | required | `json` (default) / `human` | 明示的な intent / compatibility-boundary change を計画する |
+| `apply` | `upgrade` | required | required for a new upgrade; forbidden during recovery | `json` (default) / `human` | 明示的な upgrade を開始または recovery する |
+| `validate` | none | required | not accepted | `json` (default) / `human` | current consumer state を検証する |
 
 Initial mode が default です。次の2つは同等です。
 
@@ -36,7 +36,30 @@ python scripts/compose.py plan --config composition.json --target /repo
 python scripts/compose.py plan --mode initial --config composition.json --target /repo
 ```
 
-dispatcher は command の前後どちらに `--mode` があっても受け付けますが、例とドキュメントでは command-first form を使用します。
+dispatcher は command の前後どちらに `--mode` と `--format` があっても受け付けますが、例とドキュメントでは command-first form を使用します。
+
+## Output format
+
+`--format json` が public output contract の default です。`--format` を省略した場合は、明示的な `--format json` と同等です。既存 invocation は、machine-readable JSON の field shape、structured diagnostic code、lifecycle の exit behavior をそのまま保持します。
+
+`--format human` は、人間が terminal で Composer を直接操作するときの opt-in presentation です。同じ structured lifecycle payload から、簡潔な state、conflict/action summary、ownership guidance、remediation、next action を表示します。別の planner、apply path、validator、state transition、remediation semantics を実行するものではありません。
+
+human output は parsing や automation の contract ではありません。automation は引き続き default JSON または明示的な `--format json` を使用し、human prose の文字列一致ではなく structured field と diagnostic `code` を利用してください。exit status semantics は format に依存せず、同じ lifecycle result は JSON 表示でも human 表示でも同じ exit code になります。
+
+Examples:
+
+```sh
+python scripts/compose.py inspect --target /repo --format human
+python scripts/compose.py plan --config composition.json --target /repo --format human
+```
+
+install 済み runner 経由では、`--format` は Composer option として forward されます。
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /repo \
+  inspect --format human
+```
 
 ## CLI discovery
 
@@ -46,7 +69,7 @@ public entrypoint は、consumer がどの internal adapter が command を処�
 python scripts/compose.py --help
 ```
 
-top-level help には `inspect -> plan -> apply -> validate`、`initial` / `update` / `upgrade` mode、各 mode の `--config` 要件、interrupted-upgrade recovery behavior、代表的な command が表示されます。この help path は read-only で、Composition source state を load せず、consumer repository を inspect しません。
+top-level help には `inspect -> plan -> apply -> validate`、`initial` / `update` / `upgrade` mode、各 mode の `--config` 要件、interrupted-upgrade recovery behavior、output-format selection、代表的な command が表示されます。この help path は read-only で、Composition source state を load せず、consumer repository を inspect しません。
 
 `composer_update_plan.py`、`composer_apply.py`、`composer_managed.py`、`composer_transaction.py` などの internal module は implementation layer であり、別の public entrypoint ではありません。consumer automation と documentation が `scripts/compose.py` を直接呼び出すのは、exact reviewed source checkout から操作するときだけにしてください。通常の installed-skill operation は同じ entrypoint に delegate します。
 
@@ -273,7 +296,7 @@ install 済み runner 経由の同等 command では source checkout management 
 
 ## Exit status
 
-explicit help output を除き、CLI は normal result と Composer error を standard output に JSON として emit します。
+explicit help output を除き、standard output は選択された public output format を使用します。`--format` を省略した場合または明示的に `--format json` を指定した場合、normal result と Composer error は従来どおり machine-readable JSON です。`--format human` の場合は、同じ lifecycle payload が human-facing text として表示されます。output format は status code を変更しません。
 
 - `0` — requested operation、validation、または explicit help が成功した。
 - `2` — invalid state、conflict、argument-level Composer error、または managed-operation failure。

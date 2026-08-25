@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -8,6 +9,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "skills" / "composition" / "scripts" / "run.py"
+
+
+def load_runner_module():
+    spec = importlib.util.spec_from_file_location("composition_skill_run_cli_test", RUNNER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+runner = load_runner_module()
 
 
 class CompositionSkillCliTests(unittest.TestCase):
@@ -23,6 +36,16 @@ class CompositionSkillCliTests(unittest.TestCase):
         self.assertIn("--revision", result.stdout)
         self.assertIn("inspect", result.stdout)
         self.assertIn("validate", result.stdout)
+
+    def test_runner_forwards_human_format_to_composer(self) -> None:
+        self.assertEqual(
+            runner.composer_arguments("plan", ["--format", "human", "--mode", "update"]),
+            ["plan", "--format", "human", "--mode", "update"],
+        )
+        self.assertEqual(
+            runner.composer_arguments("validate", ["--format=human"]),
+            ["validate", "--format=human"],
+        )
 
     def test_forwarded_target_is_rejected_before_runtime_acquisition(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
