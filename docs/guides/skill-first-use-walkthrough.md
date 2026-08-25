@@ -33,7 +33,7 @@ edit consumer-owned SKILL.md
   ↓
 add a real references/ resource
   ↓
-run Skill validation + Composition validation
+run concrete-completion check + Skill validation + Composition validation
 ```
 
 A valid initial scaffold is not yet an operational Skill. The scaffold still contains `template-scaffold` and TODO guidance until you replace it with concrete trigger, workflow, resources, outputs, validation, and safety semantics.
@@ -231,7 +231,7 @@ The public JSON result reports `status: "valid"`.
 
 **What this means**
 
-The Composition state and Skill scaffold structure are valid. It does **not** mean Release Note Helper is an operational Skill: `SKILL.md` still identifies itself as `template-scaffold` and contains TODO guidance.
+The Composition state and Skill scaffold structure are valid. It does **not** mean Release Note Helper is an operational Skill: `SKILL.md` still identifies itself as `template-scaffold` and contains TODO guidance. The Skill validator intentionally permits that initial scaffold sentinel, so a separate concrete-completion check is required later.
 
 **Next**
 
@@ -245,10 +245,10 @@ For the basic Skill recipe:
 
 | File | Ownership | Action |
 | --- | --- | --- |
-| `SKILL.md` | `seed` | **Edit it.** This becomes the concrete Skill contract. |
-| `README.md` | `seed` | **Edit it.** Describe the consumer Skill repository. |
-| `AGENTS.md` | `seed` | **Edit if useful.** It is consumer-owned after initial composition. |
-| `.editorconfig`, `.gitignore`, `LICENSE.template` | `seed` | **Edit/replace as normal consumer material.** |
+| `SKILL.md` | `seed` | **Edit it in place.** This becomes the concrete Skill contract. |
+| `README.md` | `seed` | **Edit it in place.** Describe the consumer Skill repository. |
+| `AGENTS.md` | `seed` | **Edit in place if useful.** It is consumer-owned after initial composition. |
+| `.editorconfig`, `.gitignore`, `LICENSE.template` | `seed` | **Edit in place if needed, but keep the active destination present while it remains in the lock.** Do not delete or rename it merely because seed bytes are consumer-owned. You may add separate consumer files such as `LICENSE`. |
 | `.github/workflows/validate-skill.yml` | `managed` | **Do not hand-edit.** Composition owns it. |
 | `.github/scripts/validate_skill.py` | `managed` | **Do not hand-edit.** Use it as provided. |
 | `docs/index.md`, `docs/architecture.md`, `docs/skill-capability-map.md`, `docs/skill-profiles.md` | `managed` | **Do not hand-edit.** They are provider-owned references. |
@@ -256,7 +256,7 @@ For the basic Skill recipe:
 | `.template-composition/lock.json` | Composer state | **Do not hand-edit.** Lifecycle operations own it. |
 | new `references/`, `assets/`, or `scripts/` files | ordinary consumer content | **Create/edit them normally** when the selected Skill profile requires them. |
 
-`seed` transfers to consumer ownership after initial composition. `managed` remains Composition-owned. Paths absent from the lock are ordinary consumer content unless another repository-local authority says otherwise.
+`seed` transfers byte ownership to the consumer after initial composition, but an active seed destination is still part of the resolved Composition state and must remain present while listed in the lock. `managed` remains Composition-owned. Paths absent from the lock are ordinary consumer content unless another repository-local authority says otherwise. If you eventually want an active seed path removed or renamed as part of the Composition state, make that an explicit source/upgrade transition rather than deleting it locally and forcing validation around the missing path.
 
 ## 10. Turn `SKILL.md` into Release Note Helper
 
@@ -312,11 +312,32 @@ Create `references/release-note-style.md`. For example, define rules such as:
 
 This file is **ordinary consumer content** because it was not materialized by Composition. The `knowledge-augmented` profile makes the reference semantically relevant; the Skill validator checks that declared resource paths are coherent with the selected profile.
 
-## 12. Validate the concrete Skill
+## 12. Check concrete completion, then validate the Skill
 
-Run the Skill-specific validator first for a focused result.
+The structural Skill validator intentionally accepts the initial `template-scaffold` sentinel, because the freshly materialized scaffold itself is a valid starting state. Before calling this repository an operational Release Note Helper, add an explicit consumer completion gate.
 
 **Run**
+
+```sh
+if grep -q 'Selected profiles: template-scaffold' SKILL.md; then
+  echo 'SKILL.md still selects template-scaffold' >&2
+  exit 1
+fi
+if grep -q '\bTODO\b' SKILL.md; then
+  echo 'SKILL.md still contains template TODO guidance' >&2
+  exit 1
+fi
+```
+
+**Expected**
+
+Both checks pass silently because the sentinel and template TODO guidance were replaced in Section 10.
+
+**What this means**
+
+This explicit consumer gate checks **concrete completion**. It is distinct from the provider's structural Skill validator.
+
+Now run the Skill-specific validator:
 
 ```sh
 python .github/scripts/validate_skill.py .
@@ -324,11 +345,9 @@ python .github/scripts/validate_skill.py .
 
 **Expected**
 
-The validator accepts the concrete frontmatter/profile/resource structure. If it reports a stale `template-scaffold`, undeclared/missing resource, or incompatible profile/resource shape, fix the consumer-owned Skill material rather than editing the validator.
+The validator accepts the concrete frontmatter/profile/resource structure. If it reports an undeclared/missing resource or incompatible profile/resource shape, fix consumer-owned Skill material rather than editing the validator. Do not interpret structural validation alone as proof that the scaffold sentinel was replaced; that is why the explicit completion gate ran first.
 
 Then run the full selected Composition validation.
-
-**Run**
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -342,7 +361,7 @@ The public result reports `status: "valid"`.
 
 **What this means**
 
-The repository now contains a concrete Skill contract and real supporting knowledge whose structure satisfies the selected Skill/Composition contracts. Unlike the initial valid scaffold, this validation occurs after the scaffold sentinel and TODO semantics have been replaced.
+The repository now contains a concrete Skill contract and real supporting knowledge whose structure satisfies the selected Skill/Composition contracts. Unlike the initial valid scaffold, this result is paired with the explicit consumer completion gate showing that the scaffold sentinel and TODO semantics were replaced.
 
 ## 13. Exercise the Skill behavior
 
@@ -373,7 +392,7 @@ If coding agents will maintain the Release Note Helper repository itself, adopt 
 
 ## 16. Ordinary maintenance
 
-Editing `SKILL.md`, revising `references/release-note-style.md`, adding examples, or improving consumer-owned evaluation is ordinary product work. Run the Skill validator and Composition validation after relevant changes.
+Editing `SKILL.md`, revising `references/release-note-style.md`, adding examples, or improving consumer-owned evaluation is ordinary product work. Run the concrete-completion gate, Skill validator, and Composition validation after relevant changes.
 
 Use Composition `update` when moving unchanged normalized intent to a newer compatible Composition source revision. Use explicit `upgrade` when recipe/components/parameters change or a component-version compatibility boundary requires it. Review plans before either mutation and never hand-edit the Composition lock to force success.
 
@@ -386,8 +405,8 @@ First-use success means a human can reach all of these states without reading th
 - `composition.json` selects the minimal `skill` recipe.
 - `inspect -> plan -> review -> apply -> validate` is followed in order.
 - `plan` is understood to be read-only.
-- concrete seed/managed/ordinary-consumer ownership is understood.
-- `SKILL.md` no longer contains the template sentinel as the selected profile.
+- concrete seed/managed/ordinary-consumer ownership is understood, including the requirement to keep active seed destinations present while they remain in the lock.
+- the explicit concrete-completion gate confirms `SKILL.md` no longer selects `template-scaffold` and contains no template TODO guidance.
 - `references/release-note-style.md` is a real declared resource.
 - Skill-specific validation and full Composition validation pass.
 - the next step is behavioral evaluation of the concrete Skill, not more scaffold archaeology.
