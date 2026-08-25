@@ -195,6 +195,10 @@ Task Ledger が本当に実装する contract だけを残します。
 
 Browser: `primary` surface、`/` の home route、実際に表示する state、tested viewport/input behavior を記述します。
 
+viewport coverage の先頭 target では `minWidthPx: 0` を維持してください。これは幅 0px のブラウザをサポートするという意味ではなく、validator が coverage graph の先頭に隙間がないことを確認するための coverage-start sentinel です。この walkthrough の実ブラウザ proof が検証する実用上の最小幅は 320px であり、`minWidthPx: 0` の sentinel と tested minimum の 320px は別の概念です。
+
+この reference product では `home` route の `states` を `["ready", "empty", "error"]` にします。`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の `announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で `No tasks yet.`、list refresh failure で既存contentを維持したまま `Could not load tasks.` を表示し、task completion 後には置換後のactionへfocusを復元し、focused taskをdeleteした後はstatus filterへfocusを移します。observable state を evidence requirement の削減目的で route inventory から外してはいけません。
+
 `RUNTIME.md` の例:
 
 ```text
@@ -448,12 +452,15 @@ if __name__ == "__main__":
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
-<h1>Task Ledger</h1>
+<style>li span { overflow-wrap: anywhere; }</style>
+<h1 id="main-heading" tabindex="-1">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
 <p id="message" role="status"></p>
 <script>
+const heading = document.querySelector('#main-heading');
+heading.focus();
 const tasks = document.querySelector('#tasks');
 const message = document.querySelector('#message');
 async function request(path, options = {}) {
@@ -461,21 +468,41 @@ async function request(path, options = {}) {
   if (!response.ok && response.status !== 204) throw new Error(await response.text());
   return response.status === 204 ? null : response.json();
 }
-async function load() {
-  tasks.replaceChildren();
-  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
-  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
-  for (const task of values) {
-    const item = document.createElement('li');
-    const label = document.createElement('span');
-    label.textContent = task.title + (task.completed ? ' (completed)' : '');
-    const toggle = document.createElement('button');
-    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
-    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
-    const remove = document.createElement('button');
-    remove.textContent = 'Delete';
-    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
-    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+async function load({focusTaskId = null, focusAction = null} = {}) {
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    tasks.replaceChildren();
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
   }
 }
 document.querySelector('#new-task').onsubmit = async event => {
@@ -484,8 +511,8 @@ document.querySelector('#new-task').onsubmit = async event => {
   await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
   input.value = ''; await load();
 };
-document.querySelector('#status').onchange = load;
-load().catch(error => { message.textContent = error.message; });
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
 </script>
 ```
 
@@ -581,6 +608,42 @@ python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --por
 
 `http://127.0.0.1:8080/` で create、complete/reopen、delete、filter を確認できます。reference browser contract は意図的に browser title editing を claim しません。`PATCH /api/tasks/{id}` は独立して support される API の一部です。browser edit control の追加は ordinary consumer-owned extension であり、対応する browser contract と proof も更新する必要があります。
 
+### 実ブラウザによる viewport / keyboard proof を追加する
+
+Webapp evidence validator は、宣言された `viewports/base` と `input-capability/keyboard` target に、実ブラウザを使う positive / negative browser-level proof を要求します。HTTP reachability と上記の unit/integration test は、この要件を満たしません。
+
+対応する Chrome または Chrome for Testing と ChromeDriver を使用します。未導入の場合は公式 [Chrome for Testing availability dashboard](https://googlechromelabs.github.io/chrome-for-testing/) から同じversionのbrowser/driver archiveを取得し、product repository外へ展開します。`chromedriver` を `PATH` に置くか、`CHROMEWEBDRIVER` にabsolute pathを設定します。Chromeが通常のplatform pathにない場合は、`CHROME_BINARY` にbrowser executableのabsolute pathを設定します。
+
+**Check**
+
+```sh
+"${CHROME_BINARY:-google-chrome}" --version
+"${CHROMEWEBDRIVER:-chromedriver}" --version
+```
+
+review済みのstandard-library WebDriver proofをconsumer-owned test directoryへdownloadします。full-SHA URLはimmutableで、Python package dependencyはありません。
+
+```sh
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/d27b677c5eb2366a35326e955a9d1766bfd41cff/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+```
+
+このproofはtemporary SQLite databaseでTask Ledgerを起動し、実際のheadless Chrome sessionから次を検査します。
+
+- narrow/landscape viewportでのpositive responsive behavior
+- page-wide horizontal overflowとzoom lockのnegative check
+- genuine 200% browser page-scaleでのoperability
+- keyboardによるcreate、complete、filter、deleteのpositive path
+- empty-title keyboard submissionのnegative path
+- unknown routeのbrowser negative path
+
+browser proofをauthoritative verifierへ追加します。
+
+```sh
+cat >> scripts/verify.sh <<'SH'
+python tests/test_task_ledger_browser.py
+SH
+```
+
 **Repository change:** 上記は ordinary consumer-owned implementation / verification material です。
 
 ## 13. Authoritative product verification を定義して実行する
@@ -609,7 +672,7 @@ python scripts/scaffold_webapp_evidence.py > /tmp/webapp-evidence-worklist.json
 
 initial `contracts/implementation-evidence.json` は `template` mode です。implementation、`./scripts/verify.sh`、proof location が実在してから `product` mode にします。
 
-Section 12 の verifier が提供するのは unit/integration evidence であり、viewport または keyboard target に対する browser-level proof ではありません。これらの browser-sensitive target には、実ブラウザを使う positive / negative の `accessibility-test` または `end-to-end-test` proof が必要です。その browser suite が存在するまでは implementation evidence を `template` mode に保ちます。source inspection、HTTP reachability、unit test を browser proof として再分類してはいけません。
+Section 12 verifierのunit/integration部分だけではbrowser-level proofになりません。downloadした `tests/test_task_ledger_browser.py` が、viewport/keyboard targetに対する実ブラウザのpositive/negative `end-to-end-test` pathを追加します。このscriptを省略した場合、または実ブラウザで正常実行できない場合は、implementation evidenceを `template` modeに保ちます。source inspection、HTTP reachability、unit testをbrowser proofとして再分類してはいけません。
 
 command/gate 例:
 
@@ -634,6 +697,8 @@ command/gate 例:
 
 各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
+生成された `viewports/base` と `input-capability/keyboard` recordでは、positive/negative proof locatorを `tests/test_task_ledger_browser.py`、proof kindを `end-to-end-test`、command IDを `verify-product` にします。expected resultには、単なるfileの存在ではなく、対応するsuccessful interactionと拒否または不在が確認されたinvalid behaviorを記述します。
+
 viewport と keyboard を含むすべての current target に、要求された kind の truthful proof が存在してから、両方の verification layer を実行します。
 
 ```sh
@@ -645,7 +710,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 browser suite を含む authoritative product verification が pass し、Composition validation が `status: "valid"`、implementation evidence が template-deferred ではなく executed されることを確認します。
 
-Section 12 で提供する standard-library unit/integration verifier だけでは、この強い product-mode result をまだ claim しません。その場合は evidence document を `template` mode に保ちます。
+実ブラウザscriptを省略、skip、またはChrome/ChromeDriver起動失敗のままにした場合、この強いproduct-mode resultをclaimしません。その場合はevidence documentを `template` modeに保ちます。
 
 ## 16. 必要なら coding-agent Policy を adopt する
 

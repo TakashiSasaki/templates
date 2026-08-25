@@ -371,8 +371,12 @@ A small Task Ledger inventory can use:
 | --- | --- |
 | surface | `primary`: Task Ledger browser UI, local-product audience, non-diagnostic |
 | route | `home` at `/`: canonical task-list route |
-| states | `ready` plus only the loading/empty/error states actually visible in the implementation |
+| states | `ready`, `empty`, and `error`, matching the observable reference-product states |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
+
+For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+
+For this reference product, set the `home` route `states` array to `["ready", "empty", "error"]`. In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items. Use `category: "content"` for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, and `focusStrategy: "preserve"` for all three. The implementation below renders `No tasks yet.` for `empty`, renders `Could not load tasks.` on a failed list refresh while leaving the existing content in place, restores focus to the replacement task action after completion, and moves focus to the status-filter fallback after deleting the focused task. Do not omit observable states from the route inventory merely to reduce evidence requirements.
 
 Do not add authentication, administration, role-based authorization, touch support, multiple breakpoints, or diagnostic surfaces merely because a larger application might need them.
 
@@ -643,12 +647,15 @@ Create `task_ledger/static/index.html`:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
-<h1>Task Ledger</h1>
+<style>li span { overflow-wrap: anywhere; }</style>
+<h1 id="main-heading" tabindex="-1">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
 <p id="message" role="status"></p>
 <script>
+const heading = document.querySelector('#main-heading');
+heading.focus();
 const tasks = document.querySelector('#tasks');
 const message = document.querySelector('#message');
 async function request(path, options = {}) {
@@ -656,21 +663,41 @@ async function request(path, options = {}) {
   if (!response.ok && response.status !== 204) throw new Error(await response.text());
   return response.status === 204 ? null : response.json();
 }
-async function load() {
-  tasks.replaceChildren();
-  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
-  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
-  for (const task of values) {
-    const item = document.createElement('li');
-    const label = document.createElement('span');
-    label.textContent = task.title + (task.completed ? ' (completed)' : '');
-    const toggle = document.createElement('button');
-    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
-    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
-    const remove = document.createElement('button');
-    remove.textContent = 'Delete';
-    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
-    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+async function load({focusTaskId = null, focusAction = null} = {}) {
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    tasks.replaceChildren();
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
   }
 }
 document.querySelector('#new-task').onsubmit = async event => {
@@ -679,8 +706,8 @@ document.querySelector('#new-task').onsubmit = async event => {
   await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
   input.value = ''; await load();
 };
-document.querySelector('#status').onchange = load;
-load().catch(error => { message.textContent = error.message; });
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
 </script>
 ```
 
@@ -776,6 +803,42 @@ python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --por
 
 Then open `http://127.0.0.1:8080/` and exercise create, complete/reopen, delete, and filter behavior. The reference browser contract intentionally does not claim browser title editing. `PATCH /api/tasks/{id}` remains part of the independently supported API; adding a browser edit control is an ordinary consumer-owned extension that also requires matching browser contract and proof updates. The service and CLI remain independently callable.
 
+### Add the real-browser viewport and keyboard proof
+
+The Webapp evidence validator requires real positive and negative browser-level proof for the declared `viewports/base` and `input-capability/keyboard` targets. HTTP reachability and the unit/integration tests above do not satisfy that requirement.
+
+Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are not already installed, download the matching browser and driver archives from the official [Chrome for Testing availability dashboard](https://googlechromelabs.github.io/chrome-for-testing/) and extract them outside the product repository. Put `chromedriver` on `PATH`, or set `CHROMEWEBDRIVER` to its absolute path. When Chrome is not on the normal platform path, set `CHROME_BINARY` to the extracted browser executable.
+
+**Check**
+
+```sh
+"${CHROME_BINARY:-google-chrome}" --version
+"${CHROMEWEBDRIVER:-chromedriver}" --version
+```
+
+Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
+
+```sh
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/d27b677c5eb2366a35326e955a9d1766bfd41cff/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+```
+
+The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:
+
+- positive responsive behavior at narrow and landscape viewports;
+- negative page-wide horizontal-overflow and zoom-lock checks;
+- genuine 200% browser page-scale operability;
+- positive keyboard create, complete, filter, and delete paths;
+- negative empty-title keyboard submission; and
+- an unknown-route browser negative path.
+
+Add the browser proof to the authoritative verifier:
+
+```sh
+cat >> scripts/verify.sh <<'SH'
+python tests/test_task_ledger_browser.py
+SH
+```
+
 **Repository change**
 
 Yes. The files above are ordinary consumer-owned implementation and verification material. They do not modify Composition-managed/generated paths.
@@ -842,7 +905,7 @@ Multiple records may reuse one command/gate when one suite genuinely proves mult
 
 The initial `contracts/implementation-evidence.json` is intentionally in `template` mode with no product implementation claim. Change it to `product` mode only after the implementation, `./scripts/verify.sh`, and referenced proof locations really exist.
 
-The Section 12 verifier supplies unit/integration evidence; it is **not** browser-level proof for viewport or keyboard targets. Those browser-sensitive targets require real positive and negative `accessibility-test` or `end-to-end-test` proofs. Keep implementation evidence in `template` mode until such a browser suite exists. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
+The unit/integration portion of the Section 12 verifier is **not** browser-level proof by itself. The downloaded `tests/test_task_ledger_browser.py` adds real positive and negative `end-to-end-test` paths for the viewport and keyboard targets. If you skip that script or it does not run successfully in a real browser, keep implementation evidence in `template` mode. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
 
 A command and gate can look like:
 
@@ -867,6 +930,8 @@ A command and gate can look like:
 
 Each record still needs its exact worklist target, verified implementation-boundary locator, verified positive/negative proof locators, expected results, and selected gate. Do not copy a sample target from this guide; the authoritative target set belongs to the consumer repository.
 
+For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
+
 After every current target—including viewport and keyboard targets—has truthful proof of the required kind, run both verification layers.
 
 **Run**
@@ -883,7 +948,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 - the authoritative product verification command, including the referenced browser suite, passes; and
 - Composition validation returns `status: "valid"` with implementation evidence executed rather than template-deferred.
 
-With only the standard-library unit/integration verifier supplied in Section 12, this stronger product-mode result is not yet claimed; keep the evidence document in `template` mode.
+If the real-browser script was omitted, skipped, or unable to start Chrome/ChromeDriver, this stronger product-mode result is not claimed; keep the evidence document in `template` mode.
 
 **What this means**
 

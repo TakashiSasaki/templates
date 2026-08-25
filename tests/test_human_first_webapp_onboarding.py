@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -12,6 +13,8 @@ WALKTHROUGH_JA = ROOT / "translations" / "ja" / "docs" / "guides" / "webapp-prod
 EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition.json"
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
+BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
+BROWSER_PROOF_REVISION = "d27b677c5eb2366a35326e955a9d1766bfd41cff"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
@@ -105,7 +108,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "Optional task notes",
             "is **not** browser-level proof",
             "real positive and negative",
-            "`accessibility-test` or `end-to-end-test` proofs",
+            "positive and negative `end-to-end-test` paths",
             "Do not relabel source inspection, HTTP reachability, or unit tests",
             "keep the evidence document in `template` mode",
         ):
@@ -118,11 +121,78 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "completion requirement ではありません",
             "API は title update も提供します",
             "browser title editing を claim しません",
-            "browser-level proof ではありません",
+            "browser-level proofになりません",
             "実ブラウザを使う positive / negative",
-            "`accessibility-test` または `end-to-end-test` proof",
-            "HTTP reachability、unit test を browser proof として再分類",
-            "evidence document を `template` mode に保ちます",
+            "positive/negative `end-to-end-test` path",
+            "HTTP reachability、unit testをbrowser proofとして再分類",
+            "evidence documentを `template` modeに保ちます",
+            "`minWidthPx: 0`",
+            "coverage-start sentinel",
+            "実用上の最小幅は 320px",
+            "sentinel と tested minimum の 320px は別の概念",
+            '`["ready", "empty", "error"]`',
+            "`Could not load tasks.`",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, japanese)
+
+    def test_real_browser_proof_is_immutable_and_runs_before_product_claim(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        expected_url = (
+            "https://raw.githubusercontent.com/TakashiSasaki/templates/"
+            f"{BROWSER_PROOF_REVISION}/examples/onboarding/task-ledger/browser_proof.py"
+        )
+        self.assertIn(expected_url, text)
+        self.assertIn("CHROMEWEBDRIVER", text)
+        self.assertIn("CHROME_BINARY", text)
+        self.assertIn('<h1 id="main-heading" tabindex="-1">Task Ledger</h1>', text)
+        self.assertIn("genuine 200% browser page-scale", text)
+        self.assertIn("unknown-route browser negative path", text)
+        self.assertIn("python tests/test_task_ledger_browser.py", text)
+        self.assertLess(
+            text.index("python tests/test_task_ledger_browser.py"),
+            text.index("## 13. Define and run authoritative product verification"),
+        )
+        browser_source = BROWSER_PROOF.read_text(encoding="utf-8")
+        self.assertEqual(
+            browser_source.count(
+                "...['#main-heading', '#title', '#new-task button', '#status'].map("
+            ),
+            2,
+        )
+        self.assertEqual(
+            browser_source.count("...document.querySelectorAll('#tasks li span, #tasks li button'),"),
+            2,
+        )
+        self.assertIn('populated_narrow["labelsVisible"]', browser_source)
+        self.assertIn("focus was not preserved on the replacement task action", browser_source)
+        self.assertIn("delete did not move focus to the deterministic status-filter fallback", browser_source)
+        self.assertIn("error state is not visibly rendered", browser_source)
+        self.assertIn(
+            "const controls = ['#main-heading', '#title', '#new-task button', '#status'];",
+            browser_source,
+        )
+        compile(browser_source, str(BROWSER_PROOF), "exec")
+        pinned = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{BROWSER_PROOF_REVISION}:"
+                "examples/onboarding/task-ledger/browser_proof.py",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(pinned.stdout, browser_source)
+
+        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
+        for expected in (
+            expected_url,
+            "実ブラウザによる viewport / keyboard proof",
+            "genuine 200% browser page-scale",
+            "unknown routeのbrowser negative path",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
