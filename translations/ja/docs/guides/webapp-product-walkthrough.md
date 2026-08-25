@@ -624,7 +624,7 @@ Webapp evidence validator は、宣言された `viewports/base` と `input-capa
 review済みのstandard-library WebDriver proofをconsumer-owned test directoryへdownloadします。full-SHA URLはimmutableで、Python package dependencyはありません。
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/64764bc49a0029b91561ffa2d562647b2f020eef/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/d921437bfd1d7a53e7c238222b9e420c3d302a95/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
 ```
 
 このproofはtemporary SQLite databaseでTask Ledgerを起動し、実際のheadless Chrome sessionから次を検査します。
