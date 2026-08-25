@@ -14,7 +14,7 @@ EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
 BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
-BROWSER_PROOF_REVISION = "e621980ce4dce5ab47ebe1bdf76000476f21c261"
+BROWSER_PROOF_REVISION = "ffb85172aeec126166a0162bb6b7a0dff327249d"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
