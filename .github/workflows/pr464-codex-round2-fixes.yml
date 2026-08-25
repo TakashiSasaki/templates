@@ -1,0 +1,324 @@
+name: PR 464 Codex round 2 fixes
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Add temporary PR 464 round 2 fixer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+      - name: Apply exact Codex round 2 fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          browser_path = Path('examples/onboarding/task-ledger/browser_proof.py')
+          browser = browser_path.read_text(encoding='utf-8')
+
+          old_mapped = "...['#title', '#new-task button', '#status'].map("
+          new_mapped = "...['#main-heading', '#title', '#new-task button', '#status'].map("
+          if browser.count(old_mapped) != 2:
+              raise SystemExit(f'expected two landscape/zoom selector lists, got {browser.count(old_mapped)}')
+          browser = browser.replace(old_mapped, new_mapped)
+          if browser.count('controls.length >= 5') != 2:
+              raise SystemExit('expected two five-control minimums')
+          browser = browser.replace('controls.length >= 5', 'controls.length >= 6')
+
+          actions_anchor = "            const actions = [...document.querySelectorAll('#tasks li button')];\n"
+          if browser.count(actions_anchor) != 1:
+              raise SystemExit('populated narrow actions anchor changed')
+          browser = browser.replace(
+              actions_anchor,
+              actions_anchor + "            const labels = [...document.querySelectorAll('#tasks li span')];\n",
+              1,
+          )
+          actions_tail = """              }),
+              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              nestedOverflow,
+"""
+          label_check = """              }),
+              labelsVisible: labels.length === 1 && labels.every((element) => {
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) return false;
+                }
+                const rect = element.getBoundingClientRect();
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
+              }),
+              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              nestedOverflow,
+"""
+          if browser.count(actions_tail) != 1:
+              raise SystemExit(f'populated narrow return tail changed: {browser.count(actions_tail)}')
+          browser = browser.replace(actions_tail, label_check, 1)
+          require_actions = '        require(populated_narrow["actionsFit"], "task actions are outside the narrow viewport")\n'
+          if browser.count(require_actions) != 1:
+              raise SystemExit('populated narrow require anchor changed')
+          browser = browser.replace(
+              require_actions,
+              require_actions + '        require(populated_narrow["labelsVisible"], "task title is not visibly reachable at 320px")\n',
+              1,
+          )
+
+          empty_anchor = '        require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")\n'
+          if browser.count(empty_anchor) != 1:
+              raise SystemExit('empty-state proof anchor changed')
+          browser = browser.replace(
+              empty_anchor,
+              empty_anchor + '''        require(\n            browser.execute("return document.querySelector('#message').textContent === 'No tasks yet.'"),\n            "empty state is not visibly rendered",\n        )\n''',
+              1,
+          )
+
+          completed_wait = '''        wait_for(
+            browser,
+            "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
+            "keyboard activation did not complete the task",
+        )
+'''
+          completed_focus = completed_wait + '''        wait_for(
+            browser,
+            """return document.activeElement.matches('#tasks li:first-child button:first-of-type')
+                && document.activeElement.textContent === 'Reopen'""",
+            "focus was not preserved on the replacement task action after completion",
+        )
+'''
+          if browser.count(completed_wait) != 1:
+              raise SystemExit('completion focus anchor changed')
+          browser = browser.replace(completed_wait, completed_focus, 1)
+
+          missing_anchor = '        browser.navigate(base_url + "missing")\n'
+          error_proof = '''        browser.execute(
+            """
+            window.__taskLedgerOriginalFetch = window.fetch;
+            window.fetch = async (path, options) => {
+              if (String(path).startsWith('/api/tasks')) {
+                throw new Error('forced browser proof failure');
+              }
+              return window.__taskLedgerOriginalFetch(path, options);
+            };
+            load().catch(() => {});
+            """
+        )
+        wait_for(
+            browser,
+            """return document.querySelector('#message').textContent === 'Could not load tasks.'
+                && document.querySelectorAll('#tasks li').length === 0""",
+            "error state is not visibly rendered after a failed task load",
+        )
+        browser.execute("window.fetch = window.__taskLedgerOriginalFetch")
+
+'''
+          if browser.count(missing_anchor) != 1:
+              raise SystemExit('missing-route anchor changed')
+          browser = browser.replace(missing_anchor, error_proof + missing_anchor, 1)
+          browser_path.write_text(browser, encoding='utf-8')
+
+          old_ui = '''async function load() {
+  tasks.replaceChildren();
+  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+  for (const task of values) {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = task.title + (task.completed ? ' (completed)' : '');
+    const toggle = document.createElement('button');
+    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
+    const remove = document.createElement('button');
+    remove.textContent = 'Delete';
+    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
+    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+  }
+}
+document.querySelector('#new-task').onsubmit = async event => {
+  event.preventDefault();
+  const input = document.querySelector('#title');
+  await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
+  input.value = ''; await load();
+};
+document.querySelector('#status').onchange = load;
+load().catch(error => { message.textContent = error.message; });
+'''
+          new_ui = '''async function load({focusTaskId = null, focusAction = null} = {}) {
+  tasks.replaceChildren();
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
+  }
+}
+document.querySelector('#new-task').onsubmit = async event => {
+  event.preventDefault();
+  const input = document.querySelector('#title');
+  await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
+  input.value = ''; await load();
+};
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
+'''
+          docs = [
+              Path('docs/guides/webapp-product-walkthrough.md'),
+              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
+          ]
+          for path in docs:
+              text = path.read_text(encoding='utf-8')
+              if text.count(old_ui) != 1:
+                  raise SystemExit(f'{path}: expected one old UI block, got {text.count(old_ui)}')
+              text = text.replace(old_ui, new_ui, 1)
+              path.write_text(text, encoding='utf-8')
+
+          en_path = docs[0]
+          en = en_path.read_text(encoding='utf-8')
+          en_anchor = '''For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+'''
+          en_add = '''
+For this reference product, set the `home` route's `states` array to `["ready", "empty", "error"]`. In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items: use `category: "content"` for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, and `focusStrategy: "preserve"` for all three. The implementation below visibly renders `No tasks yet.` for `empty`, renders `Could not load tasks.` when loading fails, and restores focus to the replacement task action after completion. Do not leave those observable states outside the route inventory merely to reduce evidence requirements.
+'''
+          if en.count(en_anchor) != 1:
+              raise SystemExit('English Section 11 anchor changed')
+          en = en.replace(en_anchor, en_anchor + en_add, 1)
+          en_path.write_text(en, encoding='utf-8')
+
+          ja_path = docs[1]
+          ja = ja_path.read_text(encoding='utf-8')
+          ja_anchor = '''viewport coverage の先頭 target では `minWidthPx: 0` を維持してください。これは幅 0px のブラウザをサポートするという意味ではなく、validator が coverage graph の先頭に隙間がないことを確認するための coverage-start sentinel です。この walkthrough の実ブラウザ proof が検証する実用上の最小幅は 320px であり、`minWidthPx: 0` の sentinel と tested minimum の 320px は別の概念です。
+'''
+          ja_add = '''
+この reference product では `home` route の `states` を `["ready", "empty", "error"]` にします。`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の `announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で `No tasks yet.`、load failure で `Could not load tasks.` を実際に表示し、task completion 後には置換後の action へ focus を復元します。observable state を evidence requirement の削減目的で route inventory から外してはいけません。
+'''
+          if ja.count(ja_anchor) != 1:
+              raise SystemExit('Japanese Section 11 anchor changed')
+          ja = ja.replace(ja_anchor, ja_anchor + ja_add, 1)
+          ja_path.write_text(ja, encoding='utf-8')
+
+          acceptance_path = Path('tests/test_task_ledger_walkthrough_browser_acceptance.py')
+          acceptance = acceptance_path.read_text(encoding='utf-8')
+          install_anchor = '    def install_walkthrough_product(self, target: Path) -> None:\n'
+          helper = '''    def specialize_browser_contracts(self, target: Path) -> None:
+        routes_path = target / "contracts" / "routes.json"
+        routes = json.loads(routes_path.read_text(encoding="utf-8"))
+        routes["routes"][0]["states"] = ["ready", "empty", "error"]
+        self.write_json(routes_path, routes)
+
+        states_path = target / "contracts" / "ui-states.json"
+        states = json.loads(states_path.read_text(encoding="utf-8"))
+        ready = states["states"][0]
+        ready["focusStrategy"] = "preserve"
+        states["states"] = [
+            ready,
+            {
+                "id": "empty",
+                "scope": "route",
+                "category": "content",
+                "description": "The task list is empty and the empty message is visible.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+            {
+                "id": "error",
+                "scope": "route",
+                "category": "error",
+                "description": "Task loading failed and the visible status region reports the failure.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+        ]
+        self.write_json(states_path, states)
+
+'''
+          if acceptance.count(install_anchor) != 1:
+              raise SystemExit('acceptance helper anchor changed')
+          acceptance = acceptance.replace(install_anchor, helper + install_anchor, 1)
+          materialize_call = '            target = self.materialize(Path(temp_dir))\n            self.install_walkthrough_product(target)\n'
+          replacement_call = '            target = self.materialize(Path(temp_dir))\n            self.specialize_browser_contracts(target)\n            self.install_walkthrough_product(target)\n'
+          if acceptance.count(materialize_call) != 1:
+              raise SystemExit('acceptance materialize call changed')
+          acceptance = acceptance.replace(materialize_call, replacement_call, 1)
+          acceptance_path.write_text(acceptance, encoding='utf-8')
+
+          regression_path = Path('tests/test_human_first_webapp_onboarding.py')
+          regression = regression_path.read_text(encoding='utf-8')
+          source_anchor = '        browser_source = BROWSER_PROOF.read_text(encoding="utf-8")\n'
+          extra = '''        self.assertEqual(
+            browser_source.count(
+                "...['#main-heading', '#title', '#new-task button', '#status'].map("
+            ),
+            2,
+        )
+        self.assertIn('populated_narrow["labelsVisible"]', browser_source)
+        self.assertIn("focus was not preserved on the replacement task action", browser_source)
+        self.assertIn("error state is not visibly rendered", browser_source)
+'''
+          if regression.count(source_anchor) != 1:
+              raise SystemExit('regression browser source anchor changed')
+          if 'browser_source.count(' not in regression:
+              regression = regression.replace(source_anchor, source_anchor + extra, 1)
+          regression_path.write_text(regression, encoding='utf-8')
+
+          Path('.github/workflows/pr464-codex-round2-fixes.yml').unlink()
+          PY
+      - name: Commit Codex round 2 fixes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add examples/onboarding/task-ledger/browser_proof.py \
+                  docs/guides/webapp-product-walkthrough.md \
+                  translations/ja/docs/guides/webapp-product-walkthrough.md \
+                  tests/test_task_ledger_walkthrough_browser_acceptance.py \
+                  tests/test_human_first_webapp_onboarding.py \
+                  .github/workflows/pr464-codex-round2-fixes.yml
+          git diff --cached --check
+          git commit -m "Address Codex browser contract completeness findings"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
