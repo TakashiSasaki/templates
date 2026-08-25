@@ -27,16 +27,17 @@ from composer_core import (
     main as _initial_main,
     validate_consumer_with_source_validator,
 )
+from composer_human_output import render_human
 from composer_post_apply import build_post_apply_guidance
 
 __all__ = ["CompositionError", "_assert_tracked_authority", "main"]
 
 COMMANDS = {"inspect", "plan", "apply", "validate"}
-VALUE_OPTIONS = {"--mode", "--config", "--target"}
+VALUE_OPTIONS = {"--mode", "--config", "--target", "--format"}
 SELECTED_VALIDATION_RUNNER = ".template-composition/validate.py"
 
 PUBLIC_HELP = """\
-usage: compose.py COMMAND [--mode MODE] --target PATH [--config FILE]
+usage: compose.py COMMAND [--mode MODE] --target PATH [--config FILE] [--format {json,human}]
 
 Public lifecycle:
   inspect -> plan -> apply -> validate
@@ -46,6 +47,10 @@ Commands:
   plan      Preview deterministic initial/update/upgrade changes.
   apply     Materialize or reconcile the selected lifecycle operation.
   validate  Validate Composition state and validators required by resolved components.
+
+Output:
+  --format json    Default. Preserve the machine-readable public JSON contract.
+  --format human   Render the same structured result as concise status and next-action guidance.
 
 Modes for plan/apply:
   initial   Default when --mode is omitted. New composition; --config is required.
@@ -62,6 +67,7 @@ Recovery:
 Examples:
   python scripts/compose.py inspect --target /repo
   python scripts/compose.py plan --config composition.json --target /repo
+  python scripts/compose.py plan --config composition.json --target /repo --format human
   python scripts/compose.py apply --config composition.json --target /repo
   python scripts/compose.py plan --mode update --target /repo
   python scripts/compose.py apply --mode update --target /repo
@@ -126,6 +132,36 @@ def _argument_value(option: str) -> str | None:
                 return None
             return arguments[index + 1]
     return None
+
+
+def _extract_public_format() -> tuple[str, str | None]:
+    """Remove the public presentation option and return (format, error)."""
+
+    arguments = sys.argv[1:]
+    rewritten: list[str] = []
+    selected = "json"
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--format":
+            if index + 1 >= len(arguments) or arguments[index + 1].startswith("--"):
+                return "json", "argument --format: expected one argument"
+            selected = arguments[index + 1]
+            index += 2
+            continue
+        if argument.startswith("--format="):
+            selected = argument.split("=", 1)[1]
+            index += 1
+            continue
+        rewritten.append(argument)
+        index += 1
+    if selected not in {"json", "human"}:
+        return (
+            "json",
+            f"argument --format: invalid choice: {selected!r} (choose from 'json', 'human')",
+        )
+    sys.argv[:] = [sys.argv[0], *rewritten]
+    return selected, None
 
 
 def _remove_initial_mode() -> None:
@@ -234,6 +270,52 @@ def _run_managed_adapter(adapter: Callable[[], int], *, post_apply: bool = False
     """Run an internal managed adapter and improve its public JSON presentation."""
 
     return _run_adapter(adapter, remediate=True, post_apply=post_apply)
+
+
+def _run_human_adapter(
+    adapter: Callable[[], int],
+    *,
+    command: str,
+    remediate: bool,
+    post_apply: bool,
+) -> int:
+    """Run an internal adapter and render its structured result for a human."""
+
+    previous_lock = _previous_lock_for_apply() if post_apply else None
+    stream = io.StringIO()
+    try:
+        with redirect_stdout(stream):
+            status = adapter()
+    except SystemExit as exc:
+        rendered = stream.getvalue()
+        if rendered:
+            try:
+                payload = json.loads(rendered)
+            except json.JSONDecodeError:
+                print(rendered, end="")
+            else:
+                if isinstance(payload, dict):
+                    presented = remediate_payload(payload) if remediate else payload
+                    print(render_human(presented, command), end="")
+                else:
+                    print(rendered, end="")
+        return exc.code if isinstance(exc.code, int) else 1
+
+    rendered = stream.getvalue()
+    try:
+        payload = json.loads(rendered)
+    except json.JSONDecodeError:
+        print(rendered, end="")
+        return status
+    if not isinstance(payload, dict):
+        print(rendered, end="")
+        return status
+
+    presented = remediate_payload(payload) if remediate else payload
+    if status == 0 and post_apply:
+        _add_post_apply_guidance(presented, previous_lock)
+    print(render_human(presented, command), end="")
+    return status
 
 
 def _emit_validation(payload: dict[str, object]) -> None:
@@ -348,17 +430,77 @@ def _run_public_validation() -> int:
     return 0 if status == "valid" and not errors else 2
 
 
+def _run_human_command(command: str, mode: str | None) -> int:
+    if command == "validate":
+        return _run_human_adapter(
+            _run_public_validation,
+            command=command,
+            remediate=False,
+            post_apply=False,
+        )
+
+    if mode is None:
+        return _run_human_adapter(
+            _initial_main,
+            command=command,
+            remediate=False,
+            post_apply=command == "apply",
+        )
+    if mode == "initial":
+        _remove_initial_mode()
+        return _run_human_adapter(
+            _initial_main,
+            command=command,
+            remediate=False,
+            post_apply=command == "apply",
+        )
+    if mode == "upgrade":
+        from composer_upgrade import main as upgrade_main
+
+        return _run_human_adapter(
+            upgrade_main,
+            command=command,
+            remediate=True,
+            post_apply=command == "apply",
+        )
+    if mode == "update" and command == "apply":
+        from composer_apply import main as apply_main
+
+        return _run_human_adapter(
+            apply_main,
+            command=command,
+            remediate=True,
+            post_apply=True,
+        )
+    from composer_update_plan import main as update_plan_main
+
+    return _run_human_adapter(
+        update_plan_main,
+        command=command,
+        remediate=True,
+        post_apply=False,
+    )
+
+
 def main() -> int:
     if sys.argv[1:] in (["--help"], ["-h"]):
         print(PUBLIC_HELP, end="")
         return 0
 
     _normalize_command_position()
+    output_format, format_error = _extract_public_format()
+    if format_error is not None:
+        print(f"{Path(sys.argv[0]).name}: error: {format_error}", file=sys.stderr)
+        return 2
+
     command = sys.argv[1] if len(sys.argv) > 1 else ""
+    mode = _mode_from_argv()
+    if output_format == "human":
+        return _run_human_command(command, mode)
+
     if command == "validate":
         return _run_public_validation()
 
-    mode = _mode_from_argv()
     if mode is None:
         if command == "apply":
             return _run_adapter(_initial_main, remediate=False, post_apply=True)
