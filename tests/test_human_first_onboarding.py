@@ -59,7 +59,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         self.assertEqual(
             lock["publications"]["composition"]["revision"],
-            "729d4488f7af1cad0d9bfac20570b751afacc4c2",
+            "353b6c8ed047c36ce88cc14f555047b96f43f6db",
         )
         self.assertEqual(
             lock["publications"]["policy"]["revision"],
@@ -87,7 +87,3 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             with self.subTest(href=href):
                 self.assertIn(f'href="{href}"', landing)
         self.assertIn("あなたの別 product repository", landing)
-
-
-if __name__ == "__main__":
-    unittest.main()
