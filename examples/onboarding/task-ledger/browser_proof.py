@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -12,6 +13,9 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+PRODUCT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PRODUCT_ROOT))
 
 from task_ledger.cli import make_server
 
