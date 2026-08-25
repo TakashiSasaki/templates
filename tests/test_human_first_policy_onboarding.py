@@ -23,7 +23,10 @@ class HumanFirstPolicyOnboardingTests(unittest.TestCase):
         text = GETTING_STARTED.read_text(encoding="utf-8")
         for expected in (
             "`unmanaged-empty` — no existing instructions; use **fresh adoption**",
-            "`unmanaged-existing` — existing instructions or policy are present; use **migration adoption**",
+            (
+                "`unmanaged-existing` — existing instructions or policy are present; "
+                "use **migration adoption**"
+            ),
             "## 4A. Fresh adoption",
             "## 4B. Migration adoption",
             "The existing primary instruction is **not replaced**",
@@ -37,11 +40,17 @@ class HumanFirstPolicyOnboardingTests(unittest.TestCase):
         text = GETTING_STARTED.read_text(encoding="utf-8")
         self.assertIn("`.agent-policy.yml` is human-owned configuration", text)
         self.assertIn("`policy/project.md` is human-owned product-specific policy input", text)
-        self.assertIn("`.agent-policy.lock`, rendered `AGENTS.md`, and generated validation skills are tool-managed", text)
+        self.assertIn(
+            "`.agent-policy.lock`, rendered `AGENTS.md`, and generated validation "
+            "skills are tool-managed",
+            text,
+        )
 
     def test_managed_first_use_loop_is_render_validate_check(self) -> None:
         text = GETTING_STARTED.read_text(encoding="utf-8")
-        section = text[text.index("## 6. Render, validate, and check a managed repository"):text.index("## Trust and runtime details")]
+        start = text.index("## 6. Render, validate, and check a managed repository")
+        end = text.index("## Trust and runtime details")
+        section = text[start:end]
         render = section.index(" render\n")
         validate = section.index(" validate\n")
         check = section.index(" check\n")
