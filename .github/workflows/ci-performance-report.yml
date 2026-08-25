@@ -1,0 +1,305 @@
+name: CI performance report
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs_per_workflow:
+        description: Completed runs to sample per workflow
+        required: true
+        default: '5'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Collect recent workflow timings
+        uses: actions/github-script@v8
+        env:
+          RUNS_PER_WORKFLOW: ${{ inputs.runs_per_workflow }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const rawRunsPerWorkflow = process.env.RUNS_PER_WORKFLOW;
+            const runsPerWorkflow = Number(rawRunsPerWorkflow);
+            if (
+              !Number.isInteger(runsPerWorkflow) ||
+              runsPerWorkflow < 1 ||
+              runsPerWorkflow > 10
+            ) {
+              throw new Error(
+                `runs_per_workflow must be an integer from 1 through 10; received ${rawRunsPerWorkflow}`
+              );
+            }
+
+            const canonicalBranches = new Set(['site', 'policy', 'composition']);
+            const relevantBranch = (branch) =>
+              canonicalBranches.has(branch) || String(branch || '').startsWith('agent/');
+            const workflowName = context.workflow;
+            const selectedByWorkflow = new Map();
+
+            // Scan recent completed repository runs in bounded pages. Stop early once
+            // every workflow already observed in the sample has enough runs and a page
+            // contributes no new workflow names. Five pages bounds API use while still
+            // reaching less-frequently changed Policy and Composition authorities.
+            for (let page = 1; page <= 5; page += 1) {
+              const response = await github.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                status: 'completed',
+                per_page: 100,
+                page,
+              });
+
+              let discoveredNewWorkflow = false;
+              for (const run of response.data.workflow_runs) {
+                if (!relevantBranch(run.head_branch) || run.name === workflowName) {
+                  continue;
+                }
+                if (!selectedByWorkflow.has(run.name)) {
+                  selectedByWorkflow.set(run.name, []);
+                  discoveredNewWorkflow = true;
+                }
+                const selected = selectedByWorkflow.get(run.name);
+                if (selected.length < runsPerWorkflow) {
+                  selected.push(run);
+                }
+              }
+
+              if (response.data.workflow_runs.length < 100) {
+                break;
+              }
+              const allObservedFull = [...selectedByWorkflow.values()].every(
+                (runs) => runs.length >= runsPerWorkflow
+              );
+              if (page >= 2 && allObservedFull && !discoveredNewWorkflow) {
+                break;
+              }
+            }
+
+            if (selectedByWorkflow.size === 0) {
+              throw new Error('No completed canonical or agent workflow runs were found.');
+            }
+
+            const durationSeconds = (start, end) => {
+              if (!start || !end) {
+                return null;
+              }
+              return Math.max(0, (Date.parse(end) - Date.parse(start)) / 1000);
+            };
+            const numeric = (values) => values.filter((value) => Number.isFinite(value));
+            const median = (values) => {
+              const sorted = numeric(values).slice().sort((left, right) => left - right);
+              if (sorted.length === 0) {
+                return null;
+              }
+              const midpoint = Math.floor(sorted.length / 2);
+              return sorted.length % 2 === 0
+                ? (sorted[midpoint - 1] + sorted[midpoint]) / 2
+                : sorted[midpoint];
+            };
+            const percentile = (values, probability) => {
+              const sorted = numeric(values).slice().sort((left, right) => left - right);
+              if (sorted.length === 0) {
+                return null;
+              }
+              const index = Math.ceil(probability * sorted.length) - 1;
+              return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
+            };
+            const formatSeconds = (value) => {
+              if (!Number.isFinite(value)) {
+                return 'n/a';
+              }
+              if (value < 60) {
+                return `${value.toFixed(1)} s`;
+              }
+              const minutes = Math.floor(value / 60);
+              const seconds = value - minutes * 60;
+              return `${minutes}m ${seconds.toFixed(1)}s`;
+            };
+            const markdownCell = (value) =>
+              String(value ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
+
+            const runRecords = [];
+            for (const [name, runs] of selectedByWorkflow.entries()) {
+              for (const run of runs) {
+                const jobs = await github.paginate(
+                  github.rest.actions.listJobsForWorkflowRun,
+                  {
+                    owner,
+                    repo,
+                    run_id: run.id,
+                    per_page: 100,
+                  }
+                );
+
+                const jobRecords = jobs.map((job) => ({
+                  id: job.id,
+                  name: job.name,
+                  conclusion: job.conclusion,
+                  started_at: job.started_at,
+                  completed_at: job.completed_at,
+                  duration_seconds: durationSeconds(job.started_at, job.completed_at),
+                  steps: (job.steps || []).map((step) => ({
+                    name: step.name,
+                    conclusion: step.conclusion,
+                    started_at: step.started_at,
+                    completed_at: step.completed_at,
+                    duration_seconds: durationSeconds(step.started_at, step.completed_at),
+                  })),
+                }));
+                const runnerSeconds = numeric(
+                  jobRecords.map((job) => job.duration_seconds)
+                ).reduce((total, value) => total + value, 0);
+
+                runRecords.push({
+                  id: run.id,
+                  workflow: name,
+                  event: run.event,
+                  branch: run.head_branch,
+                  head_sha: run.head_sha,
+                  conclusion: run.conclusion,
+                  run_started_at: run.run_started_at,
+                  updated_at: run.updated_at,
+                  html_url: run.html_url,
+                  wall_seconds: durationSeconds(run.run_started_at, run.updated_at),
+                  runner_seconds: runnerSeconds,
+                  jobs: jobRecords,
+                });
+              }
+            }
+
+            const workflowStats = [...selectedByWorkflow.keys()].map((name) => {
+              const runs = runRecords.filter((run) => run.workflow === name);
+              const wall = runs.map((run) => run.wall_seconds);
+              const runner = runs.map((run) => run.runner_seconds);
+              return {
+                workflow: name,
+                run_count: runs.length,
+                median_wall_seconds: median(wall),
+                p90_wall_seconds: percentile(wall, 0.9),
+                median_runner_seconds: median(runner),
+                total_runner_seconds: numeric(runner).reduce(
+                  (total, value) => total + value,
+                  0
+                ),
+              };
+            }).sort(
+              (left, right) =>
+                (right.median_wall_seconds || 0) - (left.median_wall_seconds || 0)
+            );
+
+            const stepGroups = new Map();
+            for (const run of runRecords) {
+              for (const job of run.jobs) {
+                for (const step of job.steps) {
+                  if (!Number.isFinite(step.duration_seconds)) {
+                    continue;
+                  }
+                  const key = `${run.workflow} :: ${job.name} :: ${step.name}`;
+                  if (!stepGroups.has(key)) {
+                    stepGroups.set(key, []);
+                  }
+                  stepGroups.get(key).push(step.duration_seconds);
+                }
+              }
+            }
+            const stepStats = [...stepGroups.entries()].map(([step, values]) => ({
+              step,
+              sample_count: values.length,
+              median_seconds: median(values),
+              total_seconds: values.reduce((total, value) => total + value, 0),
+            })).sort((left, right) => right.total_seconds - left.total_seconds);
+
+            const report = {
+              schema_version: 1,
+              generated_at: new Date().toISOString(),
+              repository: `${owner}/${repo}`,
+              selection: {
+                canonical_branches: [...canonicalBranches],
+                include_agent_branches: true,
+                runs_per_workflow: runsPerWorkflow,
+                max_repository_run_pages: 5,
+              },
+              notes: {
+                wall_seconds: 'workflow run_started_at through updated_at',
+                runner_seconds:
+                  'sum of job started_at through completed_at; parallel jobs therefore add together',
+                billing:
+                  'runner_seconds is an execution-time estimate, not GitHub billing-minute accounting',
+              },
+              workflow_stats: workflowStats,
+              step_stats: stepStats,
+              runs: runRecords,
+            };
+            fs.writeFileSync(
+              'ci-performance-report.json',
+              `${JSON.stringify(report, null, 2)}\n`,
+              'utf8'
+            );
+
+            const workflowRows = workflowStats.map((stat) => [
+              markdownCell(stat.workflow),
+              String(stat.run_count),
+              formatSeconds(stat.median_wall_seconds),
+              formatSeconds(stat.p90_wall_seconds),
+              formatSeconds(stat.median_runner_seconds),
+              formatSeconds(stat.total_runner_seconds),
+            ]);
+            const topStepRows = stepStats.slice(0, 20).map((stat) => [
+              markdownCell(stat.step),
+              String(stat.sample_count),
+              formatSeconds(stat.median_seconds),
+              formatSeconds(stat.total_seconds),
+            ]);
+
+            await core.summary
+              .addHeading('CI performance baseline')
+              .addRaw(
+                `Sample: up to ${runsPerWorkflow} recent completed run(s) per workflow on ` +
+                  '`site`, `policy`, `composition`, or `agent/*` branches.\n\n'
+              )
+              .addRaw(
+                'Runner time is the sum of job execution durations and is useful for comparing ' +
+                  'resource consumption; it is not GitHub billing-minute accounting.\n\n'
+              )
+              .addHeading('Workflow timing', 2)
+              .addTable([
+                [
+                  { data: 'Workflow', header: true },
+                  { data: 'Runs', header: true },
+                  { data: 'Median wall', header: true },
+                  { data: 'P90 wall', header: true },
+                  { data: 'Median runner', header: true },
+                  { data: 'Sample runner total', header: true },
+                ],
+                ...workflowRows,
+              ])
+              .addHeading('Highest cumulative step time', 2)
+              .addTable([
+                [
+                  { data: 'Workflow / job / step', header: true },
+                  { data: 'Samples', header: true },
+                  { data: 'Median', header: true },
+                  { data: 'Total', header: true },
+                ],
+                ...topStepRows,
+              ])
+              .write();
+
+      - name: Upload machine-readable timing report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-performance-report-${{ github.run_id }}
+          path: ci-performance-report.json
+          if-no-files-found: error
+          retention-days: 30
