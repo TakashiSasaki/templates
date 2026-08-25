@@ -20,7 +20,7 @@
       "canonical": "components/artifact.skill-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.skill-core/files/README.md",
-      "canonical_blob_sha": "6ea67379639f2f917c6d093c8551acab26e6acd2",
+      "canonical_blob_sha": "c4384cc6cab8919cad8766ec5bedd4729bdfa850",
       "surfaces": ["reader"]
     },
     {
@@ -69,7 +69,7 @@
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
-      "canonical_blob_sha": "7d7efa5afe932bc199b316020075e8ea87019019",
+      "canonical_blob_sha": "3ebfa8bbfc8c57fa69f425235670929536e89eb0",
       "surfaces": ["reader"]
     },
     {
