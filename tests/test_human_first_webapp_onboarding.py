@@ -97,6 +97,36 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         self.assertIn("Create `tests/test_task_ledger.py`", text[:execution])
         self.assertIn("chmod +x scripts/verify.sh", text[:execution])
 
+    def test_reference_product_scope_and_browser_proof_boundary_are_truthful(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        for expected in (
+            "does not claim browser title editing",
+            "API also supports title updates",
+            "Optional task notes",
+            "is **not** browser-level proof",
+            "real positive and negative",
+            "`accessibility-test` or `end-to-end-test` proofs",
+            "Do not relabel source inspection, HTTP reachability, or unit tests",
+            "keep the evidence document in `template` mode",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, text)
+        self.assertNotIn("browser UI for creating, listing, editing", text)
+
+        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
+        for expected in (
+            "completion requirement ではありません",
+            "API は title update も提供します",
+            "browser title editing を claim しません",
+            "browser-level proof ではありません",
+            "実ブラウザを使う positive / negative",
+            "`accessibility-test` または `end-to-end-test` proof",
+            "HTTP reachability、unit test を browser proof として再分類",
+            "evidence document を `template` mode に保ちます",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, japanese)
+
     def test_discoverability_entrypoints_prioritize_first_use(self) -> None:
         entrypoints = {
             ROOT / "README.md": ("Webapp product walkthrough", "## Lifecycle at a glance"),

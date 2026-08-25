@@ -4,7 +4,11 @@
 
 これは Composition で Web application を作る canonical first-use walkthrough です。Composition architecture を先に読む必要はありません。上から順に進めてください。
 
-例は **Task Ledger** です。browser UI、SQLite 永続化、独立 HTTP JSON API、`list` / `export` CLI を持つ小さな product を作ります。Python / SQLite は Task Ledger の product decision であり、Composition の推奨 technology ではありません。
+例は **Task Ledger** です。以下の minimal reference product は、task の create、list、complete/reopen、delete、filter を行う browser UI、SQLite 永続化、独立 HTTP JSON API、`list` / `export` CLI を持ちます。API は title update も提供しますが、minimal browser UI は browser title edit を claim しません。
+
+この walkthrough は、意図的に小さな reference-product scope を独自に定義します。optional notes と browser title-edit control は通常の consumer-owned extension であり、この walkthrough の completion requirement ではありません。追加する場合は、consumer-owned contracts、implementation、tests、evidence を一緒に更新します。
+
+Python / SQLite は Task Ledger の product decision であり、Composition の推奨 technology ではありません。
 
 ## 0. この walkthrough で何を作るか
 
@@ -575,7 +579,7 @@ manual start:
 python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --port 8080
 ```
 
-`http://127.0.0.1:8080/` で create、complete/reopen、delete、filter を確認できます。title edit は `PATCH /api/tasks/{id}` に実装されていますが minimal browser UI には edit control がありません。browser-edit evidence を claim する前に edit control と proof を追加するか、browser contract を実際の UI behavior に狭めます。
+`http://127.0.0.1:8080/` で create、complete/reopen、delete、filter を確認できます。reference browser contract は意図的に browser title editing を claim しません。`PATCH /api/tasks/{id}` は独立して support される API の一部です。browser edit control の追加は ordinary consumer-owned extension であり、対応する browser contract と proof も更新する必要があります。
 
 **Repository change:** 上記は ordinary consumer-owned implementation / verification material です。
 
@@ -605,6 +609,8 @@ python scripts/scaffold_webapp_evidence.py > /tmp/webapp-evidence-worklist.json
 
 initial `contracts/implementation-evidence.json` は `template` mode です。implementation、`./scripts/verify.sh`、proof location が実在してから `product` mode にします。
 
+Section 12 の verifier が提供するのは unit/integration evidence であり、viewport または keyboard target に対する browser-level proof ではありません。これらの browser-sensitive target には、実ブラウザを使う positive / negative の `accessibility-test` または `end-to-end-test` proof が必要です。その browser suite が存在するまでは implementation evidence を `template` mode に保ちます。source inspection、HTTP reachability、unit test を browser proof として再分類してはいけません。
+
 command/gate 例:
 
 ```json
@@ -628,6 +634,8 @@ command/gate 例:
 
 各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
+viewport と keyboard を含むすべての current target に、要求された kind の truthful proof が存在してから、両方の verification layer を実行します。
+
 ```sh
 ./scripts/verify.sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -635,7 +643,9 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-product verification が pass し、Composition validation が `status: "valid"`、implementation evidence が template-deferred ではなく executed されることを確認します。
+browser suite を含む authoritative product verification が pass し、Composition validation が `status: "valid"`、implementation evidence が template-deferred ではなく executed されることを確認します。
+
+Section 12 で提供する standard-library unit/integration verifier だけでは、この強い product-mode result をまだ claim しません。その場合は evidence document を `template` mode に保ちます。
 
 ## 16. 必要なら coding-agent Policy を adopt する
 
@@ -687,6 +697,6 @@ lock metadata を hand-edit して conflict を成功に見せてはいけませ
 
 **First-use scaffold milestone:** separate product repository、Composition install、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
 
-**Implemented-product milestone:** truthful consumer contracts、product source/tests、passing product verifier、complete product-mode implementation evidence、executed implementation-evidence を含む valid Composition validation、必要なら独立した valid Policy state。
+**Implemented-product milestone:** truthful consumer contracts、product source/tests、browser-sensitive target の browser-level proof を含む passing product verifier、complete product-mode implementation evidence、executed implementation-evidence を含む valid Composition validation、必要なら独立した valid Policy state。
 
 first milestone 後の next action は明確です。consumer-owned contracts を product の実態へ合わせ、Section 12 で ordinary source/tests を作り、Sections 13–15 へ進みます。詳細 reference は [Using Composition](../consumer-guide.md) と [Composer reference](../reference/composer.md) を使用してください。
