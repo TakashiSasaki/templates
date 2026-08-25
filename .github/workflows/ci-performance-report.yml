@@ -41,16 +41,72 @@ jobs:
               );
             }
 
-            const canonicalBranches = new Set(['site', 'policy', 'composition']);
+            const canonicalBranches = ['site', 'policy', 'composition'];
+            const canonicalBranchSet = new Set(canonicalBranches);
             const relevantBranch = (branch) =>
-              canonicalBranches.has(branch) || String(branch || '').startsWith('agent/');
+              canonicalBranchSet.has(branch) || String(branch || '').startsWith('agent/');
             const workflowName = context.workflow;
-            const selectedByWorkflow = new Map();
 
-            // Scan recent completed repository runs in bounded pages. Stop early once
-            // every workflow already observed in the sample has enough runs and a page
-            // contributes no new workflow names. Five pages bounds API use while still
-            // reaching less-frequently changed Policy and Composition authorities.
+            // Discover the workflow names that are currently declared by the three
+            // canonical authorities. This prevents old/retired workflow names from
+            // polluting the baseline while allowing the report to follow future
+            // workflow additions without a hard-coded list.
+            const workflowAuthorities = new Map();
+            for (const branch of canonicalBranches) {
+              const directory = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path: '.github/workflows',
+                ref: branch,
+              });
+              if (!Array.isArray(directory.data)) {
+                throw new Error(`Expected .github/workflows to be a directory on ${branch}.`);
+              }
+
+              for (const entry of directory.data) {
+                if (
+                  entry.type !== 'file' ||
+                  !(entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
+                ) {
+                  continue;
+                }
+                const file = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  path: entry.path,
+                  ref: branch,
+                });
+                if (Array.isArray(file.data) || !file.data.content) {
+                  throw new Error(`Could not read ${entry.path} from ${branch}.`);
+                }
+                const source = Buffer.from(file.data.content, 'base64').toString('utf8');
+                const nameMatch = source.match(
+                  /^name:\s*(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/m
+                );
+                if (!nameMatch) {
+                  throw new Error(`Workflow ${entry.path} on ${branch} has no top-level name.`);
+                }
+                const name = nameMatch[1] || nameMatch[2] || nameMatch[3];
+                if (name === workflowName) {
+                  continue;
+                }
+                if (!workflowAuthorities.has(name)) {
+                  workflowAuthorities.set(name, new Set());
+                }
+                workflowAuthorities.get(name).add(branch);
+              }
+            }
+
+            if (workflowAuthorities.size === 0) {
+              throw new Error('No current canonical workflows were discovered.');
+            }
+
+            const selectedByWorkflow = new Map(
+              [...workflowAuthorities.keys()].map((name) => [name, []])
+            );
+
+            // Scan a bounded history window. Five pages keeps API use predictable
+            // while reaching workflows from less-frequently changed authorities.
             for (let page = 1; page <= 5; page += 1) {
               const response = await github.rest.actions.listWorkflowRunsForRepo({
                 owner,
@@ -60,14 +116,9 @@ jobs:
                 page,
               });
 
-              let discoveredNewWorkflow = false;
               for (const run of response.data.workflow_runs) {
-                if (!relevantBranch(run.head_branch) || run.name === workflowName) {
+                if (!relevantBranch(run.head_branch) || !selectedByWorkflow.has(run.name)) {
                   continue;
-                }
-                if (!selectedByWorkflow.has(run.name)) {
-                  selectedByWorkflow.set(run.name, []);
-                  discoveredNewWorkflow = true;
                 }
                 const selected = selectedByWorkflow.get(run.name);
                 if (selected.length < runsPerWorkflow) {
@@ -78,16 +129,6 @@ jobs:
               if (response.data.workflow_runs.length < 100) {
                 break;
               }
-              const allObservedFull = [...selectedByWorkflow.values()].every(
-                (runs) => runs.length >= runsPerWorkflow
-              );
-              if (page >= 2 && allObservedFull && !discoveredNewWorkflow) {
-                break;
-              }
-            }
-
-            if (selectedByWorkflow.size === 0) {
-              throw new Error('No completed canonical or agent workflow runs were found.');
             }
 
             const durationSeconds = (start, end) => {
@@ -126,8 +167,6 @@ jobs:
               const seconds = value - minutes * 60;
               return `${minutes}m ${seconds.toFixed(1)}s`;
             };
-            const markdownCell = (value) =>
-              String(value ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ');
 
             const runRecords = [];
             for (const [name, runs] of selectedByWorkflow.entries()) {
@@ -164,6 +203,7 @@ jobs:
                 runRecords.push({
                   id: run.id,
                   workflow: name,
+                  authorities: [...workflowAuthorities.get(name)].sort(),
                   event: run.event,
                   branch: run.head_branch,
                   head_sha: run.head_sha,
@@ -178,12 +218,17 @@ jobs:
               }
             }
 
+            if (runRecords.length === 0) {
+              throw new Error('No completed runs were found for current canonical workflows.');
+            }
+
             const workflowStats = [...selectedByWorkflow.keys()].map((name) => {
               const runs = runRecords.filter((run) => run.workflow === name);
               const wall = runs.map((run) => run.wall_seconds);
               const runner = runs.map((run) => run.runner_seconds);
               return {
                 workflow: name,
+                authorities: [...workflowAuthorities.get(name)].sort(),
                 run_count: runs.length,
                 median_wall_seconds: median(wall),
                 p90_wall_seconds: percentile(wall, 0.9),
@@ -193,10 +238,11 @@ jobs:
                   0
                 ),
               };
-            }).sort(
-              (left, right) =>
-                (right.median_wall_seconds || 0) - (left.median_wall_seconds || 0)
-            );
+            }).sort((left, right) => {
+              const durationOrder =
+                (right.median_wall_seconds || 0) - (left.median_wall_seconds || 0);
+              return durationOrder || left.workflow.localeCompare(right.workflow);
+            });
 
             const stepGroups = new Map();
             for (const run of runRecords) {
@@ -225,7 +271,12 @@ jobs:
               generated_at: new Date().toISOString(),
               repository: `${owner}/${repo}`,
               selection: {
-                canonical_branches: [...canonicalBranches],
+                canonical_branches: canonicalBranches,
+                current_workflows: Object.fromEntries(
+                  [...workflowAuthorities.entries()]
+                    .sort(([left], [right]) => left.localeCompare(right))
+                    .map(([name, authorities]) => [name, [...authorities].sort()])
+                ),
                 include_agent_branches: true,
                 runs_per_workflow: runsPerWorkflow,
                 max_repository_run_pages: 5,
@@ -248,7 +299,8 @@ jobs:
             );
 
             const workflowRows = workflowStats.map((stat) => [
-              markdownCell(stat.workflow),
+              stat.workflow,
+              stat.authorities.join(', '),
               String(stat.run_count),
               formatSeconds(stat.median_wall_seconds),
               formatSeconds(stat.p90_wall_seconds),
@@ -256,7 +308,7 @@ jobs:
               formatSeconds(stat.total_runner_seconds),
             ]);
             const topStepRows = stepStats.slice(0, 20).map((stat) => [
-              markdownCell(stat.step),
+              stat.step,
               String(stat.sample_count),
               formatSeconds(stat.median_seconds),
               formatSeconds(stat.total_seconds),
@@ -265,8 +317,9 @@ jobs:
             await core.summary
               .addHeading('CI performance baseline')
               .addRaw(
-                `Sample: up to ${runsPerWorkflow} recent completed run(s) per workflow on ` +
-                  '`site`, `policy`, `composition`, or `agent/*` branches.\n\n'
+                `Sample: up to ${runsPerWorkflow} recent completed run(s) for each workflow ` +
+                  'currently declared by `site`, `policy`, or `composition`. Agent-branch runs ' +
+                  'are included when they use one of those current workflow names.\n\n'
               )
               .addRaw(
                 'Runner time is the sum of job execution durations and is useful for comparing ' +
@@ -276,6 +329,7 @@ jobs:
               .addTable([
                 [
                   { data: 'Workflow', header: true },
+                  { data: 'Authority', header: true },
                   { data: 'Runs', header: true },
                   { data: 'Median wall', header: true },
                   { data: 'P90 wall', header: true },
