@@ -83,7 +83,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "c05312b7c21a05d25df5bc6bfa204c472523a106",
+      "canonical_blob_sha": "0a78525a3b4a9198187eb5e5f8e05825921e8be0",
       "surfaces": ["reader", "guided"]
     },
     {
