@@ -643,7 +643,7 @@ Create `task_ledger/static/index.html`:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
-<h1>Task Ledger</h1>
+<h1 id="main-heading">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
@@ -776,6 +776,42 @@ python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --por
 
 Then open `http://127.0.0.1:8080/` and exercise create, complete/reopen, delete, and filter behavior. The reference browser contract intentionally does not claim browser title editing. `PATCH /api/tasks/{id}` remains part of the independently supported API; adding a browser edit control is an ordinary consumer-owned extension that also requires matching browser contract and proof updates. The service and CLI remain independently callable.
 
+### Add the real-browser viewport and keyboard proof
+
+The Webapp evidence validator requires real positive and negative browser-level proof for the declared `viewports/base` and `input-capability/keyboard` targets. HTTP reachability and the unit/integration tests above do not satisfy that requirement.
+
+Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are not already installed, download the matching browser and driver archives from the official [Chrome for Testing availability dashboard](https://googlechromelabs.github.io/chrome-for-testing/) and extract them outside the product repository. Put `chromedriver` on `PATH`, or set `CHROMEWEBDRIVER` to its absolute path. When Chrome is not on the normal platform path, set `CHROME_BINARY` to the extracted browser executable.
+
+**Check**
+
+```sh
+"${CHROME_BINARY:-google-chrome}" --version
+"${CHROMEWEBDRIVER:-chromedriver}" --version
+```
+
+Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
+
+```sh
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/03af76c1703aafbe08fbbc4f8f23d773180eb656/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+```
+
+The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:
+
+- positive responsive behavior at narrow and landscape viewports;
+- negative page-wide horizontal-overflow and zoom-lock checks;
+- genuine 200% browser page-scale operability;
+- positive keyboard create, complete, filter, and delete paths;
+- negative empty-title keyboard submission; and
+- an unknown-route browser negative path.
+
+Add the browser proof to the authoritative verifier:
+
+```sh
+cat >> scripts/verify.sh <<'SH'
+python tests/test_task_ledger_browser.py
+SH
+```
+
 **Repository change**
 
 Yes. The files above are ordinary consumer-owned implementation and verification material. They do not modify Composition-managed/generated paths.
@@ -842,7 +878,7 @@ Multiple records may reuse one command/gate when one suite genuinely proves mult
 
 The initial `contracts/implementation-evidence.json` is intentionally in `template` mode with no product implementation claim. Change it to `product` mode only after the implementation, `./scripts/verify.sh`, and referenced proof locations really exist.
 
-The Section 12 verifier supplies unit/integration evidence; it is **not** browser-level proof for viewport or keyboard targets. Those browser-sensitive targets require real positive and negative `accessibility-test` or `end-to-end-test` proofs. Keep implementation evidence in `template` mode until such a browser suite exists. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
+The unit/integration portion of the Section 12 verifier is **not** browser-level proof by itself. The downloaded `tests/test_task_ledger_browser.py` adds real positive and negative `end-to-end-test` paths for the viewport and keyboard targets. If you skip that script or it does not run successfully in a real browser, keep implementation evidence in `template` mode. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
 
 A command and gate can look like:
 
@@ -867,6 +903,8 @@ A command and gate can look like:
 
 Each record still needs its exact worklist target, verified implementation-boundary locator, verified positive/negative proof locators, expected results, and selected gate. Do not copy a sample target from this guide; the authoritative target set belongs to the consumer repository.
 
+For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
+
 After every current target—including viewport and keyboard targets—has truthful proof of the required kind, run both verification layers.
 
 **Run**
@@ -883,7 +921,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 - the authoritative product verification command, including the referenced browser suite, passes; and
 - Composition validation returns `status: "valid"` with implementation evidence executed rather than template-deferred.
 
-With only the standard-library unit/integration verifier supplied in Section 12, this stronger product-mode result is not yet claimed; keep the evidence document in `template` mode.
+If the real-browser script was omitted, skipped, or unable to start Chrome/ChromeDriver, this stronger product-mode result is not claimed; keep the evidence document in `template` mode.
 
 **What this means**
 
