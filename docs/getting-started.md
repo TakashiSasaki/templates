@@ -84,7 +84,7 @@ The installed skill contains `scripts/bootstrap.py` and `scripts/run.py`.
 
 **Repository change**
 
-None in the product repository. Installing the skill does not itself install an `agent-policy` executable globally on `PATH`.
+None in the product repository. Installing the skill does not by itself install an `agent-policy` executable globally on `PATH`.
 
 **What this means**
 
@@ -197,7 +197,7 @@ python scripts/bootstrap.py \
 
 If inspection found exactly one supported instruction file, omit `--primary-instructions`.
 
-If no supported instruction file exists, create one supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
+If no supported instruction files are discovered, create one supported instruction file first; policy or skill assets alone cannot be selected as primary instructions.
 
 **Repository change**
 
@@ -269,7 +269,7 @@ core
 security-baseline
 ```
 
-The normal bootstrap path uses exactly that pair for fresh adoption and migration preparation.
+The baseline profiles are `core` and `security-baseline`. The normal bootstrap path uses exactly that pair for fresh adoption and migration preparation.
 
 Add operation-specific profiles only when the context actually performs those operations:
 
