@@ -371,10 +371,12 @@ A small Task Ledger inventory can use:
 | --- | --- |
 | surface | `primary`: Task Ledger browser UI, local-product audience, non-diagnostic |
 | route | `home` at `/`: canonical task-list route |
-| states | `ready` plus only the loading/empty/error states actually visible in the implementation |
+| states | `ready`, `empty`, and `error`, matching the observable reference-product states |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
 
 For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+
+For this reference product, set the `home` route `states` array to `["ready", "empty", "error"]`. In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items. Use `category: "content"` for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, and `focusStrategy: "preserve"` for all three. The implementation below renders `No tasks yet.` for `empty`, renders `Could not load tasks.` on a failed list refresh while leaving the existing content in place, restores focus to the replacement task action after completion, and moves focus to the status-filter fallback after deleting the focused task. Do not omit observable states from the route inventory merely to reduce evidence requirements.
 
 Do not add authentication, administration, role-based authorization, touch support, multiple breakpoints, or diagnostic surfaces merely because a larger application might need them.
 
@@ -661,21 +663,41 @@ async function request(path, options = {}) {
   if (!response.ok && response.status !== 204) throw new Error(await response.text());
   return response.status === 204 ? null : response.json();
 }
-async function load() {
-  tasks.replaceChildren();
-  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
-  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
-  for (const task of values) {
-    const item = document.createElement('li');
-    const label = document.createElement('span');
-    label.textContent = task.title + (task.completed ? ' (completed)' : '');
-    const toggle = document.createElement('button');
-    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
-    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
-    const remove = document.createElement('button');
-    remove.textContent = 'Delete';
-    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
-    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+async function load({focusTaskId = null, focusAction = null} = {}) {
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    tasks.replaceChildren();
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
   }
 }
 document.querySelector('#new-task').onsubmit = async event => {
@@ -684,8 +706,8 @@ document.querySelector('#new-task').onsubmit = async event => {
   await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
   input.value = ''; await load();
 };
-document.querySelector('#status').onchange = load;
-load().catch(error => { message.textContent = error.message; });
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
 </script>
 ```
 

@@ -57,6 +57,39 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return target
 
+    def specialize_browser_contracts(self, target: Path) -> None:
+        routes_path = target / "contracts" / "routes.json"
+        routes = json.loads(routes_path.read_text(encoding="utf-8"))
+        routes["routes"][0]["states"] = ["ready", "empty", "error"]
+        self.write_json(routes_path, routes)
+
+        states_path = target / "contracts" / "ui-states.json"
+        states = json.loads(states_path.read_text(encoding="utf-8"))
+        ready = states["states"][0]
+        ready["focusStrategy"] = "preserve"
+        states["states"] = [
+            ready,
+            {
+                "id": "empty",
+                "scope": "route",
+                "category": "content",
+                "description": "The task list is empty and the empty message is visible.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+            {
+                "id": "error",
+                "scope": "route",
+                "category": "error",
+                "description": "A task-list refresh failed and the visible status region reports the failure.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+        ]
+        self.write_json(states_path, states)
+
     def install_walkthrough_product(self, target: Path) -> None:
         (target / "task_ledger" / "static").mkdir(parents=True)
         (target / "tests").mkdir(exist_ok=True)
@@ -193,6 +226,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
     def test_walkthrough_reaches_real_browser_product_mode_valid(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(Path(temp_dir))
+            self.specialize_browser_contracts(target)
             self.install_walkthrough_product(target)
 
             unit = self.run_python(

@@ -197,6 +197,8 @@ Browser: `primary` surface、`/` の home route、実際に表示する state、
 
 viewport coverage の先頭 target では `minWidthPx: 0` を維持してください。これは幅 0px のブラウザをサポートするという意味ではなく、validator が coverage graph の先頭に隙間がないことを確認するための coverage-start sentinel です。この walkthrough の実ブラウザ proof が検証する実用上の最小幅は 320px であり、`minWidthPx: 0` の sentinel と tested minimum の 320px は別の概念です。
 
+この reference product では `home` route の `states` を `["ready", "empty", "error"]` にします。`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の `announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で `No tasks yet.`、list refresh failure で既存contentを維持したまま `Could not load tasks.` を表示し、task completion 後には置換後のactionへfocusを復元し、focused taskをdeleteした後はstatus filterへfocusを移します。observable state を evidence requirement の削減目的で route inventory から外してはいけません。
+
 `RUNTIME.md` の例:
 
 ```text
@@ -466,21 +468,41 @@ async function request(path, options = {}) {
   if (!response.ok && response.status !== 204) throw new Error(await response.text());
   return response.status === 204 ? null : response.json();
 }
-async function load() {
-  tasks.replaceChildren();
-  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
-  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
-  for (const task of values) {
-    const item = document.createElement('li');
-    const label = document.createElement('span');
-    label.textContent = task.title + (task.completed ? ' (completed)' : '');
-    const toggle = document.createElement('button');
-    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
-    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
-    const remove = document.createElement('button');
-    remove.textContent = 'Delete';
-    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
-    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+async function load({focusTaskId = null, focusAction = null} = {}) {
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    tasks.replaceChildren();
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
   }
 }
 document.querySelector('#new-task').onsubmit = async event => {
@@ -489,8 +511,8 @@ document.querySelector('#new-task').onsubmit = async event => {
   await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
   input.value = ''; await load();
 };
-document.querySelector('#status').onchange = load;
-load().catch(error => { message.textContent = error.message; });
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
 </script>
 ```
 

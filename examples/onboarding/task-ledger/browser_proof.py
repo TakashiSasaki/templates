@@ -329,6 +329,12 @@ def run_browser_proof(base_url: str) -> None:
         require(not layout["overflow"], "page has horizontal overflow at 320px")
         require(not layout["nestedOverflow"], "nested content scrolls horizontally at 320px")
         require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")
+        wait_for(
+            browser,
+            """return document.querySelectorAll('#tasks li').length === 0
+                && document.querySelector('#message')?.textContent === 'No tasks yet.'""",
+            "empty state is not visibly rendered",
+        )
 
         browser.tab_to("#title", 1)
         browser.send_keys_to_active(ENTER)
@@ -350,6 +356,7 @@ def run_browser_proof(base_url: str) -> None:
         populated_narrow = browser.execute(
             """
             const actions = [...document.querySelectorAll('#tasks li button')];
+            const labels = [...document.querySelectorAll('#tasks li span')];
             const nestedOverflow = [...document.querySelectorAll('body *')].some((element) => {
               const style = getComputedStyle(element);
               const rect = element.getBoundingClientRect();
@@ -386,12 +393,30 @@ def run_browser_proof(base_url: str) -> None:
                 );
                 return hit === element || element.contains(hit);
               }),
+              labelsVisible: labels.length === 1 && labels.every((element) => {
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) return false;
+                }
+                const rect = element.getBoundingClientRect();
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
+              }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow,
             };
             """
         )
         require(populated_narrow["actionsFit"], "task actions are outside the narrow viewport")
+        require(populated_narrow["labelsVisible"], "task title is not visibly reachable at 320px")
         require(not populated_narrow["overflow"], "populated narrow state has page overflow")
         require(
             not populated_narrow["nestedOverflow"],
@@ -410,6 +435,12 @@ def run_browser_proof(base_url: str) -> None:
             browser,
             "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
             "keyboard activation did not complete the task",
+        )
+        wait_for(
+            browser,
+            """return document.activeElement?.matches('#tasks li:first-child button:first-of-type')
+                && document.activeElement.textContent === 'Reopen'""",
+            "focus was not preserved on the replacement task action after completion",
         )
         browser.navigate(base_url)
         wait_for(
@@ -453,6 +484,10 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelectorAll('#tasks li').length === 0",
             "keyboard activation did not remove the task from the completed filter",
         )
+        require(
+            browser.execute("return document.activeElement?.matches('#status')"),
+            "delete did not move focus to the deterministic status-filter fallback",
+        )
         browser.navigate(base_url)
         wait_for(
             browser,
@@ -466,10 +501,10 @@ def run_browser_proof(base_url: str) -> None:
         landscape = browser.execute(
             """
             const controls = [
-              ...['#title', '#new-task button', '#status'].map(
+              ...['#main-heading', '#title', '#new-task button', '#status'].map(
                 (selector) => document.querySelector(selector)
               ),
-              ...document.querySelectorAll('#tasks li button'),
+              ...document.querySelectorAll('#tasks li span, #tasks li button'),
             ];
             const effectivelyVisible = (element) => {
               for (let current = element; current; current = current.parentElement) {
@@ -480,7 +515,7 @@ def run_browser_proof(base_url: str) -> None:
               return true;
             };
             return {
-              controlsVisible: controls.length >= 5 && controls.every((element) => {
+              controlsVisible: controls.length >= 7 && controls.every((element) => {
                 const rect = element?.getBoundingClientRect();
                 if (!element || !effectivelyVisible(element)
                     || !rect || rect.width <= 0 || rect.height <= 0
@@ -529,10 +564,10 @@ def run_browser_proof(base_url: str) -> None:
             """
             const viewport = window.visualViewport;
             const controls = [
-              ...['#title', '#new-task button', '#status'].map(
+              ...['#main-heading', '#title', '#new-task button', '#status'].map(
                 (selector) => document.querySelector(selector)
               ),
-              ...document.querySelectorAll('#tasks li button'),
+              ...document.querySelectorAll('#tasks li span, #tasks li button'),
             ];
             const effectivelyVisible = (element) => {
               for (let current = element; current; current = current.parentElement) {
@@ -542,7 +577,7 @@ def run_browser_proof(base_url: str) -> None:
               }
               return true;
             };
-            const reachable = controls.length >= 5 && controls.every((element) => {
+            const reachable = controls.length >= 7 && controls.every((element) => {
               const rect = element?.getBoundingClientRect();
               if (!element || !effectivelyVisible(element)
                   || !rect || rect.width <= 0 || rect.height <= 0
@@ -585,6 +620,41 @@ def run_browser_proof(base_url: str) -> None:
                 && [...document.querySelectorAll('#tasks li span')]
                     .some((element) => element.textContent === 'Zoom task')""",
             "zoom keyboard submission did not create and render its task",
+        )
+
+        browser.execute(
+            """
+            window.__taskLedgerOriginalFetch = window.fetch;
+            window.fetch = async (path, options) => {
+              if (String(path).startsWith('/api/tasks')) {
+                throw new Error('forced browser proof failure');
+              }
+              return window.__taskLedgerOriginalFetch(path, options);
+            };
+            load().catch(() => {});
+            """
+        )
+        wait_for(
+            browser,
+            """return document.querySelector('#message')?.textContent === 'Could not load tasks.'
+                && document.querySelectorAll('#tasks li').length === 2""",
+            "error state is not visibly rendered after a failed task-list refresh",
+        )
+        require(
+            browser.execute("return document.activeElement?.matches('#title')"),
+            "failed task-list refresh did not preserve the current keyboard focus",
+        )
+        browser.execute(
+            """
+            window.fetch = window.__taskLedgerOriginalFetch;
+            load().catch(() => {});
+            """
+        )
+        wait_for(
+            browser,
+            """return document.querySelector('#message')?.textContent === ''
+                && document.querySelectorAll('#tasks li').length === 2""",
+            "browser did not recover from the forced task-list refresh failure",
         )
 
         browser.navigate(base_url + "missing")
