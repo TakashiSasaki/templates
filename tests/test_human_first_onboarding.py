@@ -87,3 +87,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             with self.subTest(href=href):
                 self.assertIn(f'href="{href}"', landing)
         self.assertIn("あなたの別 product repository", landing)
+
+
+if __name__ == "__main__":
+    unittest.main()
