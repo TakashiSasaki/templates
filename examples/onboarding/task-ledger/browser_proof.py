@@ -278,9 +278,18 @@ def run_browser_proof(base_url: str) -> None:
                 const element = document.querySelector(selector);
                 if (!element) return false;
                 const rect = element.getBoundingClientRect();
-                return rect.width > 0 && rect.height > 0;
+                return rect.width > 0 && rect.height > 0
+                  && rect.left >= 0 && rect.top >= 0
+                  && rect.right <= window.innerWidth
+                  && rect.bottom <= window.innerHeight;
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
+                const style = getComputedStyle(element);
+                return ['auto', 'scroll'].includes(style.overflowX)
+                  && element.getClientRects().length > 0
+                  && element.scrollWidth > element.clientWidth + 1;
+              }),
               zoomAllowed: !['no', '0', 'false'].includes(userScalable)
                 && !(Number.isFinite(maximumScale) && maximumScale <= 1),
             };
@@ -290,6 +299,7 @@ def run_browser_proof(base_url: str) -> None:
         require(layout["heading"] == "Task Ledger", "main heading/focus target is missing")
         require(layout["controlsVisible"], "primary controls are not visible")
         require(not layout["overflow"], "page has horizontal overflow at 390px")
+        require(not layout["nestedOverflow"], "nested content scrolls horizontally at 390px")
         require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")
 
         browser.tab_to("#title", 1)
@@ -371,11 +381,21 @@ def run_browser_proof(base_url: str) -> None:
                   && rect.bottom <= window.innerHeight;
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
+                const style = getComputedStyle(element);
+                return ['auto', 'scroll'].includes(style.overflowX)
+                  && element.getClientRects().length > 0
+                  && element.scrollWidth > element.clientWidth + 1;
+              }),
             };
             """
         )
         require(landscape["controlsVisible"], "primary controls are not usable in landscape")
         require(not landscape["overflow"], "page has horizontal overflow in landscape viewport")
+        require(
+            not landscape["nestedOverflow"],
+            "nested content scrolls horizontally in landscape viewport",
+        )
         browser.set_viewport(800, 800)
         browser.set_scale(2.0)
         time.sleep(0.1)
@@ -409,8 +429,11 @@ def run_browser_proof(base_url: str) -> None:
         browser.send_keys_to_active("Zoom task" + ENTER)
         wait_for(
             browser,
-            "return document.querySelector('#title').value === ''",
-            "title input is not keyboard-operable at 200% scale",
+            """return document.querySelector('#title').value === ''
+                && document.querySelectorAll('#tasks li').length === 2
+                && [...document.querySelectorAll('#tasks li span')]
+                    .some((element) => element.textContent === 'Zoom task')""",
+            "zoom keyboard submission did not create and render its task",
         )
 
         browser.navigate(base_url + "missing")
