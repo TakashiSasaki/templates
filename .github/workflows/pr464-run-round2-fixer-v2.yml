@@ -1,0 +1,71 @@
+name: Run PR 464 round 2 fixer v2
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+      - name: Extract, harden, and run fixer Python
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/pr464-codex-round2-fixes.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(workflow) if line.strip() == "python - <<'PY'") + 1
+          end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == 'PY')
+          code = []
+          for line in workflow[start:end]:
+              if line.startswith('          '):
+                  line = line[10:]
+              code.append(line)
+          source = '\n'.join(code) + '\n'
+          block_start = source.index('actions_tail = """')
+          block_end = source.index("require_actions =", block_start)
+          robust = '''actions_marker = "              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,\\n              nestedOverflow,\\n"
+          actions_at = browser.index(actions_marker, browser.index("actionsFit:"))
+          label_check = """              labelsVisible: labels.length === 1 && labels.every((element) => {
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) return false;
+                }
+                const rect = element.getBoundingClientRect();
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
+              }),
+"""
+          browser = browser[:actions_at] + label_check + browser[actions_at:]
+          '''
+          source = source[:block_start] + robust + source[block_end:]
+          Path('/tmp/pr464_fixer.py').write_text(source, encoding='utf-8')
+          PY
+          python /tmp/pr464_fixer.py
+          rm -f .github/workflows/pr464-run-round2-fixer.yml
+          rm -f .github/workflows/pr464-run-round2-fixer-v2.yml
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "Address Codex browser contract completeness findings"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
