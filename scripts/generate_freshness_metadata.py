@@ -71,6 +71,39 @@ class HeadBoundaryParser(HTMLParser):
             self.head_ends.append(self.getpos())
 
 
+class FreshnessDocumentParser(HTMLParser):
+    """Collect head boundaries and meta elements in one structural HTML pass."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.head_starts: list[tuple[int, int]] = []
+        self.head_ends: list[tuple[int, int]] = []
+        self.metas: list[dict[str, str | None]] = []
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        folded = tag.casefold()
+        if folded == "head":
+            self.head_starts.append(self.getpos())
+        if folded == "meta":
+            self.metas.append({name.casefold(): value for name, value in attrs})
+
+    def handle_startendtag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "head":
+            self.head_ends.append(self.getpos())
+
+
 class TextParser(HTMLParser):
     SKIPPED_ELEMENTS = frozenset({"script", "style"})
 
@@ -195,15 +228,21 @@ def parse_publications(values: list[str]) -> dict[str, str]:
     return validate_publications(publications)
 
 
+def revision_metas(
+    metas: list[dict[str, str | None]],
+) -> list[dict[str, str | None]]:
+    return [
+        meta
+        for meta in metas
+        if (meta.get("name") or "").casefold() == SITE_REVISION_META_NAME
+    ]
+
+
 def freshness_revision_metas(source: str) -> list[dict[str, str | None]]:
     parser = MetaParser()
     parser.feed(source)
     parser.close()
-    return [
-        meta
-        for meta in parser.metas
-        if (meta.get("name") or "").casefold() == SITE_REVISION_META_NAME
-    ]
+    return revision_metas(parser.metas)
 
 
 def source_offset(source: str, position: tuple[int, int]) -> int:
@@ -216,17 +255,19 @@ def source_offset(source: str, position: tuple[int, int]) -> int:
     return line_starts[line_number - 1] + column
 
 
-def head_close_offset(source: str, path: Path) -> int:
-    parser = HeadBoundaryParser()
-    parser.feed(source)
-    parser.close()
-    if len(parser.head_starts) != 1 or len(parser.head_ends) != 1:
+def parsed_head_close_offset(
+    source: str,
+    path: Path,
+    head_starts: list[tuple[int, int]],
+    head_ends: list[tuple[int, int]],
+) -> int:
+    if len(head_starts) != 1 or len(head_ends) != 1:
         raise FreshnessMetadataError(
             f"{path}: expected exactly one closing head tag for exactly one head element, "
-            f"found {len(parser.head_starts)} start tag(s) and {len(parser.head_ends)} closing tag(s)"
+            f"found {len(head_starts)} start tag(s) and {len(head_ends)} closing tag(s)"
         )
-    start_offset = source_offset(source, parser.head_starts[0])
-    end_offset = source_offset(source, parser.head_ends[0])
+    start_offset = source_offset(source, head_starts[0])
+    end_offset = source_offset(source, head_ends[0])
     if end_offset <= start_offset:
         raise FreshnessMetadataError(
             f"{path}: closing head tag precedes head start tag"
@@ -234,10 +275,34 @@ def head_close_offset(source: str, path: Path) -> int:
     return end_offset
 
 
+def head_close_offset(source: str, path: Path) -> int:
+    parser = HeadBoundaryParser()
+    parser.feed(source)
+    parser.close()
+    return parsed_head_close_offset(
+        source,
+        path,
+        parser.head_starts,
+        parser.head_ends,
+    )
+
+
 def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     revision = validate_revision(revision, "site")
-    position = head_close_offset(source, path)
-    metas = freshness_revision_metas(source)
+
+    # Head placement and pre-existing revision metadata are both structural HTML
+    # properties. Collect them in one pass; insertion and final on-disk verification
+    # remain separate passes so malformed output still fails closed.
+    parser = FreshnessDocumentParser()
+    parser.feed(source)
+    parser.close()
+    position = parsed_head_close_offset(
+        source,
+        path,
+        parser.head_starts,
+        parser.head_ends,
+    )
+    metas = revision_metas(parser.metas)
     if len(metas) > 1:
         raise FreshnessMetadataError(
             f"{path}: expected at most one {SITE_REVISION_META_NAME} meta element"
