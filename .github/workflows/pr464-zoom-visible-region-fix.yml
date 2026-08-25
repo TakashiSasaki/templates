@@ -1,0 +1,122 @@
+name: PR 464 zoom visible-region fix
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Apply PR 464 zoom visible-region fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+
+      - name: Patch zoom reachability semantics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('examples/onboarding/task-ledger/browser_proof.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''              const currentViewport = window.visualViewport;
+              const rect = element.getBoundingClientRect();
+              if (!currentViewport || rect.width <= 0 || rect.height <= 0
+                  || rect.left < currentViewport.offsetLeft
+                  || rect.right > currentViewport.offsetLeft + currentViewport.width
+                  || rect.top < currentViewport.offsetTop
+                  || rect.bottom > currentViewport.offsetTop + currentViewport.height) return false;
+              const hit = document.elementFromPoint(
+                rect.left + rect.width / 2,
+                rect.top + rect.height / 2,
+              );
+              return hit === element || element.contains(hit);
+'''
+          new = '''              const currentViewport = window.visualViewport;
+              const rect = element.getBoundingClientRect();
+              if (!currentViewport || rect.width <= 0 || rect.height <= 0) return false;
+              const visibleLeft = Math.max(rect.left, currentViewport.offsetLeft);
+              const visibleRight = Math.min(
+                rect.right,
+                currentViewport.offsetLeft + currentViewport.width,
+              );
+              const visibleTop = Math.max(rect.top, currentViewport.offsetTop);
+              const visibleBottom = Math.min(
+                rect.bottom,
+                currentViewport.offsetTop + currentViewport.height,
+              );
+              if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) return false;
+              const hit = document.elementFromPoint(
+                visibleLeft + (visibleRight - visibleLeft) / 2,
+                visibleTop + (visibleBottom - visibleTop) / 2,
+              );
+              return hit === element || element.contains(hit);
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one zoom containment block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          git rm .github/workflows/pr464-zoom-visible-region-fix.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add examples/onboarding/task-ledger/browser_proof.py
+          git diff --cached --check
+          git commit -m "Check visible zoom regions after scrolling"
+          git rev-parse HEAD > /tmp/proof-revision
+
+      - name: Repin immutable proof and translation provenance
+        shell: bash
+        run: |
+          export PROOF_REVISION="$(cat /tmp/proof-revision)"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          revision = os.environ['PROOF_REVISION']
+          old_revision = '55c45e26c6cb0f109d05098c5b8f863ea9babb62'
+          paths = [
+              Path('docs/guides/webapp-product-walkthrough.md'),
+              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
+              Path('tests/test_human_first_webapp_onboarding.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old_revision)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one old proof revision, got {count}')
+              path.write_text(text.replace(old_revision, revision, 1), encoding='utf-8')
+
+          canonical = Path('docs/guides/webapp-product-walkthrough.md')
+          data = canonical.read_bytes()
+          blob_sha = hashlib.sha1(f'blob {len(data)}\0'.encode('ascii') + data).hexdigest()
+          manifest_path = Path('translations/manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          matches = [
+              item for item in manifest['translations']
+              if item['canonical'] == canonical.as_posix() and item['language'] == 'ja'
+          ]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one Japanese walkthrough provenance entry, got {len(matches)}')
+          matches[0]['canonical_blob_sha'] = blob_sha
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          git add docs/guides/webapp-product-walkthrough.md \
+                  translations/ja/docs/guides/webapp-product-walkthrough.md \
+                  tests/test_human_first_webapp_onboarding.py \
+                  translations/manifest.json
+          git diff --cached --check
+          git commit -m "Repin Task Ledger proof after zoom reachability fix"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
