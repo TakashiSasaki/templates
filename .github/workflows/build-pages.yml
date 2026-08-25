@@ -460,3 +460,92 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/site
+
+  check:
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      github.event_name == 'pull_request' &&
+      inputs.site_ref == '' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out proposed Site revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Download built Pages artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: github-pages
+          path: pages-artifact
+
+      - name: Extract built site
+        run: |
+          mkdir -p build/site
+          tar --extract --file pages-artifact/artifact.tar --directory build/site
+          test -f build/site/index.html
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright controller
+        run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Check mobile layout geometry
+        run: |
+          python scripts/check_mobile_layout.py \
+            --site-root build/site \
+            --output-root build/mobile-visual
+
+      - name: Check localized inline Glossary chrome
+        run: |
+          python scripts/check_glossary_locale_chrome.py \
+            --site-root build/site \
+            --output build/mobile-visual/glossary-locale-chrome.json
+
+      - name: Check PWA freshness lifecycle
+        run: |
+          python scripts/check_pwa_freshness.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-freshness.json
+
+      - name: Check localized PWA freshness chrome
+        run: |
+          python scripts/check_pwa_locale_chrome.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-locale-chrome.json
+
+      - name: Check PWA document commit correlation
+        run: |
+          python scripts/check_pwa_commit_regressions.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-document-commit.json
+
+      - name: Check PWA slow-network convergence
+        run: |
+          python scripts/check_pwa_slow_convergence.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-slow-convergence.json
+
+      - name: Check PWA freshness capability messaging
+        run: |
+          python scripts/check_pwa_capabilities.py \
+            --site-root build/site \
+            --output build/mobile-visual/pwa-capabilities.json
+
+      - name: Upload mobile visual evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-visual-${{ github.event.pull_request.number }}
+          path: build/mobile-visual
+          if-no-files-found: warn
+          retention-days: 7

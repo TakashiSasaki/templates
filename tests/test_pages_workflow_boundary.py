@@ -13,9 +13,10 @@ DEPLOYMENT_STATE = ROOT / "deployment-state.json"
 
 
 class PagesWorkflowBoundaryTests(unittest.TestCase):
-    def test_reusable_workflow_is_build_only(self) -> None:
+    def test_reusable_workflow_remains_non_deploying_and_browser_check_is_pr_only(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
         trigger_block = workflow.split("\npermissions:\n", maxsplit=1)[0]
+        build_block, check_block = workflow.split("\n  check:\n", maxsplit=1)
 
         self.assertIn(
             "  pull_request:\n    branches:\n      - site",
@@ -27,13 +28,23 @@ class PagesWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotIn("skill_ref:", workflow)
         self.assertNotIn("webapp_ref:", workflow)
         self.assertNotIn("source_ref:", workflow)
-        self.assertIn("actions/upload-pages-artifact@", workflow)
+        self.assertIn("actions/upload-pages-artifact@", build_block)
+        self.assertNotIn("actions/download-artifact@", build_block)
         self.assertNotIn("actions/configure-pages@", workflow)
         self.assertNotIn("actions/deploy-pages@", workflow)
         self.assertNotIn("pages: write", workflow)
         self.assertNotIn("id-token: write", workflow)
-        self.assertNotIn("name: github-pages", workflow)
         self.assertNotIn("\n  deploy:\n", workflow)
+
+        self.assertIn("needs: build", check_block)
+        self.assertIn("github.event_name == 'pull_request'", check_block)
+        self.assertIn("inputs.site_ref == ''", check_block)
+        self.assertIn(
+            "github.event.pull_request.head.repo.full_name == github.repository",
+            check_block,
+        )
+        self.assertIn("actions/download-artifact@v5", check_block)
+        self.assertIn("name: github-pages", check_block)
 
     def test_reusable_workflow_checks_out_only_locked_external_providers(self) -> None:
         workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
