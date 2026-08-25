@@ -2,6 +2,14 @@
 
 This repository is a framework-neutral Web application contract scaffold produced by the `webapp` composition recipe.
 
+## New to Composition? Start with the worked example
+
+If you are creating your first Web application with this repository, do not start by reverse-engineering the contracts below. Follow the [Webapp product walkthrough](https://templates.moukaeritai.work/composition/use/webapp-product-walkthrough/) from a separate product repository. It starts with prerequisites and Composition installation, creates `composition.json`, walks through `inspect -> plan -> apply -> validate`, explains exactly which generated files you may edit, and then continues into product implementation and evidence.
+
+The first milestone in that walkthrough is a **valid Composition scaffold**, not a completed Web application. Product implementation and product verification remain consumer responsibilities.
+
+## What the Webapp recipe defines
+
 `artifact.webapp-core` owns browser-specific semantics: surfaces, canonical routes, visible UI states, responsive viewports/input capabilities, and their cross-contract validation. Generic contract evolution and implementation evidence are part of the Webapp baseline through reusable `lifecycle.*` components. Release execution, release evidence, and release-bundle behavior are added only when the consumer explicitly selects `lifecycle.release-bundle`.
 
 The scaffold intentionally does not choose a frontend framework, rendering model, package manager, backend, persistence layer, authentication provider, deployment platform, browser matrix, or observability vendor.

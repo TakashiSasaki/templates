@@ -2,9 +2,9 @@
 
 ## Start here
 
-- [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — **Creating your first Web application? Start here.** Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
-- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — end-to-end example from capability selection and initial materialization through consumer implementation, product evidence, validation, Policy adoption, and later update/upgrade.
+- [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
 - [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
 - [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
@@ -39,6 +39,7 @@
 
 ## Web application artifact
 
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — canonical first-use path for a concrete Web application.
 - [Web application documentation index](../components/artifact.webapp-core/files/docs/) — Web-specific contracts and validation.
 - [Web application template contract](../components/artifact.webapp-core/files/TEMPLATE.md) — framework-neutral browser product obligations.
 
