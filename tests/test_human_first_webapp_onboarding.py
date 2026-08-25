@@ -14,7 +14,7 @@ EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
 BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
-BROWSER_PROOF_REVISION = "0f278e92b0bb4f2e7ae91118acfa52a27d7dc36e"
+BROWSER_PROOF_REVISION = "8c93a88c07cd9d2611c5937880e0a836639a271f"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
@@ -139,7 +139,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         self.assertIn(expected_url, text)
         self.assertIn("CHROMEWEBDRIVER", text)
         self.assertIn("CHROME_BINARY", text)
-        self.assertIn('<h1 id="main-heading">Task Ledger</h1>', text)
+        self.assertIn('<h1 id="main-heading" tabindex="-1">Task Ledger</h1>', text)
         self.assertIn("genuine 200% browser page-scale", text)
         self.assertIn("unknown-route browser negative path", text)
         self.assertIn("python tests/test_task_ledger_browser.py", text)
