@@ -20,7 +20,7 @@
       "canonical": "components/artifact.skill-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.skill-core/files/README.md",
-      "canonical_blob_sha": "5097bab9fc4945387bf18f768ad2c34225eb5c20",
+      "canonical_blob_sha": "c4384cc6cab8919cad8766ec5bedd4729bdfa850",
       "surfaces": ["reader"]
     },
     {
@@ -63,6 +63,13 @@
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
       "canonical_blob_sha": "d933f81b9167667756ea96fe052da57e86a65ddb",
+      "surfaces": ["reader"]
+    },
+    {
+      "canonical": "docs/guides/skill-first-use-walkthrough.md",
+      "language": "ja",
+      "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
+      "canonical_blob_sha": "3ebfa8bbfc8c57fa69f425235670929536e89eb0",
       "surfaces": ["reader"]
     },
     {
