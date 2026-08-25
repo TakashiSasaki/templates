@@ -291,8 +291,8 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
     revision = validate_revision(revision, "site")
 
     # Head placement and pre-existing revision metadata are both structural HTML
-    # properties. Collect them in one pass; insertion and final on-disk verification
-    # remain separate passes so malformed output still fails closed.
+    # properties. Collect them in one pass. The generated file is reread and
+    # structurally verified before generate_freshness_metadata() can succeed.
     parser = FreshnessDocumentParser()
     parser.feed(source)
     parser.close()
@@ -318,11 +318,7 @@ def annotate_site_revision(source: str, revision: str, path: Path) -> str:
         f'<meta name="{SITE_REVISION_META_NAME}" '
         f'content="{html.escape(revision, quote=True)}">\n'
     )
-    updated = source[:position] + tag + source[position:]
-    metas = freshness_revision_metas(updated)
-    if len(metas) != 1 or metas[0].get("content") != revision:
-        raise FreshnessMetadataError(f"{path}: Site revision metadata insertion failed")
-    return updated
+    return source[:position] + tag + source[position:]
 
 
 def is_sandbox_preview(path: Path, site_root: Path) -> bool:
