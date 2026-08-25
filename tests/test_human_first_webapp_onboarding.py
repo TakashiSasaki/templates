@@ -101,9 +101,12 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         text = WALKTHROUGH.read_text(encoding="utf-8")
         for expected in (
             "does not claim browser title editing",
+            "API also supports title updates",
             "Optional task notes",
             "is **not** browser-level proof",
+            "real positive and negative",
             "`accessibility-test` or `end-to-end-test` proofs",
+            "Do not relabel source inspection, HTTP reachability, or unit tests",
             "keep the evidence document in `template` mode",
         ):
             with self.subTest(expected=expected):
@@ -113,8 +116,12 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         for expected in (
             "completion requirement ではありません",
+            "API は title update も提供します",
             "browser title editing を claim しません",
             "browser-level proof ではありません",
+            "実ブラウザを使う positive / negative",
+            "`accessibility-test` または `end-to-end-test` proof",
+            "HTTP reachability、unit test を browser proof として再分類",
             "evidence document を `template` mode に保ちます",
         ):
             with self.subTest(expected=expected):
