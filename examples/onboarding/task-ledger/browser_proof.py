@@ -582,14 +582,21 @@ def run_browser_proof(base_url: str) -> None:
               element.scrollIntoView({block: 'center', inline: 'nearest'});
               const currentViewport = window.visualViewport;
               const rect = element.getBoundingClientRect();
-              if (!currentViewport || rect.width <= 0 || rect.height <= 0
-                  || rect.left < currentViewport.offsetLeft
-                  || rect.right > currentViewport.offsetLeft + currentViewport.width
-                  || rect.top < currentViewport.offsetTop
-                  || rect.bottom > currentViewport.offsetTop + currentViewport.height) return false;
+              if (!currentViewport || rect.width <= 0 || rect.height <= 0) return false;
+              const visibleLeft = Math.max(rect.left, currentViewport.offsetLeft);
+              const visibleRight = Math.min(
+                rect.right,
+                currentViewport.offsetLeft + currentViewport.width,
+              );
+              const visibleTop = Math.max(rect.top, currentViewport.offsetTop);
+              const visibleBottom = Math.min(
+                rect.bottom,
+                currentViewport.offsetTop + currentViewport.height,
+              );
+              if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) return false;
               const hit = document.elementFromPoint(
-                rect.left + rect.width / 2,
-                rect.top + rect.height / 2,
+                visibleLeft + (visibleRight - visibleLeft) / 2,
+                visibleTop + (visibleBottom - visibleTop) / 2,
               );
               return hit === element || element.contains(hit);
             });
