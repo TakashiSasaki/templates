@@ -1,0 +1,429 @@
+name: PR 464 Hermes prep fixes
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Run PR 464 Hermes prep fixes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+
+      - name: Apply browser-contract completeness fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import re
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, got {count}")
+              return text.replace(old, new, 1)
+
+          browser_path = Path('examples/onboarding/task-ledger/browser_proof.py')
+          browser = browser_path.read_text(encoding='utf-8')
+
+          old_mapped = "...['#title', '#new-task button', '#status'].map("
+          new_mapped = "...['#main-heading', '#title', '#new-task button', '#status'].map("
+          if browser.count(old_mapped) != 2:
+              raise SystemExit(f"landscape/zoom focus-target selectors: expected 2, got {browser.count(old_mapped)}")
+          browser = browser.replace(old_mapped, new_mapped)
+
+          old_task_controls = "...document.querySelectorAll('#tasks li button'),"
+          new_task_controls = "...document.querySelectorAll('#tasks li span, #tasks li button'),"
+          if browser.count(old_task_controls) != 2:
+              raise SystemExit(f"landscape/zoom task-content selectors: expected 2, got {browser.count(old_task_controls)}")
+          browser = browser.replace(old_task_controls, new_task_controls)
+
+          if browser.count('controls.length >= 5') != 2:
+              raise SystemExit('landscape/zoom control-count guards changed')
+          browser = browser.replace('controls.length >= 5', 'controls.length >= 7')
+
+          actions_anchor = "            const actions = [...document.querySelectorAll('#tasks li button')];\n"
+          browser = replace_once(
+              browser,
+              actions_anchor,
+              actions_anchor + "            const labels = [...document.querySelectorAll('#tasks li span')];\n",
+              'narrow task-label selector',
+          )
+
+          actions_key = '              actionsFit: actions.length === 2 && actions.every((element) => {'
+          actions_at = browser.find(actions_key)
+          if actions_at < 0:
+              raise SystemExit('narrow actionsFit block missing')
+          overflow_marker = '              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,'
+          overflow_at = browser.find(overflow_marker, actions_at)
+          if overflow_at < 0:
+              raise SystemExit('narrow overflow marker missing after actionsFit')
+          label_block = '''              labelsVisible: labels.length === 1 && labels.every((element) => {
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) return false;
+                }
+                const rect = element.getBoundingClientRect();
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
+              }),
+'''
+          browser = browser[:overflow_at] + label_block + browser[overflow_at:]
+
+          require_actions = '        require(populated_narrow["actionsFit"], "task actions are outside the narrow viewport")\n'
+          browser = replace_once(
+              browser,
+              require_actions,
+              require_actions + '        require(populated_narrow["labelsVisible"], "task title is not visibly reachable at 320px")\n',
+              'narrow task-label assertion',
+          )
+
+          empty_anchor = '        require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")\n'
+          empty_check = '''        wait_for(
+            browser,
+            """return document.querySelectorAll('#tasks li').length === 0
+                && document.querySelector('#message')?.textContent === 'No tasks yet.'""",
+            "empty state is not visibly rendered",
+        )
+'''
+          browser = replace_once(browser, empty_anchor, empty_anchor + empty_check, 'empty-state proof')
+
+          completed_wait = '''        wait_for(
+            browser,
+            "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
+            "keyboard activation did not complete the task",
+        )
+'''
+          completed_focus = completed_wait + '''        wait_for(
+            browser,
+            """return document.activeElement?.matches('#tasks li:first-child button:first-of-type')
+                && document.activeElement.textContent === 'Reopen'""",
+            "focus was not preserved on the replacement task action after completion",
+        )
+'''
+          browser = replace_once(browser, completed_wait, completed_focus, 'completion focus proof')
+
+          delete_wait_tail = '''            "keyboard activation did not remove the task from the completed filter",
+        )
+'''
+          delete_focus = delete_wait_tail + '''        require(
+            browser.execute("return document.activeElement?.matches('#status')"),
+            "delete did not move focus to the deterministic status-filter fallback",
+        )
+'''
+          browser = replace_once(browser, delete_wait_tail, delete_focus, 'delete focus fallback proof')
+
+          missing_anchor = '        browser.navigate(base_url + "missing")\n'
+          error_proof = '''        browser.execute(
+            """
+            window.__taskLedgerOriginalFetch = window.fetch;
+            window.fetch = async (path, options) => {
+              if (String(path).startsWith('/api/tasks')) {
+                throw new Error('forced browser proof failure');
+              }
+              return window.__taskLedgerOriginalFetch(path, options);
+            };
+            load().catch(() => {});
+            """
+        )
+        wait_for(
+            browser,
+            """return document.querySelector('#message')?.textContent === 'Could not load tasks.'
+                && document.querySelectorAll('#tasks li').length === 2""",
+            "error state is not visibly rendered after a failed task-list refresh",
+        )
+        require(
+            browser.execute("return document.activeElement?.matches('#title')"),
+            "failed task-list refresh did not preserve the current keyboard focus",
+        )
+        browser.execute(
+            """
+            window.fetch = window.__taskLedgerOriginalFetch;
+            load().catch(() => {});
+            """
+        )
+        wait_for(
+            browser,
+            """return document.querySelector('#message')?.textContent === ''
+                && document.querySelectorAll('#tasks li').length === 2""",
+            "browser did not recover from the forced task-list refresh failure",
+        )
+
+'''
+          browser = replace_once(browser, missing_anchor, error_proof + missing_anchor, 'error-state proof')
+          browser_path.write_text(browser, encoding='utf-8')
+
+          new_ui = '''async function load({focusTaskId = null, focusAction = null} = {}) {
+  try {
+    const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+    tasks.replaceChildren();
+    if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+    for (const task of values) {
+      const item = document.createElement('li');
+      item.dataset.taskId = String(task.id);
+      const label = document.createElement('span');
+      label.textContent = task.title + (task.completed ? ' (completed)' : '');
+      const toggle = document.createElement('button');
+      toggle.dataset.action = 'toggle';
+      toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+      toggle.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})});
+        await load({focusTaskId: task.id, focusAction: 'toggle'});
+      };
+      const remove = document.createElement('button');
+      remove.dataset.action = 'delete';
+      remove.textContent = 'Delete';
+      remove.onclick = async () => {
+        await request('/api/tasks/' + task.id, {method: 'DELETE'});
+        await load();
+        document.querySelector('#status').focus();
+      };
+      item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+    }
+    if (focusTaskId !== null && focusAction) {
+      document.querySelector(
+        `#tasks li[data-task-id="${focusTaskId}"] button[data-action="${focusAction}"]`
+      )?.focus();
+    }
+  } catch (error) {
+    message.textContent = 'Could not load tasks.';
+    throw error;
+  }
+}
+document.querySelector('#new-task').onsubmit = async event => {
+  event.preventDefault();
+  const input = document.querySelector('#title');
+  await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
+  input.value = ''; await load();
+};
+document.querySelector('#status').onchange = () => { load().catch(() => {}); };
+load().catch(() => {});
+'''
+          ui_pattern = re.compile(
+              r"async function load\(\) \{\n.*?"
+              r"load\(\)\.catch\(error => \{ message\.textContent = error\.message; \}\);\n",
+              re.DOTALL,
+          )
+          docs = [
+              Path('docs/guides/webapp-product-walkthrough.md'),
+              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
+          ]
+          for path in docs:
+              text = path.read_text(encoding='utf-8')
+              text, count = ui_pattern.subn(new_ui, text, count=1)
+              if count != 1:
+                  raise SystemExit(f'{path}: sample UI block match count {count}')
+              path.write_text(text, encoding='utf-8')
+
+          en_path = docs[0]
+          en = en_path.read_text(encoding='utf-8')
+          en = replace_once(
+              en,
+              '| states | `ready` plus only the loading/empty/error states actually visible in the implementation |',
+              '| states | `ready`, `empty`, and `error`, matching the observable reference-product states |',
+              'English state inventory table',
+          )
+          en_anchor = ('For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry '
+                       'in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. '
+                       'Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable '
+                       'and focuses it on route entry.\n')
+          en_add = ('\nFor this reference product, set the `home` route `states` array to `["ready", "empty", "error"]`. '
+                    'In `contracts/ui-states.json`, retain `ready` and add route-scoped `empty` and `error` items. Use `category: "content"` '
+                    'for `empty`, `category: "error"` for `error`, `announcement: "polite"` for both because `#message` is a status region, '
+                    'and `focusStrategy: "preserve"` for all three. The implementation below renders `No tasks yet.` for `empty`, renders '
+                    '`Could not load tasks.` on a failed list refresh while leaving the existing content in place, restores focus to the replacement '
+                    'task action after completion, and moves focus to the status-filter fallback after deleting the focused task. Do not omit '
+                    'observable states from the route inventory merely to reduce evidence requirements.\n')
+          en = replace_once(en, en_anchor, en_anchor + en_add, 'English state-contract guidance')
+          en_path.write_text(en, encoding='utf-8')
+
+          ja_path = docs[1]
+          ja = ja_path.read_text(encoding='utf-8')
+          marker = 'sentinel と tested minimum の 320px は別の概念です。'
+          marker_at = ja.find(marker)
+          if marker_at < 0:
+              raise SystemExit('Japanese viewport-sentinel paragraph missing')
+          paragraph_end = ja.find('\n\n', marker_at)
+          if paragraph_end < 0:
+              raise SystemExit('Japanese viewport-sentinel paragraph terminator missing')
+          ja_add = ('\n\nこの reference product では `home` route の `states` を `["ready", "empty", "error"]` にします。'
+                    '`contracts/ui-states.json` では `ready` を残し、route-scoped の `empty` と `error` を追加します。'
+                    '`empty` は `category: "content"`、`error` は `category: "error"`、`#message` が status region なので両方の '
+                    '`announcement` は `"polite"`、3 state の `focusStrategy` は `"preserve"` とします。下の実装は `empty` で '
+                    '`No tasks yet.`、list refresh failure で既存contentを維持したまま `Could not load tasks.` を表示し、task completion '
+                    '後には置換後のactionへfocusを復元し、focused taskをdeleteした後はstatus filterへfocusを移します。observable state '
+                    'を evidence requirement の削減目的で route inventory から外してはいけません。')
+          ja = ja[:paragraph_end] + ja_add + ja[paragraph_end:]
+          ja_path.write_text(ja, encoding='utf-8')
+
+          acceptance_path = Path('tests/test_task_ledger_walkthrough_browser_acceptance.py')
+          acceptance = acceptance_path.read_text(encoding='utf-8')
+          if 'def specialize_browser_contracts' not in acceptance:
+              install_anchor = '    def install_walkthrough_product(self, target: Path) -> None:\n'
+              helper = '''    def specialize_browser_contracts(self, target: Path) -> None:
+        routes_path = target / "contracts" / "routes.json"
+        routes = json.loads(routes_path.read_text(encoding="utf-8"))
+        routes["routes"][0]["states"] = ["ready", "empty", "error"]
+        self.write_json(routes_path, routes)
+
+        states_path = target / "contracts" / "ui-states.json"
+        states = json.loads(states_path.read_text(encoding="utf-8"))
+        ready = states["states"][0]
+        ready["focusStrategy"] = "preserve"
+        states["states"] = [
+            ready,
+            {
+                "id": "empty",
+                "scope": "route",
+                "category": "content",
+                "description": "The task list is empty and the empty message is visible.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+            {
+                "id": "error",
+                "scope": "route",
+                "category": "error",
+                "description": "A task-list refresh failed and the visible status region reports the failure.",
+                "recoveryActions": [],
+                "announcement": "polite",
+                "focusStrategy": "preserve",
+            },
+        ]
+        self.write_json(states_path, states)
+
+'''
+              acceptance = replace_once(acceptance, install_anchor, helper + install_anchor, 'acceptance contract-specialization helper')
+          materialize_call = '            target = self.materialize(Path(temp_dir))\n            self.install_walkthrough_product(target)\n'
+          specialized_call = ('            target = self.materialize(Path(temp_dir))\n'
+                              '            self.specialize_browser_contracts(target)\n'
+                              '            self.install_walkthrough_product(target)\n')
+          acceptance = replace_once(acceptance, materialize_call, specialized_call, 'acceptance contract-specialization call')
+          acceptance_path.write_text(acceptance, encoding='utf-8')
+
+          regression_path = Path('tests/test_human_first_webapp_onboarding.py')
+          regression = regression_path.read_text(encoding='utf-8')
+          source_anchor = '        browser_source = BROWSER_PROOF.read_text(encoding="utf-8")\n'
+          extra = '''        self.assertEqual(
+            browser_source.count(
+                "...['#main-heading', '#title', '#new-task button', '#status'].map("
+            ),
+            2,
+        )
+        self.assertEqual(
+            browser_source.count("...document.querySelectorAll('#tasks li span, #tasks li button'),"),
+            2,
+        )
+        self.assertIn('populated_narrow["labelsVisible"]', browser_source)
+        self.assertIn("focus was not preserved on the replacement task action", browser_source)
+        self.assertIn("delete did not move focus to the deterministic status-filter fallback", browser_source)
+        self.assertIn("error state is not visibly rendered", browser_source)
+'''
+          if 'browser_source.count(' not in regression:
+              regression = replace_once(regression, source_anchor, source_anchor + extra, 'browser-proof regression assertions')
+          japanese_anchor = '            "sentinel と tested minimum の 320px は別の概念",\n'
+          japanese_extra = ('            "`[\\\"ready\\\", \\\"empty\\\", \\\"error\\\"]`",\n'
+                            '            "`Could not load tasks.`",\n')
+          if '`Could not load tasks.`' not in regression:
+              regression = replace_once(regression, japanese_anchor, japanese_anchor + japanese_extra, 'Japanese state-inventory regression assertions')
+          regression_path.write_text(regression, encoding='utf-8')
+
+          for old_workflow in (
+              '.github/workflows/pr464-codex-round2-fixes.yml',
+              '.github/workflows/pr464-run-round2-fixer.yml',
+              '.github/workflows/pr464-run-round2-fixer-v2.yml',
+              '.github/workflows/pr464-run-round2-fixer-v3.yml',
+          ):
+              Path(old_workflow).unlink(missing_ok=True)
+          PY
+
+          python -m py_compile \
+            examples/onboarding/task-ledger/browser_proof.py \
+            tests/test_task_ledger_walkthrough_browser_acceptance.py \
+            tests/test_human_first_webapp_onboarding.py
+
+      - name: Commit substantive fixes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "Address browser contract completeness findings"
+          git rev-parse HEAD > /tmp/task-ledger-proof-revision
+
+      - name: Pin immutable proof and translation provenance
+        shell: bash
+        run: |
+          export TASK_LEDGER_PROOF_REVISION="$(cat /tmp/task-ledger-proof-revision)"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          revision = os.environ['TASK_LEDGER_PROOF_REVISION']
+          old_revision = '64764bc49a0029b91561ffa2d562647b2f020eef'
+          paths = [
+              Path('docs/guides/webapp-product-walkthrough.md'),
+              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
+              Path('tests/test_human_first_webapp_onboarding.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old_revision)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one old proof revision, got {count}')
+              path.write_text(text.replace(old_revision, revision, 1), encoding='utf-8')
+
+          canonical = Path('docs/guides/webapp-product-walkthrough.md')
+          data = canonical.read_bytes()
+          canonical_blob_sha = hashlib.sha1(
+              f'blob {len(data)}\0'.encode('ascii') + data
+          ).hexdigest()
+
+          manifest_path = Path('translations/manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          matches = [
+              item for item in manifest['translations']
+              if item['canonical'] == canonical.as_posix() and item['language'] == 'ja'
+          ]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one Japanese walkthrough provenance entry, got {len(matches)}')
+          matches[0]['canonical_blob_sha'] = canonical_blob_sha
+          manifest_path.write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+          git add \
+            docs/guides/webapp-product-walkthrough.md \
+            translations/ja/docs/guides/webapp-product-walkthrough.md \
+            tests/test_human_first_webapp_onboarding.py \
+            translations/manifest.json
+          git diff --cached --check
+          git commit -m "Pin reviewed Task Ledger browser proof revision"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
