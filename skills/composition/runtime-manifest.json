@@ -6,7 +6,7 @@
   },
   "runtime_lock": {
     "path": "requirements-runtime.lock",
-    "sha256": "12bca95de67b6ef4686cb306601c8870f2d427335e5aacb3db420bf9278e66"
+    "sha256": "12bca95de67b6efeb4686cb306601c8870f2d427335e5aacb3db420bf9278e66"
   },
   "entrypoint": "scripts/compose.py"
 }
