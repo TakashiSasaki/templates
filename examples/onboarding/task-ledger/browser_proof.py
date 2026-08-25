@@ -355,11 +355,21 @@ def run_browser_proof(base_url: str) -> None:
             });
             return {
               actionsFit: actions.length === 2 && actions.every((element) => {
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) return false;
+                }
                 const rect = element.getBoundingClientRect();
-                return rect.width > 0 && rect.height > 0
-                  && rect.left >= 0 && rect.top >= 0
-                  && rect.right <= window.innerWidth
-                  && rect.bottom <= window.innerHeight;
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow,
@@ -387,6 +397,12 @@ def run_browser_proof(base_url: str) -> None:
             "keyboard activation did not complete the task",
         )
         browser.navigate(base_url)
+        wait_for(
+            browser,
+            """return document.querySelectorAll('#tasks li').length === 1
+                && document.querySelector('#tasks li span').textContent.includes('(completed)')""",
+            "completed task did not hydrate before the next submission",
+        )
         browser.tab_to("#title", 1)
         browser.send_keys_to_active("Open task" + ENTER)
         wait_for(
@@ -395,6 +411,11 @@ def run_browser_proof(base_url: str) -> None:
             "second keyboard submission did not create an open task",
         )
         browser.navigate(base_url)
+        wait_for(
+            browser,
+            "return document.querySelectorAll('#tasks li').length === 2",
+            "tasks did not hydrate before keyboard filtering",
+        )
         browser.tab_to("#title", 1)
         browser.tab_to("#status", 2)
         browser.send_keys_to_active(END)
