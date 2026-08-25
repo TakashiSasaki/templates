@@ -73,6 +73,45 @@ class HeadElementParser(HTMLParser):
         self.handle_starttag(tag, attrs)
 
 
+class _CanonicalLinkFound(Exception):
+    """Stop structural parsing once the first canonical link is identified."""
+
+
+class _FirstCanonicalLinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.link: dict[str, str | None] | None = None
+        self.raw_tag: str | None = None
+
+    def _handle_link(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        if tag.lower() != "link":
+            return
+        attributes = {name.lower(): value for name, value in attrs}
+        if "canonical" not in (attributes.get("rel") or "").lower().split():
+            return
+        self.link = attributes
+        self.raw_tag = self.get_starttag_text()
+        raise _CanonicalLinkFound
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self._handle_link(tag, attrs)
+
+    def handle_startendtag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self._handle_link(tag, attrs)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--site-root", required=True, type=Path)
@@ -157,6 +196,19 @@ def canonical_links(source: str) -> list[dict[str, str | None]]:
     ]
 
 
+def first_canonical_link(
+    source: str,
+) -> tuple[dict[str, str | None] | None, str | None]:
+    """Return the first structural canonical link without parsing the document body."""
+    parser = _FirstCanonicalLinkParser()
+    try:
+        parser.feed(source)
+        parser.close()
+    except _CanonicalLinkFound:
+        pass
+    return parser.link, parser.raw_tag
+
+
 def manifest_links(source: str) -> list[dict[str, str | None]]:
     return [
         link
@@ -174,41 +226,43 @@ def theme_color_metas(source: str) -> list[dict[str, str | None]]:
 
 
 def rewrite_canonical_link(source: str, canonical_url: str, path: Path) -> str:
-    canonical_tags: list[str] = []
+    canonical_matches: list[re.Match[str]] = []
     for match in LINK_TAG_PATTERN.finditer(source):
         tag = match.group(0)
         if canonical_links(tag):
-            canonical_tags.append(tag)
-    if len(canonical_tags) > 1:
+            canonical_matches.append(match)
+    if len(canonical_matches) > 1:
         raise SiteMetadataError(
-            f"{path}: expected at most one canonical link, found {len(canonical_tags)}"
+            f"{path}: expected at most one canonical link, found {len(canonical_matches)}"
         )
 
+    structural_link, structural_tag = first_canonical_link(source)
     escaped_url = html.escape(canonical_url, quote=True)
-    if not canonical_tags:
+    if not canonical_matches:
+        if structural_link is not None:
+            raise SiteMetadataError(f"{path}: canonical URL normalization failed")
         head_closes = list(HEAD_CLOSE_PATTERN.finditer(source))
         if len(head_closes) != 1:
             raise SiteMetadataError(
                 f"{path}: expected exactly one closing head tag, found {len(head_closes)}"
             )
-        insertion = f'<link rel="canonical" href="{escaped_url}">\n'
+        normalized_tag = f'<link rel="canonical" href="{escaped_url}">'
         position = head_closes[0].start()
-        updated = source[:position] + insertion + source[position:]
+        updated = source[:position] + normalized_tag + "\n" + source[position:]
     else:
-
-        def replace_tag(match: re.Match[str]) -> str:
-            tag = match.group(0)
-            if not canonical_links(tag):
-                return tag
-            replacement = f'href="{escaped_url}"'
-            if HREF_ATTRIBUTE_PATTERN.search(tag) is not None:
-                return HREF_ATTRIBUTE_PATTERN.sub(replacement, tag, count=1)
+        match = canonical_matches[0]
+        tag = match.group(0)
+        if structural_link is None or structural_tag != tag:
+            raise SiteMetadataError(f"{path}: canonical URL normalization failed")
+        replacement = f'href="{escaped_url}"'
+        if HREF_ATTRIBUTE_PATTERN.search(tag) is not None:
+            normalized_tag = HREF_ATTRIBUTE_PATTERN.sub(replacement, tag, count=1)
+        else:
             closing = "/>" if tag.endswith("/>") else ">"
-            return tag[: -len(closing)] + " " + replacement + closing
+            normalized_tag = tag[: -len(closing)] + " " + replacement + closing
+        updated = source[: match.start()] + normalized_tag + source[match.end() :]
 
-        updated = LINK_TAG_PATTERN.sub(replace_tag, source)
-
-    links = canonical_links(updated)
+    links = canonical_links(normalized_tag)
     if len(links) != 1 or links[0].get("href") != canonical_url:
         raise SiteMetadataError(f"{path}: canonical URL normalization failed")
     return updated
