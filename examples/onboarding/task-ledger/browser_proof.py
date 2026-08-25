@@ -271,18 +271,32 @@ def run_browser_proof(base_url: str) -> None:
             const userScalable = directives['user-scalable'];
             const maximumScale = Number.parseFloat(directives['maximum-scale']);
             const controls = ['#title', '#new-task button', '#status'];
+            const effectivelyVisible = (element) => {
+              for (let current = element; current; current = current.parentElement) {
+                const style = getComputedStyle(current);
+                if (style.display === 'none' || style.visibility === 'hidden'
+                    || Number.parseFloat(style.opacity || '1') <= 0) return false;
+              }
+              return true;
+            };
             return {
               title: document.title,
               heading: document.querySelector('#main-heading')?.textContent,
               controlsVisible: controls.every((selector) => {
                 const element = document.querySelector(selector);
-                if (!element) return false;
+                if (!element || !effectivelyVisible(element)) return false;
                 const rect = element.getBoundingClientRect();
-                return rect.width > 0 && rect.height > 0
-                  && rect.left >= 0 && rect.top >= 0
-                  && rect.right <= window.innerWidth
-                  && rect.bottom <= window.innerHeight;
+                if (rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
               }),
+              headingFocused: document.activeElement?.id === 'main-heading',
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
                 const effectivelyVisible = (candidate) => {
@@ -310,6 +324,7 @@ def run_browser_proof(base_url: str) -> None:
         )
         require(layout["title"] == "Task Ledger", "document title is not Task Ledger")
         require(layout["heading"] == "Task Ledger", "main heading/focus target is missing")
+        require(layout["headingFocused"], "route entry did not focus the declared heading")
         require(layout["controlsVisible"], "primary controls are not visible")
         require(not layout["overflow"], "page has horizontal overflow at 390px")
         require(not layout["nestedOverflow"], "nested content scrolls horizontally at 390px")
@@ -555,6 +570,12 @@ def run_browser_proof(base_url: str) -> None:
             "200% scale exposed pre-existing page-wide horizontal overflow",
         )
         browser.navigate(base_url)
+        wait_for(
+            browser,
+            """return document.querySelectorAll('#tasks li').length === 1
+                && document.querySelector('#tasks li span').textContent === 'Open task'""",
+            "open task did not hydrate before the zoom submission",
+        )
         browser.tab_to("#title", 1)
         browser.send_keys_to_active("Zoom task" + ENTER)
         wait_for(
