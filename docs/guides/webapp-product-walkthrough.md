@@ -102,7 +102,7 @@ Normal consumers install the Composition skill through the reviewed immutable in
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/452cef1960612353b9ea206447b97a022ac1c2d7/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 If that destination already contains an installed Composition skill, use the documented `--replace` path in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill) rather than deleting or overwriting an arbitrary directory.
