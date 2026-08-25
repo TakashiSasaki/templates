@@ -31,7 +31,7 @@ class HumanFirstSkillOnboardingTests(unittest.TestCase):
             "## 9. Know exactly what you may edit",
             "## 10. Turn `SKILL.md` into Release Note Helper",
             "## 11. Add a real consumer-owned resource",
-            "## 12. Validate the concrete Skill",
+            "## 12. Check concrete completion, then validate the Skill",
         ]
         positions = [text.index(heading) for heading in headings]
         self.assertEqual(positions, sorted(positions))
@@ -64,22 +64,45 @@ class HumanFirstSkillOnboardingTests(unittest.TestCase):
             "`.github/scripts/validate_skill.py` | `managed`",
             "new `references/`, `assets/`, or `scripts/` files | ordinary consumer content",
             "does **not** mean Release Note Helper is an operational Skill",
+            "active seed destination is still part of the resolved Composition state",
             "Selected profiles: knowledge-augmented",
             "references/release-note-style.md",
+            "Selected profiles: template-scaffold",
+            "explicit consumer gate checks **concrete completion**",
             "Policy is independent from Composition",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, text)
 
-    def test_skill_entrypoints_point_to_walkthrough_before_reference(self) -> None:
-        for path, reference_heading in (
-            (ROOT / "components" / "artifact.skill-core" / "files" / "README.md", "## Artifact model"),
-            (ROOT / "components" / "artifact.skill-core" / "files" / "docs" / "index.md", "## Reference"),
-        ):
-            with self.subTest(path=path.relative_to(ROOT)):
-                text = path.read_text(encoding="utf-8")
-                self.assertIn("skill-first-use-walkthrough.md", text)
-                self.assertLess(text.index("skill-first-use-walkthrough.md"), text.index(reference_heading))
+    def test_concrete_completion_gate_precedes_structural_validation(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        section = text[text.index("## 12.") : text.index("## 13.")]
+        sentinel_check = section.index("grep -q 'Selected profiles: template-scaffold'")
+        todo_check = section.index("grep -q '\\bTODO\\b'")
+        skill_validation = section.index("python .github/scripts/validate_skill.py .")
+        composition_validation = section.index(
+            "python /absolute/path/to/agent-skills/composition/scripts/run.py"
+        )
+        self.assertLess(sentinel_check, skill_validation)
+        self.assertLess(todo_check, skill_validation)
+        self.assertLess(skill_validation, composition_validation)
+        self.assertIn("validator intentionally accepts the initial `template-scaffold`", text)
+
+    def test_skill_entrypoints_prioritize_first_use_before_reference(self) -> None:
+        overview = (
+            ROOT / "components" / "artifact.skill-core" / "files" / "README.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/composition/use/skill-first-use-walkthrough/", overview)
+        self.assertLess(
+            overview.index("/composition/use/skill-first-use-walkthrough/"),
+            overview.index("## Artifact model"),
+        )
+
+        index = (
+            ROOT / "components" / "artifact.skill-core" / "files" / "docs" / "index.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("[Skill overview](../README.md)", index)
+        self.assertLess(index.index("[Skill overview]"), index.index("## Reference"))
 
     def test_publication_catalog_contains_canonical_skill_walkthrough(self) -> None:
         catalog = json.loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))
