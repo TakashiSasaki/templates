@@ -12,6 +12,8 @@ WALKTHROUGH_JA = ROOT / "translations" / "ja" / "docs" / "guides" / "webapp-prod
 EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition.json"
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
+BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
+BROWSER_PROOF_REVISION = "03af76c1703aafbe08fbbc4f8f23d773180eb656"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
@@ -123,6 +125,35 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "`accessibility-test` または `end-to-end-test` proof",
             "HTTP reachability、unit test を browser proof として再分類",
             "evidence document を `template` mode に保ちます",
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, japanese)
+
+    def test_real_browser_proof_is_immutable_and_runs_before_product_claim(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        expected_url = (
+            "https://raw.githubusercontent.com/TakashiSasaki/templates/"
+            f"{BROWSER_PROOF_REVISION}/examples/onboarding/task-ledger/browser_proof.py"
+        )
+        self.assertIn(expected_url, text)
+        self.assertIn("CHROMEWEBDRIVER", text)
+        self.assertIn("CHROME_BINARY", text)
+        self.assertIn('<h1 id="main-heading">Task Ledger</h1>', text)
+        self.assertIn("genuine 200% browser page-scale", text)
+        self.assertIn("unknown-route browser negative path", text)
+        self.assertIn("python tests/test_task_ledger_browser.py", text)
+        self.assertLess(
+            text.index("python tests/test_task_ledger_browser.py"),
+            text.index("## 13. Define and run authoritative product verification"),
+        )
+        compile(BROWSER_PROOF.read_text(encoding="utf-8"), str(BROWSER_PROOF), "exec")
+
+        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
+        for expected in (
+            expected_url,
+            "実ブラウザによる viewport / keyboard proof",
+            "genuine 200% browser page-scale",
+            "unknown routeのbrowser negative path",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
