@@ -461,15 +461,22 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
                 continue
 
             resolved, authored_local = resolve_http_reference(source.public_url, raw)
-            try:
-                resolved_origin = normalized_origin(
-                    resolved,
-                    f"{source.relative_path}:{reference.line}:{reference.column}: "
-                    f"link {reference.href!r}",
-                )
-            except SiteLinkError as exc:
-                diagnostics.add(str(exc))
-                continue
+            if authored_local:
+                # Local references are constructed with the source page's scheme and
+                # authority, which in turn come from the already validated Site URL.
+                # Re-normalizing that inherited origin for every local link repeats
+                # IDNA/IP parsing without adding a new trust boundary.
+                resolved_origin = origin
+            else:
+                try:
+                    resolved_origin = normalized_origin(
+                        resolved,
+                        f"{source.relative_path}:{reference.line}:{reference.column}: "
+                        f"link {reference.href!r}",
+                    )
+                except SiteLinkError as exc:
+                    diagnostics.add(str(exc))
+                    continue
             if resolved_origin != origin:
                 continue
 
