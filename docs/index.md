@@ -2,7 +2,7 @@
 
 ## Start here
 
-- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — **Creating your first Web application? Start here.** Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — Creating your first Web application? Start here. Follow one zero-to-one Task Ledger path from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, product tests, evidence, optional Policy, and later update/upgrade.
 - [Using Composition](consumer-guide.md) — task-oriented create, inspect, update, upgrade, recovery, ownership, and conflict workflows for consumer repositories.
 - [Choosing a recipe and components](../catalog/README.md) — decide between `skill` and `webapp`, then select only the application capabilities or lifecycle behavior the product actually needs.
 - [Producing a product release](release-guide.md) — product evidence, fixed executable argv, exact candidate revision, transactional release production, rollback, and recovery.
@@ -59,5 +59,5 @@ Composer output defaults to the machine-readable JSON contract. When a person is
 
 ## Machine-readable authorities
 
-- [Production catalog guide](../catalog/README.md) — catalog closure rules, path conventions, and consumer recipe/component selection guidance.
+- [Production catalog guide](../catalog/README.md) — catalog closure rules, path conventions, consumer recipe/component selection guidance.
 - [Composition schema guide](../schemas/README.md) — component, recipe, configuration, lock, transaction, and catalog schema responsibilities.
