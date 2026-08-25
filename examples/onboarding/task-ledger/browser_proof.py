@@ -351,8 +351,15 @@ def run_browser_proof(base_url: str) -> None:
         browser.send_keys("#title", "Zoom task" + ENTER)
         wait_for(
             browser,
-            "return document.querySelectorAll('#tasks li').length === 1",
+            "return document.querySelector('#title').value === ''",
             "title input is not keyboard-operable at 200% scale",
+        )
+        browser.send_keys("#status", "all" + ENTER)
+        wait_for(
+            browser,
+            """return document.querySelector('#status').value === 'all'
+                && document.querySelectorAll('#tasks li').length === 1""",
+            "zoom-created task is not visible after keyboard filter reset",
         )
 
         browser.navigate(base_url + "missing")
