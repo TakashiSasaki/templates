@@ -337,7 +337,12 @@ def run_browser_proof(base_url: str) -> None:
                 && document.querySelector('#tasks li span').textContent.includes('(completed)')""",
             "keyboard filter did not select and isolate the completed task",
         )
-        browser.tab_to("#tasks li button:last-of-type", 2)
+        require(
+            browser.execute("return document.activeElement.matches('#status')"),
+            "status filter lost keyboard focus after selection",
+        )
+        browser.tab_to("#tasks li button:first-of-type", 1)
+        browser.tab_to("#tasks li button:last-of-type", 1)
         browser.send_keys_to_active(ENTER)
         wait_for(
             browser,
