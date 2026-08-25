@@ -4,7 +4,7 @@ This repository is a framework-neutral Web application contract scaffold produce
 
 ## New to Composition? Start with the worked example
 
-If you are creating your first Web application with this repository, do not start by reverse-engineering the contracts below. Follow the [Webapp product walkthrough](../../../docs/guides/webapp-product-walkthrough.md) from a separate product repository. It starts with prerequisites and Composition installation, creates `composition.json`, walks through `inspect -> plan -> apply -> validate`, explains exactly which generated files you may edit, and then continues into product implementation and evidence.
+If you are creating your first Web application with this repository, do not start by reverse-engineering the contracts below. Follow the [Webapp product walkthrough](https://templates.moukaeritai.work/composition/use/webapp-product-walkthrough/) from a separate product repository. It starts with prerequisites and Composition installation, creates `composition.json`, walks through `inspect -> plan -> apply -> validate`, explains exactly which generated files you may edit, and then continues into product implementation and evidence.
 
 The first milestone in that walkthrough is a **valid Composition scaffold**, not a completed Web application. Product implementation and product verification remain consumer responsibilities.
 
