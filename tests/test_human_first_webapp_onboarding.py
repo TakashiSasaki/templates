@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -146,7 +147,21 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             text.index("python tests/test_task_ledger_browser.py"),
             text.index("## 13. Define and run authoritative product verification"),
         )
-        compile(BROWSER_PROOF.read_text(encoding="utf-8"), str(BROWSER_PROOF), "exec")
+        browser_source = BROWSER_PROOF.read_text(encoding="utf-8")
+        compile(browser_source, str(BROWSER_PROOF), "exec")
+        pinned = subprocess.run(
+            [
+                "git",
+                "show",
+                f"{BROWSER_PROOF_REVISION}:"
+                "examples/onboarding/task-ledger/browser_proof.py",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(pinned.stdout, browser_source)
 
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         for expected in (
