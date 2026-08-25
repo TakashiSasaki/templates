@@ -10,7 +10,7 @@ consumer repository は、artifact recipe と明示的な consumer intent から
 
 **初めて Web application を作る場合**は、[Webapp product walkthrough](docs/guides/webapp-product-walkthrough.md) から始めてください。これは canonical な zero-to-one path です。別 product repository を作り、prerequisites を確認し、Composition を install し、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を進め、editing boundary を理解した後、product implementation と evidence まで続きます。開始前に Composition architecture を理解する必要はありません。
 
-Agent Skill の作成、既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling など、その他の consumer work には [Using Composition](docs/consumer-guide.md) を使用します。Agent Skill の dedicated first-use walkthrough は Webapp tutorial とは別に管理します。
+Agent Skill の作成、既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling など、その他の consumer work には [Using Composition](docs/consumer-guide.md) を使用します。
 
 通常の consumer は installable な `skills/composition/` runner を使用します。Git と CPython 3.11 から 3.14 が対応 prerequisite です。runner は immutable な full-SHA Composition source revision を選択し、dependency resolution を無効にして正確な `requirements-runtime.lock` environment を構築し、consumer repository を target として既存の Composer を呼び出します。Composition authority 自体を保守する担当者は direct source-checkout entrypoint も引き続き利用でき、clean consumer-runtime matrix では Ubuntu 24.04 と Windows Server 2022 を検証しています。
 
