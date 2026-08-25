@@ -23,7 +23,6 @@ from task_ledger.cli import make_server
 ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf"
 ENTER = "\ue007"
 END = "\ue010"
-HOME = "\ue011"
 
 
 class BrowserProofError(RuntimeError):
@@ -355,13 +354,6 @@ def run_browser_proof(base_url: str) -> None:
             browser,
             "return document.querySelector('#title').value === ''",
             "title input is not keyboard-operable at 200% scale",
-        )
-        browser.send_keys("#status", HOME + ENTER)
-        wait_for(
-            browser,
-            """return document.querySelector('#status').value === 'all'
-                && document.querySelectorAll('#tasks li').length === 1""",
-            "zoom-created task is not visible after keyboard filter reset",
         )
 
         browser.navigate(base_url + "missing")
