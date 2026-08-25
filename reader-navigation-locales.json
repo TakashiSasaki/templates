@@ -27,6 +27,7 @@
         {"id": "historical-provenance", "canonical": "Historical provenance", "localized": "履歴 provenance"},
         {"id": "authority-migration-history", "canonical": "Authority migration history", "localized": "Authority 移行履歴"},
         {"id": "agent-skill", "canonical": "Agent Skill", "localized": "Agent Skill"},
+        {"id": "first-use-walkthrough", "canonical": "First-use walkthrough", "localized": "初回ウォークスルー"},
         {"id": "skill-contract", "canonical": "Skill contract", "localized": "Skill contract"},
         {"id": "skill-profiles", "canonical": "Skill profiles", "localized": "Skill profiles"},
         {"id": "skill-capability-map", "canonical": "Skill/capability map", "localized": "Skill / capability map"},

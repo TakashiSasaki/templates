@@ -20,13 +20,13 @@
       <a class="portal-cover__button portal-cover__button--primary" href="/composition/use/webapp-product-walkthrough/">
         Web アプリケーションを作る <span aria-hidden="true">→</span>
       </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="/skill/">
+      <a class="portal-cover__button portal-cover__button--secondary" href="/composition/use/skill-first-use-walkthrough/">
         Agent Skill を作る <span aria-hidden="true">→</span>
       </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>具体的な作業から始め、architecture は必要になってから確認します。</li>
-      <li>Webapp の初回利用には canonical な一本道の walkthrough があります。</li>
+      <li>Webapp と Agent Skill の初回利用には、それぞれ canonical な一本道の walkthrough があります。</li>
       <li>Policy は optional で、Composition とは独立しています。</li>
     </ul>
   </div>
@@ -53,11 +53,11 @@
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
 
-    <a class="portal-artifact-card portal-artifact-card--skill" href="/skill/">
+    <a class="portal-artifact-card portal-artifact-card--skill" href="/composition/use/skill-first-use-walkthrough/">
       <span class="portal-artifact-card__icon"><img src="/images/icon-skill.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Agent Skill を作る</strong>
-        <span>Skill artifact guidance から始め、consumer-owned workflow と resource contracts を確認します。</span>
+        <span>Release Note Helper walkthrough を、別 consumer repository の作成から concrete な knowledge-augmented Skill と behavioral evaluation まで順に進めます。</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
@@ -99,6 +99,7 @@ TakashiSasaki/templates
   </div>
   <div class="portal-doc-links">
     <a class="portal-doc-link" href="/composition/">Composition を見る</a>
+    <a class="portal-doc-link" href="/skill/">Agent Skill を見る</a>
     <a class="portal-doc-link" href="/policy/">Policy を見る</a>
     <a class="portal-doc-link" href="/capabilities/">Capabilities</a>
     <a class="portal-doc-link" href="/lifecycle/">Lifecycle</a>
