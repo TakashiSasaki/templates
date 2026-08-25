@@ -11,6 +11,8 @@
 - [Composer リファレンス](reference/composer.md) — 正確な CLI mode/options、inspect states、plan fields、ownership semantics、recovery rules、managed lifecycle diagnostics を説明します。
 - [Composition 概要](../README.md) — 現在の authority、lifecycle summary、safety model、documentation entry points を説明します。
 
+Composer の出力は machine-readable な JSON contract が default です。人間が terminal で lifecycle を直接進める場合は、`inspect`、`plan`、`apply`、`validate` に `--format human` を付けると、簡潔な status と next-action guidance を表示できます。automation は引き続き default JSON（または明示的な `--format json`）を使用してください。
+
 ## Composition architecture
 
 - [Composition model](architecture/composition-model.md) — artifact、capability、lifecycle、ownership、intent、lock semantics を説明します。

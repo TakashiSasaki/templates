@@ -16,16 +16,16 @@ inspect -> plan -> apply -> validate
 
 ## Command and option matrix
 
-| Command | Mode | `--target` | `--config` | Purpose |
-| --- | --- | --- | --- | --- |
-| `inspect` | none | required | not accepted | classify target state without mutation |
-| `plan` | `initial` or omitted | required | required | plan first materialization |
-| `apply` | `initial` or omitted | required | required | perform first materialization |
-| `plan` | `update` | required | forbidden | preserve lock-v2 intent and reconcile to current descendant source |
-| `apply` | `update` | required | forbidden | apply or recover managed update |
-| `plan` | `upgrade` | required | required | plan explicit intent/compatibility-boundary change |
-| `apply` | `upgrade` | required | required for a new upgrade; forbidden during recovery | start or recover explicit upgrade |
-| `validate` | none | required | not accepted | validate current consumer state |
+| Command | Mode | `--target` | `--config` | `--format` | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `inspect` | none | required | not accepted | `json` (default) / `human` | classify target state without mutation |
+| `plan` | `initial` or omitted | required | required | `json` (default) / `human` | plan first materialization |
+| `apply` | `initial` or omitted | required | required | `json` (default) / `human` | perform first materialization |
+| `plan` | `update` | required | forbidden | `json` (default) / `human` | preserve lock-v2 intent and reconcile to current descendant source |
+| `apply` | `update` | required | forbidden | `json` (default) / `human` | apply or recover managed update |
+| `plan` | `upgrade` | required | required | `json` (default) / `human` | plan explicit intent/compatibility-boundary change |
+| `apply` | `upgrade` | required | required for a new upgrade; forbidden during recovery | `json` (default) / `human` | start or recover explicit upgrade |
+| `validate` | none | required | not accepted | `json` (default) / `human` | validate current consumer state |
 
 Initial mode is the default. These forms are equivalent:
 
@@ -34,7 +34,30 @@ python scripts/compose.py plan --config composition.json --target /repo
 python scripts/compose.py plan --mode initial --config composition.json --target /repo
 ```
 
-The dispatcher accepts `--mode` before or after the command, but examples and documentation use command-first form.
+The dispatcher accepts `--mode` and `--format` before or after the command, but examples and documentation use command-first form.
+
+## Output formats
+
+`--format json` is the default public output contract. Omitting `--format` is equivalent to explicit `--format json`: existing invocations keep the same machine-readable JSON field shapes, structured diagnostic codes, and lifecycle exit behavior.
+
+`--format human` is an opt-in presentation for a person operating the Composer directly in a terminal. It renders concise state, conflict/action summaries, ownership guidance, remediation, and next actions from the same structured lifecycle payload used by JSON output. It does not invoke a different planner, apply path, validator, state transition, or remediation semantics.
+
+Human output is not a parsing or automation contract. Automation must continue to use the default JSON output or explicit `--format json` and consume structured fields and diagnostic `code` values rather than matching human prose. Exit status semantics are format-independent: the same lifecycle result has the same exit code whether rendered as JSON or human text.
+
+Examples:
+
+```sh
+python scripts/compose.py inspect --target /repo --format human
+python scripts/compose.py plan --config composition.json --target /repo --format human
+```
+
+Through the installed runner, `--format` is forwarded as a Composer option:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /repo \
+  inspect --format human
+```
 
 ## CLI discovery
 
@@ -44,7 +67,7 @@ The public entrypoint exposes the complete lifecycle and mode/config rules witho
 python scripts/compose.py --help
 ```
 
-The top-level help lists `inspect -> plan -> apply -> validate`, the `initial` / `update` / `upgrade` modes, the `--config` requirements for each mode, interrupted-upgrade recovery behavior, and representative commands. This help path is read-only and does not load Composition source state or inspect a consumer repository.
+The top-level help lists `inspect -> plan -> apply -> validate`, the `initial` / `update` / `upgrade` modes, the `--config` requirements for each mode, interrupted-upgrade recovery behavior, output-format selection, and representative commands. This help path is read-only and does not load Composition source state or inspect a consumer repository.
 
 Internal modules such as `composer_update_plan.py`, `composer_apply.py`, `composer_managed.py`, and `composer_transaction.py` are implementation layers, not alternate public entrypoints. Consumer automation and documentation should invoke `scripts/compose.py` directly only when operating from an exact reviewed source checkout; normal installed-skill operation delegates to that same entrypoint.
 
@@ -271,7 +294,7 @@ Other codes may describe invalid source authorities, malformed schemas/configura
 
 ## Exit status
 
-Except for explicit help output, the CLI emits JSON to standard output for normal results and Composer errors.
+Except for explicit help output, standard output uses the selected public output format. With omitted `--format` or explicit `--format json`, normal results and Composer errors remain machine-readable JSON. With `--format human`, those same lifecycle payloads are rendered as human-facing text. Output format does not alter the status code:
 
 - `0` — requested operation, validation, or explicit help succeeded;
 - `2` — invalid state, conflict, argument-level Composer error, or managed-operation failure;

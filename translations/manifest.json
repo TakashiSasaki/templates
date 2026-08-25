@@ -83,7 +83,7 @@
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
-      "canonical_blob_sha": "4def95081c268b6c87189e817ee222a5536aaebb",
+      "canonical_blob_sha": "714b5f1ed39facf1e344967a4b96d361ee493381",
       "surfaces": ["reader", "guided"]
     },
     {
@@ -97,7 +97,7 @@
       "canonical": "docs/reference/composer.md",
       "language": "ja",
       "translation": "translations/ja/docs/reference/composer.md",
-      "canonical_blob_sha": "e94972485872d011508de95bfb2baf76a774f4aa",
+      "canonical_blob_sha": "f3ae736f7c776098a584d7af3cd4bef061456de6",
       "surfaces": ["reader"]
     },
     {
