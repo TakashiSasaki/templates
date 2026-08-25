@@ -4,9 +4,9 @@
 
 ## ここから始める
 
-- [Recipe と component の選び方](../catalog/README.md) — `skill` と `webapp` のどちらを使うかを決め、product が実際に必要とする application capability または lifecycle behavior だけを選択します。
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — **初めて Web application を作る場合はここから始めます。** 別 product repository から Task Ledger を zero-to-one で進め、installation、`composition.json`、`inspect -> plan -> apply -> validate`、ownership、implementation、product tests、evidence、optional Policy、後続 update/upgrade までを一つの経路で追体験します。
 - [Composition の利用方法](consumer-guide.md) — consumer repository の作成、inspect、update、upgrade、recovery、ownership、conflict を扱うタスク指向の workflow です。
-- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — capability selection と initial materialization から consumer implementation、product evidence、validation、Policy adoption、後続 update/upgrade までを通した end-to-end example です。
+- [Recipe と component の選び方](../catalog/README.md) — `skill` と `webapp` のどちらを使うかを決め、product が実際に必要とする application capability または lifecycle behavior だけを選択します。
 - [プロダクトリリースの生成](release-guide.md) — product evidence、fixed executable argv、exact candidate revision、transactional release production、rollback、recovery を説明します。
 - [Composer リファレンス](reference/composer.md) — 正確な CLI mode/options、inspect states、plan fields、ownership semantics、recovery rules、managed lifecycle diagnostics を説明します。
 - [Composition 概要](../README.md) — 現在の authority、lifecycle summary、safety model、documentation entry points を説明します。
@@ -41,6 +41,7 @@
 
 ## Web application artifact
 
+- [Webapp product walkthrough](guides/webapp-product-walkthrough.md) — concrete Web application の canonical first-use path です。
 - [Web application ドキュメント索引](../components/artifact.webapp-core/files/docs/) — Web-specific contracts と validation を説明します。
 - [Web application template contract](../components/artifact.webapp-core/files/TEMPLATE.md) — framework-neutral browser product obligations を説明します。
 

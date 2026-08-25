@@ -2,35 +2,92 @@
 
 > **参考訳（非正本）:** この文書は英語版 `docs/guides/webapp-product-walkthrough.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-この worked example は、Composition の ownership、contract、validation semantics を維持しながら、consumer が空の directory から小規模な実装済み Web アプリケーションへ進む方法を示します。
+これは Composition で Web application を作る canonical first-use walkthrough です。Composition architecture を先に読む必要はありません。上から順に進めてください。
 
-例として扱う product は **Task Ledger** です。
+例は **Task Ledger** です。browser UI、SQLite 永続化、独立 HTTP JSON API、`list` / `export` CLI を持つ小さな product を作ります。Python / SQLite は Task Ledger の product decision であり、Composition の推奨 technology ではありません。
 
-- browser UI から task の作成、一覧、編集、完了、削除、filter ができる。
-- process restart をまたいで task が永続化される。
-- HTTP JSON API を browser から独立して利用できる。
-- command-line interface が `list` と `export` を提供する。
-- product verification は consumer repository が所有する。
+## 0. この walkthrough で何を作るか
 
-この例では product decision を具体化するために Python と SQLite を使用します。Composition がこれらの技術を推奨または選択しているわけでは**ありません**。consumer は同じ workflow に従いながら、別の runtime、framework、database、API implementation、test system を選択できます。
+`TakashiSasaki/templates` 自体を application repository にするのではなく、**別の `task-ledger` product repository** を作ります。
 
-## 1. サポートする contract から recipe と capability を選ぶ
+```text
+TakashiSasaki/templates
+        |
+        | Composition tooling と contracts を提供
+        v
+あなたの別 task-ledger product repository
+```
 
-implementation が何 process、何 port、何 library を使うかではなく、外部に対してどの interface をサポートするかから判断します。
+最初の milestone は次です。
 
-| Requirement | Selection | Reason |
-| --- | --- | --- |
-| Browser product UI | `webapp` recipe baseline | `artifact.webapp-core` が browser surfaces、routes、visible states、viewports、Web-specific validation をすでに所有する。 |
-| Python process と execution commands | `capability.runtime` | application runtime の commands/environment を明示的に decision record として残す必要がある。 |
-| 独立した HTTP JSON API | `capability.service` | non-browser caller が browser UI なしで API を利用できる。 |
-| 保守対象の `list` / `export` CLI | `capability.cli` | CLI が caller-visible な正式 interface である。 |
-| 別個の operational/diagnostic browser interface | 選択しない | 通常の Webapp surface とは別の standalone browser interface を product が持たない。 |
-| MCP / MCP Apps | 選択しない | MCP contract が不要。 |
-| Composition-managed release bundle | 選択しない | deployment/release production はこの小規模例の範囲外。 |
+```text
+separate repository
+  ↓
+Composition install
+  ↓
+composition.json
+  ↓
+inspect → plan → review → apply → validate
+  ↓
+valid Composition scaffold
+  ↓
+明確な editing boundary
+```
 
-HTTP listener を共有していても、この選択は変わりません。browser と独立 JSON API が同じ server process と port を使っていても、その API は independent service contract です。反対に、browser だけが使う private backend-for-frontend route は、それだけでは `capability.service` を選ぶ理由になりません。
+この `VALID` は product implementation / product test の完了を意味しません。後半で consumer-owned implementation、product verification、implementation evidence、optional Policy、update/upgrade まで進みます。
 
-`composition.json` を作成します。
+canonical command は path inference を避けるため absolute `--repository` / `--config` を使います。
+
+## 1. 別 product repository を作る
+
+**Run**
+
+```sh
+mkdir /absolute/path/to/task-ledger
+cd /absolute/path/to/task-ledger
+git init
+```
+
+**Expected:** 独立した Git repository ができ、`.template-composition/lock.json` はまだありません。
+
+**Repository change:** repository 自体を作成します。Composition material はまだありません。
+
+**Next:** prerequisites を確認します。
+
+## 2. Prerequisites を確認する
+
+supported prerequisites は Git と CPython 3.11–3.14 です。
+
+```sh
+git --version
+python --version
+```
+
+sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_CACHE` と `COMPOSITION_VALIDATION_CACHE` を product repository 外の writable directory に設定します。
+
+**Repository change:** なし。
+
+**Next:** Composition を install します。
+
+## 3. Composition を install する
+
+product repository 外へ reviewed immutable installer で install します。
+
+```sh
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/452cef1960612353b9ea206447b97a022ac1c2d7/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+```
+
+**Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
+
+**Repository change:** Task Ledger にはなし。
+
+full SHA は immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse) を参照してください。
+
+## 4. `composition.json` を作る
+
+Task Ledger は Webapp baseline に加えて runtime、独立 service、caller-visible CLI を選びます。
+
+`/absolute/path/to/task-ledger/composition.json`:
 
 ```json
 {
@@ -48,97 +105,93 @@ HTTP listener を共有していても、この選択は変わりません。bro
 }
 ```
 
-recipe の dependency closure により、Webapp baseline に必要な lifecycle components が追加されます。その closure を文書化するだけの目的で required components を `include` に重複して列挙しないでください。
+同じ machine-checked example は `examples/onboarding/task-ledger/composition.json` にあります。
 
-## 2. Inspect、plan、apply、validate を行う
+**Repository change:** `composition.json` は consumer-owned intent として追加されます。scaffold はまだありません。
 
-インストール済み Composition runner を使用します。
+## 5. Repository を inspect する
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
   inspect
 ```
 
-新しい directory では `absent` または `unmanaged` が期待されます。
+**Expected:** new directory なら `state: "unmanaged"`。directory 自体がなければ `absent` も正常です。
 
-mutation の前に plan します。
+**Repository change:** なし。`inspect` は read-only です。
+
+`managed-valid` / `managed-invalid` / `managed-interrupted` なら fresh initial として進めず、[Using Composition](../consumer-guide.md#check-whether-a-repository-is-managed) の state-specific workflow を使います。
+
+## 6. Initial materialization を plan する
+
+absolute `--config` を使います。relative `--config` は `--repository` ではなく **process current working directory** 基準です。
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
-  plan --config /path/to/task-ledger/composition.json
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  plan --config /absolute/path/to/task-ledger/composition.json
 ```
 
-すべての file action と conflict を確認します。空の target なら通常 action は `create` です。byte-identical な既存 file は `adopt-identical` になる場合があります。conflict があれば apply 前に解決しなければなりません。
+**Expected:** `operation: "initial"`、resolved components、`actions`、`conflicts`、`lock_preview`。fresh repository なら通常 `conflicts` は empty です。
 
-同じ intent を apply します。
+**Repository change:** なし。plan は read-only です。
+
+## 7. Plan を review する
+
+`target`、intent、全 `actions`、`conflicts` を確認します。conflict がある場合は apply せず、既存 destination が異なる理由を解決してください。metadata の rename/delete で conflict を隠してはいけません。
+
+**Repository change:** なし。
+
+## 8. Scaffold を apply する
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
-  apply --config /path/to/task-ledger/composition.json
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  apply --config /absolute/path/to/task-ledger/composition.json
 ```
 
-続いて validate します。
+**Expected:** `status: "applied"`、`operation: "initial"`、created/adopted destinations、`lock: ".template-composition/lock.json"`。
+
+**Repository change:** あり。これが最初の materialization step です。
+
+## 9. Scaffold を validate する
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
   validate
 ```
 
-この時点の repository は **valid な Composition scaffold** であり、実装済み product ではありません。implementation evidence がまだ `template` mode の Webapp では、selected-component validation は product implementation-evidence check を明示的に defer しつつ、Composition validation 全体は valid のままにします。これにより human output は template validity と product claim を同一視しません。
+**Expected:** public JSON result が `status: "valid"`。initial implementation evidence は `template` mode なので product claim は deferred です。
 
-概念的には次のようになります。
+> **Composition validation: VALID** は Composition state / template contracts が valid という意味で、Task Ledger が実装済み・product-tested という意味ではありません。
 
-```text
-PASSED: composition-state (...)
-PASSED: webapp-contracts (...)
-PASSED: webapp-implementation-coverage (...)
-PASSED: contract-evolution (...)
-DEFERRED: implementation-evidence (...)
-  Implementation evidence is in TEMPLATE mode; no product implementation claim is active. ...
-Composition validation: VALID
-```
+## 10. Generated tree と editing boundary を確認する
 
-ここで `VALID` が意味するのは、選択済み Composition state と template contracts が valid であることです。Task Ledger の実装、product test、deployment、release readiness を意味しません。
+`.template-composition/lock.json` を読みます。lock 自体は編集しません。
 
-## 3. 実装前に editing boundary を確立する
+| File | Ownership | Action |
+| --- | --- | --- |
+| `README.md`, `TEMPLATE.md`, `RUNTIME.md`, `CLI_INTERFACE.md`, `SERVICE_INTERFACE.md` | `seed` | **編集する。** consumer ownership に移っています。 |
+| Webapp contract JSON | `seed` | **編集する。** product の実態に合わせる。 |
+| `contracts/implementation-evidence.json` | `seed` | **real proof ができてから編集する。** |
+| `contracts/manifest.json` | `generated` | **hand-edit しない。** |
+| `schemas/*.schema.json` | `managed` | **hand-edit しない。** |
+| `.github/workflows/validate-webapp.yml` | `managed` | **hand-edit しない。** |
+| scaffold validators / `.template-composition/*` managed material | `managed` | **hand-edit しない。** |
+| `.template-composition/lock.json` | Composer state | **hand-edit しない。** |
+| `task_ledger/cli.py`, `tests/test_task_ledger.py` などの新規 path | ordinary consumer content | **通常どおり作成・編集する。** |
 
-生成済み material を編集する前に `.template-composition/lock.json` を読みます。
+`seed` は initial materialization 後に consumer-owned、`managed` / `generated` は Composition-owned、lock にない path は原則 ordinary consumer content です。
 
-| Ownership | Task Ledger での扱い |
-| --- | --- |
-| `seed` | product 向けに編集・具体化する。 |
-| `managed` | 直接編集しない。Composition が authoritative のまま。 |
-| `generated` | 直接編集しない。Composition が deterministic に再生成する。 |
-| lock に存在しない | 別の repository-local authority が定めない限り通常の consumer content。 |
+## 11. Template assumption を実際の product contract に置き換える
 
-したがって通常の product work では、`README.md`、`TEMPLATE.md`、`RUNTIME.md`、`CLI_INTERFACE.md`、`SERVICE_INTERFACE.md`、Webapp contract JSON などの seed documents/contracts を編集し、product source と tests は通常の consumer files として追加します。
+Task Ledger が本当に実装する contract だけを残します。
 
-local change を valid に見せるために `.template-composition/lock.json` を編集しないでください。Composition validation を回避するために managed schema や validator を product-owned variant として複製することもしないでください。
+Browser: `primary` surface、`/` の home route、実際に表示する state、tested viewport/input behavior を記述します。
 
-## 4. Template assumption を実際の product contract に置き換える
-
-product が本当に実装する contract item だけを残します。Task Ledger は意図的に小さい inventory のままで構いません。
-
-### Browser contract
-
-最小の具体的 inventory は seed shape に近いままにできます。
-
-| Contract | Product decision |
-| --- | --- |
-| surface | `primary`: Task Ledger browser UI、local-product audience、non-diagnostic |
-| route | `/` の `home`: canonical task-list/editor route |
-| states | `ready` に加え、implementation が実際に表示する loading/empty/error states だけを追加 |
-| viewport | tested behavior に合わせて baseline responsive lower bound と input/zoom behavior を維持または修正 |
-
-大規模 application なら必要になるかもしれないという理由だけで authentication、administration、role-based authorization、touch support、複数 breakpoint、diagnostic surfaces を追加しないでください。
-
-### Runtime contract
-
-consumer decision で `RUNTIME.md` を具体化します。この例では次のようにできます。
+`RUNTIME.md` の例:
 
 ```text
 Implementation ecosystem: CPython 3.11+
@@ -147,11 +200,7 @@ Server command: python -m task_ledger.cli --database task-ledger.db serve --host
 Distribution: source execution for this example
 ```
 
-これらは product decision であり、Composition default ではありません。
-
-### Service contract
-
-JSON API を独立してサポートするため `SERVICE_INTERFACE.md` を具体化します。小規模な contract 例:
+`SERVICE_INTERFACE.md` の小さな API:
 
 ```text
 GET    /api/tasks?status=all|open|completed
@@ -162,100 +211,401 @@ DELETE /api/tasks/{id}
 GET    /healthz
 ```
 
-request validation、result/error semantics、size limits、authentication/exposure decisions、readiness/liveness behavior、restart handling、browser UI との関係を定義します。UI と同じ process/listener を共有していても service obligations はなくなりません。
-
-### CLI contract
-
-保守対象 command について `CLI_INTERFACE.md` を具体化します。例:
+`CLI_INTERFACE.md`:
 
 ```sh
 python -m task_ledger.cli --database task-ledger.db list --status all
 python -m task_ledger.cli --database task-ledger.db export
 ```
 
-stdout/stderr、exit status、invalid arguments、persistence target selection、対応 API operation と CLI operation の semantics が等価かどうかを文書化します。
+## 12. Minimal consumer-owned implementation と tests を作る
 
-## 5. Consumer-owned source files に実装する
+ここからは hypothetical tree ではなく、Section 13 で実際に実行できる product code / tests / verifier を作ります。以下はすべて lock に存在しない ordinary consumer content です。
 
-product tree の一例:
-
-```text
-task-ledger/
-├── task_ledger/
-│   ├── cli.py
-│   ├── server.py
-│   ├── store.py
-│   └── static/
-│       ├── index.html
-│       ├── app.js
-│       └── style.css
-├── tests/
-│   └── test_task_ledger.py
-└── scripts/
-    └── verify.sh
+```sh
+mkdir -p task_ledger/static tests scripts
+touch task_ledger/__init__.py
 ```
 
-Composition はこの layout を要求しません。重要なのは、これらが consumer-owned implementation/verification files であり、Composition-owned managed/generated material を変更しないことです。
+`task_ledger/cli.py` を作成します。
 
-validator を green にするだけではなく contract を満たすよう実装します。Task Ledger では最低限、次を実証します。
+```python
+from __future__ import annotations
 
-- create/list/edit/complete/delete behavior。
-- open/completed filtering。
-- process restart をまたぐ persistence。
-- independent JSON API usage。
-- CLI `list` と `export`。
-- declared contracts に対応する negative input/error cases。
+import argparse
+import json
+import sqlite3
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
-## 6. Authoritative consumer verification command を1つ定義する
 
-Composition は product test runner を選びません。Task Ledger では次の command を定義できます。
+def connect(database: str) -> sqlite3.Connection:
+    connection = sqlite3.connect(database)
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS tasks ("
+        "id INTEGER PRIMARY KEY, title TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0)"
+    )
+    connection.commit()
+    return connection
+
+
+def task_dict(row: sqlite3.Row) -> dict[str, object]:
+    return {"id": row["id"], "title": row["title"], "completed": bool(row["completed"])}
+
+
+def list_tasks(database: str, status: str = "all") -> list[dict[str, object]]:
+    if status not in {"all", "open", "completed"}:
+        raise ValueError("status must be all, open, or completed")
+    query = "SELECT id, title, completed FROM tasks"
+    parameters: tuple[object, ...] = ()
+    if status != "all":
+        query += " WHERE completed = ?"
+        parameters = (1 if status == "completed" else 0,)
+    query += " ORDER BY id"
+    with connect(database) as connection:
+        return [task_dict(row) for row in connection.execute(query, parameters)]
+
+
+def create_task(database: str, title: object) -> dict[str, object]:
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("title must be a non-empty string")
+    with connect(database) as connection:
+        cursor = connection.execute("INSERT INTO tasks(title) VALUES (?)", (title.strip(),))
+        row = connection.execute(
+            "SELECT id, title, completed FROM tasks WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
+    assert row is not None
+    return task_dict(row)
+
+
+def get_task(database: str, task_id: int) -> dict[str, object] | None:
+    with connect(database) as connection:
+        row = connection.execute(
+            "SELECT id, title, completed FROM tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+    return task_dict(row) if row is not None else None
+
+
+def update_task(database: str, task_id: int, changes: dict[str, object]) -> dict[str, object] | None:
+    current = get_task(database, task_id)
+    if current is None:
+        return None
+    title = changes.get("title", current["title"])
+    completed = changes.get("completed", current["completed"])
+    if not isinstance(title, str) or not title.strip() or not isinstance(completed, bool):
+        raise ValueError("title must be non-empty and completed must be boolean")
+    with connect(database) as connection:
+        connection.execute(
+            "UPDATE tasks SET title = ?, completed = ? WHERE id = ?",
+            (title.strip(), int(completed), task_id),
+        )
+    return get_task(database, task_id)
+
+
+def delete_task(database: str, task_id: int) -> bool:
+    with connect(database) as connection:
+        cursor = connection.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    return cursor.rowcount == 1
+
+
+def make_server(database: str, host: str, port: int) -> ThreadingHTTPServer:
+    static_root = Path(__file__).with_name("static")
+
+    class Handler(BaseHTTPRequestHandler):
+        def send_json(self, status: int, value: object) -> None:
+            body = json.dumps(value).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def read_json(self) -> dict[str, object]:
+            length = int(self.headers.get("Content-Length", "0"))
+            value = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(value, dict):
+                raise ValueError("JSON body must be an object")
+            return value
+
+        def task_id(self, path: str) -> int | None:
+            parts = path.strip("/").split("/")
+            if len(parts) == 3 and parts[:2] == ["api", "tasks"] and parts[2].isdigit():
+                return int(parts[2])
+            return None
+
+        def do_GET(self) -> None:
+            parsed = urlparse(self.path)
+            if parsed.path == "/healthz":
+                self.send_json(HTTPStatus.OK, {"status": "ok"})
+                return
+            if parsed.path == "/api/tasks":
+                status = parse_qs(parsed.query).get("status", ["all"])[0]
+                try:
+                    self.send_json(HTTPStatus.OK, list_tasks(database, status))
+                except ValueError as exc:
+                    self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            task_id = self.task_id(parsed.path)
+            if task_id is not None:
+                task = get_task(database, task_id)
+                self.send_json(HTTPStatus.OK, task) if task else self.send_json(
+                    HTTPStatus.NOT_FOUND, {"error": "task not found"}
+                )
+                return
+            if parsed.path == "/":
+                body = (static_root / "index.html").read_bytes()
+                self.send_response(HTTPStatus.OK)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
+        def do_POST(self) -> None:
+            if urlparse(self.path).path != "/api/tasks":
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                return
+            try:
+                self.send_json(HTTPStatus.CREATED, create_task(database, self.read_json().get("title")))
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+
+        def do_PATCH(self) -> None:
+            task_id = self.task_id(urlparse(self.path).path)
+            if task_id is None:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                return
+            try:
+                task = update_task(database, task_id, self.read_json())
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            self.send_json(HTTPStatus.OK, task) if task else self.send_json(
+                HTTPStatus.NOT_FOUND, {"error": "task not found"}
+            )
+
+        def do_DELETE(self) -> None:
+            task_id = self.task_id(urlparse(self.path).path)
+            if task_id is None or not delete_task(database, task_id):
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "task not found"})
+                return
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--database", required=True)
+    subcommands = parser.add_subparsers(dest="command", required=True)
+    list_parser = subcommands.add_parser("list")
+    list_parser.add_argument("--status", choices=("all", "open", "completed"), default="all")
+    subcommands.add_parser("export")
+    serve_parser = subcommands.add_parser("serve")
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=8080)
+    args = parser.parse_args()
+
+    if args.command == "list":
+        for task in list_tasks(args.database, args.status):
+            marker = "x" if task["completed"] else " "
+            print(f"{task['id']}\t[{marker}]\t{task['title']}")
+        return 0
+    if args.command == "export":
+        print(json.dumps(list_tasks(args.database), ensure_ascii=False, indent=2))
+        return 0
+
+    server = make_server(args.database, args.host, args.port)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+`task_ledger/static/index.html`:
+
+```html
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Ledger</title>
+<h1>Task Ledger</h1>
+<form id="new-task"><input id="title" required><button>Add task</button></form>
+<label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
+<ul id="tasks"></ul>
+<p id="message" role="status"></p>
+<script>
+const tasks = document.querySelector('#tasks');
+const message = document.querySelector('#message');
+async function request(path, options = {}) {
+  const response = await fetch(path, {headers: {'Content-Type': 'application/json'}, ...options});
+  if (!response.ok && response.status !== 204) throw new Error(await response.text());
+  return response.status === 204 ? null : response.json();
+}
+async function load() {
+  tasks.replaceChildren();
+  const values = await request('/api/tasks?status=' + document.querySelector('#status').value);
+  if (!values.length) message.textContent = 'No tasks yet.'; else message.textContent = '';
+  for (const task of values) {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = task.title + (task.completed ? ' (completed)' : '');
+    const toggle = document.createElement('button');
+    toggle.textContent = task.completed ? 'Reopen' : 'Complete';
+    toggle.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'PATCH', body: JSON.stringify({completed: !task.completed})}); await load(); };
+    const remove = document.createElement('button');
+    remove.textContent = 'Delete';
+    remove.onclick = async () => { await request('/api/tasks/' + task.id, {method: 'DELETE'}); await load(); };
+    item.append(label, ' ', toggle, ' ', remove); tasks.append(item);
+  }
+}
+document.querySelector('#new-task').onsubmit = async event => {
+  event.preventDefault();
+  const input = document.querySelector('#title');
+  await request('/api/tasks', {method: 'POST', body: JSON.stringify({title: input.value})});
+  input.value = ''; await load();
+};
+document.querySelector('#status').onchange = load;
+load().catch(error => { message.textContent = error.message; });
+</script>
+```
+
+`tests/test_task_ledger.py`:
+
+```python
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+from task_ledger.cli import create_task, list_tasks, make_server, update_task
+
+
+class TaskLedgerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.database = str(Path(self.temporary.name) / "tasks.db")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def test_crud_filter_and_persistence(self) -> None:
+        first = create_task(self.database, "write docs")
+        self.assertEqual([task["title"] for task in list_tasks(self.database, "open")], ["write docs"])
+        update_task(self.database, int(first["id"]), {"title": "write guide", "completed": True})
+        self.assertEqual([task["title"] for task in list_tasks(self.database, "completed")], ["write guide"])
+        self.assertEqual(list_tasks(self.database), list_tasks(self.database))
+
+    def test_cli_export_uses_selected_database(self) -> None:
+        create_task(self.database, "export me")
+        result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "export"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertEqual(json.loads(result.stdout)[0]["title"], "export me")
+
+    def test_http_api_positive_and_negative_paths(self) -> None:
+        server = make_server(self.database, "127.0.0.1", 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        try:
+            health = json.load(urllib.request.urlopen(base + "/healthz"))
+            self.assertEqual(health, {"status": "ok"})
+            request = urllib.request.Request(
+                base + "/api/tasks",
+                data=json.dumps({"title": "from api"}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            created = json.load(urllib.request.urlopen(request))
+            open_tasks = json.load(urllib.request.urlopen(base + "/api/tasks?status=open"))
+            self.assertEqual([task["id"] for task in open_tasks], [created["id"]])
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(base + "/api/tasks?status=invalid")
+            self.assertEqual(raised.exception.code, 400)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Section 13 の authoritative verifier を**実行前に作成**します。
+
+```sh
+cat > scripts/verify.sh <<'SH'
+#!/bin/sh
+set -eu
+python -m unittest discover -s tests -v
+SH
+chmod +x scripts/verify.sh
+```
+
+manual start:
+
+```sh
+python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --port 8080
+```
+
+`http://127.0.0.1:8080/` で create、complete/reopen、delete、filter を確認できます。title edit は `PATCH /api/tasks/{id}` に実装されていますが minimal browser UI には edit control がありません。browser-edit evidence を claim する前に edit control と proof を追加するか、browser contract を実際の UI behavior に狭めます。
+
+**Repository change:** 上記は ordinary consumer-owned implementation / verification material です。
+
+## 13. Authoritative product verification を定義して実行する
+
+Composition は product test runner を選びません。ここでは Section 12 で作成した consumer-owned verifier を実行します。
 
 ```sh
 ./scripts/verify.sh
 ```
 
-例えば、この command が unit/integration tests と repository が要求する deterministic product checks を実行します。単独で再実行可能にしてください。implementation evidence は「test した」という非形式的 claim ではなく、実在する consumer command を参照するべきです。
+**Expected:** unit/integration checks が pass し exit 0。SQLite persistence、filter/update、CLI export、independent JSON API、health、negative invalid-filter case を検査します。
 
-product evidence を記録する前に command を実行し、failure を修正します。Composition validation はこの product verification command を代替しません。
+**What this means:** Composition structural validation とは別の product-behavior evidence が存在します。browser edit を claim するなら、先に UI control/proof を追加するか contract を実態へ合わせます。
 
-## 7. 現在の evidence worklist を生成する
-
-evidence target ID を手作業で発明しないでください。Webapp scaffold には read-only deterministic worklist generator があります。
+## 14. 現在の evidence worklist を生成する
 
 ```sh
 python scripts/scaffold_webapp_evidence.py > /tmp/webapp-evidence-worklist.json
 ```
 
-この command は `contracts/implementation-evidence.json` を変更しません。現在の consumer contracts から Webapp evidence targets を導出するため、surface、route、state、viewport を追加・削除すると worklist も deterministic に変わります。
+これは read-only generator で、`contracts/implementation-evidence.json` を変更しません。actual current contracts から target set を導出します。
 
-worklist を product evidence authoring の checklist として使用します。現在の各 target について次を特定します。
+各 target について implementation boundary、positive proof、negative proof、authoritative command、release gate を特定します。同じ suite が複数 target を本当に証明するなら command/gate の再利用は可能です。
 
-- concrete implementation boundary。
-- 少なくとも1つの positive proof。
-- 少なくとも1つの negative proof。
-- それらの proof を生成する authoritative command。
-- referenced command を実行する release gate。
+## 15. Proof が存在してから implementation evidence を product mode にする
 
-1つの test suite が複数 contract targets を実際に証明するなら、複数 record が同じ authoritative command と release gate を再利用して構いません。人工的に1 record 1 command を作らないでください。
+initial `contracts/implementation-evidence.json` は `template` mode です。implementation、`./scripts/verify.sh`、proof location が実在してから `product` mode にします。
 
-## 8. Proof が存在してから implementation evidence を product mode にする
-
-初期 evidence document は意図的に次の状態です。
-
-```json
-{
-  "$schema": "../schemas/implementation-evidence.schema.json",
-  "schemaVersion": 1,
-  "mode": "template",
-  "commands": [],
-  "releaseGates": [],
-  "records": []
-}
-```
-
-`./scripts/verify.sh` が存在し、implementation/proofs が実在してから `product` mode に変更し、worklist から導出した records を埋めます。
-
-command と gate の例:
+command/gate 例:
 
 ```json
 {
@@ -276,87 +626,67 @@ command と gate の例:
 }
 ```
 
-各 record にはさらに、正確な worklist target、verified implementation-boundary locator、verified positive/negative proof locators、expected results、selected gate が必要です。この guide の sample target をコピーしないでください。authoritative target set は consumer repository に属します。
-
-次に両方の verification layer を再実行します。
+各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
 ```sh
 ./scripts/verify.sh
-python .template-composition/validate.py .
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  validate
 ```
 
-valid な product-mode document では、`implementation-evidence` は defer されず実行されます。Composition validator は closed contract/evidence relationships を検証し、`./scripts/verify.sh` は product behavior を検証します。この例が表す claim には両方が必要です。
+product verification が pass し、Composition validation が `status: "valid"`、implementation evidence が template-deferred ではなく executed されることを確認します。
 
-## 9. 必要なら coding-agent Policy を明示的に adopt する
+## 16. 必要なら coding-agent Policy を adopt する
 
-Policy は別 authority であり、Composition capability ではありません。Task Ledger を coding agents が保守するなら、Composition が materialize を行い seed files を consumer ownership に移した後で Policy getting-started workflow に従います。
+Policy は **separate authority** であり Composition capability ではありません。`capability.policy` のような fictitious component を追加しません。
 
-結果として repository には独立した managed states が存在します。
+coding agents が Task Ledger を保守する場合は、Composition initial 後に [Policy getting-started guide](https://templates.moukaeritai.work/policy/getting-started/) を使います。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有しません。
 
-```text
-Composition initial
-  -> consumer-owned seed/product implementation
-  -> explicit Policy adoption
-  -> Composition validation + Policy validation/check + product verification
-```
+## 17. 通常の product change は通常どおり行う
 
-架空の `capability.policy` を `composition.json` に追加せず、Composition に `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を所有させないでください。
+product feature、SQLite query、consumer-owned seed contract、product tests の変更は ordinary repository work です。product が変わっただけでは Composition `update` は不要です。
 
-## 10. 通常の product change では Composition update を呼ばない
+変更後は contracts/evidence を truthful にし、`./scripts/verify.sh`、Composition `validate`、必要なら Policy validation/check を実行します。
 
-Task Ledger feature の追加、SQLite query の変更、consumer-owned seed contract の編集、product test の追加は通常の repository work です。product が変わったというだけで Composition `update` は不要です。
+## 18. 後で Composition を update / upgrade する
 
-product change 後は次を行います。
-
-1. consumer-owned contracts/evidence を truthful に更新する。
-2. `./scripts/verify.sh` を実行する。
-3. Composition validation を実行する。
-4. Policy を adopt しているなら Policy validation/check を実行する。
-
-Composition source/intent 自体が変わるときだけ Composition lifecycle operation を使用します。
-
-## 11. 後から Composition を update または upgrade する
-
-より新しい reviewed Composition revision が利用可能になったら、まず repository を inspect します。
-
-intent が変わらず、component-version boundary もない場合:
+unchanged intent で compatible な新 revision へ進む場合:
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  inspect
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
   plan --mode update
+```
 
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
+read-only plan を review 後:
+
+```sh
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
   apply --mode update
 ```
 
-apply 前に plan を確認します。consumer-owned seed changes は保存され、clean な managed/generated materials は plan に従って replace/remove される場合があります。
-
-plan が `COMPONENT_VERSION_UPGRADE_REQUIRED` を報告する場合、または Task Ledger が recipe/components/parameters を意図的に変更する場合は、boundary を明示します。
+`COMPONENT_VERSION_UPGRADE_REQUIRED` または intentional intent change なら explicit upgrade:
 
 ```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
-  plan --mode upgrade --config /path/to/task-ledger/composition.json
-
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/task-ledger \
-  apply --mode upgrade --config /path/to/task-ledger/composition.json
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  plan --mode upgrade --config /absolute/path/to/task-ledger/composition.json
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  apply --mode upgrade --config /absolute/path/to/task-ledger/composition.json
 ```
 
-その後、product verification と Composition validation を再実行します。update conflict を成功したように見せるために lock metadata を編集しないでください。
+lock metadata を hand-edit して conflict を成功に見せてはいけません。
 
 ## Completion checklist
 
-この例では、次のすべてが成立したとき repository は単なる valid scaffold ではなくなります。
+**First-use scaffold milestone:** separate product repository、Composition install、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
 
-- selected capabilities がサポート対象の caller-visible interfaces と一致する。
-- consumer-owned contract seeds が template assumptions ではなく実装済み product を記述している。
-- product source と tests が consumer-owned files として存在する。
-- authoritative product verification command が成功する。
-- implementation evidence が `product` mode で、worklist coverage と実在する positive/negative proofs が完全である。
-- Composition validation が成功し、`implementation-evidence` が template-deferred ではなく実行される。
-- optional Policy を adopt しているなら、その Policy state も独立して valid である。
+**Implemented-product milestone:** truthful consumer contracts、product source/tests、passing product verifier、complete product-mode implementation evidence、executed implementation-evidence を含む valid Composition validation、必要なら独立した valid Policy state。
 
-これは「apply 直後に Composition validation が valid を返した」より意図的に強い条件です。initial template-valid state は安全な出発点であり、完成した product claim は consumer が所有し、implementation と evidence によって裏付けなければなりません。
+first milestone 後の next action は明確です。consumer-owned contracts を product の実態へ合わせ、Section 12 で ordinary source/tests を作り、Sections 13–15 へ進みます。詳細 reference は [Using Composition](../consumer-guide.md) と [Composer reference](../reference/composer.md) を使用してください。
