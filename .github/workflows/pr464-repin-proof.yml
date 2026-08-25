@@ -1,0 +1,77 @@
+name: PR 464 repin browser proof
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Add temporary PR 464 repin fixer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+      - name: Repin immutable browser proof and provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+
+          old = '8c93a88c07cd9d2611c5937880e0a836639a271f'
+          new = '64764bc49a0029b91561ffa2d562647b2f020eef'
+          paths = [
+              Path('docs/guides/webapp-product-walkthrough.md'),
+              Path('translations/ja/docs/guides/webapp-product-walkthrough.md'),
+              Path('tests/test_human_first_webapp_onboarding.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one old proof SHA, got {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          canonical_path = Path('docs/guides/webapp-product-walkthrough.md')
+          canonical_bytes = canonical_path.read_bytes()
+          canonical_blob = hashlib.sha1(
+              f'blob {len(canonical_bytes)}\0'.encode() + canonical_bytes
+          ).hexdigest()
+
+          manifest_path = Path('translations/manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          matches = [
+              item for item in manifest['translations']
+              if item['canonical'] == 'docs/guides/webapp-product-walkthrough.md'
+              and item['language'] == 'ja'
+          ]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one walkthrough translation entry, got {len(matches)}')
+          matches[0]['canonical_blob_sha'] = canonical_blob
+          manifest_path.write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+
+          Path('.github/workflows/pr464-repin-proof.yml').unlink()
+          PY
+      - name: Commit repin
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/guides/webapp-product-walkthrough.md \
+                  translations/ja/docs/guides/webapp-product-walkthrough.md \
+                  tests/test_human_first_webapp_onboarding.py \
+                  translations/manifest.json \
+                  .github/workflows/pr464-repin-proof.yml
+          git diff --cached --check
+          git commit -m "Repin reviewed Task Ledger browser proof"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
