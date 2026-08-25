@@ -270,7 +270,7 @@ def run_browser_proof(base_url: str) -> None:
             );
             const userScalable = directives['user-scalable'];
             const maximumScale = Number.parseFloat(directives['maximum-scale']);
-            const controls = ['#title', '#new-task button', '#status'];
+            const controls = ['#main-heading', '#title', '#new-task button', '#status'];
             const effectivelyVisible = (element) => {
               for (let current = element; current; current = current.parentElement) {
                 const style = getComputedStyle(current);

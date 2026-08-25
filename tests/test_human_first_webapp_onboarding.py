@@ -126,6 +126,10 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "positive/negative `end-to-end-test` path",
             "HTTP reachability、unit testをbrowser proofとして再分類",
             "evidence documentを `template` modeに保ちます",
+            "`minWidthPx: 0`",
+            "coverage-start sentinel",
+            "実用上の最小幅は 320px",
+            "sentinel と tested minimum の 320px は別の概念",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
@@ -148,6 +152,10 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             text.index("## 13. Define and run authoritative product verification"),
         )
         browser_source = BROWSER_PROOF.read_text(encoding="utf-8")
+        self.assertIn(
+            "const controls = ['#main-heading', '#title', '#new-task button', '#status'];",
+            browser_source,
+        )
         compile(browser_source, str(BROWSER_PROOF), "exec")
         pinned = subprocess.run(
             [

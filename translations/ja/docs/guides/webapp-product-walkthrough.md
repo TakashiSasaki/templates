@@ -195,6 +195,8 @@ Task Ledger が本当に実装する contract だけを残します。
 
 Browser: `primary` surface、`/` の home route、実際に表示する state、tested viewport/input behavior を記述します。
 
+viewport coverage の先頭 target では `minWidthPx: 0` を維持してください。これは幅 0px のブラウザをサポートするという意味ではなく、validator が coverage graph の先頭に隙間がないことを確認するための coverage-start sentinel です。この walkthrough の実ブラウザ proof が検証する実用上の最小幅は 320px であり、`minWidthPx: 0` の sentinel と tested minimum の 320px は別の概念です。
+
 `RUNTIME.md` の例:
 
 ```text
