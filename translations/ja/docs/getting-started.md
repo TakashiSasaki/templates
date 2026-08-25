@@ -269,7 +269,7 @@ core
 security-baseline
 ```
 
-normal bootstrap path は fresh adoption / migration preparation の両方でこの2つを使います。
+baseline profile は `core` と `security-baseline` です。normal bootstrap path は fresh adoption / migration preparation の両方でこの2つを使います。
 
 operation-specific profile は実際にその operation を行う context だけに追加します。
 
