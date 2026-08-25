@@ -61,7 +61,8 @@ def test_getting_started_surfaces_profile_selection_for_first_time_consumers() -
         assert "[Policy profiles](shared-policy/profiles.md)" in text
 
     assert "normal bootstrap path uses exactly that pair" in getting_started
-    assert "通常のbootstrap path" in japanese
+    assert "bootstrap path" in japanese
+    assert "fresh adoption / migration preparation" in japanese
 
 
 def test_migration_docs_cover_zero_one_and_multiple_primary_instructions() -> None:
