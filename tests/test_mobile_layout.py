@@ -166,7 +166,10 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
         self.assertIn("actions/setup-python@v6", workflow)
         self.assertIn("requirements-visual.txt", workflow)
-        self.assertIn("python -m playwright install --with-deps chromium", workflow)
+        self.assertIn(
+            "python -m playwright install --with-deps --only-shell chromium",
+            workflow,
+        )
         self.assertIn("scripts/check_mobile_layout.py", workflow)
         self.assertIn("build/mobile-visual", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
@@ -182,6 +185,10 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("run-id: ${{ inputs.run_id }}", workflow)
         self.assertIn("github-token: ${{ github.token }}", workflow)
+        self.assertIn(
+            "python -m playwright install --with-deps --only-shell chromium",
+            workflow,
+        )
         self.assertNotIn("pull_request:", workflow)
         self.assertNotIn("actions/github-script@v8", workflow)
         self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
