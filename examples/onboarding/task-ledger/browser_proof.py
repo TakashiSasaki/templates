@@ -329,7 +329,7 @@ def run_browser_proof(base_url: str) -> None:
         browser.navigate(base_url)
         browser.tab_to("#title", 1)
         browser.tab_to("#status", 2)
-        browser.send_keys_to_active(END + ENTER)
+        browser.send_keys_to_active(END)
         wait_for(
             browser,
             """return document.querySelector('#status').value === 'completed'
