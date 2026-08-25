@@ -128,7 +128,7 @@ bootstrap が pinned runtime を通じて `agent-policy adopt inspect` を実行
 
 - `unmanaged-empty` → [4A. Fresh adoption](#4a-fresh-adoption)
 - `unmanaged-existing` → [4B. Migration adoption](#4b-migration-adoption)
-- `managed` → [6. Managed repository を render / validate / check する](#6-managed-repository-を-render--validate--check-する)
+- `managed` → Section 6 の managed repository workflow へ進む。
 - `inconsistent` → first-use adoption を停止し、toolchain が報告する diagnostic/recovery guidance に従う。
 
 ## 4A. Fresh adoption
