@@ -286,8 +286,13 @@ def run_browser_proof(base_url: str) -> None:
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
                 const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
                 return ['auto', 'scroll'].includes(style.overflowX)
-                  && element.getClientRects().length > 0
+                  && style.display !== 'none' && style.visibility !== 'hidden'
+                  && Number.parseFloat(style.opacity || '1') > 0
+                  && rect.width > 0 && rect.height > 0
+                  && rect.right > 0 && rect.bottom > 0
+                  && rect.left < window.innerWidth && rect.top < window.innerHeight
                   && element.scrollWidth > element.clientWidth + 1;
               }),
               zoomAllowed: !['no', '0', 'false'].includes(userScalable)
@@ -318,6 +323,20 @@ def run_browser_proof(base_url: str) -> None:
             browser,
             "return document.querySelectorAll('#tasks li').length === 1",
             "keyboard submission did not create a task",
+        )
+        require(
+            browser.execute(
+                """
+                return [...document.querySelectorAll('#tasks li button')].every((element) => {
+                  const rect = element.getBoundingClientRect();
+                  return rect.width > 0 && rect.height > 0
+                    && rect.left >= 0 && rect.top >= 0
+                    && rect.right <= window.innerWidth
+                    && rect.bottom <= window.innerHeight;
+                });
+                """
+            ),
+            "task action buttons are outside the narrow viewport",
         )
         browser.navigate(base_url)
         browser.tab_to("#title", 1)
@@ -383,8 +402,13 @@ def run_browser_proof(base_url: str) -> None:
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
                 const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
                 return ['auto', 'scroll'].includes(style.overflowX)
-                  && element.getClientRects().length > 0
+                  && style.display !== 'none' && style.visibility !== 'hidden'
+                  && Number.parseFloat(style.opacity || '1') > 0
+                  && rect.width > 0 && rect.height > 0
+                  && rect.right > 0 && rect.bottom > 0
+                  && rect.left < window.innerWidth && rect.top < window.innerHeight
                   && element.scrollWidth > element.clientWidth + 1;
               }),
             };
@@ -405,11 +429,16 @@ def run_browser_proof(base_url: str) -> None:
             const controls = ['#title', '#new-task button', '#status'];
             const reachable = controls.every((selector) => {
               const rect = document.querySelector(selector)?.getBoundingClientRect();
-              return rect && rect.width > 0 && rect.height > 0
-                && rect.left >= viewport.offsetLeft
-                && rect.right <= viewport.offsetLeft + viewport.width
-                && rect.top >= viewport.offsetTop
-                && rect.bottom <= viewport.offsetTop + viewport.height;
+              if (!rect || rect.width <= 0 || rect.height <= 0
+                  || rect.left < viewport.offsetLeft
+                  || rect.right > viewport.offsetLeft + viewport.width
+                  || rect.top < viewport.offsetTop
+                  || rect.bottom > viewport.offsetTop + viewport.height) return false;
+              const hit = document.elementFromPoint(
+                rect.left + rect.width / 2,
+                rect.top + rect.height / 2,
+              );
+              return hit === element || element.contains(hit);
             });
             return {
               scale: viewport?.scale || 0,
