@@ -448,7 +448,7 @@ if __name__ == "__main__":
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
-<h1>Task Ledger</h1>
+<h1 id="main-heading">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
@@ -581,6 +581,42 @@ python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --por
 
 `http://127.0.0.1:8080/` で create、complete/reopen、delete、filter を確認できます。reference browser contract は意図的に browser title editing を claim しません。`PATCH /api/tasks/{id}` は独立して support される API の一部です。browser edit control の追加は ordinary consumer-owned extension であり、対応する browser contract と proof も更新する必要があります。
 
+### 実ブラウザによる viewport / keyboard proof を追加する
+
+Webapp evidence validator は、宣言された `viewports/base` と `input-capability/keyboard` target に、実ブラウザを使う positive / negative browser-level proof を要求します。HTTP reachability と上記の unit/integration test は、この要件を満たしません。
+
+対応する Chrome または Chrome for Testing と ChromeDriver を使用します。未導入の場合は公式 [Chrome for Testing availability dashboard](https://googlechromelabs.github.io/chrome-for-testing/) から同じversionのbrowser/driver archiveを取得し、product repository外へ展開します。`chromedriver` を `PATH` に置くか、`CHROMEWEBDRIVER` にabsolute pathを設定します。Chromeが通常のplatform pathにない場合は、`CHROME_BINARY` にbrowser executableのabsolute pathを設定します。
+
+**Check**
+
+```sh
+"${CHROME_BINARY:-google-chrome}" --version
+"${CHROMEWEBDRIVER:-chromedriver}" --version
+```
+
+review済みのstandard-library WebDriver proofをconsumer-owned test directoryへdownloadします。full-SHA URLはimmutableで、Python package dependencyはありません。
+
+```sh
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/03af76c1703aafbe08fbbc4f8f23d773180eb656/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+```
+
+このproofはtemporary SQLite databaseでTask Ledgerを起動し、実際のheadless Chrome sessionから次を検査します。
+
+- narrow/landscape viewportでのpositive responsive behavior
+- page-wide horizontal overflowとzoom lockのnegative check
+- genuine 200% browser page-scaleでのoperability
+- keyboardによるcreate、complete、filter、deleteのpositive path
+- empty-title keyboard submissionのnegative path
+- unknown routeのbrowser negative path
+
+browser proofをauthoritative verifierへ追加します。
+
+```sh
+cat >> scripts/verify.sh <<'SH'
+python tests/test_task_ledger_browser.py
+SH
+```
+
 **Repository change:** 上記は ordinary consumer-owned implementation / verification material です。
 
 ## 13. Authoritative product verification を定義して実行する
@@ -609,7 +645,7 @@ python scripts/scaffold_webapp_evidence.py > /tmp/webapp-evidence-worklist.json
 
 initial `contracts/implementation-evidence.json` は `template` mode です。implementation、`./scripts/verify.sh`、proof location が実在してから `product` mode にします。
 
-Section 12 の verifier が提供するのは unit/integration evidence であり、viewport または keyboard target に対する browser-level proof ではありません。これらの browser-sensitive target には、実ブラウザを使う positive / negative の `accessibility-test` または `end-to-end-test` proof が必要です。その browser suite が存在するまでは implementation evidence を `template` mode に保ちます。source inspection、HTTP reachability、unit test を browser proof として再分類してはいけません。
+Section 12 verifierのunit/integration部分だけではbrowser-level proofになりません。downloadした `tests/test_task_ledger_browser.py` が、viewport/keyboard targetに対する実ブラウザのpositive/negative `end-to-end-test` pathを追加します。このscriptを省略した場合、または実ブラウザで正常実行できない場合は、implementation evidenceを `template` modeに保ちます。source inspection、HTTP reachability、unit testをbrowser proofとして再分類してはいけません。
 
 command/gate 例:
 
@@ -634,6 +670,8 @@ command/gate 例:
 
 各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
+生成された `viewports/base` と `input-capability/keyboard` recordでは、positive/negative proof locatorを `tests/test_task_ledger_browser.py`、proof kindを `end-to-end-test`、command IDを `verify-product` にします。expected resultには、単なるfileの存在ではなく、対応するsuccessful interactionと拒否または不在が確認されたinvalid behaviorを記述します。
+
 viewport と keyboard を含むすべての current target に、要求された kind の truthful proof が存在してから、両方の verification layer を実行します。
 
 ```sh
@@ -645,7 +683,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 browser suite を含む authoritative product verification が pass し、Composition validation が `status: "valid"`、implementation evidence が template-deferred ではなく executed されることを確認します。
 
-Section 12 で提供する standard-library unit/integration verifier だけでは、この強い product-mode result をまだ claim しません。その場合は evidence document を `template` mode に保ちます。
+実ブラウザscriptを省略、skip、またはChrome/ChromeDriver起動失敗のままにした場合、この強いproduct-mode resultをclaimしません。その場合はevidence documentを `template` modeに保ちます。
 
 ## 16. 必要なら coding-agent Policy を adopt する
 
