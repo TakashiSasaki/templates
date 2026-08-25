@@ -18,13 +18,13 @@
       <a class="portal-cover__button portal-cover__button--primary" href="composition/use/webapp-product-walkthrough/">
         Create a Web application <span aria-hidden="true">→</span>
       </a>
-      <a class="portal-cover__button portal-cover__button--secondary" href="skill/">
+      <a class="portal-cover__button portal-cover__button--secondary" href="composition/use/skill-first-use-walkthrough/">
         Create an Agent Skill <span aria-hidden="true">→</span>
       </a>
     </div>
     <ul class="portal-cover__signals" role="list">
       <li>Start with a concrete task; learn the architecture later.</li>
-      <li>Webapp first use has one canonical step-by-step walkthrough.</li>
+      <li>Webapp and Agent Skill first use each have a canonical step-by-step walkthrough.</li>
       <li>Policy is optional and independent from Composition.</li>
     </ul>
   </div>
@@ -51,11 +51,11 @@
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
 
-    <a class="portal-artifact-card portal-artifact-card--skill" href="skill/">
+    <a class="portal-artifact-card portal-artifact-card--skill" href="composition/use/skill-first-use-walkthrough/">
       <span class="portal-artifact-card__icon"><img src="images/icon-skill.svg" alt=""></span>
       <span class="portal-artifact-card__copy">
         <strong>Create an Agent Skill</strong>
-        <span>Start with the Skill artifact guidance and its consumer-owned workflow and resource contracts.</span>
+        <span>Follow the Release Note Helper walkthrough from a separate consumer repository to a concrete knowledge-augmented Skill and behavioral evaluation.</span>
       </span>
       <span class="portal-artifact-card__arrow" aria-hidden="true">→</span>
     </a>
