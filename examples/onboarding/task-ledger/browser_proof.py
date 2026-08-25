@@ -326,7 +326,7 @@ def run_browser_proof(base_url: str) -> None:
             "required-title negative path did not remain invalid",
         )
 
-        browser.send_keys_to_active("Keyboard task" + ENTER)
+        browser.send_keys_to_active(("Keyboard" + "x" * 120) + ENTER)
         wait_for(
             browser,
             "return document.querySelectorAll('#tasks li').length === 1",
@@ -435,13 +435,27 @@ def run_browser_proof(base_url: str) -> None:
               ),
               ...document.querySelectorAll('#tasks li button'),
             ];
+            const effectivelyVisible = (element) => {
+              for (let current = element; current; current = current.parentElement) {
+                const style = getComputedStyle(current);
+                if (style.display === 'none' || style.visibility === 'hidden'
+                    || Number.parseFloat(style.opacity || '1') <= 0) return false;
+              }
+              return true;
+            };
             return {
               controlsVisible: controls.length >= 5 && controls.every((element) => {
                 const rect = element?.getBoundingClientRect();
-                return rect && rect.width > 0 && rect.height > 0
-                  && rect.left >= 0 && rect.top >= 0
-                  && rect.right <= window.innerWidth
-                  && rect.bottom <= window.innerHeight;
+                if (!element || !effectivelyVisible(element)
+                    || !rect || rect.width <= 0 || rect.height <= 0
+                    || rect.left < 0 || rect.top < 0
+                    || rect.right > window.innerWidth
+                    || rect.bottom > window.innerHeight) return false;
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return hit === element || element.contains(hit);
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
@@ -478,7 +492,12 @@ def run_browser_proof(base_url: str) -> None:
         zoom = browser.execute(
             """
             const viewport = window.visualViewport;
-            const controls = ['#title', '#new-task button', '#status'];
+            const controls = [
+              ...['#title', '#new-task button', '#status'].map(
+                (selector) => document.querySelector(selector)
+              ),
+              ...document.querySelectorAll('#tasks li button'),
+            ];
             const effectivelyVisible = (element) => {
               for (let current = element; current; current = current.parentElement) {
                 const style = getComputedStyle(current);
@@ -487,8 +506,7 @@ def run_browser_proof(base_url: str) -> None:
               }
               return true;
             };
-            const reachable = controls.every((selector) => {
-              const element = document.querySelector(selector);
+            const reachable = controls.length >= 5 && controls.every((element) => {
               const rect = element?.getBoundingClientRect();
               if (!element || !effectivelyVisible(element)
                   || !rect || rect.width <= 0 || rect.height <= 0
