@@ -126,7 +126,7 @@ You do not select an `init` or `adopt` route manually. Inspection derives the su
 
 - `unmanaged-empty` → continue with [4A. Fresh adoption](#4a-fresh-adoption).
 - `unmanaged-existing` → continue with [4B. Migration adoption](#4b-migration-adoption).
-- `managed` → continue with [6. Operate a managed repository](#6-operate-a-managed-repository).
+- `managed` → continue with [6. Render, validate, and check a managed repository](#6-render-validate-and-check-a-managed-repository).
 - `inconsistent` → stop first-use adoption and follow the diagnostic/recovery guidance reported by the toolchain.
 
 ## 4A. Fresh adoption
@@ -173,7 +173,7 @@ Yes. This is the first mutating Policy step.
 
 **Next**
 
-Review the baseline profiles, edit human-owned Policy input if necessary, then continue to [5. Render, validate, and check](#5-render-validate-and-check).
+Review the baseline profiles, edit human-owned Policy input if necessary, then continue to [5. Choose the baseline profile and edit human-owned Policy input](#5-choose-the-baseline-profile-and-edit-human-owned-policy-input).
 
 ## 4B. Migration adoption
 
