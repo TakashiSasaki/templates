@@ -449,12 +449,14 @@ if __name__ == "__main__":
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
 <style>li span { overflow-wrap: anywhere; }</style>
-<h1 id="main-heading">Task Ledger</h1>
+<h1 id="main-heading" tabindex="-1">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
 <p id="message" role="status"></p>
 <script>
+const heading = document.querySelector('#main-heading');
+heading.focus();
 const tasks = document.querySelector('#tasks');
 const message = document.querySelector('#message');
 async function request(path, options = {}) {
@@ -598,7 +600,7 @@ Webapp evidence validator は、宣言された `viewports/base` と `input-capa
 review済みのstandard-library WebDriver proofをconsumer-owned test directoryへdownloadします。full-SHA URLはimmutableで、Python package dependencyはありません。
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/da67e419e96be4a712340239336c2006023f9668/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/0f278e92b0bb4f2e7ae91118acfa52a27d7dc36e/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
 ```
 
 このproofはtemporary SQLite databaseでTask Ledgerを起動し、実際のheadless Chrome sessionから次を検査します。
