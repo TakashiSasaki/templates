@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "docs" / "landing.md"
 LANDING_JA = ROOT / "translations" / "ja" / "docs" / "landing.md"
 MANIFEST = ROOT / "site-manifest.json"
+SOURCE_LOCK = ROOT / "publication-sources.json"
 
 
 class HumanFirstOnboardingTests(unittest.TestCase):
@@ -36,6 +38,34 @@ class HumanFirstOnboardingTests(unittest.TestCase):
             manifest,
         )
 
+    def test_skill_task_links_directly_to_canonical_walkthrough(self) -> None:
+        landing = LANDING.read_text(encoding="utf-8")
+        self.assertIn(
+            'href="composition/use/skill-first-use-walkthrough/"',
+            landing,
+        )
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        agent_skill = next(
+            node for node in manifest["navigation"] if node["title"] == "Agent Skill"
+        )
+        first = agent_skill["children"][0]
+        self.assertEqual(first["document"], "skill-first-use-walkthrough")
+        self.assertEqual(
+            first["destination"],
+            "composition/use/skill-first-use-walkthrough.md",
+        )
+
+    def test_site_locks_the_reviewed_human_onboarding_provider_revisions(self) -> None:
+        lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
+        self.assertEqual(
+            lock["publications"]["composition"]["revision"],
+            "3ba9d082a9007d9c964d6992ee8d3e61e0b595f1",
+        )
+        self.assertEqual(
+            lock["publications"]["policy"]["revision"],
+            "bbb27b90c7eed25799bd036d20730f6b0d4d19f9",
+        )
+
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
         landing = LANDING.read_text(encoding="utf-8")
         self.assertIn("do <strong>not</strong> turn this <code>templates</code> repository", landing)
@@ -51,7 +81,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         landing = LANDING_JA.read_text(encoding="utf-8")
         for href in (
             '/composition/use/webapp-product-walkthrough/',
-            '/skill/',
+            '/composition/use/skill-first-use-walkthrough/',
             '/policy/getting-started/',
         ):
             with self.subTest(href=href):
