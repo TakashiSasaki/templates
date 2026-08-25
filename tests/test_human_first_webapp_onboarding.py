@@ -130,7 +130,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "coverage-start sentinel",
             "実用上の最小幅は 320px",
             "sentinel と tested minimum の 320px は別の概念",
-            "`[\\\"ready\\\", \\\"empty\\\", \\\"error\\\"]`",
+            '`["ready", "empty", "error"]`',
             "`Could not load tasks.`",
         ):
             with self.subTest(expected=expected):

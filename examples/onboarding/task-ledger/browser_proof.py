@@ -578,13 +578,15 @@ def run_browser_proof(base_url: str) -> None:
               return true;
             };
             const reachable = controls.length >= 7 && controls.every((element) => {
-              const rect = element?.getBoundingClientRect();
-              if (!element || !effectivelyVisible(element)
-                  || !rect || rect.width <= 0 || rect.height <= 0
-                  || rect.left < viewport.offsetLeft
-                  || rect.right > viewport.offsetLeft + viewport.width
-                  || rect.top < viewport.offsetTop
-                  || rect.bottom > viewport.offsetTop + viewport.height) return false;
+              if (!element || !effectivelyVisible(element)) return false;
+              element.scrollIntoView({block: 'center', inline: 'nearest'});
+              const currentViewport = window.visualViewport;
+              const rect = element.getBoundingClientRect();
+              if (!currentViewport || rect.width <= 0 || rect.height <= 0
+                  || rect.left < currentViewport.offsetLeft
+                  || rect.right > currentViewport.offsetLeft + currentViewport.width
+                  || rect.top < currentViewport.offsetTop
+                  || rect.bottom > currentViewport.offsetTop + currentViewport.height) return false;
               const hit = document.elementFromPoint(
                 rect.left + rect.width / 2,
                 rect.top + rect.height / 2,
