@@ -1,0 +1,79 @@
+name: Search history browser regression
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build documentation artifact run ID containing the github-pages artifact
+        required: true
+        type: string
+      site_ref:
+        description: Site commit, branch, or tag whose search-history regression scripts should be used
+        required: false
+        default: site
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: search-history-manual-${{ inputs.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Site regression implementation
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.site_ref }}
+
+      - name: Download built Pages artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: github-pages
+          path: pages-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+
+      - name: Extract built site
+        run: |
+          mkdir -p build/site
+          tar --extract --file pages-artifact/artifact.tar --directory build/site
+          test -f build/site/index.html
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright controller
+        run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps --only-shell chromium
+
+      - name: Check Site search history
+        run: |
+          python scripts/check_search_history.py \
+            --site-root build/site \
+            --output build/search-history/search-history.json
+
+      - name: Check review regressions for Site search history
+        run: |
+          python scripts/check_search_history_review_regressions.py \
+            --site-root build/site \
+            --output build/search-history/review-regressions.json
+
+      - name: Upload search-history evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-history-manual-${{ inputs.run_id }}
+          path: build/search-history
+          if-no-files-found: warn
+          retention-days: 7

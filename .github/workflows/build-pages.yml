@@ -549,3 +549,24 @@ jobs:
           path: build/mobile-visual
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Check Site search history
+        run: |
+          python scripts/check_search_history.py \
+            --site-root build/site \
+            --output build/search-history/search-history.json
+
+      - name: Check review regressions for Site search history
+        run: |
+          python scripts/check_search_history_review_regressions.py \
+            --site-root build/site \
+            --output build/search-history/review-regressions.json
+
+      - name: Upload search-history evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-history-${{ github.event.pull_request.number }}
+          path: build/search-history
+          if-no-files-found: warn
+          retention-days: 7
