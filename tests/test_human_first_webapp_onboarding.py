@@ -38,8 +38,14 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
     def test_initial_commands_are_in_lifecycle_order_and_config_is_absolute(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
         inspect = text.index("  inspect\n", text.index("## 5."))
-        plan = text.index("  plan --config /absolute/path/to/task-ledger/composition.json", text.index("## 6."))
-        apply = text.index("  apply --config /absolute/path/to/task-ledger/composition.json", text.index("## 8."))
+        plan = text.index(
+            "  plan --config /absolute/path/to/task-ledger/composition.json",
+            text.index("## 6."),
+        )
+        apply = text.index(
+            "  apply --config /absolute/path/to/task-ledger/composition.json",
+            text.index("## 8."),
+        )
         validate = text.index("  validate\n", text.index("## 9."))
         self.assertLess(inspect, plan)
         self.assertLess(plan, apply)
@@ -82,24 +88,38 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             with self.subTest(expected=expected):
                 self.assertIn(expected, text)
 
-    def test_discoverability_entrypoints_prioritize_walkthrough(self) -> None:
+    def test_product_verifier_is_created_before_first_execution(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        creation = text.index("cat > scripts/verify.sh <<'SH'")
+        execution = text.index("./scripts/verify.sh", creation + 1)
+        self.assertLess(creation, execution)
+        self.assertIn("Create `task_ledger/cli.py`", text[:execution])
+        self.assertIn("Create `tests/test_task_ledger.py`", text[:execution])
+        self.assertIn("chmod +x scripts/verify.sh", text[:execution])
+
+    def test_discoverability_entrypoints_prioritize_first_use(self) -> None:
         entrypoints = {
             ROOT / "README.md": ("Webapp product walkthrough", "## Lifecycle at a glance"),
-            ROOT / "docs" / "index.md": ("Webapp product walkthrough", "## Composition architecture"),
+            ROOT / "docs" / "index.md": (
+                "Webapp product walkthrough",
+                "## Composition architecture",
+            ),
             ROOT / "components" / "artifact.webapp-core" / "files" / "README.md": (
                 "Webapp product walkthrough",
                 "## What the Webapp recipe defines",
             ),
-            ROOT / "components" / "artifact.webapp-core" / "files" / "docs" / "index.md": (
-                "Webapp product walkthrough",
-                "## Reference",
-            ),
+            ROOT
+            / "components"
+            / "artifact.webapp-core"
+            / "files"
+            / "docs"
+            / "index.md": ("Web application overview", "## Reference"),
         }
-        for path, (walkthrough, deeper) in entrypoints.items():
+        for path, (first_use, deeper) in entrypoints.items():
             with self.subTest(path=path.relative_to(ROOT)):
                 text = path.read_text(encoding="utf-8")
-                self.assertIn(walkthrough, text)
-                self.assertLess(text.index(walkthrough), text.index(deeper))
+                self.assertIn(first_use, text)
+                self.assertLess(text.index(first_use), text.index(deeper))
 
     def test_japanese_walkthrough_keeps_zero_to_one_route(self) -> None:
         text = WALKTHROUGH_JA.read_text(encoding="utf-8")
