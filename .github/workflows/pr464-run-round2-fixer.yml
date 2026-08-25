@@ -1,0 +1,44 @@
+name: Run PR 464 round 2 fixer
+
+on:
+  push:
+    branches:
+      - agent/composition-task-ledger-browser-proof
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/composition-task-ledger-browser-proof
+          fetch-depth: 0
+      - name: Extract and run fixer Python
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/pr464-codex-round2-fixes.yml').read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(workflow) if line.strip() == "python - <<'PY'") + 1
+          end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == 'PY')
+          code = []
+          for line in workflow[start:end]:
+              if line.startswith('          '):
+                  line = line[10:]
+              code.append(line)
+          Path('/tmp/pr464_fixer.py').write_text('\n'.join(code) + '\n', encoding='utf-8')
+          PY
+          python /tmp/pr464_fixer.py
+          rm -f .github/workflows/pr464-run-round2-fixer.yml
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git commit -m "Address Codex browser contract completeness findings"
+          git push origin HEAD:agent/composition-task-ledger-browser-proof
