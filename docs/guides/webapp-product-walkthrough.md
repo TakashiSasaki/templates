@@ -374,7 +374,7 @@ A small Task Ledger inventory can use:
 | states | `ready` plus only the loading/empty/error states actually visible in the implementation |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
 
-For this reference product, set the `base` entry in `contracts/viewports.json` to `"minWidthPx": 390`; the browser proof below exercises that exact lower bound. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+For this reference product, retain the required `"minWidthPx": 0` coverage-start sentinel on the `base` entry in `contracts/viewports.json`; the browser proof below exercises a representative 320px narrow browser viewport. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
 
 Do not add authentication, administration, role-based authorization, touch support, multiple breakpoints, or diagnostic surfaces merely because a larger application might need them.
 
@@ -797,7 +797,7 @@ Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are
 Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/0f278e92b0bb4f2e7ae91118acfa52a27d7dc36e/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/8c93a88c07cd9d2611c5937880e0a836639a271f/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
 ```
 
 The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:
