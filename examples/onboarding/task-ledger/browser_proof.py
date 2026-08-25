@@ -428,7 +428,8 @@ def run_browser_proof(base_url: str) -> None:
             const viewport = window.visualViewport;
             const controls = ['#title', '#new-task button', '#status'];
             const reachable = controls.every((selector) => {
-              const rect = document.querySelector(selector)?.getBoundingClientRect();
+              const element = document.querySelector(selector);
+              const rect = element?.getBoundingClientRect();
               if (!rect || rect.width <= 0 || rect.height <= 0
                   || rect.left < viewport.offsetLeft
                   || rect.right > viewport.offsetLeft + viewport.width
