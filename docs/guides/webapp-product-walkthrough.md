@@ -792,7 +792,7 @@ Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are
 Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/864a74e509d07b5fbb1e2d93f1a4ee43975df53b/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/b51513d32634c76f4c175e4b39fc7193994c3e03/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
 ```
 
 The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:
