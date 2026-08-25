@@ -374,6 +374,8 @@ A small Task Ledger inventory can use:
 | states | `ready` plus only the loading/empty/error states actually visible in the implementation |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
 
+For this reference product, set the `base` entry in `contracts/viewports.json` to `"minWidthPx": 390`; the browser proof below exercises that exact lower bound. Keep the generated `home` route focus target as `main-heading`; Section 12 makes that heading programmatically focusable and focuses it on route entry.
+
 Do not add authentication, administration, role-based authorization, touch support, multiple breakpoints, or diagnostic surfaces merely because a larger application might need them.
 
 ### Runtime contract
@@ -644,12 +646,14 @@ Create `task_ledger/static/index.html`:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Ledger</title>
 <style>li span { overflow-wrap: anywhere; }</style>
-<h1 id="main-heading">Task Ledger</h1>
+<h1 id="main-heading" tabindex="-1">Task Ledger</h1>
 <form id="new-task"><input id="title" required><button>Add task</button></form>
 <label>Show <select id="status"><option>all</option><option>open</option><option>completed</option></select></label>
 <ul id="tasks"></ul>
 <p id="message" role="status"></p>
 <script>
+const heading = document.querySelector('#main-heading');
+heading.focus();
 const tasks = document.querySelector('#tasks');
 const message = document.querySelector('#message');
 async function request(path, options = {}) {
@@ -793,7 +797,7 @@ Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are
 Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/da67e419e96be4a712340239336c2006023f9668/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/0f278e92b0bb4f2e7ae91118acfa52a27d7dc36e/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
 ```
 
 The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:
