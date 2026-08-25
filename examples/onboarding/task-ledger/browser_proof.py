@@ -186,15 +186,6 @@ class BrowserSession:
             raise BrowserProofError("active browser element is unavailable")
         self.send_keys_to_element(value[ELEMENT_KEY], text)
 
-    def focus_and_require(self, selector: str) -> None:
-        self.execute(f"document.querySelector({json.dumps(selector)}).focus()")
-        require(
-            self.execute(
-                f"return document.activeElement.matches({json.dumps(selector)})"
-            ),
-            f"known keyboard focus point is not {selector}",
-        )
-
     def tab_to(self, selector: str, count: int) -> None:
         self.send_keys_to_active(TAB * count)
         require(
@@ -227,19 +218,21 @@ class BrowserSession:
         )
 
     def close(self) -> None:
-        if self.session_id is not None:
-            try:
-                self.request("DELETE", f"/session/{self.session_id}")
-            except BrowserProofError:
-                pass
-            self.session_id = None
-        if self.service.poll() is None:
-            self.service.terminate()
-            try:
-                self.service.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.service.kill()
-                self.service.wait(timeout=5)
+        try:
+            if self.session_id is not None:
+                try:
+                    self.request("DELETE", f"/session/{self.session_id}")
+                except Exception:
+                    pass
+                self.session_id = None
+        finally:
+            if self.service.poll() is None:
+                self.service.terminate()
+                try:
+                    self.service.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.service.kill()
+                    self.service.wait(timeout=5)
 
     def __enter__(self) -> "BrowserSession":
         return self
@@ -269,6 +262,15 @@ def run_browser_proof(base_url: str) -> None:
         layout = browser.execute(
             """
             const meta = document.querySelector('meta[name="viewport"]');
+            const viewport = meta?.content.toLowerCase() || '';
+            const directives = Object.fromEntries(
+              viewport.split(',').map((part) => {
+                const [name, ...value] = part.split('=');
+                return [name.trim(), value.join('=').trim()];
+              })
+            );
+            const userScalable = directives['user-scalable'];
+            const maximumScale = Number.parseFloat(directives['maximum-scale']);
             const controls = ['#title', '#new-task button', '#status'];
             return {
               title: document.title,
@@ -280,7 +282,8 @@ def run_browser_proof(base_url: str) -> None:
                 return rect.width > 0 && rect.height > 0;
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-              viewport: meta?.content.toLowerCase() || '',
+              zoomAllowed: !['no', '0', 'false'].includes(userScalable)
+                && !(Number.isFinite(maximumScale) && maximumScale <= 1),
             };
             """
         )
@@ -288,10 +291,9 @@ def run_browser_proof(base_url: str) -> None:
         require(layout["heading"] == "Task Ledger", "main heading/focus target is missing")
         require(layout["controlsVisible"], "primary controls are not visible")
         require(not layout["overflow"], "page has horizontal overflow at 390px")
-        require("user-scalable=no" not in layout["viewport"], "viewport disables zoom")
-        require("maximum-scale=1" not in layout["viewport"], "viewport caps zoom")
+        require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")
 
-        browser.focus_and_require("#title")
+        browser.tab_to("#title", 1)
         browser.send_keys_to_active(ENTER)
         require(
             browser.execute("return document.querySelectorAll('#tasks li').length") == 0,
@@ -308,7 +310,8 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelectorAll('#tasks li').length === 1",
             "keyboard submission did not create a task",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.tab_to("#tasks li:first-child button:first-of-type", 3)
         browser.send_keys_to_active(ENTER)
         wait_for(
@@ -316,14 +319,16 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
             "keyboard activation did not complete the task",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.send_keys_to_active("Open task" + ENTER)
         wait_for(
             browser,
             "return document.querySelectorAll('#tasks li').length === 2",
             "second keyboard submission did not create an open task",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.tab_to("#status", 2)
         browser.send_keys_to_active(END + ENTER)
         wait_for(
@@ -333,7 +338,8 @@ def run_browser_proof(base_url: str) -> None:
                 && document.querySelector('#tasks li span').textContent.includes('(completed)')""",
             "keyboard filter did not select and isolate the completed task",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.tab_to("#tasks li button:last-of-type", 4)
         browser.send_keys_to_active(ENTER)
         wait_for(
@@ -341,7 +347,8 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelectorAll('#tasks li').length === 0",
             "keyboard activation did not remove the task from the completed filter",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.tab_to("#status", 2)
         browser.send_keys_to_active(HOME + ENTER)
         wait_for(
@@ -360,7 +367,9 @@ def run_browser_proof(base_url: str) -> None:
               controlsVisible: controls.every((selector) => {
                 const rect = document.querySelector(selector)?.getBoundingClientRect();
                 return rect && rect.width > 0 && rect.height > 0
-                  && rect.left < window.innerWidth && rect.top < window.innerHeight;
+                  && rect.left >= 0 && rect.top >= 0
+                  && rect.right <= window.innerWidth
+                  && rect.bottom <= window.innerHeight;
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
             };
@@ -396,7 +405,8 @@ def run_browser_proof(base_url: str) -> None:
             not zoom["layoutOverflow"],
             "200% scale exposed pre-existing page-wide horizontal overflow",
         )
-        browser.focus_and_require("#title")
+        browser.navigate(base_url)
+        browser.tab_to("#title", 1)
         browser.send_keys_to_active("Zoom task" + ENTER)
         wait_for(
             browser,
