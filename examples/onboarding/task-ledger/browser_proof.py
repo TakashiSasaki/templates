@@ -270,7 +270,12 @@ def run_browser_proof(base_url: str) -> None:
             );
             const userScalable = directives['user-scalable'];
             const maximumScale = Number.parseFloat(directives['maximum-scale']);
-            const controls = ['#title', '#new-task button', '#status'];
+            const controls = [
+              ...['#title', '#new-task button', '#status'].map(
+                (selector) => document.querySelector(selector)
+              ),
+              ...document.querySelectorAll('#tasks li button'),
+            ];
             return {
               title: document.title,
               heading: document.querySelector('#main-heading')?.textContent,
@@ -285,11 +290,19 @@ def run_browser_proof(base_url: str) -> None:
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
+                const effectivelyVisible = (candidate) => {
+                  for (let current = candidate; current; current = current.parentElement) {
+                    const currentStyle = getComputedStyle(current);
+                    if (currentStyle.display === 'none'
+                        || currentStyle.visibility === 'hidden'
+                        || Number.parseFloat(currentStyle.opacity || '1') <= 0) return false;
+                  }
+                  return true;
+                };
                 const style = getComputedStyle(element);
                 const rect = element.getBoundingClientRect();
                 return ['auto', 'scroll'].includes(style.overflowX)
-                  && style.display !== 'none' && style.visibility !== 'hidden'
-                  && Number.parseFloat(style.opacity || '1') > 0
+                  && effectivelyVisible(element)
                   && rect.width > 0 && rect.height > 0
                   && rect.right > 0 && rect.bottom > 0
                   && rect.left < window.innerWidth && rect.top < window.innerHeight
@@ -324,21 +337,52 @@ def run_browser_proof(base_url: str) -> None:
             "return document.querySelectorAll('#tasks li').length === 1",
             "keyboard submission did not create a task",
         )
+        populated_narrow = browser.execute(
+            """
+            const actions = [...document.querySelectorAll('#tasks li button')];
+            const nestedOverflow = [...document.querySelectorAll('body *')].some((element) => {
+              const style = getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              const visible = (() => {
+                for (let current = element; current; current = current.parentElement) {
+                  const currentStyle = getComputedStyle(current);
+                  if (currentStyle.display === 'none'
+                      || currentStyle.visibility === 'hidden'
+                      || Number.parseFloat(currentStyle.opacity || '1') <= 0) return false;
+                }
+                return true;
+              })();
+              return ['auto', 'scroll'].includes(style.overflowX) && visible
+                && rect.width > 0 && rect.height > 0
+                && rect.right > 0 && rect.bottom > 0
+                && rect.left < window.innerWidth && rect.top < window.innerHeight
+                && element.scrollWidth > element.clientWidth + 1;
+            });
+            return {
+              actionsFit: actions.length === 2 && actions.every((element) => {
+                const rect = element.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0
+                  && rect.left >= 0 && rect.top >= 0
+                  && rect.right <= window.innerWidth
+                  && rect.bottom <= window.innerHeight;
+              }),
+              overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+              nestedOverflow,
+            };
+            """
+        )
+        require(populated_narrow["actionsFit"], "task actions are outside the narrow viewport")
+        require(not populated_narrow["overflow"], "populated narrow state has page overflow")
         require(
-            browser.execute(
-                """
-                return [...document.querySelectorAll('#tasks li button')].every((element) => {
-                  const rect = element.getBoundingClientRect();
-                  return rect.width > 0 && rect.height > 0
-                    && rect.left >= 0 && rect.top >= 0
-                    && rect.right <= window.innerWidth
-                    && rect.bottom <= window.innerHeight;
-                });
-                """
-            ),
-            "task action buttons are outside the narrow viewport",
+            not populated_narrow["nestedOverflow"],
+            "populated narrow state has nested horizontal scrolling",
         )
         browser.navigate(base_url)
+        wait_for(
+            browser,
+            "return document.querySelectorAll('#tasks li button').length === 2",
+            "task actions did not hydrate after navigation",
+        )
         browser.tab_to("#title", 1)
         browser.tab_to("#tasks li:first-child button:first-of-type", 3)
         browser.send_keys_to_active(ENTER)
@@ -392,8 +436,8 @@ def run_browser_proof(base_url: str) -> None:
             """
             const controls = ['#title', '#new-task button', '#status'];
             return {
-              controlsVisible: controls.every((selector) => {
-                const rect = document.querySelector(selector)?.getBoundingClientRect();
+              controlsVisible: controls.length >= 5 && controls.every((element) => {
+                const rect = element?.getBoundingClientRect();
                 return rect && rect.width > 0 && rect.height > 0
                   && rect.left >= 0 && rect.top >= 0
                   && rect.right <= window.innerWidth
@@ -401,11 +445,19 @@ def run_browser_proof(base_url: str) -> None:
               }),
               overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
               nestedOverflow: [...document.querySelectorAll('body *')].some((element) => {
+                const effectivelyVisible = (candidate) => {
+                  for (let current = candidate; current; current = current.parentElement) {
+                    const currentStyle = getComputedStyle(current);
+                    if (currentStyle.display === 'none'
+                        || currentStyle.visibility === 'hidden'
+                        || Number.parseFloat(currentStyle.opacity || '1') <= 0) return false;
+                  }
+                  return true;
+                };
                 const style = getComputedStyle(element);
                 const rect = element.getBoundingClientRect();
                 return ['auto', 'scroll'].includes(style.overflowX)
-                  && style.display !== 'none' && style.visibility !== 'hidden'
-                  && Number.parseFloat(style.opacity || '1') > 0
+                  && effectivelyVisible(element)
                   && rect.width > 0 && rect.height > 0
                   && rect.right > 0 && rect.bottom > 0
                   && rect.left < window.innerWidth && rect.top < window.innerHeight
@@ -427,10 +479,19 @@ def run_browser_proof(base_url: str) -> None:
             """
             const viewport = window.visualViewport;
             const controls = ['#title', '#new-task button', '#status'];
+            const effectivelyVisible = (element) => {
+              for (let current = element; current; current = current.parentElement) {
+                const style = getComputedStyle(current);
+                if (style.display === 'none' || style.visibility === 'hidden'
+                    || Number.parseFloat(style.opacity || '1') <= 0) return false;
+              }
+              return true;
+            };
             const reachable = controls.every((selector) => {
               const element = document.querySelector(selector);
               const rect = element?.getBoundingClientRect();
-              if (!rect || rect.width <= 0 || rect.height <= 0
+              if (!element || !effectivelyVisible(element)
+                  || !rect || rect.width <= 0 || rect.height <= 0
                   || rect.left < viewport.offsetLeft
                   || rect.right > viewport.offsetLeft + viewport.width
                   || rect.top < viewport.offsetTop
@@ -467,9 +528,21 @@ def run_browser_proof(base_url: str) -> None:
         )
 
         browser.navigate(base_url + "missing")
+        missing = browser.execute(
+            """
+            const navigation = performance.getEntriesByType('navigation')[0];
+            return {
+              status: navigation?.responseStatus || 0,
+              body: document.body.textContent.toLowerCase(),
+              hasApplicationHeading: Boolean(document.querySelector('#main-heading')),
+            };
+            """
+        )
+        require(missing["status"] == 404, "unknown route did not return HTTP 404")
+        require("not found" in missing["body"], "unknown-route error body is not visible")
         require(
-            "not found" in str(browser.execute("return document.body.textContent")).lower(),
-            "unknown-route negative path is not visible in the browser",
+            not missing["hasApplicationHeading"],
+            "unknown route rendered the normal application UI",
         )
 
 
