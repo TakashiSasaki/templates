@@ -256,7 +256,7 @@ def wait_for(session: BrowserSession, script: str, message: str) -> None:
 
 def run_browser_proof(base_url: str) -> None:
     with BrowserSession() as browser:
-        browser.set_viewport(390, 800)
+        browser.set_viewport(320, 800)
         browser.navigate(base_url)
         layout = browser.execute(
             """
@@ -326,8 +326,8 @@ def run_browser_proof(base_url: str) -> None:
         require(layout["heading"] == "Task Ledger", "main heading/focus target is missing")
         require(layout["headingFocused"], "route entry did not focus the declared heading")
         require(layout["controlsVisible"], "primary controls are not visible")
-        require(not layout["overflow"], "page has horizontal overflow at 390px")
-        require(not layout["nestedOverflow"], "nested content scrolls horizontally at 390px")
+        require(not layout["overflow"], "page has horizontal overflow at 320px")
+        require(not layout["nestedOverflow"], "nested content scrolls horizontally at 320px")
         require(layout["zoomAllowed"], "viewport directives disable or cap user zoom")
 
         browser.tab_to("#title", 1)
