@@ -14,7 +14,7 @@ EXAMPLE_CONFIG = ROOT / "examples" / "onboarding" / "task-ledger" / "composition
 CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
 BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
-BROWSER_PROOF_REVISION = "03af76c1703aafbe08fbbc4f8f23d773180eb656"
+BROWSER_PROOF_REVISION = "41956734078581b76b96f575f888b3e775843beb"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
@@ -108,7 +108,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "Optional task notes",
             "is **not** browser-level proof",
             "real positive and negative",
-            "`accessibility-test` or `end-to-end-test` proofs",
+            "positive and negative `end-to-end-test` paths",
             "Do not relabel source inspection, HTTP reachability, or unit tests",
             "keep the evidence document in `template` mode",
         ):
@@ -121,11 +121,11 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "completion requirement ではありません",
             "API は title update も提供します",
             "browser title editing を claim しません",
-            "browser-level proof ではありません",
+            "browser-level proofになりません",
             "実ブラウザを使う positive / negative",
-            "`accessibility-test` または `end-to-end-test` proof",
-            "HTTP reachability、unit test を browser proof として再分類",
-            "evidence document を `template` mode に保ちます",
+            "positive/negative `end-to-end-test` path",
+            "HTTP reachability、unit testをbrowser proofとして再分類",
+            "evidence documentを `template` modeに保ちます",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
