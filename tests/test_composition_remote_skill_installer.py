@@ -75,17 +75,17 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
         self.assertEqual(
             installer.SKILL_SOURCE_REVISION,
-            "8f8c36aa4bdf3060f9217edde644856d1da9d72d",
+            "f9508b92f5b7835fa1af9741f3941f32f6d3db28",
         )
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))
         self.assertTrue(
             installer.archive_url().endswith(
-                "/tar.gz/8f8c36aa4bdf3060f9217edde644856d1da9d72d"
+                "/tar.gz/f9508b92f5b7835fa1af9741f3941f32f6d3db28"
             )
         )
 
     def test_archive_url_rejects_mutable_or_short_revisions(self) -> None:
-        for revision in ("composition", "main", "8f8c36aa"):
+        for revision in ("composition", "main", "f9508b92"):
             with self.subTest(revision=revision):
                 with self.assertRaisesRegex(ValueError, "full lowercase commit SHA"):
                     installer.archive_url(revision)
