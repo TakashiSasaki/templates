@@ -9,8 +9,6 @@
 - [Composer reference](reference/composer.md) — exact CLI modes/options, inspect states, plan fields, ownership semantics, recovery rules, and managed lifecycle diagnostics.
 - [Composition overview](../README.md) — current authority, lifecycle summary, safety model, and documentation entry points.
 
-The first-use walkthrough deliberately comes before architecture and contract references. New consumers can complete the initial task first and consult the deeper model when a decision requires it.
-
 ## Composition architecture
 
 - [Composition model](architecture/composition-model.md) — artifact, capability, lifecycle, ownership, intent, and lock semantics.
