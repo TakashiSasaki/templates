@@ -103,8 +103,8 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "does not claim browser title editing",
             "Optional task notes",
             "is **not** browser-level proof",
-            "\`accessibility-test\` or \`end-to-end-test\` proofs",
-            "keep the evidence document in \`template\` mode",
+            "`accessibility-test` or `end-to-end-test` proofs",
+            "keep the evidence document in `template` mode",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, text)
@@ -115,7 +115,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "completion requirement ではありません",
             "browser title editing を claim しません",
             "browser-level proof ではありません",
-            "evidence document を \`template\` mode に保ちます",
+            "evidence document を `template` mode に保ちます",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
