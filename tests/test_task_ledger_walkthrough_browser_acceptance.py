@@ -87,6 +87,11 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             encoding="utf-8",
         )
         verifier.chmod(0o755)
+        viewports_path = target / "contracts" / "viewports.json"
+        viewports = json.loads(viewports_path.read_text(encoding="utf-8"))
+        base = next(item for item in viewports["viewports"] if item["id"] == "base")
+        base["minWidthPx"] = 390
+        self.write_json(viewports_path, viewports)
 
     def expected_targets(self, target: Path) -> list[dict[str, str]]:
         surfaces = json.loads(
