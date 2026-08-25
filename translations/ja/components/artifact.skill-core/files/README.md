@@ -6,7 +6,7 @@
 
 ## Composition が初めてなら worked example から始める
 
-初めて Agent Skill を作る場合は、別 consumer repository から [Agent Skill first-use walkthrough](../../../docs/guides/skill-first-use-walkthrough.md) を順に進めてください。installation と `composition.json` から始まり、`inspect -> plan -> apply -> validate`、具体的な ownership の確認、`SKILL.md` の concrete customization、実在する `references/` resource の追加まで進みます。
+初めて Agent Skill を作る場合は、別 consumer repository から [Agent Skill first-use walkthrough](https://templates.moukaeritai.work/composition/use/skill-first-use-walkthrough/) を順に進めてください。installation と `composition.json` から始まり、`inspect -> plan -> apply -> validate`、具体的な ownership の確認、`SKILL.md` の concrete customization、実在する `references/` resource の追加まで進みます。
 
 initial Composition-valid scaffold はまだ operational Skill ではありません。repository を concrete Skill として扱う前に `template-scaffold` sentinel と TODO semantics を置き換えてください。
 
