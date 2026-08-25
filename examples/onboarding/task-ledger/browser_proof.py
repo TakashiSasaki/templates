@@ -21,8 +21,10 @@ from task_ledger.cli import make_server
 
 
 ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf"
+TAB = "\ue004"
 ENTER = "\ue007"
 END = "\ue010"
+HOME = "\ue011"
 
 
 class BrowserProofError(RuntimeError):
@@ -169,10 +171,37 @@ class BrowserSession:
 
     def send_keys(self, selector: str, text: str) -> None:
         element = self.element(selector)[ELEMENT_KEY]
+        self.send_keys_to_element(element, text)
+
+    def send_keys_to_element(self, element: str, text: str) -> None:
         self.request(
             "POST",
             f"{self.prefix}/element/{element}/value",
             {"text": text},
+        )
+
+    def send_keys_to_active(self, text: str) -> None:
+        value = self.request("GET", f"{self.prefix}/element/active")
+        if not isinstance(value, dict) or not isinstance(value.get(ELEMENT_KEY), str):
+            raise BrowserProofError("active browser element is unavailable")
+        self.send_keys_to_element(value[ELEMENT_KEY], text)
+
+    def focus_and_require(self, selector: str) -> None:
+        self.execute(f"document.querySelector({json.dumps(selector)}).focus()")
+        require(
+            self.execute(
+                f"return document.activeElement.matches({json.dumps(selector)})"
+            ),
+            f"known keyboard focus point is not {selector}",
+        )
+
+    def tab_to(self, selector: str, count: int) -> None:
+        self.send_keys_to_active(TAB * count)
+        require(
+            self.execute(
+                f"return document.activeElement.matches({json.dumps(selector)})"
+            ),
+            f"keyboard traversal did not reach {selector}",
         )
 
     def set_viewport(self, width: int, height: int) -> None:
@@ -262,7 +291,8 @@ def run_browser_proof(base_url: str) -> None:
         require("user-scalable=no" not in layout["viewport"], "viewport disables zoom")
         require("maximum-scale=1" not in layout["viewport"], "viewport caps zoom")
 
-        browser.send_keys("#title", ENTER)
+        browser.focus_and_require("#title")
+        browser.send_keys_to_active(ENTER)
         require(
             browser.execute("return document.querySelectorAll('#tasks li').length") == 0,
             "empty keyboard submission created a task",
@@ -272,25 +302,30 @@ def run_browser_proof(base_url: str) -> None:
             "required-title negative path did not remain invalid",
         )
 
-        browser.send_keys("#title", "Keyboard task" + ENTER)
+        browser.send_keys_to_active("Keyboard task" + ENTER)
         wait_for(
             browser,
             "return document.querySelectorAll('#tasks li').length === 1",
             "keyboard submission did not create a task",
         )
-        browser.send_keys("#tasks li button:first-of-type", ENTER)
+        browser.focus_and_require("#title")
+        browser.tab_to("#tasks li:first-child button:first-of-type", 3)
+        browser.send_keys_to_active(ENTER)
         wait_for(
             browser,
             "return document.querySelector('#tasks li span')?.textContent.includes('(completed)')",
             "keyboard activation did not complete the task",
         )
-        browser.send_keys("#title", "Open task" + ENTER)
+        browser.focus_and_require("#title")
+        browser.send_keys_to_active("Open task" + ENTER)
         wait_for(
             browser,
             "return document.querySelectorAll('#tasks li').length === 2",
             "second keyboard submission did not create an open task",
         )
-        browser.send_keys("#status", END + ENTER)
+        browser.focus_and_require("#title")
+        browser.tab_to("#status", 2)
+        browser.send_keys_to_active(END + ENTER)
         wait_for(
             browser,
             """return document.querySelector('#status').value === 'completed'
@@ -298,11 +333,23 @@ def run_browser_proof(base_url: str) -> None:
                 && document.querySelector('#tasks li span').textContent.includes('(completed)')""",
             "keyboard filter did not select and isolate the completed task",
         )
-        browser.send_keys("#tasks li button:last-of-type", ENTER)
+        browser.focus_and_require("#title")
+        browser.tab_to("#tasks li button:last-of-type", 4)
+        browser.send_keys_to_active(ENTER)
         wait_for(
             browser,
             "return document.querySelectorAll('#tasks li').length === 0",
-            "keyboard activation did not delete the task",
+            "keyboard activation did not remove the task from the completed filter",
+        )
+        browser.focus_and_require("#title")
+        browser.tab_to("#status", 2)
+        browser.send_keys_to_active(HOME + ENTER)
+        wait_for(
+            browser,
+            """return document.querySelector('#status').value === 'all'
+                && document.querySelectorAll('#tasks li').length === 1
+                && document.querySelector('#tasks li span').textContent === 'Open task'""",
+            "deleted task remained present in the unfiltered browser state",
         )
 
         browser.set_viewport(800, 390)
@@ -349,7 +396,8 @@ def run_browser_proof(base_url: str) -> None:
             not zoom["layoutOverflow"],
             "200% scale exposed pre-existing page-wide horizontal overflow",
         )
-        browser.send_keys("#title", "Zoom task" + ENTER)
+        browser.focus_and_require("#title")
+        browser.send_keys_to_active("Zoom task" + ENTER)
         wait_for(
             browser,
             "return document.querySelector('#title').value === ''",
