@@ -2,7 +2,9 @@
 
 This is the canonical first-use walkthrough for creating a Web application with Composition. Follow it from top to bottom if you are new to this repository; you do not need to read the Composition architecture first.
 
-The example product is **Task Ledger**. It will eventually provide a browser UI for creating, listing, editing, completing, deleting, and filtering tasks, persistent storage, an independently supported HTTP JSON API, and a small `list` / `export` CLI.
+The example product is **Task Ledger**. The minimal reference product below provides a browser UI for creating, listing, completing or reopening, deleting, and filtering tasks, persistent storage, an independently supported HTTP JSON API, and a small `list` / `export` CLI. Its API also supports title updates, but the minimal browser UI does not claim browser title editing.
+
+This walkthrough defines its own deliberately small reference-product scope. Optional task notes and a browser title-edit control are normal consumer-owned extensions, not completion requirements for this walkthrough. If you add either feature, update the consumer-owned contracts, implementation, tests, and evidence together.
 
 Composition supplies contracts, managed validation material, and a deterministic lifecycle. It does not choose the product framework, database, API implementation, deployment platform, or product test system. Python and SQLite appear later only as concrete Task Ledger product decisions.
 
@@ -368,7 +370,7 @@ A small Task Ledger inventory can use:
 | Contract | Product decision |
 | --- | --- |
 | surface | `primary`: Task Ledger browser UI, local-product audience, non-diagnostic |
-| route | `home` at `/`: canonical task-list/editor route |
+| route | `home` at `/`: canonical task-list route |
 | states | `ready` plus only the loading/empty/error states actually visible in the implementation |
 | viewport | retain or revise the responsive lower bound and input/zoom behavior to match tested behavior |
 
@@ -772,7 +774,7 @@ At this point the verifier exists **before** the walkthrough asks you to run it.
 python -m task_ledger.cli --database task-ledger.db serve --host 127.0.0.1 --port 8080
 ```
 
-Then open `http://127.0.0.1:8080/` and exercise create, complete/reopen, delete, and filter behavior. Editing an existing task title is implemented by `PATCH /api/tasks/{id}`; the minimal browser UI intentionally exercises completion/delete/filter only, so either add an edit control before declaring browser-edit evidence or narrow the browser contract accordingly. The service and CLI remain independently callable.
+Then open `http://127.0.0.1:8080/` and exercise create, complete/reopen, delete, and filter behavior. The reference browser contract intentionally does not claim browser title editing. `PATCH /api/tasks/{id}` remains part of the independently supported API; adding a browser edit control is an ordinary consumer-owned extension that also requires matching browser contract and proof updates. The service and CLI remain independently callable.
 
 **Repository change**
 
@@ -840,6 +842,8 @@ Multiple records may reuse one command/gate when one suite genuinely proves mult
 
 The initial `contracts/implementation-evidence.json` is intentionally in `template` mode with no product implementation claim. Change it to `product` mode only after the implementation, `./scripts/verify.sh`, and referenced proof locations really exist.
 
+The Section 12 verifier supplies unit/integration evidence; it is **not** browser-level proof for viewport or keyboard targets. Those browser-sensitive targets require real positive and negative `accessibility-test` or `end-to-end-test` proofs. Keep implementation evidence in `template` mode until such a browser suite exists. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
+
 A command and gate can look like:
 
 ```json
@@ -863,7 +867,7 @@ A command and gate can look like:
 
 Each record still needs its exact worklist target, verified implementation-boundary locator, verified positive/negative proof locators, expected results, and selected gate. Do not copy a sample target from this guide; the authoritative target set belongs to the consumer repository.
 
-Now run both verification layers.
+After every current target—including viewport and keyboard targets—has truthful proof of the required kind, run both verification layers.
 
 **Run**
 
@@ -876,8 +880,10 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 **Expected**
 
-- the product verification command passes; and
+- the authoritative product verification command, including the referenced browser suite, passes; and
 - Composition validation returns `status: "valid"` with implementation evidence executed rather than template-deferred.
+
+With only the standard-library unit/integration verifier supplied in Section 12, this stronger product-mode result is not yet claimed; keep the evidence document in `template` mode.
 
 **What this means**
 
@@ -969,7 +975,7 @@ The **implemented-product milestone** is stronger. It additionally requires:
 - consumer-owned contracts describe the real product rather than template assumptions;
 - product source and tests exist;
 - the authoritative product verification command passes;
-- implementation evidence is in `product` mode with complete current-target coverage and real positive/negative proofs;
+- implementation evidence is in `product` mode with complete current-target coverage and real positive/negative proofs, including browser-level proof for browser-sensitive targets;
 - Composition validation passes with implementation evidence executed rather than template-deferred; and
 - optional Policy state is independently valid if Policy was adopted.
 
