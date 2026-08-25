@@ -2,9 +2,7 @@
 
 ## Start here
 
-- [Webapp product walkthrough](../../../../docs/guides/webapp-product-walkthrough.md) — **New to Composition? Start here.** Build Task Ledger step by step from a separate product repository through installation, `composition.json`, `inspect -> plan -> apply -> validate`, ownership, implementation, tests, and product evidence.
-
-The pages below are references for the scaffold after you know what task you are performing. You do not need to read them before beginning the walkthrough.
+- [Web application overview](../README.md) — Start here for first-use guidance and the canonical Webapp walkthrough entry point.
 
 ## Reference
 
