@@ -276,11 +276,12 @@ def _combine_relative_path(base_path: str, reference_path: str) -> str:
     return base_directory + reference_path
 
 
-def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bool]:
-    """Resolve HTTP(S) references using browser-like special-scheme semantics."""
-    normalized_raw = normalize_special_url_backslashes(raw_url)
+def _resolve_http_reference_normalized(
+    base_parts: SplitResult,
+    normalized_raw: str,
+) -> tuple[SplitResult, bool]:
+    """Resolve a normalized reference against an already parsed base URL."""
     reference, query, fragment = _split_reference(normalized_raw)
-    base_parts = urlsplit(base_url)
     base_scheme = base_parts.scheme.lower()
     scheme_match = _SCHEME_PREFIX.match(reference)
     scheme = scheme_match.group(1).lower() if scheme_match else ""
@@ -314,6 +315,14 @@ def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bo
         query,
         fragment,
     ), True
+
+
+def resolve_http_reference(base_url: str, raw_url: str) -> tuple[SplitResult, bool]:
+    """Resolve HTTP(S) references using browser-like special-scheme semantics."""
+    return _resolve_http_reference_normalized(
+        urlsplit(base_url),
+        normalize_special_url_backslashes(raw_url),
+    )
 
 
 def _decode_path_preserving(
@@ -453,6 +462,9 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
     diagnostics: set[str] = set()
     checked_links = 0
     for source in pages:
+        if not source.links:
+            continue
+        source_parts = urlsplit(source.public_url)
         for reference in source.links:
             raw = preprocess_url_input(reference.href)
             normalized_raw = normalize_special_url_backslashes(raw)
@@ -460,7 +472,10 @@ def validate_site(site_root: Path, config_file: Path) -> tuple[int, int, list[st
             if raw_parts.scheme and raw_parts.scheme.lower() not in {"http", "https"}:
                 continue
 
-            resolved, authored_local = resolve_http_reference(source.public_url, raw)
+            resolved, authored_local = _resolve_http_reference_normalized(
+                source_parts,
+                normalized_raw,
+            )
             if authored_local:
                 # Local references are constructed with the source page's scheme and
                 # authority, which in turn come from the already validated Site URL.
