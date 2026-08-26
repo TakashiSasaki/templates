@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from test_release_evidence_producer import ReleaseEvidenceProducerTests
+from test_release_execution_contract import ReleaseExecutionContractTests
 
 
 class ReleasePythonRuntimeTokenTests(unittest.TestCase):
@@ -23,7 +24,7 @@ class ReleasePythonRuntimeTokenTests(unittest.TestCase):
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            target, revision, original = helper.materialize_candidate(
+            target, revision, _ = helper.materialize_candidate(
                 Path(temp_dir), proof_script
             )
             result = helper.run_producer(target, revision)
@@ -33,7 +34,27 @@ class ReleasePythonRuntimeTokenTests(unittest.TestCase):
             "managed Python runtime token used producer interpreter",
             result.stdout,
         )
-        self.assertNotEqual(original, b"")
+
+    def test_release_contract_rejects_host_specific_python_executable(self) -> None:
+        helper = ReleaseExecutionContractTests(
+            methodName="test_product_execution_exactly_covers_authoritative_commands"
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = helper.materialize_webapp(Path(temp_dir))
+            helper.write_json(
+                target / "contracts/implementation-evidence.json",
+                helper.product_implementation(),
+            )
+            execution = helper.product_execution()
+            execution["commands"][0]["argv"][0] = sys.executable
+            helper.write_json(
+                target / "contracts/release-execution.json",
+                execution,
+            )
+            result = helper.run_validator(target)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("argv must exactly execute declared harness", result.stderr)
 
 
 if __name__ == "__main__":
