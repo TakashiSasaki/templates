@@ -1,0 +1,132 @@
+name: Temporary focus target proof patch
+on:
+  push:
+    branches:
+      - agent/webapp-focus-target-browser-proof-pr11
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/webapp-focus-target-browser-proof-pr11
+          fetch-depth: 0
+      - name: Patch focus-target proof fixtures
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement, found {count}: {old!r}")
+              target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "components/artifact.webapp-core/component.json",
+              '  "version": 7,',
+              '  "version": 8,',
+          )
+
+          replace_once(
+              "components/artifact.webapp-core/files/TEMPLATE.md",
+              "For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure behavior and semantic target, supported UI states, document-title requirement, and focus target. For `render-state`, bind the failure to a declared route-scoped access state. For `redirect`, bind it to the semantic destination route; keep concrete URL/query/cookie/session transport product-owned.\n",
+              "For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure behavior and semantic target, supported UI states, document-title requirement, and focus target. For `render-state`, bind the failure to a declared route-scoped access state. For `redirect`, bind it to the semantic destination route; keep concrete URL/query/cookie/session transport product-owned.\n\nRoutes schema v3 requires every route to declare a non-blank `accessibility.focusTarget`, so route implementation evidence is browser-sensitive. A route record needs real positive and negative browser-level proof (`end-to-end-test` and/or `accessibility-test`), and every product requirement linked to that route record must declare at least one of those browser-level kinds in `requiredPositiveProofKinds`. Static inspection, HTTP reachability, and process-level integration tests cannot substitute for route-entry focus proof.\n",
+          )
+
+          replace_once(
+              "tests/fixtures/webapp_browser/client.html",
+              '<h1 id="main-heading">Browser proof fixture</h1>',
+              '<h1 id="main-heading" tabindex="-1">Browser proof fixture</h1>',
+          )
+          replace_once(
+              "tests/fixtures/webapp_browser/client.html",
+              "  <script>\n    document.getElementById(\"primary-action\").addEventListener(\"click\", () => {",
+              "  <script>\n    document.getElementById(\"main-heading\").focus();\n    document.getElementById(\"primary-action\").addEventListener(\"click\", () => {",
+          )
+
+          productization = "tests/test_webapp_productization_acceptance.py"
+          replace_once(
+              productization,
+              "from browser_probe import run_browser_contract_probe",
+              "from browser_probe import _open_webdriver_session, run_browser_contract_probe",
+          )
+          replace_once(
+              productization,
+              'run_browser_contract_probe((ROOT / "product/client.html").resolve().as_uri(), viewports)\nprint("Webapp product proof: contract lifecycle and real-browser checks passed")',
+              '''client_url = (ROOT / "product/client.html").resolve().as_uri()\nrun_browser_contract_probe(client_url, viewports)\nroutes = json.loads((ROOT / "contracts/routes.json").read_text(encoding="utf-8"))["routes"]\nassert len(routes) == 1\nfocus_target = routes[0]["accessibility"]["focusTarget"]\nwith _open_webdriver_session() as browser:\n    browser.navigate(client_url)\n    focus_result = browser.execute(\n        """\n        const element = document.getElementById(arguments[0]);\n        if (!element) return {exists: false};\n        let visible = true;\n        for (let current = element; current; current = current.parentElement) {\n          const style = getComputedStyle(current);\n          if (style.display === 'none' || style.visibility === 'hidden'\n              || Number.parseFloat(style.opacity || '1') <= 0) visible = false;\n        }\n        const rect = element.getBoundingClientRect();\n        return {\n          exists: true,\n          visible: visible && rect.width > 0 && rect.height > 0\n            && rect.right > 0 && rect.bottom > 0\n            && rect.left < window.innerWidth && rect.top < window.innerHeight,\n          explicitlyFocusable: element.hasAttribute('tabindex'),\n          focused: document.activeElement === element,\n        };\n        """,\n        focus_target,\n    )\nassert focus_result == {\n    "exists": True,\n    "visible": True,\n    "explicitlyFocusable": True,\n    "focused": True,\n}, focus_result\nprint("Webapp product proof: contract lifecycle, route focus, and real-browser checks passed")''',
+          )
+          replace_once(
+              productization,
+              '''            browser_sensitive = (\n                evidence_target.get("kind") == "contract-item"\n                and evidence_target.get("contractId") == "viewports"\n                and evidence_target.get("itemKind")\n                in {"viewport", "input-capability"}\n            )''',
+              '''            browser_sensitive = (\n                evidence_target.get("kind") == "contract-item"\n                and (\n                    (\n                        evidence_target.get("contractId") == "viewports"\n                        and evidence_target.get("itemKind")\n                        in {"viewport", "input-capability"}\n                    )\n                    or (\n                        evidence_target.get("contractId") == "routes"\n                        and evidence_target.get("itemKind") == "route"\n                    )\n                )\n            )''',
+          )
+          replace_once(
+              productization,
+              '''            proof_locator = (\n                "product/browser_probe.py"\n                if browser_sensitive\n                else "product/prove_webapp.py"\n            )''',
+              '''            proof_locator = "product/prove_webapp.py"''',
+          )
+          replace_once(
+              productization,
+              '"The ChromeDriver proof executes the target through the real browser interface."',
+              '"The ChromeDriver proof executes route focus, responsive layout, or input behavior through the real browser interface."',
+          )
+          replace_once(
+              productization,
+              '"The ChromeDriver proof rejects browser overflow, zoom locking, or failed input activation."',
+              '"The ChromeDriver proof rejects missing route focus, browser overflow, zoom locking, or failed input activation."',
+          )
+
+          replace_once(
+              "tests/fixtures/webapp_auth/client.html",
+              '    const main = document.getElementById("main-content");\n    const focusStrategy = main.dataset.focusStrategy;',
+              '    const main = document.getElementById("main-content");\n    document.getElementById("main-heading").focus();\n    const focusStrategy = main.dataset.focusStrategy;',
+          )
+
+          auth_proof = "tests/fixtures/webapp_auth/prove_auth_fixture.py"
+          replace_once(
+              auth_proof,
+              "from browser_probe import run_browser_contract_probe",
+              "from browser_probe import _open_webdriver_session, run_browser_contract_probe",
+          )
+          replace_once(
+              auth_proof,
+              '''try:\n    run_browser_contract_probe(base + "/", viewports)\n    observed_states.add(assert_view(200, "public", "populated", "/"))''',
+              '''try:\n    run_browser_contract_probe(base + "/", viewports)\n    with _open_webdriver_session() as browser:\n        for route in routes.values():\n            focus_target = route["accessibility"]["focusTarget"]\n            browser.navigate(base + route["path"])\n            focus_result = browser.execute(\n                """\n                const element = document.getElementById(arguments[0]);\n                if (!element) return {exists: false};\n                let visible = true;\n                for (let current = element; current; current = current.parentElement) {\n                  const style = getComputedStyle(current);\n                  if (style.display === 'none' || style.visibility === 'hidden'\n                      || Number.parseFloat(style.opacity || '1') <= 0) visible = false;\n                }\n                const rect = element.getBoundingClientRect();\n                return {\n                  exists: true,\n                  visible: visible && rect.width > 0 && rect.height > 0\n                    && rect.right > 0 && rect.bottom > 0\n                    && rect.left < window.innerWidth && rect.top < window.innerHeight,\n                  explicitlyFocusable: element.hasAttribute('tabindex'),\n                  focused: document.activeElement === element,\n                };\n                """,\n                focus_target,\n            )\n            assert focus_result == {\n                "exists": True,\n                "visible": True,\n                "explicitlyFocusable": True,\n                "focused": True,\n            }, (route["id"], focus_result)\n    observed_states.add(assert_view(200, "public", "populated", "/"))''',
+          )
+
+          auth_test = "tests/test_webapp_auth_productization.py"
+          replace_once(
+              auth_test,
+              '''            browser_sensitive = (\n                evidence_target.get("kind") == "contract-item"\n                and evidence_target.get("contractId") == "viewports"\n                and evidence_target.get("itemKind")\n                in {"viewport", "input-capability"}\n            )''',
+              '''            browser_sensitive = (\n                evidence_target.get("kind") == "contract-item"\n                and (\n                    (\n                        evidence_target.get("contractId") == "viewports"\n                        and evidence_target.get("itemKind")\n                        in {"viewport", "input-capability"}\n                    )\n                    or (\n                        evidence_target.get("contractId") == "routes"\n                        and evidence_target.get("itemKind") == "route"\n                    )\n                )\n            )''',
+          )
+          replace_once(
+              auth_test,
+              '''            proof_locator = (\n                "product/browser_probe.py"\n                if browser_sensitive\n                else "product/prove_auth_fixture.py"\n            )''',
+              '''            proof_locator = "product/prove_auth_fixture.py"''',
+          )
+          replace_once(
+              auth_test,
+              '"The ChromeDriver proof exercises responsive layout and declared browser input behavior."',
+              '"The ChromeDriver proof exercises route-entry focus, responsive layout, and declared browser input behavior."',
+          )
+          replace_once(
+              auth_test,
+              '"The ChromeDriver proof rejects page-wide overflow, zoom locking, and failed browser input activation."',
+              '"The ChromeDriver proof rejects missing route focus, page-wide overflow, zoom locking, and failed browser input activation."',
+          )
+      - name: Commit patch and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temp-focus-target-proof-patch.yml
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Enforce browser proof for Webapp route focus targets"
+          git push origin HEAD:agent/webapp-focus-target-browser-proof-pr11
