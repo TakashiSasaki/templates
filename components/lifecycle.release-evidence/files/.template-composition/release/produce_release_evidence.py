@@ -23,7 +23,7 @@ HERE = Path(__file__).resolve().parent
 CANDIDATE_PATH = HERE / "candidate.py"
 LIFECYCLE_LOCK_PATH = HERE / "lifecycle_lock.py"
 EVIDENCE_RELATIVE = "contracts/release-evidence.json"
-COMPOSITION_PYTHON_TOKEN = "@composition-python"
+COMPOSITION_PYTHON_TOKEN = "python"
 
 
 def load_managed_module(name: str, path: Path, label: str):
@@ -108,7 +108,7 @@ def run_validator(root: Path, relative: str, *arguments: str) -> None:
 
 
 def materialize_execution_argv(argv: object) -> list[str]:
-    """Resolve the one managed interpreter token without shell or env expansion."""
+    """Resolve the validated Python runtime token without shell or env expansion."""
 
     if not isinstance(argv, list) or not argv or not all(
         isinstance(argument, str) and argument and "\x00" not in argument
@@ -124,7 +124,7 @@ def materialize_execution_argv(argv: object) -> list[str]:
     if token_positions:
         if token_positions != [0]:
             fail(
-                f"{COMPOSITION_PYTHON_TOKEN} is allowed only as argv[0] after validation"
+                f"{COMPOSITION_PYTHON_TOKEN!r} is allowed only as argv[0] after validation"
             )
         materialized[0] = sys.executable
     return materialized
