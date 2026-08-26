@@ -252,6 +252,7 @@ class ExecutableProofSemanticsTests(unittest.TestCase):
                     "argv": ["python", "tests/proof.py"],
                     "workingDirectory": ".",
                     "harnessLocator": "tests/proof.py",
+                    "harnessArgumentIndex": 1,
                 }
             ],
         }
