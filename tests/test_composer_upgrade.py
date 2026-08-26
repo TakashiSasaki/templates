@@ -122,6 +122,7 @@ class UpgradeCLITests(unittest.TestCase):
                     "capability.runtime",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 ],
             )
             creates = {entry["destination"] for entry in first_payload["files"]["create"]}
@@ -180,6 +181,7 @@ class UpgradeCLITests(unittest.TestCase):
                     "capability.runtime",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 ],
             )
             preserved = {entry["destination"] for entry in plan["files"]["preserve"]}
