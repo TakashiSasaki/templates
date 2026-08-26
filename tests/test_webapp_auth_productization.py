@@ -270,7 +270,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 5,
+                "schemaVersion": 6,
                 "mode": "product",
                 "commands": [
                     {
@@ -280,6 +280,14 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                             "Exercise realistic browser Webapp authentication, "
                             "authorization, route-state, viewport, and input behavior."
                         ),
+                        "execution": {
+                            "capabilities": ["integration", "end-to-end", "browser"],
+                            "harness": {
+                                "kind": "repository-file",
+                                "locator": "product/prove_auth_fixture.py",
+                            },
+                            "supportsNegativePath": True,
+                        },
                     }
                 ],
                 "releaseGates": [
@@ -300,13 +308,14 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             target / "contracts/release-execution.json",
             {
                 "$schema": "../schemas/release-execution.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
                         "commandId": "auth-product-proof",
                         "argv": [sys.executable, "product/prove_auth_fixture.py"],
                         "workingDirectory": ".",
+                        "harnessLocator": "product/prove_auth_fixture.py",
                     }
                 ],
             },
