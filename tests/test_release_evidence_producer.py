@@ -122,7 +122,6 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
                             "harness": {
                                 "kind": "repository-file",
                                 "locator": "product/prove.py",
-                                "invocation": "python-script",
                             },
                             "supportsNegativePath": True,
                         },
