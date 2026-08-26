@@ -113,10 +113,17 @@ When an expected exact-head run is not visible, enter `CI_DISCOVERY_PENDING` and
 4. Refresh an exact-commit check-run/check-suite view for the same head SHA. Treat the workflow-run view and exact-commit check-run/check-suite view as independently indexed live views; when another independently indexed repository view is available, it may be used as additional corroboration.
 5. Reconcile any discovered run/check to the exact head and expected workflow before classifying it. An older-head result is stale evidence. A concurrency-cancelled run that was superseded by a newer applicable exact-head run is not by itself a CI failure; evaluate the newest applicable run.
 
-Do not classify an expected run as `CI_CONFIRMED_ABSENT` from a single zero-result view, from repeated queries against only one index, or from elapsed wall-clock time alone. A fixed sleep or observation delay is not evidence. `CI_CONFIRMED_ABSENT` requires all of the following:
+The repository safety floor for absence classification is:
+
+`CI_DISCOVERY_MIN_OBSERVATION_MINUTES = 10`
+
+This minimum observation floor is a guard, not evidence. It does not delay `CI_DISCOVERED` when positive exact-head evidence appears. Do not sleep solely to satisfy it; continue useful read-only audit or other non-conflicting work and refresh live evidence normally.
+
+Do not classify an expected run as `CI_CONFIRMED_ABSENT` from a single zero-result view, from repeated queries against only one index, or from elapsed wall-clock time alone. `CI_CONFIRMED_ABSENT` requires all of the following:
 
 - the PR head remained unchanged throughout the observation;
 - the current workflow definition still says the run should exist for that event and scope;
+- at least `CI_DISCOVERY_MIN_OBSERVATION_MINUTES` have elapsed since the later of the PR action expected to generate the run and the exact head becoming current;
 - the expected run/check remains absent after repeated read-only refreshes in at least two independently indexed live views, including both a workflow-run view and an exact-commit check-run/check-suite view when those views are available;
 - no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists;
 - the agent can state the concrete observations that support the `CI_CONFIRMED_ABSENT` decision.
@@ -199,7 +206,7 @@ Keep these distinctions explicit:
 - `CI_DISCOVERY_PENDING` != `CI_CONFIRMED_ABSENT`;
 - `CI_CONFIRMED_ABSENT` != `BLOCKED_CI` until the absence decision is dispositioned;
 - `CI_DISCOVERED` != `CI_GREEN`;
-- elapsed time != `CI_CONFIRMED_ABSENT`;
+- observation-floor elapsed != `CI_CONFIRMED_ABSENT`;
 - older-head run != exact-head evidence;
 - concurrency-cancelled superseded run != current exact-head failure;
 - retrigger mutation != discovery evidence.
