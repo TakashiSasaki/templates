@@ -11,7 +11,7 @@ from urllib.request import Request, urlopen
 sys.dont_write_bytecode = True
 
 import auth_app
-from browser_probe import run_browser_contract_probe
+from browser_probe import _open_webdriver_session, run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = (
@@ -190,6 +190,38 @@ def assert_view(
 observed_states: set[str] = set()
 try:
     run_browser_contract_probe(base + "/", viewports)
+    with _open_webdriver_session() as browser:
+        for route in routes.values():
+            focus_target = route["accessibility"]["focusTarget"]
+            browser.navigate(base + route["path"])
+            focus_result = browser.execute(
+                """
+                const element = document.getElementById(arguments[0]);
+                if (!element) return {exists: false};
+                let visible = true;
+                for (let current = element; current; current = current.parentElement) {
+                  const style = getComputedStyle(current);
+                  if (style.display === 'none' || style.visibility === 'hidden'
+                      || Number.parseFloat(style.opacity || '1') <= 0) visible = false;
+                }
+                const rect = element.getBoundingClientRect();
+                return {
+                  exists: true,
+                  visible: visible && rect.width > 0 && rect.height > 0
+                    && rect.right > 0 && rect.bottom > 0
+                    && rect.left < window.innerWidth && rect.top < window.innerHeight,
+                  explicitlyFocusable: element.hasAttribute('tabindex'),
+                  focused: document.activeElement === element,
+                };
+                """,
+                focus_target,
+            )
+            assert focus_result == {
+                "exists": True,
+                "visible": True,
+                "explicitlyFocusable": True,
+                "focused": True,
+            }, (route["id"], focus_result)
     observed_states.add(assert_view(200, "public", "populated", "/"))
     observed_states.add(assert_view(200, "status", "populated", "/status"))
     observed_states.add(assert_view(401, "application", "unauthorized", "/app"))

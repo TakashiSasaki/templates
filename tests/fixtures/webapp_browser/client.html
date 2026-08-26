@@ -22,13 +22,14 @@
 <body>
   <div class="layout">
     <main id="main-content" data-action="">
-      <h1 id="main-heading">Browser proof fixture</h1>
+      <h1 id="main-heading" tabindex="-1">Browser proof fixture</h1>
       <p class="scroll-region">Responsive fixture content for browser-level contract verification.</p>
       <button type="button" id="primary-action">Continue</button>
     </main>
     <aside class="context" aria-label="Context">Optional wide-screen context</aside>
   </div>
   <script>
+    document.getElementById("main-heading").focus();
     document.getElementById("primary-action").addEventListener("click", () => {
       document.getElementById("main-content").dataset.action = "activated";
     });

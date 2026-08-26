@@ -38,6 +38,7 @@
   </div>
   <script>
     const main = document.getElementById("main-content");
+    document.getElementById("main-heading").focus();
     const focusStrategy = main.dataset.focusStrategy;
     if (focusStrategy !== "preserve") {
       document.getElementById(focusStrategy).focus();
