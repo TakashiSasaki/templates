@@ -29,8 +29,15 @@ def load_schema() -> dict:
 def product_document() -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
+        "requirements": [
+            {
+                "id": "REQ-DEMO",
+                "description": "The demo product behavior is implemented and proven.",
+                "recordIds": ["demo-record"],
+            }
+        ],
         "commands": [
             {
                 "id": "product-proof",
@@ -64,6 +71,7 @@ def product_document() -> dict:
                         "id": "demo-positive",
                         "status": "verified",
                         "kind": "integration-test",
+                        "executionClass": "process-integration",
                         "description": "The positive product path is verified.",
                         "locator": "tests/test_demo.py",
                         "commandId": "product-proof",
@@ -75,6 +83,7 @@ def product_document() -> dict:
                         "id": "demo-negative",
                         "status": "verified",
                         "kind": "integration-test",
+                        "executionClass": "process-integration",
                         "description": "The negative product path is verified.",
                         "locator": "tests/test_demo.py",
                         "commandId": "product-proof",
@@ -104,38 +113,82 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_complete_product_evidence_is_schema_valid(self) -> None:
         self.assert_valid(product_document())
 
-    def test_product_boundary_requires_verified_status_and_locator(self) -> None:
+    def test_product_requires_explicit_requirement_ledger(self) -> None:
+        value = product_document()
+        value["requirements"] = []
+        self.assert_invalid(value)
+
+        value = product_document()
+        del value["requirements"]
+        self.assert_invalid(value)
+
+    def test_stable_uppercase_requirement_id_is_valid(self) -> None:
+        value = product_document()
+        value["requirements"][0]["id"] = "REQ-SEVERITY-BROWSER-FILTER"
+        self.assert_valid(value)
+
+    def test_required_boundary_is_structurally_valid_but_verified_boundary_needs_locator(self) -> None:
+        planned = product_document()
+        planned["records"][0]["implementationBoundary"] = {
+            "status": "required",
+            "description": "Implementation is still required.",
+        }
+        self.assert_valid(planned)
+
         missing_locator = product_document()
         del missing_locator["records"][0]["implementationBoundary"]["locator"]
         self.assert_invalid(missing_locator)
 
-        unverified = product_document()
-        unverified["records"][0]["implementationBoundary"]["status"] = "required"
-        self.assert_invalid(unverified)
+    def test_proof_execution_class_is_required(self) -> None:
+        value = product_document()
+        del value["records"][0]["positiveEvidence"][0]["executionClass"]
+        self.assert_invalid(value)
 
-    def test_product_proofs_require_complete_verified_metadata(self) -> None:
+    def test_verified_proofs_require_execution_metadata(self) -> None:
         for evidence_key in ("positiveEvidence", "negativeEvidence"):
-            for field in ("kind", "locator", "commandId", "expectedResult"):
+            for field in ("locator", "commandId", "expectedResult"):
                 value = product_document()
                 del value["records"][0][evidence_key][0][field]
                 with self.subTest(evidence_key=evidence_key, field=field):
                     self.assert_invalid(value)
 
-            value = product_document()
-            value["records"][0][evidence_key][0]["status"] = "required"
-            with self.subTest(evidence_key=evidence_key, field="status"):
-                self.assert_invalid(value)
-
-    def test_product_record_requires_at_least_one_release_gate(self) -> None:
+    def test_required_proof_can_be_recorded_without_executed_result(self) -> None:
         value = product_document()
-        value["records"][0]["releaseGateIds"] = []
-        self.assert_invalid(value)
+        value["records"][0]["positiveEvidence"] = [
+            {
+                "id": "browser-proof-required",
+                "status": "required",
+                "kind": "end-to-end-test",
+                "executionClass": "browser-interaction",
+                "description": "A browser proof still needs to run.",
+            }
+        ]
+        self.assert_valid(value)
+
+    def test_deferred_proof_requires_reason_but_not_fake_execution_metadata(self) -> None:
+        value = product_document()
+        value["records"][0]["positiveEvidence"] = [
+            {
+                "id": "browser-proof-deferred",
+                "status": "deferred",
+                "kind": "end-to-end-test",
+                "executionClass": "browser-interaction",
+                "description": "The intended browser proof could not run here.",
+                "deferredReason": "No browser runtime is available in this environment.",
+            }
+        ]
+        self.assert_valid(value)
+
+        missing_reason = copy.deepcopy(value)
+        del missing_reason["records"][0]["positiveEvidence"][0]["deferredReason"]
+        self.assert_invalid(missing_reason)
 
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "template",
+            "requirements": [],
             "commands": [],
             "releaseGates": [],
             "records": [],
@@ -143,7 +196,7 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
         self.assert_valid(value)
 
         product = product_document()
-        for key in ("commands", "releaseGates", "records"):
+        for key in ("requirements", "commands", "releaseGates", "records"):
             nonempty = copy.deepcopy(value)
             nonempty[key] = product[key]
             with self.subTest(rejected_key=key):
