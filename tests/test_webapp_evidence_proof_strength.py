@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
-BROWSER_SENSITIVE_ITEM_KINDS = {"input-capability", "viewport"}
+BROWSER_SENSITIVE_ITEM_KINDS = {"input-capability", "route", "viewport"}
 
 
 class WebappEvidenceProofStrengthTests(unittest.TestCase):

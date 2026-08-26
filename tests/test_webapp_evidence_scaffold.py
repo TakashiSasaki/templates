@@ -115,9 +115,17 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 proof_kind = (
                     "end-to-end-test"
                     if evidence_target.get("kind") == "contract-item"
-                    and evidence_target.get("contractId") == "viewports"
-                    and evidence_target.get("itemKind")
-                    in {"viewport", "input-capability"}
+                    and (
+                        (
+                            evidence_target.get("contractId") == "viewports"
+                            and evidence_target.get("itemKind")
+                            in {"viewport", "input-capability"}
+                        )
+                        or (
+                            evidence_target.get("contractId") == "routes"
+                            and evidence_target.get("itemKind") == "route"
+                        )
+                    )
                     else "integration-test"
                 )
                 for proof in record["positiveEvidence"] + record["negativeEvidence"]:

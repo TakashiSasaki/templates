@@ -103,6 +103,8 @@ def browser_level_requirement_errors(evidence: dict[str, Any]) -> list[str]:
     requirements = evidence.get("requirements")
     if not isinstance(records, list):
         raise TypeError("implementation evidence records must be a JSON array")
+    if requirements is None:
+        return []
     if not isinstance(requirements, list):
         raise TypeError("implementation evidence requirements must be a JSON array")
 

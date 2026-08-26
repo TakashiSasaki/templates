@@ -82,7 +82,7 @@ focus_target = routes[0]["accessibility"]["focusTarget"]
 with _open_webdriver_session() as browser:
     browser.navigate(client_url)
     focus_result = browser.execute(
-        """
+        '''
         const element = document.getElementById(arguments[0]);
         if (!element) return {exists: false};
         let visible = true;
@@ -100,7 +100,7 @@ with _open_webdriver_session() as browser:
           explicitlyFocusable: element.hasAttribute('tabindex'),
           focused: document.activeElement === element,
         };
-        """,
+        ''',
         focus_target,
     )
 assert focus_result == {
