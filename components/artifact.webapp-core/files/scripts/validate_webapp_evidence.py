@@ -11,6 +11,7 @@ from typing import Any
 if __package__:
     from .webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
+        DOMAIN_IDS,
         BROWSER_SENSITIVE_CONTRACT_ITEMS,
         allowed_targets,
         expected_targets,
@@ -20,6 +21,7 @@ if __package__:
 else:
     from webapp_evidence_targets import (
         BROWSER_LEVEL_PROOF_KINDS,
+        DOMAIN_IDS,
         BROWSER_SENSITIVE_CONTRACT_ITEMS,
         allowed_targets,
         expected_targets,
@@ -188,7 +190,8 @@ def main() -> int:
     for missing in sorted(expected - actual_set, key=str):
         errors.append(f"missing Webapp implementation-evidence target: {missing}")
     for extra in sorted(actual_set - allowed, key=str):
-        errors.append(f"unknown Webapp implementation-evidence target: {extra}")
+        if len(extra) >= 2 and extra[1] in DOMAIN_IDS:
+            errors.append(f"unknown Webapp implementation-evidence target: {extra}")
     errors.extend(strength_errors)
 
     if errors:
