@@ -10,6 +10,10 @@ from pathlib import Path
 
 import test_mcp_apps_contract as apps_helpers
 import test_mcp_interface_contract as mcp_helpers
+from lifecycle_checkpoint_test_support import (
+    create_planning_checkpoint,
+    planning_evidence_from_product,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
@@ -114,17 +118,73 @@ class McpAppsProductIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
 
+            product_evidence, planning_evidence = planning_evidence_from_product(
+                self.combined_product_evidence()
+            )
+            self.write_json(
+                target / "contracts/mcp-interface.json",
+                {
+                    "$schema": "../schemas/mcp-interface.schema.json",
+                    "schemaVersion": 2,
+                    "mode": "planning",
+                    "protocolRevision": "2026-07-28",
+                    "transports": [
+                        {
+                            "id": "stdio",
+                            "kind": "stdio",
+                            "purpose": "Expose the local MCP transport.",
+                        }
+                    ],
+                    "operations": [
+                        {
+                            "id": "stdio-list-records",
+                            "kind": "tool",
+                            "transportId": "stdio",
+                            "purpose": "Expose records.list through MCP.",
+                        }
+                    ],
+                },
+            )
+            product_apps = apps_case.apps_contract()
+            self.write_json(
+                target / "contracts/mcp-apps.json",
+                {
+                    "$schema": "../schemas/mcp-apps.schema.json",
+                    "schemaVersion": 2,
+                    "mode": "planning",
+                    "extension": deepcopy(product_apps["extension"]),
+                    "views": [
+                        {"id": view["id"], "purpose": "Render the declared MCP App View."}
+                        for view in product_apps["views"]
+                    ],
+                    "associations": [
+                        {
+                            "id": association["id"],
+                            "operationId": association["operationId"],
+                            "viewId": association["viewId"],
+                            "purpose": "Bind the declared MCP operation to its View.",
+                        }
+                        for association in product_apps["associations"]
+                    ],
+                },
+            )
+            self.write_json(
+                target / "contracts/implementation-evidence.json",
+                planning_evidence,
+            )
+            create_planning_checkpoint(target)
+
             self.write_json(
                 target / "contracts/mcp-interface.json",
                 mcp_case.product_contract(),
             )
             self.write_json(
                 target / "contracts/mcp-apps.json",
-                apps_case.apps_contract(),
+                product_apps,
             )
             self.write_json(
                 target / "contracts/implementation-evidence.json",
-                self.combined_product_evidence(),
+                product_evidence,
             )
 
             runner = target / ".template-composition" / "validate.py"
@@ -148,6 +208,7 @@ class McpAppsProductIntegrationTests(unittest.TestCase):
             for check_id in (
                 "contract-evolution",
                 "implementation-evidence",
+                "lifecycle-checkpoints",
                 "mcp-interface",
                 "mcp-apps",
             ):
