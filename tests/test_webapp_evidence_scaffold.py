@@ -84,6 +84,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
             self.assertEqual(worklist["format"], "webapp-implementation-evidence-worklist")
             self.assertEqual(worklist["formatVersion"], 1)
             self.assertEqual(worklist["recordCount"], len(worklist["records"]))
+            self.assertEqual(worklist["status"], "missing")
             self.assertGreater(worklist["recordCount"], 0)
 
             record_ids = [record["id"] for record in worklist["records"]]
@@ -152,6 +153,10 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     "records": records,
                 },
             )
+
+            projected = json.loads(self.scaffold(target).stdout)
+            self.assertEqual(projected["status"], "verified")
+            self.assertTrue(all(item["status"] == "verified" for item in projected["recordStatuses"]))
 
             for script, arguments in (
                 ("scripts/validate_contracts.py", ()),
