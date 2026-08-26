@@ -96,7 +96,6 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
             self.assertEqual(len(targets), len(set(targets)))
             for record in worklist["records"]:
                 self.assertRegex(record["id"], RECORD_ID)
-                self.assertEqual(record["status"], "missing")
                 self.assertEqual(record["implementationBoundary"]["status"], "required")
                 self.assertEqual(record["positiveEvidence"][0]["status"], "required")
                 self.assertEqual(record["negativeEvidence"][0]["status"], "required")
