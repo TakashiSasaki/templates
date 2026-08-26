@@ -46,12 +46,28 @@ def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
     }
 
 
-
-def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+def planning_requirement_errors(
+    contract: dict[str, Any], evidence: dict[str, Any]
+) -> list[str]:
+    entrypoints = contract.get("entrypoints")
     requirements = evidence.get("requirements")
+    if not isinstance(entrypoints, list):
+        return ["planning CLI contract entrypoints must be an array"]
     if not isinstance(requirements, list):
         return ["planning implementation-evidence requirements must be an array"]
+
     errors: list[str] = []
+    planned_ids: list[str] = []
+    for entrypoint in entrypoints:
+        if not isinstance(entrypoint, dict) or not isinstance(entrypoint.get("id"), str):
+            errors.append("every planning CLI entrypoint must have a text id")
+            continue
+        planned_ids.append(entrypoint["id"])
+    if len(planned_ids) != len(set(planned_ids)):
+        errors.append("planning CLI entrypoint ids must be unique")
+
+    expected = {entrypoint_target(entrypoint_id) for entrypoint_id in planned_ids}
+    actual: set[tuple[object, ...]] = set()
     allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
@@ -65,6 +81,7 @@ def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
             key = target_key(target)
             if key[1] != "cli_interface":
                 continue
+            actual.add(key)
             requirement_id = requirement.get("id", f"index-{index}")
             if key[0] != "contract-item" or key[2] != "entrypoint":
                 errors.append(
@@ -77,7 +94,14 @@ def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
                     f"{key[3]!r} and must declare an executable requiredPositiveProofKinds "
                     f"value ({allowed})"
                 )
+
+    for missing in sorted(expected - actual, key=str):
+        errors.append(f"planned CLI entrypoint is missing a planning requirement target: {missing}")
+    for unknown in sorted(actual - expected, key=str):
+        if unknown[0] == "contract-item" and unknown[2] == "entrypoint":
+            errors.append(f"CLI planning requirement targets undeclared planned entrypoint: {unknown}")
     return errors
+
 
 def validate(root: Path) -> list[str]:
     contract = load_json(root, CLI_CONTRACT)
@@ -86,8 +110,18 @@ def validate(root: Path) -> list[str]:
     evidence_mode = evidence.get("mode")
 
     if evidence_mode == "planning":
-        return planning_requirement_errors(evidence)
+        if cli_mode != "planning":
+            return [
+                "planning implementation evidence requires contracts/cli-interface.json "
+                "to be in planning mode so CLI entrypoint IDs are authoritative before coding"
+            ]
+        return planning_requirement_errors(contract, evidence)
 
+    if cli_mode == "planning":
+        return [
+            "planning CLI contract requires planning implementation evidence; keep both "
+            "authorities in planning mode until implementation records are ready"
+        ]
     if cli_mode == "template":
         if evidence_mode == "product":
             return [
@@ -145,13 +179,10 @@ def validate(root: Path) -> list[str]:
             ]
             if len(values) != len(set(values)):
                 errors.append(
-                    f"CLI entrypoint {item['id']!r} assigns one exit code to "
-                    "multiple meanings"
+                    f"CLI entrypoint {item['id']!r} assigns one exit code to multiple meanings"
                 )
 
-    records_by_target: dict[
-        tuple[object, ...], list[dict[str, Any]]
-    ] = {}
+    records_by_target: dict[tuple[object, ...], list[dict[str, Any]]] = {}
     for record in records:
         if not isinstance(record, dict):
             continue
@@ -166,13 +197,9 @@ def validate(root: Path) -> list[str]:
     for extra in sorted(actual - expected, key=str):
         if extra[0] == "contract-item":
             errors.append(f"unknown CLI implementation-evidence target: {extra}")
-    for key, matching in sorted(
-        records_by_target.items(), key=lambda item: str(item[0])
-    ):
+    for key, matching in sorted(records_by_target.items(), key=lambda item: str(item[0])):
         if key in expected and len(matching) != 1:
-            errors.append(
-                f"CLI implementation-evidence target {key} must have exactly one record"
-            )
+            errors.append(f"CLI implementation-evidence target {key} must have exactly one record")
 
     allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
     requirement_refs: dict[str, list[dict[str, Any]]] = {}
@@ -193,19 +220,13 @@ def validate(root: Path) -> list[str]:
         record = matching[0]
         record_id = record.get("id")
         if not isinstance(record_id, str):
-            errors.append(
-                f"CLI implementation-evidence target {key} must have a text record id"
-            )
+            errors.append(f"CLI implementation-evidence target {key} must have a text record id")
             continue
-        for field, label in (
-            ("positiveEvidence", "positive"),
-            ("negativeEvidence", "negative"),
-        ):
+        for field, label in (("positiveEvidence", "positive"), ("negativeEvidence", "negative")):
             if proof_kinds(record, field).isdisjoint(EXECUTABLE_PROOF_KINDS):
                 errors.append(
-                    f"CLI target {key} requires at least one {label} executable "
-                    f"proof kind ({allowed}); static inspection or unit-only proof "
-                    "is insufficient"
+                    f"CLI target {key} requires at least one {label} executable proof kind "
+                    f"({allowed}); static inspection or unit-only proof is insufficient"
                 )
         linked = requirement_refs.get(record_id, [])
         strong = False
@@ -221,9 +242,9 @@ def validate(root: Path) -> list[str]:
                 break
         if not strong:
             errors.append(
-                f"CLI record {record_id!r} must be linked from at least one "
-                "requirement whose requiredPositiveProofKinds includes an executable "
-                f"CLI proof kind ({allowed})"
+                f"CLI record {record_id!r} must be linked from at least one requirement "
+                "whose requiredPositiveProofKinds includes an executable CLI proof kind "
+                f"({allowed})"
             )
     return errors
 
@@ -245,7 +266,7 @@ def main() -> int:
     contract = load_json(root, CLI_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     if evidence.get("mode") == "planning":
-        print("CLI planning targets and executable proof strength: OK")
+        print("CLI planned entrypoint authority and executable proof strength: OK")
     elif contract.get("mode") == "template":
         print("CLI interface: template mode OK; no product CLI claim is active")
     else:
