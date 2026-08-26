@@ -85,27 +85,40 @@ class LifecycleCheckpointTests(unittest.TestCase):
         rel = f"artifacts/lifecycle/{sequence:03d}-{cid}"
         snap = self.root / rel
         paths = {"contracts/manifest.json"}
-        for entry in self.manifest["contracts"]:
-            if entry["id"] != "lifecycle_checkpoints":
-                paths.update([entry["document"], entry["schema"]])
+        for manifest_entry in self.manifest["contracts"]:
+            if manifest_entry["id"] != "lifecycle_checkpoints":
+                paths.update([manifest_entry["document"], manifest_entry["schema"]])
+            else:
+                paths.add(manifest_entry["schema"])
         files = []
         for path in sorted(paths):
             dest = snap / path
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(self.root / path, dest)
             files.append({"path": path, "snapshotPath": path, "sha256": digest(dest)})
-        write(snap / "validation.json", {"result": "passed"})
-        manifest = {
+        validation_result = {
+            "schemaVersion": 1,
+            "authority": "composition-selected-validation-v1",
+            "command": ["python", ".template-composition/validate.py", ".", "--format", "json"],
+            "result": "passed",
+            "output": {"status": "valid"},
+        }
+        write(snap / "validation.json", validation_result)
+        recorded_at = "2026-08-27T00:00:00Z"
+        snapshot_manifest = {
             "schemaVersion": 1,
             "checkpointId": cid,
             "sequence": sequence,
             "phase": phase,
             "changeKind": change,
             "parentId": parent,
+            "recordedAt": recorded_at,
+            "chronologyAuthority": "sequence-parent-hash-chain",
+            "authority": {"validationEntrypoint": ".template-composition/validate.py"},
             "files": files,
             "validation": {"result": "passed", "path": "validation.json", "sha256": digest(snap / "validation.json")},
         }
-        write(snap / "manifest.json", manifest)
+        write(snap / "manifest.json", snapshot_manifest)
         entry = {
             "id": cid,
             "sequence": sequence,
@@ -114,7 +127,7 @@ class LifecycleCheckpointTests(unittest.TestCase):
             "parentId": parent,
             "snapshotPath": rel,
             "manifestSha256": digest(snap / "manifest.json"),
-            "recordedAt": "2026-08-27T00:00:00Z",
+            "recordedAt": recorded_at,
         }
         self.ledger["checkpoints"].append(entry)
         write(self.root / "contracts/lifecycle-checkpoints.json", self.ledger)
