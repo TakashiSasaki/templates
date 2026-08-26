@@ -203,19 +203,12 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS)
-            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
-            self.assertIn("TEMPLATE mode", checks["implementation-evidence"]["stderr"])
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
             self.assertIn(
-                "no product implementation claim",
-                checks["implementation-evidence"]["stderr"],
+                "Implementation evidence semantics: OK",
+                checks["implementation-evidence"]["stdout"],
             )
-            self.assertTrue(
-                all(
-                    check["status"] == "passed"
-                    for check_id, check in checks.items()
-                    if check_id != "implementation-evidence"
-                )
-            )
+            self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
 
             runner = target / ".template-composition" / "validate.py"
             human = subprocess.run(
@@ -226,9 +219,8 @@ class SelectedComponentValidationTests(unittest.TestCase):
                 check=False,
             )
             self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
-            self.assertIn("DEFERRED: implementation-evidence", human.stdout)
-            self.assertIn("TEMPLATE mode", human.stdout)
-            self.assertIn("no product implementation claim", human.stdout)
+            self.assertIn("PASSED: implementation-evidence", human.stdout)
+            self.assertIn("Implementation evidence semantics: OK", human.stdout)
             self.assertIn("Composition validation: VALID", human.stdout)
 
             self.assertFalse((target / "contracts" / "release-execution.json").exists())
@@ -251,7 +243,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertNotIn("lifecycle.release-bundle", payload["resolved_components"])
             self.assertEqual({check["id"] for check in payload["checks"]}, WEBAPP_BASE_CHECKS)
             checks = {check["id"]: check for check in payload["checks"]}
-            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
             self.assertFalse((target / "contracts" / "release-bundle.json").exists())
 
     def test_release_ready_webapp_runs_full_selected_validation_chain(self) -> None:
@@ -272,14 +264,8 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertIn("lifecycle.release-bundle", component_ids)
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS | WEBAPP_RELEASE_CHECKS)
-            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
-            self.assertTrue(
-                all(
-                    check["status"] == "passed"
-                    for check_id, check in checks.items()
-                    if check_id != "implementation-evidence"
-                )
-            )
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
             self.assertTrue((target / "contracts" / "release-bundle.json").is_file())
 
     def test_product_release_checks_are_explicitly_deferred(self) -> None:
@@ -441,7 +427,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(checks["cli-interface"]["status"], "passed")
             self.assertIn("template mode OK", checks["cli-interface"]["stdout"])
             self.assertEqual(
-                checks["implementation-evidence"]["status"], "deferred"
+                checks["implementation-evidence"]["status"], "passed"
             )
             manifest = json.loads(
                 (target / "contracts/manifest.json").read_text(encoding="utf-8")
@@ -483,7 +469,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertIn("service-interface", checks)
             self.assertEqual(checks["service-interface"]["status"], "passed")
             self.assertIn("Service interface coverage", checks["service-interface"]["stdout"])
-            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
             manifest = json.loads((target / "contracts/manifest.json").read_text(encoding="utf-8"))
             self.assertIn("service_interface", {entry["id"] for entry in manifest["contracts"]})
             service_contract = json.loads((target / "contracts/service-interface.json").read_text(encoding="utf-8"))
