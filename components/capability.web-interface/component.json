@@ -2,17 +2,49 @@
   "schema_version": 1,
   "id": "capability.web-interface",
   "kind": "capability",
-  "version": 1,
-  "summary": "Standalone browser-facing interface, routing, security, health, and failure-isolation contract.",
+  "version": 2,
+  "summary": "Standalone browser-facing endpoint contract with machine-checked implementation evidence.",
   "requires": [
-    "capability.runtime"
+    "capability.runtime",
+    "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "web_interface",
+      "document": "contracts/web-interface.json",
+      "schema": "schemas/web-interface.schema.json",
+      "migration_slug": "web-interface",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare externally reachable standalone Web interface endpoints and their caller-visible proof obligations."
+    }
+  ],
   "materials": [
     {
       "source": "files/WEB_INTERFACE.md",
       "destination": "WEB_INTERFACE.md",
       "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/web-interface.json",
+      "destination": "contracts/web-interface.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/web-interface.schema.json",
+      "destination": "schemas/web-interface.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_web_interface.py",
+      "destination": ".template-composition/validators/validate_web_interface.py",
+      "ownership": "managed"
     }
   ]
 }
