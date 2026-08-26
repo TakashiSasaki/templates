@@ -88,23 +88,53 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
     def test_ci_discovery_lag_cannot_trigger_mutating_retry(self) -> None:
         skill = SKILL.read_text(encoding="utf-8").lower()
         for invariant in (
-            "workflow/check discovery may lag",
-            "refresh workflow runs and check state for that exact commit",
+            "ref visibility and actions/check indexing are not atomic",
+            "a zero-result response is negative evidence, not proof",
+            "enter `ci_discovery_pending` and use read-only discovery only",
+            "workflow-run view",
+            "exact-commit check-run/check-suite view",
+            "at least two independently indexed live views",
+            "a fixed sleep or observation delay is not evidence",
+            "remain `ci_discovery_pending`",
             "do not close and reopen the pull request",
             "create a no-op commit",
-            "solely to retrigger ci",
+            "solely to retrigger ci while `ci_discovery_pending`",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
 
-    def test_success_path_cannot_skip_review_completion(self) -> None:
+    def test_ci_discovery_states_are_fail_closed_and_distinct(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "`ci_discovery_pending` != `blocked_ci`",
+            "`ci_discovered` != `ci_green`",
+            "confirmed absence is a positive evidence decision",
+            "cannot transition directly to `ci_green`, `blocked_ci`, a retrigger mutation, or `merge_allowed`",
+            "ci discovery is resolved as `ci_discovered`",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
+    def test_ci_discovery_rejects_stale_and_superseded_false_failures(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "an older-head result is stale evidence",
+            "concurrency-cancelled run that was superseded",
+            "is not by itself a ci failure",
+            "evaluate the newest applicable run",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
+    def test_success_path_cannot_skip_ci_discovery_or_review_completion(self) -> None:
         skill = SKILL.read_text(encoding="utf-8")
         self.assertIn(
-            "PR_OPEN -> SCOPE_AUDITED -> CI_GREEN -> REVIEW_REQUESTED -> "
-            "REVIEW_COMPLETED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> "
-            "MERGE_ALLOWED",
+            "PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> "
+            "REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> "
+            "FINAL_STATE_REFRESHED -> MERGE_ALLOWED",
             skill,
         )
+        self.assertIn("`SCOPE_AUDITED -> CI_GREEN` is forbidden", skill)
         self.assertIn("`CI_GREEN -> MERGE_ALLOWED` is forbidden", skill)
         self.assertIn("`REVIEW_REQUESTED -> MERGE_ALLOWED` is forbidden", skill)
 
