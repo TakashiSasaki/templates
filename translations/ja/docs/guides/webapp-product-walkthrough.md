@@ -701,6 +701,13 @@ command/gate 例:
 
 viewport と keyboard を含むすべての current target に、要求された kind の truthful proof が存在してから、両方の verification layer を実行します。
 
+実装済み製品マイルストーンを主張する前に、次の短い完了ゲートを適用します。
+
+- 生成されたすべての target が `[verified]` であること。[missing] と `[deferred]` は blocker です。
+- caller-visible なすべての requirement に stable な ledger row、linked record ID、宣言された positive proof kind があること。
+- product verification と Composition validation が成功すること。release production では、さらに release-readiness validation が成功し、deferred evidence がないことが必要です。
+
+worklist は deterministic projection にすぎません。consumer-owned の canonical evidence document を更新して validator を再実行してください。失敗している status が complete に見えるよう worklist を編集しないでください。
 ```sh
 ./scripts/verify.sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
