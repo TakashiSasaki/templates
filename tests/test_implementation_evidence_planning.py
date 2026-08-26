@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 SCHEMA = ROOT / "components" / "lifecycle.implementation-evidence" / "files" / "schemas" / "implementation-evidence.schema.json"
 PROMPT = ROOT / "examples" / "evaluations" / "small-model-clean-room-field-log.txt"
+PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
 
 
 class ImplementationEvidencePlanningTests(unittest.TestCase):
@@ -190,6 +191,16 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         self.assertIn("empty recordIds", prompt)
         self.assertIn("requiredPositiveProofKinds", prompt)
         self.assertIn("Preserve those IDs", prompt)
+
+    def test_v4_migration_guide_is_published(self) -> None:
+        catalog = json.loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))
+        documents = {document["id"]: document for document in catalog["documents"]}
+        self.assertEqual(
+            documents["implementation-evidence-v4-migration"]["source"],
+            "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v3-to-v4.md",
+        )
+        self.assertFalse(documents["implementation-evidence-v4-migration"]["optional"])
+        self.assertFalse(documents["implementation-evidence-v4-migration"]["home"])
 
 
 if __name__ == "__main__":
