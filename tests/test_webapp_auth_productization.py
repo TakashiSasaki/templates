@@ -313,7 +313,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                 "commands": [
                     {
                         "commandId": "auth-product-proof",
-                        "argv": [sys.executable, "product/prove_auth_fixture.py"],
+                        "argv": ["python", "product/prove_auth_fixture.py"],
                         "workingDirectory": ".",
                         "harnessLocator": "product/prove_auth_fixture.py",
                         "harnessArgumentIndex": 1,
