@@ -202,14 +202,14 @@ def main() -> int:
             if cold_checks.get(check_id, {}).get("status") != "passed":
                 raise RuntimeError(f"cold validation check did not pass: {check_id}: {cold}")
         evidence_check = cold_checks.get("implementation-evidence")
-        if evidence_check is None or evidence_check.get("status") != "deferred":
+        if evidence_check is None or evidence_check.get("status") != "passed":
             raise RuntimeError(
-                f"template implementation evidence was not explicitly deferred: {cold}"
+                f"template implementation evidence was not semantically validated: {cold}"
             )
-        evidence_message = evidence_check.get("stderr", "")
-        if "TEMPLATE mode" not in evidence_message or "no product implementation claim" not in evidence_message:
+        evidence_message = evidence_check.get("stdout", "")
+        if "Implementation evidence validation: OK" not in evidence_message:
             raise RuntimeError(
-                f"template implementation evidence lacks maturity guidance: {evidence_check}"
+                f"template implementation evidence lacks semantic validation result: {evidence_check}"
             )
 
         poison_proxy = "http://127.0.0.1:9"
