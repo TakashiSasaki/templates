@@ -48,6 +48,17 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
 
+    def test_base_drift_requires_semantic_re_evaluation(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "if it differs from the evaluated pr base/current target snapshot",
+            "must be rebuilt, rebased, or otherwise synchronized",
+            "conflict-free mergeability alone does not establish semantic freshness",
+            "all previous final-head ci and review evidence becomes stale",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
     def test_all_blocked_states_are_defined(self) -> None:
         skill = SKILL.read_text(encoding="utf-8").lower()
         for state in (
