@@ -13,6 +13,8 @@ from contract_common import load_json
 _DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _WORKING_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9._-]*$")
+_PYTHON_MODULE_SEGMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_HARNESS_INVOCATIONS = {"python-script", "python-unittest", "direct"}
 
 
 def _index(items: object, key: str, label: str) -> tuple[dict[str, dict], list[str]]:
@@ -35,7 +37,7 @@ def _index(items: object, key: str, label: str) -> tuple[dict[str, dict], list[s
     return result, errors
 
 
-def _implementation_harness_locator(command: dict) -> str | None:
+def _implementation_harness(command: dict) -> tuple[str, str] | None:
     execution = command.get("execution")
     if not isinstance(execution, dict):
         return None
@@ -43,7 +45,15 @@ def _implementation_harness_locator(command: dict) -> str | None:
     if not isinstance(harness, dict):
         return None
     locator = harness.get("locator")
-    return locator if isinstance(locator, str) and locator else None
+    invocation = harness.get("invocation")
+    if (
+        not isinstance(locator, str)
+        or not locator
+        or invocation not in _HARNESS_INVOCATIONS
+    ):
+        return None
+    assert isinstance(invocation, str)
+    return locator, invocation
 
 
 def _safe_repository_path(value: str, *, allow_dot: bool) -> bool:
@@ -71,10 +81,10 @@ def _safe_repository_path(value: str, *, allow_dot: bool) -> bool:
     )
 
 
-def _expected_harness_argument(
+def _relative_harness(
     working_directory: str, harness_locator: str
 ) -> str | None:
-    """Return the traversal-free argv token that resolves to the root-relative harness."""
+    """Return traversal-free path from the binding cwd to the root-relative harness."""
 
     if working_directory == ".":
         return harness_locator
@@ -83,6 +93,35 @@ def _expected_harness_argument(
         return None
     relative = harness_locator[len(prefix) :]
     return relative or None
+
+
+def _python_module_from_relative(relative: str) -> str | None:
+    if not relative.endswith(".py"):
+        return None
+    parts = relative[:-3].split("/")
+    if not parts or not all(_PYTHON_MODULE_SEGMENT_PATTERN.fullmatch(part) for part in parts):
+        return None
+    return ".".join(parts)
+
+
+def expected_invocation_argv(
+    working_directory: str,
+    harness_locator: str,
+    invocation: str,
+) -> tuple[list[str], int] | None:
+    relative = _relative_harness(working_directory, harness_locator)
+    if relative is None:
+        return None
+    if invocation == "python-script":
+        return ["python", relative], 1
+    if invocation == "python-unittest":
+        module = _python_module_from_relative(relative)
+        if module is None:
+            return None
+        return ["python", "-m", "unittest", module], 3
+    if invocation == "direct":
+        return [f"./{relative}"], 0
+    return None
 
 
 def validate(root: Path) -> list[str]:
@@ -177,41 +216,49 @@ def validate(root: Path) -> list[str]:
             errors.append(
                 f"release execution command {command_id}: harnessArgumentIndex must be a non-negative integer"
             )
-        elif argv_valid:
-            assert isinstance(argv, list)
-            if harness_argument_index >= len(argv):
-                errors.append(
-                    f"release execution command {command_id}: harnessArgumentIndex {harness_argument_index} is outside argv"
-                )
-            elif working_directory_valid:
-                assert isinstance(working_directory, str)
-                expected_argument = _expected_harness_argument(
-                    working_directory, harness_locator
-                )
-                if expected_argument is None:
-                    errors.append(
-                        f"release execution command {command_id}: harnessLocator {harness_locator!r} "
-                        f"must be inside workingDirectory {working_directory!r} without traversal"
-                    )
-                elif argv[harness_argument_index] != expected_argument:
-                    errors.append(
-                        f"release execution command {command_id}: argv[{harness_argument_index}] "
-                        f"must select harnessLocator {harness_locator!r} from workingDirectory "
-                        f"{working_directory!r} using exact argument {expected_argument!r}, "
-                        f"got {argv[harness_argument_index]!r}"
-                    )
         authoritative = implementation_commands.get(command_id)
         if authoritative is None:
             continue
-        expected_harness = _implementation_harness_locator(authoritative)
-        if expected_harness is None:
+        implementation_harness = _implementation_harness(authoritative)
+        if implementation_harness is None:
             errors.append(
-                f"implementation command {command_id}: execution harness locator is required before release binding"
+                f"implementation command {command_id}: execution harness locator and supported invocation are required before release binding"
             )
-        elif harness_locator != expected_harness:
+            continue
+        expected_harness, invocation = implementation_harness
+        if harness_locator != expected_harness:
             errors.append(
                 f"release execution command {command_id}: harnessLocator must exactly match "
                 f"implementation execution harness {expected_harness!r}, got {harness_locator!r}"
+            )
+            continue
+        if not working_directory_valid:
+            continue
+        assert isinstance(working_directory, str)
+        expected = expected_invocation_argv(
+            working_directory,
+            harness_locator,
+            invocation,
+        )
+        if expected is None:
+            errors.append(
+                f"release execution command {command_id}: harnessLocator {harness_locator!r} "
+                f"cannot be invoked as {invocation!r} from workingDirectory {working_directory!r}"
+            )
+            continue
+        expected_argv, expected_index = expected
+        if argv_valid:
+            assert isinstance(argv, list)
+            if argv != expected_argv:
+                errors.append(
+                    f"release execution command {command_id}: argv must exactly execute declared harness "
+                    f"{harness_locator!r} using {invocation!r} from workingDirectory {working_directory!r}; "
+                    f"expected {expected_argv!r}, got {argv!r}"
+                )
+        if index_valid and harness_argument_index != expected_index:
+            errors.append(
+                f"release execution command {command_id}: harnessArgumentIndex must be {expected_index} "
+                f"for {invocation!r}, got {harness_argument_index}"
             )
 
     return errors
