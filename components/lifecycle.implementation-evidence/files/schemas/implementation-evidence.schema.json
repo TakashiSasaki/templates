@@ -16,17 +16,13 @@
     "proofCapability": {
       "enum": ["unit", "integration", "end-to-end", "browser", "accessibility", "migration", "inspection", "other"]
     },
-    "harnessInvocation": {
-      "enum": ["python-script", "python-unittest", "direct"]
-    },
     "executionHarness": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "locator", "invocation"],
+      "required": ["kind", "locator"],
       "properties": {
         "kind": {"const": "repository-file"},
-        "locator": {"$ref": "#/$defs/repositoryLocator"},
-        "invocation": {"$ref": "#/$defs/harnessInvocation"}
+        "locator": {"$ref": "#/$defs/repositoryLocator"}
       }
     },
     "commandExecution": {
