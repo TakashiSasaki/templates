@@ -29,6 +29,7 @@ const STATIC_ASSETS = [
   "/javascripts/guided-copy.js",
   "/javascripts/pwa.js",
   "/javascripts/reader-navigation.js",
+  "/javascripts/search-history.js",
   "/javascripts/glossary-inline.js"
 ];
 const FRESHNESS_STATES = Object.freeze([
