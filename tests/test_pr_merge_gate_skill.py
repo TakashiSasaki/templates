@@ -106,11 +106,31 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
     def test_ci_discovery_states_are_fail_closed_and_distinct(self) -> None:
         skill = SKILL.read_text(encoding="utf-8").lower()
         for invariant in (
-            "`ci_discovery_pending` != `blocked_ci`",
-            "`ci_discovered` != `ci_green`",
-            "confirmed absence is a positive evidence decision",
+            "may resolve only to `ci_discovered`",
+            "or to `ci_confirmed_absent` after the full confirmed-absence protocol succeeds",
             "cannot transition directly to `ci_green`, `blocked_ci`, a retrigger mutation, or `merge_allowed`",
+            "use `ci_confirmed_absent` only when the confirmed-absence protocol below is satisfied",
+            "`ci_confirmed_absent` is not a success state",
+            "must lead to `blocked_ci` or to an explicitly justified recovery action",
+            "`ci_discovery_pending` != `ci_confirmed_absent`",
+            "`ci_discovered` != `ci_green`",
+            "`ci_confirmed_absent` is a positive evidence decision",
             "ci discovery is resolved as `ci_discovered`",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
+    def test_confirmed_absence_requires_correlated_read_only_evidence(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "do not classify an expected run as `ci_confirmed_absent` from a single zero-result view",
+            "repeated queries against only one index",
+            "the pr head remained unchanged throughout the observation",
+            "the current workflow definition still says the run should exist",
+            "repeated read-only refreshes in at least two independently indexed live views",
+            "no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists",
+            "concrete observations that support the `ci_confirmed_absent` decision",
+            "only after entering `ci_confirmed_absent` may a recovery mutation be considered",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
