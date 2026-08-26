@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import unittest
 from pathlib import Path
 
-from scripts.run_unittest_shard import shard_index_for_test_id
+from scripts.run_unittest_shard import (
+    TWO_SHARD_TIMING_OVERRIDES,
+    shard_index_for_test_id,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,7 +15,7 @@ WORKFLOW = ROOT / ".github/workflows/schema-validation.yml"
 
 
 class UnittestShardTests(unittest.TestCase):
-    def test_stable_hash_maps_each_test_id_to_exactly_one_shard(self) -> None:
+    def test_deterministic_assignment_maps_each_test_id_to_exactly_one_shard(self) -> None:
         test_ids = [
             f"test_example_{index}.ExampleTests.test_case_{index % 5}"
             for index in range(64)
@@ -24,6 +28,27 @@ class UnittestShardTests(unittest.TestCase):
             self.assertEqual(
                 [index for index in range(2) if assigned == index],
                 [assigned],
+            )
+
+    def test_two_shard_timing_overrides_are_narrow_and_do_not_change_other_counts(self) -> None:
+        expected = {
+            "test_composer_generated_material.ComposerGeneratedMaterialTests."
+            "test_webapp_apply_generates_and_locks_contract_manifest",
+            "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
+            "test_realistic_auth_fixture_reaches_transactional_release",
+        }
+        self.assertEqual(set(TWO_SHARD_TIMING_OVERRIDES), expected)
+        self.assertEqual(set(TWO_SHARD_TIMING_OVERRIDES.values()), {1})
+
+        for test_id in expected:
+            digest = hashlib.sha256(test_id.encode("utf-8")).digest()
+            pure_hash_two_shard = int.from_bytes(digest[:8], "big") % 2
+            pure_hash_three_shard = int.from_bytes(digest[:8], "big") % 3
+            self.assertEqual(pure_hash_two_shard, 0)
+            self.assertEqual(shard_index_for_test_id(test_id, 2), 1)
+            self.assertEqual(
+                shard_index_for_test_id(test_id, 3),
+                pure_hash_three_shard,
             )
 
     def test_duplicate_test_ids_keep_their_execution_multiplicity(self) -> None:

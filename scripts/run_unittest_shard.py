@@ -13,6 +13,18 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
+# PR #471 balanced unittest *counts*, but the post-merge run still measured
+# shard runtimes at 154.364 s versus 104.260 s. These two tests accounted for
+# roughly 26 s on the slower shard. Keep the general SHA-256 partition stable,
+# but move only these measured outliers when the production workflow uses two
+# shards. Other shard counts deliberately retain the pure hash assignment.
+TWO_SHARD_TIMING_OVERRIDES = {
+    "test_composer_generated_material.ComposerGeneratedMaterialTests."
+    "test_webapp_apply_generates_and_locks_contract_manifest": 1,
+    "test_webapp_auth_productization.WebappAuthenticationProductizationTests."
+    "test_realistic_auth_fixture_reaches_transactional_release": 1,
+}
+
 
 def iter_tests(suite: unittest.TestSuite) -> Iterator[unittest.case.TestCase]:
     """Yield individual tests from an arbitrarily nested unittest suite."""
@@ -23,12 +35,19 @@ def iter_tests(suite: unittest.TestSuite) -> Iterator[unittest.case.TestCase]:
             yield item
 
 
-def shard_index_for_test_id(test_id: str, shard_count: int) -> int:
-    """Map one stable unittest id to exactly one shard."""
-    if shard_count < 1:
-        raise ValueError("shard_count must be at least 1")
+def stable_hash_shard_index(test_id: str, shard_count: int) -> int:
+    """Map one stable unittest id to one shard using SHA-256."""
     digest = hashlib.sha256(test_id.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") % shard_count
+
+
+def shard_index_for_test_id(test_id: str, shard_count: int) -> int:
+    """Map one stable unittest id to exactly one deterministic shard."""
+    if shard_count < 1:
+        raise ValueError("shard_count must be at least 1")
+    if shard_count == 2 and test_id in TWO_SHARD_TIMING_OVERRIDES:
+        return TWO_SHARD_TIMING_OVERRIDES[test_id]
+    return stable_hash_shard_index(test_id, shard_count)
 
 
 def discover_tests(start_directory: Path, pattern: str) -> list[unittest.case.TestCase]:
