@@ -29,7 +29,7 @@ def load_schema() -> dict:
 def product_document() -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
         "commands": [
             {
@@ -84,6 +84,14 @@ def product_document() -> dict:
                 "releaseGateIds": ["product-release"],
             }
         ],
+        "requirements": [
+            {
+                "id": "REQ-DEMO-PRODUCT",
+                "description": "The demo product behavior is implemented.",
+                "recordIds": ["demo-record"],
+                "requiredPositiveProofKinds": ["integration-test"],
+            }
+        ],
     }
 
 
@@ -103,6 +111,20 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
 
     def test_complete_product_evidence_is_schema_valid(self) -> None:
         self.assert_valid(product_document())
+
+    def test_product_requires_nonempty_requirement_ledger(self) -> None:
+        missing = product_document()
+        del missing["requirements"]
+        self.assert_invalid(missing)
+
+        empty = product_document()
+        empty["requirements"] = []
+        self.assert_invalid(empty)
+
+    def test_requirement_id_accepts_uppercase_stable_form(self) -> None:
+        value = product_document()
+        value["requirements"][0]["id"] = "REQ-SEVERITY-BROWSER-FILTER"
+        self.assert_valid(value)
 
     def test_product_boundary_requires_verified_status_and_locator(self) -> None:
         missing_locator = product_document()
@@ -134,16 +156,17 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "template",
             "commands": [],
             "releaseGates": [],
             "records": [],
+            "requirements": [],
         }
         self.assert_valid(value)
 
         product = product_document()
-        for key in ("commands", "releaseGates", "records"):
+        for key in ("commands", "releaseGates", "records", "requirements"):
             nonempty = copy.deepcopy(value)
             nonempty[key] = product[key]
             with self.subTest(rejected_key=key):

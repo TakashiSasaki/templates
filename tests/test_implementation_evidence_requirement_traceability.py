@@ -70,7 +70,7 @@ def evidence(*, requirements: list[dict] | None = None, positive_status: str = "
     }
     result = {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
         "commands": [{
             "id": "product-proof",
@@ -105,7 +105,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
 
     def test_closed_requirement_graph_is_accepted(self) -> None:
         value = evidence(requirements=[{
-            "id": "browser-severity-filter",
+            "id": "REQ-SEVERITY-BROWSER-FILTER",
             "description": "Browser UI can filter records by severity.",
             "recordIds": ["browser-filter"],
         }])
@@ -113,6 +113,32 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
             root = Path(temp_dir)
             self.write_fixture(root, value)
             self.assertEqual(validator.validate(root), [])
+
+    def test_product_without_requirement_ledger_is_rejected_semantically(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, evidence())
+            errors = validator.validate(root)
+            self.assertTrue(
+                any("requires a non-empty requirements ledger" in error for error in errors),
+                errors,
+            )
+            readiness = validator.release_readiness_errors(evidence())
+            self.assertTrue(
+                any("requires a non-empty requirements ledger" in error for error in readiness),
+                readiness,
+            )
+
+    def test_product_with_empty_requirement_ledger_is_rejected_semantically(self) -> None:
+        value = evidence(requirements=[])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, value)
+            errors = validator.validate(root)
+            self.assertTrue(
+                any("requires a non-empty requirements ledger" in error for error in errors),
+                errors,
+            )
 
     def test_requirement_with_missing_record_is_rejected(self) -> None:
         value = evidence(requirements=[{
