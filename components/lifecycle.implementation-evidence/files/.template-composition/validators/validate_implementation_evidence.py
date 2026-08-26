@@ -112,14 +112,17 @@ def validate(root: Path) -> list[str]:
     if not isinstance(evidence, dict):
         return ["implementation evidence must be an object"]
 
+    requirements = evidence.get("requirements", [])
     commands = evidence.get("commands", [])
     gates = evidence.get("releaseGates", [])
     records = evidence.get("records", [])
     mode = evidence.get("mode")
+    requirement_ids = [entry.get("id") for entry in requirements]
     command_ids = [entry.get("id") for entry in commands]
     gate_ids = [entry.get("id") for entry in gates]
     record_ids = [entry.get("id") for entry in records]
     for label, values in (
+        ("requirement", requirement_ids),
         ("command", command_ids),
         ("release gate", gate_ids),
         ("record", record_ids),
@@ -127,9 +130,11 @@ def validate(root: Path) -> list[str]:
         for duplicate in sorted(_duplicates(values)):
             errors.append(f"duplicate implementation-evidence {label} id: {duplicate}")
 
+    known_requirements = set(requirement_ids)
     known_commands = set(command_ids)
     known_gates = set(gate_ids)
     known_contracts = contract_entries(manifest)
+    used_requirements: set[Any] = set()
     used_commands: set[Any] = set()
     used_gates: set[Any] = set()
     proof_ids: list[Any] = []
@@ -141,7 +146,7 @@ def validate(root: Path) -> list[str]:
             errors.append(f"release gate {gate['id']}: unknown command {missing}")
 
     if mode == "template":
-        if commands or gates or records:
+        if requirements or commands or gates or records:
             errors.append("template implementation evidence must be empty")
         return errors
     if mode != "product":
@@ -149,6 +154,11 @@ def validate(root: Path) -> list[str]:
 
     for record in records:
         owner = f"record {record['id']}"
+        requirement_refs = set(record.get("requirementIds", []))
+        used_requirements.update(requirement_refs)
+        for missing in sorted(requirement_refs - known_requirements):
+            errors.append(f"{owner}: unknown product requirement {missing}")
+
         target = record.get("target", {})
         contract_id = target.get("contractId")
         if contract_id not in known_contracts:
@@ -194,6 +204,8 @@ def validate(root: Path) -> list[str]:
 
     for duplicate in sorted(_duplicates(proof_ids)):
         errors.append(f"duplicate implementation-evidence proof id: {duplicate}")
+    for unused in sorted(known_requirements - used_requirements):
+        errors.append(f"orphan product requirement without evidence record: {unused}")
     for unused in sorted(known_gates - used_gates):
         errors.append(f"unused implementation-evidence release gate: {unused}")
     for refs in gate_commands.values():
