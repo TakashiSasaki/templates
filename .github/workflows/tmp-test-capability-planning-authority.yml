@@ -14,7 +14,7 @@ jobs:
       - run: python -I -m venv .venv
       - run: .venv/bin/python -m pip install --disable-pip-version-check --no-deps -r requirements-dev.lock
       - run: >-
-          .venv/bin/python -m unittest -v
+          PYTHONPATH=tests .venv/bin/python -m unittest -v
           tests.test_planning_target_proof_strength
           tests.test_cli_interface_contract
           tests.test_service_interface_contract
@@ -26,3 +26,4 @@ jobs:
           tests.test_production_catalog
           tests.test_pr3_production_catalog
           tests.test_component_version_guard
+          tests.test_small_model_clean_room_evaluation_prompt
