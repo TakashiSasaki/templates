@@ -1,0 +1,70 @@
+name: Composition real-browser safety net
+
+on:
+  schedule:
+    # Daily at 03:17 Asia/Tokyo (18:17 UTC), deliberately away from the top
+    # of the hour where scheduled GitHub Actions are more likely to be delayed.
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - site
+    paths:
+      - ".github/workflows/composition-real-browser.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composition-real-browser-safety-net
+  cancel-in-progress: false
+
+jobs:
+  real_browser:
+    name: current Composition real-browser acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out current Composition authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: composition
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Create isolated validation environment
+        run: python -I -m venv --clear .venv
+
+      - name: Install locked validation dependencies
+        run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
+
+      - name: Verify dependency graph
+        run: .venv/bin/python -m pip check
+
+      - name: Prepare compatible ChromeDriver
+        run: |
+          driver_path="$(
+            .venv/bin/python -I scripts/prepare_chromedriver.py \
+              --output-dir "$RUNNER_TEMP/composition-chromedriver"
+          )"
+          echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"
+
+      - name: Verify source and real-browser runtime
+        run: |
+          git rev-parse --verify HEAD
+          google-chrome --version
+          "$CHROMEWEBDRIVER" --version
+
+      - name: Run current Composition real-browser acceptance
+        run: >-
+          .venv/bin/python scripts/run_unittest_shard.py
+          --suite real-browser
+          --shard-count 1
+          --shard-index 0
