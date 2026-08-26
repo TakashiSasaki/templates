@@ -1,1 +1,164 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["$schema","schemaVersion","mode","commands","releaseGates","records","requirements"],"$defs":{"identifier":{"type":"string","pattern":"^[a-z][a-z0-9-]*$"},"requirementIdentifier":{"type":"string","pattern":"^(?:[a-z][a-z0-9-]*|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)$"},"contractIdentifier":{"type":"string","pattern":"^[a-z][a-z0-9_]*$"},"nonBlankText":{"type":"string","minLength":1},"status":{"enum":["required","verified"]},"implementationBoundary":{"type":"object","additionalProperties":false,"required":["status","description"],"properties":{"status":{"$ref":"#/$defs/status"},"description":{"$ref":"#/$defs/nonBlankText"},"locator":{"$ref":"#/$defs/nonBlankText"}}},"evidenceProof":{"type":"object","additionalProperties":false,"required":["id","status","description"],"properties":{"id":{"$ref":"#/$defs/identifier"},"status":{"$ref":"#/$defs/proofStatus"},"kind":{"enum":["unit-test","integration-test","end-to-end-test","accessibility-test","migration-test","inspection","other"]},"description":{"$ref":"#/$defs/nonBlankText"},"locator":{"$ref":"#/$defs/nonBlankText"},"commandId":{"$ref":"#/$defs/identifier"},"expectedResult":{"$ref":"#/$defs/nonBlankText"}}},"command":{"type":"object","additionalProperties":false,"required":["id","command","purpose"],"properties":{"id":{"$ref":"#/$defs/identifier"},"command":{"$ref":"#/$defs/nonBlankText"},"purpose":{"$ref":"#/$defs/nonBlankText"}}},"releaseGate":{"type":"object","additionalProperties":false,"required":["id","purpose","commandIds"],"properties":{"id":{"$ref":"#/$defs/identifier"},"purpose":{"$ref":"#/$defs/nonBlankText"},"commandIds":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}}}},"contractItemTarget":{"type":"object","additionalProperties":false,"required":["kind","contractId","itemKind","itemId"],"properties":{"kind":{"const":"contract-item"},"contractId":{"$ref":"#/$defs/contractIdentifier"},"itemKind":{"$ref":"#/$defs/identifier"},"itemId":{"$ref":"#/$defs/identifier"}}},"transitionTarget":{"type":"object","additionalProperties":false,"required":["kind","contractId","fromVersion","toVersion"],"properties":{"kind":{"const":"contract-transition"},"contractId":{"$ref":"#/$defs/contractIdentifier"},"fromVersion":{"type":"integer","minimum":1},"toVersion":{"type":"integer","minimum":2}}},"target":{"oneOf":[{"$ref":"#/$defs/contractItemTarget"},{"$ref":"#/$defs/transitionTarget"}]},"record":{"type":"object","additionalProperties":false,"required":["id","target","implementationBoundary","positiveEvidence","negativeEvidence","releaseGateIds"],"properties":{"id":{"$ref":"#/$defs/identifier"},"target":{"$ref":"#/$defs/target"},"implementationBoundary":{"$ref":"#/$defs/implementationBoundary"},"positiveEvidence":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/evidenceProof"}},"negativeEvidence":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/evidenceProof"}},"releaseGateIds":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}}}},"requirement":{"type":"object","additionalProperties":false,"required":["id","description","recordIds","requiredPositiveProofKinds"],"properties":{"id":{"$ref":"#/$defs/requirementIdentifier"},"description":{"$ref":"#/$defs/nonBlankText"},"targets":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/target"}},"recordIds":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/identifier"}},"requiredPositiveProofKinds":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["unit-test","integration-test","end-to-end-test","accessibility-test","migration-test","inspection","other"]}}}},"proofStatus":{"enum":["required","verified","deferred"]}},"properties":{"$schema":{"const":"../schemas/implementation-evidence.schema.json"},"schemaVersion":{"const":5},"mode":{"enum":["template","planning","product"]},"commands":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/command"}},"releaseGates":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/releaseGate"}},"records":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/record"}},"requirements":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/requirement"}}},"allOf":[{"if":{"properties":{"mode":{"const":"template"}},"required":["mode"]},"then":{"properties":{"commands":{"maxItems":0},"releaseGates":{"maxItems":0},"records":{"maxItems":0},"requirements":{"maxItems":0}}}},{"if":{"properties":{"mode":{"const":"planning"}},"required":["mode"]},"then":{"properties":{"commands":{"maxItems":0},"releaseGates":{"maxItems":0},"records":{"maxItems":0},"requirements":{"minItems":1,"items":{"required":["targets"],"properties":{"recordIds":{"maxItems":0}}}}}}},{"if":{"properties":{"mode":{"const":"product"}},"required":["mode"]},"then":{"properties":{"commands":{"minItems":1},"releaseGates":{"minItems":1},"requirements":{"minItems":1,"items":{"properties":{"recordIds":{"minItems":1}}}},"records":{"items":{"properties":{"implementationBoundary":{"required":["locator"],"properties":{"status":{"const":"verified"}}},"positiveEvidence":{"items":{"required":["kind","locator","commandId","expectedResult"],"properties":{"status":{"enum":["verified","deferred"]}}}},"negativeEvidence":{"items":{"required":["kind","locator","commandId","expectedResult"],"properties":{"status":{"enum":["verified","deferred"]}}}},"releaseGateIds":{"minItems":1}}}}}}}]}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "mode", "commands", "releaseGates", "records", "requirements"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "requirementIdentifier": {"type": "string", "pattern": "^(?:[a-z][a-z0-9-]*|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)$"},
+    "contractIdentifier": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "nonBlankText": {"type": "string", "minLength": 1},
+    "repositoryLocator": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "status": {"enum": ["required", "verified"]},
+    "proofCapability": {
+      "enum": ["unit", "integration", "end-to-end", "browser", "accessibility", "migration", "inspection", "other"]
+    },
+    "executionHarness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "locator"],
+      "properties": {
+        "kind": {"const": "repository-file"},
+        "locator": {"$ref": "#/$defs/repositoryLocator"}
+      }
+    },
+    "commandExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilities", "harness", "supportsNegativePath"],
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/proofCapability"}
+        },
+        "harness": {"$ref": "#/$defs/executionHarness"},
+        "supportsNegativePath": {"type": "boolean"}
+      }
+    },
+    "implementationBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "description"],
+      "properties": {
+        "status": {"$ref": "#/$defs/status"},
+        "description": {"$ref": "#/$defs/nonBlankText"},
+        "locator": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "proofStatus": {"enum": ["required", "verified", "deferred"]},
+    "proofKind": {
+      "enum": ["unit-test", "integration-test", "end-to-end-test", "accessibility-test", "migration-test", "inspection", "other"]
+    },
+    "evidenceProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "description"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "status": {"$ref": "#/$defs/proofStatus"},
+        "kind": {"$ref": "#/$defs/proofKind"},
+        "description": {"$ref": "#/$defs/nonBlankText"},
+        "locator": {"$ref": "#/$defs/nonBlankText"},
+        "commandId": {"$ref": "#/$defs/identifier"},
+        "expectedResult": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "command", "purpose", "execution"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "command": {"$ref": "#/$defs/nonBlankText"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"},
+        "execution": {"$ref": "#/$defs/commandExecution"}
+      }
+    },
+    "releaseGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "purpose", "commandIds"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"},
+        "commandIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "contractItemTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contractId", "itemKind", "itemId"],
+      "properties": {
+        "kind": {"const": "contract-item"},
+        "contractId": {"$ref": "#/$defs/contractIdentifier"},
+        "itemKind": {"$ref": "#/$defs/identifier"},
+        "itemId": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "transitionTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "contractId", "fromVersion", "toVersion"],
+      "properties": {
+        "kind": {"const": "contract-transition"},
+        "contractId": {"$ref": "#/$defs/contractIdentifier"},
+        "fromVersion": {"type": "integer", "minimum": 1},
+        "toVersion": {"type": "integer", "minimum": 2}
+      }
+    },
+    "target": {"oneOf": [{"$ref": "#/$defs/contractItemTarget"}, {"$ref": "#/$defs/transitionTarget"}]},
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "implementationBoundary", "positiveEvidence", "negativeEvidence", "releaseGateIds"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "target": {"$ref": "#/$defs/target"},
+        "implementationBoundary": {"$ref": "#/$defs/implementationBoundary"},
+        "positiveEvidence": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/evidenceProof"}},
+        "negativeEvidence": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/evidenceProof"}},
+        "releaseGateIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "recordIds", "requiredPositiveProofKinds"],
+      "properties": {
+        "id": {"$ref": "#/$defs/requirementIdentifier"},
+        "description": {"$ref": "#/$defs/nonBlankText"},
+        "targets": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/target"}},
+        "recordIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "requiredPositiveProofKinds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/proofKind"}}
+      }
+    }
+  },
+  "properties": {
+    "$schema": {"const": "../schemas/implementation-evidence.schema.json"},
+    "schemaVersion": {"const": 6},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "commands": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/command"}},
+    "releaseGates": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/releaseGate"}},
+    "records": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/record"}},
+    "requirements": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/requirement"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"properties": {"commands": {"maxItems": 0}, "releaseGates": {"maxItems": 0}, "records": {"maxItems": 0}, "requirements": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"mode": {"const": "planning"}}, "required": ["mode"]},
+      "then": {"properties": {"commands": {"maxItems": 0}, "releaseGates": {"maxItems": 0}, "records": {"maxItems": 0}, "requirements": {"minItems": 1, "items": {"required": ["targets"], "properties": {"recordIds": {"maxItems": 0}}}}}}
+    },
+    {
+      "if": {"properties": {"mode": {"const": "product"}}, "required": ["mode"]},
+      "then": {"properties": {"commands": {"minItems": 1}, "releaseGates": {"minItems": 1}, "requirements": {"minItems": 1, "items": {"properties": {"recordIds": {"minItems": 1}}}}, "records": {"items": {"properties": {"implementationBoundary": {"required": ["locator"], "properties": {"status": {"const": "verified"}}}, "positiveEvidence": {"items": {"required": ["kind", "locator", "commandId", "expectedResult"], "properties": {"status": {"enum": ["verified", "deferred"]}}}}, "negativeEvidence": {"items": {"required": ["kind", "locator", "commandId", "expectedResult"], "properties": {"status": {"enum": ["verified", "deferred"]}}}}, "releaseGateIds": {"minItems": 1}}}}}}
+    }
+  ]
+}
