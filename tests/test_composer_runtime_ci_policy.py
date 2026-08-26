@@ -145,7 +145,8 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
 
     def test_representative_jobs_remain_classifier_gated_only_for_prs(self) -> None:
         conditional = (
-            "if: ${{ always() && (github.event_name != 'pull_request' || "
+            "if: ${{ always() && !cancelled() && "
+            "(github.event_name != 'pull_request' || "
             "needs.classify_runtime.outputs.required == 'true') }}"
         )
         for name in ("clean-runtime", "materialized-validation", "skill-runner"):
