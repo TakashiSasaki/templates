@@ -22,7 +22,7 @@ Every product-mode entry in `commands` now requires an `execution` object:
 }
 ```
 
-`capabilities` declares the execution surfaces the command actually owns. Allowed values are `unit`, `integration`, `end-to-end`, `browser`, `accessibility`, `migration`, `inspection`, and `other`. The harness must be a repository-relative file. `supportsNegativePath` must be true for a command used by `negativeEvidence`.
+`capabilities` declares the execution surfaces the command actually owns. Allowed values are `unit`, `integration`, `end-to-end`, `browser`, `accessibility`, `migration`, `inspection`, and `other`. The harness must be a repository-relative regular non-symlink file. A symbolic link is rejected even when tracked by Git because its execution target can resolve outside the repository-owned harness path. `supportsNegativePath` must be true for a command used by `negativeEvidence`.
 
 Proof kinds now require a corresponding command capability:
 
@@ -43,10 +43,10 @@ Artifact validators may impose stronger requirements. In particular, browser-sen
 ## Migration procedure
 
 1. Change `schemaVersion` from `5` to `6`.
-2. For every product command, identify the repository file that actually implements or launches the proof and set it as `execution.harness.locator`.
+2. For every product command, identify the repository-owned regular file that actually implements or launches the proof and set it as `execution.harness.locator`; do not use a symlink.
 3. Declare only execution capabilities that the harness actually exercises.
 4. Set `supportsNegativePath` to `true` only when the same authoritative command executes the claimed negative path; otherwise use a separate command for negative evidence or do not claim that negative proof.
-5. Re-run the selected Composition validators. Missing harness files, proof-kind/capability mismatches, and negative proofs bound to positive-only commands fail closed.
+5. Re-run the selected Composition validators. Missing or symlink harnesses, proof-kind/capability mismatches, and negative proofs bound to positive-only commands fail closed.
 
 Planning mode remains unchanged because commands do not yet exist there. Template mode remains empty.
 
