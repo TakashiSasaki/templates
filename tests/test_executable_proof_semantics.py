@@ -5,7 +5,6 @@ import json
 import sys
 import tempfile
 import unittest
-from copy import deepcopy
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
@@ -179,6 +178,19 @@ class ExecutableProofSemanticsTests(unittest.TestCase):
             (root / "tests" / "proof.py").unlink()
             errors = implementation.validate(root)
         self.assertTrue(any("execution harness does not exist" in error for error in errors), errors)
+
+    def test_release_readiness_with_root_requires_repository_harness_file(self) -> None:
+        evidence = product_evidence()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_consumer(root, evidence)
+            self.assertEqual(implementation.release_readiness_errors(evidence, root), [])
+            (root / "tests" / "proof.py").unlink()
+            errors = implementation.release_readiness_errors(evidence, root)
+        self.assertTrue(
+            any("execution harness does not exist" in error for error in errors),
+            errors,
+        )
 
     def test_browser_sensitive_target_requires_browser_command_capability(self) -> None:
         evidence = product_evidence(capabilities=["end-to-end"])
