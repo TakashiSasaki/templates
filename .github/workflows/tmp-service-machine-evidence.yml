@@ -14,10 +14,13 @@ jobs:
         with:
           ref: agent/service-machine-evidence-pr15
           fetch-depth: 0
+      - name: Fix service authority patch
+        run: python .github/tmp/fix_service_patch.py
       - name: Apply service authority patch
         run: python .github/tmp/patch_service_evidence.py
       - name: Commit patch and remove temporary files
         run: |
+          rm .github/tmp/fix_service_patch.py
           rm .github/tmp/patch_service_evidence.py
           rm .github/workflows/tmp-service-machine-evidence.yml
           git config user.name 'TakashiSasaki templates automation'
