@@ -409,6 +409,57 @@ GET    /healthz
 
 Specify request validation, result/error semantics, size limits, authentication/exposure decisions, readiness/liveness behavior, restart handling, and the relationship to the browser UI. Sharing one process/listener with the UI does not remove those service obligations.
 
+Because `capability.service` is selected, replace the editable machine seed `contracts/service-interface.json` after these operations exist and are executable:
+
+```json
+{
+  "$schema": "../schemas/service-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "product",
+  "protocol": "http-json",
+  "operations": [
+    {
+      "id": "list-tasks",
+      "invocation": "GET /api/tasks?status=all|open|completed",
+      "success": "200 JSON task array for a valid status filter",
+      "negative": "400 JSON error for an invalid status filter"
+    },
+    {
+      "id": "get-task",
+      "invocation": "GET /api/tasks/{id}",
+      "success": "200 JSON task for an existing id",
+      "negative": "404 JSON error for a missing id"
+    },
+    {
+      "id": "create-task",
+      "invocation": "POST /api/tasks",
+      "success": "201 JSON task for a non-empty title",
+      "negative": "400 JSON error for an empty title"
+    },
+    {
+      "id": "update-task",
+      "invocation": "PATCH /api/tasks/{id}",
+      "success": "200 JSON updated task for an existing id",
+      "negative": "404 JSON error for a missing id"
+    },
+    {
+      "id": "delete-task",
+      "invocation": "DELETE /api/tasks/{id}",
+      "success": "204 for an existing id",
+      "negative": "404 JSON error when the id no longer exists"
+    },
+    {
+      "id": "health",
+      "invocation": "GET /healthz",
+      "success": "200 JSON status ok",
+      "negative": "404 JSON error for an unknown service path"
+    }
+  ]
+}
+```
+
+Do not switch the service contract to `product` because a listener starts or because source routes exist. Section 12 executes every declared operation through the HTTP boundary, including a negative path for each operation, and Section 15 links each `service_interface/operation/<id>` target to `integration-test` evidence.
+
 ### CLI contract
 
 Concretize `CLI_INTERFACE.md`, for example:
@@ -840,25 +891,55 @@ class TaskLedgerTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         base = f"http://127.0.0.1:{server.server_port}"
-        try:
-            health = json.load(urllib.request.urlopen(base + "/healthz"))
-            self.assertEqual(health, {"status": "ok"})
-            request = urllib.request.Request(
-                base + "/api/tasks",
-                data=json.dumps({"title": "from api"}).encode(),
-                headers={"Content-Type": "application/json"},
-                method="POST",
+
+        def request(method: str, path: str, payload: dict | None = None):
+            data = None if payload is None else json.dumps(payload).encode()
+            headers = {} if payload is None else {"Content-Type": "application/json"}
+            return urllib.request.urlopen(
+                urllib.request.Request(base + path, data=data, headers=headers, method=method)
             )
-            created = json.load(urllib.request.urlopen(request))
-            open_tasks = json.load(urllib.request.urlopen(base + "/api/tasks?status=open"))
+
+        try:
+            health = json.load(request("GET", "/healthz"))
+            self.assertEqual(health, {"status": "ok"})
+            with self.assertRaises(urllib.error.HTTPError) as missing_health:
+                request("GET", "/not-a-service-route")
+            self.assertEqual(missing_health.exception.code, 404)
+
+            created = json.load(request("POST", "/api/tasks", {"title": "from api"}))
+            with self.assertRaises(urllib.error.HTTPError) as invalid_create:
+                request("POST", "/api/tasks", {"title": ""})
+            self.assertEqual(invalid_create.exception.code, 400)
+
+            open_tasks = json.load(request("GET", "/api/tasks?status=open"))
             self.assertEqual([task["id"] for task in open_tasks], [created["id"]])
-            with self.assertRaises(urllib.error.HTTPError) as raised:
-                urllib.request.urlopen(base + "/api/tasks?status=invalid")
-            self.assertEqual(raised.exception.code, 400)
+            with self.assertRaises(urllib.error.HTTPError) as invalid_filter:
+                request("GET", "/api/tasks?status=invalid")
+            self.assertEqual(invalid_filter.exception.code, 400)
+
+            fetched = json.load(request("GET", f"/api/tasks/{created['id']}"))
+            self.assertEqual(fetched["title"], "from api")
+            with self.assertRaises(urllib.error.HTTPError) as missing_get:
+                request("GET", "/api/tasks/999999")
+            self.assertEqual(missing_get.exception.code, 404)
+
+            updated = json.load(request("PATCH", f"/api/tasks/{created['id']}", {"completed": True}))
+            self.assertTrue(updated["completed"])
+            with self.assertRaises(urllib.error.HTTPError) as missing_patch:
+                request("PATCH", "/api/tasks/999999", {"completed": True})
+            self.assertEqual(missing_patch.exception.code, 404)
+
+            deleted = request("DELETE", f"/api/tasks/{created['id']}")
+            self.assertEqual(deleted.status, 204)
+            deleted.close()
+            with self.assertRaises(urllib.error.HTTPError) as missing_delete:
+                request("DELETE", f"/api/tasks/{created['id']}")
+            self.assertEqual(missing_delete.exception.code, 404)
         finally:
             server.shutdown()
             server.server_close()
             thread.join()
+
 
 
 if __name__ == "__main__":
@@ -1014,6 +1095,8 @@ A command and gate can look like:
 Each record still needs its exact worklist target, verified implementation-boundary locator, verified positive/negative proof locators, expected results, and selected gate. Do not copy a sample target from this guide; the authoritative target set belongs to the consumer repository.
 
 For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
+
+Because `capability.service` is selected, add one `contract-item / service_interface / operation / <id>` record for every operation declared in `contracts/service-interface.json`. Use `task_ledger/cli.py` as the implementation boundary, `tests/test_task_ledger.py` as positive/negative proof locator, and `integration-test` as the proof kind. Each operation gets a stable requirement whose `requiredPositiveProofKinds` contains `integration-test`; the expanded HTTP test above executes both the documented success and negative path for all six operations. A selected service contract left in `template` mode, or service records backed only by source inspection/unit-only proof, must keep Composition validation invalid.
 
 Because `capability.cli` is selected, add one further record whose target is `contract-item / cli_interface / entrypoint / task-ledger`. Its implementation boundary is `task_ledger/cli.py`; its positive and negative proof locator is `tests/test_task_ledger.py`; and its proof kind is `integration-test`. Link that record from a stable CLI requirement whose `requiredPositiveProofKinds` contains `integration-test`. The positive path covers help/version/structured export, while the negative path covers the invalid-argument exit code. A selected CLI contract left in `template` mode, or a CLI record backed only by source inspection/unit-only proof, must keep Composition validation invalid.
 

@@ -69,6 +69,15 @@
       "purpose": "Validate selected packaged CLI entrypoints and require executable implementation-evidence proof strength."
     },
     {
+      "id": "service-interface",
+      "component": "capability.service",
+      "entrypoint": ".template-composition/validators/validate_service_interface.py",
+      "arguments": [
+        "."
+      ],
+      "purpose": "Validate selected service operation coverage and require executable implementation-evidence proof strength."
+    },
+    {
       "id": "release-bundle-template",
       "component": "lifecycle.release-bundle",
       "entrypoint": ".template-composition/validators/validate_release_bundle.py",

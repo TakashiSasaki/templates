@@ -21,7 +21,7 @@ Select optional application capabilities according to externally visible behavio
 | A packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable caller-visible CLI contract with executable-proof enforcement |
 | An MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` | MCP protocol, transport, client, security, and semantic-equivalence contract |
 | An MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp` and therefore `capability.runtime` | MCP Apps resources, bridge, visibility, sandbox, and fallback contract |
-| An independently reachable non-browser service | `capability.service` | `capability.runtime` | Service interface contract |
+| An independently reachable non-browser service | `capability.service` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable service operation contract with executable-proof enforcement |
 | A standalone browser-facing interface backed by an application runtime | `capability.web-interface` | `capability.runtime` | Web interface, routing, security, health, and failure-isolation contract |
 
 A browser-facing artifact does **not** imply `capability.runtime` or `capability.web-interface`. For example, a static/CDN Webapp can use the `webapp` recipe with no optional components. Add runtime-bound capabilities only when the product actually exposes those behaviors.

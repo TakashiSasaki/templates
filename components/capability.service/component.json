@@ -2,17 +2,49 @@
   "schema_version": 1,
   "id": "capability.service",
   "kind": "capability",
-  "version": 1,
+  "version": 2,
   "summary": "Independently reachable non-browser service contract.",
   "requires": [
-    "capability.runtime"
+    "capability.runtime",
+    "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "service_interface",
+      "document": "contracts/service-interface.json",
+      "schema": "schemas/service-interface.schema.json",
+      "migration_slug": "service-interface",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare caller-visible independently reachable service operations and their protocol invocation contracts."
+    }
+  ],
   "materials": [
     {
       "source": "files/SERVICE_INTERFACE.md",
       "destination": "SERVICE_INTERFACE.md",
       "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/service-interface.json",
+      "destination": "contracts/service-interface.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/service-interface.schema.json",
+      "destination": "schemas/service-interface.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_service_interface.py",
+      "destination": ".template-composition/validators/validate_service_interface.py",
+      "ownership": "managed"
     }
   ]
 }
