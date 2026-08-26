@@ -54,10 +54,11 @@ Record at the beginning of every gate pass:
 4. current exact PR head SHA;
 5. intended semantic scope and effective changed-file set;
 6. exact-head required check state;
-7. review-request state;
-8. completed independent review evidence and reviewed SHA, if any;
-9. unresolved review-thread count and dispositions;
-10. current mergeability.
+7. CI discovery evidence and conclusion (`CI_DISCOVERED`, `CI_DISCOVERY_PENDING`, or confirmed absent), including the live views consulted;
+8. review-request state;
+9. completed independent review evidence and reviewed SHA, if any;
+10. unresolved review-thread count and dispositions;
+11. current mergeability.
 
 If the PR head changes, discard this snapshot and start a new gate pass.
 
@@ -65,18 +66,21 @@ If the PR head changes, discard this snapshot and start a new gate pass.
 
 The allowed success path is:
 
-`PR_OPEN -> SCOPE_AUDITED -> CI_GREEN -> REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
+`PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> FINAL_STATE_REFRESHED -> MERGE_ALLOWED`
 
 Do not skip states. In particular:
 
+- `SCOPE_AUDITED -> CI_GREEN` is forbidden;
 - `CI_GREEN -> MERGE_ALLOWED` is forbidden;
 - `REVIEW_REQUESTED -> MERGE_ALLOWED` is forbidden;
 - `reviews = 0 -> MERGE_ALLOWED` is forbidden;
 - absence of review findings is not evidence that review occurred.
 
+Use `CI_DISCOVERY_PENDING` as a transient fail-closed state whenever a workflow or check expected under the current workflow definition is not yet observable for the exact current head and its absence has not been corroborated. `CI_DISCOVERY_PENDING` is neither CI success nor CI failure. It cannot transition directly to `CI_GREEN`, `BLOCKED_CI`, a retrigger mutation, or `MERGE_ALLOWED`; resolve the discovery evidence first.
+
 Use explicit blocked states when the success path cannot advance:
 
-- `BLOCKED_CI`: a required exact-head check is missing, pending, failed, stale, or unjustifiably skipped;
+- `BLOCKED_CI`: a required exact-head check is pending, failed, stale, unjustifiably skipped, or confirmed absent after the CI discovery protocol;
 - `BLOCKED_REVIEW_MISSING`: no completed independent review exists;
 - `BLOCKED_REVIEW_PENDING`: review was requested but has not completed;
 - `BLOCKED_REVIEW_STALE`: relied-upon review applies to an older head;
@@ -97,7 +101,29 @@ Discover required checks from current workflow definitions and changed scope rat
 
 Do not advance beyond `CI_GREEN` while any required exact-head check is missing, pending, failed, stale, or incorrectly skipped.
 
-Immediately after a new head is pushed, GitHub workflow/check discovery may lag behind the ref update. If an expected exact-head run is not yet visible, refresh workflow runs and check state for that exact commit before concluding that the event did not fire. Do not close and reopen the pull request, create a no-op commit, or otherwise mutate repository/PR state solely to retrigger CI until the expected run is confirmed absent under the current workflow definition.
+GitHub ref visibility and Actions/check indexing are not atomic. Immediately after a new head is pushed, an expected exact-head workflow may have been accepted for execution while one or more read APIs still return no run. A zero-result response is negative evidence, not proof that the event did not fire.
+
+When an expected exact-head run is not visible, enter `CI_DISCOVERY_PENDING` and use read-only discovery only:
+
+1. Re-fetch the PR and verify that its exact head SHA is unchanged.
+2. Re-read the current workflow definition and confirm that the relevant event, base/head filters, and changed scope make the run expected.
+3. Refresh a workflow-run view bound as tightly as possible to the expected workflow, event, PR branch, and exact head SHA.
+4. Refresh an exact-commit check-run/check-suite view for the same head SHA. Treat the workflow-run view and exact-commit check-run/check-suite view as independently indexed live views; when another independently indexed repository view is available, it may be used as additional corroboration.
+5. Reconcile any discovered run/check to the exact head and expected workflow before classifying it. An older-head result is stale evidence. A concurrency-cancelled run that was superseded by a newer applicable exact-head run is not by itself a CI failure; evaluate the newest applicable run.
+
+Do not classify an expected run as confirmed absent from a single zero-result view, from repeated queries against only one index, or from elapsed wall-clock time alone. A fixed sleep or observation delay is not evidence. Confirmed absence requires all of the following:
+
+- the PR head remained unchanged throughout the observation;
+- the current workflow definition still says the run should exist for that event and scope;
+- the expected run/check remains absent after repeated read-only refreshes in at least two independently indexed live views, including both a workflow-run view and an exact-commit check-run/check-suite view when those views are available;
+- no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists;
+- the agent can state the concrete observations that support the confirmed-absent decision.
+
+If those conditions are not all satisfied, remain `CI_DISCOVERY_PENDING`. When doubt remains, fail closed in `CI_DISCOVERY_PENDING`; confirmed absence is a positive evidence decision, not the default result of a timeout or a search returning zero rows.
+
+Do not close and reopen the pull request, create a no-op commit, push an unrelated change, or otherwise mutate repository/PR state solely to retrigger CI while `CI_DISCOVERY_PENDING`. Only after absence is positively confirmed may a recovery mutation be considered, and the evidence for the confirmed-absent decision must be recorded first. Prefer the least stateful supported recovery action; closing and reopening a PR is an exceptional last-resort recovery operation, not a normal discovery mechanism.
+
+Once all required exact-head workflows/checks are positively discovered or explicitly non-applicable under current policy, record `CI_DISCOVERED`. Advance to `CI_GREEN` only after every required discovered check has an acceptable exact-head result.
 
 ### 3. Require an independent review
 
@@ -132,6 +158,7 @@ Immediately before merge, fetch live state again and verify all of the following
 - current PR head equals the exact accepted head;
 - current target-branch head/base drift is evaluated;
 - effective diff still matches intended scope;
+- CI discovery is resolved as `CI_DISCOVERED`, not `CI_DISCOVERY_PENDING` or assumed absence;
 - all required checks for that exact head are successful or explicitly non-applicable under current policy;
 - completed independent review evidence count is at least one;
 - the relied-upon review applies to the exact current head;
@@ -139,7 +166,7 @@ Immediately before merge, fetch live state again and verify all of the following
 - PR is currently mergeable;
 - PR body does not claim stale SHAs, run IDs, review state, or validation state.
 
-If any condition changed, leave `MERGE_ALLOWED` and report the corresponding blocked state.
+If any condition changed, leave `MERGE_ALLOWED` and report the corresponding blocked or pending state.
 
 ### 8. Merge with an immutable head guard
 
@@ -162,10 +189,23 @@ Keep these distinctions explicit:
 - self-review != independent review;
 - reviewer unavailable != review waived.
 
+## CI discovery evidence rules
+
+Keep these distinctions explicit:
+
+- `zero workflow runs returned` != `workflow did not fire`;
+- `CI_DISCOVERY_PENDING` != `BLOCKED_CI`;
+- `CI_DISCOVERED` != `CI_GREEN`;
+- elapsed time != confirmed absence;
+- older-head run != exact-head evidence;
+- concurrency-cancelled superseded run != current exact-head failure;
+- retrigger mutation != discovery evidence.
+
 ## Stop conditions
 
 Do not declare merge readiness and do not call the merge operation if any of the following is true:
 
+- CI discovery is `CI_DISCOVERY_PENDING` or expected-run absence is not positively corroborated;
 - completed independent review evidence count is zero;
 - only a review request or pending review exists;
 - relied-upon review targets a different head;
@@ -184,11 +224,12 @@ Report at completion:
 - target branch and current target head;
 - exact accepted PR head;
 - effective scope/changed files;
+- CI discovery conclusion and the live views used to resolve it;
 - exact-head CI summary;
 - completed independent review evidence and reviewed SHA;
 - unresolved thread/finding status;
 - base-drift decision;
-- final live-state decision (`MERGE_ALLOWED` or specific `BLOCKED_*` state);
+- final live-state decision (`MERGE_ALLOWED`, `CI_DISCOVERY_PENDING`, or specific `BLOCKED_*` state);
 - `expected_head_sha` used for merge;
 - merge result and merge commit SHA;
 - any separate post-merge release/publication status.
