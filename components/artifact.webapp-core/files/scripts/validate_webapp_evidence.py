@@ -14,6 +14,7 @@ else:
     from webapp_evidence_targets import allowed_targets, expected_targets, target_key
 
 
+BROWSER_INTERACTION = "browser-interaction"
 BROWSER_LEVEL_PROOF_KINDS = frozenset({"accessibility-test", "end-to-end-test"})
 BROWSER_SENSITIVE_ITEM_KINDS = frozenset({"input-capability", "viewport"})
 
@@ -43,16 +44,41 @@ def actual_targets(evidence: object) -> list[tuple[Any, ...]]:
     return actual
 
 
-def requires_browser_level_proof(target: object) -> bool:
-    return (
-        isinstance(target, dict)
-        and target.get("kind") == "contract-item"
-        and target.get("contractId") == "viewports"
+def _route_requires_browser_interaction(root: Path, target: dict[str, Any]) -> bool:
+    if not (
+        target.get("kind") == "contract-item"
+        and target.get("contractId") == "routes"
+        and target.get("itemKind") == "route"
+    ):
+        return False
+    routes = load(root, "contracts/routes.json")
+    if not isinstance(routes, dict) or not isinstance(routes.get("routes"), list):
+        raise TypeError("routes contract must contain a routes array")
+    item_id = target.get("itemId")
+    for route in routes["routes"]:
+        if not isinstance(route, dict) or route.get("id") != item_id:
+            continue
+        accessibility = route.get("accessibility")
+        return (
+            isinstance(accessibility, dict)
+            and isinstance(accessibility.get("focusTarget"), str)
+            and bool(accessibility["focusTarget"])
+        )
+    raise KeyError(f"route evidence target does not resolve to a route: {item_id!r}")
+
+
+def requires_browser_interaction(root: Path, target: object) -> bool:
+    if not isinstance(target, dict) or target.get("kind") != "contract-item":
+        return False
+    if (
+        target.get("contractId") == "viewports"
         and target.get("itemKind") in BROWSER_SENSITIVE_ITEM_KINDS
-    )
+    ):
+        return True
+    return _route_requires_browser_interaction(root, target)
 
 
-def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
+def browser_interaction_proof_errors(root: Path, evidence: dict[str, Any]) -> list[str]:
     records = evidence.get("records")
     if not isinstance(records, list):
         raise TypeError("implementation evidence records must be a JSON array")
@@ -63,7 +89,7 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
         if not isinstance(record, dict):
             raise TypeError(f"implementation evidence record {index} must be a JSON object")
         target = record.get("target")
-        if not requires_browser_level_proof(target):
+        if not requires_browser_interaction(root, target):
             continue
         if not isinstance(target, dict):
             raise TypeError(
@@ -79,15 +105,29 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
                 raise TypeError(
                     f"implementation evidence record {index} {field} must be a JSON array"
                 )
+            browser_proofs = [
+                proof
+                for proof in proofs
+                if isinstance(proof, dict)
+                and proof.get("executionClass") == BROWSER_INTERACTION
+            ]
+            if not browser_proofs:
+                errors.append(
+                    f"browser-sensitive Webapp target {key} requires at least one "
+                    f"{label} proof with executionClass={BROWSER_INTERACTION!r}; "
+                    "static inspection or process integration is not browser interaction"
+                )
+                continue
             kinds = {
                 proof.get("kind")
-                for proof in proofs
-                if isinstance(proof, dict) and isinstance(proof.get("kind"), str)
+                for proof in browser_proofs
+                if isinstance(proof.get("kind"), str)
             }
             if kinds.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
                 errors.append(
-                    f"browser-sensitive Webapp target {key} requires at least one "
-                    f"{label} browser-level proof kind ({allowed_kinds})"
+                    f"browser-sensitive Webapp target {key} requires its {label} "
+                    f"browser-interaction proof to use a browser-level proof kind "
+                    f"({allowed_kinds})"
                 )
     return errors
 
@@ -111,7 +151,7 @@ def main() -> int:
             print("Webapp evidence coverage: template mode OK")
             return 0
         actual = actual_targets(evidence)
-        strength_errors = browser_level_proof_errors(evidence)
+        strength_errors = browser_interaction_proof_errors(root, evidence)
     except (AttributeError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"ERROR: cannot load Webapp implementation evidence: {exc}", file=sys.stderr)
         return 1
