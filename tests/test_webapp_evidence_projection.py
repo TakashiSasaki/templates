@@ -67,8 +67,12 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
                             "itemId": "main",
                         },
                         "implementationBoundary": {"status": "verified"},
-                        "positiveEvidence": [{"status": proof_status}],
-                        "negativeEvidence": [{"status": "verified"}],
+                        "positiveEvidence": [
+                            {"status": proof_status, "kind": "end-to-end-test"}
+                        ],
+                        "negativeEvidence": [
+                            {"status": "verified", "kind": "end-to-end-test"}
+                        ],
                         "releaseGateIds": ["release"],
                     }
                 ],
