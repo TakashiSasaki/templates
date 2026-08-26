@@ -95,6 +95,11 @@ class WebappFocusTargetEvidenceTests(unittest.TestCase):
         self.assertEqual(validator.browser_level_proof_errors(value), [])
         self.assertEqual(validator.browser_level_requirement_errors(value), [])
 
+    def test_webapp_only_validation_can_omit_generic_requirement_ledger(self) -> None:
+        value = evidence(proof_kind="end-to-end-test")
+        del value["requirements"]
+        self.assertEqual(validator.browser_level_requirement_errors(value), [])
+
     def test_non_browser_surface_target_keeps_integration_proof(self) -> None:
         value = evidence(contract_id="surfaces", item_kind="surface")
         self.assertEqual(validator.browser_level_proof_errors(value), [])
