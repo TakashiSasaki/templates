@@ -20,7 +20,13 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
     def run_python(self, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, *args], cwd=cwd, text=True, capture_output=True, check=False)
+        return subprocess.run(
+            [sys.executable, *args],
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
 
     def planning_document(self) -> dict:
         return {
@@ -46,11 +52,29 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             ],
         }
 
-    def materialize(self, root: Path) -> Path:
+    def materialize(
+        self, root: Path, *, include: list[str] | None = None
+    ) -> Path:
         target = root / "consumer"
         config = root / "composition.json"
-        self.write_json(config, {"schema_version": 1, "recipe": "webapp", "components": {"include": [], "exclude": []}, "parameters": {}})
-        result = self.run_python(ROOT, str(COMPOSER), "apply", "--config", str(config), "--target", str(target))
+        self.write_json(
+            config,
+            {
+                "schema_version": 1,
+                "recipe": "webapp",
+                "components": {"include": include or [], "exclude": []},
+                "parameters": {},
+            },
+        )
+        result = self.run_python(
+            ROOT,
+            str(COMPOSER),
+            "apply",
+            "--config",
+            str(config),
+            "--target",
+            str(target),
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return target
 
@@ -69,7 +93,11 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             evidence_path = target / "contracts" / "implementation-evidence.json"
             self.write_json(evidence_path, planning)
 
-            generic = self.run_python(target, ".template-composition/validators/validate_implementation_evidence.py", ".")
+            generic = self.run_python(
+                target,
+                ".template-composition/validators/validate_implementation_evidence.py",
+                ".",
+            )
             self.assertEqual(generic.returncode, 0, generic.stdout + generic.stderr)
             self.assertIn("planning requirement ledger", generic.stdout)
             self.assertIn("Release readiness: NOT READY", generic.stdout)
@@ -84,25 +112,75 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             self.assertEqual(worklist["formatVersion"], 3)
             self.assertEqual(worklist["requirementLedgerStatus"], "verified")
             self.assertEqual(worklist["status"], "missing")
-            self.assertEqual([item["id"] for item in worklist["requirements"]], ["REQ-PLAN-BROWSER-FILTER", "REQ-PLAN-CLI-FILTER"])
-            self.assertTrue(all(item["status"] == "missing" for item in worklist["requirements"]))
-            self.assertTrue(all(item["recordIds"] == [] for item in worklist["requirements"]))
+            self.assertEqual(
+                [item["id"] for item in worklist["requirements"]],
+                ["REQ-PLAN-BROWSER-FILTER", "REQ-PLAN-CLI-FILTER"],
+            )
+            self.assertTrue(
+                all(item["status"] == "missing" for item in worklist["requirements"])
+            )
+            self.assertTrue(
+                all(item["recordIds"] == [] for item in worklist["requirements"])
+            )
 
-            readiness = self.run_python(target, ".template-composition/validators/validate_implementation_evidence.py", ".", "--release-readiness")
+            readiness = self.run_python(
+                target,
+                ".template-composition/validators/validate_implementation_evidence.py",
+                ".",
+                "--release-readiness",
+            )
             self.assertNotEqual(readiness.returncode, 0)
             self.assertIn("mode 'planning' is not 'product'", readiness.stderr)
 
             planning["requirements"][1]["id"] = planning["requirements"][0]["id"]
             planning["requirements"][1]["description"] = "Different text, same stable ID."
             self.write_json(evidence_path, planning)
-            duplicate = self.run_python(target, ".template-composition/validators/validate_implementation_evidence.py", ".")
+            duplicate = self.run_python(
+                target,
+                ".template-composition/validators/validate_implementation_evidence.py",
+                ".",
+            )
             self.assertNotEqual(duplicate.returncode, 0)
-            self.assertIn("duplicate implementation-evidence requirement id", duplicate.stderr)
+            self.assertIn(
+                "duplicate implementation-evidence requirement id", duplicate.stderr
+            )
+
+    def test_planning_keeps_release_execution_in_template_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize(
+                Path(temp_dir), include=["lifecycle.release-execution"]
+            )
+            self.write_json(
+                target / "contracts" / "implementation-evidence.json",
+                self.planning_document(),
+            )
+            execution = json.loads(
+                (target / "contracts" / "release-execution.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(execution["mode"], "template")
+            self.assertEqual(execution["commands"], [])
+
+            validation = self.run_python(
+                target,
+                ".template-composition/validators/validate_release_execution.py",
+                ".",
+            )
+            self.assertEqual(
+                validation.returncode, 0, validation.stdout + validation.stderr
+            )
+            self.assertIn("Release execution validation: OK", validation.stdout)
 
     def test_template_is_not_release_ready_and_prompt_uses_planning_before_coding(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(Path(temp_dir))
-            readiness = self.run_python(target, ".template-composition/validators/validate_implementation_evidence.py", ".", "--release-readiness")
+            readiness = self.run_python(
+                target,
+                ".template-composition/validators/validate_implementation_evidence.py",
+                ".",
+                "--release-readiness",
+            )
             self.assertNotEqual(readiness.returncode, 0)
             self.assertIn("mode 'template' is not 'product'", readiness.stderr)
 
