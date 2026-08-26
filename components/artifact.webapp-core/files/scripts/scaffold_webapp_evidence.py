@@ -10,9 +10,19 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
-    from .webapp_evidence_targets import expected_targets, record_id, target_key
+    from .webapp_evidence_targets import (
+        artifact_required_proof_kinds,
+        expected_targets,
+        record_id,
+        target_key,
+    )
 else:
-    from webapp_evidence_targets import expected_targets, record_id, target_key
+    from webapp_evidence_targets import (
+        artifact_required_proof_kinds,
+        expected_targets,
+        record_id,
+        target_key,
+    )
 
 
 CANONICAL_EVIDENCE = Path("contracts/implementation-evidence.json")
@@ -143,6 +153,27 @@ def _project_requirements(
     return sorted(projected, key=lambda item: item["id"])
 
 
+def _artifact_proof_requirements(
+    targets: tuple[dict[str, Any], ...]
+) -> list[dict[str, Any]]:
+    projected: list[dict[str, Any]] = []
+    for target in targets:
+        kinds = artifact_required_proof_kinds(target)
+        if not kinds:
+            continue
+        kind_options = list(kinds)
+        projected.append(
+            {
+                "recordId": record_id(target),
+                "target": target,
+                "positiveEvidenceKindAtLeastOneOf": kind_options,
+                "negativeEvidenceKindAtLeastOneOf": kind_options,
+                "linkedRequirementRequiredPositiveProofKindAtLeastOneOf": kind_options,
+            }
+        )
+    return sorted(projected, key=lambda item: item["recordId"])
+
+
 def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
     identifier = record_id(target)
     return {
@@ -189,7 +220,7 @@ def render_worklist(root: Path) -> dict[str, Any]:
     status = _status_union(list(projected_statuses.values()))
     return {
         "format": "webapp-implementation-evidence-worklist",
-        "formatVersion": 1,
+        "formatVersion": 2,
         "status": status,
         "statusCounts": {
             value: sum(projected_statuses[record_id_value] == value for record_id_value in projected_statuses)
@@ -200,6 +231,7 @@ def render_worklist(root: Path) -> dict[str, Any]:
             for record_id_value in sorted(projected_statuses)
         ],
         "recordCount": len(records),
+        "artifactProofRequirements": _artifact_proof_requirements(targets),
         "records": records,
         "requirements": _project_requirements(evidence, record_statuses),
     }

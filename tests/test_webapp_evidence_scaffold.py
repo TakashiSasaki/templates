@@ -82,7 +82,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
 
             worklist = json.loads(first.stdout)
             self.assertEqual(worklist["format"], "webapp-implementation-evidence-worklist")
-            self.assertEqual(worklist["formatVersion"], 1)
+            self.assertEqual(worklist["formatVersion"], 2)
             self.assertEqual(worklist["recordCount"], len(worklist["records"]))
             self.assertEqual(worklist["status"], "missing")
             self.assertGreater(worklist["recordCount"], 0)
@@ -94,6 +94,38 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
             ]
             self.assertEqual(len(record_ids), len(set(record_ids)))
             self.assertEqual(len(targets), len(set(targets)))
+
+            browser_sensitive_ids = {
+                record["id"]
+                for record in worklist["records"]
+                if (
+                    record["target"].get("contractId"),
+                    record["target"].get("itemKind"),
+                )
+                in {
+                    ("routes", "route"),
+                    ("viewports", "input-capability"),
+                    ("viewports", "viewport"),
+                }
+            }
+            proof_requirements = worklist["artifactProofRequirements"]
+            self.assertEqual(
+                {item["recordId"] for item in proof_requirements},
+                browser_sensitive_ids,
+            )
+            expected_browser_kinds = ["accessibility-test", "end-to-end-test"]
+            for item in proof_requirements:
+                self.assertEqual(
+                    item["positiveEvidenceKindAtLeastOneOf"], expected_browser_kinds
+                )
+                self.assertEqual(
+                    item["negativeEvidenceKindAtLeastOneOf"], expected_browser_kinds
+                )
+                self.assertEqual(
+                    item["linkedRequirementRequiredPositiveProofKindAtLeastOneOf"],
+                    expected_browser_kinds,
+                )
+
             for record in worklist["records"]:
                 self.assertRegex(record["id"], RECORD_ID)
                 self.assertEqual(record["implementationBoundary"]["status"], "required")
