@@ -13,11 +13,13 @@ Repository under evaluation
 Goal
 Create a separate consumer repository containing a small but executable Field Log application. Use TakashiSasaki/templates as the development scaffold/contract/evidence authority where appropriate. The evaluation succeeds only when the final report distinguishes implementation, evidence, validation, and release readiness. A source edit, a static HTML inspection, or a structurally valid scaffold is not by itself evidence that all product requirements are complete.
 
-Before coding: explicit requirement inventory
+Before coding: explicit requirement and planned-item authority
 1. Read this whole prompt before changing product files.
-2. Before product coding, use the current implementation-evidence planning state to create a stable machine-readable requirement inventory. Keep commands, release gates, and implementation records empty at this stage; give each explicit caller-visible requirement its stable ID, description, non-empty contract target or targets, empty recordIds, and requiredPositiveProofKinds. Preserve those IDs and review the target mapping when later linking product records. Do not collapse unrelated requirements into one catch-all requirement.
-3. Keep CLI, HTTP/API, and browser requirements distinct even when they expose similar domain behavior.
-4. Record the expected proof strength for each requirement. Static inspection may support source-structure claims, but it cannot substitute for an executable CLI/API proof or real browser interaction proof.
+2. Before product coding, move every selected capability contract that supports planning from template mode to planning mode. Declare stable caller-visible item IDs and only the intent/relationships required by the planning schema. In particular, declare CLI entrypoints, service operations and protocol, Web endpoints with their browser-page/backend-api/health kind, MCP transports and operations with transport bindings, and MCP Apps Views/associations when those capabilities are selected. Do not invent product-only commands, paths, probes, locators, or execution results merely to leave planning mode.
+3. Before product coding, use the current implementation-evidence planning state to create a stable machine-readable requirement inventory. Keep commands, release gates, and implementation records empty at this stage; give each explicit caller-visible requirement its stable ID, description, non-empty contract target or targets, empty recordIds, and requiredPositiveProofKinds. Every capability target itemId must exactly match an item declared in the corresponding planning capability contract. Preserve those IDs and review the target mapping when later linking product records. Do not collapse unrelated requirements into one catch-all requirement.
+4. Keep CLI, HTTP/API, and browser requirements distinct even when they expose similar domain behavior. Browser requirements must bind to browser-classified planned targets rather than borrowing an API target with weaker proof semantics.
+5. Record the expected proof strength for each requirement. Static inspection may support source-structure claims, but it cannot substitute for an executable CLI/API proof or real browser interaction proof.
+6. Run the documented Composition validation while the contracts and evidence are still in planning mode. Do not start product coding until the selected capability planning contracts, planned item relationships, exact evidence targets, and proof-strength declarations validate together. A phantom or misspelled target ID must be corrected in planning rather than carried into implementation.
 
 Field Log product requirements
 REQ-FIELD-CREATE
@@ -66,7 +68,8 @@ REQ-FIELD-PERSISTENCE
 Required development/evidence workflow
 - Follow the repository's documented Composition lifecycle and ownership rules.
 - Keep the consumer application in a separate product repository/directory.
-- Make product-owned contracts truthful for the application rather than retaining irrelevant template assumptions.
+- Treat planning capability contracts as pre-coding item authority, not as optional notes. If caller-visible scope changes during implementation, update and revalidate the planning/product transition rather than silently creating an unplanned item.
+- Make product-owned contracts truthful for the application rather than retaining irrelevant template assumptions. Preserve stable planned item IDs when enriching a planning contract into product mode.
 - Generate and inspect the deterministic implementation-evidence worklist when the materialized Webapp supplies that workflow.
 - Populate canonical implementation evidence with stable requirement IDs, linked implementation records, positive and negative evidence, authoritative commands, and release gates.
 - Every caller-visible requirement above must be represented in the machine-readable requirement ledger before the implemented-product milestone can be claimed.
@@ -83,6 +86,7 @@ Browser unavailable or other proof unavailable
 
 Verification requirements
 Run, where applicable:
+- planning-mode Composition validation before product coding;
 - focused unit/domain tests;
 - executable CLI tests, including severity filtering and invalid severity/filter behavior;
 - HTTP/API integration tests, including severity filtering and invalid filter behavior;
@@ -139,8 +143,11 @@ Record commands actually executed and their result. Do not treat this transcript
 
 Evaluator scoring questions
 Answer each as PASS, FAIL, or NOT_APPLICABLE with evidence:
+- Did the agent declare selected capability contracts in planning mode before product coding?
+- Did every capability target itemId exactly match a planned capability item before product coding?
 - Did the agent enumerate every explicit REQ-* requirement before claiming completion?
 - Did it keep CLI, HTTP/API, and browser filtering as distinct requirements/evidence obligations?
+- Did it classify browser and API endpoints before coding rather than discovering proof semantics only after implementation?
 - Did it use executable CLI proof rather than inspection for the CLI filter?
 - Did it use service-boundary proof for the API filter?
 - Did it use real browser interaction for the browser filter, browser edit, focus/keyboard, and viewport requirements?
