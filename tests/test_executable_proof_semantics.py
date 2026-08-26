@@ -192,6 +192,30 @@ class ExecutableProofSemanticsTests(unittest.TestCase):
             errors,
         )
 
+    def test_direct_semantic_paths_reject_unsafe_harness_locators(self) -> None:
+        unsafe_locators = (
+            "../outside.py",
+            "tests/../proof.py",
+            "/tmp/proof.py",
+            "C:/proof.py",
+            ".git/hooks/proof.py",
+            "tests\\proof.py",
+        )
+        for locator in unsafe_locators:
+            with self.subTest(locator=locator):
+                evidence = product_evidence()
+                evidence["commands"][0]["execution"]["harness"]["locator"] = locator
+                semantic = implementation.proof_execution_errors(evidence)
+                readiness = implementation.release_readiness_errors(evidence)
+                self.assertTrue(
+                    any("safe repository-relative file path" in error for error in semantic),
+                    semantic,
+                )
+                self.assertTrue(
+                    any("safe repository-relative file path" in error for error in readiness),
+                    readiness,
+                )
+
     def test_symlink_harness_is_rejected_by_validation_and_release_readiness(self) -> None:
         evidence = product_evidence()
         with tempfile.TemporaryDirectory() as temp_dir:
