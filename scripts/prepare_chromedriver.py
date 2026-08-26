@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+"""Prepare a ChromeDriver compatible with the installed Google Chrome."""
+
+from __future__ import annotations
+
+import argparse
+import io
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+
+VERSION_RE = re.compile(r"\b(\d+\.\d+\.\d+\.\d+)\b")
+LATEST_RELEASE_BASE = "https://googlechromelabs.github.io/chrome-for-testing"
+DOWNLOAD_BASE = "https://storage.googleapis.com/chrome-for-testing-public"
+ARCHIVE_MEMBER = "chromedriver-linux64/chromedriver"
+USER_AGENT = "TakashiSasaki-templates-composition-ci/1"
+
+
+class ChromeDriverPreparationError(RuntimeError):
+    pass
+
+
+def parse_four_part_version(text: str) -> str:
+    """Extract one four-part Chrome-family version from command output."""
+    match = VERSION_RE.search(text)
+    if match is None:
+        raise ChromeDriverPreparationError(
+            f"could not parse a four-part version from: {text.strip()!r}"
+        )
+    return match.group(1)
+
+
+def version_build(version: str) -> str:
+    """Return MAJOR.MINOR.BUILD from a validated four-part version."""
+    if VERSION_RE.fullmatch(version) is None:
+        raise ChromeDriverPreparationError(f"invalid four-part version: {version!r}")
+    return version.rsplit(".", 1)[0]
+
+
+def resolve_driver_version(chrome_version: str, release_text: str) -> str:
+    """Validate a build-level CfT fallback response for installed Chrome."""
+    driver_version = release_text.strip()
+    if VERSION_RE.fullmatch(driver_version) is None:
+        raise ChromeDriverPreparationError(
+            f"CfT returned an invalid ChromeDriver version: {driver_version!r}"
+        )
+    chrome_build = version_build(chrome_version)
+    if version_build(driver_version) != chrome_build:
+        raise ChromeDriverPreparationError(
+            "CfT ChromeDriver build does not match installed Chrome: "
+            f"chrome={chrome_version}, driver={driver_version}"
+        )
+    return driver_version
+
+
+def latest_release_url(chrome_version: str) -> str:
+    return f"{LATEST_RELEASE_BASE}/LATEST_RELEASE_{version_build(chrome_version)}"
+
+
+def driver_archive_url(driver_version: str) -> str:
+    if VERSION_RE.fullmatch(driver_version) is None:
+        raise ChromeDriverPreparationError(
+            f"invalid ChromeDriver version: {driver_version!r}"
+        )
+    return (
+        f"{DOWNLOAD_BASE}/{driver_version}/linux64/"
+        "chromedriver-linux64.zip"
+    )
+
+
+def _request(url: str) -> Request:
+    return Request(url, headers={"User-Agent": USER_AGENT})
+
+
+def download_text(url: str) -> str:
+    try:
+        with urlopen(_request(url), timeout=20) as response:
+            return response.read().decode("utf-8")
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
+
+
+def download_bytes(url: str, *, missing_ok: bool = False) -> bytes | None:
+    try:
+        with urlopen(_request(url), timeout=30) as response:
+            return response.read()
+    except HTTPError as exc:
+        if missing_ok and exc.code == 404:
+            return None
+        raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
+
+
+def resolve_driver_archive(chrome_version: str) -> tuple[str, bytes]:
+    """Prefer an exact CfT driver patch; fall back only when that asset is absent."""
+    exact_url = driver_archive_url(chrome_version)
+    exact_archive = download_bytes(exact_url, missing_ok=True)
+    if exact_archive is not None:
+        return chrome_version, exact_archive
+
+    driver_version = resolve_driver_version(
+        chrome_version,
+        download_text(latest_release_url(chrome_version)),
+    )
+    fallback_archive = download_bytes(driver_archive_url(driver_version))
+    if fallback_archive is None:  # Defensive: missing_ok is false for fallback downloads.
+        raise ChromeDriverPreparationError(
+            f"ChromeDriver fallback archive unexpectedly missing: {driver_version}"
+        )
+    return driver_version, fallback_archive
+
+
+def write_driver_from_zip(archive: bytes, destination: Path) -> None:
+    """Write only the expected driver member; never extract arbitrary archive paths."""
+    temporary_path: Path | None = None
+    try:
+        with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+            info = bundle.getinfo(ARCHIVE_MEMBER)
+            if info.is_dir() or info.file_size <= 0:
+                raise ChromeDriverPreparationError(
+                    f"ChromeDriver archive member is not a non-empty file: {ARCHIVE_MEMBER}"
+                )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.open(info) as source, tempfile.NamedTemporaryFile(
+                dir=destination.parent,
+                prefix=".chromedriver-",
+                delete=False,
+            ) as temporary:
+                temporary_path = Path(temporary.name)
+                shutil.copyfileobj(source, temporary)
+    except ChromeDriverPreparationError:
+        raise
+    except (KeyError, zipfile.BadZipFile, OSError) as exc:
+        raise ChromeDriverPreparationError(
+            f"invalid ChromeDriver archive: {exc}"
+        ) from exc
+
+    if temporary_path is None:
+        raise ChromeDriverPreparationError("ChromeDriver archive did not produce a file")
+    try:
+        temporary_path.chmod(0o755)
+        temporary_path.replace(destination)
+    except OSError as exc:
+        temporary_path.unlink(missing_ok=True)
+        raise ChromeDriverPreparationError(
+            f"failed to install ChromeDriver at {destination}: {exc}"
+        ) from exc
+
+
+def command_version(command: str | Path) -> str:
+    result = subprocess.run(
+        [str(command), "--version"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise ChromeDriverPreparationError(
+            f"{command} --version failed with exit {result.returncode}"
+            + (f": {detail}" if detail else "")
+        )
+    return parse_four_part_version(result.stdout or result.stderr)
+
+
+def prepare_driver(chrome_command: str, output_dir: Path) -> tuple[Path, str, str]:
+    chrome_version = command_version(chrome_command)
+    driver_version, archive = resolve_driver_archive(chrome_version)
+    destination = output_dir / "chromedriver"
+    write_driver_from_zip(archive, destination)
+    installed_version = command_version(destination)
+    if installed_version != driver_version:
+        raise ChromeDriverPreparationError(
+            "downloaded ChromeDriver version does not match resolved version: "
+            f"resolved={driver_version}, installed={installed_version}"
+        )
+    return destination.resolve(), chrome_version, driver_version
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--chrome-command", default="google-chrome")
+    parser.add_argument("--output-dir", type=Path, required=True)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        driver, chrome_version, driver_version = prepare_driver(
+            args.chrome_command,
+            args.output_dir,
+        )
+    except ChromeDriverPreparationError as exc:
+        print(f"ChromeDriver preparation failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Prepared ChromeDriver {driver_version} for Chrome {chrome_version}",
+        file=sys.stderr,
+    )
+    print(driver)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
