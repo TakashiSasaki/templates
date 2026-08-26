@@ -14,9 +14,7 @@ IMPLEMENTATION_EVIDENCE = Path("contracts/implementation-evidence.json")
 EXECUTABLE_PROOF_KINDS = frozenset({"integration-test", "end-to-end-test"})
 SUPPORTED_PROTOCOL_REVISION = "2026-07-28"
 SUPPORTED_TRANSPORT_KINDS = frozenset({"stdio", "streamable-http"})
-SUPPORTED_OPERATION_KINDS = frozenset(
-    {"tool", "resource", "prompt", "protocol-operation"}
-)
+SUPPORTED_OPERATION_KINDS = frozenset({"tool", "resource", "prompt", "protocol-operation"})
 
 
 def load_json(root: Path, relative: Path) -> dict[str, Any]:
@@ -29,61 +27,90 @@ def load_json(root: Path, relative: Path) -> dict[str, Any]:
 def target_key(target: object) -> tuple[object, ...]:
     if not isinstance(target, dict):
         return (None, None, None, None)
-    return (
-        target.get("kind"),
-        target.get("contractId"),
-        target.get("itemKind"),
-        target.get("itemId"),
-    )
+    return (target.get("kind"), target.get("contractId"), target.get("itemKind"), target.get("itemId"))
 
 
 def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
     proofs = record.get(field)
     if not isinstance(proofs, list):
         return set()
-    return {
-        proof.get("kind")
-        for proof in proofs
-        if isinstance(proof, dict) and isinstance(proof.get("kind"), str)
-    }
+    return {proof.get("kind") for proof in proofs if isinstance(proof, dict) and isinstance(proof.get("kind"), str)}
 
 
 def evidence_target(item_kind: str, item_id: str) -> tuple[str, str, str, str]:
     return ("contract-item", "mcp_interface", item_kind, item_id)
 
 
-
-def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+def planning_requirement_errors(contract: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
+    transports = contract.get("transports")
+    operations = contract.get("operations")
     requirements = evidence.get("requirements")
+    if not isinstance(transports, list) or not isinstance(operations, list):
+        return ["planning MCP transports and operations must be arrays"]
     if not isinstance(requirements, list):
         return ["planning implementation-evidence requirements must be an array"]
+
     errors: list[str] = []
+    transport_ids: list[str] = []
+    transport_by_id: dict[str, dict[str, Any]] = {}
+    for transport in transports:
+        if not isinstance(transport, dict) or not isinstance(transport.get("id"), str):
+            errors.append("every planning MCP transport must have a text id")
+            continue
+        transport_id = transport["id"]
+        transport_ids.append(transport_id)
+        transport_by_id.setdefault(transport_id, transport)
+        if transport.get("kind") not in SUPPORTED_TRANSPORT_KINDS:
+            errors.append(f"planned MCP transport {transport_id!r} has unsupported kind {transport.get('kind')!r}")
+    for duplicate, count in sorted(Counter(transport_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate planning MCP transport id: {duplicate}")
+
+    operation_ids: list[str] = []
+    for operation in operations:
+        if not isinstance(operation, dict) or not isinstance(operation.get("id"), str):
+            errors.append("every planning MCP operation must have a text id")
+            continue
+        operation_id = operation["id"]
+        operation_ids.append(operation_id)
+        if operation.get("kind") not in SUPPORTED_OPERATION_KINDS:
+            errors.append(f"planned MCP operation {operation_id!r} has unsupported kind {operation.get('kind')!r}")
+        transport_id = operation.get("transportId")
+        if not isinstance(transport_id, str) or transport_id not in transport_by_id:
+            errors.append(f"planned MCP operation {operation_id!r} references unknown transportId {transport_id!r}")
+    for duplicate, count in sorted(Counter(operation_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate planning MCP operation id: {duplicate}")
+
+    expected = {evidence_target("transport", value) for value in transport_ids}
+    expected.update(evidence_target("operation", value) for value in operation_ids)
+    actual: set[tuple[object, ...]] = set()
     allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
             continue
-        declared = {
-            kind
-            for kind in requirement.get("requiredPositiveProofKinds", [])
-            if isinstance(kind, str)
-        }
+        declared = {kind for kind in requirement.get("requiredPositiveProofKinds", []) if isinstance(kind, str)}
         for target in requirement.get("targets", []):
             key = target_key(target)
             if key[1] != "mcp_interface":
                 continue
+            actual.add(key)
             requirement_id = requirement.get("id", f"index-{index}")
             if key[0] != "contract-item" or key[2] not in {"transport", "operation"}:
                 errors.append(
-                    f"MCP planning requirement {requirement_id!r} has unsupported target {key}; "
-                    "MCP planning targets must be transport or operation contract items"
+                    f"MCP planning requirement {requirement_id!r} has unsupported target {key}; MCP planning targets must be transport or operation contract items"
                 )
             elif declared.isdisjoint(EXECUTABLE_PROOF_KINDS):
                 errors.append(
-                    f"MCP planning requirement {requirement_id!r} targets {key[2]} "
-                    f"{key[3]!r} and must declare an executable requiredPositiveProofKinds "
-                    f"value ({allowed})"
+                    f"MCP planning requirement {requirement_id!r} targets {key[2]} {key[3]!r} and must declare an executable requiredPositiveProofKinds value ({allowed})"
                 )
+    for missing in sorted(expected - actual, key=str):
+        errors.append(f"planned MCP item is missing a planning requirement target: {missing}")
+    for unknown in sorted(actual - expected, key=str):
+        if unknown[0] == "contract-item" and unknown[2] in {"transport", "operation"}:
+            errors.append(f"MCP planning requirement targets undeclared planned item: {unknown}")
     return errors
+
 
 def validate(root: Path) -> list[str]:
     contract = load_json(root, MCP_CONTRACT)
@@ -92,32 +119,30 @@ def validate(root: Path) -> list[str]:
     evidence_mode = evidence.get("mode")
 
     if evidence_mode == "planning":
-        return planning_requirement_errors(evidence)
+        if mcp_mode != "planning":
+            return [
+                "planning implementation evidence requires contracts/mcp-interface.json to be in planning mode so MCP item IDs and relationships are authoritative before coding"
+            ]
+        return planning_requirement_errors(contract, evidence)
+    if mcp_mode == "planning":
+        return ["planning MCP interface contract requires planning implementation evidence"]
 
     if mcp_mode == "template":
         if evidence_mode == "product":
             return [
-                "capability.mcp is selected but contracts/mcp-interface.json remains "
-                "in template mode while product implementation evidence is active; "
-                "either remove capability.mcp from Composition intent or declare the "
-                "MCP interface contract in product mode and add transport/operation evidence"
+                "capability.mcp is selected but contracts/mcp-interface.json remains in template mode while product implementation evidence is active; either remove capability.mcp from Composition intent or declare the MCP interface contract in product mode and add transport/operation evidence"
             ]
         return []
     if mcp_mode != "product":
         return [f"unsupported MCP interface mode: {mcp_mode!r}"]
     if evidence_mode != "product":
         return [
-            "product MCP interface contract requires product implementation evidence; "
-            "switch contracts/implementation-evidence.json to product mode and prove "
-            "every declared transport and operation"
+            "product MCP interface contract requires product implementation evidence; switch contracts/implementation-evidence.json to product mode and prove every declared transport and operation"
         ]
 
     errors: list[str] = []
     if contract.get("protocolRevision") != SUPPORTED_PROTOCOL_REVISION:
-        errors.append(
-            "MCP product contract protocolRevision must be "
-            f"{SUPPORTED_PROTOCOL_REVISION!r} for schema v1"
-        )
+        errors.append(f"MCP product contract protocolRevision must be {SUPPORTED_PROTOCOL_REVISION!r} for schema v2")
 
     transports = contract.get("transports")
     operations = contract.get("operations")
@@ -146,9 +171,7 @@ def validate(root: Path) -> list[str]:
         transport_ids.append(transport_id)
         transport_by_id.setdefault(transport_id, transport)
         if transport_kind not in SUPPORTED_TRANSPORT_KINDS:
-            errors.append(
-                f"MCP transport {transport_id!r} has unsupported kind {transport_kind!r}"
-            )
+            errors.append(f"MCP transport {transport_id!r} has unsupported kind {transport_kind!r}")
     for duplicate, count in sorted(Counter(transport_ids).items()):
         if count > 1:
             errors.append(f"duplicate MCP transport id: {duplicate}")
@@ -168,37 +191,20 @@ def validate(root: Path) -> list[str]:
             continue
         operation_ids.append(operation_id)
         if operation_kind not in SUPPORTED_OPERATION_KINDS:
-            errors.append(
-                f"MCP operation {operation_id!r} has unsupported kind {operation_kind!r}"
-            )
+            errors.append(f"MCP operation {operation_id!r} has unsupported kind {operation_kind!r}")
         if not isinstance(transport_id, str) or transport_id not in transport_by_id:
-            errors.append(
-                f"MCP operation {operation_id!r} references unknown transportId "
-                f"{transport_id!r}"
-            )
-        if (
-            isinstance(transport_id, str)
-            and isinstance(operation_kind, str)
-            and isinstance(operation_name, str)
-        ):
+            errors.append(f"MCP operation {operation_id!r} references unknown transportId {transport_id!r}")
+        if isinstance(transport_id, str) and isinstance(operation_kind, str) and isinstance(operation_name, str):
             exposure_keys.append((transport_id, operation_kind, operation_name))
     for duplicate, count in sorted(Counter(operation_ids).items()):
         if count > 1:
             errors.append(f"duplicate MCP operation id: {duplicate}")
     for duplicate, count in sorted(Counter(exposure_keys).items()):
         if count > 1:
-            errors.append(
-                "duplicate MCP operation exposure: "
-                f"transport={duplicate[0]!r} kind={duplicate[1]!r} name={duplicate[2]!r}"
-            )
+            errors.append(f"duplicate MCP operation exposure: transport={duplicate[0]!r} kind={duplicate[1]!r} name={duplicate[2]!r}")
 
-    expected = {
-        evidence_target("transport", transport_id) for transport_id in transport_ids
-    }
-    expected.update(
-        evidence_target("operation", operation_id) for operation_id in operation_ids
-    )
-
+    expected = {evidence_target("transport", value) for value in transport_ids}
+    expected.update(evidence_target("operation", value) for value in operation_ids)
     records_by_target: dict[tuple[object, ...], list[dict[str, Any]]] = {}
     for record in records:
         if not isinstance(record, dict):
@@ -206,7 +212,6 @@ def validate(root: Path) -> list[str]:
         key = target_key(record.get("target"))
         if len(key) >= 2 and key[1] == "mcp_interface":
             records_by_target.setdefault(key, []).append(record)
-
     actual = set(records_by_target)
     for missing in sorted(expected - actual, key=str):
         errors.append(f"missing MCP implementation-evidence target: {missing}")
@@ -214,9 +219,7 @@ def validate(root: Path) -> list[str]:
         errors.append(f"unknown MCP implementation-evidence target: {extra}")
     for key, matching in sorted(records_by_target.items(), key=lambda item: str(item[0])):
         if key in expected and len(matching) != 1:
-            errors.append(
-                f"MCP implementation-evidence target {key} must have exactly one record"
-            )
+            errors.append(f"MCP implementation-evidence target {key} must have exactly one record")
 
     requirement_refs: dict[str, list[dict[str, Any]]] = {}
     for requirement in requirements:
@@ -239,33 +242,22 @@ def validate(root: Path) -> list[str]:
         if not isinstance(record_id, str):
             errors.append(f"MCP target {key} must have a text implementation-evidence record id")
             continue
-        for field, polarity in (
-            ("positiveEvidence", "positive"),
-            ("negativeEvidence", "negative"),
-        ):
+        for field, polarity in (("positiveEvidence", "positive"), ("negativeEvidence", "negative")):
             if proof_kinds(record, field).isdisjoint(EXECUTABLE_PROOF_KINDS):
                 errors.append(
-                    f"MCP {key[2]} {key[3]!r} requires at least one {polarity} "
-                    f"executable proof kind ({allowed}); static inspection or unit-only "
-                    "proof is insufficient"
+                    f"MCP {key[2]} {key[3]!r} requires at least one {polarity} executable proof kind ({allowed}); static inspection or unit-only proof is insufficient"
                 )
         linked = requirement_refs.get(record_id, [])
         if not linked:
-            errors.append(
-                f"MCP record {record_id!r} must be linked from at least one product requirement"
-            )
+            errors.append(f"MCP record {record_id!r} must be linked from at least one product requirement")
             continue
         if not any(
             isinstance(requirement.get("requiredPositiveProofKinds"), list)
-            and not EXECUTABLE_PROOF_KINDS.isdisjoint(
-                requirement["requiredPositiveProofKinds"]
-            )
+            and not EXECUTABLE_PROOF_KINDS.isdisjoint(requirement["requiredPositiveProofKinds"])
             for requirement in linked
         ):
             errors.append(
-                f"MCP record {record_id!r} must be linked from at least one requirement "
-                "whose requiredPositiveProofKinds includes an executable proof kind "
-                f"({allowed})"
+                f"MCP record {record_id!r} must be linked from at least one requirement whose requiredPositiveProofKinds includes an executable proof kind ({allowed})"
             )
     return errors
 
@@ -287,7 +279,7 @@ def main() -> int:
     contract = load_json(root, MCP_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     if evidence.get("mode") == "planning":
-        print("MCP planning targets and executable proof strength: OK")
+        print("MCP planned item authority, relationships, and executable proof strength: OK")
     elif contract.get("mode") == "template":
         print("MCP interface: template mode OK; no product transport/operation claim is active")
     else:
