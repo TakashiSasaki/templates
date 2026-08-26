@@ -180,6 +180,26 @@ class PortalPublicationPolicyTests(unittest.TestCase):
         ):
             self.assertIn(title, top_level_titles)
 
+    def test_composition_pr524_migration_document_mappings(self) -> None:
+        manifest = json.loads(SITE_MANIFEST.read_text(encoding="utf-8"))
+        pages = list(iter_pages(manifest["navigation"]))
+        indexed = {
+            (page["publication"], page["document"]): page["destination"]
+            for page in pages
+        }
+        expected = {
+            "cli-interface-v2-migration": "capabilities/cli/migrations/v1-to-v2.md",
+            "mcp-interface-v2-migration": "capabilities/mcp/migrations/v1-to-v2.md",
+            "mcp-apps-v2-migration": "capabilities/mcp-apps/migrations/v1-to-v2.md",
+            "web-interface-v2-migration": "capabilities/browser/migrations/v1-to-v2.md",
+            "service-interface-v2-migration": "capabilities/service/migrations/v1-to-v2.md",
+            "implementation-evidence-v4-migration": "lifecycle/implementation-evidence/migrations/v3-to-v4.md",
+            "implementation-evidence-v5-migration": "lifecycle/implementation-evidence/migrations/v4-to-v5.md",
+        }
+        for document, destination in expected.items():
+            with self.subTest(document=document):
+                self.assertEqual(indexed[("composition", document)], destination)
+
     def test_provider_inputs_are_locked_to_full_commit_shas(self) -> None:
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
 
