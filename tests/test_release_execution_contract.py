@@ -82,7 +82,6 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                         "harness": {
                             "kind": "repository-file",
                             "locator": "product/prove.py",
-                            "invocation": "python-script",
                         },
                         "supportsNegativePath": False,
                     },
@@ -247,7 +246,6 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             implementation["commands"][0]["execution"]["harness"] = {
                 "kind": "repository-file",
                 "locator": "tests/test_prove.py",
-                "invocation": "python-unittest",
             }
             execution = self.product_execution()
             execution["commands"][0].update(
@@ -270,7 +268,6 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             implementation["commands"][0]["execution"]["harness"] = {
                 "kind": "repository-file",
                 "locator": "scripts/verify.sh",
-                "invocation": "direct",
             }
             execution = self.product_execution()
             execution["commands"][0].update(
