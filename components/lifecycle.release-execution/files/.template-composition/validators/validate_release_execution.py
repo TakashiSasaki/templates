@@ -40,6 +40,20 @@ def _implementation_harness_locator(command: dict) -> str | None:
     return locator if isinstance(locator, str) and locator else None
 
 
+def _expected_harness_argument(
+    working_directory: str, harness_locator: str
+) -> str | None:
+    """Return the traversal-free argv token that resolves to the root-relative harness."""
+
+    if working_directory == ".":
+        return harness_locator
+    prefix = working_directory.rstrip("/") + "/"
+    if not harness_locator.startswith(prefix):
+        return None
+    relative = harness_locator[len(prefix) :]
+    return relative or None
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -113,11 +127,38 @@ def validate(root: Path) -> list[str]:
                 f"release execution command {command_id}: harnessLocator is required"
             )
             continue
-        if argv_valid and harness_locator not in argv:
+        harness_argument_index = binding.get("harnessArgumentIndex")
+        index_valid = (
+            isinstance(harness_argument_index, int)
+            and not isinstance(harness_argument_index, bool)
+            and harness_argument_index >= 0
+        )
+        if not index_valid:
             errors.append(
-                f"release execution command {command_id}: argv must contain harnessLocator "
-                f"{harness_locator!r} as an exact argument"
+                f"release execution command {command_id}: harnessArgumentIndex must be a non-negative integer"
             )
+        elif argv_valid:
+            assert isinstance(argv, list)
+            if harness_argument_index >= len(argv):
+                errors.append(
+                    f"release execution command {command_id}: harnessArgumentIndex {harness_argument_index} is outside argv"
+                )
+            elif isinstance(working_directory, str) and working_directory:
+                expected_argument = _expected_harness_argument(
+                    working_directory, harness_locator
+                )
+                if expected_argument is None:
+                    errors.append(
+                        f"release execution command {command_id}: harnessLocator {harness_locator!r} "
+                        f"must be inside workingDirectory {working_directory!r} without traversal"
+                    )
+                elif argv[harness_argument_index] != expected_argument:
+                    errors.append(
+                        f"release execution command {command_id}: argv[{harness_argument_index}] "
+                        f"must select harnessLocator {harness_locator!r} from workingDirectory "
+                        f"{working_directory!r} using exact argument {expected_argument!r}, "
+                        f"got {argv[harness_argument_index]!r}"
+                    )
         authoritative = implementation_commands.get(command_id)
         if authoritative is None:
             continue
