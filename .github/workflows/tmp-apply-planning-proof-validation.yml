@@ -1,0 +1,24 @@
+name: Temporary apply planning proof validation
+on:
+  push:
+    branches:
+      - agent/planning-proof-strength-pr21
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply guarded planning validation patch
+        run: |
+          python .github/tmp/add-planning-proof-validation.py
+          rm .github/tmp/add-planning-proof-validation.py
+          rm .github/workflows/tmp-apply-planning-proof-validation.yml
+      - name: Commit planning validation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Validate proof strength during evidence planning"
+          git push
