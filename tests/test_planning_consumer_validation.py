@@ -91,6 +91,58 @@ class PlanningConsumerValidationTests(unittest.TestCase):
                 checks["webapp-implementation-coverage"]["stdout"],
             )
 
+    def test_template_evidence_is_semantically_validated_not_deferred(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            config = root / "composition.json"
+            self.write_json(
+                config,
+                {
+                    "schema_version": 1,
+                    "recipe": "webapp",
+                    "components": {"include": [], "exclude": []},
+                    "parameters": {},
+                },
+            )
+            applied = subprocess.run(
+                [
+                    sys.executable,
+                    str(COMPOSER),
+                    "apply",
+                    "--config",
+                    str(config),
+                    "--target",
+                    str(target),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+            runner = target / ".template-composition" / "validate.py"
+            validated = subprocess.run(
+                [sys.executable, str(runner), str(target), "--format", "json"],
+                cwd=target,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(
+                validated.returncode, 0, validated.stdout + validated.stderr
+            )
+            payload = json.loads(validated.stdout)
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(payload["status"], "valid")
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertIn(
+                "Implementation evidence validation: OK",
+                checks["implementation-evidence"]["stdout"],
+            )
+            self.assertNotIn("deferred", checks["implementation-evidence"]["status"])
+
 
 if __name__ == "__main__":
     unittest.main()
