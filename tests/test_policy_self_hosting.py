@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import yaml
 
-from agent_policy.commands import check
-
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / ".agent-policy.yml"
 LOCK_PATH = ROOT / ".agent-policy.lock"
+SELF_HOST_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "check-agent-policy.yml"
 RELEASE_PATH = ROOT / "release/toolchain.json"
 RUNTIME_MANIFEST_PATH = ROOT / "skills/agent-policy/runtime-manifest.json"
 
@@ -50,8 +50,32 @@ def test_self_host_and_stable_pins_follow_separate_authority_boundaries() -> Non
     assert_immutable_toolchain(stable_toolchain)
 
 
-def test_repository_self_hosting_check_passes() -> None:
-    assert check.run(ROOT, ".agent-policy.yml") == []
+def test_repository_self_hosting_outputs_match_recorded_lock() -> None:
+    lock = load_yaml(LOCK_PATH)
+    outputs = lock["outputs"]
+    assert isinstance(outputs, dict)
+    assert set(outputs) == {"AGENTS.md", ".github/REVIEW_GUIDELINES.md"}
+
+    for relative, metadata in outputs.items():
+        assert isinstance(relative, str)
+        assert isinstance(metadata, dict)
+        expected = metadata["sha256"]
+        assert isinstance(expected, str)
+        actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+        assert actual == expected, relative
+
+
+def test_repository_self_hosting_workflow_checks_with_consumer_pin() -> None:
+    config = load_yaml(CONFIG_PATH)
+    toolchain = config["toolchain"]
+    assert isinstance(toolchain, dict)
+    revision = toolchain["revision"]
+    assert isinstance(revision, str)
+
+    workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
+    assert f"uses: TakashiSasaki/templates@{revision}" in workflow
+    assert "command: check" in workflow
+    assert "config: .agent-policy.yml" in workflow
 
 
 def test_coding_and_review_share_repository_local_authority() -> None:
