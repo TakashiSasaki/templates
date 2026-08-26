@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/mcp-apps.schema.json",
+  "schemaVersion": 1,
+  "mode": "template",
+  "views": [],
+  "associations": []
+}
