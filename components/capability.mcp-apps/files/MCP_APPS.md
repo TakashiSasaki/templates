@@ -2,7 +2,7 @@
 
 This contract is materialized by `capability.mcp-apps`, which requires `capability.mcp`. MCP Apps is an optional MCP extension and is not the standalone browser interface governed by `WEB_INTERFACE.md`.
 
-`RUNTIME.md` owns the selected core MCP revision and implementation/deployment choices. `MCP_INTERFACE.md` owns core MCP behavior. This file owns the Apps extension revision and Apps-specific caller-, Host-, and View-visible behavior.
+`contracts/mcp-interface.json` owns the selected core MCP revision and core transport/operation inventory. `RUNTIME.md` owns runtime/SDK and implementation/deployment choices. `MCP_INTERFACE.md` owns qualitative core MCP behavior. This file owns the Apps extension revision and Apps-specific caller-, Host-, and View-visible behavior.
 
 ## Status and authority
 
@@ -10,7 +10,7 @@ This contract is materialized by `capability.mcp-apps`, which requires `capabili
 Selection status: UNSELECTED
 Extension identifier: io.modelcontextprotocol/ui
 Extension specification revision: 2026-01-26
-Core MCP revision: see RUNTIME.md
+Core MCP revision: see contracts/mcp-interface.json
 ```
 
 Change the status to `SELECTED` only when every retained Apps behavior is concrete and evidence covers the claimed extension behavior.

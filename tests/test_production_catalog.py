@@ -195,7 +195,13 @@ class ProductionCatalogTests(unittest.TestCase):
     def test_capability_dependency_closure(self):
         self.assertEqual(
             self.resolve({"capability.mcp-apps"}),
-            ["capability.mcp", "capability.mcp-apps", "capability.runtime"],
+            [
+                "capability.mcp",
+                "capability.mcp-apps",
+                "capability.runtime",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            ],
         )
         self.assertEqual(
             self.resolve({"capability.cli"}),

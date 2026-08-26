@@ -86,6 +86,17 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             {"artifact.skill-core", "lifecycle.composition-state"},
         )
         self.assertEqual(
+            dependency_closure("artifact.skill-core", "capability.mcp"),
+            {
+                "artifact.skill-core",
+                "capability.mcp",
+                "capability.runtime",
+                "lifecycle.composition-state",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            },
+        )
+        self.assertEqual(
             dependency_closure("artifact.skill-core", "capability.mcp-apps"),
             {
                 "artifact.skill-core",
@@ -93,6 +104,8 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "capability.mcp-apps",
                 "capability.runtime",
                 "lifecycle.composition-state",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
             },
         )
         self.assertEqual(

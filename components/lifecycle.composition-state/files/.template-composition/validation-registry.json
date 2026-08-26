@@ -71,6 +71,15 @@
       "purpose": "Validate selected service operation coverage and require executable implementation-evidence proof strength."
     },
     {
+      "id": "mcp-interface",
+      "component": "capability.mcp",
+      "entrypoint": ".template-composition/validators/validate_mcp_interface.py",
+      "arguments": [
+        "."
+      ],
+      "purpose": "Validate selected MCP transport/operation coverage and require executable protocol-level implementation-evidence proof strength."
+    },
+    {
       "id": "web-interface",
       "component": "capability.web-interface",
       "entrypoint": ".template-composition/validators/validate_web_interface.py",

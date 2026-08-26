@@ -1,0 +1,7 @@
+{
+  "$schema": "../schemas/mcp-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "template",
+  "transports": [],
+  "operations": []
+}
