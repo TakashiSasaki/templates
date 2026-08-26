@@ -140,9 +140,6 @@ class AgentSkillContractTests(unittest.TestCase):
         )
         for invariant in (
             "`reviews = 0 -> MERGE_ALLOWED` is forbidden",
-            "BLOCKED_REVIEW_MISSING",
-            "BLOCKED_REVIEW_PENDING",
-            "BLOCKED_REVIEW_STALE",
             "completed independent review evidence count is zero",
             "self-review does not satisfy this requirement",
             "reviewer unavailable != review waived",
@@ -151,6 +148,23 @@ class AgentSkillContractTests(unittest.TestCase):
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant.lower(), skill.lower())
+
+    def test_merge_gate_defines_all_canonical_blocked_states(self) -> None:
+        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for state in (
+            "BLOCKED_CI",
+            "BLOCKED_REVIEW_MISSING",
+            "BLOCKED_REVIEW_PENDING",
+            "BLOCKED_REVIEW_STALE",
+            "BLOCKED_REVIEW_FINDINGS",
+            "BLOCKED_BASE_DRIFT",
+            "BLOCKED_HEAD_CHANGED",
+            "BLOCKED_MERGEABILITY",
+        ):
+            with self.subTest(state=state):
+                self.assertIn(state.lower(), skill.lower())
 
     def test_merge_gate_success_path_cannot_skip_review_completion(self) -> None:
         skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
