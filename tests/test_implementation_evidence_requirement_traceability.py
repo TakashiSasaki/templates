@@ -143,7 +143,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
             self.write_fixture(root, value)
             errors = validator.validate(root)
             self.assertTrue(
-                any("no verified positive evidence" in error for error in errors),
+                any("no traceable positive evidence" in error for error in errors),
                 errors,
             )
 
