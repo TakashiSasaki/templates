@@ -7,11 +7,17 @@ The contract is artifact-neutral. In product mode, every authoritative implement
 - a fixed `argv` array;
 - a repository-relative `workingDirectory`;
 - the exact repository proof-harness identity declared by the implementation command;
-- `harnessArgumentIndex`, identifying which argv element selects that harness.
+- `harnessArgumentIndex`, whose value is fixed by the inferred invocation form.
 
-Version 2 adds `harnessLocator` and `harnessArgumentIndex`. `harnessLocator` must exactly equal `commands[].execution.harness.locator` on the implementation-evidence command with the same ID. The indexed argv element is resolved from `workingDirectory` without traversal and must resolve to that root-relative locator. This makes the harness identity part of the actual process selection rather than detached metadata while allowing non-root working directories.
+Version 2 adds `harnessLocator` and `harnessArgumentIndex`. `harnessLocator` must exactly equal `commands[].execution.harness.locator` on the implementation-evidence command with the same ID. The implementation validator and release-execution validator infer the supported invocation from the exact `commands[].command`/harness-locator pair rather than trusting a separate invocation label.
 
-For example, both of these bindings select the same repository harness:
+The accepted invocation forms are deliberately narrow:
+
+- `python <repository-file>` → release argv `['python', <relative-harness>]`, harness index `1`;
+- `python -m unittest <python.module>` → release argv `['python', '-m', 'unittest', <relative-module>]`, harness index `3`;
+- `./<repository-file>` → release argv `['./<relative-harness>']`, harness index `0`.
+
+`<relative-harness>` is resolved from `workingDirectory` to the same root-relative `harnessLocator` without traversal. For example, these two bindings are equivalent for a `python product/prove.py` implementation command:
 
 ```json
 {
@@ -31,25 +37,28 @@ For example, both of these bindings select the same repository harness:
 }
 ```
 
-The release producer still executes only the fixed argv. `harnessLocator` and `harnessArgumentIndex` are identity constraints, not a second command line. The declared harness must lie inside the selected working directory, so no `..` traversal is required to reach it. If a tool normally hides the selected proof file inside opaque configuration or shell text, the product should provide a repository-owned wrapper harness and put that wrapper explicitly at the declared argv index.
+The validator checks the entire argv array, not merely the indexed token. Consequently `['echo', 'product/prove.py']`, `['python', '-c', '...', 'product/prove.py']`, extra arguments, or a different interpreter shape cannot satisfy a Python-script harness binding merely because the locator appears somewhere in argv.
+
+The release producer executes only the validated fixed argv. `harnessLocator` and `harnessArgumentIndex` are identity constraints, not a second command line. If the real proof needs additional arguments, environment setup, shell behavior, discovery rules, or another opaque launcher, the product should provide a repository-owned wrapper harness and make that wrapper the authoritative implementation command/harness pair.
 
 The contract deliberately does **not** define a shell command language, environment-variable injection, secret lookup, approval policy, or release result. A producer must execute the declared argv directly rather than parsing the human-readable `command` string as shell input.
 
-Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality, a valid harness argv index, working-directory-aware path resolution, and the same absolute/traversal/`.git` path-safety boundary owned structurally by the schema. The semantic mirror is intentional because managed release producers invoke this validator directly before executing fixed argv; unsafe path forms therefore fail closed even when the caller has not independently dispatched JSON Schema validation. Registered-contract schema validation remains the structural authority and additionally constrains document shape and argv values.
+Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality, supported implementation command/harness inference, invocation-specific exact argv, invocation-specific harness index, working-directory-aware path resolution, and the same absolute/traversal/`.git` path-safety boundary owned structurally by the schema. The semantic mirror is intentional because managed release producers invoke this validator directly before executing fixed argv; unsafe path forms therefore fail closed even when the caller has not independently dispatched JSON Schema validation. Registered-contract schema validation remains the structural authority and additionally constrains document shape and argv values.
 
 ## Relationship to proof semantics
 
-`lifecycle.implementation-evidence` owns proof kinds, command execution capabilities, repository harness identity, and negative-path declarations. `lifecycle.release-execution` does not reinterpret those semantics. It binds that authoritative command/harness identity to the fixed argv that release production can execute.
+`lifecycle.implementation-evidence` owns proof kinds, command execution capabilities, repository harness identity, exact command-to-harness invocation, and negative-path declarations. `lifecycle.release-execution` does not invent or relabel those semantics. It repeats the exact harness identity and binds the invocation inferred from implementation evidence to the only fixed argv that release production may execute.
 
 The resulting chain is:
 
 1. a requirement declares a required proof kind;
 2. a proof record references an authoritative command;
 3. the implementation command declares the required execution capability and repository harness;
-4. release execution repeats the exact harness identity and identifies the argv element that resolves to it from the declared working directory;
-5. release evidence executes that argv against one exact candidate revision and records the result.
+4. the exact implementation `command` plus harness locator identifies one supported invocation form;
+5. release execution repeats the harness identity and must provide exactly the argv and harness index implied by that invocation from its selected working directory;
+6. release evidence executes that argv against one exact candidate revision and records the result.
 
-The declarations cannot prove that a harness implementation is semantically honest. They make contradictions and substitutions machine-detectable and leave actual execution provenance to the release-evidence layer. The exact candidate revision also binds the release-execution contract itself, so the observed execution result cannot be detached from the fixed argv without changing the candidate revision.
+The declarations cannot prove that a harness implementation is semantically honest. They make label inflation, command/harness contradictions, and executable substitutions machine-detectable and leave actual execution provenance to the release-evidence layer. The exact candidate revision also binds the release-execution contract itself, so the observed execution result cannot be detached from the fixed argv without changing the candidate revision.
 
 ## Candidate verification
 
