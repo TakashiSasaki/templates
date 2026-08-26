@@ -94,10 +94,11 @@ def validate(root: Path) -> list[str]:
 
     for command_id, binding in execution_commands.items():
         argv = binding.get("argv")
-        if not isinstance(argv, list) or not argv or not all(
+        argv_valid = isinstance(argv, list) and bool(argv) and all(
             isinstance(argument, str) and argument and "\x00" not in argument
             for argument in argv
-        ):
+        )
+        if not argv_valid:
             errors.append(
                 f"release execution command {command_id}: argv must be a non-empty array of non-empty NUL-free strings"
             )
@@ -112,6 +113,11 @@ def validate(root: Path) -> list[str]:
                 f"release execution command {command_id}: harnessLocator is required"
             )
             continue
+        if argv_valid and harness_locator not in argv:
+            errors.append(
+                f"release execution command {command_id}: argv must contain harnessLocator "
+                f"{harness_locator!r} as an exact argument"
+            )
         authoritative = implementation_commands.get(command_id)
         if authoritative is None:
             continue
