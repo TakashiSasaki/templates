@@ -59,6 +59,14 @@ class PlanningConsumerValidationTests(unittest.TestCase):
                         {
                             "id": "REQ-PLAN-ROUTE-FOCUS",
                             "description": "Route entry places focus on the declared focus target.",
+                            "targets": [
+                                {
+                                    "kind": "contract-item",
+                                    "contractId": "routes",
+                                    "itemKind": "route",
+                                    "itemId": "home",
+                                }
+                            ],
                             "recordIds": [],
                             "requiredPositiveProofKinds": ["end-to-end-test"],
                         }
