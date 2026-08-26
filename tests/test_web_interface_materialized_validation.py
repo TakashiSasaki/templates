@@ -7,6 +7,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from lifecycle_checkpoint_test_support import (
+    create_planning_checkpoint,
+    planning_evidence_from_product,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 
@@ -57,13 +62,40 @@ class WebInterfaceMaterializedValidationTests(unittest.TestCase):
                 apply_result.stdout + apply_result.stderr,
             )
 
+            product_contract = helper.product_contract()
+            product_evidence, planning_evidence = planning_evidence_from_product(
+                helper.evidence()
+            )
+            planning_contract = {
+                "$schema": "../schemas/web-interface.schema.json",
+                "schemaVersion": 2,
+                "mode": "planning",
+                "endpoints": [
+                    {
+                        "id": endpoint["id"],
+                        "kind": endpoint["kind"],
+                        "purpose": endpoint["purpose"],
+                    }
+                    for endpoint in product_contract["endpoints"]
+                ],
+            }
             self.write_json(
                 target / "contracts" / "web-interface.json",
-                helper.product_contract(),
+                planning_contract,
             )
             self.write_json(
                 target / "contracts" / "implementation-evidence.json",
-                helper.evidence(),
+                planning_evidence,
+            )
+            create_planning_checkpoint(target)
+
+            self.write_json(
+                target / "contracts" / "web-interface.json",
+                product_contract,
+            )
+            self.write_json(
+                target / "contracts" / "implementation-evidence.json",
+                product_evidence,
             )
 
             runner = target / ".template-composition" / "validate.py"
@@ -85,6 +117,7 @@ class WebInterfaceMaterializedValidationTests(unittest.TestCase):
             self.assertEqual(payload["status"], "valid")
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertEqual(checks["web-interface"]["status"], "passed")
             self.assertEqual(checks["contract-evolution"]["status"], "passed")
             self.assertIn(
@@ -93,6 +126,10 @@ class WebInterfaceMaterializedValidationTests(unittest.TestCase):
             )
             self.assertIn(
                 "lifecycle.implementation-evidence",
+                payload["resolved_components"],
+            )
+            self.assertIn(
+                "lifecycle.lifecycle-checkpoints",
                 payload["resolved_components"],
             )
 
