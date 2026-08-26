@@ -1,0 +1,24 @@
+name: Temporary refine evidence v5 targets
+on:
+  push:
+    branches:
+      - agent/evidence-requirement-targets-v5-pr20
+permissions:
+  contents: write
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply guarded refinement
+        run: |
+          python .github/tmp/refine-evidence-v5-targets.py
+          rm .github/tmp/refine-evidence-v5-targets.py
+          rm .github/workflows/tmp-refine-evidence-v5-targets.yml
+      - name: Commit refinement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Require targets only in evidence planning mode"
+          git push
