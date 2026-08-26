@@ -37,7 +37,7 @@ class LifecycleCheckpointUpgradeBoundaryTests(unittest.TestCase):
             contract = {
                 "$schema": "../schemas/implementation-evidence.schema.json",
                 "schemaVersion": 5,
-                "mode": "product",
+                "mode": "planning",
                 "commands": [],
                 "releaseGates": [],
                 "records": [],
@@ -64,25 +64,37 @@ class LifecycleCheckpointUpgradeBoundaryTests(unittest.TestCase):
             write(root / "schemas/implementation-evidence.schema.json", {"managedVersion": 1})
             write(root / "schemas/lifecycle-checkpoints.schema.json", {"type": "object"})
 
-            snapshot = root / "artifacts/lifecycle/001-initial-product"
+            snapshot = root / "artifacts/lifecycle/001-initial-planning"
             files = []
             for rel in (
                 "contracts/manifest.json",
                 "contracts/implementation-evidence.json",
                 "schemas/implementation-evidence.schema.json",
+                "schemas/lifecycle-checkpoints.schema.json",
             ):
                 destination = snapshot / rel
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(root / rel, destination)
                 files.append({"path": rel, "snapshotPath": rel, "sha256": sha(destination)})
-            write(snapshot / "validation.json", {"result": "passed"})
+            validation_result = {
+                "schemaVersion": 1,
+                "authority": "composition-selected-validation-v1",
+                "command": ["python", ".template-composition/validate.py", ".", "--format", "json"],
+                "result": "passed",
+                "output": {"status": "valid"},
+            }
+            write(snapshot / "validation.json", validation_result)
+            recorded_at = "2026-08-27T00:00:00Z"
             snapshot_manifest = {
                 "schemaVersion": 1,
-                "checkpointId": "initial-product",
+                "checkpointId": "initial-planning",
                 "sequence": 1,
                 "phase": "planning",
                 "changeKind": "initial",
                 "parentId": None,
+                "recordedAt": recorded_at,
+                "chronologyAuthority": "sequence-parent-hash-chain",
+                "authority": {"validationEntrypoint": ".template-composition/validate.py"},
                 "files": files,
                 "validation": {
                     "result": "passed",
@@ -90,29 +102,20 @@ class LifecycleCheckpointUpgradeBoundaryTests(unittest.TestCase):
                     "sha256": sha(snapshot / "validation.json"),
                 },
             }
-            # The first entry must be planning. Make the current state planning too so
-            # current-contract drift checks run while the managed schema changes.
-            contract["mode"] = "planning"
-            write(root / "contracts/implementation-evidence.json", contract)
-            # Refresh the checkpointed contract to the same planning bytes.
-            write(snapshot / "contracts/implementation-evidence.json", contract)
-            for item in files:
-                if item["path"] == "contracts/implementation-evidence.json":
-                    item["sha256"] = sha(snapshot / item["path"])
             write(snapshot / "manifest.json", snapshot_manifest)
             ledger = {
                 "$schema": "../schemas/lifecycle-checkpoints.schema.json",
                 "schemaVersion": 1,
                 "checkpoints": [
                     {
-                        "id": "initial-product",
+                        "id": "initial-planning",
                         "sequence": 1,
                         "phase": "planning",
                         "changeKind": "initial",
                         "parentId": None,
-                        "snapshotPath": "artifacts/lifecycle/001-initial-product",
+                        "snapshotPath": "artifacts/lifecycle/001-initial-planning",
                         "manifestSha256": sha(snapshot / "manifest.json"),
-                        "recordedAt": "2026-08-27T00:00:00Z",
+                        "recordedAt": recorded_at,
                     }
                 ],
             }
