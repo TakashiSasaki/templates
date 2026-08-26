@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CONSUMER_WORKFLOW = ROOT / ".github/workflows/composer-runtime.yml"
 EXACT_REQUIREMENT = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9_.-]*===([A-Za-z0-9][A-Za-z0-9_.+!-]*)$"
 )
@@ -51,6 +52,15 @@ class RuntimeDependencyContractTests(unittest.TestCase):
             [],
             f"runtime/dev lock version mismatch for runtime dependencies: {mismatched}",
         )
+
+    def test_clean_runtime_uses_current_revision_checkout(self) -> None:
+        workflow = CONSUMER_WORKFLOW.read_text(encoding="utf-8")
+        clean_runtime = workflow.split("\n  clean-runtime:\n", 1)[1].split(
+            "\n  materialized-validation:\n", 1
+        )[0]
+        self.assertIn("name: Check out current Composition revision", clean_runtime)
+        self.assertIn("fetch-depth: 1", clean_runtime)
+        self.assertNotIn("fetch-depth: 0", clean_runtime)
 
 
 if __name__ == "__main__":
