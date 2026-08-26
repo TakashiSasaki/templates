@@ -1,0 +1,30 @@
+name: Temporary Task Ledger browser retry patch
+
+on:
+  push:
+    branches:
+      - agent/task-ledger-browser-bootstrap-retry-pr10
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/task-ledger-browser-bootstrap-retry-pr10
+          fetch-depth: 0
+      - name: Patch Task Ledger browser proof
+        run: python scripts/temp_patch_task_ledger_browser_retry.py
+      - name: Commit source and remove temporary patch machinery
+        run: |
+          rm scripts/temp_patch_task_ledger_browser_retry.py
+          rm .github/workflows/temp-patch-task-ledger-browser-retry.yml
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Retry Task Ledger WebDriver bootstrap transport failures"
+          git push origin HEAD:refs/heads/agent/task-ledger-browser-bootstrap-retry-pr10
