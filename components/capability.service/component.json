@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "capability.service",
   "kind": "capability",
-  "version": 3,
-  "summary": "Independently reachable non-browser service contract.",
+  "version": 4,
+  "summary": "Independently reachable non-browser service contract with pre-coding operation authority.",
   "requires": [
     "capability.runtime",
     "lifecycle.implementation-evidence"
@@ -15,36 +15,23 @@
       "document": "contracts/service-interface.json",
       "schema": "schemas/service-interface.schema.json",
       "migration_slug": "service-interface",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
+        {"version": 1, "change_type": "initial"},
         {
-          "version": 1,
-          "change_type": "initial"
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/service-interface-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare caller-visible independently reachable service operations and their protocol invocation contracts."
+      "purpose": "Declare planned and implemented caller-visible independently reachable service operations and their protocol invocation contracts."
     }
   ],
   "materials": [
-    {
-      "source": "files/SERVICE_INTERFACE.md",
-      "destination": "SERVICE_INTERFACE.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/service-interface.json",
-      "destination": "contracts/service-interface.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/service-interface.schema.json",
-      "destination": "schemas/service-interface.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validators/validate_service_interface.py",
-      "destination": ".template-composition/validators/validate_service_interface.py",
-      "ownership": "managed"
-    }
+    {"source": "files/SERVICE_INTERFACE.md", "destination": "SERVICE_INTERFACE.md", "ownership": "seed"},
+    {"source": "files/contracts/service-interface.json", "destination": "contracts/service-interface.json", "ownership": "seed"},
+    {"source": "files/schemas/service-interface.schema.json", "destination": "schemas/service-interface.schema.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_service_interface.py", "destination": ".template-composition/validators/validate_service_interface.py", "ownership": "managed"},
+    {"source": "files/docs/migrations/service-interface-v1-to-v2.md", "destination": "docs/migrations/service-interface-v1-to-v2.md", "ownership": "managed"}
   ]
 }
