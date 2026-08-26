@@ -29,8 +29,14 @@ def load_schema() -> dict:
 def product_document() -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
+        "requirements": [
+            {
+                "id": "REQ-DEMO",
+                "description": "The demo product behavior is implemented and proven.",
+            }
+        ],
         "commands": [
             {
                 "id": "product-proof",
@@ -48,6 +54,7 @@ def product_document() -> dict:
         "records": [
             {
                 "id": "demo-record",
+                "requirementIds": ["REQ-DEMO"],
                 "target": {
                     "kind": "contract-item",
                     "contractId": "demo_contract",
@@ -104,6 +111,30 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_complete_product_evidence_is_schema_valid(self) -> None:
         self.assert_valid(product_document())
 
+    def test_product_requires_explicit_requirements(self) -> None:
+        value = product_document()
+        value["requirements"] = []
+        self.assert_invalid(value)
+
+        value = product_document()
+        del value["requirements"]
+        self.assert_invalid(value)
+
+    def test_requirement_ids_support_stable_external_style(self) -> None:
+        value = product_document()
+        value["requirements"][0]["id"] = "REQ-SEVERITY-BROWSER-FILTER"
+        value["records"][0]["requirementIds"] = ["REQ-SEVERITY-BROWSER-FILTER"]
+        self.assert_valid(value)
+
+    def test_product_record_requires_requirement_reference(self) -> None:
+        value = product_document()
+        value["records"][0]["requirementIds"] = []
+        self.assert_invalid(value)
+
+        value = product_document()
+        del value["records"][0]["requirementIds"]
+        self.assert_invalid(value)
+
     def test_product_boundary_requires_verified_status_and_locator(self) -> None:
         missing_locator = product_document()
         del missing_locator["records"][0]["implementationBoundary"]["locator"]
@@ -134,8 +165,9 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "template",
+            "requirements": [],
             "commands": [],
             "releaseGates": [],
             "records": [],
@@ -143,7 +175,7 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
         self.assert_valid(value)
 
         product = product_document()
-        for key in ("commands", "releaseGates", "records"):
+        for key in ("requirements", "commands", "releaseGates", "records"):
             nonempty = copy.deepcopy(value)
             nonempty[key] = product[key]
             with self.subTest(rejected_key=key):
