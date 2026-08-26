@@ -37,7 +37,6 @@ def _requirement_signature(value: Any) -> tuple[Any, ...]:
 
 
 def _planning_transition_errors(planning: dict[str, Any], product: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
     if planning.get("mode") != "planning":
         return ["checkpoint planning snapshot implementation-evidence is not planning mode"]
     if product.get("mode") != "product":
@@ -47,6 +46,7 @@ def _planning_transition_errors(planning: dict[str, Any], product: dict[str, Any
         return ["planning/product implementation-evidence requirements must be arrays"]
     planned_by_id = {req.get("id"): _requirement_signature(req) for req in planned if isinstance(req, dict) and isinstance(req.get("id"), str)}
     current_by_id = {req.get("id"): _requirement_signature(req) for req in current if isinstance(req, dict) and isinstance(req.get("id"), str)}
+    errors: list[str] = []
     for requirement_id in sorted(set(planned_by_id) - set(current_by_id)):
         errors.append(f"product transition removed planned requirement {requirement_id!r}")
     for requirement_id in sorted(set(current_by_id) - set(planned_by_id)):
@@ -91,7 +91,7 @@ def _snapshot_manifest(root: Path, entry: dict[str, Any]) -> tuple[dict[str, Any
             errors.append(f"checkpoint {entry.get('id')!r}: snapshot file {index} must be an object")
             continue
         path, snap, sha = item.get("path"), item.get("snapshotPath"), item.get("sha256")
-        if not isinstance(path, str) or not path or path.startswith("/") or ".." in Path(path).parts:
+        if not isinstance(path, str) or not path or path.startswith("/") or "\\" in path or ".." in Path(path).parts:
             errors.append(f"checkpoint {entry.get('id')!r}: invalid source path at snapshot file {index}")
             continue
         if path in seen:
@@ -129,18 +129,21 @@ def _snapshot_file(root: Path, entry: dict[str, Any], manifest: dict[str, Any], 
     return None
 
 
-def _current_matches_snapshot(root: Path, entry: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
+def _current_contracts_match_snapshot(root: Path, entry: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
+    """Reject post-checkpoint product/planning contract edits, not toolchain upgrades."""
     files = manifest.get("files", [])
     if not isinstance(files, list):
         return ["snapshot files are malformed"]
+    errors: list[str] = []
     for item in files:
         if not isinstance(item, dict) or not isinstance(item.get("path"), str):
             continue
         path = item["path"]
+        if not path.startswith("contracts/") or path == "contracts/manifest.json":
+            continue
         current = root / path
         if not current.is_file():
-            errors.append(f"current state removed snapshotted file {path} after checkpoint {entry.get('id')!r}")
+            errors.append(f"current state removed snapshotted contract {path} after checkpoint {entry.get('id')!r}")
         elif _sha256(current) != item.get("sha256"):
             errors.append(f"current state changed {path} after checkpoint {entry.get('id')!r}; create a new validated planning checkpoint before product changes")
     return errors
@@ -160,6 +163,7 @@ def validate(root: Path) -> list[str]:
     mode = evidence.get("mode") if isinstance(evidence, dict) else None
     if not checkpoints:
         return ["product state requires a validated planning checkpoint; current-state validation alone is insufficient"] if mode == "product" else []
+
     errors: list[str] = []
     ids: set[str] = set()
     manifests: dict[str, dict[str, Any]] = {}
@@ -191,6 +195,7 @@ def validate(root: Path) -> list[str]:
         if snapshot_manifest is not None and isinstance(checkpoint_id, str):
             manifests[checkpoint_id] = snapshot_manifest
         previous = entry
+
     for entry in checkpoints:
         if not isinstance(entry, dict) or entry.get("id") not in manifests:
             continue
@@ -203,7 +208,7 @@ def validate(root: Path) -> list[str]:
         try:
             historical_manifest = json.loads(manifest_snapshot.read_text(encoding="utf-8"))
             historical_contracts = contract_entries(historical_manifest)
-        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
             errors.append(f"checkpoint {entry['id']!r}: cannot read historical contract manifest: {exc}")
             continue
         required_paths = {"contracts/manifest.json"}
@@ -216,13 +221,14 @@ def validate(root: Path) -> list[str]:
                 required_paths.add(contract["schema"])
         for path in sorted(required_paths - snap_paths):
             errors.append(f"checkpoint {entry['id']!r}: snapshot omits registered authority file {path}")
+
     latest = checkpoints[-1]
     if not isinstance(latest, dict) or latest.get("id") not in manifests:
         return errors
     latest_manifest = manifests[latest["id"]]
     if latest.get("phase") == "planning":
         if mode == "planning":
-            errors.extend(_current_matches_snapshot(root, latest, latest_manifest))
+            errors.extend(_current_contracts_match_snapshot(root, latest, latest_manifest))
         elif mode == "product":
             planning_evidence_path = _snapshot_file(root, latest, latest_manifest, "contracts/implementation-evidence.json")
             if planning_evidence_path is None:
@@ -241,7 +247,7 @@ def validate(root: Path) -> list[str]:
             errors.append(f"latest planning checkpoint requires planning or product implementation-evidence, got {mode!r}")
     elif latest.get("phase") == "product":
         if mode == "product":
-            errors.extend(_current_matches_snapshot(root, latest, latest_manifest))
+            errors.extend(_current_contracts_match_snapshot(root, latest, latest_manifest))
         elif mode != "planning":
             errors.append(f"completed product checkpoint permits only product state or a new planning state, got {mode!r}")
     return errors
