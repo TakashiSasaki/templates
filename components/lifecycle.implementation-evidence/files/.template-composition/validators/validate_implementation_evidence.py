@@ -170,6 +170,54 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 )
     return errors
 
+
+def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
+    """Return blockers that prevent approved release evidence.
+
+    Structural validation may preserve deferred proof records so that a consumer
+    can distinguish an incomplete environment from malformed JSON. Release
+    production is stricter: every product record and every proof must be verified.
+    """
+
+    errors = requirement_traceability_errors(evidence)
+    records = evidence.get("records", [])
+    if not isinstance(records, list):
+        return errors + ["implementation-evidence records must be an array"]
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_id = record.get("id")
+        boundary = record.get("implementationBoundary")
+        if not isinstance(boundary, dict) or boundary.get("status") != "verified":
+            errors.append(
+                f"release readiness blocked: record {record_id} implementation boundary "
+                f"is {boundary.get('status') if isinstance(boundary, dict) else 'missing'}"
+            )
+        for field in ("positiveEvidence", "negativeEvidence"):
+            proofs = record.get(field, [])
+            if not isinstance(proofs, list):
+                errors.append(
+                    f"release readiness blocked: record {record_id} {field} is not an array"
+                )
+                continue
+            for proof in proofs:
+                if not isinstance(proof, dict):
+                    continue
+                status = proof.get("status")
+                if status != "verified":
+                    suffix = (
+                        " (environment unavailable; provide the proof or explicitly "
+                        "resolve the release blocker)"
+                        if status == "deferred"
+                        else ""
+                    )
+                    errors.append(
+                        f"release readiness blocked: record {record_id} {field} proof "
+                        f"{proof.get('id')} is {status!r}, not verified{suffix}"
+                    )
+    return errors
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -276,9 +324,19 @@ def validate(root: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", nargs="?", default=".")
+    parser.add_argument(
+        "--release-readiness",
+        action="store_true",
+        help="apply the stricter gate that rejects required or deferred proofs",
+    )
     args = parser.parse_args()
     root = Path(args.root).resolve()
-    errors = validate(root)
+    evidence = load_json(root / "contracts/implementation-evidence.json")
+    errors = (
+        release_readiness_errors(evidence)
+        if args.release_readiness
+        else validate(root)
+    )
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
