@@ -316,6 +316,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                         "argv": [sys.executable, "product/prove_auth_fixture.py"],
                         "workingDirectory": ".",
                         "harnessLocator": "product/prove_auth_fixture.py",
+                        "harnessArgumentIndex": 1,
                     }
                 ],
             },
