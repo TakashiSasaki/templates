@@ -129,7 +129,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
 
             webapp = self.run_python(target, "scripts/validate_webapp_evidence.py")
             self.assertEqual(webapp.returncode, 0, webapp.stdout + webapp.stderr)
-            self.assertIn("planning mode", webapp.stdout)
+            self.assertIn("Webapp planning targets and browser proof strength: OK", webapp.stdout)
 
             scaffold = self.run_python(target, "scripts/scaffold_webapp_evidence.py")
             self.assertEqual(scaffold.returncode, 0, scaffold.stdout + scaffold.stderr)

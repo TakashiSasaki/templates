@@ -105,7 +105,7 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             for entry in lock["resolved_components"]
             if entry["id"] == "artifact.webapp-core"
         )
-        self.assertEqual(artifact["version"], 11)
+        self.assertEqual(artifact["version"], 12)
         artifact["version"] = 3
         artifact["descriptor_sha256"] = "3" * 64
         lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
@@ -154,7 +154,7 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             self.assertEqual(plan["components"]["removed"], [])
             changed = {entry["id"]: entry for entry in plan["components"]["changed"]}
             self.assertEqual(changed["artifact.webapp-core"]["from_version"], 3)
-            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 11)
+            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 12)
             self.assertEqual(
                 changed["artifact.webapp-core"]["compatibility_boundary"],
                 "component-version",
