@@ -80,6 +80,15 @@
       "purpose": "Validate selected MCP transport/operation coverage and require executable protocol-level implementation-evidence proof strength."
     },
     {
+      "id": "mcp-apps",
+      "component": "capability.mcp-apps",
+      "entrypoint": ".template-composition/validators/validate_mcp_apps.py",
+      "arguments": [
+        "."
+      ],
+      "purpose": "Validate MCP Apps extension, View resource, and core MCP tool-association coverage with protocol/browser/end-to-end proof strength."
+    },
+    {
       "id": "web-interface",
       "component": "capability.web-interface",
       "entrypoint": ".template-composition/validators/validate_web_interface.py",

@@ -22,7 +22,7 @@ optional application capability は、外部から見える product の挙動に
 | 維持対象となる implementation runtime、dependency/distribution 規則、command、environment、deployment lifecycle | `capability.runtime` | — | runtime の選択・保守契約 |
 | packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence（および contract evolution） | executable-proof enforcement を伴う machine-readable caller-visible CLI contract |
 | MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` + implementation evidence（および contract evolution） | executable protocol-proof enforcement を伴う machine-readable MCP transport / operation contract と、定性的な client / security / semantic-equivalence guidance |
-| MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` | MCP Apps resource、bridge、visibility、sandbox、fallback contract |
+| MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` + implementation evidence（および contract evolution） | protocol / browser / end-to-end proof enforcement を伴う machine-readable Apps extension / View / tool-association contract と、定性的な bridge / visibility / sandbox / fallback guidance |
 | 独立して到達可能な non-browser service | `capability.service` | `capability.runtime` + implementation evidence（および contract evolution） | machine-readable service operation contract と executable-proof enforcement |
 | application runtime によって提供される standalone browser-facing interface | `capability.web-interface` | `capability.runtime` + implementation evidence（および contract evolution） | browser/executable proof-strength enforcement を伴う machine-readable external endpoint contract と、定性的な security / failure-isolation guidance |
 

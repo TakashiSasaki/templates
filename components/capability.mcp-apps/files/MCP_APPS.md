@@ -1,21 +1,52 @@
-# MCP Apps extension contract
+# MCP Apps extension guidance
 
-This contract is materialized by `capability.mcp-apps`, which requires `capability.mcp`. MCP Apps is an optional MCP extension and is not the standalone browser interface governed by `WEB_INTERFACE.md`.
+This guidance is materialized by `capability.mcp-apps`, which requires `capability.mcp`. MCP Apps is an optional Host-embedded UI extension and is not the standalone browser interface governed by `WEB_INTERFACE.md`.
 
-`contracts/mcp-interface.json` owns the selected core MCP revision and core transport/operation inventory. `RUNTIME.md` owns runtime/SDK and implementation/deployment choices. `MCP_INTERFACE.md` owns qualitative core MCP behavior. This file owns the Apps extension revision and Apps-specific caller-, Host-, and View-visible behavior.
+## Authority boundary
 
-## Status and authority
+`contracts/mcp-apps.json` is the machine-readable authority for:
+
+- whether MCP Apps is still a template or is a product claim;
+- the selected Apps extension identifier/revision;
+- the stable `ui://` View resource inventory;
+- core MCP tool-operation to View associations.
+
+`contracts/mcp-interface.json` owns the core MCP revision, transport inventory, and operation inventory. `RUNTIME.md` owns runtime/SDK and deployment choices. This Markdown file retains qualitative Host capability, fallback, visibility, bridge, sandbox, permission, and failure-handling guidance that schema v1 does not encode.
+
+Do **not** use a Markdown selection marker, prose, static HTML inspection, or a unit-only test as a substitute for the machine contract and implementation evidence.
+
+## Productization sequence
+
+1. Keep `contracts/mcp-apps.json` in `template` mode while no product Apps claim exists.
+2. Define the core MCP tool operations first in `contracts/mcp-interface.json`.
+3. Switch the Apps contract to `product` mode and declare the extension singleton, every stable View resource, and every tool-to-View association.
+4. Add one implementation-evidence record for each `mcp_apps` extension, View, and association target.
+5. Link every record from at least one product requirement with the required proof strength.
+6. Treat unavailable executable/browser proof as deferred; do not convert it into a release-ready claim.
+
+The current schema-v1 product extension is `io.modelcontextprotocol/ui` revision `2026-01-26`.
+
+## Machine evidence targets
+
+For product mode, evidence targets are:
 
 ```text
-Selection status: UNSELECTED
-Extension identifier: io.modelcontextprotocol/ui
-Extension specification revision: 2026-01-26
-Core MCP revision: see contracts/mcp-interface.json
+contract-item / mcp_apps / extension / mcp-apps
+contract-item / mcp_apps / view / <view-id>
+contract-item / mcp_apps / association / <association-id>
 ```
 
-Change the status to `SELECTED` only when every retained Apps behavior is concrete and evidence covers the claimed extension behavior.
+Proof strength is target-specific:
+
+- extension advertisement/fallback: `integration-test` or `end-to-end-test`;
+- View rendering/failure behavior: `accessibility-test` or `end-to-end-test`;
+- tool-to-View association: `end-to-end-test`.
+
+Both positive and negative proof are required. The association validator also checks that `operationId` names a declared **tool** operation from `contracts/mcp-interface.json`, that `viewId` names a declared View, that a tool has at most one Apps association, and that every declared View is reachable from at least one association.
 
 ## Host capability and fallback
+
+Document:
 
 ```text
 Host capability requirement: TODO
@@ -24,113 +55,37 @@ Behavior when the Host advertises an unsupported Apps revision: TODO
 Core-tool fallback: TODO
 ```
 
-MCP Apps is progressive enhancement unless the operation explicitly requires an App-capable Host.
-
-## UI resource inventory
-
-Every selected App View is an MCP resource with a stable `ui://` URI.
-
-| App/View | Resource URI | MIME type | Source/generator | Associated tools |
-|---|---|---|---|---|
-| TODO | `ui://TODO` | `text/html;profile=mcp-app` | TODO | TODO |
-
-Resource URIs are public protocol identifiers, not filesystem paths. Build/distribution layout remains a runtime concern.
-
-## Tool-to-UI linkage
-
-```text
-Tool metadata key: _meta.ui.resourceUri
-Association policy: TODO
-Unknown/missing UI resource behavior: TODO
-```
-
-Every advertised association must resolve to a declared App resource.
+MCP Apps should be progressive enhancement unless the operation explicitly requires an App-capable Host. A broken View must not falsify or erase the underlying MCP result.
 
 ## Visibility and invocation
 
-```text
-Default model/app visibility policy: TODO
-App-only tool policy: TODO or NOT SUPPORTED
-Model-only tool policy: TODO or NOT SUPPORTED
-Cross-server invocation policy: TODO
-User confirmation policy for mutating App actions: TODO
-```
-
-Visibility is not authorization. Host authorization, user consent, and cross-server isolation still apply.
+Document model/app visibility, App-only or model-only tool policy, cross-server invocation, and user confirmation for mutating actions. Visibility is not authorization. Host authorization, user consent, and cross-server isolation remain separate controls.
 
 ## Results and presentation
 
-```text
-Core content fallback: TODO
-structuredContent policy: TODO
-Sensitive-field redaction policy: TODO
-Large-data policy: TODO
-```
-
-Keep presentation resources separate from dynamic results. A View must not become the only copy of a meaningful result unless the operation explicitly requires an App-capable Host.
+Prefer core `content` for meaningful non-App fallback, `structuredContent` for structured dynamic data, and the App resource for presentation/interaction. Do not make a View the only copy of an important result unless the operation explicitly requires Apps.
 
 ## View/Host bridge lifecycle
 
-```text
-View initialization behavior: TODO
-Host bridge transport: JSON-RPC over postMessage
-App-to-Host tool-call policy: TODO
-Host-to-View result/update policy: TODO
-View teardown behavior: TODO
-```
-
-The Apps `ui/initialize` bridge lifecycle is distinct from core MCP protocol initialization semantics. Keep View↔Host messages separate from Host↔MCP-server traffic.
+The Apps `ui/initialize` View↔Host lifecycle is distinct from core MCP protocol initialization. The View uses the Host-controlled bridge (JSON-RPC over `postMessage`) rather than arbitrary direct MCP access. Document initialization, allowed App-to-Host calls, Host-to-View updates, teardown, cancellation, and denial behavior.
 
 ## Sandbox and browser security
 
-```text
-Sandbox policy: TODO
-CSP resource/connect domain policy: TODO
-Requested browser permissions: TODO or NONE
-Dedicated-origin policy: TODO
-Navigation/open-link policy: TODO
-Clipboard/download policy: TODO
-Credential exposure policy: TODO
-```
+Treat App HTML/JavaScript as untrusted relative to the Host. Document and minimize:
 
-Treat App HTML/JavaScript as untrusted relative to the Host. Declare only required origins and permissions. Avoid wildcard origins and hidden credential forwarding.
+- CSP resource/connect origins;
+- browser permissions;
+- dedicated-origin requirements;
+- navigation/open-link policy;
+- clipboard/download authority;
+- credential exposure.
+
+Avoid wildcard origins or hidden credential forwarding. Permission and sandbox behavior remain qualitative authority here until a later schema version deliberately structures them.
 
 ## Failure and degradation
 
-```text
-UI resource load failure: TODO
-Bridge initialization failure: TODO
-Tool-call failure presentation: TODO
-Host capability loss/denial: TODO
-Reload/retry policy: TODO
-```
-
-A broken View must not falsify the underlying MCP result. Distinguish UI rendering, bridge, MCP transport/protocol, and domain failures.
+Distinguish View resource load failure, bridge initialization failure, MCP protocol failure, tool/domain failure, Host capability denial, and teardown/retry behavior. Negative evidence for the machine targets must exercise the applicable failure path rather than merely assert that an error branch exists.
 
 ## Standalone Web boundary
 
-MCP Apps does not select `capability.web-interface`. A Host-embedded View and a standalone Web page have different trust, routing, lifecycle, and capability boundaries. Shared frontend code is acceptable only when environment-specific adapters and contracts remain distinct.
-
-## Required tests
-
-Test at least:
-
-- extension selection/advertisement;
-- every declared `ui://` resource and media type;
-- every tool-to-UI association;
-- claimed visibility rules;
-- core fallback when Apps is unavailable unless Apps is required;
-- View bridge lifecycle;
-- allowed/denied App-mediated calls;
-- CSP, sandbox, permissions, and denied undeclared origins;
-- View/bridge failure without corruption of core results;
-- credential/sensitive-field redaction;
-- teardown/cancellation.
-
-## Decision rationale
-
-Explain why the operation benefits from an MCP App, why the resource/visibility model is minimal, how non-App Hosts behave, and why every requested browser capability is necessary.
-
-```text
-Rationale: TODO
-```
+MCP Apps does not select `capability.web-interface`. A Host-embedded View and a standalone Web page have different trust, routing, lifecycle, authentication, CSP, and capability boundaries. Shared frontend code is acceptable only when environment-specific adapters and contracts remain distinct.
