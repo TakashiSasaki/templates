@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/composition/schemas/mcp-interface.schema.json",
+  "title": "MCP interface contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "mode",
+    "transports",
+    "operations"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/mcp-interface.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "template",
+        "product"
+      ]
+    },
+    "protocolRevision": {
+      "const": "2026-07-28"
+    },
+    "transports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "protocolProbe",
+          "success",
+          "negative"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "kind": {
+            "enum": [
+              "stdio",
+              "streamable-http"
+            ]
+          },
+          "protocolProbe": {
+            "type": "string",
+            "minLength": 1
+          },
+          "success": {
+            "type": "string",
+            "minLength": 1
+          },
+          "negative": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "transportId",
+          "success",
+          "negative"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "kind": {
+            "enum": [
+              "tool",
+              "resource",
+              "prompt",
+              "protocol-operation"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "transportId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "success": {
+            "type": "string",
+            "minLength": 1
+          },
+          "negative": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "template"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "transports": {
+            "maxItems": 0
+          },
+          "operations": {
+            "maxItems": 0
+          }
+        },
+        "not": {
+          "required": [
+            "protocolRevision"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "product"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "protocolRevision"
+        ],
+        "properties": {
+          "transports": {
+            "minItems": 1
+          },
+          "operations": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}
