@@ -175,6 +175,7 @@ def produce_locked(
         run_validator(
             root,
             ".template-composition/validators/validate_implementation_evidence.py",
+            "--release-readiness",
         )
         run_validator(
             root,
