@@ -1,0 +1,83 @@
+name: Temporary Webapp cross-capability evidence boundary
+
+on:
+  push:
+    branches:
+      - agent/webapp-cross-capability-evidence-boundary-pr13
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/webapp-cross-capability-evidence-boundary-pr13
+          fetch-depth: 0
+      - name: Apply focused boundary patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, expected: int = 1) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} occurrences, found {count}: {old!r}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace(
+              'components/artifact.webapp-core/component.json',
+              '"version": 9,',
+              '"version": 10,',
+          )
+
+          validator = 'components/artifact.webapp-core/files/scripts/validate_webapp_evidence.py'
+          replace(
+              validator,
+              '    from .webapp_evidence_targets import (\n        BROWSER_LEVEL_PROOF_KINDS,',
+              '    from .webapp_evidence_targets import (\n        BROWSER_LEVEL_PROOF_KINDS,\n        DOMAIN_IDS,',
+          )
+          replace(
+              validator,
+              '    from webapp_evidence_targets import (\n        BROWSER_LEVEL_PROOF_KINDS,',
+              '    from webapp_evidence_targets import (\n        BROWSER_LEVEL_PROOF_KINDS,\n        DOMAIN_IDS,',
+          )
+          replace(
+              validator,
+              '    for extra in sorted(actual_set - allowed, key=str):\n        errors.append(f"unknown Webapp implementation-evidence target: {extra}")',
+              '    for extra in sorted(actual_set - allowed, key=str):\n        if len(extra) >= 2 and extra[1] in DOMAIN_IDS:\n            errors.append(f"unknown Webapp implementation-evidence target: {extra}")',
+          )
+
+          replace('tests/test_routes_v3_access_failures.py', 'self.assertEqual(component["version"], 9)', 'self.assertEqual(component["version"], 10)')
+          replace('tests/test_webapp_neutral_seed.py', 'self.assertEqual(descriptor["version"], 9)', 'self.assertEqual(descriptor["version"], 10)')
+          replace('tests/test_webapp_v4_upgrade.py', 'self.assertEqual(artifact["version"], 9)', 'self.assertEqual(artifact["version"], 10)')
+          replace('tests/test_webapp_v4_upgrade.py', 'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 9)', 'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 10)')
+          replace('tests/test_webapp_v5_surface_upgrade.py', 'self.assertEqual(artifact["version"], 9)', 'self.assertEqual(artifact["version"], 10)', expected=2)
+          replace('tests/test_webapp_v5_surface_upgrade.py', 'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 9)', 'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 10)')
+
+          test_path = Path('tests/test_webapp_cross_capability_evidence.py')
+          test_path.write_text('''from __future__ import annotations\n\nimport json\nimport subprocess\nimport sys\nimport tempfile\nimport unittest\nfrom copy import deepcopy\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nVALIDATOR = (\n    ROOT\n    / "components"\n    / "artifact.webapp-core"\n    / "files"\n    / "scripts"\n    / "validate_webapp_evidence.py"\n)\n\n\nclass WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):\n    def write_json(self, path: Path, value: object) -> None:\n        path.parent.mkdir(parents=True, exist_ok=True)\n        path.write_text(json.dumps(value, indent=2) + "\\n", encoding="utf-8")\n\n    def record(\n        self,\n        record_id: str,\n        target: dict[str, object],\n        *,\n        proof_kind: str,\n    ) -> dict[str, object]:\n        return {\n            "id": record_id,\n            "target": target,\n            "implementationBoundary": {"status": "verified"},\n            "positiveEvidence": [{"status": "verified", "kind": proof_kind}],\n            "negativeEvidence": [{"status": "verified", "kind": proof_kind}],\n            "releaseGateIds": ["release"],\n        }\n\n    def fixture(self, root: Path) -> dict[str, object]:\n        self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})\n        self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})\n        self.write_json(root / "contracts/ui-states.json", {"states": []})\n        self.write_json(\n            root / "contracts/viewports.json",\n            {"viewports": [], "inputCapabilities": []},\n        )\n        self.write_json(\n            root / "contracts/manifest.json",\n            {\n                "contracts": [\n                    {"id": "routes", "versionHistory": [{"version": 1}]},\n                    {"id": "surfaces", "versionHistory": [{"version": 1}]},\n                    {"id": "ui_states", "versionHistory": [{"version": 1}]},\n                    {"id": "viewports", "versionHistory": [{"version": 1}]},\n                    {"id": "cli_interface", "versionHistory": [{"version": 1}]},\n                ]\n            },\n        )\n\n        evidence = {\n            "mode": "product",\n            "requirements": [\n                {\n                    "id": "REQ-SURFACE",\n                    "description": "Main surface exists.",\n                    "recordIds": ["surfaces-surface-main"],\n                    "requiredPositiveProofKinds": ["integration-test"],\n                },\n                {\n                    "id": "REQ-ROUTE",\n                    "description": "Home route works in a browser.",\n                    "recordIds": ["routes-route-home"],\n                    "requiredPositiveProofKinds": ["end-to-end-test"],\n                },\n                {\n                    "id": "REQ-CLI",\n                    "description": "CLI entrypoint executes.",\n                    "recordIds": ["cli-interface-entrypoint-main"],\n                    "requiredPositiveProofKinds": ["integration-test"],\n                },\n            ],\n            "records": [\n                self.record(\n                    "surfaces-surface-main",\n                    {\n                        "kind": "contract-item",\n                        "contractId": "surfaces",\n                        "itemKind": "surface",\n                        "itemId": "main",\n                    },\n                    proof_kind="integration-test",\n                ),\n                self.record(\n                    "routes-route-home",\n                    {\n                        "kind": "contract-item",\n                        "contractId": "routes",\n                        "itemKind": "route",\n                        "itemId": "home",\n                    },\n                    proof_kind="end-to-end-test",\n                ),\n                self.record(\n                    "cli-interface-entrypoint-main",\n                    {\n                        "kind": "contract-item",\n                        "contractId": "cli_interface",\n                        "itemKind": "entrypoint",\n                        "itemId": "main",\n                    },\n                    proof_kind="integration-test",\n                ),\n            ],\n        }\n        self.write_json(root / "contracts/implementation-evidence.json", evidence)\n        return evidence\n\n    def run_validator(self, root: Path) -> subprocess.CompletedProcess[str]:\n        return subprocess.run(\n            [sys.executable, str(VALIDATOR), str(root)],\n            cwd=ROOT,\n            text=True,\n            capture_output=True,\n            check=False,\n        )\n\n    def test_registered_non_webapp_target_is_left_to_its_owning_validator(self) -> None:\n        with tempfile.TemporaryDirectory() as temp_dir:\n            root = Path(temp_dir)\n            self.fixture(root)\n            result = self.run_validator(root)\n            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)\n            self.assertIn("Webapp evidence coverage and proof strength: OK", result.stdout)\n\n    def test_unknown_webapp_owned_target_still_fails_closed(self) -> None:\n        with tempfile.TemporaryDirectory() as temp_dir:\n            root = Path(temp_dir)\n            evidence = self.fixture(root)\n            mutated = deepcopy(evidence)\n            mutated["records"].append(\n                self.record(\n                    "routes-route-missing",\n                    {\n                        "kind": "contract-item",\n                        "contractId": "routes",\n                        "itemKind": "route",\n                        "itemId": "missing",\n                    },\n                    proof_kind="end-to-end-test",\n                )\n            )\n            self.write_json(root / "contracts/implementation-evidence.json", mutated)\n            result = self.run_validator(root)\n            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)\n            self.assertIn("unknown Webapp implementation-evidence target", result.stderr)\n            self.assertIn("missing", result.stderr)\n\n\nif __name__ == "__main__":\n    unittest.main()\n''', encoding='utf-8')
+
+          docs = Path('components/artifact.webapp-core/files/docs/architecture/responsibility-boundaries.md')
+          text = docs.read_text(encoding='utf-8')
+          addition = '''\n## Implementation-evidence target ownership\n\nThe Webapp artifact validator is authoritative only for Webapp-owned target families (`routes`, `surfaces`, `ui_states`, and `viewports`). It requires complete coverage and rejects unknown targets inside those families. Evidence records for contracts owned by separately selected capabilities remain visible in the shared implementation-evidence graph but are validated by the generic lifecycle validator and the owning capability validator; Webapp validation must not reject them merely because they are outside the Webapp target inventory.\n'''
+          if '## Implementation-evidence target ownership' in text:
+              raise SystemExit('responsibility boundary section already exists')
+          docs.write_text(text.rstrip() + '\n' + addition, encoding='utf-8')
+          PY
+      - name: Commit focused patch and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-webapp-cross-capability-evidence.yml
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Scope Webapp evidence validation to Webapp targets"
+          git push origin HEAD:agent/webapp-cross-capability-evidence-boundary-pr13
