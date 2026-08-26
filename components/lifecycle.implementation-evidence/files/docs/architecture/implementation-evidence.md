@@ -34,3 +34,10 @@ A product may declare explicit requirements in the same canonical document:
 Requirement IDs are stable machine-facing identifiers; their descriptions are intentionally opaque to Composition. Each requirement must reference at least one implementation-evidence record. The existing record rules then require a verified implementation boundary, verified positive and negative proofs, authoritative commands, and a selected release gate. Release production consequently fails closed when a registered requirement has no closed requirement → record → proof → command → gate path.
 
 The requirement ledger is an optional extension for existing product documents so that artifact contracts and their evidence remain independently reusable. Omitting it does not make unregistered natural-language requirements machine-visible; consumers must register every explicit product requirement they want the completion gate to enforce. Template mode must remain empty.
+
+
+## Proof kind and deferred state
+
+The existing `evidenceProof.kind` is the execution-strength classification; it is not a claim that every proof is browser-backed. Use `inspection` for static source/HTML/JSON inspection, `unit-test`, `integration-test`, or `migration-test` for executable process-level checks, and `end-to-end-test` or `accessibility-test` for browser interaction and keyboard/focus behavior. Artifact validators decide which kinds are sufficient for a target.
+
+A product proof may be `deferred) when the required environment is unavailable. Deferred evidence is retained as an explicit incomplete state and may allow structural validation to describe the composition as valid, but release readiness rejects every non-`verified` proof. Static inspection must therefore never be silently promoted to browser interaction evidence.
