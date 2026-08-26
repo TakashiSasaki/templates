@@ -6,6 +6,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import call, patch
 
 from scripts.prepare_chromedriver import (
     ARCHIVE_MEMBER,
@@ -13,6 +14,7 @@ from scripts.prepare_chromedriver import (
     driver_archive_url,
     latest_release_url,
     parse_four_part_version,
+    resolve_driver_archive,
     resolve_driver_version,
     version_build,
     write_driver_from_zip,
@@ -24,7 +26,7 @@ WORKFLOW = ROOT / ".github/workflows/schema-validation.yml"
 
 
 class PrepareChromeDriverTests(unittest.TestCase):
-    def test_version_helpers_follow_chrome_build_selection_boundary(self) -> None:
+    def test_version_helpers_preserve_exact_patch_and_build_fallback(self) -> None:
         chrome = parse_four_part_version("Google Chrome 151.0.7922.173")
         self.assertEqual(chrome, "151.0.7922.173")
         self.assertEqual(version_build(chrome), "151.0.7922")
@@ -34,15 +36,53 @@ class PrepareChromeDriverTests(unittest.TestCase):
             "LATEST_RELEASE_151.0.7922",
         )
         self.assertEqual(
-            driver_archive_url("151.0.7922.174"),
+            driver_archive_url(chrome),
             "https://storage.googleapis.com/chrome-for-testing-public/"
-            "151.0.7922.174/linux64/chromedriver-linux64.zip",
+            "151.0.7922.173/linux64/chromedriver-linux64.zip",
         )
+
+    def test_exact_driver_patch_is_preferred_when_asset_exists(self) -> None:
+        chrome = "151.0.7922.173"
+        with patch(
+            "scripts.prepare_chromedriver.download_bytes",
+            return_value=b"exact-driver",
+        ) as download, patch(
+            "scripts.prepare_chromedriver.download_text"
+        ) as release:
+            version, archive = resolve_driver_archive(chrome)
+
+        self.assertEqual(version, chrome)
+        self.assertEqual(archive, b"exact-driver")
+        download.assert_called_once_with(driver_archive_url(chrome), missing_ok=True)
+        release.assert_not_called()
+
+    def test_missing_exact_patch_falls_back_to_latest_same_build_driver(self) -> None:
+        chrome = "151.0.7922.137"
+        fallback = "151.0.7922.138"
+        with patch(
+            "scripts.prepare_chromedriver.download_bytes",
+            side_effect=[None, b"fallback-driver"],
+        ) as download, patch(
+            "scripts.prepare_chromedriver.download_text",
+            return_value=f"{fallback}\n",
+        ) as release:
+            version, archive = resolve_driver_archive(chrome)
+
+        self.assertEqual(version, fallback)
+        self.assertEqual(archive, b"fallback-driver")
+        self.assertEqual(
+            download.call_args_list,
+            [
+                call(driver_archive_url(chrome), missing_ok=True),
+                call(driver_archive_url(fallback)),
+            ],
+        )
+        release.assert_called_once_with(latest_release_url(chrome))
 
     def test_driver_resolution_accepts_latest_patch_for_same_build(self) -> None:
         self.assertEqual(
-            resolve_driver_version("151.0.7922.173", "151.0.7922.174\n"),
-            "151.0.7922.174",
+            resolve_driver_version("151.0.7922.137", "151.0.7922.138\n"),
+            "151.0.7922.138",
         )
 
     def test_driver_resolution_fails_closed_on_mismatched_or_invalid_version(self) -> None:
