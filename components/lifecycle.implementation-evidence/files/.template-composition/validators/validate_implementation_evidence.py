@@ -407,7 +407,9 @@ def requirement_traceability_errors(
     return errors
 
 
-def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
+def release_readiness_errors(
+    evidence: dict[str, Any], root: Path | None = None
+) -> list[str]:
     """Return blockers that prevent approved release evidence."""
 
     mode = evidence.get("mode")
@@ -418,7 +420,7 @@ def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
         ]
 
     errors = requirement_traceability_errors(evidence)
-    errors.extend(proof_execution_errors(evidence))
+    errors.extend(proof_execution_errors(evidence, root))
     records = evidence.get("records", [])
     if not isinstance(records, list):
         return errors + ["implementation-evidence records must be an array"]
@@ -578,7 +580,7 @@ def main() -> int:
     root = Path(args.root).resolve()
     evidence = load_json(root / "contracts/implementation-evidence.json")
     errors = (
-        release_readiness_errors(evidence)
+        release_readiness_errors(evidence, root)
         if args.release_readiness
         else validate(root)
     )
