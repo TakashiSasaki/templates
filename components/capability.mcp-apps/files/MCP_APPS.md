@@ -7,7 +7,7 @@ This guidance is materialized by `capability.mcp-apps`, which requires `capabili
 `contracts/mcp-apps.json` is the machine-readable authority for:
 
 - whether MCP Apps is in `template`, `planning`, or `product` state;
-- the stable Apps extension identity;
+- the stable Apps extension identity and selected extension revision;
 - the stable `ui://` View item inventory;
 - core MCP tool-operation to View association identity and relationships.
 
@@ -19,9 +19,9 @@ Do **not** use a Markdown selection marker, prose, static HTML inspection, or a 
 
 1. Keep `contracts/mcp-apps.json` in `template` mode while no caller-visible Apps capability is intended.
 2. Before coding, place the core MCP contract in `planning` and declare the stable planned tool operation IDs needed by the App.
-3. Switch the Apps contract to `planning`. Declare the canonical `mcp-apps` extension item, every planned View by stable `id` and `purpose`, and every planned association by stable `id`, `operationId`, `viewId`, and `purpose`.
+3. Switch the Apps contract to `planning`. Declare the canonical `mcp-apps` extension identity (`io.modelcontextprotocol/ui`, revision `2026-01-26` for schema v2), every planned View by stable `id` and `purpose`, and every planned association by stable `id`, `operationId`, `viewId`, and `purpose`.
 4. Bind every planned extension/View/association item exactly to implementation-evidence planning targets. The validator rejects phantom item IDs, associations to undeclared or non-tool planned MCP operations, undeclared Views, duplicate tool associations, and planned Views with no association. Composition validation must pass before product coding starts.
-5. Promote the same stable IDs and relationships to `product`; add the concrete extension revision, View `resourceUri`/media type, and success/negative behavior without silently renaming the planned items.
+5. Promote the same extension identity/revision, stable IDs, and relationships to `product`; add View `resourceUri`/media type and executable success/negative behavior without silently renaming or rebinding the planned items.
 6. Add one implementation-evidence record for each product `mcp_apps` extension, View, and association target and link every record from at least one product requirement with the required proof strength.
 7. Treat unavailable executable/browser proof as deferred; do not convert it into a release-ready claim.
 
