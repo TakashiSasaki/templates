@@ -77,3 +77,5 @@ The main deeper references are:
 - [Composition schema guide](schemas/README.md)
 
 Historical migration provenance is intentionally separated from the current operational and architecture documentation. The reader-facing summary is [Composition authority migration history](docs/migrations/composition-authority-migration.md); stage-specific implementation notes remain Composition authority maintenance records rather than portal pages.
+
+<!-- temporary docs-only real-browser classifier probe; do not merge -->
