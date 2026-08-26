@@ -35,6 +35,8 @@ class CompositionCIClassifierTests(unittest.TestCase):
                 self.assertTrue(is_documentation_only_path(path))
 
         for path in (
+            "AGENTS.md",
+            ".agents/skills/pr-merge-gate/SKILL.md",
             "scripts/compose.py",
             "scripts/classify_composition_ci.py",
             ".github/workflows/schema-validation.yml",
