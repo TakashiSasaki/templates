@@ -933,7 +933,7 @@ Each record still needs its exact worklist target, verified implementation-bound
 For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
 
 After every current target—including viewport and keyboard targets—has truthful proof of the required kind, run both verification layers.
-
+\nBefore claiming the implemented-product milestone, apply this short completion gate:\n\n- every generated target is `[verified]`; `[missing]` and `[deferred]` are blockers;\n- every caller-visible requirement has a stable ledger row, linked record IDs, and declared positive proof kinds;\n- product verification and Composition validation pass; release production additionally requires release-readiness validation with no deferred evidence.\n\nThe worklist is only a deterministic projection. Update the canonical consumer-owned evidence document and rerun the validators; do not edit the worklist to make a failing status appear complete.\n
 **Run**
 
 ```sh
