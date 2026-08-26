@@ -11,207 +11,51 @@
   "conflicts": [],
   "contract_registrations": [
     {
-      "id": "routes",
-      "document": "contracts/routes.json",
-      "schema": "schemas/routes.schema.json",
-      "migration_slug": "routes",
-      "document_schema_version": 3,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        },
-        {
-          "version": 2,
-          "change_type": "breaking",
-          "migration": "docs/migrations/routes-v1-to-v2.md"
-        },
-        {
-          "version": 3,
-          "change_type": "breaking",
-          "migration": "docs/migrations/routes-v2-to-v3.md"
-        }
-      ],
-      "purpose": "Declare canonical routes, aliases, explicit access-failure targets, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
+      "id":"routes","document":"contracts/routes.json","schema":"schemas/routes.schema.json","migration_slug":"routes","document_schema_version":3,
+      "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/routes-v1-to-v2.md"},{"version":3,"change_type":"breaking","migration":"docs/migrations/routes-v2-to-v3.md"}],
+      "purpose":"Declare canonical routes, aliases, explicit access-failure targets, authentication return behavior, deep-link expectations, route states, and accessibility requirements."
     },
     {
-      "id": "surfaces",
-      "document": "contracts/surfaces.json",
-      "schema": "schemas/surfaces.schema.json",
-      "migration_slug": "surfaces",
-      "document_schema_version": 2,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        },
-        {
-          "version": 2,
-          "change_type": "breaking",
-          "migration": "docs/migrations/surfaces-v1-to-v2.md"
-        }
-      ],
-      "purpose": "Classify browser-facing application surfaces, audiences, access conditions, data classifications, stability, and dependencies on other declared surfaces."
+      "id":"surfaces","document":"contracts/surfaces.json","schema":"schemas/surfaces.schema.json","migration_slug":"surfaces","document_schema_version":2,
+      "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/surfaces-v1-to-v2.md"}],
+      "purpose":"Classify browser-facing application surfaces, audiences, access conditions, data classifications, stability, and dependencies on other declared surfaces."
     },
     {
-      "id": "ui_states",
-      "document": "contracts/ui-states.json",
-      "schema": "schemas/ui-states.schema.json",
-      "migration_slug": "ui-states",
-      "document_schema_version": 2,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        },
-        {
-          "version": 2,
-          "change_type": "breaking",
-          "migration": "docs/migrations/ui-states-v1-to-v2.md"
-        }
-      ],
-      "purpose": "Define reusable user-visible states, ownership scope, recovery actions, announcements, and focus strategies."
+      "id":"ui_states","document":"contracts/ui-states.json","schema":"schemas/ui-states.schema.json","migration_slug":"ui-states","document_schema_version":2,
+      "version_history":[{"version":1,"change_type":"initial"},{"version":2,"change_type":"breaking","migration":"docs/migrations/ui-states-v1-to-v2.md"}],
+      "purpose":"Define reusable user-visible states, ownership scope, recovery actions, announcements, and focus strategies."
     },
     {
-      "id": "viewports",
-      "document": "contracts/viewports.json",
-      "schema": "schemas/viewports.schema.json",
-      "migration_slug": "viewports",
-      "document_schema_version": 1,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        }
-      ],
-      "purpose": "Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
+      "id":"viewports","document":"contracts/viewports.json","schema":"schemas/viewports.schema.json","migration_slug":"viewports","document_schema_version":1,
+      "version_history":[{"version":1,"change_type":"initial"}],
+      "purpose":"Declare responsive viewport lower bounds, input capabilities, zoom support, scrolling policy, and orientation independence."
     }
   ],
   "materials": [
-    {
-      "source": "files/.github/workflows/validate-webapp.yml",
-      "destination": ".github/workflows/validate-webapp.yml",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.gitignore",
-      "destination": ".gitignore",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/README.md",
-      "destination": "README.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/TEMPLATE.md",
-      "destination": "TEMPLATE.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/routes.json",
-      "destination": "contracts/routes.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/surfaces.json",
-      "destination": "contracts/surfaces.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/ui-states.json",
-      "destination": "contracts/ui-states.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/viewports.json",
-      "destination": "contracts/viewports.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/routes.schema.json",
-      "destination": "schemas/routes.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/surfaces.schema.json",
-      "destination": "schemas/surfaces.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/ui-states.schema.json",
-      "destination": "schemas/ui-states.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/schemas/viewports.schema.json",
-      "destination": "schemas/viewports.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/routes-v1-to-v2.md",
-      "destination": "docs/migrations/routes-v1-to-v2.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/routes-v2-to-v3.md",
-      "destination": "docs/migrations/routes-v2-to-v3.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/surfaces-v1-to-v2.md",
-      "destination": "docs/migrations/surfaces-v1-to-v2.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/migrations/ui-states-v1-to-v2.md",
-      "destination": "docs/migrations/ui-states-v1-to-v2.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/index.md",
-      "destination": "docs/index.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/architecture/webapp-contracts.md",
-      "destination": "docs/architecture/webapp-contracts.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/architecture/responsibility-boundaries.md",
-      "destination": "docs/architecture/responsibility-boundaries.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/architecture/validation-toolchain.md",
-      "destination": "docs/architecture/validation-toolchain.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/scripts/validate_contracts.py",
-      "destination": "scripts/validate_contracts.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/scripts/validate_contracts_impl.py",
-      "destination": "scripts/validate_contracts_impl.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/scripts/webapp_evidence_targets.py",
-      "destination": "scripts/webapp_evidence_targets.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/scripts/scaffold_webapp_evidence.py",
-      "destination": "scripts/scaffold_webapp_evidence.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/scripts/validate_webapp_evidence.py",
-      "destination": "scripts/validate_webapp_evidence.py",
-      "ownership": "managed"
-    }
+    {"source":"files/.github/workflows/validate-webapp.yml","destination":".github/workflows/validate-webapp.yml","ownership":"managed"},
+    {"source":"files/.gitignore","destination":".gitignore","ownership":"seed"},
+    {"source":"files/README.md","destination":"README.md","ownership":"seed"},
+    {"source":"files/TEMPLATE.md","destination":"TEMPLATE.md","ownership":"seed"},
+    {"source":"files/contracts/routes.json","destination":"contracts/routes.json","ownership":"seed"},
+    {"source":"files/contracts/surfaces.json","destination":"contracts/surfaces.json","ownership":"seed"},
+    {"source":"files/contracts/ui-states.json","destination":"contracts/ui-states.json","ownership":"seed"},
+    {"source":"files/contracts/viewports.json","destination":"contracts/viewports.json","ownership":"seed"},
+    {"source":"files/schemas/routes.schema.json","destination":"schemas/routes.schema.json","ownership":"managed"},
+    {"source":"files/schemas/surfaces.schema.json","destination":"schemas/surfaces.schema.json","ownership":"managed"},
+    {"source":"files/schemas/ui-states.schema.json","destination":"schemas/ui-states.schema.json","ownership":"managed"},
+    {"source":"files/schemas/viewports.schema.json","destination":"schemas/viewports.schema.json","ownership":"managed"},
+    {"source":"files/docs/migrations/routes-v1-to-v2.md","destination":"docs/migrations/routes-v1-to-v2.md","ownership":"managed"},
+    {"source":"files/docs/migrations/routes-v2-to-v3.md","destination":"docs/migrations/routes-v2-to-v3.md","ownership":"managed"},
+    {"source":"files/docs/migrations/surfaces-v1-to-v2.md","destination":"docs/migrations/surfaces-v1-to-v2.md","ownership":"managed"},
+    {"source":"files/docs/migrations/ui-states-v1-to-v2.md","destination":"docs/migrations/ui-states-v1-to-v2.md","ownership":"managed"},
+    {"source":"files/docs/index.md","destination":"docs/index.md","ownership":"managed"},
+    {"source":"files/docs/architecture/webapp-contracts.md","destination":"docs/architecture/webapp-contracts.md","ownership":"managed"},
+    {"source":"files/docs/architecture/responsibility-boundaries.md","destination":"docs/architecture/responsibility-boundaries.md","ownership":"managed"},
+    {"source":"files/docs/architecture/validation-toolchain.md","destination":"docs/architecture/validation-toolchain.md","ownership":"managed"},
+    {"source":"files/scripts/validate_contracts.py","destination":"scripts/validate_contracts.py","ownership":"managed"},
+    {"source":"files/scripts/validate_contracts_impl.py","destination":"scripts/validate_contracts_impl.py","ownership":"managed"},
+    {"source":"files/scripts/webapp_evidence_targets.py","destination":"scripts/webapp_evidence_targets.py","ownership":"managed"},
+    {"source":"files/scripts/scaffold_webapp_evidence.py","destination":"scripts/scaffold_webapp_evidence.py","ownership":"managed"},
+    {"source":"files/scripts/validate_webapp_evidence.py","destination":"scripts/validate_webapp_evidence.py","ownership":"managed"}
   ]
 }
