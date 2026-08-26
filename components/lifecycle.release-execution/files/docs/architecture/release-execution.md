@@ -8,11 +8,13 @@ The contract is artifact-neutral. In product mode, every authoritative implement
 - a repository-relative `workingDirectory`;
 - the exact repository proof-harness identity declared by the implementation command.
 
-Version 2 adds `harnessLocator`. It must exactly equal `commands[].execution.harness.locator` on the implementation-evidence command with the same ID. The locator is an identity binding, not a second executable specification: the release producer still executes only the fixed argv. This closes the gap where one file could be cited as the machine-readable proof harness while an unrelated fixed argv was the command actually run by release production.
+Version 2 adds `harnessLocator`. It must exactly equal `commands[].execution.harness.locator` on the implementation-evidence command with the same ID, and the fixed `argv` must contain that locator as one exact argument. This makes the harness identity part of the actual process selection rather than detached metadata. The release producer still executes only the fixed argv; `harnessLocator` is not a second command line and is never executed separately.
+
+The exact-argument rule is intentionally simple and language-neutral. A product may invoke a harness through Python, Node, a test runner, or another executable, but the repository path used as the authoritative harness must remain an explicit argv token. A binding such as `["python", "tests/proof.py"]` is valid; a binding that declares `tests/proof.py` as `harnessLocator` while executing `["python", "tests/other.py"]` fails closed. If a tool normally hides the selected file inside opaque configuration or shell text, the product must provide a repository-owned wrapper harness and place that wrapper path explicitly in argv.
 
 The contract deliberately does **not** define a shell command language, environment-variable injection, secret lookup, approval policy, or release result. A producer must execute the declared argv directly rather than parsing the human-readable `command` string as shell input.
 
-Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality. Schema validation additionally constrains argv values and rejects unsafe working-directory or harness-locator forms such as absolute paths, traversal segments, and `.git` paths.
+Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality and exact argv-token presence. Schema validation additionally constrains argv values and rejects unsafe working-directory or harness-locator forms such as absolute paths, traversal segments, and `.git` paths.
 
 ## Relationship to proof semantics
 
@@ -23,10 +25,10 @@ The resulting chain is:
 1. a requirement declares a required proof kind;
 2. a proof record references an authoritative command;
 3. the implementation command declares the required execution capability and repository harness;
-4. release execution repeats the exact harness identity while supplying fixed argv and working directory;
+4. release execution repeats the exact harness identity and includes that repository path as an exact fixed-argv token;
 5. release evidence executes that argv against one exact candidate revision and records the result.
 
-The declarations cannot prove that a harness implementation is semantically honest. They make contradictions and substitutions machine-detectable and leave actual execution provenance to the release-evidence layer.
+The declarations cannot prove that a harness implementation is semantically honest. They make contradictions and substitutions machine-detectable and leave actual execution provenance to the release-evidence layer. The exact candidate revision also binds the release-execution contract itself, so the observed execution result cannot be detached from the fixed argv without changing the candidate revision.
 
 ## Candidate verification
 
@@ -42,6 +44,6 @@ On POSIX systems the helper uses an exclusive `flock`; on Windows it uses `msvcr
 
 This lock serializes cooperating Composition release producers. It is not a claim that a hostile process with filesystem or repository-administration privileges cannot alter state; candidate verification and snapshot validation remain the integrity boundary for repository inputs.
 
-Execution results remain the responsibility of `lifecycle.release-evidence`. The release-evidence command digest continues to bind the authoritative command text from implementation evidence; the execution contract supplies the separate executable binding that the managed producer can run and observe.
+Execution results remain the responsibility of `lifecycle.release-evidence`. The release-evidence command digest continues to bind the authoritative command text from implementation evidence; the exact subject revision binds the release-execution document and therefore its fixed argv. The execution contract supplies the executable binding that the managed producer can run and observe.
 
 Planning implementation evidence has no authoritative proof commands yet, so `release-execution` remains in template mode while implementation evidence is in planning mode. Product implementation evidence requires product release-execution bindings when this lifecycle component is selected.
