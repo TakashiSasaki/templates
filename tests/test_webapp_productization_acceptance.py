@@ -22,7 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from browser_probe import run_browser_contract_probe
+from browser_probe import _open_webdriver_session, run_browser_contract_probe
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = (
@@ -74,8 +74,42 @@ for label, command in CHECKS:
 viewports = json.loads(
     (ROOT / "contracts/viewports.json").read_text(encoding="utf-8")
 )
-run_browser_contract_probe((ROOT / "product/client.html").resolve().as_uri(), viewports)
-print("Webapp product proof: contract lifecycle and real-browser checks passed")
+client_url = (ROOT / "product/client.html").resolve().as_uri()
+run_browser_contract_probe(client_url, viewports)
+routes = json.loads((ROOT / "contracts/routes.json").read_text(encoding="utf-8"))["routes"]
+assert len(routes) == 1
+focus_target = routes[0]["accessibility"]["focusTarget"]
+with _open_webdriver_session() as browser:
+    browser.navigate(client_url)
+    focus_result = browser.execute(
+        '''
+        const element = document.getElementById(arguments[0]);
+        if (!element) return {exists: false};
+        let visible = true;
+        for (let current = element; current; current = current.parentElement) {
+          const style = getComputedStyle(current);
+          if (style.display === 'none' || style.visibility === 'hidden'
+              || Number.parseFloat(style.opacity || '1') <= 0) visible = false;
+        }
+        const rect = element.getBoundingClientRect();
+        return {
+          exists: true,
+          visible: visible && rect.width > 0 && rect.height > 0
+            && rect.right > 0 && rect.bottom > 0
+            && rect.left < window.innerWidth && rect.top < window.innerHeight,
+          explicitlyFocusable: element.hasAttribute('tabindex'),
+          focused: document.activeElement === element,
+        };
+        ''',
+        focus_target,
+    )
+assert focus_result == {
+    "exists": True,
+    "visible": True,
+    "explicitlyFocusable": True,
+    "focused": True,
+}, focus_result
+print("Webapp product proof: contract lifecycle, route focus, and real-browser checks passed")
 """
 
 
@@ -255,9 +289,17 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             record_id = f"record-{index:03d}"
             browser_sensitive = (
                 evidence_target.get("kind") == "contract-item"
-                and evidence_target.get("contractId") == "viewports"
-                and evidence_target.get("itemKind")
-                in {"viewport", "input-capability"}
+                and (
+                    (
+                        evidence_target.get("contractId") == "viewports"
+                        and evidence_target.get("itemKind")
+                        in {"viewport", "input-capability"}
+                    )
+                    or (
+                        evidence_target.get("contractId") == "routes"
+                        and evidence_target.get("itemKind") == "route"
+                    )
+                )
             )
             proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
             implementation_locator = (
@@ -265,18 +307,14 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                 if browser_sensitive
                 else "product/prove_webapp.py"
             )
-            proof_locator = (
-                "product/browser_probe.py"
-                if browser_sensitive
-                else "product/prove_webapp.py"
-            )
+            proof_locator = "product/prove_webapp.py"
             positive_description = (
-                "The ChromeDriver proof executes the target through the real browser interface."
+                "The ChromeDriver proof executes route focus, responsive layout, or input behavior through the real browser interface."
                 if browser_sensitive
                 else "The product proof validates the positive contract path."
             )
             negative_description = (
-                "The ChromeDriver proof rejects browser overflow, zoom locking, or failed input activation."
+                "The ChromeDriver proof rejects missing route focus, browser overflow, zoom locking, or failed input activation."
                 if browser_sensitive
                 else "The product proof keeps the declared target under validation."
             )
@@ -528,7 +566,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             proof.stdout,
         )
         self.assertIn(
-            "Webapp product proof: contract lifecycle and real-browser checks passed",
+            "Webapp product proof: contract lifecycle, route focus, and real-browser checks passed",
             proof.stdout,
         )
 

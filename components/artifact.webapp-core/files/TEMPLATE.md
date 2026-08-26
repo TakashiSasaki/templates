@@ -12,6 +12,8 @@ For each browser-facing surface, identify its audience, authentication and autho
 
 For each canonical route, record its surface owner, aliases, authentication behavior, deep-link/history behavior, access-failure behavior and semantic target, supported UI states, document-title requirement, and focus target. For `render-state`, bind the failure to a declared route-scoped access state. For `redirect`, bind it to the semantic destination route; keep concrete URL/query/cookie/session transport product-owned.
 
+Routes schema v3 requires every route to declare a non-blank `accessibility.focusTarget`, so route implementation evidence is browser-sensitive. A route record needs real positive and negative browser-level proof (`end-to-end-test` and/or `accessibility-test`), and every product requirement linked to that route record must declare at least one of those browser-level kinds in `requiredPositiveProofKinds`. Static inspection, HTTP reachability, and process-level integration tests cannot substitute for route-entry focus proof.
+
 ## Visible states
 
 Keep the state vocabulary small and reusable. Every route-scoped state must be owned by at least one route. Global states are top-level presentation states and must not be falsely attached to individual routes.

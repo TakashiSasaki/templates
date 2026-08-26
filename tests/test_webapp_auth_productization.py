@@ -141,23 +141,27 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             implementation_locator = self.target_locator(evidence_target)
             browser_sensitive = (
                 evidence_target.get("kind") == "contract-item"
-                and evidence_target.get("contractId") == "viewports"
-                and evidence_target.get("itemKind")
-                in {"viewport", "input-capability"}
+                and (
+                    (
+                        evidence_target.get("contractId") == "viewports"
+                        and evidence_target.get("itemKind")
+                        in {"viewport", "input-capability"}
+                    )
+                    or (
+                        evidence_target.get("contractId") == "routes"
+                        and evidence_target.get("itemKind") == "route"
+                    )
+                )
             )
             proof_kind = "end-to-end-test" if browser_sensitive else "integration-test"
-            proof_locator = (
-                "product/browser_probe.py"
-                if browser_sensitive
-                else "product/prove_auth_fixture.py"
-            )
+            proof_locator = "product/prove_auth_fixture.py"
             positive_description = (
-                "The ChromeDriver proof exercises responsive layout and declared browser input behavior."
+                "The ChromeDriver proof exercises route-entry focus, responsive layout, and declared browser input behavior."
                 if browser_sensitive
                 else "The auth proof exercises the target through contract and HTTP behavior checks."
             )
             negative_description = (
-                "The ChromeDriver proof rejects page-wide overflow, zoom locking, and failed browser input activation."
+                "The ChromeDriver proof rejects missing route focus, page-wide overflow, zoom locking, and failed browser input activation."
                 if browser_sensitive
                 else "The auth proof rejects contract drift or incorrect role behavior."
             )
