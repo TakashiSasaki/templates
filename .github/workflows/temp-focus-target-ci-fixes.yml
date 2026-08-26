@@ -1,0 +1,97 @@
+name: Temporary focus-target CI fixes
+on:
+  push:
+    branches:
+      - agent/webapp-focus-target-browser-proof-pr11
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/webapp-focus-target-browser-proof-pr11
+          fetch-depth: 0
+      - name: Apply focused CI fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, expected_count: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != expected_count:
+                  raise SystemExit(f"{path}: expected {expected_count} matches, got {count}: {old!r}")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_exact(
+              "components/artifact.webapp-core/files/scripts/validate_webapp_evidence.py",
+              '''    requirements = evidence.get("requirements")\n    if not isinstance(records, list):\n        raise TypeError("implementation evidence records must be a JSON array")\n    if not isinstance(requirements, list):\n        raise TypeError("implementation evidence requirements must be a JSON array")''',
+              '''    requirements = evidence.get("requirements")\n    if not isinstance(records, list):\n        raise TypeError("implementation evidence records must be a JSON array")\n    if requirements is None:\n        return []\n    if not isinstance(requirements, list):\n        raise TypeError("implementation evidence requirements must be a JSON array")''',
+          )
+
+          replace_exact(
+              "tests/test_webapp_evidence_proof_strength.py",
+              'BROWSER_SENSITIVE_ITEM_KINDS = {"input-capability", "viewport"}',
+              'BROWSER_SENSITIVE_ITEM_KINDS = {"input-capability", "route", "viewport"}',
+          )
+
+          scaffold = "tests/test_webapp_evidence_scaffold.py"
+          replace_exact(
+              scaffold,
+              '''                    if evidence_target.get("kind") == "contract-item"\n                    and evidence_target.get("contractId") == "viewports"\n                    and evidence_target.get("itemKind")\n                    in {"viewport", "input-capability"}\n                    else "integration-test"''',
+              '''                    if evidence_target.get("kind") == "contract-item"\n                    and (\n                        (\n                            evidence_target.get("contractId") == "viewports"\n                            and evidence_target.get("itemKind")\n                            in {"viewport", "input-capability"}\n                        )\n                        or (\n                            evidence_target.get("contractId") == "routes"\n                            and evidence_target.get("itemKind") == "route"\n                        )\n                    )\n                    else "integration-test"''',
+          )
+
+          productization = "tests/test_webapp_productization_acceptance.py"
+          replace_exact(
+              productization,
+              '''    focus_result = browser.execute(\n        """\n        const element = document.getElementById(arguments[0]);''',
+              '''    focus_result = browser.execute(\n        \'\'\'\n        const element = document.getElementById(arguments[0]);''',
+          )
+          replace_exact(
+              productization,
+              '''        };\n        """,\n        focus_target,''',
+              '''        };\n        \'\'\',\n        focus_target,''',
+          )
+
+          replace_exact(
+              "tests/test_webapp_neutral_seed.py",
+              'self.assertEqual(descriptor["version"], 7)',
+              'self.assertEqual(descriptor["version"], 8)',
+          )
+
+          replace_exact(
+              "tests/test_webapp_v4_upgrade.py",
+              'self.assertEqual(artifact["version"], 7)',
+              'self.assertEqual(artifact["version"], 8)',
+          )
+          replace_exact(
+              "tests/test_webapp_v4_upgrade.py",
+              'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 7)',
+              'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 8)',
+          )
+
+          replace_exact(
+              "tests/test_webapp_v5_surface_upgrade.py",
+              'self.assertEqual(artifact["version"], 7)',
+              'self.assertEqual(artifact["version"], 8)',
+              expected_count=2,
+          )
+          replace_exact(
+              "tests/test_webapp_v5_surface_upgrade.py",
+              'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 7)',
+              'self.assertEqual(changed["artifact.webapp-core"]["to_version"], 8)',
+          )
+      - name: Commit fixes and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temp-focus-target-ci-fixes.yml
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix focus-target evidence migrations"
+          git push origin HEAD:agent/webapp-focus-target-browser-proof-pr11
