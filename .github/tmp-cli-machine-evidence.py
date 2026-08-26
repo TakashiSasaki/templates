@@ -1,0 +1,827 @@
+from __future__ import annotations
+
+import json
+import textwrap
+from pathlib import Path
+
+
+def write_json(path: str, value: object) -> None:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+# capability.cli becomes the machine-readable authority for packaged CLI state.
+cli_descriptor_path = Path("components/capability.cli/component.json")
+cli = json.loads(cli_descriptor_path.read_text(encoding="utf-8"))
+if cli["version"] != 1:
+    raise SystemExit(f"unexpected capability.cli version: {cli['version']}")
+cli["version"] = 2
+cli["requires"] = ["capability.runtime", "lifecycle.implementation-evidence"]
+registration = {
+    "id": "cli_interface",
+    "document": "contracts/cli-interface.json",
+    "schema": "schemas/cli-interface.schema.json",
+    "migration_slug": "cli-interface",
+    "document_schema_version": 1,
+    "version_history": [{"version": 1, "change_type": "initial"}],
+    "purpose": (
+        "Declare caller-visible packaged CLI entrypoints, invocation probes, "
+        "structured output, and exit-code contracts."
+    ),
+}
+rebuilt: dict[str, object] = {}
+for key, value in cli.items():
+    if key == "materials":
+        rebuilt["contract_registrations"] = [registration]
+    rebuilt[key] = value
+materials = rebuilt["materials"]
+assert isinstance(materials, list)
+materials.extend(
+    [
+        {
+            "source": "files/contracts/cli-interface.json",
+            "destination": "contracts/cli-interface.json",
+            "ownership": "seed",
+        },
+        {
+            "source": "files/schemas/cli-interface.schema.json",
+            "destination": "schemas/cli-interface.schema.json",
+            "ownership": "managed",
+        },
+        {
+            "source": (
+                "files/.template-composition/validators/"
+                "validate_cli_interface.py"
+            ),
+            "destination": (
+                ".template-composition/validators/validate_cli_interface.py"
+            ),
+            "ownership": "managed",
+        },
+    ]
+)
+write_json(str(cli_descriptor_path), rebuilt)
+
+# The selected-component validation registry gains a CLI-owned validator.
+state_descriptor_path = Path("components/lifecycle.composition-state/component.json")
+state = json.loads(state_descriptor_path.read_text(encoding="utf-8"))
+if state["version"] != 3:
+    raise SystemExit(
+        f"unexpected lifecycle.composition-state version: {state['version']}"
+    )
+state["version"] = 4
+write_json(str(state_descriptor_path), state)
+
+registry_path = Path(
+    "components/lifecycle.composition-state/files/.template-composition/"
+    "validation-registry.json"
+)
+registry = json.loads(registry_path.read_text(encoding="utf-8"))
+ids = [item["id"] for item in registry["validators"]]
+if "cli-interface" in ids:
+    raise SystemExit("cli-interface validator already registered")
+insertion = (
+    next(
+        i
+        for i, item in enumerate(registry["validators"])
+        if item["id"] == "implementation-evidence"
+    )
+    + 1
+)
+registry["validators"].insert(
+    insertion,
+    {
+        "id": "cli-interface",
+        "component": "capability.cli",
+        "entrypoint": (
+            ".template-composition/validators/validate_cli_interface.py"
+        ),
+        "arguments": ["."],
+        "purpose": (
+            "Validate selected packaged CLI entrypoints and require executable "
+            "implementation-evidence proof strength."
+        ),
+    },
+)
+write_json(str(registry_path), registry)
+
+write_json(
+    "components/capability.cli/files/contracts/cli-interface.json",
+    {
+        "$schema": "../schemas/cli-interface.schema.json",
+        "schemaVersion": 1,
+        "mode": "template",
+        "entrypoints": [],
+    },
+)
+
+cli_schema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["$schema", "schemaVersion", "mode", "entrypoints"],
+    "$defs": {
+        "identifier": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+        },
+        "nonBlankText": {"type": "string", "minLength": 1},
+        "arguments": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/nonBlankText"},
+        },
+        "exitCode": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255,
+        },
+        "structuredOutput": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["arguments", "format", "contractVersionField"],
+            "properties": {
+                "arguments": {"$ref": "#/$defs/arguments"},
+                "format": {"const": "json"},
+                "contractVersionField": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*$",
+                },
+            },
+        },
+        "exitCodes": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "success",
+                "negativeResult",
+                "invalidInput",
+                "unavailable",
+                "refused",
+                "internalFailure",
+                "additionalInputRequired",
+            ],
+            "properties": {
+                "success": {"$ref": "#/$defs/exitCode"},
+                "negativeResult": {"$ref": "#/$defs/exitCode"},
+                "invalidInput": {"$ref": "#/$defs/exitCode"},
+                "unavailable": {"$ref": "#/$defs/exitCode"},
+                "refused": {"$ref": "#/$defs/exitCode"},
+                "internalFailure": {"$ref": "#/$defs/exitCode"},
+                "additionalInputRequired": {"$ref": "#/$defs/exitCode"},
+            },
+        },
+        "entrypoint": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "id",
+                "command",
+                "workingDirectory",
+                "helpArguments",
+                "versionArguments",
+                "structuredOutput",
+                "exitCodes",
+            ],
+            "properties": {
+                "id": {"$ref": "#/$defs/identifier"},
+                "command": {"$ref": "#/$defs/arguments"},
+                "workingDirectory": {
+                    "type": "string",
+                    "pattern": (
+                        r"^(?:\.|(?!.*(?:^|/)\.\.?(?:/|$))"
+                        r"(?![A-Za-z]:)(?!/)[A-Za-z0-9_.-]+"
+                        r"(?:/[A-Za-z0-9_.-]+)*)$"
+                    ),
+                },
+                "helpArguments": {"$ref": "#/$defs/arguments"},
+                "versionArguments": {"$ref": "#/$defs/arguments"},
+                "structuredOutput": {"$ref": "#/$defs/structuredOutput"},
+                "exitCodes": {"$ref": "#/$defs/exitCodes"},
+            },
+        },
+    },
+    "properties": {
+        "$schema": {"const": "../schemas/cli-interface.schema.json"},
+        "schemaVersion": {"const": 1},
+        "mode": {"enum": ["template", "product"]},
+        "entrypoints": {
+            "type": "array",
+            "uniqueItems": True,
+            "items": {"$ref": "#/$defs/entrypoint"},
+        },
+    },
+    "allOf": [
+        {
+            "if": {
+                "properties": {"mode": {"const": "template"}},
+                "required": ["mode"],
+            },
+            "then": {"properties": {"entrypoints": {"maxItems": 0}}},
+        },
+        {
+            "if": {
+                "properties": {"mode": {"const": "product"}},
+                "required": ["mode"],
+            },
+            "then": {"properties": {"entrypoints": {"minItems": 1}}},
+        },
+    ],
+}
+write_json(
+    "components/capability.cli/files/schemas/cli-interface.schema.json",
+    cli_schema,
+)
+
+validator = textwrap.dedent(
+    r'''\
+    #!/usr/bin/env python3
+    """Validate selected packaged CLI contracts and executable evidence strength."""
+    from __future__ import annotations
+
+    import argparse
+    import json
+    import sys
+    from pathlib import Path
+    from typing import Any
+
+    CLI_CONTRACT = Path("contracts/cli-interface.json")
+    IMPLEMENTATION_EVIDENCE = Path("contracts/implementation-evidence.json")
+    EXECUTABLE_PROOF_KINDS = frozenset({"integration-test", "end-to-end-test"})
+
+
+    def load_json(root: Path, relative: Path) -> dict[str, Any]:
+        value = json.loads((root / relative).read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise TypeError(f"{relative} must contain a JSON object")
+        return value
+
+
+    def target_key(target: object) -> tuple[object, ...]:
+        if not isinstance(target, dict):
+            return (None, None, None, None)
+        return (
+            target.get("kind"),
+            target.get("contractId"),
+            target.get("itemKind"),
+            target.get("itemId"),
+        )
+
+
+    def entrypoint_target(entrypoint_id: str) -> tuple[str, str, str, str]:
+        return ("contract-item", "cli_interface", "entrypoint", entrypoint_id)
+
+
+    def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
+        proofs = record.get(field)
+        if not isinstance(proofs, list):
+            return set()
+        return {
+            proof.get("kind")
+            for proof in proofs
+            if isinstance(proof, dict) and isinstance(proof.get("kind"), str)
+        }
+
+
+    def validate(root: Path) -> list[str]:
+        contract = load_json(root, CLI_CONTRACT)
+        evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
+        cli_mode = contract.get("mode")
+        evidence_mode = evidence.get("mode")
+
+        if cli_mode == "template":
+            if evidence_mode == "product":
+                return [
+                    "capability.cli is selected but contracts/cli-interface.json remains "
+                    "in template mode while product implementation evidence is active; "
+                    "either remove capability.cli from Composition intent or declare the "
+                    "CLI contract in product mode and add executable CLI evidence"
+                ]
+            return []
+        if cli_mode != "product":
+            return [f"unsupported CLI interface mode: {cli_mode!r}"]
+        if evidence_mode != "product":
+            return [
+                "product CLI interface requires product implementation evidence; switch "
+                "contracts/implementation-evidence.json to product mode and prove each "
+                "CLI entrypoint"
+            ]
+
+        entrypoints = contract.get("entrypoints")
+        records = evidence.get("records")
+        requirements = evidence.get("requirements")
+        if not isinstance(entrypoints, list):
+            return ["CLI interface entrypoints must be an array"]
+        if not isinstance(records, list):
+            return ["implementation-evidence records must be an array"]
+        if not isinstance(requirements, list):
+            return ["implementation-evidence requirements must be an array"]
+
+        errors: list[str] = []
+        ids = [
+            item.get("id")
+            for item in entrypoints
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        ]
+        if len(ids) != len(entrypoints):
+            errors.append("every product CLI entrypoint must have a text id")
+        seen: set[str] = set()
+        duplicates: set[str] = set()
+        for entrypoint_id in ids:
+            if entrypoint_id in seen:
+                duplicates.add(entrypoint_id)
+            seen.add(entrypoint_id)
+        for duplicate in sorted(duplicates):
+            errors.append(f"duplicate CLI entrypoint id: {duplicate}")
+
+        for item in entrypoints:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                continue
+            exit_codes = item.get("exitCodes")
+            if isinstance(exit_codes, dict):
+                values = [
+                    value
+                    for value in exit_codes.values()
+                    if isinstance(value, int) and not isinstance(value, bool)
+                ]
+                if len(values) != len(set(values)):
+                    errors.append(
+                        f"CLI entrypoint {item['id']!r} assigns one exit code to "
+                        "multiple meanings"
+                    )
+
+        records_by_target: dict[
+            tuple[object, ...], list[dict[str, Any]]
+        ] = {}
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            key = target_key(record.get("target"))
+            if len(key) >= 2 and key[1] == "cli_interface":
+                records_by_target.setdefault(key, []).append(record)
+
+        expected = {entrypoint_target(entrypoint_id) for entrypoint_id in ids}
+        actual = set(records_by_target)
+        for missing in sorted(expected - actual, key=str):
+            errors.append(f"missing CLI implementation-evidence target: {missing}")
+        for extra in sorted(actual - expected, key=str):
+            if extra[0] == "contract-item":
+                errors.append(f"unknown CLI implementation-evidence target: {extra}")
+        for key, matching in sorted(
+            records_by_target.items(), key=lambda item: str(item[0])
+        ):
+            if key in expected and len(matching) != 1:
+                errors.append(
+                    f"CLI implementation-evidence target {key} must have exactly one record"
+                )
+
+        allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
+        requirement_refs: dict[str, list[dict[str, Any]]] = {}
+        for requirement in requirements:
+            if not isinstance(requirement, dict):
+                continue
+            refs = requirement.get("recordIds")
+            if not isinstance(refs, list):
+                continue
+            for record_id in refs:
+                if isinstance(record_id, str):
+                    requirement_refs.setdefault(record_id, []).append(requirement)
+
+        for key in sorted(expected & actual, key=str):
+            matching = records_by_target[key]
+            if len(matching) != 1:
+                continue
+            record = matching[0]
+            record_id = record.get("id")
+            if not isinstance(record_id, str):
+                errors.append(
+                    f"CLI implementation-evidence target {key} must have a text record id"
+                )
+                continue
+            for field, label in (
+                ("positiveEvidence", "positive"),
+                ("negativeEvidence", "negative"),
+            ):
+                if proof_kinds(record, field).isdisjoint(EXECUTABLE_PROOF_KINDS):
+                    errors.append(
+                        f"CLI target {key} requires at least one {label} executable "
+                        f"proof kind ({allowed}); static inspection or unit-only proof "
+                        "is insufficient"
+                    )
+            linked = requirement_refs.get(record_id, [])
+            strong = False
+            for requirement in linked:
+                kinds = requirement.get("requiredPositiveProofKinds")
+                declared = (
+                    {kind for kind in kinds if isinstance(kind, str)}
+                    if isinstance(kinds, list)
+                    else set()
+                )
+                if not declared.isdisjoint(EXECUTABLE_PROOF_KINDS):
+                    strong = True
+                    break
+            if not strong:
+                errors.append(
+                    f"CLI record {record_id!r} must be linked from at least one "
+                    "requirement whose requiredPositiveProofKinds includes an executable "
+                    f"CLI proof kind ({allowed})"
+                )
+        return errors
+
+
+    def main() -> int:
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("root", nargs="?", default=".")
+        args = parser.parse_args()
+        root = Path(args.root).resolve()
+        try:
+            errors = validate(root)
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            print(f"ERROR: cannot validate CLI interface: {exc}", file=sys.stderr)
+            return 1
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}", file=sys.stderr)
+            return 1
+        contract = load_json(root, CLI_CONTRACT)
+        if contract.get("mode") == "template":
+            print("CLI interface: template mode OK; no product CLI claim is active")
+        else:
+            print("CLI interface and executable evidence strength: OK")
+        return 0
+
+
+    if __name__ == "__main__":
+        raise SystemExit(main())
+    '''
+)
+validator_path = Path(
+    "components/capability.cli/files/.template-composition/validators/"
+    "validate_cli_interface.py"
+)
+validator_path.parent.mkdir(parents=True, exist_ok=True)
+validator_path.write_text(validator, encoding="utf-8")
+
+# Human-facing seed now points to the machine-readable authority.
+cli_md = Path("components/capability.cli/files/CLI_INTERFACE.md")
+text = cli_md.read_text(encoding="utf-8")
+old = textwrap.dedent(
+    '''\
+    ## Status
+
+    ```text
+    Selection status: UNSELECTED
+    ```
+
+    Change the status to `SELECTED` only after every applicable field is concrete and the canonical command agrees with `RUNTIME.md`.
+    '''
+)
+new = textwrap.dedent(
+    '''\
+    ## Machine-readable authority
+
+    `contracts/cli-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product CLI claim. Switch it to `product` only after every caller-visible entrypoint is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each entrypoint.
+
+    When `capability.cli` is selected, product implementation evidence cannot remain release-valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation.
+
+    Keep the narrative notes below aligned with the machine contract; when they conflict, the JSON contract is authoritative for validation.
+    '''
+)
+if text.count(old) != 1:
+    raise SystemExit("CLI_INTERFACE status section not found exactly once")
+cli_md.write_text(text.replace(old, new), encoding="utf-8")
+
+# Consumer selection guide explains the stronger transitive closure.
+catalog = Path("catalog/README.md")
+text = catalog.read_text(encoding="utf-8")
+old = (
+    "| A packaged command-line interface | `capability.cli` | "
+    "`capability.runtime` | Caller-visible CLI contract |"
+)
+new = (
+    "| A packaged command-line interface | `capability.cli` | "
+    "`capability.runtime` + implementation evidence (and contract evolution) | "
+    "Machine-readable caller-visible CLI contract with executable-proof enforcement |"
+)
+if text.count(old) != 1:
+    raise SystemExit("catalog CLI row not found exactly once")
+catalog.write_text(text.replace(old, new), encoding="utf-8")
+
+# Dependency closure regression.
+catalog_test = Path("tests/test_catalog_consumer_selection_guide.py")
+text = catalog_test.read_text(encoding="utf-8")
+needle = textwrap.dedent(
+    '''\
+            self.assertEqual(
+                dependency_closure("artifact.skill-core", "lifecycle.release-bundle"),
+    '''
+)
+insertion = textwrap.dedent(
+    '''\
+            self.assertEqual(
+                dependency_closure("artifact.skill-core", "capability.cli"),
+                {
+                    "artifact.skill-core",
+                    "capability.cli",
+                    "capability.runtime",
+                    "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                },
+            )
+
+    '''
+)
+if text.count(needle) != 1:
+    raise SystemExit("catalog dependency insertion point not found")
+catalog_test.write_text(text.replace(needle, insertion + needle), encoding="utf-8")
+
+# Integrated selected-component dispatch regression.
+selected_test = Path("tests/test_selected_component_validation.py")
+text = selected_test.read_text(encoding="utf-8")
+marker = '\n\nif __name__ == "__main__":\n    unittest.main()\n'
+method = textwrap.dedent(
+    r'''
+
+        def test_cli_selection_adds_machine_contract_evidence_lifecycle_and_validator(self) -> None:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                target = root / "consumer"
+                self.apply(
+                    target,
+                    self.write_config(root, "skill", include=["capability.cli"]),
+                )
+
+                result, payload = self.run_consumer_validation(target)
+                self.assertEqual(result.returncode, 0, payload)
+                self.assertEqual(payload["status"], "valid")
+                self.assertEqual(
+                    set(payload["resolved_components"]),
+                    {
+                        "artifact.skill-core",
+                        "capability.cli",
+                        "capability.runtime",
+                        "lifecycle.composition-state",
+                        "lifecycle.contract-evolution",
+                        "lifecycle.implementation-evidence",
+                    },
+                )
+                checks = {check["id"]: check for check in payload["checks"]}
+                self.assertIn("cli-interface", checks)
+                self.assertEqual(checks["cli-interface"]["status"], "passed")
+                self.assertIn("template mode OK", checks["cli-interface"]["stdout"])
+                self.assertEqual(
+                    checks["implementation-evidence"]["status"], "deferred"
+                )
+                manifest = json.loads(
+                    (target / "contracts/manifest.json").read_text(encoding="utf-8")
+                )
+                self.assertIn(
+                    "cli_interface",
+                    {entry["id"] for entry in manifest["contracts"]},
+                )
+                cli_contract = json.loads(
+                    (target / "contracts/cli-interface.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+                self.assertEqual(cli_contract["mode"], "template")
+                self.assertEqual(cli_contract["entrypoints"], [])
+    '''
+)
+if text.count(marker) != 1:
+    raise SystemExit("selected validation insertion marker not found")
+selected_test.write_text(text.replace(marker, method + marker), encoding="utf-8")
+
+# Focused contract and proof-strength tests.
+test_text = textwrap.dedent(
+    r'''\
+    from __future__ import annotations
+
+    import json
+    import subprocess
+    import sys
+    import tempfile
+    import unittest
+    from copy import deepcopy
+    from pathlib import Path
+
+    from jsonschema import Draft202012Validator
+
+    ROOT = Path(__file__).resolve().parents[1]
+    COMPONENT = ROOT / "components" / "capability.cli"
+    SCHEMA = COMPONENT / "files" / "schemas" / "cli-interface.schema.json"
+    SEED = COMPONENT / "files" / "contracts" / "cli-interface.json"
+    VALIDATOR = (
+        COMPONENT
+        / "files"
+        / ".template-composition"
+        / "validators"
+        / "validate_cli_interface.py"
+    )
+
+
+    class CliInterfaceContractTests(unittest.TestCase):
+        def write_json(self, path: Path, value: object) -> None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+        def product_contract(self) -> dict:
+            return {
+                "$schema": "../schemas/cli-interface.schema.json",
+                "schemaVersion": 1,
+                "mode": "product",
+                "entrypoints": [
+                    {
+                        "id": "main",
+                        "command": ["python", "-m", "field_log"],
+                        "workingDirectory": ".",
+                        "helpArguments": ["--help"],
+                        "versionArguments": ["--version"],
+                        "structuredOutput": {
+                            "arguments": ["list", "--format", "json"],
+                            "format": "json",
+                            "contractVersionField": "contractVersion",
+                        },
+                        "exitCodes": {
+                            "success": 0,
+                            "negativeResult": 1,
+                            "invalidInput": 2,
+                            "unavailable": 3,
+                            "refused": 4,
+                            "internalFailure": 5,
+                            "additionalInputRequired": 6,
+                        },
+                    }
+                ],
+            }
+
+        def evidence(
+            self,
+            *,
+            proof_kind: str = "integration-test",
+            requirement_kind: str | None = None,
+        ) -> dict:
+            required_kind = requirement_kind or proof_kind
+            return {
+                "$schema": "../schemas/implementation-evidence.schema.json",
+                "schemaVersion": 3,
+                "mode": "product",
+                "commands": [
+                    {
+                        "id": "cli-proof",
+                        "command": "python -m unittest tests.test_cli",
+                        "purpose": (
+                            "Exercise the packaged CLI through its public command boundary."
+                        ),
+                    }
+                ],
+                "releaseGates": [
+                    {
+                        "id": "release",
+                        "purpose": "Run executable CLI proof.",
+                        "commandIds": ["cli-proof"],
+                    }
+                ],
+                "requirements": [
+                    {
+                        "id": "REQ-CLI-MAIN",
+                        "description": "The packaged CLI entrypoint executes for callers.",
+                        "recordIds": ["cli-interface-entrypoint-main"],
+                        "requiredPositiveProofKinds": [required_kind],
+                    }
+                ],
+                "records": [
+                    {
+                        "id": "cli-interface-entrypoint-main",
+                        "target": {
+                            "kind": "contract-item",
+                            "contractId": "cli_interface",
+                            "itemKind": "entrypoint",
+                            "itemId": "main",
+                        },
+                        "implementationBoundary": {
+                            "status": "verified",
+                            "description": "Packaged CLI adapter.",
+                            "locator": "field_log/__main__.py",
+                        },
+                        "positiveEvidence": [
+                            {
+                                "id": "cli-positive",
+                                "status": "verified",
+                                "kind": proof_kind,
+                                "description": "Execute a valid CLI invocation.",
+                                "locator": "tests/test_cli.py",
+                                "commandId": "cli-proof",
+                                "expectedResult": (
+                                    "exit 0 and expected structured result"
+                                ),
+                            }
+                        ],
+                        "negativeEvidence": [
+                            {
+                                "id": "cli-negative",
+                                "status": "verified",
+                                "kind": proof_kind,
+                                "description": "Execute an invalid CLI invocation.",
+                                "locator": "tests/test_cli.py",
+                                "commandId": "cli-proof",
+                                "expectedResult": (
+                                    "documented non-zero exit and stderr diagnostic"
+                                ),
+                            }
+                        ],
+                        "releaseGateIds": ["release"],
+                    }
+                ],
+            }
+
+        def run_validator(
+            self, contract: dict, evidence: dict
+        ) -> subprocess.CompletedProcess[str]:
+            temp = tempfile.TemporaryDirectory()
+            self.addCleanup(temp.cleanup)
+            root = Path(temp.name)
+            self.write_json(root / "contracts/cli-interface.json", contract)
+            self.write_json(
+                root / "contracts/implementation-evidence.json", evidence
+            )
+            return subprocess.run(
+                [sys.executable, str(VALIDATOR), str(root)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        def test_seed_and_product_shape_are_schema_valid(self) -> None:
+            schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+            validator = Draft202012Validator(schema)
+            validator.validate(json.loads(SEED.read_text(encoding="utf-8")))
+            validator.validate(self.product_contract())
+
+        def test_product_cli_requires_executable_positive_negative_and_requirement_strength(self) -> None:
+            result = self.run_validator(self.product_contract(), self.evidence())
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("executable evidence strength: OK", result.stdout)
+
+            weak_proof = self.run_validator(
+                self.product_contract(),
+                self.evidence(
+                    proof_kind="inspection",
+                    requirement_kind="integration-test",
+                ),
+            )
+            self.assertNotEqual(weak_proof.returncode, 0)
+            self.assertIn("executable proof kind", weak_proof.stderr)
+            self.assertIn(
+                "static inspection or unit-only proof is insufficient",
+                weak_proof.stderr,
+            )
+
+            weak_requirement = self.run_validator(
+                self.product_contract(),
+                self.evidence(
+                    proof_kind="integration-test",
+                    requirement_kind="inspection",
+                ),
+            )
+            self.assertNotEqual(weak_requirement.returncode, 0)
+            self.assertIn("requiredPositiveProofKinds", weak_requirement.stderr)
+
+        def test_product_evidence_cannot_hide_selected_cli_in_template_mode(self) -> None:
+            contract = json.loads(SEED.read_text(encoding="utf-8"))
+            result = self.run_validator(contract, self.evidence())
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "remains in template mode while product implementation evidence is active",
+                result.stderr,
+            )
+
+        def test_unknown_or_duplicate_cli_entrypoint_targets_fail_closed(self) -> None:
+            evidence = self.evidence()
+            unknown = deepcopy(evidence)
+            unknown["records"][0]["target"]["itemId"] = "other"
+            result = self.run_validator(self.product_contract(), unknown)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("missing CLI implementation-evidence target", result.stderr)
+            self.assertIn("unknown CLI implementation-evidence target", result.stderr)
+
+            duplicate = deepcopy(evidence)
+            second = deepcopy(duplicate["records"][0])
+            second["id"] = "cli-interface-entrypoint-main-duplicate"
+            duplicate["records"].append(second)
+            result = self.run_validator(self.product_contract(), duplicate)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must have exactly one record", result.stderr)
+
+
+    if __name__ == "__main__":
+        unittest.main()
+    '''
+)
+Path("tests/test_cli_interface_contract.py").write_text(test_text, encoding="utf-8")
