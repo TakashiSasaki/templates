@@ -15,7 +15,13 @@ else:
 
 
 BROWSER_LEVEL_PROOF_KINDS = frozenset({"accessibility-test", "end-to-end-test"})
-BROWSER_SENSITIVE_ITEM_KINDS = frozenset({"input-capability", "viewport"})
+BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
+    {
+        ("routes", "route"),
+        ("viewports", "input-capability"),
+        ("viewports", "viewport"),
+    }
+)
 
 
 def load(root: Path, relative: str) -> object:
@@ -47,8 +53,8 @@ def requires_browser_level_proof(target: object) -> bool:
     return (
         isinstance(target, dict)
         and target.get("kind") == "contract-item"
-        and target.get("contractId") == "viewports"
-        and target.get("itemKind") in BROWSER_SENSITIVE_ITEM_KINDS
+        and (target.get("contractId"), target.get("itemKind"))
+        in BROWSER_SENSITIVE_CONTRACT_ITEMS
     )
 
 
@@ -92,6 +98,52 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
     return errors
 
 
+def browser_level_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    records = evidence.get("records")
+    requirements = evidence.get("requirements")
+    if not isinstance(records, list):
+        raise TypeError("implementation evidence records must be a JSON array")
+    if not isinstance(requirements, list):
+        raise TypeError("implementation evidence requirements must be a JSON array")
+
+    targets_by_record_id: dict[str, object] = {}
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise TypeError(f"implementation evidence record {index} must be a JSON object")
+        record_id = record.get("id")
+        if isinstance(record_id, str):
+            targets_by_record_id[record_id] = record.get("target")
+
+    allowed_kinds = ", ".join(sorted(BROWSER_LEVEL_PROOF_KINDS))
+    errors: list[str] = []
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            raise TypeError(f"implementation evidence requirement {index} must be a JSON object")
+        record_ids = requirement.get("recordIds")
+        if not isinstance(record_ids, list):
+            raise TypeError(
+                f"implementation evidence requirement {index} recordIds must be a JSON array"
+            )
+        if not any(
+            isinstance(record_id, str)
+            and requires_browser_level_proof(targets_by_record_id.get(record_id))
+            for record_id in record_ids
+        ):
+            continue
+        kinds = requirement.get("requiredPositiveProofKinds")
+        declared = {
+            kind for kind in kinds if isinstance(kind, str)
+        } if isinstance(kinds, list) else set()
+        if declared.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
+            requirement_id = requirement.get("id", f"index-{index}")
+            errors.append(
+                f"requirement {requirement_id!r} references a browser-sensitive Webapp "
+                f"target and must declare at least one browser-level requiredPositiveProofKinds "
+                f"value ({allowed_kinds})"
+            )
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -112,6 +164,7 @@ def main() -> int:
             return 0
         actual = actual_targets(evidence)
         strength_errors = browser_level_proof_errors(evidence)
+        strength_errors.extend(browser_level_requirement_errors(evidence))
     except (AttributeError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"ERROR: cannot load Webapp implementation evidence: {exc}", file=sys.stderr)
         return 1
