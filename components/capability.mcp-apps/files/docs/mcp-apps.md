@@ -19,7 +19,9 @@ The MCP Server remains a standard MCP server. The View is HTML/JavaScript render
 
 ## Machine authority
 
-`contracts/mcp-apps.json` owns the product Apps extension declaration, stable `ui://` View resource inventory, and tool-to-View associations. Each association references a stable core MCP tool-operation ID from `contracts/mcp-interface.json`; prose or source-code adjacency is not an association authority.
+`contracts/mcp-apps.json` owns the Apps lifecycle from `template` through `planning` to `product`. In planning mode it owns stable extension/View/association item identity and the association relationships to planned core MCP tool operations; implementation locators and concrete resource/runtime behavior remain absent until productization. Each planned item must already have an exact implementation-evidence planning target before coding begins.
+
+In product mode the same IDs own the concrete Apps extension declaration, stable `ui://` View resource inventory, and tool-to-View associations. Each association references the same stable core MCP tool-operation ID promoted in `contracts/mcp-interface.json`; prose or source-code adjacency is not an association authority.
 
 The contract intentionally separates three evidence families:
 
