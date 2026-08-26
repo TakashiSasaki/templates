@@ -1,0 +1,28 @@
+name: Temporary executable proof semantics
+
+on:
+  push:
+    branches:
+      - agent/executable-proof-semantics
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-24.04
+    env:
+      PYTHONPATH: tests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check --no-deps -r requirements-dev.lock
+      - name: Run executable proof semantics regressions
+        run: >-
+          python -m unittest
+          tests.test_executable_proof_semantics
+          tests.test_field_log_evidence_gap
+          tests.test_component_version_guard
+          tests.test_release_execution_contract
