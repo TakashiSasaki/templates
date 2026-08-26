@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "lifecycle.implementation-evidence",
   "kind": "lifecycle",
-  "version": 6,
-  "summary": "Artifact-neutral implementation boundaries, mandatory product requirements, proof-kind constraints, and release-gate contract.",
+  "version": 7,
+  "summary": "Artifact-neutral implementation boundaries, mandatory product requirements, explicit proof-kind constraints, and release-gate contract.",
   "requires": [
     "lifecycle.contract-evolution"
   ],
@@ -14,7 +14,7 @@
       "document": "contracts/implementation-evidence.json",
       "schema": "schemas/implementation-evidence.schema.json",
       "migration_slug": "implementation-evidence",
-      "document_schema_version": 2,
+      "document_schema_version": 3,
       "version_history": [
         {
           "version": 1,
@@ -24,6 +24,11 @@
           "version": 2,
           "change_type": "breaking",
           "migration": "docs/migrations/implementation-evidence-v1-to-v2.md"
+        },
+        {
+          "version": 3,
+          "change_type": "breaking",
+          "migration": "docs/migrations/implementation-evidence-v2-to-v3.md"
         }
       ],
       "purpose": "Map explicit product requirements and artifact-defined contract targets to implementation boundaries, positive/negative proofs, authoritative commands, and release gates."
@@ -53,6 +58,11 @@
     {
       "source": "files/docs/migrations/implementation-evidence-v1-to-v2.md",
       "destination": "docs/migrations/implementation-evidence-v1-to-v2.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/implementation-evidence-v2-to-v3.md",
+      "destination": "docs/migrations/implementation-evidence-v2-to-v3.md",
       "ownership": "managed"
     }
   ]
