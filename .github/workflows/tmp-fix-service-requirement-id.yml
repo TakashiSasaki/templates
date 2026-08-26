@@ -1,0 +1,35 @@
+name: Temporary fix service requirement ID
+on:
+  push:
+    branches:
+      - agent/service-machine-evidence-pr15
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/service-machine-evidence-pr15
+      - name: Fix stable requirement ID
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/test_task_ledger_walkthrough_browser_acceptance.py')
+          text = p.read_text(encoding='utf-8')
+          old = '"id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper().replace(\'-\', \'_\')}"'
+          new = '"id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper()}"'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one service requirement id expression, found {text.count(old)}')
+          p.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: Commit and self-delete
+        run: |
+          rm .github/workflows/tmp-fix-service-requirement-id.yml
+          git config user.name 'TakashiSasaki templates automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Use stable service requirement IDs'
+          git push origin HEAD:agent/service-machine-evidence-pr15
