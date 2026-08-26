@@ -49,7 +49,7 @@ SPEC.loader.exec_module(validator)
 def field_log_evidence(proof_kind: str = "integration-test", proof_status: str = "verified") -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "mode": "product",
         "commands": [
             {

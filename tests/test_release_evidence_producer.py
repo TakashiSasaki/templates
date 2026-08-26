@@ -110,7 +110,7 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 3,
+                "schemaVersion": 4,
                 "mode": "product",
                 "commands": [
                     {
