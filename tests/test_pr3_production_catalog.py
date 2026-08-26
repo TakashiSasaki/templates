@@ -276,6 +276,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             ],
         )
         release_closure = self.resolve(
@@ -293,8 +294,10 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(
             self.resolve({"lifecycle.release-bundle"}),
             [
+                "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
                 "lifecycle.release-bundle",
                 "lifecycle.release-evidence",
                 "lifecycle.release-execution",
@@ -349,6 +352,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             for script in (
                 ".template-composition/validators/validate_contract_evolution.py",
                 ".template-composition/validators/validate_implementation_evidence.py",
+                ".template-composition/validators/validate_lifecycle_checkpoints.py",
                 ".template-composition/validators/validate_release_execution.py",
                 ".template-composition/validators/validate_release_evidence.py",
                 ".template-composition/validators/validate_release_bundle.py",
@@ -369,6 +373,10 @@ class PR3ProductionCatalogTests(unittest.TestCase):
                 ),
                 (
                     ".template-composition/validators/validate_implementation_evidence.py",
+                    (".",),
+                ),
+                (
+                    ".template-composition/validators/validate_lifecycle_checkpoints.py",
                     (".",),
                 ),
                 ("scripts/validate_webapp_evidence.py", ()),
@@ -407,6 +415,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
             set(entries),
             {
                 "implementation_evidence",
+                "lifecycle_checkpoints",
                 "routes",
                 "surfaces",
                 "ui_states",
