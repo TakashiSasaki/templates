@@ -348,6 +348,20 @@ def main() -> int:
         if isinstance(records, list):
             for warning in proof_reuse_warnings(records):
                 print(f"WARNING: {warning}")
+    if not args.release_readiness and isinstance(evidence, dict):
+        deferred = [
+            proof.get("id")
+            for record in evidence.get("records", [])
+            if isinstance(record, dict)
+            for field in ("positiveEvidence", "negativeEvidence")
+            for proof in record.get(field, [])
+            if isinstance(proof, dict) and proof.get("status") == "deferred"
+        ]
+        if deferred:
+            print(
+                "Release readiness: NOT READY "
+                f"(deferred evidence: {', '.join(sorted(deferred))})"
+            )
     print("Implementation evidence validation: OK")
     return 0
 
