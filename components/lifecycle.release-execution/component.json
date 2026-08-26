@@ -4,56 +4,23 @@
   "kind": "lifecycle",
   "version": 4,
   "summary": "Product-owned fixed-argv bindings, hardened candidate verification, and shared release lifecycle serialization.",
-  "requires": [
-    "lifecycle.implementation-evidence"
-  ],
+  "requires": ["lifecycle.implementation-evidence"],
   "conflicts": [],
-  "contract_registrations": [
-    {
-      "id": "release_execution",
-      "document": "contracts/release-execution.json",
-      "schema": "schemas/release-execution.schema.json",
-      "migration_slug": "release-execution",
-      "document_schema_version": 1,
-      "version_history": [
-        {
-          "version": 1,
-          "change_type": "initial"
-        }
-      ],
-      "purpose": "Bind authoritative implementation-evidence commands to product-owned fixed argv and repository-relative working directories without shell parsing."
-    }
-  ],
+  "contract_registrations": [{
+    "id": "release_execution",
+    "document": "contracts/release-execution.json",
+    "schema": "schemas/release-execution.schema.json",
+    "migration_slug": "release-execution",
+    "document_schema_version": 1,
+    "version_history": [{"version": 1, "change_type": "initial"}],
+    "purpose": "Bind authoritative implementation-evidence commands to product-owned fixed argv and repository-relative working directories without shell parsing."
+  }],
   "materials": [
-    {
-      "source": "files/contracts/release-execution.json",
-      "destination": "contracts/release-execution.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/release-execution.schema.json",
-      "destination": "schemas/release-execution.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/release/candidate.py",
-      "destination": ".template-composition/release/candidate.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/release/lifecycle_lock.py",
-      "destination": ".template-composition/release/lifecycle_lock.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validators/validate_release_execution.py",
-      "destination": ".template-composition/validators/validate_release_execution.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/architecture/release-execution.md",
-      "destination": "docs/architecture/release-execution.md",
-      "ownership": "managed"
-    }
+    {"source": "files/contracts/release-execution.json", "destination": "contracts/release-execution.json", "ownership": "seed"},
+    {"source": "files/schemas/release-execution.schema.json", "destination": "schemas/release-execution.schema.json", "ownership": "managed"},
+    {"source": "files/.template-composition/release/candidate.py", "destination": ".template-composition/release/candidate.py", "ownership": "managed"},
+    {"source": "files/.template-composition/release/lifecycle_lock.py", "destination": ".template-composition/release/lifecycle_lock.py", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_release_execution.py", "destination": ".template-composition/validators/validate_release_execution.py", "ownership": "managed"},
+    {"source": "files/docs/architecture/release-execution.md", "destination": "docs/architecture/release-execution.md", "ownership": "managed"}
   ]
 }
