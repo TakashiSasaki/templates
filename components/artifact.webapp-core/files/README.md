@@ -8,6 +8,8 @@ If you are creating your first Web application with this repository, do not star
 
 The first milestone in that walkthrough is a **valid Composition scaffold**, not a completed Web application. Product implementation and product verification remain consumer responsibilities.
 
+The evidence scaffold is a projection, not an authority. Its per-target and requirement statuses are `[verified]`, `[missing]`, or `[deferred]`; edit and validate the consumer-owned `contracts/implementation-evidence.json` to make evidence authoritative.
+
 ## What the Webapp recipe defines
 
 `artifact.webapp-core` owns browser-specific semantics: surfaces, canonical routes, visible UI states, responsive viewports/input capabilities, and their cross-contract validation. Generic contract evolution and implementation evidence are part of the Webapp baseline through reusable `lifecycle.*` components. Release execution, release evidence, and release-bundle behavior are added only when the consumer explicitly selects `lifecycle.release-bundle`.
@@ -32,4 +34,4 @@ Select `lifecycle.release-bundle` when the repository needs the Composition-mana
 
 ## Validation
 
-Run `python .template-composition/validate.py .`. The validator automatically provisions and reuses an isolated validation runtime from the exact dependency set carried by the managed Composition validation registry; no manual validation-environment installation is required. Validation is selected from the resolved component set in the Composition lock: a minimal or runtime-backed Webapp does not run release validators, while a release-ready Webapp that selects `lifecycle.release-bundle` does.
+Run `python scripts/scaffold_webapp_evidence.py` to refresh the non-canonical worklist, then run `python .template-composition/validate.py .`. The validator automatically provisions and reuses an isolated validation runtime from the exact dependency set carried by the managed Composition validation registry; no manual validation-environment installation is required. Validation is selected from the resolved component set in the Composition lock: a minimal or runtime-backed Webapp does not run release validators, while a release-ready Webapp that selects `lifecycle.release-bundle` does.
