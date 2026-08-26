@@ -413,5 +413,51 @@ class SelectedComponentValidationTests(unittest.TestCase):
         self.assertNotIn("shell: bash", workflow)
 
 
+    def test_cli_selection_adds_machine_contract_evidence_lifecycle_and_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            self.apply(
+                target,
+                self.write_config(root, "skill", include=["capability.cli"]),
+            )
+
+            result, payload = self.run_consumer_validation(target)
+            self.assertEqual(result.returncode, 0, payload)
+            self.assertEqual(payload["status"], "valid")
+            self.assertEqual(
+                set(payload["resolved_components"]),
+                {
+                    "artifact.skill-core",
+                    "capability.cli",
+                    "capability.runtime",
+                    "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                },
+            )
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertIn("cli-interface", checks)
+            self.assertEqual(checks["cli-interface"]["status"], "passed")
+            self.assertIn("template mode OK", checks["cli-interface"]["stdout"])
+            self.assertEqual(
+                checks["implementation-evidence"]["status"], "deferred"
+            )
+            manifest = json.loads(
+                (target / "contracts/manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertIn(
+                "cli_interface",
+                {entry["id"] for entry in manifest["contracts"]},
+            )
+            cli_contract = json.loads(
+                (target / "contracts/cli-interface.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(cli_contract["mode"], "template")
+            self.assertEqual(cli_contract["entrypoints"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

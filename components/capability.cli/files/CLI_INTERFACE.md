@@ -4,13 +4,13 @@ This contract is materialized by `capability.cli`. It defines caller-visible beh
 
 Private helper scripts are not public CLIs and do not require this contract.
 
-## Status
+## Machine-readable authority
 
-```text
-Selection status: UNSELECTED
-```
+`contracts/cli-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product CLI claim. Switch it to `product` only after every caller-visible entrypoint is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each entrypoint.
 
-Change the status to `SELECTED` only after every applicable field is concrete and the canonical command agrees with `RUNTIME.md`.
+When `capability.cli` is selected, product implementation evidence cannot remain release-valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation.
+
+Keep the narrative notes below aligned with the machine contract; when they conflict, the JSON contract is authoritative for validation.
 
 ## Human and agent CLI
 
