@@ -901,11 +901,13 @@ For every current target, identify the implementation boundary, at least one pos
 
 Multiple records may reuse one command/gate when one suite genuinely proves multiple targets; do not manufacture one command per record.
 
-## 15. Switch implementation evidence to product mode only after proof exists
+## 15. Make incomplete product evidence explicit
 
-The initial `contracts/implementation-evidence.json` is intentionally in `template` mode with no product implementation claim. Change it to `product` mode only after the implementation, `./scripts/verify.sh`, and referenced proof locations really exist.
+The initial `contracts/implementation-evidence.json` is intentionally in `template` mode with no product implementation claim. Once Task Ledger has concrete caller-visible requirements, implemented boundaries, and real proof definitions, switch to `product` mode and enumerate every requirement with a stable requirement ID, linked `recordIds`, and a non-empty `requiredPositiveProofKinds` declaration. Do not add a synthetic catch-all requirement merely to satisfy the schema.
 
-The unit/integration portion of the Section 12 verifier is **not** browser-level proof by itself. The downloaded `tests/test_task_ledger_browser.py` adds real positive and negative `end-to-end-test` paths for the viewport and keyboard targets. If you skip that script or it does not run successfully in a real browser, keep implementation evidence in `template` mode. Do not relabel source inspection, HTTP reachability, or unit tests as browser proof.
+The unit/integration portion of the Section 12 verifier is **not** browser-level proof by itself. The downloaded `tests/test_task_ledger_browser.py` defines real positive and negative `end-to-end-test` paths for the viewport and keyboard targets. If that proof exists but Chrome/ChromeDriver or another required execution environment is temporarily unavailable, keep the product claim machine-visible and mark the affected proof `deferred`. A deferred proof may remain structurally valid, but it is unfinished evidence and blocks release readiness. If the proof definition or locator itself does not yet exist, do not fabricate it; remain in `template` mode until the product evidence graph can be stated truthfully.
+
+Do not relabel source inspection, HTTP reachability, or unit tests as browser proof. `requiredPositiveProofKinds` records the minimum acceptable positive proof class for each requirement; for browser interaction use `end-to-end-test` and/or `accessibility-test`, while executable CLI behavior can require `integration-test`.
 
 A command and gate can look like:
 
@@ -932,27 +934,35 @@ Each record still needs its exact worklist target, verified implementation-bound
 
 For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
 
-After every current target—including viewport and keyboard targets—has truthful proof of the required kind, run both verification layers.
+Run the structural validation whenever product evidence changes. Run the stricter release-readiness check before claiming that the evidence can approve a release.
 
 **Run**
 
 ```sh
-./scripts/verify.sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
   --repository /absolute/path/to/task-ledger \
   validate
+python .template-composition/validators/validate_implementation_evidence.py \
+  . --release-readiness
+```
+
+When every required proof is available, also run the authoritative product verifier:
+
+```sh
+./scripts/verify.sh
 ```
 
 **Expected**
 
-- the authoritative product verification command, including the referenced browser suite, passes; and
-- Composition validation returns `status: "valid"` with implementation evidence executed rather than template-deferred.
+- Composition validation returns `status: "valid"` with implementation evidence executed rather than template-deferred;
+- the release-readiness command exits successfully only when every required proof, including browser-sensitive proof, is `verified`; and
+- the authoritative product verification command passes before the implemented-product milestone is claimed.
 
-If the real-browser script was omitted, skipped, or unable to start Chrome/ChromeDriver, this stronger product-mode result is not claimed; keep the evidence document in `template` mode.
+If Chrome/ChromeDriver is unavailable, a truthful `product` document may still contain `deferred` browser proof. In that state the worklist must continue to show the remaining evidence, release readiness must remain `NOT READY`, and the implemented-product/release-ready milestone must not be claimed.
 
 **What this means**
 
-Task Ledger now has both a product-behavior claim backed by consumer tests and a valid closed Composition contract/evidence relationship. This is the point at which “valid scaffold” and “implemented, product-tested application” have both been satisfied rather than confused.
+Task Ledger can represent both complete and incomplete product evidence without confusing either state with a valid scaffold. `product` mode means that concrete product requirements and implementation claims exist; release readiness is the stronger statement that every required proof has actually been verified.
 
 ## 16. Optionally adopt coding-agent Policy
 
@@ -1040,8 +1050,11 @@ The **implemented-product milestone** is stronger. It additionally requires:
 - consumer-owned contracts describe the real product rather than template assumptions;
 - product source and tests exist;
 - the authoritative product verification command passes;
-- implementation evidence is in `product` mode with complete current-target coverage and real positive/negative proofs, including browser-level proof for browser-sensitive targets;
-- Composition validation passes with implementation evidence executed rather than template-deferred; and
+- implementation evidence is in `product` mode with complete current-target coverage;
+- every caller-visible product requirement has a stable requirement ID, linked records, and a non-empty `requiredPositiveProofKinds` declaration;
+- real positive/negative proofs satisfy those declared proof kinds, including browser-level proof for browser-sensitive requirements, with no required proof left `deferred`;
+- Composition validation passes with implementation evidence executed rather than template-deferred;
+- release-readiness validation passes; and
 - optional Policy state is independently valid if Policy was adopted.
 
 If you reached the first milestone, you no longer need to infer what to do next: edit the consumer-owned Task Ledger contracts, add ordinary product source/tests, and proceed through Sections 11–15. Architecture, exact ownership rules, managed recovery, and immutable-source details remain available in [Using Composition](../consumer-guide.md) and the [Composer reference](../reference/composer.md) when you need them.

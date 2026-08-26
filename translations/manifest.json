@@ -96,7 +96,7 @@
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "e689458de68ee6a5dbc9007bf2e488374c64d465",
+      "canonical_blob_sha": "46750c0d19a65de43b825dac9411e2eca8a870c3",
       "surfaces": [
         "reader"
       ]
@@ -133,7 +133,7 @@
       "canonical": "docs/release-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/release-guide.md",
-      "canonical_blob_sha": "a518c1d3d5d92d57096c6fbf6cbfc56ce4428e5e",
+      "canonical_blob_sha": "038b9ab421c1de1bde945c55e75a47ef8adc0abb",
       "surfaces": [
         "reader"
       ]
