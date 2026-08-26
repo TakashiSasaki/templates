@@ -68,13 +68,24 @@ def validated_manifest() -> dict[str, Any]:
 
 def repository_root(raw: Path) -> Path:
     path = raw.expanduser().resolve()
+    if not (path / ".git").exists():
+        raise ValueError(
+            "The supplied --repository path must be a Git repository root; "
+            "parent repositories are not searched"
+        )
     result = subprocess.run(
         ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
         check=True,
         text=True,
         capture_output=True,
     )
-    return Path(result.stdout.strip()).resolve()
+    discovered = Path(result.stdout.strip()).resolve()
+    if discovered != path:
+        raise ValueError(
+            "The supplied --repository path is not the Git repository root; "
+            "parent repositories are not searched"
+        )
+    return discovered
 
 
 def root_arguments(root: Path) -> list[str]:

@@ -13,6 +13,13 @@ FOREIGN_RESERVED_NAMESPACES = (".template-composition",)
 
 def find_repository_root(start: Path | None = None) -> Path:
     current = (start or Path.cwd()).resolve()
+    if start is not None:
+        if (current / ".git").exists():
+            return current
+        raise FileNotFoundError(
+            "The supplied repository path must be a Git repository root; "
+            "parent repositories are not searched"
+        )
     for candidate in (current, *current.parents):
         if (candidate / ".git").exists():
             return candidate
