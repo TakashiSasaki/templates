@@ -56,10 +56,8 @@ def _registered_authority_paths(root: Path) -> list[str]:
             raise CheckpointError("contracts/manifest.json contains a non-object contract")
         if entry.get("id") == "lifecycle_checkpoints":
             continue
-        document = entry.get("document")
-        schema = entry.get("schema")
-        for label, value in (("document", document), ("schema", schema)):
-            if not isinstance(value, str) or not value or value.startswith("/"):
+        for label, value in (("document", entry.get("document")), ("schema", entry.get("schema"))):
+            if not isinstance(value, str) or not value or value.startswith("/") or "\\" in value:
                 raise CheckpointError(f"contract {entry.get('id')!r} has invalid {label} path {value!r}")
             if ".." in Path(value).parts:
                 raise CheckpointError(f"contract {entry.get('id')!r} has non-portable {label} path {value!r}")
@@ -84,11 +82,17 @@ def _run_validation(root: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise CheckpointError(f"canonical Composition validation did not return JSON: {detail}") from exc
-    if completed.returncode != 0 or not isinstance(output, dict) or output.get("status") != "passed":
+    if completed.returncode != 0 or not isinstance(output, dict) or output.get("status") != "valid":
         detail = completed.stderr.strip()
         suffix = f"; stderr: {detail}" if detail else ""
         raise CheckpointError(f"canonical Composition validation must pass before checkpoint creation{suffix}")
-    return {"schemaVersion": 1, "authority": "composition-selected-validation-v1", "command": [sys.executable, VALIDATOR_REL.as_posix(), ".", "--format", "json"], "result": "passed", "output": output}
+    return {
+        "schemaVersion": 1,
+        "authority": "composition-selected-validation-v1",
+        "command": [sys.executable, VALIDATOR_REL.as_posix(), ".", "--format", "json"],
+        "result": "passed",
+        "output": output,
+    }
 
 
 def _authority_identity(root: Path) -> dict[str, Any]:
@@ -130,7 +134,14 @@ def _next_entry(checkpoints: list[dict[str, Any]], *, checkpoint_id: str, phase:
         if from_id != parent:
             raise CheckpointError(f"product checkpoint --from must name latest planning checkpoint {parent!r}")
         change_kind = previous.get("changeKind")
-    return {"id": checkpoint_id, "sequence": sequence, "phase": phase, "changeKind": change_kind, "parentId": parent, "snapshotPath": f"artifacts/lifecycle/{sequence:03d}-{checkpoint_id}"}
+    return {
+        "id": checkpoint_id,
+        "sequence": sequence,
+        "phase": phase,
+        "changeKind": change_kind,
+        "parentId": parent,
+        "snapshotPath": f"artifacts/lifecycle/{sequence:03d}-{checkpoint_id}",
+    }
 
 
 def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: str | None, source_revision: str | None) -> dict[str, Any]:
@@ -166,9 +177,20 @@ def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: st
             files.append({"path": relative, "snapshotPath": relative, "sha256": _sha256(destination)})
         validation_path = temp_dir / "validation.json"
         _write_json(validation_path, validation)
-        validation_sha = _sha256(validation_path)
         recorded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        snapshot_manifest: dict[str, Any] = {"schemaVersion": 1, "checkpointId": entry["id"], "sequence": entry["sequence"], "phase": entry["phase"], "changeKind": entry["changeKind"], "parentId": entry["parentId"], "recordedAt": recorded_at, "chronologyAuthority": "sequence-parent-hash-chain", "authority": _authority_identity(root), "files": files, "validation": {"result": "passed", "path": "validation.json", "sha256": validation_sha}}
+        snapshot_manifest: dict[str, Any] = {
+            "schemaVersion": 1,
+            "checkpointId": entry["id"],
+            "sequence": entry["sequence"],
+            "phase": entry["phase"],
+            "changeKind": entry["changeKind"],
+            "parentId": entry["parentId"],
+            "recordedAt": recorded_at,
+            "chronologyAuthority": "sequence-parent-hash-chain",
+            "authority": _authority_identity(root),
+            "files": files,
+            "validation": {"result": "passed", "path": "validation.json", "sha256": _sha256(validation_path)},
+        }
         if source_revision:
             snapshot_manifest["sourceAnchor"] = {"kind": "vcs-revision", "revision": source_revision, "authority": "external"}
         manifest_path = temp_dir / "manifest.json"
