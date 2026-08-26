@@ -76,31 +76,38 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
         )
         return root
 
+    def assert_render_does_not_mutate(self, root: Path) -> dict:
+        canonical = root / "contracts/implementation-evidence.json"
+        before = canonical.read_bytes()
+        worklist = scaffold.render_worklist(root)
+        self.assertEqual(canonical.read_bytes(), before)
+        return worklist
+
     def test_projection_is_verified_deferred_or_missing_without_mutating_canonical(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            self.fixture(root)
-            canonical = root / "contracts/implementation-evidence.json"
-            before = canonical.read_bytes()
 
-            verified = scaffold.render_worklist(root)
+            self.fixture(root)
+            verified = self.assert_render_does_not_mutate(root)
             self.assertEqual(verified["status"], "verified")
             self.assertEqual(verified["statusCounts"]["verified"], 1)
-            self.assertEqual(verified["recordStatuses"], [{"id": "surfaces-surface-main", "status": "verified"}])
+            self.assertEqual(
+                verified["recordStatuses"],
+                [{"id": "surfaces-surface-main", "status": "verified"}],
+            )
             self.assertEqual(verified["requirements"][0]["status"], "verified")
 
             self.fixture(root, "deferred")
-            deferred = scaffold.render_worklist(root)
+            deferred = self.assert_render_does_not_mutate(root)
             self.assertEqual(deferred["status"], "deferred")
             self.assertEqual(deferred["requirements"][0]["status"], "deferred")
             self.assertEqual(deferred["recordStatuses"][0]["status"], "deferred")
 
             self.fixture(root, "required")
-            missing = scaffold.render_worklist(root)
+            missing = self.assert_render_does_not_mutate(root)
             self.assertEqual(missing["status"], "missing")
             self.assertEqual(missing["requirements"][0]["status"], "missing")
             self.assertEqual(missing["recordStatuses"][0]["status"], "missing")
-            self.assertEqual(canonical.read_bytes(), before)
 
     def test_missing_canonical_evidence_is_a_missing_worklist(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
