@@ -8,8 +8,9 @@ When working on the `site` authority, load the smallest matching skill from `.ag
 
 - Provider publication update after a reviewed `composition` or `policy` merge: `.agents/skills/site-publication-cutover/SKILL.md`
 - Site pull-request completion, exact-head CI/review acceptance, base-drift handling, and merge readiness: `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`
+- Site browser/PWA/mobile/search regression failure triage: `.agents/skills/site-browser-regression-triage/SKILL.md`
 
-If more than one skill applies, use only the minimal set needed and follow them in dependency order. A publication cutover normally uses `site-publication-cutover` first and hands final PR acceptance to `site-pr-exact-head-acceptance`.
+If more than one skill applies, use only the minimal set needed and follow them in dependency order. A publication cutover normally uses `site-publication-cutover` first and hands final PR acceptance to `site-pr-exact-head-acceptance`. A browser failure encountered during PR acceptance may temporarily use `site-browser-regression-triage`, then return to exact-head acceptance after the repair creates a new head.
 
 ## Loading discipline
 
