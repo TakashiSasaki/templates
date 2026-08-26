@@ -15,9 +15,7 @@
       "id": "skill-scaffold",
       "component": "artifact.skill-core",
       "entrypoint": ".github/scripts/validate_skill.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate the Agent Skill scaffold and Skill-specific structural invariants."
     },
     {
@@ -38,63 +36,56 @@
       "id": "contract-evolution",
       "component": "lifecycle.contract-evolution",
       "entrypoint": ".template-composition/validators/validate_contract_evolution.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate the closed contract registry, schema bindings, version histories, and migration declarations."
     },
     {
       "id": "implementation-evidence",
       "component": "lifecycle.implementation-evidence",
       "entrypoint": ".template-composition/validators/validate_implementation_evidence.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate template, planning, and product implementation-evidence semantics, requirement ledgers, proof commands, and release-gate coverage."
     },
     {
       "id": "cli-interface",
       "component": "capability.cli",
       "entrypoint": ".template-composition/validators/validate_cli_interface.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate selected packaged CLI entrypoints and require executable implementation-evidence proof strength."
     },
     {
       "id": "service-interface",
       "component": "capability.service",
       "entrypoint": ".template-composition/validators/validate_service_interface.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate selected service operation coverage and require executable implementation-evidence proof strength."
     },
     {
       "id": "mcp-interface",
       "component": "capability.mcp",
       "entrypoint": ".template-composition/validators/validate_mcp_interface.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate selected MCP transport/operation coverage and require executable protocol-level implementation-evidence proof strength."
+    },
+    {
+      "id": "mcp-apps",
+      "component": "capability.mcp-apps",
+      "entrypoint": ".template-composition/validators/validate_mcp_apps.py",
+      "arguments": ["."],
+      "purpose": "Validate MCP Apps extension, View resource, and core MCP tool-association coverage with protocol/browser/end-to-end proof strength."
     },
     {
       "id": "web-interface",
       "component": "capability.web-interface",
       "entrypoint": ".template-composition/validators/validate_web_interface.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate standalone Web interface endpoint coverage and require browser-level or executable implementation-evidence proof strength."
     },
     {
       "id": "release-bundle-template",
       "component": "lifecycle.release-bundle",
       "entrypoint": ".template-composition/validators/validate_release_bundle.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate template-mode release-bundle structure without pretending to validate revision-bound product handoff evidence.",
       "when": {
         "document": "contracts/release-bundle.json",
@@ -108,9 +99,7 @@
       "id": "release-evidence-template",
       "component": "lifecycle.release-evidence",
       "entrypoint": ".template-composition/validators/validate_release_evidence.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate template-mode release evidence without pretending to validate revision-bound product evidence.",
       "when": {
         "document": "contracts/release-evidence.json",
@@ -124,9 +113,7 @@
       "id": "release-execution",
       "component": "lifecycle.release-execution",
       "entrypoint": ".template-composition/validators/validate_release_execution.py",
-      "arguments": [
-        "."
-      ],
+      "arguments": ["."],
       "purpose": "Validate fixed-argv release execution bindings against implementation-evidence commands and gates."
     }
   ]
