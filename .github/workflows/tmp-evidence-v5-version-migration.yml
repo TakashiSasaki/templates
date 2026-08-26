@@ -1,0 +1,43 @@
+name: Temporary evidence v5 version migration
+on:
+  push:
+    branches:
+      - agent/evidence-requirement-targets-v5-pr20
+permissions:
+  contents: write
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrate only implementation-evidence schema literals
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          pattern = re.compile(r'(["\']\$schema["\']\s*:\s*["\']\.\./schemas/implementation-evidence\.schema\.json["\'][\s\S]{0,160}?["\']schemaVersion["\']\s*:\s*)4')
+          changed = []
+          for path in sorted(p for p in Path('.').rglob('*') if p.is_file() and '.git' not in p.parts):
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              updated, count = pattern.subn(r'\g<1>5', text)
+              if count:
+                  path.write_text(updated, encoding='utf-8')
+                  changed.append((str(path), count))
+          print('changed evidence literals:', changed)
+          if len(changed) != 20:
+              raise SystemExit(f'expected 20 files, got {len(changed)}')
+          PY
+          rm .github/workflows/tmp-evidence-v5-inventory.yml
+          rm .github/workflows/tmp-evidence-v5-version-migration.yml
+      - name: Commit migration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Migrate implementation-evidence fixtures to v5"
+          git push
