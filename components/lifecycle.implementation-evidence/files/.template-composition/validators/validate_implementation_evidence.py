@@ -13,6 +13,15 @@ from contract_common import contract_entries, load_json, load_manifest
 
 
 REUSE_FAMILY_THRESHOLD = 3
+PROOF_KIND_CAPABILITY = {
+    "unit-test": "unit",
+    "integration-test": "integration",
+    "end-to-end-test": "end-to-end",
+    "accessibility-test": "accessibility",
+    "migration-test": "migration",
+    "inspection": "inspection",
+    "other": "other",
+}
 
 
 def _duplicates(values: list[Any]) -> set[Any]:
@@ -84,13 +93,123 @@ def _target_family(target: dict[str, Any]) -> tuple[str, str]:
     return str(contract_id), str(family)
 
 
-def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
-    """Return non-fatal diagnostics for suspiciously broad exact proof reuse.
+def _command_index(evidence: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    commands = evidence.get("commands", [])
+    if not isinstance(commands, list):
+        return {}
+    return {
+        command.get("id"): command
+        for command in commands
+        if isinstance(command, dict) and isinstance(command.get("id"), str)
+    }
 
-    One parameterized or end-to-end proof may legitimately cover many items in the same
-    contract family. A warning is therefore emitted only when the exact same proof
-    execution signature is reused across at least three distinct contract/item families.
-    """
+
+def command_capabilities(command: object) -> set[str]:
+    if not isinstance(command, dict):
+        return set()
+    execution = command.get("execution")
+    if not isinstance(execution, dict):
+        return set()
+    capabilities = execution.get("capabilities")
+    if not isinstance(capabilities, list):
+        return set()
+    return {item for item in capabilities if isinstance(item, str)}
+
+
+def proof_execution_errors(
+    evidence: dict[str, Any], root: Path | None = None
+) -> list[str]:
+    """Bind proof-kind claims to authoritative command capabilities and harnesses."""
+
+    if evidence.get("mode") != "product":
+        return []
+    commands = _command_index(evidence)
+    errors: list[str] = []
+
+    for command_id, command in commands.items():
+        execution = command.get("execution")
+        if not isinstance(execution, dict):
+            errors.append(
+                f"implementation command {command_id}: execution profile is required"
+            )
+            continue
+        capabilities = command_capabilities(command)
+        if not capabilities:
+            errors.append(
+                f"implementation command {command_id}: execution capabilities must be non-empty"
+            )
+        harness = execution.get("harness")
+        if not isinstance(harness, dict):
+            errors.append(
+                f"implementation command {command_id}: execution harness is required"
+            )
+        else:
+            if harness.get("kind") != "repository-file":
+                errors.append(
+                    f"implementation command {command_id}: execution harness kind must be 'repository-file'"
+                )
+            locator = harness.get("locator")
+            if not isinstance(locator, str) or not locator:
+                errors.append(
+                    f"implementation command {command_id}: execution harness locator is required"
+                )
+            elif root is not None:
+                candidate = root / locator
+                if not candidate.is_file():
+                    errors.append(
+                        f"implementation command {command_id}: execution harness does not exist: {locator}"
+                    )
+        if not isinstance(execution.get("supportsNegativePath"), bool):
+            errors.append(
+                f"implementation command {command_id}: supportsNegativePath must be boolean"
+            )
+
+    records = evidence.get("records", [])
+    if not isinstance(records, list):
+        return errors
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        record_id = record.get("id")
+        for field, polarity in (
+            ("positiveEvidence", "positive"),
+            ("negativeEvidence", "negative"),
+        ):
+            proofs = record.get(field, [])
+            if not isinstance(proofs, list):
+                continue
+            for proof in proofs:
+                if not isinstance(proof, dict):
+                    continue
+                proof_id = proof.get("id")
+                command_id = proof.get("commandId")
+                command = commands.get(command_id) if isinstance(command_id, str) else None
+                if command is None:
+                    continue
+                kind = proof.get("kind")
+                required_capability = PROOF_KIND_CAPABILITY.get(kind)
+                if required_capability is not None and required_capability not in command_capabilities(command):
+                    errors.append(
+                        f"record {record_id} {polarity} proof {proof_id}: proof kind {kind!r} "
+                        f"requires command capability {required_capability!r} on {command_id!r}"
+                    )
+                if polarity == "negative":
+                    execution = command.get("execution")
+                    supports_negative = (
+                        execution.get("supportsNegativePath")
+                        if isinstance(execution, dict)
+                        else None
+                    )
+                    if supports_negative is not True:
+                        errors.append(
+                            f"record {record_id} negative proof {proof_id}: command {command_id!r} "
+                            "must declare supportsNegativePath=true"
+                        )
+    return errors
+
+
+def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
+    """Return non-fatal diagnostics for suspiciously broad exact proof reuse."""
 
     usages: dict[
         tuple[str, str, str, str, str],
@@ -289,12 +408,7 @@ def requirement_traceability_errors(
 
 
 def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
-    """Return blockers that prevent approved release evidence.
-
-    Structural validation may preserve deferred proof records so that a consumer
-    can distinguish an incomplete environment from malformed JSON. Release
-    production is stricter: every product record and every proof must be verified.
-    """
+    """Return blockers that prevent approved release evidence."""
 
     mode = evidence.get("mode")
     if mode != "product":
@@ -304,6 +418,7 @@ def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
         ]
 
     errors = requirement_traceability_errors(evidence)
+    errors.extend(proof_execution_errors(evidence))
     records = evidence.get("records", [])
     if not isinstance(records, list):
         return errors + ["implementation-evidence records must be an array"]
@@ -358,9 +473,9 @@ def validate(root: Path) -> list[str]:
     records = evidence.get("records", [])
     requirements = evidence.get("requirements", [])
     mode = evidence.get("mode")
-    command_ids = [entry.get("id") for entry in commands]
-    gate_ids = [entry.get("id") for entry in gates]
-    record_ids = [entry.get("id") for entry in records]
+    command_ids = [entry.get("id") for entry in commands if isinstance(entry, dict)]
+    gate_ids = [entry.get("id") for entry in gates if isinstance(entry, dict)]
+    record_ids = [entry.get("id") for entry in records if isinstance(entry, dict)]
     for label, values in (
         ("command", command_ids),
         ("release gate", gate_ids),
@@ -377,10 +492,12 @@ def validate(root: Path) -> list[str]:
     proof_ids: list[Any] = []
     gate_commands: dict[Any, set[Any]] = {}
     for gate in gates:
+        if not isinstance(gate, dict):
+            continue
         refs = set(gate.get("commandIds", []))
-        gate_commands[gate["id"]] = refs
+        gate_commands[gate.get("id")] = refs
         for missing in sorted(refs - known_commands):
-            errors.append(f"release gate {gate['id']}: unknown command {missing}")
+            errors.append(f"release gate {gate.get('id')}: unknown command {missing}")
 
     if mode == "template":
         if commands or gates or records or requirements:
@@ -397,9 +514,12 @@ def validate(root: Path) -> list[str]:
         return [f"unsupported implementation-evidence mode: {mode!r}"]
 
     errors.extend(requirement_traceability_errors(evidence, known_contracts))
+    errors.extend(proof_execution_errors(evidence, root))
 
     for record in records:
-        owner = f"record {record['id']}"
+        if not isinstance(record, dict):
+            continue
+        owner = f"record {record.get('id')}"
         target = record.get("target", {})
         errors.extend(_target_contract_errors(target, known_contracts, owner))
 
@@ -412,8 +532,12 @@ def validate(root: Path) -> list[str]:
         proofs = list(record.get("positiveEvidence", [])) + list(
             record.get("negativeEvidence", [])
         )
-        proof_ids.extend(proof.get("id") for proof in proofs)
+        proof_ids.extend(
+            proof.get("id") for proof in proofs if isinstance(proof, dict)
+        )
         for proof in proofs:
+            if not isinstance(proof, dict):
+                continue
             command_id = proof.get("commandId")
             if command_id:
                 used_commands.add(command_id)
