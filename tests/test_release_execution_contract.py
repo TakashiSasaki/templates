@@ -82,6 +82,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                         "harness": {
                             "kind": "repository-file",
                             "locator": "product/prove.py",
+                            "invocation": "python-script",
                         },
                         "supportsNegativePath": False,
                     },
@@ -177,22 +178,25 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("harnessLocator must exactly match", result.stderr)
 
-    def test_argv_index_must_select_the_declared_harness(self) -> None:
+    def test_argv_must_exactly_execute_declared_harness(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_webapp(Path(temp_dir))
             self.write_json(
                 target / "contracts/implementation-evidence.json",
                 self.product_implementation(),
             )
-            execution = self.product_execution()
-            execution["commands"][0]["argv"] = ["python", "product/other.py"]
-            self.write_json(target / "contracts/release-execution.json", execution)
-            result = self.run_validator(target)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn(
-                "argv[1] must select harnessLocator 'product/prove.py'",
-                result.stderr,
-            )
+            for argv in (
+                ["python", "product/other.py"],
+                ["echo", "product/prove.py"],
+                ["python", "-c", "print('ok')", "product/prove.py"],
+            ):
+                with self.subTest(argv=argv):
+                    execution = self.product_execution()
+                    execution["commands"][0]["argv"] = argv
+                    self.write_json(target / "contracts/release-execution.json", execution)
+                    result = self.run_validator(target)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("argv must exactly execute declared harness", result.stderr)
 
     def test_harness_argument_is_resolved_from_working_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -217,9 +221,9 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             self.write_json(target / "contracts/release-execution.json", execution)
             result = self.run_validator(target)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("must be inside workingDirectory", result.stderr)
+            self.assertIn("cannot be invoked", result.stderr)
 
-    def test_harness_argument_index_must_be_in_argv(self) -> None:
+    def test_harness_argument_index_is_fixed_by_invocation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_webapp(Path(temp_dir))
             self.write_json(
@@ -231,7 +235,55 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             self.write_json(target / "contracts/release-execution.json", execution)
             result = self.run_validator(target)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("harnessArgumentIndex 2 is outside argv", result.stderr)
+            self.assertIn("harnessArgumentIndex must be 1", result.stderr)
+
+    def test_python_unittest_invocation_has_exact_module_argv(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            implementation = self.product_implementation()
+            implementation["commands"][0]["command"] = (
+                "python -m unittest tests.test_prove"
+            )
+            implementation["commands"][0]["execution"]["harness"] = {
+                "kind": "repository-file",
+                "locator": "tests/test_prove.py",
+                "invocation": "python-unittest",
+            }
+            execution = self.product_execution()
+            execution["commands"][0].update(
+                {
+                    "argv": ["python", "-m", "unittest", "tests.test_prove"],
+                    "harnessLocator": "tests/test_prove.py",
+                    "harnessArgumentIndex": 3,
+                }
+            )
+            self.write_json(target / "contracts/implementation-evidence.json", implementation)
+            self.write_json(target / "contracts/release-execution.json", execution)
+            result = self.run_validator(target)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_direct_invocation_has_exact_executable_argv(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            implementation = self.product_implementation()
+            implementation["commands"][0]["command"] = "./scripts/verify.sh"
+            implementation["commands"][0]["execution"]["harness"] = {
+                "kind": "repository-file",
+                "locator": "scripts/verify.sh",
+                "invocation": "direct",
+            }
+            execution = self.product_execution()
+            execution["commands"][0].update(
+                {
+                    "argv": ["./scripts/verify.sh"],
+                    "harnessLocator": "scripts/verify.sh",
+                    "harnessArgumentIndex": 0,
+                }
+            )
+            self.write_json(target / "contracts/implementation-evidence.json", implementation)
+            self.write_json(target / "contracts/release-execution.json", execution)
+            result = self.run_validator(target)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_execution_mode_must_match_implementation_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
