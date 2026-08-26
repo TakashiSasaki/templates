@@ -1,6 +1,6 @@
 # MCP transport guidance
 
-This guidance accompanies `capability.mcp`. `RUNTIME.md` owns exact SDK/library, commands, bind/port choices, and deployment lifecycle. `MCP_INTERFACE.md` owns caller-visible protocol behavior.
+This guidance accompanies `capability.mcp`. `contracts/mcp-interface.json` owns the selected protocol revision, transport inventory, and per-transport caller-visible operation exposures. `MCP_INTERFACE.md` owns qualitative caller-visible protocol, client, security, and semantic-equivalence guidance. `RUNTIME.md` owns exact SDK/library, commands, bind/port choices, and deployment lifecycle.
 
 ## Core baseline
 
@@ -52,6 +52,8 @@ Do not add deprecated transports, session behavior, or compatibility modes merel
 Core MCP revision and extension revision are independent. Select and test an extension through its own capability. `capability.mcp-apps` owns the MCP Apps extension. `capability.web-interface` owns an ordinary standalone browser surface.
 
 ## Required evidence
+
+Every transport and operation exposure declared by `contracts/mcp-interface.json` requires implementation-evidence coverage with positive and negative executable proof. Use `integration-test` or `end-to-end-test`; static inspection or unit-only proof is insufficient. Deferred executable proof is truthful incomplete state and remains release-blocking through the generic implementation-evidence release gate.
 
 For each selected transport, establish:
 
