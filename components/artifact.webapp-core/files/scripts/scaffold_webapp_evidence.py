@@ -143,13 +143,10 @@ def _project_requirements(
     return sorted(projected, key=lambda item: item["id"])
 
 
-def record_skeleton(target: dict[str, Any], status: str = "missing") -> dict[str, Any]:
+def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
     identifier = record_id(target)
-    if status not in STATUSES:
-        raise ValueError(f"unsupported Webapp evidence worklist status: {status!r}")
     return {
         "id": identifier,
-        "status": status,
         "target": target,
         "implementationBoundary": {
             "status": "required",
@@ -177,27 +174,31 @@ def render_worklist(root: Path) -> dict[str, Any]:
     targets = expected_targets(root)
     evidence = _load_canonical(root)
     canonical_by_target, record_statuses = _canonical_records(evidence)
-    records = [
-        record_skeleton(
-            target,
+    projected_statuses = {
+        record_id(target): (
             _record_status(canonical_by_target[target_key(target)])
             if target_key(target) in canonical_by_target
-            else "missing",
+            else "missing"
         )
         for target in targets
-    ]
+    }
+    records = [record_skeleton(target) for target in targets]
     identifiers = [record["id"] for record in records]
     if len(identifiers) != len(set(identifiers)):
         raise ValueError("Webapp evidence worklist produces duplicate record ids")
-    status = _status_union([record["status"] for record in records])
+    status = _status_union(list(projected_statuses.values()))
     return {
         "format": "webapp-implementation-evidence-worklist",
         "formatVersion": 1,
         "status": status,
         "statusCounts": {
-            value: sum(record["status"] == value for record in records)
+            value: sum(projected_statuses[record_id_value] == value for record_id_value in projected_statuses)
             for value in STATUSES
         },
+        "recordStatuses": [
+            {"id": record_id_value, "status": projected_statuses[record_id_value]}
+            for record_id_value in sorted(projected_statuses)
+        ],
         "recordCount": len(records),
         "records": records,
         "requirements": _project_requirements(evidence, record_statuses),
