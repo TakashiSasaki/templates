@@ -311,7 +311,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             )
             requirements.append(
                 {
-                    "id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper().replace('-', '_')}",
+                    "id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper()}",
                     "description": f"Task Ledger service operation {operation_id} executes its documented success and negative behavior.",
                     "recordIds": [record_id],
                     "requiredPositiveProofKinds": ["integration-test"],
