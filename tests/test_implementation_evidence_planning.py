@@ -32,7 +32,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
     def planning_document(self) -> dict:
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "mode": "planning",
             "commands": [],
             "releaseGates": [],
@@ -215,15 +215,15 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         self.assertIn("requiredPositiveProofKinds", prompt)
         self.assertIn("Preserve those IDs", prompt)
 
-    def test_v5_migration_guide_is_published(self) -> None:
+    def test_v6_migration_guide_is_published(self) -> None:
         catalog = json.loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))
         documents = {document["id"]: document for document in catalog["documents"]}
         self.assertEqual(
-            documents["implementation-evidence-v5-migration"]["source"],
-            "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v4-to-v5.md",
+            documents["implementation-evidence-v6-migration"]["source"],
+            "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v5-to-v6.md",
         )
-        self.assertFalse(documents["implementation-evidence-v5-migration"]["optional"])
-        self.assertFalse(documents["implementation-evidence-v5-migration"]["home"])
+        self.assertFalse(documents["implementation-evidence-v6-migration"]["optional"])
+        self.assertFalse(documents["implementation-evidence-v6-migration"]["home"])
 
 
 if __name__ == "__main__":

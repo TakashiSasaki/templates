@@ -186,13 +186,21 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 evidence_path,
                 {
                     "$schema": "../schemas/implementation-evidence.schema.json",
-                    "schemaVersion": 5,
+                    "schemaVersion": 6,
                     "mode": "product",
                     "commands": [
                         {
                             "id": "product-proof",
                             "command": "python product/prove.py",
                             "purpose": "Run the product proof.",
+                            "execution": {
+                                "capabilities": ["integration", "end-to-end", "browser"],
+                                "harness": {
+                                    "kind": "repository-file",
+                                    "locator": "product/prove.py",
+                                },
+                                "supportsNegativePath": True,
+                            },
                         }
                     ],
                     "releaseGates": [
@@ -205,6 +213,11 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                     "records": records,
                     "requirements": requirements,
                 },
+            )
+            product = target / "product"
+            product.mkdir(exist_ok=True)
+            (product / "prove.py").write_text(
+                "# synthetic scaffold acceptance harness\n", encoding="utf-8"
             )
 
             projected = json.loads(self.scaffold(target).stdout)

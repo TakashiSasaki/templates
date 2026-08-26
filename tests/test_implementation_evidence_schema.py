@@ -8,6 +8,8 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
+from executable_proof_test_support import upgrade_product_evidence_v6
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = (
     ROOT
@@ -27,14 +29,14 @@ def load_schema() -> dict:
 
 
 def product_document() -> dict:
-    return {
+    value = {
         "$schema": "../schemas/implementation-evidence.schema.json",
         "schemaVersion": 5,
         "mode": "product",
         "commands": [
             {
                 "id": "product-proof",
-                "command": "python product/prove.py",
+                "command": "python tests/test_demo.py",
                 "purpose": "Prove the product contract implementation.",
             }
         ],
@@ -93,6 +95,7 @@ def product_document() -> dict:
             }
         ],
     }
+    return upgrade_product_evidence_v6(value)
 
 
 class ImplementationEvidenceSchemaTests(unittest.TestCase):
@@ -144,6 +147,15 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
         unverified["records"][0]["implementationBoundary"]["status"] = "required"
         self.assert_invalid(unverified)
 
+    def test_product_commands_require_execution_profile(self) -> None:
+        value = product_document()
+        del value["commands"][0]["execution"]
+        self.assert_invalid(value)
+
+        empty_capabilities = product_document()
+        empty_capabilities["commands"][0]["execution"]["capabilities"] = []
+        self.assert_invalid(empty_capabilities)
+
     def test_product_proofs_require_complete_verified_metadata(self) -> None:
         for evidence_key in ("positiveEvidence", "negativeEvidence"):
             for field in ("kind", "locator", "commandId", "expectedResult"):
@@ -165,7 +177,7 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "mode": "template",
             "commands": [],
             "releaseGates": [],

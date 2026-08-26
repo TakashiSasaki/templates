@@ -10,6 +10,8 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+from executable_proof_test_support import upgrade_product_evidence_v6
+
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "components" / "capability.web-interface"
 SCHEMA = COMPONENT / "files" / "schemas" / "web-interface.schema.json"
@@ -95,7 +97,7 @@ class WebInterfaceContractTests(unittest.TestCase):
                     "releaseGateIds": ["release"],
                 }
             )
-        return {
+        value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
             "schemaVersion": 5,
             "mode": "product",
@@ -104,6 +106,11 @@ class WebInterfaceContractTests(unittest.TestCase):
             "requirements": requirements,
             "records": records,
         }
+        return upgrade_product_evidence_v6(
+            value,
+            browser_command_ids={"web-proof"},
+            harness_by_command={"web-proof": "tests/test_web_interface.py"},
+        )
 
     def run_validator(self, contract: dict, evidence: dict) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()

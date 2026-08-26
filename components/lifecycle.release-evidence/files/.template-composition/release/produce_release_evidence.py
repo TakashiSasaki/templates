@@ -23,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 CANDIDATE_PATH = HERE / "candidate.py"
 LIFECYCLE_LOCK_PATH = HERE / "lifecycle_lock.py"
 EVIDENCE_RELATIVE = "contracts/release-evidence.json"
+COMPOSITION_PYTHON_TOKEN = "python"
 
 
 def load_managed_module(name: str, path: Path, label: str):
@@ -104,6 +105,29 @@ def run_validator(root: Path, relative: str, *arguments: str) -> None:
     if completed.returncode != 0:
         diagnostic = completed.stderr.strip() or completed.stdout.strip()
         fail(f"precondition/produced evidence validation failed: {diagnostic}")
+
+
+def materialize_execution_argv(argv: object) -> list[str]:
+    """Resolve the validated Python runtime token without shell or env expansion."""
+
+    if not isinstance(argv, list) or not argv or not all(
+        isinstance(argument, str) and argument and "\x00" not in argument
+        for argument in argv
+    ):
+        fail("validated release argv changed unexpectedly")
+    materialized = list(argv)
+    token_positions = [
+        index
+        for index, argument in enumerate(materialized)
+        if argument == COMPOSITION_PYTHON_TOKEN
+    ]
+    if token_positions:
+        if token_positions != [0]:
+            fail(
+                f"{COMPOSITION_PYTHON_TOKEN!r} is allowed only as argv[0] after validation"
+            )
+        materialized[0] = sys.executable
+    return materialized
 
 
 def verify_candidate(
@@ -213,7 +237,8 @@ def produce_locked(
         for command in implementation["commands"]:
             command_id = command["id"]
             binding = bindings[command_id]
-            argv = binding["argv"]
+            contract_argv = binding["argv"]
+            execution_argv = materialize_execution_argv(contract_argv)
             working_directory = binding["workingDirectory"]
 
             verify_evidence_unchanged(
@@ -233,9 +258,12 @@ def produce_locked(
                 fail(str(exc))
 
             started_ns, started_at = timestamp_after(previous_ns)
-            print(f"Running release command {command_id}: {argv!r}", flush=True)
+            print(
+                f"Running release command {command_id}: {contract_argv!r}",
+                flush=True,
+            )
             try:
-                completed = subprocess.run(argv, cwd=cwd, check=False)
+                completed = subprocess.run(execution_argv, cwd=cwd, check=False)
             except OSError as exc:
                 fail(f"cannot execute release command {command_id}: {exc}")
             completed_ns, completed_at = timestamp_after(started_ns)

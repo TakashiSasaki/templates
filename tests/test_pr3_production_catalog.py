@@ -444,7 +444,7 @@ class PR3ProductionCatalogTests(unittest.TestCase):
         self.assertTrue(
             {"release_execution", "release_evidence", "release_bundle"} <= set(entries)
         )
-        self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 1)
+        self.assertEqual(entries["release_execution"]["documentSchemaVersion"], 2)
 
 
 if __name__ == "__main__":

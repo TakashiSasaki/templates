@@ -13,6 +13,10 @@
       "minLength": 1,
       "pattern": "^[^\\u0000]+$"
     },
+    "repositoryLocator": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
     "workingDirectory": {
       "type": "string",
       "pattern": "^(?:\\.|(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*(?:^|/)\\.[gG][iI][tT](?:/|$))[A-Za-z0-9_.][A-Za-z0-9._-]*(?:/[A-Za-z0-9_.][A-Za-z0-9._-]*)*)$"
@@ -20,7 +24,7 @@
     "executionCommand": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commandId", "argv", "workingDirectory"],
+      "required": ["commandId", "argv", "workingDirectory", "harnessLocator", "harnessArgumentIndex"],
       "properties": {
         "commandId": {"$ref": "#/$defs/identifier"},
         "argv": {
@@ -28,13 +32,15 @@
           "minItems": 1,
           "items": {"$ref": "#/$defs/nonBlankText"}
         },
-        "workingDirectory": {"$ref": "#/$defs/workingDirectory"}
+        "workingDirectory": {"$ref": "#/$defs/workingDirectory"},
+        "harnessLocator": {"$ref": "#/$defs/repositoryLocator"},
+        "harnessArgumentIndex": {"type": "integer", "minimum": 0}
       }
     }
   },
   "properties": {
     "$schema": {"const": "../schemas/release-execution.schema.json"},
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {"const": 2},
     "mode": {"enum": ["template", "product"]},
     "commands": {
       "type": "array",

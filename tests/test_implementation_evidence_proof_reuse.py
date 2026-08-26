@@ -9,6 +9,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
 
 sys.dont_write_bytecode = True
 
@@ -125,38 +129,43 @@ class ImplementationEvidenceProofReuseTests(unittest.TestCase):
                     for contract_id in ("routes", "surfaces", "ui_states")
                 ]
             }
-            evidence = {
-                "mode": "product",
-                "commands": [
-                    {
-                        "id": "shared-proof",
-                        "command": "python tests/prove_everything.py",
-                        "purpose": "Run shared product proof.",
-                    }
-                ],
-                "releaseGates": [
-                    {
-                        "id": "release",
-                        "purpose": "Run release proof.",
-                        "commandIds": ["shared-proof"],
-                    }
-                ],
-                "records": records,
-                "requirements": [
-                    {
-                        "id": "shared-proof-coverage",
-                        "description": "The fixture's three target families are covered.",
-                        "recordIds": ["surface", "route", "state"],
-                        "requiredPositiveProofKinds": ["integration-test"],
-                    }
-                ],
-            }
+            evidence = upgrade_product_evidence_v6(
+                {
+                    "$schema": "../schemas/implementation-evidence.schema.json",
+                    "schemaVersion": 5,
+                    "mode": "product",
+                    "commands": [
+                        {
+                            "id": "shared-proof",
+                            "command": "python tests/prove_everything.py",
+                            "purpose": "Run shared product proof.",
+                        }
+                    ],
+                    "releaseGates": [
+                        {
+                            "id": "release",
+                            "purpose": "Run release proof.",
+                            "commandIds": ["shared-proof"],
+                        }
+                    ],
+                    "records": records,
+                    "requirements": [
+                        {
+                            "id": "shared-proof-coverage",
+                            "description": "The fixture's three target families are covered.",
+                            "recordIds": ["surface", "route", "state"],
+                            "requiredPositiveProofKinds": ["integration-test"],
+                        }
+                    ],
+                }
+            )
             (contracts / "manifest.json").write_text(
                 json.dumps(manifest), encoding="utf-8"
             )
             (contracts / "implementation-evidence.json").write_text(
                 json.dumps(evidence), encoding="utf-8"
             )
+            materialize_declared_harnesses(root, evidence)
             environment = dict(os.environ)
             environment["PYTHONPATH"] = str(COMMON_DIR)
             environment["PYTHONDONTWRITEBYTECODE"] = "1"

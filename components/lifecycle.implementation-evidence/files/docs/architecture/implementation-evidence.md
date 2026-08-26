@@ -1,6 +1,6 @@
 # Implementation evidence lifecycle
 
-`lifecycle.implementation-evidence` provides an artifact-neutral mechanism connecting declared contracts to implementation boundaries, positive/negative proofs, authoritative commands, and release gates.
+`lifecycle.implementation-evidence` provides an artifact-neutral mechanism connecting declared contracts to implementation boundaries, positive/negative proofs, authoritative commands, execution capabilities, repository harnesses, and release gates.
 
 The generic contract does not know Webapp surfaces, routes, UI states, Skill resources, or any other artifact vocabulary. `contract-item` targets carry a contract ID plus artifact-defined `itemKind` and `itemId`; artifact/capability validators own exact item coverage and target-specific proof strength.
 
@@ -8,66 +8,76 @@ Template mode is deliberately empty. Use planning mode after product requirement
 
 Validation responsibilities are intentionally split rather than duplicated:
 
-- the registered JSON Schema owns document structure and mode-specific completeness, including the mandatory non-empty planning/product requirement ledger, proof-kind declaration for each requirement, planning target declaration, verified product implementation-boundary status, required proof metadata, and at least one selected release gate per product record;
-- `validate_implementation_evidence.py` runs after registered-contract schema validation and owns semantic relationships that JSON Schema cannot express conveniently: unique identities, registered-contract target references, requirement-to-record references, optional product requirement-target matching, proof-kind constraints, command/gate references, proof-command execution by selected gates, and unused command/gate detection;
-- artifact/capability validators own item existence, complete target coverage, and target-specific proof-strength policy.
+- the registered JSON Schema owns document structure and mode-specific completeness, including the mandatory non-empty planning/product requirement ledger, proof-kind declaration for each requirement, planning target declaration, verified product implementation-boundary status, command execution profiles, safe repository harness locators, required proof metadata, and at least one selected release gate per product record;
+- `validate_implementation_evidence.py` runs after registered-contract schema validation and owns semantic relationships that JSON Schema cannot express conveniently: unique identities, registered-contract target references, requirement-to-record references, optional product requirement-target matching, proof-kind-to-command-capability binding, repository harness existence and regular-file identity, exact command-to-harness invocation, negative-path capability, command/gate references, proof-command execution by selected gates, and unused command/gate detection;
+- artifact/capability validators own item existence, complete target coverage, and target-specific proof-strength policy. They may require additional execution capabilities beyond the generic proof-kind mapping; Webapp browser-sensitive targets, for example, require a `browser`-capable command.
 
-A structurally incomplete document must therefore fail registered-contract schema validation before semantic evidence validation runs. The semantic validator mirrors critical ledger/proof relationships because release-readiness validation can invoke the semantic path directly; it does not create a second authority.
+A structurally incomplete document must therefore fail registered-contract schema validation before semantic evidence validation runs. The semantic validator mirrors critical path-safety and proof relationships because release-readiness validation can invoke the semantic path directly; it does not create a second authority.
 
 ## Explicit product requirements
 
-Every product-mode document must declare at least one explicit requirement in the same canonical document:
+Every product-mode document must declare at least one explicit requirement in the same canonical document. Requirement IDs are stable machine-facing identifiers. Each product requirement references implementation-evidence records and declares sufficient positive proof kinds; records close the graph through an implementation boundary, positive and negative proofs, authoritative commands, execution profiles, and selected release gates.
+
+Product requirements may retain a non-empty `targets` array from planning. When present, the generic validator requires the target set to match the targets of the linked `recordIds` exactly. This is an internal consistency check, not a substitute for the immutable planning checkpoint or version-control review of the planning-to-product transition.
+
+## Proof kind is not execution surface
+
+`evidenceProof.kind` describes the scope/class of a proof. It is not sufficient by itself to establish how the proof executes. Version 6 therefore requires every product command to carry a separate execution profile:
 
 ```json
 {
-  "requirements": [
-    {
-      "id": "REQ-SEVERITY-BROWSER-FILTER",
-      "description": "Browser UI can filter records by severity.",
-      "recordIds": ["browser-severity-filter"],
-      "requiredPositiveProofKinds": ["end-to-end-test", "accessibility-test"]
-    }
-  ]
+  "id": "verify-browser",
+  "command": "python tests/test_browser.py",
+  "purpose": "Exercise the browser-visible product path.",
+  "execution": {
+    "capabilities": ["end-to-end", "browser"],
+    "harness": {
+      "kind": "repository-file",
+      "locator": "tests/test_browser.py"
+    },
+    "supportsNegativePath": true
+  }
 }
 ```
 
-Requirement IDs are stable machine-facing identifiers; their descriptions are intentionally opaque to Composition. Lowercase IDs remain valid, and uppercase hyphenated IDs such as `REQ-SEVERITY-BROWSER-FILTER` are also valid for requirement rows. Each product requirement must reference at least one implementation-evidence record and must declare at least one sufficient positive proof kind. The existing record rules then close the graph through an implementation boundary, positive and negative proofs, authoritative commands, and a selected release gate.
+The generic lifecycle binds proof kinds to command capabilities:
 
-Product requirements may retain a non-empty `targets` array from planning. When present, the generic validator requires the target set to match the targets of the linked `recordIds` exactly. This is an internal consistency check, not a substitute for version-control review of the planning-to-product transition: a validator cannot reconstruct historical intent after both fields have been edited.
+- `unit-test` requires `unit`;
+- `integration-test` requires `integration`;
+- `end-to-end-test` requires `end-to-end`;
+- `accessibility-test` requires `accessibility`;
+- `migration-test` requires `migration`;
+- `inspection` requires `inspection`;
+- `other` requires `other`.
 
-The ledger is mandatory in product mode so that a consumer cannot evade traceability by omitting machine-readable intent altogether. The proof-kind declaration is also mandatory so that a consumer cannot evade evidence-strength validation by omitting the machine-readable minimum for a requirement. Composition still does not infer requirements or proof strength from prose: the human or coding agent must enumerate the product requirements and choose sufficient proof kinds. Template mode carries `requirements: []` and makes no product claims.
+This mapping deliberately does **not** equate `end-to-end` with `browser`. A packaged CLI or protocol workflow may be end-to-end without using a browser. Artifact validators add the execution surface they actually require. Browser-sensitive Webapp evidence therefore needs both an accepted browser-level proof kind and a command whose capabilities include `browser`.
 
-## Proof kind and deferred state
+## Command-to-harness invocation authority
 
-The existing `evidenceProof.kind` is the execution-strength classification; it is not a claim that every proof is browser-backed. Use `inspection` for static source/HTML/JSON inspection, `unit-test`, `integration-test`, or `migration-test` for executable process-level checks, and `end-to-end-test` or `accessibility-test` for browser interaction and keyboard/focus behavior. Artifact/capability validators decide which kinds are sufficient for a target.
+The harness locator is not merely a descriptive filename. The semantic validator derives the command's executable invocation from the exact pair of `command` text and `execution.harness.locator`. Exactly these forms are accepted:
 
-A product proof may be `deferred` when the required environment is unavailable. Deferred evidence is retained as an explicit incomplete state and may allow structural validation to describe the composition as valid, but release readiness rejects every non-`verified` proof. Static inspection must therefore never be silently promoted to browser interaction evidence.
+- `python <repository-file>` for a Python script harness;
+- `python -m unittest <python.module>` when the harness is the corresponding `.py` module path;
+- `./<repository-file>` for a directly invoked repository harness.
 
-Every planning/product requirement declares `requiredPositiveProofKinds`. For example, a CLI requirement can require `integration-test`, while a browser interaction requirement can require `end-to-end-test` or `accessibility-test`. This prevents a static `inspection` proof from satisfying a caller-visible interactive requirement without making Composition infer product semantics from requirement prose. When several kinds are acceptable, list each acceptable kind; when a required environment is unavailable, keep the corresponding proof `deferred` rather than weakening the declared requirement.
+No separate invocation label is trusted. A command such as `echo tests/proof.py`, `python -c ... tests/proof.py`, or an opaque shell command that merely mentions the locator cannot claim that harness. If a proof needs additional arguments, environment setup, discovery rules, or another opaque launcher, create a repository-owned wrapper harness and make that wrapper the declared command/harness authority.
+
+A command harness must also be a safe repository-relative regular file, not arbitrary prose and not a symbolic link. Normal consumer validation and release-readiness validation check the same path-safety boundary and require the file to exist as a non-symlink regular file. This does not prove that the harness implementation is semantically honest; it makes the executable identity and obvious command/harness contradictions machine-checkable. When the release lifecycle is selected, `lifecycle.release-execution` binds the inferred invocation to one exact fixed argv shape and revision-bound release evidence records the actual result.
+
+## Positive and negative execution
+
+Both positive and negative evidence must reference an authoritative command. A command used by `negativeEvidence` must declare `supportsNegativePath: true`. A positive-only harness may set the field to `false`; it cannot then be reused as evidence for a claimed negative path.
+
+The boolean is a declared machine contract, not a substitute for running the test. Release execution and CI provide execution provenance. Its purpose is to prevent an evidence graph from claiming a negative-path proof while simultaneously declaring that the referenced command does not own a negative path.
+
+## Deferred state
+
+A product proof may be `deferred` when the required environment is unavailable. Deferred evidence is retained as an explicit incomplete state and may allow structural validation to describe the composition as valid, but release readiness rejects every non-`verified` proof. The intended command execution profile must still be truthful: an unavailable browser environment is represented by a deferred browser-capable proof, not by relabeling static inspection as browser evidence.
+
+Every planning/product requirement declares `requiredPositiveProofKinds`. When several proof kinds are acceptable, list each acceptable kind; when a required environment is unavailable, keep the corresponding proof `deferred` rather than weakening the declared requirement.
 
 ## Planning requirement ledger
 
 Use `mode: "planning"` after explicit product requirements and their intended machine contract targets are known but before implementation records exist. Planning mode is deliberately narrow: `commands`, `releaseGates`, and `records` stay empty; `requirements` is non-empty; every requirement has a stable ID, description, non-empty `targets`, empty `recordIds`, and non-empty `requiredPositiveProofKinds`.
 
-Example:
-
-```json
-{
-  "id": "REQ-CLI-FILTER",
-  "description": "The packaged CLI filters caller-visible records by severity.",
-  "targets": [
-    {
-      "kind": "contract-item",
-      "contractId": "cli_interface",
-      "itemKind": "entrypoint",
-      "itemId": "records"
-    }
-  ],
-  "recordIds": [],
-  "requiredPositiveProofKinds": ["integration-test"]
-}
-```
-
-This gives coding agents a machine-readable requirement inventory before coding and tells selected artifact/capability validators which proof-strength policy should apply before product records exist. The generic lifecycle validates that planning targets refer to registered contracts; the owning artifact/capability validator is responsible for validating exact item identity and sufficient proof kinds.
-
-Preserve stable requirement IDs when moving to `product`. Retaining the planning `targets` is recommended because product validation will then check that linked records implement exactly those targets, but v5 does not require redundant product targets when record targets already provide the canonical implementation mapping. `template` means no product requirement claim is active; `planning` means target-bound requirements are explicit but implementation is incomplete; `product` means the implementation/evidence graph is active. Only product mode can pass release readiness.
+The generic lifecycle validates that planning targets refer to registered contracts; the owning artifact/capability validator is responsible for validating exact item identity and sufficient proof kinds. Preserve stable requirement IDs when moving to `product`. Retaining planning `targets` is recommended because product validation then checks that linked records implement exactly those targets. `template` means no product requirement claim is active; `planning` means target-bound requirements are explicit but implementation is incomplete; `product` means the implementation/evidence graph is active. Only product mode can pass release readiness.

@@ -64,12 +64,14 @@ class WebappEvidenceProofStrengthTests(unittest.TestCase):
                 {
                     "id": f"{record_id}-positive-proof",
                     "kind": proof_kind,
+                    "commandId": "product-proof",
                 }
             ]
             record["negativeEvidence"] = [
                 {
                     "id": f"{record_id}-negative-proof",
                     "kind": proof_kind,
+                    "commandId": "product-proof",
                 }
             ]
             record["releaseGateIds"] = ["product-release"]
@@ -81,7 +83,23 @@ class WebappEvidenceProofStrengthTests(unittest.TestCase):
     ) -> subprocess.CompletedProcess[str]:
         self.write_json(
             target / "contracts" / "implementation-evidence.json",
-            {"mode": "product", "records": records},
+            {
+                "mode": "product",
+                "commands": [
+                    {
+                        "id": "product-proof",
+                        "execution": {
+                            "capabilities": [
+                                "integration",
+                                "end-to-end",
+                                "accessibility",
+                                "browser",
+                            ]
+                        },
+                    }
+                ],
+                "records": records,
+            },
         )
         return self.run_python(target, "scripts/validate_webapp_evidence.py")
 

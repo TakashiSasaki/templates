@@ -7,6 +7,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
+
 sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,7 +35,9 @@ SPEC.loader.exec_module(validator)
 
 
 def product_evidence(proof_kind: str) -> dict:
-    return {
+    value = {
+        "$schema": "../schemas/implementation-evidence.schema.json",
+        "schemaVersion": 5,
         "mode": "product",
         "commands": [{
             "id": "proof",
@@ -82,6 +89,7 @@ def product_evidence(proof_kind: str) -> dict:
             "releaseGateIds": ["release"],
         }],
     }
+    return upgrade_product_evidence_v6(value, browser_command_ids={"proof"})
 
 
 class RequiredPositiveProofKindTests(unittest.TestCase):
@@ -97,6 +105,7 @@ class RequiredPositiveProofKindTests(unittest.TestCase):
         (contracts / "implementation-evidence.json").write_text(
             json.dumps(value), encoding="utf-8"
         )
+        materialize_declared_harnesses(root, value)
 
     def test_requirement_cannot_omit_required_proof_kinds(self) -> None:
         value = product_evidence("end-to-end-test")

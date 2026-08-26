@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from executable_proof_test_support import materialize_declared_harnesses
 from lifecycle_checkpoint_test_support import (
     create_planning_checkpoint,
     planning_evidence_from_product,
@@ -97,6 +98,7 @@ class WebInterfaceMaterializedValidationTests(unittest.TestCase):
                 target / "contracts" / "implementation-evidence.json",
                 product_evidence,
             )
+            materialize_declared_harnesses(target, product_evidence)
 
             runner = target / ".template-composition" / "validate.py"
             validate_result = subprocess.run(

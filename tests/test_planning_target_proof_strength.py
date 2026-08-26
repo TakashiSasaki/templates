@@ -39,7 +39,7 @@ class PlanningTargetProofStrengthTests(unittest.TestCase):
         ]
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "mode": "planning",
             "commands": [],
             "releaseGates": [],

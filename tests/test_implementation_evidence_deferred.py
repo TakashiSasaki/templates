@@ -11,6 +11,11 @@ sys.dont_write_bytecode = True
 
 from jsonschema import Draft202012Validator
 
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = (
     ROOT / "components" / "lifecycle.implementation-evidence" / "files"
@@ -36,7 +41,7 @@ SPEC.loader.exec_module(validator)
 
 
 def product_evidence(status: str = "verified") -> dict:
-    return {
+    value = {
         "$schema": "../schemas/implementation-evidence.schema.json",
         "schemaVersion": 5,
         "mode": "product",
@@ -90,6 +95,10 @@ def product_evidence(status: str = "verified") -> dict:
             "releaseGateIds": ["release"],
         }],
     }
+    return upgrade_product_evidence_v6(
+        value,
+        browser_command_ids={"browser-proof"},
+    )
 
 
 class DeferredImplementationEvidenceTests(unittest.TestCase):
@@ -105,6 +114,7 @@ class DeferredImplementationEvidenceTests(unittest.TestCase):
         (contracts / "implementation-evidence.json").write_text(
             json.dumps(value), encoding="utf-8"
         )
+        materialize_declared_harnesses(root, value)
 
     def test_deferred_product_proof_is_structurally_valid(self) -> None:
         value = product_evidence("deferred")

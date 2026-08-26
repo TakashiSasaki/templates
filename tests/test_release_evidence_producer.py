@@ -110,13 +110,21 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 5,
+                "schemaVersion": 6,
                 "mode": "product",
                 "commands": [
                     {
                         "id": "producer-proof",
                         "command": COMMAND_TEXT,
                         "purpose": "Exercise the managed release evidence producer.",
+                        "execution": {
+                            "capabilities": ["integration"],
+                            "harness": {
+                                "kind": "repository-file",
+                                "locator": "product/prove.py",
+                            },
+                            "supportsNegativePath": True,
+                        },
                     }
                 ],
                 "releaseGates": [
@@ -179,13 +187,15 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             target / "contracts/release-execution.json",
             {
                 "$schema": "../schemas/release-execution.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
                         "commandId": "producer-proof",
                         "argv": ["python", "product/prove.py"],
                         "workingDirectory": ".",
+                        "harnessLocator": "product/prove.py",
+                        "harnessArgumentIndex": 1,
                     }
                 ],
             },

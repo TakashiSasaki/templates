@@ -59,8 +59,11 @@ class TaskLedgerEvidenceExampleTests(unittest.TestCase):
             (contracts / "implementation-evidence.json").write_text(
                 json.dumps(value), encoding="utf-8"
             )
+            harness = root / "scripts" / "verify.sh"
+            harness.parent.mkdir(parents=True)
+            harness.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
             self.assertEqual(validator.validate(root), [])
-            self.assertEqual(validator.release_readiness_errors(value), [])
+            self.assertEqual(validator.release_readiness_errors(value, root), [])
 
 
 if __name__ == "__main__":

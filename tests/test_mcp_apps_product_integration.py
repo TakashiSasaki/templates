@@ -10,6 +10,10 @@ from pathlib import Path
 
 import test_mcp_apps_contract as apps_helpers
 import test_mcp_interface_contract as mcp_helpers
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
 from lifecycle_checkpoint_test_support import (
     create_planning_checkpoint,
     planning_evidence_from_product,
@@ -76,7 +80,14 @@ class McpAppsProductIntegrationTests(unittest.TestCase):
 
         evidence["requirements"].extend(apps["requirements"])
         evidence["records"].extend(apps["records"])
-        return evidence
+        return upgrade_product_evidence_v6(
+            evidence,
+            browser_command_ids={apps_command_id},
+            harness_by_command={
+                "mcp-proof": "tests/test_mcp_contract.py",
+                apps_command_id: "tests/test_mcp_apps_runtime.py",
+            },
+        )
 
     def test_product_apps_passes_complete_selected_validation_chain(self) -> None:
         mcp_case = mcp_helpers.McpInterfaceContractTests(
@@ -191,6 +202,7 @@ class McpAppsProductIntegrationTests(unittest.TestCase):
                 target / "contracts/implementation-evidence.json",
                 product_evidence,
             )
+            materialize_declared_harnesses(target, product_evidence)
 
             runner = target / ".template-composition" / "validate.py"
             validated = subprocess.run(

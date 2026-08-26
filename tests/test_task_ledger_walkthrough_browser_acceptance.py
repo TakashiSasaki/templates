@@ -291,7 +291,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             target / "contracts" / "implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 5,
+                "schemaVersion": 6,
                 "mode": "planning",
                 "commands": [],
                 "releaseGates": [],
@@ -432,13 +432,21 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             target / "contracts" / "implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 5,
+                "schemaVersion": 6,
                 "mode": "product",
                 "commands": [
                     {
                         "id": "verify-product",
                         "command": "./scripts/verify.sh",
                         "purpose": "Run unit, integration, and real-browser proof.",
+                        "execution": {
+                            "capabilities": ["integration", "end-to-end", "browser"],
+                            "harness": {
+                                "kind": "repository-file",
+                                "locator": "scripts/verify.sh",
+                            },
+                            "supportsNegativePath": True,
+                        },
                     }
                 ],
                 "releaseGates": [

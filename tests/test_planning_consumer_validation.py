@@ -50,7 +50,7 @@ class PlanningConsumerValidationTests(unittest.TestCase):
                 target / "contracts" / "implementation-evidence.json",
                 {
                     "$schema": "../schemas/implementation-evidence.schema.json",
-                    "schemaVersion": 5,
+                    "schemaVersion": 6,
                     "mode": "planning",
                     "commands": [],
                     "releaseGates": [],
