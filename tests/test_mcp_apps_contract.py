@@ -115,7 +115,7 @@ class McpAppsContractTests(unittest.TestCase):
             )
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "product",
             "requirements": requirements,
             "records": records,

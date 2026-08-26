@@ -32,7 +32,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
     def planning_document(self) -> dict:
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "planning",
             "commands": [],
             "releaseGates": [],

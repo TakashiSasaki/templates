@@ -127,7 +127,7 @@ class McpInterfaceContractTests(unittest.TestCase):
         operation_record_id = "mcp-interface-operation-stdio-list-records"
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "product",
             "commands": [command],
             "releaseGates": [gate],
