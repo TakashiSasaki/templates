@@ -1,16 +1,31 @@
 # MCP public interface contract
 
-This contract is materialized by `capability.mcp`. It defines caller-visible MCP behavior. Runtime, SDK, exact core protocol revision, startup commands, bind/port choices, and distribution remain authoritative in `RUNTIME.md`.
+This guidance is materialized by `capability.mcp` and explains caller-visible MCP behavior. The machine-readable authority for the selected protocol revision, transport inventory, and per-transport caller-visible operation exposures is `contracts/mcp-interface.json`. Runtime, SDK, startup commands, bind/port choices, and distribution remain authoritative in `RUNTIME.md`.
 
 The initial composition baseline uses MCP `2026-07-28` Modern protocol semantics. Earlier initialization-based revisions are not a default compatibility target.
 
-## Status
+## Machine-readable authority and evidence
+
+`contracts/mcp-interface.json` starts in `template` mode with no product claim. A selected product MCP capability switches it to `product` mode, declares the `2026-07-28` revision, declares every maintained transport, and declares every caller-visible operation exposure together with the transport that carries it.
+
+Each declared item becomes an implementation-evidence target:
+
+- transport: `contract-item / mcp_interface / transport / <transport-id>`
+- operation exposure: `contract-item / mcp_interface / operation / <operation-id>`
+
+Every target requires exactly one implementation-evidence record, a linked product requirement, and both positive and negative executable proof. At least one `integration-test` or `end-to-end-test` proof kind must be present in each polarity, and the linked requirement must declare compatible positive-proof strength. Static inspection and unit-only proof do not establish caller-visible MCP execution.
+
+Proof may remain explicitly `deferred` while work is incomplete; do not replace an unavailable protocol round trip with weaker evidence. Generic implementation-evidence/release readiness remains responsible for keeping deferred proof out of a release-ready state.
+
+The Markdown below retains qualitative protocol, security, client, and semantic-equivalence decisions that schema v1 intentionally does not encode. It does not replace the machine inventory or its evidence targets.
+
+## Worksheet status
 
 ```text
-Selection status: UNSELECTED
+Worksheet status: UNSELECTED
 ```
 
-Change the status to `SELECTED` only after every supported transport and caller-visible behavior is concrete and agrees with `RUNTIME.md`.
+This marker is guidance only. Product selection is machine-visible only when `contracts/mcp-interface.json` is in `product` mode and its transport/operation inventory agrees with `RUNTIME.md` and the implementation evidence.
 
 ## Core protocol
 
