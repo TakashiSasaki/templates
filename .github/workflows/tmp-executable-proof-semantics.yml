@@ -59,10 +59,22 @@ jobs:
 
   core-full:
     runs-on: ubuntu-24.04
+    env:
+      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+      - name: Check out Site publication protocol
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+          path: .site-publication-protocol
+          sparse-checkout: |
+            scripts/publication_contract.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          fetch-depth: 1
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
           python-version: '3.12'
