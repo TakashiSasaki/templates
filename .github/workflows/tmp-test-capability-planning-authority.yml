@@ -1,5 +1,8 @@
 name: Temporary capability planning authority tests
 on:
+  push:
+    branches:
+      - agent/capability-planning-item-authority-pr22
   pull_request:
     branches:
       - composition
