@@ -85,13 +85,16 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
         if not isinstance(record, dict):
             raise TypeError(f"implementation evidence record {index} must be a JSON object")
         target = record.get("target")
-        if not requires_browser_level_proof(target):
-            continue
         if not isinstance(target, dict):
             raise TypeError(
                 f"implementation evidence record {index} target must be a JSON object"
             )
         key = target_key(target)
+        is_webapp_domain = (
+            target.get("kind") == "contract-item"
+            and target.get("contractId") in DOMAIN_IDS
+        )
+        browser_sensitive = requires_browser_level_proof(target)
         for field, label in (
             ("positiveEvidence", "positive"),
             ("negativeEvidence", "negative"),
@@ -101,14 +104,29 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
                 raise TypeError(
                     f"implementation evidence record {index} {field} must be a JSON array"
                 )
-            browser_backed = [
+            browser_level = [
                 proof
                 for proof in proofs
                 if isinstance(proof, dict)
                 and proof.get("kind") in BROWSER_LEVEL_PROOF_KINDS
-                and "browser" in command_capabilities.get(proof.get("commandId"), set())
             ]
-            if not browser_backed:
+            browser_backed = [
+                proof
+                for proof in browser_level
+                if "browser" in command_capabilities.get(proof.get("commandId"), set())
+            ]
+            if is_webapp_domain and len(browser_backed) != len(browser_level):
+                for proof in browser_level:
+                    if "browser" in command_capabilities.get(
+                        proof.get("commandId"), set()
+                    ):
+                        continue
+                    errors.append(
+                        f"Webapp {label} proof {proof.get('id')!r} for target {key} uses "
+                        f"browser-level proof kind {proof.get('kind')!r} but command "
+                        f"{proof.get('commandId')!r} lacks browser execution capability"
+                    )
+            if browser_sensitive and not browser_backed:
                 errors.append(
                     f"browser-sensitive Webapp target {key} requires at least one "
                     f"{label} browser-level proof kind ({allowed_kinds}) backed by an "
