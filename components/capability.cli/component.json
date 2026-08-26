@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "capability.cli",
   "kind": "capability",
-  "version": 3,
-  "summary": "Stable caller-visible packaged CLI contract.",
+  "version": 4,
+  "summary": "Stable caller-visible packaged CLI contract with pre-coding entrypoint authority.",
   "requires": [
     "capability.runtime",
     "lifecycle.implementation-evidence"
@@ -15,14 +15,19 @@
       "document": "contracts/cli-interface.json",
       "schema": "schemas/cli-interface.schema.json",
       "migration_slug": "cli-interface",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
         {
           "version": 1,
           "change_type": "initial"
+        },
+        {
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/cli-interface-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare caller-visible packaged CLI entrypoints, invocation probes, structured output, and exit-code contracts."
+      "purpose": "Declare planned and implemented caller-visible packaged CLI entrypoints, invocation probes, structured output, and exit-code contracts."
     }
   ],
   "materials": [
@@ -44,6 +49,11 @@
     {
       "source": "files/.template-composition/validators/validate_cli_interface.py",
       "destination": ".template-composition/validators/validate_cli_interface.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/migrations/cli-interface-v1-to-v2.md",
+      "destination": "docs/migrations/cli-interface-v1-to-v2.md",
       "ownership": "managed"
     }
   ]
