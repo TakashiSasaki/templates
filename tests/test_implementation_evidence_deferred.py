@@ -38,7 +38,7 @@ SPEC.loader.exec_module(validator)
 def product_evidence(status: str = "verified") -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "mode": "product",
         "commands": [{
             "id": "browser-proof",
@@ -54,6 +54,7 @@ def product_evidence(status: str = "verified") -> dict:
             "id": "browser-filter",
             "description": "Browser UI can filter records.",
             "recordIds": ["browser-filter"],
+            "requiredPositiveProofKinds": ["end-to-end-test"],
         }],
         "records": [{
             "id": "browser-filter",

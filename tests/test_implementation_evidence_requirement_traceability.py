@@ -34,6 +34,15 @@ validator = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(validator)
 
 
+def requirement(record_id: str = "browser-filter") -> dict:
+    return {
+        "id": "REQ-SEVERITY-BROWSER-FILTER",
+        "description": "Browser UI can filter records by severity.",
+        "recordIds": [record_id],
+        "requiredPositiveProofKinds": ["end-to-end-test"],
+    }
+
+
 def evidence(*, requirements: list[dict] | None = None, positive_status: str = "verified") -> dict:
     record = {
         "id": "browser-filter",
@@ -70,7 +79,7 @@ def evidence(*, requirements: list[dict] | None = None, positive_status: str = "
     }
     result = {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "mode": "product",
         "commands": [{
             "id": "product-proof",
@@ -104,11 +113,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
         )
 
     def test_closed_requirement_graph_is_accepted(self) -> None:
-        value = evidence(requirements=[{
-            "id": "REQ-SEVERITY-BROWSER-FILTER",
-            "description": "Browser UI can filter records by severity.",
-            "recordIds": ["browser-filter"],
-        }])
+        value = evidence(requirements=[requirement()])
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             self.write_fixture(root, value)
@@ -141,11 +146,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
             )
 
     def test_requirement_with_missing_record_is_rejected(self) -> None:
-        value = evidence(requirements=[{
-            "id": "browser-severity-filter",
-            "description": "Browser UI can filter records by severity.",
-            "recordIds": ["missing-browser-filter"],
-        }])
+        value = evidence(requirements=[requirement("missing-browser-filter")])
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             self.write_fixture(root, value)
@@ -157,11 +158,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
 
     def test_requirement_cannot_be_satisfied_by_unverified_positive_proof(self) -> None:
         value = evidence(
-            requirements=[{
-                "id": "browser-severity-filter",
-                "description": "Browser UI can filter records by severity.",
-                "recordIds": ["browser-filter"],
-            }],
+            requirements=[requirement()],
             positive_status="required",
         )
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -173,20 +170,21 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
                 errors,
             )
 
-    def test_schema_declares_requirement_shape_and_rejects_empty_record_ids(self) -> None:
+    def test_schema_declares_requirement_shape_and_rejects_empty_fields(self) -> None:
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
         schema_validator = Draft202012Validator(schema)
-        value = evidence(requirements=[{
-            "id": "browser-severity-filter",
-            "description": "Browser UI can filter records by severity.",
-            "recordIds": ["browser-filter"],
-        }])
+        value = evidence(requirements=[requirement()])
         schema_validator.validate(value)
 
-        invalid = json.loads(json.dumps(value))
-        invalid["requirements"][0]["recordIds"] = []
+        invalid_records = json.loads(json.dumps(value))
+        invalid_records["requirements"][0]["recordIds"] = []
         with self.assertRaises(ValidationError):
-            schema_validator.validate(invalid)
+            schema_validator.validate(invalid_records)
+
+        missing_kinds = json.loads(json.dumps(value))
+        del missing_kinds["requirements"][0]["requiredPositiveProofKinds"]
+        with self.assertRaises(ValidationError):
+            schema_validator.validate(missing_kinds)
 
 
 if __name__ == "__main__":

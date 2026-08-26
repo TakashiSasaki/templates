@@ -106,9 +106,10 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
     """Validate the explicit requirement -> record edge of the evidence graph.
 
     Requirement text is intentionally opaque to this validator. Product mode must
-    expose at least one stable requirement ID; its references must then resolve to
-    traceable implementation records. Existing record validation closes the graph
-    through proofs, commands, and release gates.
+    expose at least one stable requirement ID and an explicit sufficient-proof-kind
+    declaration for every requirement; references must then resolve to traceable
+    implementation records. Existing record validation closes the graph through
+    proofs, commands, and release gates.
     """
 
     requirements = evidence.get("requirements")
@@ -145,6 +146,12 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
             continue
         requirement_id = requirement.get("id")
         owner = f"requirement {requirement_id!r}"
+        required_kinds = requirement.get("requiredPositiveProofKinds")
+        if not isinstance(required_kinds, list) or not required_kinds:
+            errors.append(
+                f"{owner}: requiredPositiveProofKinds must contain at least one proof kind"
+            )
+            required_kinds = []
         record_refs = requirement.get("recordIds")
         if not isinstance(record_refs, list) or not record_refs:
             errors.append(f"{owner}: recordIds must contain at least one record")
@@ -165,8 +172,7 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"{owner}: linked record {record_id} has no traceable positive evidence"
                 )
-            required_kinds = requirement.get("requiredPositiveProofKinds")
-            if isinstance(required_kinds, list) and required_kinds:
+            if required_kinds:
                 if not isinstance(positive, list) or not any(
                     isinstance(proof, dict)
                     and proof.get("kind") in required_kinds

@@ -29,7 +29,7 @@ def load_schema() -> dict:
 def product_document() -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "mode": "product",
         "commands": [
             {
@@ -121,6 +121,15 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
         empty["requirements"] = []
         self.assert_invalid(empty)
 
+    def test_product_requirement_requires_nonempty_proof_kind_declaration(self) -> None:
+        missing = product_document()
+        del missing["requirements"][0]["requiredPositiveProofKinds"]
+        self.assert_invalid(missing)
+
+        empty = product_document()
+        empty["requirements"][0]["requiredPositiveProofKinds"] = []
+        self.assert_invalid(empty)
+
     def test_requirement_id_accepts_uppercase_stable_form(self) -> None:
         value = product_document()
         value["requirements"][0]["id"] = "REQ-SEVERITY-BROWSER-FILTER"
@@ -156,7 +165,7 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "mode": "template",
             "commands": [],
             "releaseGates": [],

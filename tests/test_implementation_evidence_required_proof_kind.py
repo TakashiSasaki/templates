@@ -98,6 +98,23 @@ class RequiredPositiveProofKindTests(unittest.TestCase):
             json.dumps(value), encoding="utf-8"
         )
 
+    def test_requirement_cannot_omit_required_proof_kinds(self) -> None:
+        value = product_evidence("end-to-end-test")
+        del value["requirements"][0]["requiredPositiveProofKinds"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, value)
+            structural_errors = validator.validate(root)
+        readiness_errors = validator.release_readiness_errors(value)
+        self.assertTrue(
+            any("requiredPositiveProofKinds" in error for error in structural_errors),
+            structural_errors,
+        )
+        self.assertTrue(
+            any("requiredPositiveProofKinds" in error for error in readiness_errors),
+            readiness_errors,
+        )
+
     def test_static_inspection_cannot_satisfy_browser_requirement(self) -> None:
         value = product_evidence("inspection")
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -337,7 +337,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 2,
+                "schemaVersion": 3,
                 "mode": "product",
                 "commands": [
                     {
