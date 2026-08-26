@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/implementation-evidence.schema.json",
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "mode": "template",
   "commands": [],
   "releaseGates": [],
