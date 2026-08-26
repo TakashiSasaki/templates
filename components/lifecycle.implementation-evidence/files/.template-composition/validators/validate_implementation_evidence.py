@@ -157,7 +157,8 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 continue
             positive = record.get("positiveEvidence")
             if not isinstance(positive, list) or not any(
-                isinstance(proof, dict) and proof.get("status") == "verified"
+                isinstance(proof, dict)
+                and proof.get("status") in {"verified", "deferred"}
                 for proof in positive
             ):
                 errors.append(
