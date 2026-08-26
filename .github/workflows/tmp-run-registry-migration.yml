@@ -15,7 +15,8 @@ jobs:
           ref: agent/planning-requirement-ledger-pr16
           fetch-depth: 0
       - run: python .github/tmp/update_planning_registry_expectations.py
-      - run: grep -RIn --include='*.py' -E 'implementation-evidence.*deferred|DEFERRED: implementation-evidence' tests || true
+      - run: |
+          grep -RIn --include='*.py' -E 'implementation-evidence.*deferred|DEFERRED: implementation-evidence' tests || true
       - run: |
           rm -f .github/tmp/update_planning_registry_expectations.py
           rm -f .github/workflows/tmp-update-planning-registry-expectations.yml
