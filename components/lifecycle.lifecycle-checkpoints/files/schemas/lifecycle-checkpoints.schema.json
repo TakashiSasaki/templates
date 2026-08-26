@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "checkpoints"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/lifecycle-checkpoints.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/checkpoint"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sequence",
+        "phase",
+        "changeKind",
+        "parentId",
+        "snapshotPath",
+        "manifestSha256",
+        "recordedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phase": {
+          "enum": [
+            "planning",
+            "product"
+          ]
+        },
+        "changeKind": {
+          "enum": [
+            "initial",
+            "specification-change"
+          ]
+        },
+        "parentId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identifier"
+            }
+          ]
+        },
+        "snapshotPath": {
+          "type": "string",
+          "pattern": "^artifacts/lifecycle/[0-9]{3}-[a-z][a-z0-9-]*$"
+        },
+        "manifestSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "recordedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

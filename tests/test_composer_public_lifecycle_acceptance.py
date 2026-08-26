@@ -133,6 +133,7 @@ class ComposerPublicLifecycleAcceptanceTests(unittest.TestCase):
                     "capability.runtime",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 ],
             )
 

@@ -2,35 +2,15 @@
   "schema_version": 1,
   "id": "lifecycle.composition-state",
   "kind": "lifecycle",
-  "version": 9,
+  "version": 10,
   "summary": "Self-contained consumer validation for resolved composition state, material ownership, and selected-component validator dispatch.",
   "requires": [],
   "conflicts": [],
   "materials": [
-    {
-      "source": "files/.template-composition/composition-lock.schema.json",
-      "destination": ".template-composition/composition-lock.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validate_composition.py",
-      "destination": ".template-composition/validate_composition.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validation-registry.json",
-      "destination": ".template-composition/validation-registry.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validate.py",
-      "destination": ".template-composition/validate.py",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/docs/architecture/composition-state.md",
-      "destination": "docs/architecture/composition-state.md",
-      "ownership": "managed"
-    }
+    {"source": "files/.template-composition/composition-lock.schema.json", "destination": ".template-composition/composition-lock.schema.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validate_composition.py", "destination": ".template-composition/validate_composition.py", "ownership": "managed"},
+    {"source": "files/.template-composition/validation-registry.json", "destination": ".template-composition/validation-registry.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validate.py", "destination": ".template-composition/validate.py", "ownership": "managed"},
+    {"source": "files/docs/architecture/composition-state.md", "destination": "docs/architecture/composition-state.md", "ownership": "managed"}
   ]
 }

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "lifecycle.lifecycle-checkpoints",
+  "kind": "lifecycle",
+  "version": 1,
+  "summary": "Content-addressed validated planning/product checkpoints and historical transition authority.",
+  "requires": [
+    "lifecycle.composition-state",
+    "lifecycle.contract-evolution"
+  ],
+  "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "lifecycle_checkpoints",
+      "document": "contracts/lifecycle-checkpoints.json",
+      "schema": "schemas/lifecycle-checkpoints.schema.json",
+      "migration_slug": "lifecycle-checkpoints",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Record ordered validated planning/product checkpoint manifests without treating wall-clock timestamps as chronology authority."
+    }
+  ],
+  "materials": [
+    {
+      "source": "files/contracts/lifecycle-checkpoints.json",
+      "destination": "contracts/lifecycle-checkpoints.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/lifecycle-checkpoints.schema.json",
+      "destination": "schemas/lifecycle-checkpoints.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/checkpoint.py",
+      "destination": ".template-composition/checkpoint.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_lifecycle_checkpoints.py",
+      "destination": ".template-composition/validators/validate_lifecycle_checkpoints.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/lifecycle-checkpoints.md",
+      "destination": "docs/architecture/lifecycle-checkpoints.md",
+      "ownership": "managed"
+    }
+  ]
+}

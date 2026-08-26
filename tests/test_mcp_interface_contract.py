@@ -10,6 +10,11 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+from lifecycle_checkpoint_test_support import (
+    create_planning_checkpoint,
+    planning_evidence_from_product,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "components" / "capability.mcp"
 SCHEMA = COMPONENT / "files" / "schemas" / "mcp-interface.schema.json"
@@ -148,8 +153,37 @@ class McpInterfaceContractTests(unittest.TestCase):
             self.write_json(config, {"schema_version": 1, "recipe": "skill", "components": {"include": ["capability.mcp"], "exclude": []}, "parameters": {}})
             apply_result = subprocess.run([sys.executable, str(COMPOSER), "apply", "--config", str(config), "--target", str(target)], cwd=ROOT, text=True, capture_output=True, check=False)
             self.assertEqual(apply_result.returncode, 0, apply_result.stdout + apply_result.stderr)
+
+            product_evidence, planning_evidence = planning_evidence_from_product(
+                self.evidence()
+            )
+            planning_contract = {
+                "$schema": "../schemas/mcp-interface.schema.json",
+                "schemaVersion": 2,
+                "mode": "planning",
+                "protocolRevision": "2026-07-28",
+                "transports": [
+                    {
+                        "id": "stdio",
+                        "kind": "stdio",
+                        "purpose": "Expose the selected stdio MCP transport.",
+                    }
+                ],
+                "operations": [
+                    {
+                        "id": "stdio-list-records",
+                        "kind": "tool",
+                        "transportId": "stdio",
+                        "purpose": "Expose records.list through the selected transport.",
+                    }
+                ],
+            }
+            self.write_json(target / "contracts" / "mcp-interface.json", planning_contract)
+            self.write_json(target / "contracts" / "implementation-evidence.json", planning_evidence)
+            create_planning_checkpoint(target)
+
             self.write_json(target / "contracts" / "mcp-interface.json", self.product_contract())
-            self.write_json(target / "contracts" / "implementation-evidence.json", self.evidence())
+            self.write_json(target / "contracts" / "implementation-evidence.json", product_evidence)
             runner = target / ".template-composition" / "validate.py"
             validate_result = subprocess.run([sys.executable, str(runner), str(target), "--format", "json"], cwd=target, text=True, capture_output=True, check=False)
             try:
@@ -160,10 +194,12 @@ class McpInterfaceContractTests(unittest.TestCase):
             self.assertEqual(payload["status"], "valid")
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertEqual(checks["mcp-interface"]["status"], "passed")
             self.assertEqual(checks["contract-evolution"]["status"], "passed")
             self.assertIn("capability.mcp", payload["resolved_components"])
             self.assertIn("lifecycle.implementation-evidence", payload["resolved_components"])
+            self.assertIn("lifecycle.lifecycle-checkpoints", payload["resolved_components"])
 
 
 if __name__ == "__main__":

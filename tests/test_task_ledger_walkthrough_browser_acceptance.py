@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from lifecycle_checkpoint_test_support import create_planning_checkpoint
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
@@ -122,7 +123,14 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         verifier.chmod(0o755)
 
     def service_operations(self) -> list[dict[str, str]]:
-        return [{'id': 'list-tasks', 'invocation': 'GET /api/tasks?status=all|open|completed', 'success': '200 JSON task array for a valid status filter', 'negative': '400 JSON error for an invalid status filter'}, {'id': 'get-task', 'invocation': 'GET /api/tasks/{id}', 'success': '200 JSON task for an existing id', 'negative': '404 JSON error for a missing id'}, {'id': 'create-task', 'invocation': 'POST /api/tasks', 'success': '201 JSON task for a non-empty title', 'negative': '400 JSON error for an empty title'}, {'id': 'update-task', 'invocation': 'PATCH /api/tasks/{id}', 'success': '200 JSON updated task for an existing id', 'negative': '404 JSON error for a missing id'}, {'id': 'delete-task', 'invocation': 'DELETE /api/tasks/{id}', 'success': '204 for an existing id', 'negative': '404 JSON error when the id no longer exists'}, {'id': 'health', 'invocation': 'GET /healthz', 'success': '200 JSON status ok', 'negative': '404 JSON error for an unknown service path'}]
+        return [
+            {"id": "list-tasks", "invocation": "GET /api/tasks?status=all|open|completed", "success": "200 JSON task array for a valid status filter", "negative": "400 JSON error for an invalid status filter"},
+            {"id": "get-task", "invocation": "GET /api/tasks/{id}", "success": "200 JSON task for an existing id", "negative": "404 JSON error for a missing id"},
+            {"id": "create-task", "invocation": "POST /api/tasks", "success": "201 JSON task for a non-empty title", "negative": "400 JSON error for an empty title"},
+            {"id": "update-task", "invocation": "PATCH /api/tasks/{id}", "success": "200 JSON updated task for an existing id", "negative": "404 JSON error for a missing id"},
+            {"id": "delete-task", "invocation": "DELETE /api/tasks/{id}", "success": "204 for an existing id", "negative": "404 JSON error when the id no longer exists"},
+            {"id": "health", "invocation": "GET /healthz", "success": "200 JSON status ok", "negative": "404 JSON error for an unknown service path"},
+        ]
 
     def productize_service_contract(self, target: Path) -> None:
         self.write_json(
@@ -146,13 +154,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 "entrypoints": [
                     {
                         "id": "task-ledger",
-                        "command": [
-                            "python",
-                            "-m",
-                            "task_ledger.cli",
-                            "--database",
-                            "task-ledger.db",
-                        ],
+                        "command": ["python", "-m", "task_ledger.cli", "--database", "task-ledger.db"],
                         "workingDirectory": ".",
                         "helpArguments": ["--help"],
                         "versionArguments": ["--version"],
@@ -176,18 +178,10 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         )
 
     def expected_targets(self, target: Path) -> list[dict[str, str]]:
-        surfaces = json.loads(
-            (target / "contracts" / "surfaces.json").read_text(encoding="utf-8")
-        )
-        routes = json.loads(
-            (target / "contracts" / "routes.json").read_text(encoding="utf-8")
-        )
-        states = json.loads(
-            (target / "contracts" / "ui-states.json").read_text(encoding="utf-8")
-        )
-        viewports = json.loads(
-            (target / "contracts" / "viewports.json").read_text(encoding="utf-8")
-        )
+        surfaces = json.loads((target / "contracts" / "surfaces.json").read_text(encoding="utf-8"))
+        routes = json.loads((target / "contracts" / "routes.json").read_text(encoding="utf-8"))
+        states = json.loads((target / "contracts" / "ui-states.json").read_text(encoding="utf-8"))
+        viewports = json.loads((target / "contracts" / "viewports.json").read_text(encoding="utf-8"))
         targets: list[dict[str, str]] = []
         for contract_id, item_kind, items, key in (
             ("surfaces", "surface", surfaces["surfaces"], "id"),
@@ -215,12 +209,103 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         )
         return targets
 
+    def browser_requirement(self, index: int, target: dict[str, str], *, record_ids: list[str]) -> dict:
+        return {
+            "id": f"REQ-TASK-LEDGER-{index}",
+            "description": (
+                "Task Ledger satisfies the declared "
+                f"{target['contractId']} {target['itemKind']} "
+                f"target {target['itemId']} through real browser behavior."
+            ),
+            "targets": [target],
+            "recordIds": record_ids,
+            "requiredPositiveProofKinds": ["end-to-end-test"],
+        }
+
+    def service_requirement(self, operation_id: str, *, record_ids: list[str]) -> dict:
+        target = {
+            "kind": "contract-item",
+            "contractId": "service_interface",
+            "itemKind": "operation",
+            "itemId": operation_id,
+        }
+        return {
+            "id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper()}",
+            "description": f"Task Ledger service operation {operation_id} executes its documented success and negative behavior.",
+            "targets": [target],
+            "recordIds": record_ids,
+            "requiredPositiveProofKinds": ["integration-test"],
+        }
+
+    def cli_requirement(self, *, record_ids: list[str]) -> dict:
+        return {
+            "id": "REQ-TASK-LEDGER-CLI",
+            "description": "Task Ledger exposes a versioned structured CLI with executable positive and negative behavior.",
+            "targets": [
+                {
+                    "kind": "contract-item",
+                    "contractId": "cli_interface",
+                    "itemKind": "entrypoint",
+                    "itemId": "task-ledger",
+                }
+            ],
+            "recordIds": record_ids,
+            "requiredPositiveProofKinds": ["integration-test"],
+        }
+
+    def prepare_planning_checkpoint(self, target: Path) -> None:
+        self.write_json(
+            target / "contracts" / "service-interface.json",
+            {
+                "$schema": "../schemas/service-interface.schema.json",
+                "schemaVersion": 2,
+                "mode": "planning",
+                "protocol": "http-json",
+                "operations": [
+                    {"id": operation["id"], "purpose": f"Plan Task Ledger service operation {operation['id']}."}
+                    for operation in self.service_operations()
+                ],
+            },
+        )
+        self.write_json(
+            target / "contracts" / "cli-interface.json",
+            {
+                "$schema": "../schemas/cli-interface.schema.json",
+                "schemaVersion": 2,
+                "mode": "planning",
+                "entrypoints": [
+                    {"id": "task-ledger", "purpose": "Expose the Task Ledger command-line interface."}
+                ],
+            },
+        )
+        requirements = [
+            self.browser_requirement(index, evidence_target, record_ids=[])
+            for index, evidence_target in enumerate(self.expected_targets(target), 1)
+        ]
+        requirements.extend(
+            self.service_requirement(operation["id"], record_ids=[])
+            for operation in self.service_operations()
+        )
+        requirements.append(self.cli_requirement(record_ids=[]))
+        self.write_json(
+            target / "contracts" / "implementation-evidence.json",
+            {
+                "$schema": "../schemas/implementation-evidence.schema.json",
+                "schemaVersion": 5,
+                "mode": "planning",
+                "commands": [],
+                "releaseGates": [],
+                "requirements": requirements,
+                "records": [],
+            },
+        )
+        create_planning_checkpoint(target)
+
     def productize_evidence(self, target: Path) -> None:
         records = []
         requirements = []
         for index, evidence_target in enumerate(self.expected_targets(target), 1):
             record_id = f"task-ledger-{index}"
-            requirement_id = f"REQ-TASK-LEDGER-{index}"
             records.append(
                 {
                     "id": record_id,
@@ -256,29 +341,21 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 }
             )
             requirements.append(
-                {
-                    "id": requirement_id,
-                    "description": (
-                        "Task Ledger satisfies the declared "
-                        f"{evidence_target['contractId']} {evidence_target['itemKind']} "
-                        f"target {evidence_target['itemId']} through real browser behavior."
-                    ),
-                    "recordIds": [record_id],
-                    "requiredPositiveProofKinds": ["end-to-end-test"],
-                }
+                self.browser_requirement(index, evidence_target, record_ids=[record_id])
             )
         for operation in self.service_operations():
             operation_id = operation["id"]
             record_id = f"task-ledger-service-{operation_id}"
+            service_target = {
+                "kind": "contract-item",
+                "contractId": "service_interface",
+                "itemKind": "operation",
+                "itemId": operation_id,
+            }
             records.append(
                 {
                     "id": record_id,
-                    "target": {
-                        "kind": "contract-item",
-                        "contractId": "service_interface",
-                        "itemKind": "operation",
-                        "itemId": operation_id,
-                    },
+                    "target": service_target,
                     "implementationBoundary": {
                         "status": "verified",
                         "description": "Task Ledger exposes this independently reachable HTTP service operation.",
@@ -310,24 +387,15 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 }
             )
             requirements.append(
-                {
-                    "id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper()}",
-                    "description": f"Task Ledger service operation {operation_id} executes its documented success and negative behavior.",
-                    "recordIds": [record_id],
-                    "requiredPositiveProofKinds": ["integration-test"],
-                }
+                self.service_requirement(operation_id, record_ids=[record_id])
             )
 
         cli_record_id = "task-ledger-cli"
+        cli_target = self.cli_requirement(record_ids=[cli_record_id])["targets"][0]
         records.append(
             {
                 "id": cli_record_id,
-                "target": {
-                    "kind": "contract-item",
-                    "contractId": "cli_interface",
-                    "itemKind": "entrypoint",
-                    "itemId": "task-ledger",
-                },
+                "target": cli_target,
                 "implementationBoundary": {
                     "status": "verified",
                     "description": "Task Ledger exposes the selected packaged CLI entrypoint.",
@@ -358,14 +426,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                 "releaseGateIds": ["product-verification"],
             }
         )
-        requirements.append(
-            {
-                "id": "REQ-TASK-LEDGER-CLI",
-                "description": "Task Ledger exposes a versioned structured CLI with executable positive and negative behavior.",
-                "recordIds": [cli_record_id],
-                "requiredPositiveProofKinds": ["integration-test"],
-            }
-        )
+        requirements.append(self.cli_requirement(record_ids=[cli_record_id]))
 
         self.write_json(
             target / "contracts" / "implementation-evidence.json",
@@ -396,6 +457,10 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(Path(temp_dir))
             self.specialize_browser_contracts(target)
+            self.prepare_planning_checkpoint(target)
+
+            self.assertFalse((target / "task_ledger").exists())
+            self.assertFalse((target / "tests").exists())
             self.install_walkthrough_product(target)
 
             unit = self.run_python(

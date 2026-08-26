@@ -25,10 +25,12 @@ WEBAPP_LIFECYCLE_OPTIONS = {"lifecycle.release-bundle"}
 WEBAPP_BASELINE_LIFECYCLE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
+    "lifecycle.lifecycle-checkpoints",
 }
 RELEASE_LIFECYCLE_CLOSURE = {
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
+    "lifecycle.lifecycle-checkpoints",
     "lifecycle.release-bundle",
     "lifecycle.release-evidence",
     "lifecycle.release-execution",
@@ -94,6 +96,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             },
         )
         self.assertEqual(
@@ -106,6 +109,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             },
         )
         self.assertEqual(
@@ -117,6 +121,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             },
         )
 
@@ -129,6 +134,7 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
                 "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             },
         )
 

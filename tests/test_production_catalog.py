@@ -199,8 +199,10 @@ class ProductionCatalogTests(unittest.TestCase):
                 "capability.mcp",
                 "capability.mcp-apps",
                 "capability.runtime",
+                "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             ],
         )
         self.assertEqual(
@@ -208,8 +210,10 @@ class ProductionCatalogTests(unittest.TestCase):
             [
                 "capability.cli",
                 "capability.runtime",
+                "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             ],
         )
         self.assertEqual(
@@ -217,8 +221,10 @@ class ProductionCatalogTests(unittest.TestCase):
             [
                 "capability.runtime",
                 "capability.service",
+                "lifecycle.composition-state",
                 "lifecycle.contract-evolution",
                 "lifecycle.implementation-evidence",
+                "lifecycle.lifecycle-checkpoints",
             ],
         )
 

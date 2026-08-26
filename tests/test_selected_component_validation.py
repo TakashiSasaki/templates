@@ -27,6 +27,7 @@ WEBAPP_BASE_CHECKS = {
     "webapp-implementation-coverage",
     "contract-evolution",
     "implementation-evidence",
+    "lifecycle-checkpoints",
 }
 WEBAPP_RELEASE_CHECKS = {
     "release-execution",
@@ -199,11 +200,13 @@ class SelectedComponentValidationTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 },
             )
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS)
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertIn(
                 "Implementation evidence validation: OK",
                 checks["implementation-evidence"]["stdout"],
@@ -220,6 +223,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
             self.assertIn("PASSED: implementation-evidence", human.stdout)
+            self.assertIn("PASSED: lifecycle-checkpoints", human.stdout)
             self.assertIn("Composition validation: VALID", human.stdout)
 
             self.assertFalse((target / "contracts" / "release-execution.json").exists())
@@ -243,6 +247,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual({check["id"] for check in payload["checks"]}, WEBAPP_BASE_CHECKS)
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertFalse((target / "contracts" / "release-bundle.json").exists())
 
     def test_release_ready_webapp_runs_full_selected_validation_chain(self) -> None:
@@ -261,9 +266,11 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(payload["status"], "valid")
             component_ids = set(payload["resolved_components"])
             self.assertIn("lifecycle.release-bundle", component_ids)
+            self.assertIn("lifecycle.lifecycle-checkpoints", component_ids)
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS | WEBAPP_RELEASE_CHECKS)
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
             self.assertTrue((target / "contracts" / "release-bundle.json").is_file())
 
@@ -278,6 +285,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(payload["status"], "valid")
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             self.assertEqual(checks["release-evidence-template"]["status"], "deferred")
             self.assertEqual(checks["release-bundle-template"]["status"], "deferred")
             for check_id in ("release-evidence-template", "release-bundle-template"):
@@ -397,7 +405,6 @@ class SelectedComponentValidationTests(unittest.TestCase):
         self.assertNotIn("release-modes", workflow)
         self.assertNotIn("shell: bash", workflow)
 
-
     def test_cli_selection_adds_machine_contract_evidence_lifecycle_and_validator(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -419,15 +426,15 @@ class SelectedComponentValidationTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 },
             )
             checks = {check["id"]: check for check in payload["checks"]}
             self.assertIn("cli-interface", checks)
             self.assertEqual(checks["cli-interface"]["status"], "passed")
             self.assertIn("template mode OK", checks["cli-interface"]["stdout"])
-            self.assertEqual(
-                checks["implementation-evidence"]["status"], "passed"
-            )
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             manifest = json.loads(
                 (target / "contracts/manifest.json").read_text(encoding="utf-8")
             )
@@ -442,7 +449,6 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             self.assertEqual(cli_contract["mode"], "template")
             self.assertEqual(cli_contract["entrypoints"], [])
-
 
     def test_service_selection_adds_machine_contract_evidence_lifecycle_and_validator(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -462,6 +468,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 },
             )
             checks = {check["id"]: check for check in payload["checks"]}
@@ -469,6 +476,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(checks["service-interface"]["status"], "passed")
             self.assertIn("Service interface coverage", checks["service-interface"]["stdout"])
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            self.assertEqual(checks["lifecycle-checkpoints"]["status"], "passed")
             manifest = json.loads((target / "contracts/manifest.json").read_text(encoding="utf-8"))
             self.assertIn("service_interface", {entry["id"] for entry in manifest["contracts"]})
             service_contract = json.loads((target / "contracts/service-interface.json").read_text(encoding="utf-8"))

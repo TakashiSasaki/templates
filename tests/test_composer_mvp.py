@@ -99,6 +99,7 @@ class ComposerMVPTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 ],
             )
 
@@ -117,6 +118,7 @@ class ComposerMVPTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                 ],
             )
             self.assertNotIn("capability.runtime", payload["resolved_components"])
@@ -140,6 +142,7 @@ class ComposerMVPTests(unittest.TestCase):
                     "lifecycle.composition-state",
                     "lifecycle.contract-evolution",
                     "lifecycle.implementation-evidence",
+                    "lifecycle.lifecycle-checkpoints",
                     "lifecycle.release-bundle",
                     "lifecycle.release-evidence",
                     "lifecycle.release-execution",

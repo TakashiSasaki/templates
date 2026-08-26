@@ -10,6 +10,11 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from lifecycle_checkpoint_test_support import (
+    create_planning_checkpoint,
+    planning_evidence_from_product,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 BROWSER_FIXTURE_DIR = ROOT / "tests" / "fixtures" / "webapp_browser"
@@ -367,36 +372,48 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                         "Acceptance fixture requires implementation evidence for target "
                         + json.dumps(evidence_target, sort_keys=True, separators=(",", ":"))
                     ),
+                    "targets": [evidence_target],
                     "recordIds": [record_id],
                     "requiredPositiveProofKinds": [proof_kind],
                 }
             )
+
+        product_evidence = {
+            "$schema": "../schemas/implementation-evidence.schema.json",
+            "schemaVersion": 5,
+            "mode": "product",
+            "commands": [
+                {
+                    "id": "webapp-proof",
+                    "command": PROOF_COMMAND,
+                    "purpose": (
+                        "Validate the generated Webapp contract lifecycle and "
+                        "browser-sensitive targets before release."
+                    ),
+                }
+            ],
+            "releaseGates": [
+                {
+                    "id": "product-release",
+                    "purpose": "Block release unless the Webapp product proof passes.",
+                    "commandIds": ["webapp-proof"],
+                }
+            ],
+            "records": records,
+            "requirements": requirements,
+        }
+        product_evidence, planning_evidence = planning_evidence_from_product(
+            product_evidence
+        )
         self.write_json(
             target / "contracts/implementation-evidence.json",
-            {
-                "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 5,
-                "mode": "product",
-                "commands": [
-                    {
-                        "id": "webapp-proof",
-                        "command": PROOF_COMMAND,
-                        "purpose": (
-                            "Validate the generated Webapp contract lifecycle and "
-                            "browser-sensitive targets before release."
-                        ),
-                    }
-                ],
-                "releaseGates": [
-                    {
-                        "id": "product-release",
-                        "purpose": "Block release unless the Webapp product proof passes.",
-                        "commandIds": ["webapp-proof"],
-                    }
-                ],
-                "records": records,
-                "requirements": requirements,
-            },
+            planning_evidence,
+        )
+        create_planning_checkpoint(target)
+
+        self.write_json(
+            target / "contracts/implementation-evidence.json",
+            product_evidence,
         )
         self.write_json(
             target / "contracts/release-execution.json",
@@ -601,6 +618,10 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                 ),
                 (
                     ".template-composition/validators/validate_implementation_evidence.py",
+                    (".",),
+                ),
+                (
+                    ".template-composition/validators/validate_lifecycle_checkpoints.py",
                     (".",),
                 ),
                 (
