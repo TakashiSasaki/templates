@@ -94,7 +94,6 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
             "workflow-run view",
             "exact-commit check-run/check-suite view",
             "at least two independently indexed live views",
-            "a fixed sleep or observation delay is not evidence",
             "remain `ci_discovery_pending`",
             "do not close and reopen the pull request",
             "create a no-op commit",
@@ -131,6 +130,19 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
             "no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists",
             "concrete observations that support the `ci_confirmed_absent` decision",
             "only after entering `ci_confirmed_absent` may a recovery mutation be considered",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
+    def test_confirmed_absence_has_a_minimum_observation_floor(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "`ci_discovery_min_observation_minutes = 10`",
+            "this minimum observation floor is a guard, not evidence",
+            "it does not delay `ci_discovered` when positive exact-head evidence appears",
+            "do not sleep solely to satisfy it",
+            "since the later of the pr action expected to generate the run and the exact head becoming current",
+            "observation-floor elapsed != `ci_confirmed_absent`",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
