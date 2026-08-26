@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - composition
-      - "agent/composition-**"
   pull_request:
     branches:
       - composition
@@ -44,25 +43,38 @@ jobs:
           --head "$HEAD_SHA"
           --github-output "$GITHUB_OUTPUT"
 
+  # Representative tier. Runtime-relevant PRs exercise every supported Python
+  # on Ubuntu plus Windows/Python 3.12. Python 3.12 is also the skill-runner
+  # baseline, so Windows path, subprocess, shell, venv, and filesystem behavior
+  # remains a merge-time check without paying for four Windows versions per PR.
+  # On an exact composition push these jobs are part of the authoritative proof.
+  # always() crosses the intentionally skipped push classifier; !cancelled()
+  # preserves concurrency cancellation so superseded runs do not keep spending.
   clean-runtime:
-    name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
+        include:
           - os: ubuntu-24.04
             pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
           - os: windows-2022
             pip-config-file: NUL
-        python-version:
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-    runs-on: ${{ matrix.platform.os }}
+            python-version: "3.12"
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
       PYTHONHOME: ""
@@ -74,7 +86,7 @@ jobs:
       PIP_NO_CACHE_DIR: ""
       PIP_QUIET: ""
       PIP_LOG: ""
-      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
     steps:
       - name: Check out repository with Composition history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,24 +102,30 @@ jobs:
         run: python -I scripts/smoke_test_runtime_distribution.py
 
   materialized-validation:
-    name: materialized validation / ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    name: materialized validation / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
+        include:
           - os: ubuntu-24.04
             pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
           - os: windows-2022
             pip-config-file: NUL
-        python-version:
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-    runs-on: ${{ matrix.platform.os }}
+            python-version: "3.12"
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
       PYTHONHOME: ""
@@ -119,7 +137,7 @@ jobs:
       PIP_NO_CACHE_DIR: ""
       PIP_QUIET: ""
       PIP_LOG: ""
-      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,19 +151,19 @@ jobs:
         run: python -I scripts/smoke_test_materialized_validation.py
 
   skill-runner:
-    name: installed skill / ${{ matrix.platform.os }} / Python 3.12
+    name: installed skill / ${{ matrix.os }} / Python 3.12
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
+        include:
           - os: ubuntu-24.04
             pip-config-file: /dev/null
           - os: windows-2022
             pip-config-file: NUL
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
       PYTHONHOME: ""
@@ -157,7 +175,7 @@ jobs:
       PIP_NO_CACHE_DIR: ""
       PIP_QUIET: ""
       PIP_LOG: ""
-      PIP_CONFIG_FILE: ${{ matrix.platform.pip-config-file }}
+      PIP_CONFIG_FILE: ${{ matrix.pip-config-file }}
     steps:
       - name: Check out runner source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -173,6 +191,81 @@ jobs:
       - name: Download and exercise immutable remote installer candidate
         run: python -I scripts/smoke_test_remote_skill_installer.py
 
+  # Authoritative full-tier supplements. An exact composition push adds the
+  # Windows versions intentionally omitted from PRs. These jobs have no
+  # classifier dependency, so classifier behavior cannot suppress them.
+  full-windows-clean-runtime:
+    name: full Windows clean / Python ${{ matrix.python-version }}
+    if: ${{ github.event_name == 'push' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.13"
+          - "3.14"
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: NUL
+    steps:
+      - name: Check out repository with Composition history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build and exercise clean consumer runtime
+        run: python -I scripts/smoke_test_runtime_distribution.py
+
+  full-windows-materialized-validation:
+    name: full Windows materialized / Python ${{ matrix.python-version }}
+    if: ${{ github.event_name == 'push' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.13"
+          - "3.14"
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: NUL
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Exercise materialized validation without host site packages
+        run: python -I scripts/smoke_test_materialized_validation.py
+
   validate:
     name: consumer runtime validate
     if: ${{ always() }}
@@ -181,6 +274,8 @@ jobs:
       - clean-runtime
       - materialized-validation
       - skill-runner
+      - full-windows-clean-runtime
+      - full-windows-materialized-validation
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -192,6 +287,8 @@ jobs:
           CLEAN_RUNTIME_RESULT: ${{ needs.clean-runtime.result }}
           MATERIALIZED_VALIDATION_RESULT: ${{ needs.materialized-validation.result }}
           SKILL_RUNNER_RESULT: ${{ needs.skill-runner.result }}
+          FULL_WINDOWS_CLEAN_RESULT: ${{ needs.full-windows-clean-runtime.result }}
+          FULL_WINDOWS_MATERIALIZED_RESULT: ${{ needs.full-windows-materialized-validation.result }}
         run: |
           case "$EVENT_NAME" in
             push)
@@ -199,9 +296,13 @@ jobs:
               test "$CLEAN_RUNTIME_RESULT" = success
               test "$MATERIALIZED_VALIDATION_RESULT" = success
               test "$SKILL_RUNNER_RESULT" = success
+              test "$FULL_WINDOWS_CLEAN_RESULT" = success
+              test "$FULL_WINDOWS_MATERIALIZED_RESULT" = success
               ;;
             pull_request)
               test "$CLASSIFIER_RESULT" = success
+              test "$FULL_WINDOWS_CLEAN_RESULT" = skipped
+              test "$FULL_WINDOWS_MATERIALIZED_RESULT" = skipped
               case "$RUNTIME_REQUIRED" in
                 true)
                   test "$CLEAN_RUNTIME_RESULT" = success
