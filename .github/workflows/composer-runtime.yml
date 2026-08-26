@@ -17,8 +17,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify_runtime:
+    name: classify consumer-runtime requirement
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - name: Check out repository history for change classification
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify consumer-runtime requirement
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python3 -I scripts/classify_composition_ci.py
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --github-output "$GITHUB_OUTPUT"
+
   clean-runtime:
     name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - classify_runtime
+    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -61,6 +91,9 @@ jobs:
 
   materialized-validation:
     name: materialized validation / ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - classify_runtime
+    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -101,6 +134,9 @@ jobs:
 
   skill-runner:
     name: installed skill / ${{ matrix.platform.os }} / Python 3.12
+    needs:
+      - classify_runtime
+    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -136,3 +172,55 @@ jobs:
 
       - name: Download and exercise immutable remote installer candidate
         run: python -I scripts/smoke_test_remote_skill_installer.py
+
+  validate:
+    name: consumer runtime validate
+    if: ${{ always() }}
+    needs:
+      - classify_runtime
+      - clean-runtime
+      - materialized-validation
+      - skill-runner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require policy-correct consumer-runtime outcome
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
+          RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
+          CLEAN_RUNTIME_RESULT: ${{ needs.clean-runtime.result }}
+          MATERIALIZED_VALIDATION_RESULT: ${{ needs.materialized-validation.result }}
+          SKILL_RUNNER_RESULT: ${{ needs.skill-runner.result }}
+        run: |
+          case "$EVENT_NAME" in
+            push)
+              test "$CLASSIFIER_RESULT" = skipped
+              test "$CLEAN_RUNTIME_RESULT" = success
+              test "$MATERIALIZED_VALIDATION_RESULT" = success
+              test "$SKILL_RUNNER_RESULT" = success
+              ;;
+            pull_request)
+              test "$CLASSIFIER_RESULT" = success
+              case "$RUNTIME_REQUIRED" in
+                true)
+                  test "$CLEAN_RUNTIME_RESULT" = success
+                  test "$MATERIALIZED_VALIDATION_RESULT" = success
+                  test "$SKILL_RUNNER_RESULT" = success
+                  ;;
+                false)
+                  test "$CLEAN_RUNTIME_RESULT" = skipped
+                  test "$MATERIALIZED_VALIDATION_RESULT" = skipped
+                  test "$SKILL_RUNNER_RESULT" = skipped
+                  ;;
+                *)
+                  echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            *)
+              echo "unexpected workflow event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
