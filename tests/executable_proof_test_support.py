@@ -26,17 +26,17 @@ def _python_module(locator: str) -> str | None:
     return ".".join(parts)
 
 
-def _invocation_for(command: str, locator: str) -> str:
+def _require_known_invocation(command: str, locator: str) -> None:
     if command == f"python {locator}":
-        return "python-script"
+        return
     module = _python_module(locator)
     if module is not None and command == f"python -m unittest {module}":
-        return "python-unittest"
+        return
     if command == f"./{locator}":
-        return "direct"
+        return
     raise AssertionError(
         f"fixture command {command!r} does not exactly invoke declared harness {locator!r}; "
-        "use python-script, python-unittest, or direct invocation"
+        "use 'python <path>', 'python -m unittest <module>', or './<path>'"
     )
 
 
@@ -103,13 +103,12 @@ def upgrade_product_evidence_v6(
         command_text = command.get("command")
         if not isinstance(command_text, str):
             raise AssertionError(f"fixture command {command_id!r} requires command text")
-        invocation = _invocation_for(command_text, locator)
+        _require_known_invocation(command_text, locator)
         command["execution"] = {
             "capabilities": sorted(capabilities),
             "harness": {
                 "kind": "repository-file",
                 "locator": locator,
-                "invocation": invocation,
             },
             "supportsNegativePath": command_id in negative_commands,
         }
