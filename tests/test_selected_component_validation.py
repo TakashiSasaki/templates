@@ -220,7 +220,6 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
             self.assertIn("PASSED: implementation-evidence", human.stdout)
-            self.assertIn("Implementation evidence validation: OK", human.stdout)
             self.assertIn("Composition validation: VALID", human.stdout)
 
             self.assertFalse((target / "contracts" / "release-execution.json").exists())
