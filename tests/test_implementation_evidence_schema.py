@@ -36,7 +36,7 @@ def product_document() -> dict:
         "commands": [
             {
                 "id": "product-proof",
-                "command": "python product/prove.py",
+                "command": "python tests/test_demo.py",
                 "purpose": "Prove the product contract implementation.",
             }
         ],
