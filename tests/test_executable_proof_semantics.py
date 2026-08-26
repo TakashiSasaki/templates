@@ -56,7 +56,6 @@ def product_evidence(
                     "harness": {
                         "kind": "repository-file",
                         "locator": "tests/proof.py",
-                        "invocation": "python-script",
                     },
                     "supportsNegativePath": supports_negative,
                 },
