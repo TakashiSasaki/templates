@@ -17,7 +17,8 @@
         ],
         "harness": {
           "kind": "repository-file",
-          "locator": "scripts/verify.sh"
+          "locator": "scripts/verify.sh",
+          "invocation": "direct"
         },
         "supportsNegativePath": true
       }
