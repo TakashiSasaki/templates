@@ -30,6 +30,14 @@ class BrowserProofError(RuntimeError):
     pass
 
 
+class _WebDriverTransportError(BrowserProofError):
+    pass
+
+
+class _WebDriverBootstrapError(BrowserProofError):
+    pass
+
+
 def driver_path() -> str:
     configured = os.environ.get("CHROMEWEBDRIVER")
     if configured:
@@ -66,6 +74,11 @@ class BrowserSession:
         try:
             self.wait_ready()
             self.start_session()
+        except _WebDriverTransportError as exc:
+            self.close()
+            raise _WebDriverBootstrapError(
+                f"ChromeDriver session bootstrap transport failed: {exc}"
+            ) from exc
         except BaseException:
             self.close()
             raise
@@ -135,8 +148,10 @@ class BrowserSession:
         except HTTPError as exc:
             body = exc.read().decode(errors="replace")
             raise BrowserProofError(f"WebDriver {method} {path}: HTTP {exc.code}: {body}") from exc
-        except URLError as exc:
-            raise BrowserProofError(f"WebDriver {method} {path}: {exc}") from exc
+        except (URLError, TimeoutError) as exc:
+            raise _WebDriverTransportError(
+                f"WebDriver {method} {path} transport failed: {exc}"
+            ) from exc
         if not isinstance(decoded, dict) or "value" not in decoded:
             raise BrowserProofError(f"invalid WebDriver response: {decoded!r}")
         value = decoded["value"]
@@ -240,6 +255,21 @@ class BrowserSession:
         self.close()
 
 
+def open_browser_session() -> BrowserSession:
+    last_error: _WebDriverBootstrapError | None = None
+    for attempt in range(2):
+        try:
+            return BrowserSession()
+        except _WebDriverBootstrapError as exc:
+            last_error = exc
+            if attempt == 0:
+                time.sleep(0.1)
+    assert last_error is not None
+    raise BrowserProofError(
+        "ChromeDriver session bootstrap failed after 2 attempts"
+    ) from last_error
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise BrowserProofError(message)
@@ -255,7 +285,7 @@ def wait_for(session: BrowserSession, script: str, message: str) -> None:
 
 
 def run_browser_proof(base_url: str) -> None:
-    with BrowserSession() as browser:
+    with open_browser_session() as browser:
         browser.set_viewport(320, 800)
         browser.navigate(base_url)
         layout = browser.execute(
