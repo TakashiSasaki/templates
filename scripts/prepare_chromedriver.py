@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare a ChromeDriver compatible with the installed Google Chrome build."""
+"""Prepare a ChromeDriver compatible with the installed Google Chrome."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def version_build(version: str) -> str:
 
 
 def resolve_driver_version(chrome_version: str, release_text: str) -> str:
-    """Validate the CfT latest-release response for Chrome's build triplet."""
+    """Validate a build-level CfT fallback response for installed Chrome."""
     driver_version = release_text.strip()
     if VERSION_RE.fullmatch(driver_version) is None:
         raise ChromeDriverPreparationError(
@@ -88,16 +88,40 @@ def download_text(url: str) -> str:
         raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
 
 
-def download_bytes(url: str) -> bytes:
+def download_bytes(url: str, *, missing_ok: bool = False) -> bytes | None:
     try:
         with urlopen(_request(url), timeout=30) as response:
             return response.read()
-    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+    except HTTPError as exc:
+        if missing_ok and exc.code == 404:
+            return None
         raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise ChromeDriverPreparationError(f"failed to download {url}: {exc}") from exc
+
+
+def resolve_driver_archive(chrome_version: str) -> tuple[str, bytes]:
+    """Prefer an exact CfT driver patch; fall back only when that asset is absent."""
+    exact_url = driver_archive_url(chrome_version)
+    exact_archive = download_bytes(exact_url, missing_ok=True)
+    if exact_archive is not None:
+        return chrome_version, exact_archive
+
+    driver_version = resolve_driver_version(
+        chrome_version,
+        download_text(latest_release_url(chrome_version)),
+    )
+    fallback_archive = download_bytes(driver_archive_url(driver_version))
+    if fallback_archive is None:  # Defensive: missing_ok is false for fallback downloads.
+        raise ChromeDriverPreparationError(
+            f"ChromeDriver fallback archive unexpectedly missing: {driver_version}"
+        )
+    return driver_version, fallback_archive
 
 
 def write_driver_from_zip(archive: bytes, destination: Path) -> None:
     """Write only the expected driver member; never extract arbitrary archive paths."""
+    temporary_path: Path | None = None
     try:
         with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
             info = bundle.getinfo(ARCHIVE_MEMBER)
@@ -113,11 +137,15 @@ def write_driver_from_zip(archive: bytes, destination: Path) -> None:
             ) as temporary:
                 temporary_path = Path(temporary.name)
                 shutil.copyfileobj(source, temporary)
+    except ChromeDriverPreparationError:
+        raise
     except (KeyError, zipfile.BadZipFile, OSError) as exc:
         raise ChromeDriverPreparationError(
             f"invalid ChromeDriver archive: {exc}"
         ) from exc
 
+    if temporary_path is None:
+        raise ChromeDriverPreparationError("ChromeDriver archive did not produce a file")
     try:
         temporary_path.chmod(0o755)
         temporary_path.replace(destination)
@@ -146,14 +174,9 @@ def command_version(command: str | Path) -> str:
 
 def prepare_driver(chrome_command: str, output_dir: Path) -> tuple[Path, str, str]:
     chrome_version = command_version(chrome_command)
-    release_url = latest_release_url(chrome_version)
-    driver_version = resolve_driver_version(
-        chrome_version,
-        download_text(release_url),
-    )
-    archive_url = driver_archive_url(driver_version)
+    driver_version, archive = resolve_driver_archive(chrome_version)
     destination = output_dir / "chromedriver"
-    write_driver_from_zip(download_bytes(archive_url), destination)
+    write_driver_from_zip(archive, destination)
     installed_version = command_version(destination)
     if installed_version != driver_version:
         raise ChromeDriverPreparationError(
