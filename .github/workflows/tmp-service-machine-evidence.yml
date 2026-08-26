@@ -1,0 +1,27 @@
+name: Temporary service machine evidence
+on:
+  push:
+    branches:
+      - agent/service-machine-evidence-pr15
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/service-machine-evidence-pr15
+          fetch-depth: 0
+      - name: Apply service authority patch
+        run: python .github/tmp/patch_service_evidence.py
+      - name: Commit patch and remove temporary files
+        run: |
+          rm .github/tmp/patch_service_evidence.py
+          rm .github/workflows/tmp-service-machine-evidence.yml
+          git config user.name 'TakashiSasaki templates automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Require executable evidence for selected service capability'
+          git push origin HEAD:agent/service-machine-evidence-pr15
