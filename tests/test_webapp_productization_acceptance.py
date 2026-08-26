@@ -380,7 +380,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
 
         product_evidence = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "mode": "product",
             "commands": [
                 {
@@ -390,6 +390,14 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                         "Validate the generated Webapp contract lifecycle and "
                         "browser-sensitive targets before release."
                     ),
+                    "execution": {
+                        "capabilities": ["integration", "end-to-end", "browser"],
+                        "harness": {
+                            "kind": "repository-file",
+                            "locator": "product/prove_webapp.py",
+                        },
+                        "supportsNegativePath": True,
+                    },
                 }
             ],
             "releaseGates": [
@@ -419,13 +427,14 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             target / "contracts/release-execution.json",
             {
                 "$schema": "../schemas/release-execution.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
                         "commandId": "webapp-proof",
                         "argv": ["python", "product/prove_webapp.py"],
                         "workingDirectory": ".",
+                        "harnessLocator": "product/prove_webapp.py",
                     }
                 ],
             },
