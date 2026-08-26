@@ -10,7 +10,7 @@ from pathlib import Path
 from contract_common import load_json
 
 
-COMPOSITION_PYTHON_TOKEN = "@composition-python"
+COMPOSITION_PYTHON_TOKEN = "python"
 _DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _WORKING_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9._-]*$")
