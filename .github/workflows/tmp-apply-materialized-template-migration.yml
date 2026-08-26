@@ -22,8 +22,8 @@ jobs:
         run: |
           rm -f .github/tmp/update_materialized_template_expectation.py
           rm -f .github/workflows/tmp-apply-materialized-template-migration.yml
-          find . -path './.git' -prune -o -type f -name '*.pyc' -delete
-          find . -path './.git' -prune -o -type d -name '__pycache__' -empty -delete
+          find . -type f -name '*.pyc' -delete
+          find . -type d -name '__pycache__' -empty -delete
           git config user.name 'TakashiSasaki templates automation'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
