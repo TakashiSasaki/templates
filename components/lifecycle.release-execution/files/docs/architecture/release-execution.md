@@ -35,7 +35,7 @@ The release producer still executes only the fixed argv. `harnessLocator` and `h
 
 The contract deliberately does **not** define a shell command language, environment-variable injection, secret lookup, approval policy, or release result. A producer must execute the declared argv directly rather than parsing the human-readable `command` string as shell input.
 
-Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality, a valid harness argv index, and working-directory-aware path resolution. Schema validation additionally constrains argv values and rejects unsafe working-directory or harness-locator forms such as absolute paths, traversal segments, and `.git` paths.
+Template mode is empty. Product mode must exactly cover the command IDs declared by product-mode implementation evidence. `validate_release_execution.py` checks this mode and identity closure, including exact harness-locator equality, a valid harness argv index, working-directory-aware path resolution, and the same absolute/traversal/`.git` path-safety boundary owned structurally by the schema. The semantic mirror is intentional because managed release producers invoke this validator directly before executing fixed argv; unsafe path forms therefore fail closed even when the caller has not independently dispatched JSON Schema validation. Registered-contract schema validation remains the structural authority and additionally constrains document shape and argv values.
 
 ## Relationship to proof semantics
 
