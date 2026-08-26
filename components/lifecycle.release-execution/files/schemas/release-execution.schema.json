@@ -24,7 +24,7 @@
     "executionCommand": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["commandId", "argv", "workingDirectory", "harnessLocator"],
+      "required": ["commandId", "argv", "workingDirectory", "harnessLocator", "harnessArgumentIndex"],
       "properties": {
         "commandId": {"$ref": "#/$defs/identifier"},
         "argv": {
@@ -33,7 +33,8 @@
           "items": {"$ref": "#/$defs/nonBlankText"}
         },
         "workingDirectory": {"$ref": "#/$defs/workingDirectory"},
-        "harnessLocator": {"$ref": "#/$defs/repositoryLocator"}
+        "harnessLocator": {"$ref": "#/$defs/repositoryLocator"},
+        "harnessArgumentIndex": {"type": "integer", "minimum": 0}
       }
     }
   },
