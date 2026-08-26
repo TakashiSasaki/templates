@@ -16,6 +16,15 @@ def _unquote(value: str) -> str:
     return value
 
 
+def _trigger_events(workflow: str) -> list[str]:
+    trigger = workflow.split("\njobs:\n", 1)[0]
+    try:
+        on_block = trigger.split("\non:\n", 1)[1]
+    except IndexError as exc:
+        raise AssertionError("workflow has no on block") from exc
+    return re.findall(r"(?m)^  ([A-Za-z_]+):\s*$", on_block)
+
+
 def _trigger_branches(workflow: str, event: str) -> list[str]:
     trigger = workflow.split("\njobs:\n", 1)[0]
     match = re.search(
@@ -42,6 +51,7 @@ class SchemaValidationCIPolicyTests(unittest.TestCase):
         cls.workflow = WORKFLOW.read_text(encoding="utf-8")
 
     def test_schema_validation_uses_pr_and_authoritative_push_tiers_only(self) -> None:
+        self.assertEqual(_trigger_events(self.workflow), ["push", "pull_request"])
         self.assertEqual(_trigger_branches(self.workflow, "push"), ["composition"])
         self.assertEqual(_trigger_branches(self.workflow, "pull_request"), ["composition"])
         trigger = self.workflow.split("\njobs:\n", 1)[0]
