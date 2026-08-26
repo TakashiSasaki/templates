@@ -36,6 +36,18 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant, skill)
 
+    def test_pending_and_stale_review_transitions_are_explicit(self) -> None:
+        skill = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "pending review",
+            "is not a completed review",
+            "if the pr head changes after review",
+            "classify prior review evidence as stale",
+            "until a new review completes for the new head",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, skill)
+
     def test_all_blocked_states_are_defined(self) -> None:
         skill = SKILL.read_text(encoding="utf-8").lower()
         for state in (
