@@ -2,12 +2,28 @@
   "schema_version": 1,
   "id": "capability.mcp-apps",
   "kind": "capability",
-  "version": 1,
-  "summary": "MCP Apps extension resource, bridge, visibility, sandbox, and fallback contract.",
+  "version": 2,
+  "summary": "Machine-readable MCP Apps extension, View resource, and tool association contract.",
   "requires": [
     "capability.mcp"
   ],
   "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "mcp_apps",
+      "document": "contracts/mcp-apps.json",
+      "schema": "schemas/mcp-apps.schema.json",
+      "migration_slug": "mcp-apps",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare the selected MCP Apps extension, stable ui:// View resources, and core MCP tool-to-View associations with evidence targets."
+    }
+  ],
   "materials": [
     {
       "source": "files/MCP_APPS.md",
@@ -17,6 +33,21 @@
     {
       "source": "files/docs/mcp-apps.md",
       "destination": "docs/mcp-apps.md",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/contracts/mcp-apps.json",
+      "destination": "contracts/mcp-apps.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/mcp-apps.schema.json",
+      "destination": "schemas/mcp-apps.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_mcp_apps.py",
+      "destination": ".template-composition/validators/validate_mcp_apps.py",
       "ownership": "managed"
     }
   ]
