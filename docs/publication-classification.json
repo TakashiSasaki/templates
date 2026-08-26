@@ -2,6 +2,14 @@
   "schema_version": 1,
   "excluded_markdown": [
     {
+      "source": ".agents/skills/pr-merge-gate/SKILL.md",
+      "reason": "Repository-local agent merge gate workflow instructions are operational maintenance guidance outside the reader-facing Composition publication catalog."
+    },
+    {
+      "source": "AGENTS.md",
+      "reason": "Repository root agent routing instructions are operational maintenance guidance outside the reader-facing Composition publication catalog."
+    },
+    {
       "source": "components/artifact.skill-core/files/AGENTS.md",
       "reason": "Consumer coding-agent instructions copied into concrete Skill repositories are operational artifact material, not reader-facing Composition publication."
     },
