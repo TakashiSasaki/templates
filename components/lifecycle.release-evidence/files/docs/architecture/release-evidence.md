@@ -27,3 +27,6 @@ Machine-derived release facts are produced by the tool rather than entered manua
 Ignored local state such as a normal ignored virtual environment is not itself asserted to be part of the candidate revision. The producer's candidate claim is about the exact tracked candidate inputs plus the explicit execution bindings, with explicitly owned lifecycle outputs treated separately. Repositories that require hermetic environment identity need a separately reviewed contract for that stronger claim rather than an implicit dependency on ambient ignored files.
 
 This lifecycle does not choose a CI provider, package manager, deployment system, secret source, or external approval mechanism.
+
+
+Release approval is downstream of implementation evidence. The release evidence producer runs the implementation-evidence release-readiness gate before executing release commands. A product with structurally valid but `deferred` evidence cannot receive an approved release decision; the diagnostic preserves the distinction between an unavailable proof and a malformed contract.
