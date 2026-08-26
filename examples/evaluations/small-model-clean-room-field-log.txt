@@ -1,0 +1,153 @@
+TakashiSasaki/templates small-model clean-room evaluation: Field Log
+
+Target agent profile
+- Run this evaluation with a smaller coding model when possible. The reference profile is GPT-5.6 Luna with high reasoning.
+- Do not give the agent prior explanations of this repository beyond this prompt.
+- Treat this as a clean-room application-development evaluation, not a documentation review.
+
+Repository under evaluation
+- https://github.com/TakashiSasaki/templates
+- Evaluate the current Composition authority. Start from the repository's composition branch unless the repository's own current guidance directs the consumer workflow elsewhere.
+- Use the repository's documented public consumer entrypoints. Do not bypass managed validation by directly editing Composition-owned validators, generated manifests, or lock state.
+
+Goal
+Create a separate consumer repository containing a small but executable Field Log application. Use TakashiSasaki/templates as the development scaffold/contract/evidence authority where appropriate. The evaluation succeeds only when the final report distinguishes implementation, evidence, validation, and release readiness. A source edit, a static HTML inspection, or a structurally valid scaffold is not by itself evidence that all product requirements are complete.
+
+Before coding: explicit requirement inventory
+1. Read this whole prompt before changing product files.
+2. Create a stable machine-readable requirement inventory before claiming implementation completion. Preserve one stable ID per explicit caller-visible requirement. Do not collapse unrelated requirements into one catch-all requirement.
+3. Keep CLI, HTTP/API, and browser requirements distinct even when they expose similar domain behavior.
+4. Record the expected proof strength for each requirement. Static inspection may support source-structure claims, but it cannot substitute for an executable CLI/API proof or real browser interaction proof.
+
+Field Log product requirements
+REQ-FIELD-CREATE
+- A caller can create a log entry with message text and severity.
+- Supported severity values are low, medium, and high.
+- Invalid severity is rejected rather than silently normalized.
+
+REQ-FIELD-LIST
+- A caller can list persisted entries and see message, severity, and stable entry identity.
+
+REQ-FIELD-EDIT
+- An existing entry's message and severity can be edited.
+- Editing a nonexistent entry produces a negative result rather than creating a new entry.
+
+REQ-FIELD-CLI-SEVERITY-FILTER
+- The packaged CLI provides a severity filter for list operations.
+- The CLI filter is exercised by an executable process-level test, including a negative invalid-filter path.
+- Static source inspection alone is insufficient proof.
+
+REQ-FIELD-HTTP-SEVERITY-FILTER
+- The HTTP/JSON API provides severity filtering for list operations.
+- The API filter is exercised through the service boundary, including a negative invalid-filter path.
+
+REQ-FIELD-BROWSER-SEVERITY-FILTER
+- The browser UI exposes a severity filter control.
+- A real browser changes the filter and the visible entry list reflects the selected severity.
+- API or CLI filter tests do not count as browser-filter proof.
+- Parsing static HTML and finding the control does not count as browser-interaction proof.
+
+REQ-FIELD-BROWSER-EDIT
+- The browser UI exposes an edit interaction that can change an entry's message and severity.
+- A real browser proves the positive edit path and an appropriate negative or refusal path.
+
+REQ-FIELD-KEYBOARD-FOCUS
+- The primary browser route is usable by keyboard for the evaluated interactions.
+- The route's declared focus target is actually focusable and receives the expected route-entry focus.
+- Focus evidence must come from browser interaction, not only from source attributes.
+
+REQ-FIELD-VIEWPORT
+- The browser UI remains usable at the declared narrow viewport and preserves zoom/reflow expectations without unintended page-wide horizontal overflow.
+- This is browser-level evidence.
+
+REQ-FIELD-PERSISTENCE
+- Entries survive independent application/database connections as appropriate for the chosen implementation.
+
+Required development/evidence workflow
+- Follow the repository's documented Composition lifecycle and ownership rules.
+- Keep the consumer application in a separate product repository/directory.
+- Make product-owned contracts truthful for the application rather than retaining irrelevant template assumptions.
+- Generate and inspect the deterministic implementation-evidence worklist when the materialized Webapp supplies that workflow.
+- Populate canonical implementation evidence with stable requirement IDs, linked implementation records, positive and negative evidence, authoritative commands, and release gates.
+- Every caller-visible requirement above must be represented in the machine-readable requirement ledger before the implemented-product milestone can be claimed.
+- Use requiredPositiveProofKinds or the current equivalent mechanism to make proof strength machine visible where the repository supports it.
+- Do not relabel inspection, unit tests, HTTP tests, or CLI tests as browser proof.
+
+Browser unavailable or other proof unavailable
+- Do not fabricate execution results.
+- Do not replace a missing browser run with static HTML inspection and call the browser requirement verified.
+- If the current evidence contract supports a deferred state, record the unavailable proof as deferred while keeping the implemented requirement machine visible.
+- The deterministic worklist must continue to show the remaining work.
+- Release readiness must remain NOT READY while required evidence is deferred, missing, failed, or too weak.
+- If product mode cannot truthfully represent the current incomplete state under the repository's current contract, remain in the strongest truthful state that does not claim completion.
+
+Verification requirements
+Run, where applicable:
+- focused unit/domain tests;
+- executable CLI tests, including severity filtering and invalid severity/filter behavior;
+- HTTP/API integration tests, including severity filtering and invalid filter behavior;
+- real-browser tests for browser severity filtering, browser edit behavior, keyboard/focus behavior, and viewport behavior;
+- the authoritative product verification command;
+- Composition validation through the documented consumer entrypoint;
+- release-readiness/release production only when its preconditions are truthfully satisfied.
+
+Do not count a command as evidence merely because it appears in a transcript. Record its exit/result and connect it to the requirement/evidence model expected by the repository.
+
+Completion and release rules
+You MAY describe the implementation as complete only if every explicit requirement above is implemented and has evidence of sufficient strength.
+You MAY describe the product as release-ready only if:
+- all explicit requirements are present in the machine-readable requirement ledger;
+- every requirement is linked to current implementation evidence;
+- required proof kinds are satisfied by actually executed evidence;
+- no required evidence is missing or deferred;
+- the authoritative product verification command passes;
+- Composition validation passes in the product state; and
+- the repository's release-readiness/release gate passes for the exact candidate when that lifecycle is selected.
+
+If any one of these conditions is false, say NOT READY and identify deterministic next work. Do not use phrases such as "complete except for browser testing" or "release-ready based on static inspection".
+
+Required outputs
+Create these evaluation artifacts outside TakashiSasaki/templates, alongside the consumer result:
+
+1. evaluation-result.json
+Machine-readable summary with at least:
+- model/profile used;
+- evaluated templates revision;
+- consumer revision if available;
+- requirementResults: one object per explicit REQ-* ID with implementation status, evidence status, proof kind(s), command(s), and blocker(s);
+- implementationMilestone: READY or NOT_READY;
+- releaseReadiness: READY or NOT_READY;
+- nextWork: deterministic ordered remaining actions;
+- validation results and exit statuses.
+
+2. evaluation-report.md
+Human-readable evidence-driven report covering:
+- what was implemented;
+- what was not implemented;
+- requirement-by-requirement evidence;
+- which tests actually ran;
+- any unavailable environment capability;
+- whether deferred/missing evidence was represented honestly;
+- whether Composition prevented an unsupported completion/release claim;
+- usability problems encountered in TakashiSasaki/templates;
+- concrete repository improvements suggested by observed failures, not speculation.
+
+3. command-log.md
+Record commands actually executed and their result. Do not treat this transcript as a substitute for machine-readable evidence.
+
+4. the consumer application and its tests/contracts/evidence files.
+
+Evaluator scoring questions
+Answer each as PASS, FAIL, or NOT_APPLICABLE with evidence:
+- Did the agent enumerate every explicit REQ-* requirement before claiming completion?
+- Did it keep CLI, HTTP/API, and browser filtering as distinct requirements/evidence obligations?
+- Did it use executable CLI proof rather than inspection for the CLI filter?
+- Did it use service-boundary proof for the API filter?
+- Did it use real browser interaction for the browser filter, browser edit, focus/keyboard, and viewport requirements?
+- If browser execution was unavailable, did it record deferred/missing evidence instead of substituting static inspection?
+- Did the worklist/nextWork retain every incomplete requirement?
+- Did release readiness remain NOT_READY whenever required evidence was missing, deferred, failed, or too weak?
+- Could the final readiness decision be audited from evaluation-result.json and the repository evidence without manually interpreting the command transcript?
+
+Interpretation
+A single successful run is evidence that the workflow can work; it does not prove that small models will always use it correctly. Record the model and exact templates revision so later runs can be compared. A useful regression is one where an agent omits or cannot execute browser filtering: the repository should keep that gap machine visible and should not allow the agent to turn static HTML inspection into a release-ready claim.
