@@ -70,6 +70,16 @@ def evidence(
 
 
 class WebappFocusTargetEvidenceTests(unittest.TestCase):
+    def test_browser_sensitive_target_families_are_explicit_and_narrow(self) -> None:
+        self.assertEqual(
+            validator.BROWSER_SENSITIVE_CONTRACT_ITEMS,
+            {
+                ("routes", "route"),
+                ("viewports", "input-capability"),
+                ("viewports", "viewport"),
+            },
+        )
+
     def test_route_target_is_browser_sensitive(self) -> None:
         target = evidence()["records"][0]["target"]
         self.assertTrue(validator.requires_browser_level_proof(target))
