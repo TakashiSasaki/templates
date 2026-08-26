@@ -175,6 +175,23 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("harnessLocator must exactly match", result.stderr)
 
+    def test_argv_must_select_the_declared_harness(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            self.write_json(
+                target / "contracts/implementation-evidence.json",
+                self.product_implementation(),
+            )
+            execution = self.product_execution()
+            execution["commands"][0]["argv"] = ["python", "product/other.py"]
+            self.write_json(target / "contracts/release-execution.json", execution)
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "argv must contain harnessLocator 'product/prove.py' as an exact argument",
+                result.stderr,
+            )
+
     def test_execution_mode_must_match_implementation_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize_webapp(Path(temp_dir))
@@ -234,7 +251,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             execution["commands"].append(
                 {
                     "commandId": "product-proof",
-                    "argv": ["python", "product/alternate.py"],
+                    "argv": ["python", "product/prove.py"],
                     "workingDirectory": ".",
                     "harnessLocator": "product/prove.py",
                 }
