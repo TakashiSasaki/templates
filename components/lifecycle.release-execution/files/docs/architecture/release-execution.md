@@ -26,3 +26,6 @@ On POSIX systems the helper uses an exclusive `flock`; on Windows it uses `msvcr
 This lock serializes cooperating Composition release producers. It is not a claim that a hostile process with filesystem or repository-administration privileges cannot alter state; candidate verification and snapshot validation remain the integrity boundary for repository inputs.
 
 Execution results remain the responsibility of `lifecycle.release-evidence`. The release-evidence command digest continues to bind the authoritative command text from implementation evidence; the execution contract supplies the separate executable binding that the managed producer can run and observe.
+
+
+Planning implementation evidence has no authoritative proof commands yet, so `release-execution` remains in template mode while implementation evidence is in planning mode. Product implementation evidence requires product release-execution bindings.

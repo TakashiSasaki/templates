@@ -196,7 +196,7 @@ Use this sequence after initial materialization:
 2. Replace the seed assumptions with the product's actual contract. For a Webapp, concretize surfaces, routes, UI states, viewports, and every selected capability worksheet that applies to the product.
 3. Implement the product in consumer-owned source files. Composition intentionally does not choose the framework, persistence layer, API design, authentication provider, deployment platform, or product-specific test implementation.
 4. For a Webapp, run `python scripts/scaffold_webapp_evidence.py` to render the deterministic current evidence-target worklist. The command is read-only and writes the worklist to standard output.
-5. Add authoritative product test commands and positive/negative proofs, then switch `contracts/implementation-evidence.json` from `template` to `product` mode only when the claimed implementation boundaries and evidence actually exist.
+5. Before product coding, switch `contracts/implementation-evidence.json` from `template` to `planning` and capture the stable caller-visible requirement IDs, descriptions, empty `recordIds`, and `requiredPositiveProofKinds`. Preserve those IDs. After implementation boundaries and real proof definitions exist, connect the records/commands/gates and switch from `planning` to `product`.
 6. Run the product's own verification commands and Composition `validate`. Composition validation and product verification are complementary: neither substitutes for the other.
 7. If the repository also uses coding-agent Policy, adopt it explicitly after Composition has transferred seed ownership. Policy may then guide the remaining implementation and verification work without becoming a Composition capability.
 

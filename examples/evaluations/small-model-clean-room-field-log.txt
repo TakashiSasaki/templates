@@ -15,7 +15,7 @@ Create a separate consumer repository containing a small but executable Field Lo
 
 Before coding: explicit requirement inventory
 1. Read this whole prompt before changing product files.
-2. Create a stable machine-readable requirement inventory before claiming implementation completion. Preserve one stable ID per explicit caller-visible requirement. Do not collapse unrelated requirements into one catch-all requirement.
+2. Before product coding, use the current implementation-evidence planning state to create a stable machine-readable requirement inventory. Keep commands, release gates, and implementation records empty at this stage; give each explicit caller-visible requirement its stable ID, description, empty recordIds, and requiredPositiveProofKinds. Preserve those IDs when later linking product records. Do not collapse unrelated requirements into one catch-all requirement.
 3. Keep CLI, HTTP/API, and browser requirements distinct even when they expose similar domain behavior.
 4. Record the expected proof strength for each requirement. Static inspection may support source-structure claims, but it cannot substitute for an executable CLI/API proof or real browser interaction proof.
 
