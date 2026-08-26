@@ -142,6 +142,8 @@ class CompositionPublicationContractTests(unittest.TestCase):
             for entry in translation_manifest["translations"]
         }
         expected_exclusions = {
+            PurePosixPath(".agents/skills/pr-merge-gate/SKILL.md"),
+            PurePosixPath("AGENTS.md"),
             PurePosixPath("components/artifact.skill-core/files/AGENTS.md"),
             PurePosixPath("docs/migrations/pr2-skill-capabilities.md"),
             PurePosixPath("docs/migrations/pr3-webapp-lifecycle.md"),
