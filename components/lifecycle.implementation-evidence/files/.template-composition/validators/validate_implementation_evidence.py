@@ -198,8 +198,18 @@ def requirement_traceability_errors(
             required_kinds = []
 
         targets = requirement.get("targets")
-        if not isinstance(targets, list) or not targets:
-            errors.append(f"{owner}: targets must contain at least one contract target")
+        if mode == "planning":
+            if not isinstance(targets, list) or not targets:
+                errors.append(
+                    f"{owner}: planning targets must contain at least one contract target"
+                )
+                targets = []
+        elif targets is None:
+            targets = []
+        elif not isinstance(targets, list) or not targets:
+            errors.append(
+                f"{owner}: product targets, when present, must contain at least one contract target"
+            )
             targets = []
         target_signatures = [_target_signature(target) for target in targets]
         for duplicate in sorted(_duplicates(target_signatures), key=str):
