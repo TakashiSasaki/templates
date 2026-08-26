@@ -55,12 +55,30 @@ def actual_targets(evidence: object) -> list[tuple[Any, ...]]:
     return actual
 
 
+def _command_capabilities(evidence: dict[str, Any]) -> dict[str, set[str]]:
+    commands = evidence.get("commands")
+    if not isinstance(commands, list):
+        return {}
+    result: dict[str, set[str]] = {}
+    for command in commands:
+        if not isinstance(command, dict) or not isinstance(command.get("id"), str):
+            continue
+        execution = command.get("execution")
+        capabilities = execution.get("capabilities") if isinstance(execution, dict) else None
+        result[command["id"]] = (
+            {item for item in capabilities if isinstance(item, str)}
+            if isinstance(capabilities, list)
+            else set()
+        )
+    return result
+
 
 def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
     records = evidence.get("records")
     if not isinstance(records, list):
         raise TypeError("implementation evidence records must be a JSON array")
 
+    command_capabilities = _command_capabilities(evidence)
     errors: list[str] = []
     allowed_kinds = ", ".join(sorted(BROWSER_LEVEL_PROOF_KINDS))
     for index, record in enumerate(records):
@@ -83,15 +101,18 @@ def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
                 raise TypeError(
                     f"implementation evidence record {index} {field} must be a JSON array"
                 )
-            kinds = {
-                proof.get("kind")
+            browser_backed = [
+                proof
                 for proof in proofs
-                if isinstance(proof, dict) and isinstance(proof.get("kind"), str)
-            }
-            if kinds.isdisjoint(BROWSER_LEVEL_PROOF_KINDS):
+                if isinstance(proof, dict)
+                and proof.get("kind") in BROWSER_LEVEL_PROOF_KINDS
+                and "browser" in command_capabilities.get(proof.get("commandId"), set())
+            ]
+            if not browser_backed:
                 errors.append(
                     f"browser-sensitive Webapp target {key} requires at least one "
-                    f"{label} browser-level proof kind ({allowed_kinds})"
+                    f"{label} browser-level proof kind ({allowed_kinds}) backed by an "
+                    "authoritative command with browser execution capability"
                 )
     return errors
 
@@ -144,7 +165,6 @@ def browser_level_requirement_errors(evidence: dict[str, Any]) -> list[str]:
     return errors
 
 
-
 def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[str]:
     requirements = evidence.get("requirements")
     if not isinstance(requirements, list):
@@ -187,6 +207,7 @@ def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[st
                     f"requiredPositiveProofKinds value ({allowed_kinds})"
                 )
     return errors
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
