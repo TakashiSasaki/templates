@@ -81,7 +81,6 @@ def field_log_evidence(
                     "harness": {
                         "kind": "repository-file",
                         "locator": "tests/test_field_log.py",
-                        "invocation": "python-script",
                     },
                     "supportsNegativePath": True,
                 },
