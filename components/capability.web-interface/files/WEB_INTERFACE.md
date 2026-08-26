@@ -6,11 +6,11 @@ This contract is materialized by `capability.web-interface`. It defines an ordin
 
 ## Machine-readable endpoint authority
 
-`contracts/web-interface.json` is the authoritative inventory of externally reachable standalone Web interface endpoints. This Markdown file remains the qualitative authority for interaction, security, authorization, health, and failure-isolation policy that is not yet represented in the machine contract.
+`contracts/web-interface.json` is the authoritative inventory of externally reachable standalone Web interface endpoints. Its lifecycle is `template` -> `planning` -> `product`. This Markdown file remains the qualitative authority for interaction, security, authorization, health, and failure-isolation policy that is not yet represented in the machine contract.
 
-Keep the machine contract in `template` mode while no product Web interface claim exists. Before product implementation evidence becomes active, switch it to `product` mode and enumerate every caller-visible endpoint with a stable `id`, `kind`, HTTP `method`, relative `path`, and `purpose`.
+Keep the machine contract in `template` mode while no caller-visible standalone Web interface is intended. Before product coding, switch it to `planning` mode and enumerate every intended caller-visible endpoint with a stable `id`, endpoint `kind`, and non-empty `purpose`. The endpoint kind is a pre-coding decision because it determines the required proof boundary: `browser-page` requires browser-level proof, while `backend-api` and `health` require executable service-boundary proof. Do not invent HTTP methods or paths until implementation routing is concrete.
 
-Each product endpoint maps to one implementation-evidence target:
+Each planned endpoint must be bound exactly to an implementation-evidence planning target:
 
 ```json
 {
@@ -21,7 +21,9 @@ Each product endpoint maps to one implementation-evidence target:
 }
 ```
 
-The capability validator requires exactly one evidence record per declared endpoint and at least one linked product requirement. Proof strength is endpoint-specific:
+Composition validation rejects phantom target IDs, planned endpoints omitted from the requirement ledger, and weak proof declarations. Coding should begin only after the capability planning contract and implementation-evidence planning ledger agree and validate.
+
+Promote the same stable endpoint IDs to `product` when HTTP `method`, relative `path`, and operational behavior are concrete. The capability validator then requires exactly one evidence record per declared endpoint and at least one linked product requirement. Proof strength remains endpoint-specific:
 
 - `browser-page`: positive and negative evidence must include `accessibility-test` or `end-to-end-test`, and a linked requirement must declare one of those browser-level proof kinds.
 - `backend-api` and `health`: positive and negative evidence must include `integration-test` or `end-to-end-test`, and a linked requirement must declare one of those executable proof kinds.
