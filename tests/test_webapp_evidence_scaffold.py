@@ -156,7 +156,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
 
             projected = json.loads(self.scaffold(target).stdout)
             self.assertEqual(projected["status"], "verified")
-            self.assertTrue(all(record["status"] == "verified" for record in projected["records"]))
+            self.assertTrue(all(item["status"] == "verified" for item in projected["recordStatuses"]))
 
             for script, arguments in (
                 ("scripts/validate_contracts.py", ()),
