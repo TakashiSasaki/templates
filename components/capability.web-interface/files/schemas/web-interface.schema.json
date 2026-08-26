@@ -2,143 +2,58 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "$schema",
-    "schemaVersion",
-    "mode",
-    "endpoints"
-  ],
+  "required": ["$schema", "schemaVersion", "mode", "endpoints"],
   "$defs": {
-    "identifier": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*$"
-    },
-    "nonBlankText": {
-      "type": "string",
-      "minLength": 1
-    },
-    "endpoint": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "nonBlankText": {"type": "string", "minLength": 1},
+    "endpointKind": {"enum": ["browser-page", "backend-api", "health"]},
+    "plannedEndpoint": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "method",
-        "path",
-        "purpose"
-      ],
+      "required": ["id", "kind", "purpose"],
       "properties": {
-        "id": {
-          "$ref": "#/$defs/identifier"
-        },
-        "kind": {
-          "enum": [
-            "browser-page",
-            "backend-api",
-            "health"
-          ]
-        },
-        "method": {
-          "enum": [
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-            "HEAD",
-            "OPTIONS"
-          ]
-        },
-        "path": {
-          "type": "string",
-          "pattern": "^/\\S*$"
-        },
-        "purpose": {
-          "$ref": "#/$defs/nonBlankText"
-        }
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"$ref": "#/$defs/endpointKind"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "productEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "method", "path", "purpose"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"$ref": "#/$defs/endpointKind"},
+        "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]},
+        "path": {"type": "string", "pattern": "^/\\S*$"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"}
       },
       "allOf": [
         {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "browser-page"
-              }
-            },
-            "required": [
-              "kind"
-            ]
-          },
-          "then": {
-            "properties": {
-              "method": {
-                "const": "GET"
-              }
-            }
-          }
+          "if": {"properties": {"kind": {"const": "browser-page"}}, "required": ["kind"]},
+          "then": {"properties": {"method": {"const": "GET"}}}
         }
       ]
     }
   },
   "properties": {
-    "$schema": {
-      "const": "../schemas/web-interface.schema.json"
-    },
-    "schemaVersion": {
-      "const": 1
-    },
-    "mode": {
-      "enum": [
-        "template",
-        "product"
-      ]
-    },
-    "endpoints": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "$ref": "#/$defs/endpoint"
-      }
-    }
+    "$schema": {"const": "../schemas/web-interface.schema.json"},
+    "schemaVersion": {"const": 2},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "endpoints": {"type": "array", "uniqueItems": true}
   },
   "allOf": [
     {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "template"
-          }
-        },
-        "required": [
-          "mode"
-        ]
-      },
-      "then": {
-        "properties": {
-          "endpoints": {
-            "maxItems": 0
-          }
-        }
-      }
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
+      "then": {"properties": {"endpoints": {"maxItems": 0}}}
     },
     {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "product"
-          }
-        },
-        "required": [
-          "mode"
-        ]
-      },
-      "then": {
-        "properties": {
-          "endpoints": {
-            "minItems": 1
-          }
-        }
-      }
+      "if": {"properties": {"mode": {"const": "planning"}}, "required": ["mode"]},
+      "then": {"properties": {"endpoints": {"minItems": 1, "items": {"$ref": "#/$defs/plannedEndpoint"}}}}
+    },
+    {
+      "if": {"properties": {"mode": {"const": "product"}}, "required": ["mode"]},
+      "then": {"properties": {"endpoints": {"minItems": 1, "items": {"$ref": "#/$defs/productEndpoint"}}}}
     }
   ]
 }
