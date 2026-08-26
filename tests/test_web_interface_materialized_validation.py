@@ -7,8 +7,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_web_interface_contract import WebInterfaceContractTests
-
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 
@@ -19,6 +17,8 @@ class WebInterfaceMaterializedValidationTests(unittest.TestCase):
         path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
     def test_selected_product_interface_passes_combined_consumer_validation(self) -> None:
+        from test_web_interface_contract import WebInterfaceContractTests
+
         helper = WebInterfaceContractTests()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
