@@ -566,7 +566,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
             proof.stdout,
         )
         self.assertIn(
-            "Webapp product proof: contract lifecycle and real-browser checks passed",
+            "Webapp product proof: contract lifecycle, route focus, and real-browser checks passed",
             proof.stdout,
         )
 
