@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 SKILLS_ROOT = ROOT / ".agents" / "skills"
 EXPECTED_SKILLS = {
+    "site-browser-regression-triage",
     "site-publication-cutover",
     "site-pr-exact-head-acceptance",
 }
@@ -21,6 +22,17 @@ REQUIRED_SECTIONS = (
     "## Inputs",
     "## Stop conditions",
     "## Evidence to report",
+)
+BROWSER_CHECK_SCRIPTS = (
+    "scripts/check_mobile_layout.py",
+    "scripts/check_glossary_locale_chrome.py",
+    "scripts/check_pwa_freshness.py",
+    "scripts/check_pwa_locale_chrome.py",
+    "scripts/check_pwa_commit_regressions.py",
+    "scripts/check_pwa_slow_convergence.py",
+    "scripts/check_pwa_capabilities.py",
+    "scripts/check_search_history.py",
+    "scripts/check_search_history_review_regressions.py",
 )
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -127,6 +139,35 @@ class AgentSkillContractTests(unittest.TestCase):
             "generated provenance",
             "Do not infer the target SHA from a branch name",
             "Do not expose uncataloged provider files",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant.lower(), skill.lower())
+
+    def test_browser_triage_skill_tracks_current_same_artifact_checkers(self) -> None:
+        skill = (
+            SKILLS_ROOT / "site-browser-regression-triage" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        workflow_path = ROOT / ".github" / "workflows" / "build-pages.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn(".github/workflows/build-pages.yml", skill)
+        self.assertTrue(workflow_path.is_file())
+        self.assertIn("FRESHNESS.md", skill)
+        self.assertTrue((ROOT / "FRESHNESS.md").is_file())
+
+        for script in BROWSER_CHECK_SCRIPTS:
+            with self.subTest(script=script):
+                self.assertIn(script, skill)
+                self.assertTrue((ROOT / script).is_file())
+                self.assertIn(script, workflow)
+
+        for invariant in (
+            "exact Pages artifact",
+            "do not rebuild a different artifact",
+            "source -> generated artifact -> browser runtime",
+            "open Shadow Root",
+            "Increase a timeout only if",
+            "preflight mismatch",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant.lower(), skill.lower())
