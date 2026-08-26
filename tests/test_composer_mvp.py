@@ -78,7 +78,7 @@ class ComposerMVPTests(unittest.TestCase):
             self.assertEqual(payload["conflicts"], [])
             self.assertTrue(payload["actions"])
 
-    def test_mcp_apps_include_resolves_mcp_and_runtime_dependencies(self):
+    def test_mcp_apps_include_resolves_mcp_runtime_and_evidence_dependencies(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             config_path = self.write_config(
@@ -97,6 +97,8 @@ class ComposerMVPTests(unittest.TestCase):
                     "capability.mcp-apps",
                     "capability.runtime",
                     "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
                 ],
             )
 
