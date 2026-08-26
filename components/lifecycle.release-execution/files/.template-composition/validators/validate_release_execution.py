@@ -29,6 +29,17 @@ def _index(items: object, key: str, label: str) -> tuple[dict[str, dict], list[s
     return result, errors
 
 
+def _implementation_harness_locator(command: dict) -> str | None:
+    execution = command.get("execution")
+    if not isinstance(execution, dict):
+        return None
+    harness = execution.get("harness")
+    if not isinstance(harness, dict):
+        return None
+    locator = harness.get("locator")
+    return locator if isinstance(locator, str) and locator else None
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -94,6 +105,25 @@ def validate(root: Path) -> list[str]:
         if not isinstance(working_directory, str) or not working_directory:
             errors.append(
                 f"release execution command {command_id}: workingDirectory is required"
+            )
+        harness_locator = binding.get("harnessLocator")
+        if not isinstance(harness_locator, str) or not harness_locator:
+            errors.append(
+                f"release execution command {command_id}: harnessLocator is required"
+            )
+            continue
+        authoritative = implementation_commands.get(command_id)
+        if authoritative is None:
+            continue
+        expected_harness = _implementation_harness_locator(authoritative)
+        if expected_harness is None:
+            errors.append(
+                f"implementation command {command_id}: execution harness locator is required before release binding"
+            )
+        elif harness_locator != expected_harness:
+            errors.append(
+                f"release execution command {command_id}: harnessLocator must exactly match "
+                f"implementation execution harness {expected_harness!r}, got {harness_locator!r}"
             )
 
     return errors
