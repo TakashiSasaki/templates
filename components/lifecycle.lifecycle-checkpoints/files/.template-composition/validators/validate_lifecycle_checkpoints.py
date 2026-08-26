@@ -16,6 +16,20 @@ from contract_common import contract_entries, load_json
 LEDGER = Path("contracts/lifecycle-checkpoints.json")
 EVIDENCE = Path("contracts/implementation-evidence.json")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
+SNAPSHOT_REQUIRED = {
+    "schemaVersion",
+    "checkpointId",
+    "sequence",
+    "phase",
+    "changeKind",
+    "parentId",
+    "recordedAt",
+    "chronologyAuthority",
+    "authority",
+    "files",
+    "validation",
+}
+SNAPSHOT_ALLOWED = SNAPSHOT_REQUIRED | {"sourceAnchor"}
 
 
 def _sha256(path: Path) -> str:
@@ -57,6 +71,34 @@ def _planning_transition_errors(planning: dict[str, Any], product: dict[str, Any
     return errors
 
 
+def _validate_snapshot_shape(entry: dict[str, Any], manifest: dict[str, Any]) -> list[str]:
+    checkpoint_id = entry.get("id")
+    errors: list[str] = []
+    fields = set(manifest)
+    if not SNAPSHOT_REQUIRED <= fields or not fields <= SNAPSHOT_ALLOWED:
+        errors.append(
+            f"checkpoint {checkpoint_id!r}: snapshot manifest fields must be exactly required fields plus optional sourceAnchor"
+        )
+    if manifest.get("schemaVersion") != 1:
+        errors.append(f"checkpoint {checkpoint_id!r}: snapshot schemaVersion must be 1")
+    if manifest.get("chronologyAuthority") != "sequence-parent-hash-chain":
+        errors.append(f"checkpoint {checkpoint_id!r}: invalid chronologyAuthority")
+    for field in ("checkpointId", "sequence", "phase", "changeKind", "parentId", "recordedAt"):
+        ledger_field = "id" if field == "checkpointId" else field
+        if manifest.get(field) != entry.get(ledger_field):
+            errors.append(f"checkpoint {checkpoint_id!r}: snapshot manifest {field} does not match ledger")
+    authority = manifest.get("authority")
+    if not isinstance(authority, dict) or authority.get("validationEntrypoint") != ".template-composition/validate.py":
+        errors.append(f"checkpoint {checkpoint_id!r}: snapshot validation authority is missing canonical entrypoint")
+    source_anchor = manifest.get("sourceAnchor")
+    if source_anchor is not None:
+        if not isinstance(source_anchor, dict) or set(source_anchor) != {"kind", "revision", "authority"}:
+            errors.append(f"checkpoint {checkpoint_id!r}: sourceAnchor must contain exactly kind, revision, authority")
+        elif source_anchor.get("kind") != "vcs-revision" or source_anchor.get("authority") != "external" or not isinstance(source_anchor.get("revision"), str) or not source_anchor.get("revision"):
+            errors.append(f"checkpoint {checkpoint_id!r}: invalid external sourceAnchor")
+    return errors
+
+
 def _snapshot_manifest(root: Path, entry: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     errors: list[str] = []
     snapshot_path = entry.get("snapshotPath")
@@ -64,31 +106,28 @@ def _snapshot_manifest(root: Path, entry: dict[str, Any]) -> tuple[dict[str, Any
     if snapshot_path != expected:
         return None, [f"checkpoint {entry.get('id')!r}: snapshotPath must be {expected!r}"]
     manifest_path = root / snapshot_path / "manifest.json"
-    if not manifest_path.is_file():
-        return None, [f"checkpoint {entry.get('id')!r}: missing snapshot manifest {snapshot_path}/manifest.json"]
+    if not manifest_path.is_file() or manifest_path.is_symlink():
+        return None, [f"checkpoint {entry.get('id')!r}: missing regular snapshot manifest {snapshot_path}/manifest.json"]
     digest = entry.get("manifestSha256")
     if not isinstance(digest, str) or HEX64.fullmatch(digest) is None:
         errors.append(f"checkpoint {entry.get('id')!r}: invalid manifestSha256")
     elif _sha256(manifest_path) != digest:
         errors.append(f"checkpoint {entry.get('id')!r}: snapshot manifest hash mismatch")
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        manifest = load_json(manifest_path)
+    except Exception as exc:
         return None, errors + [f"checkpoint {entry.get('id')!r}: cannot read snapshot manifest: {exc}"]
     if not isinstance(manifest, dict):
         return None, errors + [f"checkpoint {entry.get('id')!r}: snapshot manifest must be an object"]
-    for field in ("checkpointId", "sequence", "phase", "parentId"):
-        expected_value = entry.get(field if field != "checkpointId" else "id")
-        if manifest.get(field) != expected_value:
-            errors.append(f"checkpoint {entry.get('id')!r}: snapshot manifest {field} does not match ledger")
+    errors.extend(_validate_snapshot_shape(entry, manifest))
     files = manifest.get("files")
     if not isinstance(files, list) or not files:
         errors.append(f"checkpoint {entry.get('id')!r}: snapshot manifest files must be non-empty")
         return manifest, errors
     seen: set[str] = set()
     for index, item in enumerate(files):
-        if not isinstance(item, dict):
-            errors.append(f"checkpoint {entry.get('id')!r}: snapshot file {index} must be an object")
+        if not isinstance(item, dict) or set(item) != {"path", "snapshotPath", "sha256"}:
+            errors.append(f"checkpoint {entry.get('id')!r}: snapshot file {index} must contain exactly path, snapshotPath, sha256")
             continue
         path, snap, sha = item.get("path"), item.get("snapshotPath"), item.get("sha256")
         if not isinstance(path, str) or not path or path.startswith("/") or "\\" in path or ".." in Path(path).parts:
@@ -101,21 +140,29 @@ def _snapshot_manifest(root: Path, entry: dict[str, Any]) -> tuple[dict[str, Any
             errors.append(f"checkpoint {entry.get('id')!r}: snapshotPath for {path} must preserve the repository path")
             continue
         file_path = root / snapshot_path / snap
-        if not file_path.is_file():
-            errors.append(f"checkpoint {entry.get('id')!r}: missing snapshotted file {snap}")
+        if not file_path.is_file() or file_path.is_symlink():
+            errors.append(f"checkpoint {entry.get('id')!r}: missing regular snapshotted file {snap}")
             continue
         if not isinstance(sha, str) or HEX64.fullmatch(sha) is None or _sha256(file_path) != sha:
             errors.append(f"checkpoint {entry.get('id')!r}: snapshot hash mismatch for {snap}")
     validation = manifest.get("validation")
-    if not isinstance(validation, dict) or validation.get("result") != "passed":
-        errors.append(f"checkpoint {entry.get('id')!r}: snapshot validation result is not passed")
+    if not isinstance(validation, dict) or set(validation) != {"result", "path", "sha256"} or validation.get("result") != "passed" or validation.get("path") != "validation.json":
+        errors.append(f"checkpoint {entry.get('id')!r}: snapshot validation binding is invalid")
     else:
         validation_path = root / snapshot_path / "validation.json"
         expected_validation_sha = validation.get("sha256")
-        if not validation_path.is_file():
-            errors.append(f"checkpoint {entry.get('id')!r}: missing validation.json")
+        if not validation_path.is_file() or validation_path.is_symlink():
+            errors.append(f"checkpoint {entry.get('id')!r}: missing regular validation.json")
         elif not isinstance(expected_validation_sha, str) or HEX64.fullmatch(expected_validation_sha) is None or _sha256(validation_path) != expected_validation_sha:
             errors.append(f"checkpoint {entry.get('id')!r}: validation.json hash mismatch")
+        else:
+            try:
+                validation_result = load_json(validation_path)
+            except Exception as exc:
+                errors.append(f"checkpoint {entry.get('id')!r}: cannot parse validation.json: {exc}")
+            else:
+                if not isinstance(validation_result, dict) or validation_result.get("authority") != "composition-selected-validation-v1" or validation_result.get("result") != "passed":
+                    errors.append(f"checkpoint {entry.get('id')!r}: validation.json does not preserve a passed Composition validation result")
     return manifest, errors
 
 
@@ -206,19 +253,18 @@ def validate(root: Path) -> list[str]:
             errors.append(f"checkpoint {entry['id']!r}: snapshot omits contracts/manifest.json")
             continue
         try:
-            historical_manifest = json.loads(manifest_snapshot.read_text(encoding="utf-8"))
+            historical_manifest = load_json(manifest_snapshot)
             historical_contracts = contract_entries(historical_manifest)
-        except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
+        except Exception as exc:
             errors.append(f"checkpoint {entry['id']!r}: cannot read historical contract manifest: {exc}")
             continue
         required_paths = {"contracts/manifest.json"}
         for contract_id, contract in historical_contracts.items():
-            if contract_id == "lifecycle_checkpoints":
-                continue
-            if isinstance(contract.get("document"), str):
-                required_paths.add(contract["document"])
-            if isinstance(contract.get("schema"), str):
-                required_paths.add(contract["schema"])
+            document, schema = contract.get("document"), contract.get("schema")
+            if contract_id != "lifecycle_checkpoints" and isinstance(document, str):
+                required_paths.add(document)
+            if isinstance(schema, str):
+                required_paths.add(schema)
         for path in sorted(required_paths - snap_paths):
             errors.append(f"checkpoint {entry['id']!r}: snapshot omits registered authority file {path}")
 
@@ -235,8 +281,8 @@ def validate(root: Path) -> list[str]:
                 errors.append(f"checkpoint {latest.get('id')!r}: planning snapshot omits implementation-evidence")
             else:
                 try:
-                    planning_evidence = json.loads(planning_evidence_path.read_text(encoding="utf-8"))
-                except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                    planning_evidence = load_json(planning_evidence_path)
+                except Exception as exc:
                     errors.append(f"checkpoint {latest.get('id')!r}: cannot read planning implementation-evidence: {exc}")
                 else:
                     if isinstance(evidence, dict) and isinstance(planning_evidence, dict):
