@@ -86,17 +86,20 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
             verified = scaffold.render_worklist(root)
             self.assertEqual(verified["status"], "verified")
             self.assertEqual(verified["statusCounts"]["verified"], 1)
+            self.assertEqual(verified["recordStatuses"], [{"id": "surfaces-surface-main", "status": "verified"}])
             self.assertEqual(verified["requirements"][0]["status"], "verified")
 
             self.fixture(root, "deferred")
             deferred = scaffold.render_worklist(root)
             self.assertEqual(deferred["status"], "deferred")
             self.assertEqual(deferred["requirements"][0]["status"], "deferred")
+            self.assertEqual(deferred["recordStatuses"][0]["status"], "deferred")
 
             self.fixture(root, "required")
             missing = scaffold.render_worklist(root)
             self.assertEqual(missing["status"], "missing")
             self.assertEqual(missing["requirements"][0]["status"], "missing")
+            self.assertEqual(missing["recordStatuses"][0]["status"], "missing")
             self.assertEqual(canonical.read_bytes(), before)
 
     def test_missing_canonical_evidence_is_a_missing_worklist(self) -> None:
@@ -111,6 +114,7 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
 
             self.assertEqual(worklist["status"], "missing")
             self.assertEqual(worklist["statusCounts"]["missing"], 1)
+            self.assertEqual(worklist["recordStatuses"][0]["status"], "missing")
             self.assertEqual(worklist["requirements"], [])
 
 
