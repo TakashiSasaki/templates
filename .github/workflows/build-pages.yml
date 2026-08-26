@@ -430,8 +430,13 @@ jobs:
       - name: Install Playwright controller
         run: python -m pip install --disable-pip-version-check -r requirements-visual.txt
 
+      - name: Install Japanese browser font
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic
+
       - name: Install Playwright Chromium
-        run: python -m playwright install --with-deps --only-shell chromium
+        run: python -m playwright install --only-shell chromium
 
       - name: Check mobile layout geometry
         run: |

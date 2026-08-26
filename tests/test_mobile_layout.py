@@ -166,7 +166,17 @@ class MobileLayoutRegressionTests(unittest.TestCase):
         self.assertNotIn("workflow_id: 'build-pages.yml'", workflow)
         self.assertIn("actions/setup-python@v6", workflow)
         self.assertIn("requirements-visual.txt", workflow)
+        self.assertIn("Install Japanese browser font", workflow)
+        self.assertIn("sudo apt-get update", workflow)
         self.assertIn(
+            "sudo apt-get install --yes --no-install-recommends fonts-ipafont-gothic",
+            workflow,
+        )
+        self.assertIn(
+            "python -m playwright install --only-shell chromium",
+            workflow,
+        )
+        self.assertNotIn(
             "python -m playwright install --with-deps --only-shell chromium",
             workflow,
         )
