@@ -1,142 +1,20 @@
 {
   "schema_version": 2,
-  "runtime": {
-    "requirements": [
-      "attrs===26.1.0",
-      "jsonschema===4.26.0",
-      "jsonschema-specifications===2025.9.1",
-      "referencing===0.37.0",
-      "rpds-py===2026.6.3",
-      "typing_extensions===4.16.0"
-    ]
-  },
+  "runtime": {"requirements": ["attrs===26.1.0", "jsonschema===4.26.0", "jsonschema-specifications===2025.9.1", "referencing===0.37.0", "rpds-py===2026.6.3", "typing_extensions===4.16.0"]},
   "validators": [
-    {
-      "id": "skill-scaffold",
-      "component": "artifact.skill-core",
-      "entrypoint": ".github/scripts/validate_skill.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate the Agent Skill scaffold and Skill-specific structural invariants."
-    },
-    {
-      "id": "webapp-contracts",
-      "component": "artifact.webapp-core",
-      "entrypoint": "scripts/validate_contracts.py",
-      "arguments": [],
-      "purpose": "Validate registered Web application contracts, schemas, and Web-specific invariants."
-    },
-    {
-      "id": "webapp-implementation-coverage",
-      "component": "artifact.webapp-core",
-      "entrypoint": "scripts/validate_webapp_evidence.py",
-      "arguments": [],
-      "purpose": "Validate Web application implementation-evidence coverage against artifact contract targets."
-    },
-    {
-      "id": "contract-evolution",
-      "component": "lifecycle.contract-evolution",
-      "entrypoint": ".template-composition/validators/validate_contract_evolution.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate the closed contract registry, schema bindings, version histories, and migration declarations."
-    },
-    {
-      "id": "implementation-evidence",
-      "component": "lifecycle.implementation-evidence",
-      "entrypoint": ".template-composition/validators/validate_implementation_evidence.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate template, planning, and product implementation-evidence semantics, requirement ledgers, proof commands, and release-gate coverage."
-    },
-    {
-      "id": "cli-interface",
-      "component": "capability.cli",
-      "entrypoint": ".template-composition/validators/validate_cli_interface.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate selected packaged CLI entrypoints and require executable implementation-evidence proof strength."
-    },
-    {
-      "id": "service-interface",
-      "component": "capability.service",
-      "entrypoint": ".template-composition/validators/validate_service_interface.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate selected service operation coverage and require executable implementation-evidence proof strength."
-    },
-    {
-      "id": "mcp-interface",
-      "component": "capability.mcp",
-      "entrypoint": ".template-composition/validators/validate_mcp_interface.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate selected MCP transport/operation coverage and require executable protocol-level implementation-evidence proof strength."
-    },
-    {
-      "id": "mcp-apps",
-      "component": "capability.mcp-apps",
-      "entrypoint": ".template-composition/validators/validate_mcp_apps.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate MCP Apps extension, View resource, and core MCP tool-association coverage with protocol/browser/end-to-end proof strength."
-    },
-    {
-      "id": "web-interface",
-      "component": "capability.web-interface",
-      "entrypoint": ".template-composition/validators/validate_web_interface.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate standalone Web interface endpoint coverage and require browser-level or executable implementation-evidence proof strength."
-    },
-    {
-      "id": "release-bundle-template",
-      "component": "lifecycle.release-bundle",
-      "entrypoint": ".template-composition/validators/validate_release_bundle.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate template-mode release-bundle structure without pretending to validate revision-bound product handoff evidence.",
-      "when": {
-        "document": "contracts/release-bundle.json",
-        "field": "mode",
-        "equals": "template",
-        "otherwise": "defer",
-        "message": "Product release bundles are revision-bound; run exact-candidate release-bundle validation in the product-owned release operation."
-      }
-    },
-    {
-      "id": "release-evidence-template",
-      "component": "lifecycle.release-evidence",
-      "entrypoint": ".template-composition/validators/validate_release_evidence.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate template-mode release evidence without pretending to validate revision-bound product evidence.",
-      "when": {
-        "document": "contracts/release-evidence.json",
-        "field": "mode",
-        "equals": "template",
-        "otherwise": "defer",
-        "message": "Product release evidence is revision-bound; run exact-candidate release-evidence validation in the product-owned release operation."
-      }
-    },
-    {
-      "id": "release-execution",
-      "component": "lifecycle.release-execution",
-      "entrypoint": ".template-composition/validators/validate_release_execution.py",
-      "arguments": [
-        "."
-      ],
-      "purpose": "Validate fixed-argv release execution bindings against implementation-evidence commands and gates."
-    }
+    {"id":"skill-scaffold","component":"artifact.skill-core","entrypoint":".github/scripts/validate_skill.py","arguments":["."],"purpose":"Validate the Agent Skill scaffold and Skill-specific structural invariants."},
+    {"id":"webapp-contracts","component":"artifact.webapp-core","entrypoint":"scripts/validate_contracts.py","arguments":[],"purpose":"Validate registered Web application contracts, schemas, and Web-specific invariants."},
+    {"id":"webapp-implementation-coverage","component":"artifact.webapp-core","entrypoint":"scripts/validate_webapp_evidence.py","arguments":[],"purpose":"Validate Web application implementation-evidence coverage against artifact contract targets."},
+    {"id":"contract-evolution","component":"lifecycle.contract-evolution","entrypoint":".template-composition/validators/validate_contract_evolution.py","arguments":["."],"purpose":"Validate the closed contract registry, schema bindings, version histories, and migration declarations."},
+    {"id":"implementation-evidence","component":"lifecycle.implementation-evidence","entrypoint":".template-composition/validators/validate_implementation_evidence.py","arguments":["."],"purpose":"Validate template, planning, and product implementation-evidence semantics, requirement ledgers, proof commands, and release-gate coverage."},
+    {"id":"lifecycle-checkpoints","component":"lifecycle.lifecycle-checkpoints","entrypoint":".template-composition/validators/validate_lifecycle_checkpoints.py","arguments":["."],"purpose":"Validate content-addressed lifecycle snapshots and planning-to-product historical transition bindings."},
+    {"id":"cli-interface","component":"capability.cli","entrypoint":".template-composition/validators/validate_cli_interface.py","arguments":["."],"purpose":"Validate selected packaged CLI entrypoints and require executable implementation-evidence proof strength."},
+    {"id":"service-interface","component":"capability.service","entrypoint":".template-composition/validators/validate_service_interface.py","arguments":["."],"purpose":"Validate selected service operation coverage and require executable implementation-evidence proof strength."},
+    {"id":"mcp-interface","component":"capability.mcp","entrypoint":".template-composition/validators/validate_mcp_interface.py","arguments":["."],"purpose":"Validate selected MCP transport/operation coverage and require executable protocol-level implementation-evidence proof strength."},
+    {"id":"mcp-apps","component":"capability.mcp-apps","entrypoint":".template-composition/validators/validate_mcp_apps.py","arguments":["."],"purpose":"Validate MCP Apps extension, View resource, and core MCP tool-association coverage with protocol/browser/end-to-end proof strength."},
+    {"id":"web-interface","component":"capability.web-interface","entrypoint":".template-composition/validators/validate_web_interface.py","arguments":["."],"purpose":"Validate standalone Web interface endpoint coverage and require browser-level or executable implementation-evidence proof strength."},
+    {"id":"release-bundle-template","component":"lifecycle.release-bundle","entrypoint":".template-composition/validators/validate_release_bundle.py","arguments":["."],"purpose":"Validate template-mode release-bundle structure without pretending to validate revision-bound product handoff evidence.","when":{"document":"contracts/release-bundle.json","field":"mode","equals":"template","otherwise":"defer","message":"Product release bundles are revision-bound; run exact-candidate release-bundle validation in the product-owned release operation."}},
+    {"id":"release-evidence-template","component":"lifecycle.release-evidence","entrypoint":".template-composition/validators/validate_release_evidence.py","arguments":["."],"purpose":"Validate template-mode release evidence without pretending to validate revision-bound product evidence.","when":{"document":"contracts/release-evidence.json","field":"mode","equals":"template","otherwise":"defer","message":"Product release evidence is revision-bound; run exact-candidate release-evidence validation in the product-owned release operation."}},
+    {"id":"release-execution","component":"lifecycle.release-execution","entrypoint":".template-composition/validators/validate_release_execution.py","arguments":["."],"purpose":"Validate fixed-argv release execution bindings against implementation-evidence commands and gates."}
   ]
 }

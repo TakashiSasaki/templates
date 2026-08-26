@@ -12,12 +12,10 @@
     "lifecycle.composition-state",
     "lifecycle.contract-evolution",
     "lifecycle.implementation-evidence",
+    "lifecycle.lifecycle-checkpoints",
     "lifecycle.release-bundle",
     "lifecycle.release-evidence",
     "lifecycle.release-execution"
   ],
-  "recipes": [
-    "skill",
-    "webapp"
-  ]
+  "recipes": ["skill", "webapp"]
 }
