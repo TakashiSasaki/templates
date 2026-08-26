@@ -15,6 +15,7 @@ COMPONENT = ROOT / "components" / "capability.mcp-apps"
 SCHEMA = COMPONENT / "files" / "schemas" / "mcp-apps.schema.json"
 SEED = COMPONENT / "files" / "contracts" / "mcp-apps.json"
 VALIDATOR = COMPONENT / "files" / ".template-composition" / "validators" / "validate_mcp_apps.py"
+COMPOSER = ROOT / "scripts" / "compose.py"
 
 
 class McpAppsContractTests(unittest.TestCase):
@@ -218,6 +219,68 @@ class McpAppsContractTests(unittest.TestCase):
         result = self.run_validator(json.loads(SEED.read_text(encoding="utf-8")), self.evidence())
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("remains in template mode while product implementation evidence is active", result.stderr)
+
+    def test_selected_apps_materializes_contract_and_validator_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            config = root / "composition.json"
+            self.write_json(
+                config,
+                {
+                    "schema_version": 1,
+                    "recipe": "skill",
+                    "components": {
+                        "include": ["capability.mcp-apps"],
+                        "exclude": [],
+                    },
+                    "parameters": {},
+                },
+            )
+            applied = subprocess.run(
+                [
+                    sys.executable,
+                    str(COMPOSER),
+                    "apply",
+                    "--config",
+                    str(config),
+                    "--target",
+                    str(target),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+
+            runner = target / ".template-composition" / "validate.py"
+            validated = subprocess.run(
+                [sys.executable, str(runner), str(target), "--format", "json"],
+                cwd=target,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            payload = json.loads(validated.stdout)
+            self.assertEqual(validated.returncode, 0, payload)
+            self.assertEqual(payload["status"], "valid")
+            components = set(payload["resolved_components"])
+            self.assertIn("capability.mcp-apps", components)
+            self.assertIn("capability.mcp", components)
+            self.assertIn("lifecycle.implementation-evidence", components)
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertEqual(checks["mcp-interface"]["status"], "passed")
+            self.assertEqual(checks["mcp-apps"]["status"], "passed")
+            self.assertEqual(checks["implementation-evidence"]["status"], "passed")
+            manifest = json.loads((target / "contracts/manifest.json").read_text(encoding="utf-8"))
+            contract_ids = {entry["id"] for entry in manifest["contracts"]}
+            self.assertIn("mcp_interface", contract_ids)
+            self.assertIn("mcp_apps", contract_ids)
+            self.assertEqual(
+                json.loads((target / "contracts/mcp-apps.json").read_text(encoding="utf-8"))["mode"],
+                "template",
+            )
 
 
 if __name__ == "__main__":
