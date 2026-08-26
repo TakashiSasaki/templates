@@ -306,6 +306,43 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                 result.stderr,
             )
 
+    def test_semantic_validator_rejects_unsafe_paths_without_schema_dispatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            implementation = self.product_implementation()
+            self.write_json(
+                target / "contracts/implementation-evidence.json", implementation
+            )
+
+            unsafe_harness = self.product_execution()
+            implementation["commands"][0]["execution"]["harness"]["locator"] = "../outside.py"
+            unsafe_harness["commands"][0].update(
+                {
+                    "argv": ["python", "../outside.py"],
+                    "harnessLocator": "../outside.py",
+                }
+            )
+            self.write_json(
+                target / "contracts/implementation-evidence.json", implementation
+            )
+            self.write_json(
+                target / "contracts/release-execution.json", unsafe_harness
+            )
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("harnessLocator must be a safe repository-relative file path", result.stderr)
+
+            implementation = self.product_implementation()
+            self.write_json(
+                target / "contracts/implementation-evidence.json", implementation
+            )
+            unsafe_cwd = self.product_execution()
+            unsafe_cwd["commands"][0]["workingDirectory"] = "../outside"
+            self.write_json(target / "contracts/release-execution.json", unsafe_cwd)
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("workingDirectory must be a safe repository-relative directory", result.stderr)
+
     def test_schema_rejects_unsafe_paths_and_empty_argv(self) -> None:
         schema = json.loads(
             (
