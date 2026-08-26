@@ -149,7 +149,8 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertIn("scripts/classify_composition_ci.py", workflow)
 
         conditional = (
-            "if: ${{ always() && (github.event_name != 'pull_request' || "
+            "if: ${{ always() && !cancelled() && "
+            "(github.event_name != 'pull_request' || "
             "needs.classify_runtime.outputs.required == 'true') }}"
         )
         self.assertEqual(workflow.count("- classify_runtime"), 4)
