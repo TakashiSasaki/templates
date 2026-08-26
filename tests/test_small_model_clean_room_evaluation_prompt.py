@@ -29,7 +29,7 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
     def test_prompt_has_stable_explicit_requirement_inventory(self) -> None:
         declared = set(re.findall(r"^REQ-[A-Z0-9-]+$", self.text, flags=re.MULTILINE))
         self.assertEqual(declared, EXPECTED_REQUIREMENTS)
-        self.assertIn("before claiming implementation completion", self.text)
+        self.assertIn("before the implemented-product milestone can be claimed", self.text)
         self.assertIn("Do not collapse unrelated requirements into one catch-all requirement", self.text)
 
     def test_prompt_separates_cli_api_and_browser_evidence_strength(self) -> None:

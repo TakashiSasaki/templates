@@ -205,7 +205,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(set(checks), WEBAPP_BASE_CHECKS)
             self.assertEqual(checks["implementation-evidence"]["status"], "passed")
             self.assertIn(
-                "Implementation evidence semantics: OK",
+                "Implementation evidence validation: OK",
                 checks["implementation-evidence"]["stdout"],
             )
             self.assertTrue(all(check["status"] == "passed" for check in checks.values()))
@@ -220,7 +220,7 @@ class SelectedComponentValidationTests(unittest.TestCase):
             )
             self.assertEqual(human.returncode, 0, human.stdout + human.stderr)
             self.assertIn("PASSED: implementation-evidence", human.stdout)
-            self.assertIn("Implementation evidence semantics: OK", human.stdout)
+            self.assertIn("Implementation evidence validation: OK", human.stdout)
             self.assertIn("Composition validation: VALID", human.stdout)
 
             self.assertFalse((target / "contracts" / "release-execution.json").exists())

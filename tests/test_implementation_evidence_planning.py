@@ -149,7 +149,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
     def test_planning_keeps_release_execution_in_template_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(
-                Path(temp_dir), include=["lifecycle.release-execution"]
+                Path(temp_dir), include=["lifecycle.release-bundle"]
             )
             self.write_json(
                 target / "contracts" / "implementation-evidence.json",
