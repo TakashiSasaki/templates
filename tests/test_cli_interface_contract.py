@@ -31,7 +31,7 @@ class CliInterfaceContractTests(unittest.TestCase):
     def product_contract(self) -> dict:
         return {
             "$schema": "../schemas/cli-interface.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
             "entrypoints": [
                 {
