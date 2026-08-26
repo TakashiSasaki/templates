@@ -414,7 +414,7 @@ Because `capability.service` is selected, replace the editable machine seed `con
 ```json
 {
   "$schema": "../schemas/service-interface.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "product",
   "protocol": "http-json",
   "operations": [
@@ -476,7 +476,7 @@ Because `capability.cli` is selected, also replace the editable machine seed `co
 ```json
 {
   "$schema": "../schemas/cli-interface.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "product",
   "entrypoints": [
     {

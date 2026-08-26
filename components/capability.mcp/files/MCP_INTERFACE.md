@@ -6,18 +6,18 @@ The initial composition baseline uses MCP `2026-07-28` Modern protocol semantics
 
 ## Machine-readable authority and evidence
 
-`contracts/mcp-interface.json` starts in `template` mode with no product claim. A selected product MCP capability switches it to `product` mode, declares the `2026-07-28` revision, declares every maintained transport, and declares every caller-visible operation exposure together with the transport that carries it.
+`contracts/mcp-interface.json` follows `template` -> `planning` -> `product`.
 
-Each declared item becomes an implementation-evidence target:
+- `template` makes no caller-visible MCP claim and keeps transport/operation inventories empty.
+- Before product coding, switch to `planning`, declare the selected core protocol revision (`2026-07-28` for schema v2), enumerate each intended transport with stable `id`, `kind`, and `purpose`, and enumerate each intended operation exposure with stable `id`, operation `kind`, `transportId`, and `purpose`. These are caller-visible planning decisions; protocol probes, wire operation names, success behavior, and negative behavior remain product-only.
+- Bind every planned transport and operation exactly to implementation-evidence planning targets (`contract-item / mcp_interface / transport / <transport-id>` and `contract-item / mcp_interface / operation / <operation-id>`). The validator checks that every planned operation references a planned transport and rejects phantom/omitted item IDs before coding.
+- Promote the same stable IDs, relationships, transport kinds, operation kinds, and protocol revision to `product`; enrich them with the complete operational transport/operation definitions, then attach executable positive and negative implementation evidence.
 
-- transport: `contract-item / mcp_interface / transport / <transport-id>`
-- operation exposure: `contract-item / mcp_interface / operation / <operation-id>`
-
-Every target requires exactly one implementation-evidence record, a linked product requirement, and both positive and negative executable proof. At least one `integration-test` or `end-to-end-test` proof kind must be present in each polarity, and the linked requirement must declare compatible positive-proof strength. Static inspection and unit-only proof do not establish caller-visible MCP execution.
+Every product target requires exactly one implementation-evidence record, a linked product requirement, and both positive and negative executable proof. At least one `integration-test` or `end-to-end-test` proof kind must be present in each polarity, and the linked requirement must declare compatible positive-proof strength. Static inspection and unit-only proof do not establish caller-visible MCP execution.
 
 Proof may remain explicitly `deferred` while work is incomplete; do not replace an unavailable protocol round trip with weaker evidence. Generic implementation-evidence/release readiness remains responsible for keeping deferred proof out of a release-ready state.
 
-The Markdown below retains qualitative protocol, security, client, and semantic-equivalence decisions that schema v1 intentionally does not encode. It does not replace the machine inventory or its evidence targets.
+The Markdown below retains qualitative protocol, security, client, and semantic-equivalence decisions that the machine contract intentionally does not encode. It does not replace the machine inventory or its evidence targets.
 
 ## Worksheet status
 
@@ -25,7 +25,7 @@ The Markdown below retains qualitative protocol, security, client, and semantic-
 Worksheet status: UNSELECTED
 ```
 
-This marker is guidance only. Product selection is machine-visible only when `contracts/mcp-interface.json` is in `product` mode and its transport/operation inventory agrees with `RUNTIME.md` and the implementation evidence.
+This marker is guidance only. Selection becomes machine-visible first through `planning` mode and the target-bound planning ledger; a product claim exists only when `contracts/mcp-interface.json` is in `product` mode and its transport/operation inventory agrees with `RUNTIME.md` and the implementation evidence.
 
 ## Core protocol
 

@@ -31,7 +31,7 @@ class WebInterfaceContractTests(unittest.TestCase):
     def product_contract(self) -> dict:
         return {
             "$schema": "../schemas/web-interface.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
             "endpoints": [
                 {
@@ -69,18 +69,9 @@ class WebInterfaceContractTests(unittest.TestCase):
         health_requirement_kind: str | None = None,
     ) -> dict:
         values = {
-            "ui": (
-                browser_proof_kind,
-                browser_requirement_kind or browser_proof_kind,
-            ),
-            "verify-api": (
-                api_proof_kind,
-                api_requirement_kind or api_proof_kind,
-            ),
-            "health": (
-                health_proof_kind,
-                health_requirement_kind or health_proof_kind,
-            ),
+            "ui": (browser_proof_kind, browser_requirement_kind or browser_proof_kind),
+            "verify-api": (api_proof_kind, api_requirement_kind or api_proof_kind),
+            "health": (health_proof_kind, health_requirement_kind or health_proof_kind),
         }
         records: list[dict] = []
         requirements: list[dict] = []
@@ -97,39 +88,10 @@ class WebInterfaceContractTests(unittest.TestCase):
             records.append(
                 {
                     "id": record_id,
-                    "target": {
-                        "kind": "contract-item",
-                        "contractId": "web_interface",
-                        "itemKind": "endpoint",
-                        "itemId": endpoint_id,
-                    },
-                    "implementationBoundary": {
-                        "status": "verified",
-                        "description": "Standalone Web interface adapter.",
-                        "locator": "app.py",
-                    },
-                    "positiveEvidence": [
-                        {
-                            "id": f"{endpoint_id}-positive",
-                            "status": "verified",
-                            "kind": proof_kind,
-                            "description": "Exercise the endpoint successfully.",
-                            "locator": "tests/test_web_interface.py",
-                            "commandId": "web-proof",
-                            "expectedResult": "caller-visible success behavior is observed",
-                        }
-                    ],
-                    "negativeEvidence": [
-                        {
-                            "id": f"{endpoint_id}-negative",
-                            "status": "verified",
-                            "kind": proof_kind,
-                            "description": "Exercise an endpoint failure path.",
-                            "locator": "tests/test_web_interface.py",
-                            "commandId": "web-proof",
-                            "expectedResult": "caller-visible failure behavior is observed",
-                        }
-                    ],
+                    "target": {"kind": "contract-item", "contractId": "web_interface", "itemKind": "endpoint", "itemId": endpoint_id},
+                    "implementationBoundary": {"status": "verified", "description": "Standalone Web interface adapter.", "locator": "app.py"},
+                    "positiveEvidence": [{"id": f"{endpoint_id}-positive", "status": "verified", "kind": proof_kind, "description": "Exercise the endpoint successfully.", "locator": "tests/test_web_interface.py", "commandId": "web-proof", "expectedResult": "caller-visible success behavior is observed"}],
+                    "negativeEvidence": [{"id": f"{endpoint_id}-negative", "status": "verified", "kind": proof_kind, "description": "Exercise an endpoint failure path.", "locator": "tests/test_web_interface.py", "commandId": "web-proof", "expectedResult": "caller-visible failure behavior is observed"}],
                     "releaseGateIds": ["release"],
                 }
             )
@@ -137,58 +99,30 @@ class WebInterfaceContractTests(unittest.TestCase):
             "$schema": "../schemas/implementation-evidence.schema.json",
             "schemaVersion": 5,
             "mode": "product",
-            "commands": [
-                {
-                    "id": "web-proof",
-                    "command": "python -m unittest tests.test_web_interface",
-                    "purpose": "Exercise standalone Web interface endpoints.",
-                }
-            ],
-            "releaseGates": [
-                {
-                    "id": "release",
-                    "purpose": "Run standalone Web interface endpoint proof.",
-                    "commandIds": ["web-proof"],
-                }
-            ],
+            "commands": [{"id": "web-proof", "command": "python -m unittest tests.test_web_interface", "purpose": "Exercise standalone Web interface endpoints."}],
+            "releaseGates": [{"id": "release", "purpose": "Run standalone Web interface endpoint proof.", "commandIds": ["web-proof"]}],
             "requirements": requirements,
             "records": records,
         }
 
-    def run_validator(
-        self, contract: dict, evidence: dict
-    ) -> subprocess.CompletedProcess[str]:
+    def run_validator(self, contract: dict, evidence: dict) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name)
         self.write_json(root / "contracts/web-interface.json", contract)
         self.write_json(root / "contracts/implementation-evidence.json", evidence)
-        return subprocess.run(
-            [sys.executable, str(VALIDATOR), str(root)],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        return subprocess.run([sys.executable, str(VALIDATOR), str(root)], cwd=ROOT, text=True, capture_output=True, check=False)
 
     def test_descriptor_adds_machine_contract_and_evidence_dependency(self) -> None:
-        descriptor = json.loads(
-            (COMPONENT / "component.json").read_text(encoding="utf-8")
-        )
-        self.assertEqual(descriptor["version"], 3)
-        self.assertEqual(
-            descriptor["requires"],
-            ["capability.runtime", "lifecycle.implementation-evidence"],
-        )
+        descriptor = json.loads((COMPONENT / "component.json").read_text(encoding="utf-8"))
+        self.assertEqual(descriptor["version"], 4)
+        self.assertEqual(descriptor["requires"], ["capability.runtime", "lifecycle.implementation-evidence"])
         registrations = descriptor["contract_registrations"]
         self.assertEqual(len(registrations), 1)
         self.assertEqual(registrations[0]["id"], "web_interface")
-        self.assertEqual(
-            registrations[0]["document"], "contracts/web-interface.json"
-        )
-        self.assertEqual(
-            registrations[0]["schema"], "schemas/web-interface.schema.json"
-        )
+        self.assertEqual(registrations[0]["document"], "contracts/web-interface.json")
+        self.assertEqual(registrations[0]["schema"], "schemas/web-interface.schema.json")
+        self.assertEqual(registrations[0]["document_schema_version"], 2)
 
     def test_seed_and_product_shape_are_schema_valid(self) -> None:
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
@@ -200,39 +134,16 @@ class WebInterfaceContractTests(unittest.TestCase):
         result = self.run_validator(self.product_contract(), self.evidence())
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("endpoint coverage and proof strength: OK", result.stdout)
-
-        weak_browser = self.run_validator(
-            self.product_contract(),
-            self.evidence(
-                browser_proof_kind="inspection",
-                browser_requirement_kind="end-to-end-test",
-            ),
-        )
+        weak_browser = self.run_validator(self.product_contract(), self.evidence(browser_proof_kind="inspection", browser_requirement_kind="end-to-end-test"))
         self.assertNotEqual(weak_browser.returncode, 0)
         self.assertIn("browser-level proof kind", weak_browser.stderr)
-        self.assertIn(
-            "static inspection or unit-only proof is insufficient",
-            weak_browser.stderr,
-        )
-
-        weak_api = self.run_validator(
-            self.product_contract(),
-            self.evidence(
-                api_proof_kind="unit-test",
-                api_requirement_kind="integration-test",
-            ),
-        )
+        self.assertIn("static inspection or unit-only proof is insufficient", weak_browser.stderr)
+        weak_api = self.run_validator(self.product_contract(), self.evidence(api_proof_kind="unit-test", api_requirement_kind="integration-test"))
         self.assertNotEqual(weak_api.returncode, 0)
         self.assertIn("executable proof kind", weak_api.stderr)
 
     def test_browser_requirement_must_declare_browser_level_strength(self) -> None:
-        result = self.run_validator(
-            self.product_contract(),
-            self.evidence(
-                browser_proof_kind="end-to-end-test",
-                browser_requirement_kind="inspection",
-            ),
-        )
+        result = self.run_validator(self.product_contract(), self.evidence(browser_proof_kind="end-to-end-test", browser_requirement_kind="inspection"))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("requiredPositiveProofKinds", result.stderr)
         self.assertIn("browser-level", result.stderr)
@@ -241,10 +152,7 @@ class WebInterfaceContractTests(unittest.TestCase):
         contract = json.loads(SEED.read_text(encoding="utf-8"))
         result = self.run_validator(contract, self.evidence())
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn(
-            "remains in template mode while product implementation evidence is active",
-            result.stderr,
-        )
+        self.assertIn("remains in template mode while product implementation evidence is active", result.stderr)
 
     def test_unknown_or_duplicate_endpoint_targets_fail_closed(self) -> None:
         unknown = self.evidence()
@@ -253,7 +161,6 @@ class WebInterfaceContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing Web interface implementation-evidence target", result.stderr)
         self.assertIn("unknown Web interface implementation-evidence target", result.stderr)
-
         duplicate = self.evidence()
         second = deepcopy(duplicate["records"][0])
         second["id"] = "web-interface-endpoint-ui-duplicate"
@@ -272,14 +179,7 @@ class WebInterfaceContractTests(unittest.TestCase):
         alias["id"] = "web-interface-endpoint-ui-alias"
         alias["target"]["itemId"] = "ui-alias"
         evidence["records"].append(alias)
-        evidence["requirements"].append(
-            {
-                "id": "REQ-WEB-UI-ALIAS",
-                "description": "The alias is caller-visible.",
-                "recordIds": ["web-interface-endpoint-ui-alias"],
-                "requiredPositiveProofKinds": ["end-to-end-test"],
-            }
-        )
+        evidence["requirements"].append({"id": "REQ-WEB-UI-ALIAS", "description": "The alias is caller-visible.", "recordIds": ["web-interface-endpoint-ui-alias"], "requiredPositiveProofKinds": ["end-to-end-test"]})
         result = self.run_validator(contract, evidence)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("duplicate Web interface endpoint address: GET /ui", result.stderr)

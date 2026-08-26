@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "capability.mcp",
   "kind": "capability",
-  "version": 3,
-  "summary": "Machine-readable caller-visible MCP transport and operation contract.",
+  "version": 4,
+  "summary": "Machine-readable MCP contract with pre-coding transport and operation authority.",
   "requires": [
     "capability.runtime",
     "lifecycle.implementation-evidence"
@@ -15,41 +15,24 @@
       "document": "contracts/mcp-interface.json",
       "schema": "schemas/mcp-interface.schema.json",
       "migration_slug": "mcp-interface",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
+        {"version": 1, "change_type": "initial"},
         {
-          "version": 1,
-          "change_type": "initial"
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/mcp-interface-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare selected MCP transports and caller-visible operation exposures with stable evidence targets."
+      "purpose": "Declare planned and implemented MCP transports and caller-visible operation exposures with stable evidence targets."
     }
   ],
   "materials": [
-    {
-      "source": "files/MCP_INTERFACE.md",
-      "destination": "MCP_INTERFACE.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/docs/mcp-transports.md",
-      "destination": "docs/mcp-transports.md",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/contracts/mcp-interface.json",
-      "destination": "contracts/mcp-interface.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/mcp-interface.schema.json",
-      "destination": "schemas/mcp-interface.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validators/validate_mcp_interface.py",
-      "destination": ".template-composition/validators/validate_mcp_interface.py",
-      "ownership": "managed"
-    }
+    {"source": "files/MCP_INTERFACE.md", "destination": "MCP_INTERFACE.md", "ownership": "seed"},
+    {"source": "files/docs/mcp-transports.md", "destination": "docs/mcp-transports.md", "ownership": "managed"},
+    {"source": "files/contracts/mcp-interface.json", "destination": "contracts/mcp-interface.json", "ownership": "seed"},
+    {"source": "files/schemas/mcp-interface.schema.json", "destination": "schemas/mcp-interface.schema.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_mcp_interface.py", "destination": ".template-composition/validators/validate_mcp_interface.py", "ownership": "managed"},
+    {"source": "files/docs/migrations/mcp-interface-v1-to-v2.md", "destination": "docs/migrations/mcp-interface-v1-to-v2.md", "ownership": "managed"}
   ]
 }

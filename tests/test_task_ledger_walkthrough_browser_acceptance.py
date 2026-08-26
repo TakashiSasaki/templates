@@ -129,7 +129,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             target / "contracts" / "service-interface.json",
             {
                 "$schema": "../schemas/service-interface.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "protocol": "http-json",
                 "operations": self.service_operations(),
@@ -141,7 +141,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             target / "contracts" / "cli-interface.json",
             {
                 "$schema": "../schemas/cli-interface.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "entrypoints": [
                     {

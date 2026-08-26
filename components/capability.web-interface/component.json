@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "capability.web-interface",
   "kind": "capability",
-  "version": 3,
-  "summary": "Standalone browser-facing endpoint contract with machine-checked implementation evidence.",
+  "version": 4,
+  "summary": "Standalone browser/API endpoint contract with pre-coding endpoint authority and machine-checked evidence.",
   "requires": [
     "capability.runtime",
     "lifecycle.implementation-evidence"
@@ -15,36 +15,23 @@
       "document": "contracts/web-interface.json",
       "schema": "schemas/web-interface.schema.json",
       "migration_slug": "web-interface",
-      "document_schema_version": 1,
+      "document_schema_version": 2,
       "version_history": [
+        {"version": 1, "change_type": "initial"},
         {
-          "version": 1,
-          "change_type": "initial"
+          "version": 2,
+          "change_type": "breaking",
+          "migration": "docs/migrations/web-interface-v1-to-v2.md"
         }
       ],
-      "purpose": "Declare externally reachable standalone Web interface endpoints and their caller-visible proof obligations."
+      "purpose": "Declare planned and implemented externally reachable Web endpoints, their browser/API class, and caller-visible proof obligations."
     }
   ],
   "materials": [
-    {
-      "source": "files/WEB_INTERFACE.md",
-      "destination": "WEB_INTERFACE.md",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/contracts/web-interface.json",
-      "destination": "contracts/web-interface.json",
-      "ownership": "seed"
-    },
-    {
-      "source": "files/schemas/web-interface.schema.json",
-      "destination": "schemas/web-interface.schema.json",
-      "ownership": "managed"
-    },
-    {
-      "source": "files/.template-composition/validators/validate_web_interface.py",
-      "destination": ".template-composition/validators/validate_web_interface.py",
-      "ownership": "managed"
-    }
+    {"source": "files/WEB_INTERFACE.md", "destination": "WEB_INTERFACE.md", "ownership": "seed"},
+    {"source": "files/contracts/web-interface.json", "destination": "contracts/web-interface.json", "ownership": "seed"},
+    {"source": "files/schemas/web-interface.schema.json", "destination": "schemas/web-interface.schema.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validators/validate_web_interface.py", "destination": ".template-composition/validators/validate_web_interface.py", "ownership": "managed"},
+    {"source": "files/docs/migrations/web-interface-v1-to-v2.md", "destination": "docs/migrations/web-interface-v1-to-v2.md", "ownership": "managed"}
   ]
 }

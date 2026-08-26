@@ -36,6 +36,20 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
         self.assertIn("before the implemented-product milestone can be claimed", self.text)
         self.assertIn("Do not collapse unrelated requirements into one catch-all requirement", self.text)
 
+    def test_prompt_requires_capability_item_authority_before_coding(self) -> None:
+        for phrase in (
+            "move every selected capability contract that supports planning from template mode to planning mode",
+            "Every capability target itemId must exactly match an item declared in the corresponding planning capability contract",
+            "Web endpoints with their browser-page/backend-api/health kind",
+            "MCP transports and operations with transport bindings",
+            "MCP Apps Views/associations",
+            "Do not start product coding until the selected capability planning contracts",
+            "A phantom or misspelled target ID must be corrected in planning",
+            "Preserve stable planned item IDs when enriching a planning contract into product mode",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+
     def test_prompt_separates_cli_api_and_browser_evidence_strength(self) -> None:
         for phrase in (
             "Keep CLI, HTTP/API, and browser requirements distinct",
@@ -44,6 +58,7 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
             "does not count as browser-interaction proof",
             "Focus evidence must come from browser interaction",
             "This is browser-level evidence",
+            "Browser requirements must bind to browser-classified planned targets",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)

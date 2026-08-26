@@ -41,50 +41,121 @@ def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
     return {p.get("kind") for p in proofs if isinstance(p, dict) and isinstance(p.get("kind"), str)}
 
 
-
-def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+def planning_requirement_errors(
+    apps: dict[str, Any], mcp: dict[str, Any], evidence: dict[str, Any]
+) -> list[str]:
+    extension = apps.get("extension")
+    views = apps.get("views")
+    associations = apps.get("associations")
+    operations = mcp.get("operations")
     requirements = evidence.get("requirements")
+    if not isinstance(extension, dict):
+        return ["planning MCP Apps contract requires the canonical extension object"]
+    if not isinstance(views, list) or not isinstance(associations, list):
+        return ["planning MCP Apps views and associations must be arrays"]
+    if not isinstance(operations, list):
+        return ["planning core MCP operations must be an array"]
     if not isinstance(requirements, list):
         return ["planning implementation-evidence requirements must be an array"]
+
+    errors: list[str] = []
+    if extension.get("id") != "mcp-apps":
+        errors.append("planning MCP Apps extension id must be 'mcp-apps'")
+
+    view_ids: list[str] = []
+    for view in views:
+        if not isinstance(view, dict) or not isinstance(view.get("id"), str):
+            errors.append("every planning MCP Apps View must have a text id")
+            continue
+        view_ids.append(view["id"])
+    for value, count in sorted(Counter(view_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate planning MCP Apps View id: {value}")
+    view_set = set(view_ids)
+
+    planned_tool_operations = {
+        operation.get("id")
+        for operation in operations
+        if isinstance(operation, dict)
+        and operation.get("kind") == "tool"
+        and isinstance(operation.get("id"), str)
+    }
+    association_ids: list[str] = []
+    operation_refs: list[str] = []
+    referenced_views: set[str] = set()
+    for association in associations:
+        if not isinstance(association, dict) or not isinstance(association.get("id"), str):
+            errors.append("every planning MCP Apps association must have a text id")
+            continue
+        association_id = association["id"]
+        operation_id = association.get("operationId")
+        view_id = association.get("viewId")
+        association_ids.append(association_id)
+        if isinstance(operation_id, str):
+            operation_refs.append(operation_id)
+        if not isinstance(operation_id, str) or operation_id not in planned_tool_operations:
+            errors.append(
+                f"planned MCP Apps association {association_id!r} references unknown or non-tool planned MCP operation {operation_id!r}"
+            )
+        if not isinstance(view_id, str) or view_id not in view_set:
+            errors.append(
+                f"planned MCP Apps association {association_id!r} references unknown planned View {view_id!r}"
+            )
+        else:
+            referenced_views.add(view_id)
+    for value, count in sorted(Counter(association_ids).items()):
+        if count > 1:
+            errors.append(f"duplicate planning MCP Apps association id: {value}")
+    for value, count in sorted(Counter(operation_refs).items()):
+        if count > 1:
+            errors.append(f"planned MCP tool operation has multiple Apps associations: {value}")
+    for view_id in sorted(view_set - referenced_views):
+        errors.append(f"planned MCP Apps View {view_id!r} is not referenced by any planned association")
+
     policies = {
         "extension": EXTENSION_PROOF_KINDS,
         "view": VIEW_PROOF_KINDS,
         "association": ASSOCIATION_PROOF_KINDS,
     }
-    errors: list[str] = []
+    expected: dict[tuple[str, str, str, str], frozenset[str]] = {
+        evidence_target("extension", "mcp-apps"): EXTENSION_PROOF_KINDS
+    }
+    expected.update({evidence_target("view", value): VIEW_PROOF_KINDS for value in view_ids})
+    expected.update({evidence_target("association", value): ASSOCIATION_PROOF_KINDS for value in association_ids})
+    actual: set[tuple[object, ...]] = set()
+
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
             continue
-        declared = {
-            kind
-            for kind in requirement.get("requiredPositiveProofKinds", [])
-            if isinstance(kind, str)
-        }
+        declared = {kind for kind in requirement.get("requiredPositiveProofKinds", []) if isinstance(kind, str)}
         for target in requirement.get("targets", []):
             key = target_key(target)
             if key[1] != "mcp_apps":
                 continue
+            actual.add(key)
             requirement_id = requirement.get("id", f"index-{index}")
             item_kind = key[2]
             allowed = policies.get(item_kind)
             if key[0] != "contract-item" or allowed is None:
                 errors.append(
-                    f"MCP Apps planning requirement {requirement_id!r} has unsupported "
-                    f"target {key}; Apps planning targets must be extension, view, or association items"
+                    f"MCP Apps planning requirement {requirement_id!r} has unsupported target {key}; Apps planning targets must be extension, view, or association items"
                 )
                 continue
             if item_kind == "extension" and key[3] != "mcp-apps":
                 errors.append(
-                    f"MCP Apps planning requirement {requirement_id!r} must use the stable "
-                    "extension target id 'mcp-apps'"
+                    f"MCP Apps planning requirement {requirement_id!r} must use the stable extension target id 'mcp-apps'"
                 )
             if declared.isdisjoint(allowed):
                 errors.append(
-                    f"MCP Apps planning requirement {requirement_id!r} targets {item_kind} "
-                    f"{key[3]!r} and must declare compatible requiredPositiveProofKinds "
-                    f"({', '.join(sorted(allowed))})"
+                    f"MCP Apps planning requirement {requirement_id!r} targets {item_kind} {key[3]!r} and must declare compatible requiredPositiveProofKinds ({', '.join(sorted(allowed))})"
                 )
+    for missing in sorted(set(expected) - actual, key=str):
+        errors.append(f"planned MCP Apps item is missing a planning requirement target: {missing}")
+    for unknown in sorted(actual - set(expected), key=str):
+        if unknown[0] == "contract-item" and unknown[2] in policies:
+            errors.append(f"MCP Apps planning requirement targets undeclared planned item: {unknown}")
     return errors
+
 
 def validate(root: Path) -> list[str]:
     apps = load_json(root, APPS_CONTRACT)
@@ -94,7 +165,17 @@ def validate(root: Path) -> list[str]:
     evidence_mode = evidence.get("mode")
 
     if evidence_mode == "planning":
-        return planning_requirement_errors(evidence)
+        if apps_mode != "planning":
+            return [
+                "planning implementation evidence requires contracts/mcp-apps.json to be in planning mode so Apps item IDs and associations are authoritative before coding"
+            ]
+        if mcp.get("mode") != "planning":
+            return [
+                "planning MCP Apps contract requires contracts/mcp-interface.json to be in planning mode so association operationIds bind to planned MCP tools"
+            ]
+        return planning_requirement_errors(apps, mcp, evidence)
+    if apps_mode == "planning":
+        return ["planning MCP Apps contract requires planning implementation evidence"]
 
     if apps_mode == "template":
         if evidence_mode == "product":
@@ -136,9 +217,11 @@ def validate(root: Path) -> list[str]:
         if isinstance(uri, str):
             uris.append(uri)
     for value, count in sorted(Counter(view_ids).items()):
-        if count > 1: errors.append(f"duplicate MCP Apps view id: {value}")
+        if count > 1:
+            errors.append(f"duplicate MCP Apps view id: {value}")
     for value, count in sorted(Counter(uris).items()):
-        if count > 1: errors.append(f"duplicate MCP Apps resource URI: {value}")
+        if count > 1:
+            errors.append(f"duplicate MCP Apps resource URI: {value}")
     view_set = set(view_ids)
 
     tool_operations = {op.get("id") for op in operations if isinstance(op, dict) and op.get("kind") == "tool" and isinstance(op.get("id"), str)}
@@ -150,8 +233,10 @@ def validate(root: Path) -> list[str]:
             errors.append("every MCP Apps association must be an object")
             continue
         aid, operation_id, view_id = assoc.get("id"), assoc.get("operationId"), assoc.get("viewId")
-        if isinstance(aid, str): association_ids.append(aid)
-        if isinstance(operation_id, str): operation_refs.append(operation_id)
+        if isinstance(aid, str):
+            association_ids.append(aid)
+        if isinstance(operation_id, str):
+            operation_refs.append(operation_id)
         if not isinstance(operation_id, str) or operation_id not in tool_operations:
             errors.append(f"MCP Apps association {aid!r} references unknown or non-tool MCP operation {operation_id!r}")
         if not isinstance(view_id, str) or view_id not in view_set:
@@ -159,9 +244,11 @@ def validate(root: Path) -> list[str]:
         elif isinstance(view_id, str):
             referenced_views.add(view_id)
     for value, count in sorted(Counter(association_ids).items()):
-        if count > 1: errors.append(f"duplicate MCP Apps association id: {value}")
+        if count > 1:
+            errors.append(f"duplicate MCP Apps association id: {value}")
     for value, count in sorted(Counter(operation_refs).items()):
-        if count > 1: errors.append(f"MCP tool operation has multiple Apps associations: {value}")
+        if count > 1:
+            errors.append(f"MCP tool operation has multiple Apps associations: {value}")
     for vid in sorted(view_set - referenced_views):
         errors.append(f"MCP Apps view {vid!r} is not referenced by any tool association")
 
@@ -178,19 +265,23 @@ def validate(root: Path) -> list[str]:
             if len(key) >= 2 and key[1] == "mcp_apps":
                 records_by_target.setdefault(key, []).append(record)
     actual = set(records_by_target)
-    for missing in sorted(set(expected) - actual, key=str): errors.append(f"missing MCP Apps implementation-evidence target: {missing}")
-    for extra in sorted(actual - set(expected), key=str): errors.append(f"unknown MCP Apps implementation-evidence target: {extra}")
+    for missing in sorted(set(expected) - actual, key=str):
+        errors.append(f"missing MCP Apps implementation-evidence target: {missing}")
+    for extra in sorted(actual - set(expected), key=str):
+        errors.append(f"unknown MCP Apps implementation-evidence target: {extra}")
 
     requirement_refs: dict[str, list[dict[str, Any]]] = {}
     for req in requirements:
         if isinstance(req, dict) and isinstance(req.get("recordIds"), list):
             for record_id in req["recordIds"]:
-                if isinstance(record_id, str): requirement_refs.setdefault(record_id, []).append(req)
+                if isinstance(record_id, str):
+                    requirement_refs.setdefault(record_id, []).append(req)
 
     for key, allowed in expected.items():
         matching = records_by_target.get(key, [])
         if len(matching) != 1:
-            if len(matching) > 1: errors.append(f"MCP Apps implementation-evidence target {key} must have exactly one record")
+            if len(matching) > 1:
+                errors.append(f"MCP Apps implementation-evidence target {key} must have exactly one record")
             continue
         record = matching[0]
         allowed_text = ", ".join(sorted(allowed))
@@ -219,11 +310,12 @@ def main() -> int:
         print(f"ERROR: cannot validate MCP Apps: {exc}", file=sys.stderr)
         return 1
     if errors:
-        for error in errors: print(f"ERROR: {error}", file=sys.stderr)
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
         return 1
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     if evidence.get("mode") == "planning":
-        print("MCP Apps planning targets and proof strength: OK")
+        print("MCP Apps planned item authority, associations, and proof strength: OK")
     else:
         print("MCP Apps contract/evidence coverage: OK")
     return 0

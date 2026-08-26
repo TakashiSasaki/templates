@@ -6,9 +6,14 @@ This contract is materialized by `capability.service`. It applies to an independ
 
 ## Machine-readable authority
 
-`contracts/service-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product service claim. Switch it to `product` only after every caller-visible operation is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each operation.
+`contracts/service-interface.json` is the canonical machine-readable state for this selected capability. Its lifecycle is `template` -> `planning` -> `product`.
 
-When `capability.service` is selected, product implementation evidence cannot remain valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the service executable-proof obligation. Use `integration-test` or `end-to-end-test` evidence that actually crosses the maintained service boundary.
+- `template` makes no caller-visible service claim and keeps the operation inventory empty.
+- Before product coding, switch to `planning`, select the caller-visible protocol/API surface, and enumerate every intended caller-visible operation by stable `id` and non-empty `purpose`. The protocol is a planning-level contract decision (for example, an explicit HTTP/JSON requirement); do not invent concrete invocation strings or success/negative wire behavior before implementation decisions exist.
+- Bind every planned operation exactly to an implementation-evidence planning target `contract-item / service_interface / operation / <operation-id>`, with `integration-test` or `end-to-end-test` proof strength declared before coding. Composition validation must pass in this planning state.
+- Promote the same stable IDs and protocol to `product` when concrete invocation/success/negative behavior is known. Product implementation evidence then supplies the executable positive and negative proof across the maintained service boundary.
+
+When `capability.service` is selected, planning implementation evidence cannot validate while this contract is still in `template` mode, and phantom planning target IDs are rejected. Product implementation evidence cannot remain valid while this contract is not in `product` mode. Static source inspection and unit-only proof do not satisfy the service executable-proof obligation.
 
 Keep this narrative contract aligned with the JSON authority. Runtime listener/deployment details remain in `RUNTIME.md`.
 

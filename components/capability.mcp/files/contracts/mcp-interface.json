@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/mcp-interface.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "template",
   "transports": [],
   "operations": []

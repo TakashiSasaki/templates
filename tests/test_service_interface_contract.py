@@ -25,7 +25,7 @@ class ServiceInterfaceContractTests(unittest.TestCase):
     def product_contract(self) -> dict:
         return {
             "$schema": "../schemas/service-interface.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
             "protocol": "http-json",
             "operations": [
