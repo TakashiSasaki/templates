@@ -50,14 +50,7 @@
       "arguments": [
         "."
       ],
-      "purpose": "Validate product implementation boundaries, proof commands, and release-gate coverage.",
-      "when": {
-        "document": "contracts/implementation-evidence.json",
-        "field": "mode",
-        "equals": "product",
-        "otherwise": "defer",
-        "message": "Implementation evidence is in TEMPLATE mode; no product implementation claim is active. Switch to product mode only after the claimed implementation boundaries and evidence actually exist."
-      }
+      "purpose": "Validate template, planning, and product implementation-evidence semantics, requirement ledgers, proof commands, and release-gate coverage."
     },
     {
       "id": "cli-interface",

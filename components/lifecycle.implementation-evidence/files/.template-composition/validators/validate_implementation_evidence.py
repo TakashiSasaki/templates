@@ -103,24 +103,18 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
 
 
 def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
-    """Validate the explicit requirement -> record edge of the evidence graph.
+    """Validate the stable requirement ledger and product requirement -> record edges."""
 
-    Requirement text is intentionally opaque to this validator. Product mode must
-    expose at least one stable requirement ID and an explicit sufficient-proof-kind
-    declaration for every requirement; references must then resolve to traceable
-    implementation records. Existing record validation closes the graph through
-    proofs, commands, and release gates.
-    """
-
+    mode = evidence.get("mode")
     requirements = evidence.get("requirements")
     if requirements is None:
-        if evidence.get("mode") == "product":
-            return ["product implementation-evidence requires a non-empty requirements ledger"]
+        if mode in {"planning", "product"}:
+            return [f"{mode} implementation-evidence requires a non-empty requirements ledger"]
         return []
     if not isinstance(requirements, list):
         return ["implementation-evidence requirements must be an array"]
-    if evidence.get("mode") == "product" and not requirements:
-        return ["product implementation-evidence requires a non-empty requirements ledger"]
+    if mode in {"planning", "product"} and not requirements:
+        return [f"{mode} implementation-evidence requires a non-empty requirements ledger"]
 
     records = evidence.get("records", [])
     if not isinstance(records, list):
@@ -153,7 +147,16 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
             )
             required_kinds = []
         record_refs = requirement.get("recordIds")
-        if not isinstance(record_refs, list) or not record_refs:
+        if not isinstance(record_refs, list):
+            errors.append(f"{owner}: recordIds must be an array")
+            continue
+        if mode == "planning":
+            if record_refs:
+                errors.append(
+                    f"{owner}: planning requirement recordIds must stay empty until product implementation records exist"
+                )
+            continue
+        if not record_refs:
             errors.append(f"{owner}: recordIds must contain at least one record")
             continue
         for duplicate in sorted(_duplicates(record_refs)):
@@ -189,7 +192,6 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 )
     return errors
 
-
 def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
     """Return blockers that prevent approved release evidence.
 
@@ -197,6 +199,13 @@ def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
     can distinguish an incomplete environment from malformed JSON. Release
     production is stricter: every product record and every proof must be verified.
     """
+
+    mode = evidence.get("mode")
+    if mode != "product":
+        return [
+            "release readiness blocked: implementation-evidence mode "
+            f"{mode!r} is not 'product'"
+        ]
 
     errors = requirement_traceability_errors(evidence)
     records = evidence.get("records", [])
@@ -280,6 +289,13 @@ def validate(root: Path) -> list[str]:
     if mode == "template":
         if commands or gates or records or requirements:
             errors.append("template implementation evidence must be empty")
+        return errors
+    if mode == "planning":
+        if commands or gates or records:
+            errors.append(
+                "planning implementation evidence may contain only the requirement ledger"
+            )
+        errors.extend(requirement_traceability_errors(evidence))
         return errors
     if mode != "product":
         return [f"unsupported implementation-evidence mode: {mode!r}"]
@@ -370,6 +386,11 @@ def main() -> int:
             for warning in proof_reuse_warnings(records):
                 print(f"WARNING: {warning}")
     if not args.release_readiness and isinstance(evidence, dict):
+        if evidence.get("mode") == "planning":
+            print(
+                "Release readiness: NOT READY "
+                "(planning requirement ledger is not yet linked to implementation evidence)"
+            )
         deferred = [
             proof.get("id")
             for record in evidence.get("records", [])

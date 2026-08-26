@@ -38,7 +38,7 @@ SPEC.loader.exec_module(validator)
 def product_evidence(status: str = "verified") -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "mode": "product",
         "commands": [{
             "id": "browser-proof",

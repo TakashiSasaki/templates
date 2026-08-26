@@ -79,7 +79,7 @@ def evidence(*, requirements: list[dict] | None = None, positive_status: str = "
     }
     result = {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "mode": "product",
         "commands": [{
             "id": "product-proof",

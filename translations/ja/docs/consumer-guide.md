@@ -198,7 +198,7 @@ initial materialization 後は次の順序で進めます。
 2. seed assumptions を product の実際の contract に置き換えます。Webapp では surfaces、routes、UI states、viewports、および product に適用される選択済み capability worksheet を具体化します。
 3. consumer-owned source files に product を実装します。Composition は意図的に framework、persistence layer、API design、authentication provider、deployment platform、または product-specific test implementation を選択しません。
 4. Webapp では `python scripts/scaffold_webapp_evidence.py` を実行し、現在の deterministic evidence-target worklist を生成します。この command は read-only であり、worklist を standard output にだけ出力します。
-5. authoritative product test commands と positive/negative proofs を追加し、主張する implementation boundaries と evidence が実際に存在する場合にだけ `contracts/implementation-evidence.json` を `template` mode から `product` mode に切り替えます。
+5. product coding の前に `contracts/implementation-evidence.json` を `template` から `planning` mode に切り替え、stable な caller-visible requirement ID、description、空の `recordIds`、`requiredPositiveProofKinds` を記録します。これらの ID は維持します。implementation boundary と real proof definition ができた後で records / commands / gates を接続し、`planning` から `product` に切り替えます。
 6. product 自身の verification commands と Composition `validate` を実行します。Composition validation と product verification は相補的であり、互いを代替しません。
 7. repository が coding-agent Policy も使用する場合は、Composition が seed ownership を移譲した後で明示的に adopt します。その後 Policy は Composition capability になることなく、残りの implementation と verification work をガイドできます。
 

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "lifecycle.release-execution",
   "kind": "lifecycle",
-  "version": 3,
+  "version": 4,
   "summary": "Product-owned fixed-argv bindings, hardened candidate verification, and shared release lifecycle serialization.",
   "requires": ["lifecycle.implementation-evidence"],
   "conflicts": [],

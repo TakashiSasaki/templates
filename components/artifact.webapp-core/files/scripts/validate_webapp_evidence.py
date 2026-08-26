@@ -159,9 +159,15 @@ def main() -> int:
         evidence = load(root, "contracts/implementation-evidence.json")
         if not isinstance(evidence, dict):
             raise TypeError("implementation evidence root must be a JSON object")
-        if evidence.get("mode") == "template":
+        mode = evidence.get("mode")
+        if mode == "template":
             print("Webapp evidence coverage: template mode OK")
             return 0
+        if mode == "planning":
+            print("Webapp evidence coverage: planning mode; product target coverage pending")
+            return 0
+        if mode != "product":
+            raise ValueError(f"unsupported implementation-evidence mode: {mode!r}")
         actual = actual_targets(evidence)
         strength_errors = browser_level_proof_errors(evidence)
         strength_errors.extend(browser_level_requirement_errors(evidence))

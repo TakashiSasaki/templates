@@ -133,6 +133,7 @@ def _project_requirements(
     if not isinstance(requirements, list):
         raise ValueError("canonical implementation evidence requirements must be an array")
 
+    mode = evidence.get("mode")
     projected: list[dict[str, Any]] = []
     for index, requirement in enumerate(requirements):
         if not isinstance(requirement, dict):
@@ -144,7 +145,32 @@ def _project_requirements(
             raise ValueError(
                 f"canonical requirement {index} must have id and description text"
             )
-        if not isinstance(record_ids, list) or not record_ids:
+        if not isinstance(record_ids, list):
+            raise ValueError(
+                f"canonical requirement {requirement_id!r} must have a recordIds array"
+            )
+        item: dict[str, Any] = {
+            "id": requirement_id,
+            "description": description,
+            "recordIds": list(record_ids),
+            "status": "missing",
+        }
+        required_kinds = requirement.get("requiredPositiveProofKinds")
+        if not isinstance(required_kinds, list) or not required_kinds:
+            raise ValueError(
+                f"canonical requirement {requirement_id!r} has invalid proof kinds"
+            )
+        item["requiredPositiveProofKinds"] = list(required_kinds)
+
+        if mode == "planning":
+            if record_ids:
+                raise ValueError(
+                    f"planning requirement {requirement_id!r} must leave recordIds empty"
+                )
+            projected.append(item)
+            continue
+
+        if not record_ids:
             raise ValueError(
                 f"canonical requirement {requirement_id!r} must reference records"
             )
@@ -157,48 +183,35 @@ def _project_requirements(
             raise ValueError(
                 f"canonical requirement {requirement_id!r} has a non-text record reference"
             )
-        item: dict[str, Any] = {
-            "id": requirement_id,
-            "description": description,
-            "recordIds": list(record_ids),
-            "status": _status_union(statuses),
-        }
-        required_kinds = requirement.get("requiredPositiveProofKinds")
-        if required_kinds is None:
-            item["status"] = "missing"
-        else:
-            if not isinstance(required_kinds, list) or not required_kinds:
-                raise ValueError(
-                    f"canonical requirement {requirement_id!r} has invalid proof kinds"
-                )
-            item["requiredPositiveProofKinds"] = list(required_kinds)
-            declared_kinds = {kind for kind in required_kinds if isinstance(kind, str)}
-            for record_id_value in record_ids:
-                linked_record = records_by_id.get(record_id_value)
-                if linked_record is None:
-                    continue
-                artifact_kinds = set(
-                    artifact_required_proof_kinds(linked_record.get("target"))
-                )
-                if artifact_kinds and declared_kinds.isdisjoint(artifact_kinds):
-                    item["status"] = "missing"
-                positive = linked_record.get("positiveEvidence")
-                if not isinstance(positive, list) or not any(
-                    isinstance(proof, dict) and proof.get("kind") in declared_kinds
-                    for proof in positive
-                ):
-                    item["status"] = "missing"
+        item["status"] = _status_union(statuses)
+        declared_kinds = {kind for kind in required_kinds if isinstance(kind, str)}
+        for record_id_value in record_ids:
+            linked_record = records_by_id.get(record_id_value)
+            if linked_record is None:
+                continue
+            artifact_kinds = set(
+                artifact_required_proof_kinds(linked_record.get("target"))
+            )
+            if artifact_kinds and declared_kinds.isdisjoint(artifact_kinds):
+                item["status"] = "missing"
+            positive = linked_record.get("positiveEvidence")
+            if not isinstance(positive, list) or not any(
+                isinstance(proof, dict) and proof.get("kind") in declared_kinds
+                for proof in positive
+            ):
+                item["status"] = "missing"
         projected.append(item)
     return sorted(projected, key=lambda item: item["id"])
-
 
 def _requirement_ledger_status(
     evidence: dict[str, Any], projected_requirements: list[dict[str, Any]]
 ) -> str:
-    if evidence.get("mode") != "product":
+    mode = evidence.get("mode")
+    if mode == "template":
         return "not-applicable"
-    return "verified" if projected_requirements else "missing"
-
+    if mode in {"planning", "product"}:
+        return "verified" if projected_requirements else "missing"
+    return "missing"
 
 def _artifact_proof_requirements(
     targets: tuple[dict[str, Any], ...]
@@ -281,7 +294,7 @@ def render_worklist(root: Path) -> dict[str, Any]:
     status = _status_union(status_inputs)
     return {
         "format": "webapp-implementation-evidence-worklist",
-        "formatVersion": 2,
+        "formatVersion": 3,
         "status": status,
         "statusCounts": {
             value: sum(projected_statuses[record_id_value] == value for record_id_value in projected_statuses)

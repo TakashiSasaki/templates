@@ -82,7 +82,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
 
             worklist = json.loads(first.stdout)
             self.assertEqual(worklist["format"], "webapp-implementation-evidence-worklist")
-            self.assertEqual(worklist["formatVersion"], 2)
+            self.assertEqual(worklist["formatVersion"], 3)
             self.assertEqual(worklist["recordCount"], len(worklist["records"]))
             self.assertEqual(worklist["status"], "missing")
             self.assertGreater(worklist["recordCount"], 0)
@@ -186,7 +186,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 evidence_path,
                 {
                     "$schema": "../schemas/implementation-evidence.schema.json",
-                    "schemaVersion": 3,
+                    "schemaVersion": 4,
                     "mode": "product",
                     "commands": [
                         {

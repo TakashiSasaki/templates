@@ -57,9 +57,13 @@ def validate(root: Path) -> list[str]:
     if execution_mode == "template":
         if execution_commands:
             errors.append("template release execution must not contain command bindings")
-        if implementation_mode != "template":
+        if implementation_mode == "product":
             errors.append(
                 "product implementation evidence requires product release execution"
+            )
+        elif implementation_mode not in {"template", "planning"}:
+            errors.append(
+                f"unsupported implementation-evidence mode: {implementation_mode!r}"
             )
         return errors
 

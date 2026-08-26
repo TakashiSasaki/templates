@@ -67,7 +67,7 @@ class CliInterfaceContractTests(unittest.TestCase):
         required_kind = requirement_kind or proof_kind
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 3,
+            "schemaVersion": 4,
             "mode": "product",
             "commands": [
                 {
