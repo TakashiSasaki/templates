@@ -54,13 +54,15 @@ def _registered_authority_paths(root: Path) -> list[str]:
     for entry in contracts:
         if not isinstance(entry, dict):
             raise CheckpointError("contracts/manifest.json contains a non-object contract")
-        if entry.get("id") == "lifecycle_checkpoints":
-            continue
-        for label, value in (("document", entry.get("document")), ("schema", entry.get("schema"))):
+        contract_id = entry.get("id")
+        document = entry.get("document")
+        schema = entry.get("schema")
+        pairs = (("schema", schema),) if contract_id == "lifecycle_checkpoints" else (("document", document), ("schema", schema))
+        for label, value in pairs:
             if not isinstance(value, str) or not value or value.startswith("/") or "\\" in value:
-                raise CheckpointError(f"contract {entry.get('id')!r} has invalid {label} path {value!r}")
+                raise CheckpointError(f"contract {contract_id!r} has invalid {label} path {value!r}")
             if ".." in Path(value).parts:
-                raise CheckpointError(f"contract {entry.get('id')!r} has non-portable {label} path {value!r}")
+                raise CheckpointError(f"contract {contract_id!r} has non-portable {label} path {value!r}")
             paths.add(value)
     for optional in (REGISTRY_REL.as_posix(), LOCK_REL.as_posix()):
         if (root / optional).is_file():
@@ -85,7 +87,7 @@ def _run_validation(root: Path) -> dict[str, Any]:
     if completed.returncode != 0 or not isinstance(output, dict) or output.get("status") != "valid":
         detail = completed.stderr.strip()
         suffix = f"; stderr: {detail}" if detail else ""
-        raise CheckpointError(f"canonical Composition validation must pass before checkpoint creation{suffix}")
+        raise CheckpointError(f"canonical Composition validation must pass{suffix}")
     return {
         "schemaVersion": 1,
         "authority": "composition-selected-validation-v1",
@@ -144,10 +146,35 @@ def _next_entry(checkpoints: list[dict[str, Any]], *, checkpoint_id: str, phase:
     }
 
 
+def _replace_json_atomically(path: Path, value: Any) -> None:
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.stem}-", suffix=".json", dir=path.parent, text=True)
+    os.close(fd)
+    temp_path = Path(temp_name)
+    try:
+        _write_json(temp_path, value)
+        temp_path.replace(path)
+    except BaseException:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+
+def _restore_bytes_atomically(path: Path, content: bytes) -> None:
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.stem}-rollback-", suffix=".json", dir=path.parent)
+    os.close(fd)
+    temp_path = Path(temp_name)
+    try:
+        temp_path.write_bytes(content)
+        temp_path.replace(path)
+    except BaseException:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+
 def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: str | None, source_revision: str | None) -> dict[str, Any]:
     if ID_RE.fullmatch(checkpoint_id) is None:
         raise CheckpointError("checkpoint id must match ^[a-z][a-z0-9-]*$")
     ledger_path = root / LEDGER_REL
+    original_ledger_bytes = ledger_path.read_bytes()
     ledger = _load_json(ledger_path)
     if not isinstance(ledger, dict) or not isinstance(ledger.get("checkpoints"), list):
         raise CheckpointError("lifecycle checkpoint ledger is malformed")
@@ -159,6 +186,9 @@ def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: st
     if not isinstance(evidence, dict) or evidence.get("mode") != expected_mode:
         raise CheckpointError(f"{phase} checkpoint requires implementation-evidence mode {expected_mode!r}")
     entry = _next_entry(checkpoints, checkpoint_id=checkpoint_id, phase=phase, from_id=from_id)
+
+    # This pre-write result is the historical evidence that the planning/product
+    # state was already valid before its immutable checkpoint was appended.
     validation = _run_validation(root)
     authority_paths = _registered_authority_paths(root)
     lifecycle_root = root / "artifacts" / "lifecycle"
@@ -167,6 +197,8 @@ def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: st
     if final_snapshot.exists():
         raise CheckpointError(f"snapshot path already exists: {entry['snapshotPath']}")
     temp_dir = Path(tempfile.mkdtemp(prefix=f".{entry['sequence']:03d}-{checkpoint_id}-", dir=lifecycle_root))
+    snapshot_committed = False
+    ledger_replaced = False
     try:
         files: list[dict[str, str]] = []
         for relative in authority_paths:
@@ -198,18 +230,35 @@ def create_checkpoint(root: Path, *, checkpoint_id: str, phase: str, from_id: st
         entry["manifestSha256"] = _sha256(manifest_path)
         entry["recordedAt"] = recorded_at
         temp_dir.rename(final_snapshot)
-    except BaseException:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        raise
-    updated = {"$schema": ledger.get("$schema"), "schemaVersion": ledger.get("schemaVersion"), "checkpoints": [*checkpoints, entry]}
-    fd, temp_name = tempfile.mkstemp(prefix=".lifecycle-checkpoints-", suffix=".json", dir=ledger_path.parent, text=True)
-    os.close(fd)
-    temp_ledger = Path(temp_name)
-    try:
-        _write_json(temp_ledger, updated)
-        temp_ledger.replace(ledger_path)
-    except BaseException:
-        temp_ledger.unlink(missing_ok=True)
+        snapshot_committed = True
+
+        updated = {
+            "$schema": ledger.get("$schema"),
+            "schemaVersion": ledger.get("schemaVersion"),
+            "checkpoints": [*checkpoints, entry],
+        }
+        _replace_json_atomically(ledger_path, updated)
+        ledger_replaced = True
+
+        # The appended checkpoint must itself validate. If this fails, neither the
+        # new ledger entry nor its snapshot is allowed to survive the transaction.
+        _run_validation(root)
+    except BaseException as exc:
+        rollback_errors: list[str] = []
+        if ledger_replaced:
+            try:
+                _restore_bytes_atomically(ledger_path, original_ledger_bytes)
+            except BaseException as rollback_exc:
+                rollback_errors.append(f"ledger rollback failed: {rollback_exc}")
+        if snapshot_committed:
+            try:
+                shutil.rmtree(final_snapshot)
+            except OSError as rollback_exc:
+                rollback_errors.append(f"snapshot rollback failed: {rollback_exc}")
+        else:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        if rollback_errors:
+            raise CheckpointError(f"checkpoint transaction failed: {exc}; " + "; ".join(rollback_errors)) from exc
         raise
     return entry
 
