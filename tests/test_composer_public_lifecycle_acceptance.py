@@ -128,7 +128,12 @@ class ComposerPublicLifecycleAcceptanceTests(unittest.TestCase):
             self.assertEqual(upgrade_plan["conflicts"], [])
             self.assertEqual(
                 upgrade_plan["components"]["added"],
-                ["capability.cli", "capability.runtime"],
+                [
+                    "capability.cli",
+                    "capability.runtime",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                ],
             )
 
             result, upgraded = self.run_composer(

@@ -117,7 +117,12 @@ class UpgradeCLITests(unittest.TestCase):
             self.assertEqual(first_payload, second_payload)
             self.assertEqual(
                 first_payload["components"]["added"],
-                ["capability.cli", "capability.runtime"],
+                [
+                    "capability.cli",
+                    "capability.runtime",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                ],
             )
             creates = {entry["destination"] for entry in first_payload["files"]["create"]}
             self.assertTrue({"CLI_INTERFACE.md", "RUNTIME.md", "docs/runtime-selection.md"} <= creates)
@@ -170,7 +175,12 @@ class UpgradeCLITests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, plan)
             self.assertEqual(
                 plan["components"]["removed"],
-                ["capability.cli", "capability.runtime"],
+                [
+                    "capability.cli",
+                    "capability.runtime",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                ],
             )
             preserved = {entry["destination"] for entry in plan["files"]["preserve"]}
             removed = {entry["destination"] for entry in plan["files"]["remove"]}

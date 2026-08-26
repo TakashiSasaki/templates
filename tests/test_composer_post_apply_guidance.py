@@ -167,7 +167,12 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertEqual(upgraded["target"], str(second_target.absolute()))
             self.assertEqual(
                 upgraded["ownership"]["consumer_owned"]["extras"],
-                ["CLI_INTERFACE.md", "RUNTIME.md"],
+                [
+                    "CLI_INTERFACE.md",
+                    "RUNTIME.md",
+                    "contracts/cli-interface.json",
+                    "contracts/implementation-evidence.json",
+                ],
             )
             self.assertEqual(
                 (first_target / LOCK_RELATIVE).read_bytes(),
@@ -209,7 +214,12 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, upgraded)
             self.assertEqual(
                 upgraded["ownership"]["consumer_owned"]["extras"],
-                ["CLI_INTERFACE.md", "RUNTIME.md"],
+                [
+                    "CLI_INTERFACE.md",
+                    "RUNTIME.md",
+                    "contracts/cli-interface.json",
+                    "contracts/implementation-evidence.json",
+                ],
             )
             self.assertTrue((target / "CLI_INTERFACE.md").is_file())
             self.assertTrue((target / "RUNTIME.md").is_file())
@@ -280,7 +290,12 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertIn(remove_action["destination"], recovered["resumed"])
             self.assertEqual(
                 recovered["ownership"]["consumer_owned"]["extras"],
-                ["CLI_INTERFACE.md", "RUNTIME.md"],
+                [
+                    "CLI_INTERFACE.md",
+                    "RUNTIME.md",
+                    "contracts/cli-interface.json",
+                    "contracts/implementation-evidence.json",
+                ],
             )
             self.assertEqual((target / "CLI_INTERFACE.md").read_bytes(), cli_before)
             self.assertEqual((target / "RUNTIME.md").read_bytes(), runtime_before)

@@ -121,6 +121,45 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         )
         verifier.chmod(0o755)
 
+    def productize_cli_contract(self, target: Path) -> None:
+        self.write_json(
+            target / "contracts" / "cli-interface.json",
+            {
+                "$schema": "../schemas/cli-interface.schema.json",
+                "schemaVersion": 1,
+                "mode": "product",
+                "entrypoints": [
+                    {
+                        "id": "task-ledger",
+                        "command": [
+                            "python",
+                            "-m",
+                            "task_ledger.cli",
+                            "--database",
+                            "task-ledger.db",
+                        ],
+                        "workingDirectory": ".",
+                        "helpArguments": ["--help"],
+                        "versionArguments": ["--version"],
+                        "structuredOutput": {
+                            "arguments": ["export"],
+                            "format": "json",
+                            "contractVersionField": "contractVersion",
+                        },
+                        "exitCodes": {
+                            "success": 0,
+                            "negativeResult": 1,
+                            "invalidInput": 2,
+                            "unavailable": 3,
+                            "refused": 4,
+                            "internalFailure": 5,
+                            "additionalInputRequired": 6,
+                        },
+                    }
+                ],
+            },
+        )
+
     def expected_targets(self, target: Path) -> list[dict[str, str]]:
         surfaces = json.loads(
             (target / "contracts" / "surfaces.json").read_text(encoding="utf-8")
@@ -213,6 +252,55 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                     "requiredPositiveProofKinds": ["end-to-end-test"],
                 }
             )
+        cli_record_id = "task-ledger-cli"
+        records.append(
+            {
+                "id": cli_record_id,
+                "target": {
+                    "kind": "contract-item",
+                    "contractId": "cli_interface",
+                    "itemKind": "entrypoint",
+                    "itemId": "task-ledger",
+                },
+                "implementationBoundary": {
+                    "status": "verified",
+                    "description": "Task Ledger exposes the selected packaged CLI entrypoint.",
+                    "locator": "task_ledger/cli.py",
+                },
+                "positiveEvidence": [
+                    {
+                        "id": "task-ledger-cli-positive",
+                        "status": "verified",
+                        "kind": "integration-test",
+                        "description": "CLI help, version, and structured export execute successfully.",
+                        "locator": "tests/test_task_ledger.py",
+                        "commandId": "verify-product",
+                        "expectedResult": "Help/version succeed and export emits contractVersion 1 JSON.",
+                    }
+                ],
+                "negativeEvidence": [
+                    {
+                        "id": "task-ledger-cli-negative",
+                        "status": "verified",
+                        "kind": "integration-test",
+                        "description": "CLI rejects an invalid status argument through argparse.",
+                        "locator": "tests/test_task_ledger.py",
+                        "commandId": "verify-product",
+                        "expectedResult": "Invalid --status exits with code 2 and a diagnostic.",
+                    }
+                ],
+                "releaseGateIds": ["product-verification"],
+            }
+        )
+        requirements.append(
+            {
+                "id": "REQ-TASK-LEDGER-CLI",
+                "description": "Task Ledger exposes a versioned structured CLI with executable positive and negative behavior.",
+                "recordIds": [cli_record_id],
+                "requiredPositiveProofKinds": ["integration-test"],
+            }
+        )
+
         self.write_json(
             target / "contracts" / "implementation-evidence.json",
             {
@@ -261,6 +349,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             self.assertEqual(browser.returncode, 0, browser.stdout + browser.stderr)
             self.assertIn("viewport and keyboard positive/negative paths passed", browser.stdout)
 
+            self.productize_cli_contract(target)
             self.productize_evidence(target)
             validation = self.run_python(
                 ROOT, str(COMPOSER), "validate", "--target", str(target)

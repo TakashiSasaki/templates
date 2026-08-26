@@ -62,7 +62,7 @@ class CompositionLockV2Tests(unittest.TestCase):
                 "recipe": "skill",
                 "components": {
                     "include": ["capability.service", "capability.cli"],
-                    "exclude": ["lifecycle.release-evidence", "lifecycle.contract-evolution"],
+                    "exclude": ["lifecycle.release-evidence"],
                 },
                 "parameters": {
                     "capability.service": {"z": 1, "a": {"z": 2, "a": 3}},
@@ -95,7 +95,7 @@ class CompositionLockV2Tests(unittest.TestCase):
                 lock["intent"]["components"],
                 {
                     "include": ["capability.cli", "capability.service"],
-                    "exclude": ["lifecycle.contract-evolution", "lifecycle.release-evidence"],
+                    "exclude": ["lifecycle.release-evidence"],
                 },
             )
             self.assertEqual(
