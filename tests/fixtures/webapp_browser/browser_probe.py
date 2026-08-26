@@ -19,6 +19,14 @@ class BrowserProbeError(RuntimeError):
     pass
 
 
+class _WebDriverTransportError(BrowserProbeError):
+    pass
+
+
+class _WebDriverBootstrapError(BrowserProbeError):
+    pass
+
+
 def _chromedriver_path() -> str | None:
     executable = "chromedriver.exe" if os.name == "nt" else "chromedriver"
     configured = os.environ.get("CHROMEWEBDRIVER")
@@ -57,32 +65,41 @@ class _WebDriverSession:
             text=True,
         )
         self._session_id: str | None = None
-        self._wait_until_ready()
-        value = self._request(
-            "POST",
-            "/session",
-            {
-                "capabilities": {
-                    "alwaysMatch": {
-                        "browserName": "chrome",
-                        "goog:chromeOptions": {
-                            "args": [
-                                "--headless=new",
-                                "--no-sandbox",
-                                "--disable-dev-shm-usage",
-                                "--disable-background-networking",
-                                "--disable-default-apps",
-                                "--disable-extensions",
-                                "--disable-sync",
-                                "--metrics-recording-only",
-                                "--no-first-run",
-                                "--window-size=1024,768",
-                            ]
-                        },
+        try:
+            self._wait_until_ready()
+            value = self._request(
+                "POST",
+                "/session",
+                {
+                    "capabilities": {
+                        "alwaysMatch": {
+                            "browserName": "chrome",
+                            "goog:chromeOptions": {
+                                "args": [
+                                    "--headless=new",
+                                    "--no-sandbox",
+                                    "--disable-dev-shm-usage",
+                                    "--disable-background-networking",
+                                    "--disable-default-apps",
+                                    "--disable-extensions",
+                                    "--disable-sync",
+                                    "--metrics-recording-only",
+                                    "--no-first-run",
+                                    "--window-size=1024,768",
+                                ]
+                            },
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
+        except _WebDriverTransportError as exc:
+            self.close()
+            raise _WebDriverBootstrapError(
+                f"WebDriver session bootstrap transport failed: {exc}"
+            ) from exc
+        except Exception:
+            self.close()
+            raise
         if not isinstance(value, dict) or not isinstance(value.get("sessionId"), str):
             self.close()
             raise BrowserProbeError(
@@ -150,9 +167,9 @@ class _WebDriverSession:
             raise BrowserProbeError(
                 f"WebDriver {method} {path} failed with HTTP {exc.code}: {raw}"
             ) from exc
-        except URLError as exc:
-            raise BrowserProbeError(
-                f"WebDriver {method} {path} failed: {exc}"
+        except (URLError, TimeoutError) as exc:
+            raise _WebDriverTransportError(
+                f"WebDriver {method} {path} transport failed: {exc}"
             ) from exc
 
         try:
@@ -296,6 +313,20 @@ class _WebDriverSession:
         self.close()
 
 
+def _open_webdriver_session() -> _WebDriverSession:
+    last_error: _WebDriverBootstrapError | None = None
+    for attempt in range(2):
+        try:
+            return _WebDriverSession()
+        except _WebDriverBootstrapError as exc:
+            last_error = exc
+            if attempt == 0:
+                continue
+    raise BrowserProbeError(
+        f"WebDriver session bootstrap failed after 2 attempts: {last_error}"
+    ) from last_error
+
+
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise BrowserProbeError(message)
@@ -418,7 +449,7 @@ def run_browser_contract_probe(url: str, viewports_contract: dict[str, Any]) -> 
     if len(sample_widths) == 1:
         sample_widths.append(max(1024, sample_widths[0] + 512))
 
-    with _WebDriverSession() as session:
+    with _open_webdriver_session() as session:
         session.navigate(url)
 
         snapshots: list[dict[str, Any]] = []
