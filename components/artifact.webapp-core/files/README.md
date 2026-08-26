@@ -8,7 +8,6 @@ If you are creating your first Web application with this repository, do not star
 
 The first milestone in that walkthrough is a **valid Composition scaffold**, not a completed Web application. Product implementation and product verification remain consumer responsibilities.
 
-
 ## What the Webapp recipe defines
 
 `artifact.webapp-core` owns browser-specific semantics: surfaces, canonical routes, visible UI states, responsive viewports/input capabilities, and their cross-contract validation. Generic contract evolution and implementation evidence are part of the Webapp baseline through reusable `lifecycle.*` components. Release execution, release evidence, and release-bundle behavior are added only when the consumer explicitly selects `lifecycle.release-bundle`.
