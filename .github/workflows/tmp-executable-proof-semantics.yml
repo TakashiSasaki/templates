@@ -26,3 +26,33 @@ jobs:
           tests.test_field_log_evidence_gap
           tests.test_component_version_guard
           tests.test_release_execution_contract
+
+  broad:
+    runs-on: ubuntu-24.04
+    env:
+      PYTHONPATH: tests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check --no-deps -r requirements-dev.lock
+      - name: Run implementation evidence and capability regressions
+        run: >-
+          python -m unittest
+          tests.test_implementation_evidence_schema
+          tests.test_implementation_evidence_deferred
+          tests.test_implementation_evidence_planning
+          tests.test_implementation_evidence_proof_reuse
+          tests.test_implementation_evidence_required_proof_kind
+          tests.test_implementation_evidence_requirement_traceability
+          tests.test_webapp_evidence_proof_strength
+          tests.test_webapp_static_browser_inspection
+          tests.test_webapp_current_evidence_targets
+          tests.test_cli_interface_contract
+          tests.test_service_interface_contract
+          tests.test_web_interface_contract
+          tests.test_mcp_interface_contract
+          tests.test_mcp_apps_contract
+          tests.test_release_execution_contract
+          tests.test_release_evidence_producer
