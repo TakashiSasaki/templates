@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../components/lifecycle.implementation-evidence/files/schemas/implementation-evidence.schema.json",
+  "schemaVersion": 1,
+  "mode": "product",
+  "commands": [
+    {
+      "id": "verify-product",
+      "command": "./scripts/verify.sh",
+      "purpose": "Run the consumer-owned Task Ledger unit, API, CLI, and browser checks."
+    }
+  ],
+  "releaseGates": [
+    {
+      "id": "product-verification",
+      "purpose": "Require the authoritative Task Ledger product verifier.",
+      "commandIds": ["verify-product"]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "task-ledger-browser-filter",
+      "description": "Task Ledger browser UI filters the visible task list by status.",
+      "recordIds": ["routes-route-home"],
+      "requiredPositiveProofKinds": ["end-to-end-test", "accessibility-test"]
+    }
+  ],
+  "records": [
+    {
+      "id": "routes-route-home",
+      "target": {
+        "kind": "contract-item",
+        "contractId": "routes",
+        "itemKind": "route",
+        "itemId": "home"
+      },
+      "implementationBoundary": {
+        "status": "verified",
+        "description": "The Task Ledger primary page and status filter are implemented.",
+        "locator": "task_ledger/static/index.html"
+      },
+      "positiveEvidence": [
+        {
+          "id": "task-ledger-browser-filter-positive",
+          "status": "verified",
+          "kind": "end-to-end-test",
+          "description": "A real browser changes the status filter and shows only matching tasks.",
+          "locator": "tests/test_task_ledger_browser.py",
+          "commandId": "verify-product",
+          "expectedResult": "The selected status is reflected in the visible task list."
+        }
+      ],
+      "negativeEvidence": [
+        {
+          "id": "task-ledger-browser-filter-negative",
+          "status": "verified",
+          "kind": "accessibility-test",
+          "description": "A real browser rejects an unsupported filter value.",
+          "locator": "tests/test_task_ledger_browser.py",
+          "commandId": "verify-product",
+          "expectedResult": "Invalid filter input is rejected and does not produce a false success."
+        }
+      ],
+      "releaseGateIds": ["product-verification"]
+    }
+  ]
+}
