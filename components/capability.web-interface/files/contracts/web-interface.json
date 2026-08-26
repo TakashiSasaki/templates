@@ -1,0 +1,6 @@
+{
+  "$schema": "../schemas/web-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "template",
+  "endpoints": []
+}
