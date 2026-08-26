@@ -116,6 +116,21 @@ class RequiredPositiveProofKindTests(unittest.TestCase):
             self.write_fixture(root, value)
             self.assertEqual(validator.validate(root), [])
 
+    def test_cli_requirement_cannot_use_static_inspection(self) -> None:
+        value = product_evidence("inspection")
+        requirement = value["requirements"][0]
+        requirement["id"] = "cli-severity-filter"
+        requirement["description"] = "CLI can filter records by severity."
+        requirement["requiredPositiveProofKinds"] = ["integration-test"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, value)
+            errors = validator.validate(root)
+        self.assertTrue(
+            any("required kind" in error for error in errors),
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
