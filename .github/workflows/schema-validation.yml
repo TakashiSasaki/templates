@@ -78,10 +78,18 @@ jobs:
       - name: Verify Composition installer release
         run: .venv/bin/python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 
+      - name: Prepare compatible ChromeDriver
+        run: |
+          driver_path="$(
+            .venv/bin/python -I scripts/prepare_chromedriver.py \
+              --output-dir "$RUNNER_TEMP/composition-chromedriver"
+          )"
+          echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"
+
       - name: Verify real-browser evidence runtime
         run: |
           google-chrome --version
-          chromedriver --version
+          "$CHROMEWEBDRIVER" --version
 
       - name: Verify deterministic unittest partition
         run: .venv/bin/python scripts/run_unittest_shard.py --shard-count 2 --verify-only
@@ -131,10 +139,18 @@ jobs:
       - name: Verify dependency graph
         run: .venv/bin/python -m pip check
 
+      - name: Prepare compatible ChromeDriver
+        run: |
+          driver_path="$(
+            .venv/bin/python -I scripts/prepare_chromedriver.py \
+              --output-dir "$RUNNER_TEMP/composition-chromedriver"
+          )"
+          echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"
+
       - name: Verify real-browser evidence runtime
         run: |
           google-chrome --version
-          chromedriver --version
+          "$CHROMEWEBDRIVER" --version
 
       - name: Run schema and semantic contract test shard 1/2
         run: >-
