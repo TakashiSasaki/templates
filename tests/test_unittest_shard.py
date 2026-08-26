@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import unittest
+from collections import Counter
 from pathlib import Path
 
 from scripts.run_unittest_shard import (
     TWO_SHARD_TIMING_OVERRIDES,
+    discover_tests,
     shard_index_for_test_id,
 )
 
@@ -56,6 +58,16 @@ class UnittestShardTests(unittest.TestCase):
         assignments = [shard_index_for_test_id(duplicate_id, 2) for _ in range(3)]
         self.assertEqual(len(assignments), 3)
         self.assertEqual(len(set(assignments)), 1)
+
+    def test_repository_discovery_has_unique_test_ids(self) -> None:
+        discovered = discover_tests(ROOT / "tests", "test*.py")
+        counts = Counter(test.id() for test in discovered)
+        duplicates = {
+            test_id: count
+            for test_id, count in counts.items()
+            if count > 1
+        }
+        self.assertEqual(duplicates, {})
 
     def test_invalid_shard_count_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least 1"):
