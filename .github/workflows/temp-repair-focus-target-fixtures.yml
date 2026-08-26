@@ -1,0 +1,48 @@
+name: Temporary repair focus-target fixtures
+on:
+  push:
+    branches:
+      - agent/webapp-focus-target-browser-proof-pr11
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/webapp-focus-target-browser-proof-pr11
+          fetch-depth: 0
+      - name: Restore exact route test and apply remaining assertions
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          route_path = "tests/test_routes_v3_access_failures.py"
+          original = subprocess.check_output(
+              ["git", "show", "73f81df143d1cf4cf57664b684048b68c2310dd5:" + route_path],
+              text=True,
+          )
+          old = 'self.assertEqual(component["version"], 7)'
+          if original.count(old) != 1:
+              raise SystemExit("unexpected route version assertion count")
+          Path(route_path).write_text(original.replace(old, 'self.assertEqual(component["version"], 8)', 1), encoding="utf-8")
+
+          product_path = Path("tests/test_webapp_productization_acceptance.py")
+          text = product_path.read_text(encoding="utf-8")
+          old_message = "Webapp product proof: contract lifecycle and real-browser checks passed"
+          new_message = "Webapp product proof: contract lifecycle, route focus, and real-browser checks passed"
+          if text.count(old_message) != 1:
+              raise SystemExit(f"unexpected product success assertion count: {text.count(old_message)}")
+          product_path.write_text(text.replace(old_message, new_message, 1), encoding="utf-8")
+      - name: Commit repair and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temp-repair-focus-target-fixtures.yml
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Repair focus-target acceptance assertions"
+          git push origin HEAD:agent/webapp-focus-target-browser-proof-pr11
