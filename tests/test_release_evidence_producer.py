@@ -195,6 +195,7 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
                         "argv": ["python", "product/prove.py"],
                         "workingDirectory": ".",
                         "harnessLocator": "product/prove.py",
+                        "harnessArgumentIndex": 1,
                     }
                 ],
             },
