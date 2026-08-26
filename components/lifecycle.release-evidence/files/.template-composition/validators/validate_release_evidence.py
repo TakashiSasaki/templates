@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 from contract_common import load_json, parse_timestamp, sha256_text
-from validate_implementation_evidence import requirement_traceability_errors
+from validate_implementation_evidence import release_readiness_errors
 
 def _index(items,key):
     result={}; errors=[]
@@ -29,7 +29,7 @@ def validate(root: Path, expected_revision: str|None)->list[str]:
     if expected_revision is None: return ["product release evidence requires --expected-revision"]
     if release.get("subject",{}).get("revision")!=expected_revision: errors.append("release subject does not match expected revision")
     commands,e=_index(implementation.get("commands",[]),"id"); errors.extend(e); gates,e=_index(implementation.get("releaseGates",[]),"id"); errors.extend(e)
-    errors.extend(requirement_traceability_errors(implementation))
+    errors.extend(release_readiness_errors(implementation))
     result_commands,e=_index(command_results,"commandId"); errors.extend(e); result_gates,e=_index(gate_results,"gateId"); errors.extend(e)
     expected_commands=set()
     for gate in gates.values(): expected_commands.update(gate.get("commandIds",[]))
