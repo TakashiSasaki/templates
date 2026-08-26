@@ -70,13 +70,21 @@ class ReleaseExecutionContractTests(unittest.TestCase):
     def product_implementation(self) -> dict:
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 6,
             "mode": "product",
             "commands": [
                 {
                     "id": "product-proof",
                     "command": "python product/prove.py",
                     "purpose": "Run the product proof.",
+                    "execution": {
+                        "capabilities": ["integration"],
+                        "harness": {
+                            "kind": "repository-file",
+                            "locator": "product/prove.py",
+                        },
+                        "supportsNegativePath": False,
+                    },
                 }
             ],
             "releaseGates": [
@@ -86,19 +94,21 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                     "commandIds": ["product-proof"],
                 }
             ],
+            "requirements": [],
             "records": [],
         }
 
     def product_execution(self) -> dict:
         return {
             "$schema": "../schemas/release-execution.schema.json",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "mode": "product",
             "commands": [
                 {
                     "commandId": "product-proof",
                     "argv": ["python", "product/prove.py"],
                     "workingDirectory": ".",
+                    "harnessLocator": "product/prove.py",
                 }
             ],
         }
@@ -109,6 +119,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             execution = json.loads(
                 (target / "contracts/release-execution.json").read_text(encoding="utf-8")
             )
+            self.assertEqual(execution["schemaVersion"], 2)
             self.assertEqual(execution["mode"], "template")
             self.assertEqual(execution["commands"], [])
             result = self.run_validator(target)
@@ -142,12 +153,27 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                     "commandId": "extra-proof",
                     "argv": ["python", "product/extra.py"],
                     "workingDirectory": ".",
+                    "harnessLocator": "product/extra.py",
                 }
             )
             self.write_json(target / "contracts/release-execution.json", extra)
             result = self.run_validator(target)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("must exactly cover authoritative commands", result.stderr)
+
+    def test_harness_locator_must_match_implementation_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = self.materialize_webapp(Path(temp_dir))
+            self.write_json(
+                target / "contracts/implementation-evidence.json",
+                self.product_implementation(),
+            )
+            execution = self.product_execution()
+            execution["commands"][0]["harnessLocator"] = "product/other.py"
+            self.write_json(target / "contracts/release-execution.json", execution)
+            result = self.run_validator(target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("harnessLocator must exactly match", result.stderr)
 
     def test_execution_mode_must_match_implementation_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -210,6 +236,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                     "commandId": "product-proof",
                     "argv": ["python", "product/alternate.py"],
                     "workingDirectory": ".",
+                    "harnessLocator": "product/prove.py",
                 }
             )
             self.write_json(target / "contracts/release-execution.json", execution)
@@ -220,7 +247,7 @@ class ReleaseExecutionContractTests(unittest.TestCase):
                 result.stderr,
             )
 
-    def test_schema_rejects_unsafe_working_directories_and_empty_argv(self) -> None:
+    def test_schema_rejects_unsafe_paths_and_empty_argv(self) -> None:
         schema = json.loads(
             (
                 ROOT
@@ -237,6 +264,10 @@ class ReleaseExecutionContractTests(unittest.TestCase):
             with self.subTest(workingDirectory=unsafe):
                 document = self.product_execution()
                 document["commands"][0]["workingDirectory"] = unsafe
+                self.assertTrue(list(validator.iter_errors(document)))
+            with self.subTest(harnessLocator=unsafe):
+                document = self.product_execution()
+                document["commands"][0]["harnessLocator"] = unsafe
                 self.assertTrue(list(validator.iter_errors(document)))
 
         empty_argv = self.product_execution()
