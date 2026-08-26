@@ -155,7 +155,11 @@ def proof_execution_errors(
                 )
             elif root is not None:
                 candidate = root / locator
-                if not candidate.is_file():
+                if candidate.is_symlink():
+                    errors.append(
+                        f"implementation command {command_id}: execution harness must be a regular non-symlink file: {locator}"
+                    )
+                elif not candidate.is_file():
                     errors.append(
                         f"implementation command {command_id}: execution harness does not exist: {locator}"
                     )
