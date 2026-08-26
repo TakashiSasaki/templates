@@ -250,6 +250,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
         targets = self.expected_targets(target)
         self.assertTrue(targets)
         records = []
+        requirements = []
         for index, evidence_target in enumerate(targets, 1):
             record_id = f"record-{index:03d}"
             browser_sensitive = (
@@ -321,11 +322,22 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                     "releaseGateIds": ["product-release"],
                 }
             )
+            requirements.append(
+                {
+                    "id": f"REQ-WEBAPP-{index:03d}",
+                    "description": (
+                        "Acceptance fixture requires implementation evidence for target "
+                        + json.dumps(evidence_target, sort_keys=True, separators=(",", ":"))
+                    ),
+                    "recordIds": [record_id],
+                    "requiredPositiveProofKinds": [proof_kind],
+                }
+            )
         self.write_json(
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
@@ -345,6 +357,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                     }
                 ],
                 "records": records,
+                "requirements": requirements,
             },
         )
         self.write_json(

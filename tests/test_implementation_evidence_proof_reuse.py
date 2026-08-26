@@ -142,6 +142,14 @@ class ImplementationEvidenceProofReuseTests(unittest.TestCase):
                     }
                 ],
                 "records": records,
+                "requirements": [
+                    {
+                        "id": "shared-proof-coverage",
+                        "description": "The fixture's three target families are covered.",
+                        "recordIds": ["surface", "route", "state"],
+                        "requiredPositiveProofKinds": ["integration-test"],
+                    }
+                ],
             }
             (contracts / "manifest.json").write_text(
                 json.dumps(manifest), encoding="utf-8"

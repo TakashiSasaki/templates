@@ -110,7 +110,7 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
@@ -163,6 +163,14 @@ class ReleaseEvidenceProducerTests(unittest.TestCase):
                             }
                         ],
                         "releaseGateIds": ["producer-release"],
+                    }
+                ],
+                "requirements": [
+                    {
+                        "id": "REQ-RELEASE-PRODUCER-PROOF",
+                        "description": "Release evidence is approved only after the declared product proof passes.",
+                        "recordIds": ["producer-record"],
+                        "requiredPositiveProofKinds": ["integration-test"],
                     }
                 ],
             },

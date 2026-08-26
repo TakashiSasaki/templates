@@ -49,7 +49,7 @@ SPEC.loader.exec_module(validator)
 def evidence(proof_kind: str = "inspection", proof_status: str = "verified") -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
         "commands": [{
             "id": "browser-proof",
@@ -62,7 +62,7 @@ def evidence(proof_kind: str = "inspection", proof_status: str = "verified") -> 
             "commandIds": ["browser-proof"],
         }],
         "requirements": [{
-            "id": "browser-controls",
+            "id": "REQ-BROWSER-CONTROLS",
             "description": "The browser page exposes working filter controls.",
             "recordIds": ["home"],
             "requiredPositiveProofKinds": ["end-to-end-test", "accessibility-test"],

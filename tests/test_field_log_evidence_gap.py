@@ -49,7 +49,7 @@ SPEC.loader.exec_module(validator)
 def field_log_evidence(proof_kind: str = "integration-test", proof_status: str = "verified") -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "mode": "product",
         "commands": [
             {
@@ -67,7 +67,7 @@ def field_log_evidence(proof_kind: str = "integration-test", proof_status: str =
         ],
         "requirements": [
             {
-                "id": "field-log-browser-severity-filter",
+                "id": "REQ-SEVERITY-BROWSER-FILTER",
                 "description": (
                     "Field Log browser UI filters entries by severity; "
                     "API, CLI, and edit UI coverage is not browser proof."

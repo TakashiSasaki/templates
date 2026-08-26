@@ -43,6 +43,7 @@
     {"id":"composition-state","source":"components/lifecycle.composition-state/files/docs/architecture/composition-state.md","optional":false,"home":false},
     {"id":"contract-evolution","source":"components/lifecycle.contract-evolution/files/docs/architecture/contract-evolution.md","optional":false,"home":false},
     {"id":"implementation-evidence","source":"components/lifecycle.implementation-evidence/files/docs/architecture/implementation-evidence.md","optional":false,"home":false},
+    {"id":"implementation-evidence-v2-migration","source":"components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v1-to-v2.md","optional":false,"home":false},
     {"id":"release-execution","source":"components/lifecycle.release-execution/files/docs/architecture/release-execution.md","optional":false,"home":false},
     {"id":"release-evidence","source":"components/lifecycle.release-evidence/files/docs/architecture/release-evidence.md","optional":false,"home":false},
     {"id":"release-bundle","source":"components/lifecycle.release-bundle/files/docs/architecture/release-bundle.md","optional":false,"home":false},

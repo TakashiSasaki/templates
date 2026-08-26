@@ -163,8 +163,10 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
 
     def productize_evidence(self, target: Path) -> None:
         records = []
+        requirements = []
         for index, evidence_target in enumerate(self.expected_targets(target), 1):
             record_id = f"task-ledger-{index}"
+            requirement_id = f"REQ-TASK-LEDGER-{index}"
             records.append(
                 {
                     "id": record_id,
@@ -199,11 +201,23 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                     "releaseGateIds": ["product-verification"],
                 }
             )
+            requirements.append(
+                {
+                    "id": requirement_id,
+                    "description": (
+                        "Task Ledger satisfies the declared "
+                        f"{evidence_target['contractId']} {evidence_target['itemKind']} "
+                        f"target {evidence_target['itemId']} through real browser behavior."
+                    ),
+                    "recordIds": [record_id],
+                    "requiredPositiveProofKinds": ["end-to-end-test"],
+                }
+            )
         self.write_json(
             target / "contracts" / "implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
@@ -219,6 +233,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                         "commandIds": ["verify-product"],
                     }
                 ],
+                "requirements": requirements,
                 "records": records,
             },
         )

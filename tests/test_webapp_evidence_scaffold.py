@@ -102,7 +102,8 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 self.assertEqual(record["releaseGateIds"], [])
 
             records = json.loads(json.dumps(worklist["records"]))
-            for record in records:
+            requirements = []
+            for index, record in enumerate(records, 1):
                 record["implementationBoundary"].update(
                     {
                         "status": "verified",
@@ -129,12 +130,23 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                             "expectedResult": "The declared target is covered by the product proof.",
                         }
                     )
+                requirements.append(
+                    {
+                        "id": f"REQ-WEBAPP-SCAFFOLD-{index:03d}",
+                        "description": (
+                            "The scaffold acceptance product requires evidence for target "
+                            + json.dumps(evidence_target, sort_keys=True, separators=(",", ":"))
+                        ),
+                        "recordIds": [record["id"]],
+                        "requiredPositiveProofKinds": [proof_kind],
+                    }
+                )
 
             self.write_json(
                 evidence_path,
                 {
                     "$schema": "../schemas/implementation-evidence.schema.json",
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "mode": "product",
                     "commands": [
                         {
@@ -151,6 +163,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                         }
                     ],
                     "records": records,
+                    "requirements": requirements,
                 },
             )
 

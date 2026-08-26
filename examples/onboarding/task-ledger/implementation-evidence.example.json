@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/implementation-evidence.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "product",
   "commands": [
     {
@@ -18,7 +18,7 @@
   ],
   "requirements": [
     {
-      "id": "task-ledger-browser-filter",
+      "id": "REQ-TASK-LEDGER-BROWSER-FILTER",
       "description": "Task Ledger browser UI filters the visible task list by status.",
       "recordIds": ["routes-route-home"],
       "requiredPositiveProofKinds": ["end-to-end-test", "accessibility-test"]

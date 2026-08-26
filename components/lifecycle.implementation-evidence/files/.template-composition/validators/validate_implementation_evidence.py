@@ -102,23 +102,24 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
     return warnings
 
 
-
 def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
     """Validate the explicit requirement -> record edge of the evidence graph.
 
-    Requirement text is intentionally opaque to this validator. Once a consumer
-    registers a stable requirement ID, however, its references must resolve to
-    verified implementation records. The existing record validation then closes
-    the graph through proofs, commands, and release gates.
+    Requirement text is intentionally opaque to this validator. Product mode must
+    expose at least one stable requirement ID; its references must then resolve to
+    traceable implementation records. Existing record validation closes the graph
+    through proofs, commands, and release gates.
     """
 
     requirements = evidence.get("requirements")
     if requirements is None:
-        # The field is optional for legacy/template-shaped product documents.
-        # A consumer that declares requirements opts into the closed graph below.
+        if evidence.get("mode") == "product":
+            return ["product implementation-evidence requires a non-empty requirements ledger"]
         return []
     if not isinstance(requirements, list):
         return ["implementation-evidence requirements must be an array"]
+    if evidence.get("mode") == "product" and not requirements:
+        return ["product implementation-evidence requires a non-empty requirements ledger"]
 
     records = evidence.get("records", [])
     if not isinstance(records, list):
@@ -230,6 +231,7 @@ def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
                     )
     return errors
 
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -243,6 +245,7 @@ def validate(root: Path) -> list[str]:
     commands = evidence.get("commands", [])
     gates = evidence.get("releaseGates", [])
     records = evidence.get("records", [])
+    requirements = evidence.get("requirements", [])
     mode = evidence.get("mode")
     command_ids = [entry.get("id") for entry in commands]
     gate_ids = [entry.get("id") for entry in gates]
@@ -269,7 +272,7 @@ def validate(root: Path) -> list[str]:
             errors.append(f"release gate {gate['id']}: unknown command {missing}")
 
     if mode == "template":
-        if commands or gates or records:
+        if commands or gates or records or requirements:
             errors.append("template implementation evidence must be empty")
         return errors
     if mode != "product":

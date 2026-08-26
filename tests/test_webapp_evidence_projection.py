@@ -45,13 +45,13 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
             root / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [],
                 "releaseGates": [],
                 "requirements": [
                     {
-                        "id": "main-browser",
+                        "id": "REQ-MAIN-BROWSER",
                         "description": "The main browser surface is usable.",
                         "recordIds": ["surfaces-surface-main"],
                         "requiredPositiveProofKinds": ["end-to-end-test"],
