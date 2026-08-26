@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify whether a Composition change must run real-browser acceptance."""
+"""Classify whether a Composition change requires behavior-sensitive CI."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def is_safe_repository_path(path: str) -> bool:
 
 
 def is_documentation_only_path(path: str) -> bool:
-    """Return whether one trusted repository path is safe to skip in browser CI."""
+    """Return whether one trusted repository path is safe to skip in behavioral CI."""
     if not is_safe_repository_path(path):
         return False
     if path in SAFE_DOCUMENTATION_FILES:
@@ -38,12 +38,12 @@ def is_documentation_only_path(path: str) -> bool:
 
 
 def classify_paths(paths: Sequence[str]) -> tuple[bool, str]:
-    """Return (browser_required, stable_reason) for one changed-path set."""
+    """Return (behavioral_ci_required, stable_reason) for one changed-path set."""
     if not paths:
         return True, "no-changes"
     for path in paths:
         if not is_documentation_only_path(path):
-            return True, "browser-sensitive-change"
+            return True, "composition-sensitive-change"
     return False, "documentation-only"
 
 
@@ -105,11 +105,14 @@ def main() -> int:
             paths = changed_paths(args.base, args.head)
             required, reason = classify_paths(paths)
         except ClassificationError as exc:
-            print(f"real-browser classification fell back to required: {exc}", file=sys.stderr)
+            print(
+                f"Composition CI classification fell back to required: {exc}",
+                file=sys.stderr,
+            )
             required, reason, paths = True, "diff-unavailable", []
 
     print(
-        f"real-browser required={str(required).lower()} reason={reason} "
+        f"composition-ci required={str(required).lower()} reason={reason} "
         f"changed_count={len(paths)}"
     )
     for path in paths:
