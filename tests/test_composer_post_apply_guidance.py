@@ -88,6 +88,15 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             },
         }
 
+    def removed_cli_lifecycle_seed_extras(self) -> list[str]:
+        return [
+            "CLI_INTERFACE.md",
+            "RUNTIME.md",
+            "contracts/cli-interface.json",
+            "contracts/implementation-evidence.json",
+            "contracts/lifecycle-checkpoints.json",
+        ]
+
     def test_initial_and_update_report_lock_derived_active_ownership(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -167,12 +176,7 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertEqual(upgraded["target"], str(second_target.absolute()))
             self.assertEqual(
                 upgraded["ownership"]["consumer_owned"]["extras"],
-                [
-                    "CLI_INTERFACE.md",
-                    "RUNTIME.md",
-                    "contracts/cli-interface.json",
-                    "contracts/implementation-evidence.json",
-                ],
+                self.removed_cli_lifecycle_seed_extras(),
             )
             self.assertEqual(
                 (first_target / LOCK_RELATIVE).read_bytes(),
@@ -214,12 +218,7 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, upgraded)
             self.assertEqual(
                 upgraded["ownership"]["consumer_owned"]["extras"],
-                [
-                    "CLI_INTERFACE.md",
-                    "RUNTIME.md",
-                    "contracts/cli-interface.json",
-                    "contracts/implementation-evidence.json",
-                ],
+                self.removed_cli_lifecycle_seed_extras(),
             )
             self.assertTrue((target / "CLI_INTERFACE.md").is_file())
             self.assertTrue((target / "RUNTIME.md").is_file())
@@ -290,12 +289,7 @@ class ComposerPostApplyGuidanceTests(unittest.TestCase):
             self.assertIn(remove_action["destination"], recovered["resumed"])
             self.assertEqual(
                 recovered["ownership"]["consumer_owned"]["extras"],
-                [
-                    "CLI_INTERFACE.md",
-                    "RUNTIME.md",
-                    "contracts/cli-interface.json",
-                    "contracts/implementation-evidence.json",
-                ],
+                self.removed_cli_lifecycle_seed_extras(),
             )
             self.assertEqual((target / "CLI_INTERFACE.md").read_bytes(), cli_before)
             self.assertEqual((target / "RUNTIME.md").read_bytes(), runtime_before)
