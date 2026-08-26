@@ -21,6 +21,7 @@ from scripts.generate_repository_browser import (
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
+PUBLIC_URL_BOUNDARY_CHECKER = ROOT / "scripts/check_public_url_boundary.py"
 POLICY = ROOT / "PUBLISHING.md"
 REQUIREMENTS = ROOT / "requirements.txt"
 COMPOSITION_BROWSER_SCRIPT = (
@@ -184,6 +185,7 @@ class CompositionRepositoryBrowserTests(unittest.TestCase):
 
     def test_workflow_uses_composition_browser_after_static_build(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
+        boundary_checker = PUBLIC_URL_BOUNDARY_CHECKER.read_text(encoding="utf-8")
         static_build = workflow.index("- name: Build the static site")
         browser_build = workflow.index("- name: Generate static repository browser")
         link_validation = workflow.index("- name: Validate generated site links")
@@ -196,8 +198,9 @@ class CompositionRepositoryBrowserTests(unittest.TestCase):
         self.assertNotIn("--branch skill=", workflow)
         self.assertNotIn("--branch webapp=", workflow)
         self.assertIn("build/site/files/${branch}/index.html", workflow)
-        self.assertIn("browser_source_view", workflow)
-        self.assertIn("URLAttributeParser", workflow)
+        self.assertIn("scripts/check_public_url_boundary.py", workflow)
+        self.assertIn("browser_source_view", boundary_checker)
+        self.assertIn("URLAttributeParser", boundary_checker)
 
     def test_policy_and_dependencies_preserve_browser_safety_boundary(self) -> None:
         policy = " ".join(POLICY.read_text(encoding="utf-8").split())

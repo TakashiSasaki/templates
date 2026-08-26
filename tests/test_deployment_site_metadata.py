@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PUBLIC_URL_BOUNDARY_CHECKER = ROOT / "scripts/check_public_url_boundary.py"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import finalize_site_metadata  # noqa: E402
@@ -175,6 +176,7 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         deploy_workflow = (ROOT / ".github/workflows/deploy-pages.yml").read_text(
             encoding="utf-8"
         )
+        boundary_checker = PUBLIC_URL_BOUNDARY_CHECKER.read_text(encoding="utf-8")
         template = (ROOT / "zensical.template.toml").read_text(encoding="utf-8")
 
         self.assertIn(f"PUBLIC_SITE_URL: {CANONICAL_URL}", build_workflow)
@@ -201,7 +203,8 @@ class DeploymentWorkflowWiringTests(unittest.TestCase):
         self.assertLess(guided_finalize, glossary_finalize)
         self.assertLess(glossary_finalize, verify_boundary)
         self.assertIn("Verify generated public URL boundary", build_workflow)
-        self.assertIn("https://takashisasaki.github.io/templates/", build_workflow)
+        self.assertIn("scripts/check_public_url_boundary.py", build_workflow)
+        self.assertIn("https://takashisasaki.github.io/templates/", boundary_checker)
 
         self.assertIn(f"PUBLIC_SITE_URL: {CANONICAL_URL}", deploy_workflow)
         self.assertIn("uses: ./.github/workflows/build-pages.yml", deploy_workflow)
