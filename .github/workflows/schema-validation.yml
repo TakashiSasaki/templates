@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   primary:
-    name: preflight + tests (2/2)
+    name: preflight + core tests (2/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
@@ -78,30 +78,64 @@ jobs:
       - name: Verify Composition installer release
         run: .venv/bin/python -I scripts/verify_composition_skill_installer_release.py --git-ref HEAD
 
-      - name: Prepare compatible ChromeDriver
-        run: |
-          driver_path="$(
-            .venv/bin/python -I scripts/prepare_chromedriver.py \
-              --output-dir "$RUNNER_TEMP/composition-chromedriver"
-          )"
-          echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"
+      - name: Verify deterministic core unittest partition
+        run: .venv/bin/python scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only
 
-      - name: Verify real-browser evidence runtime
-        run: |
-          google-chrome --version
-          "$CHROMEWEBDRIVER" --version
-
-      - name: Verify deterministic unittest partition
-        run: .venv/bin/python scripts/run_unittest_shard.py --shard-count 2 --verify-only
-
-      - name: Run schema and semantic contract test shard 2/2
+      - name: Run core schema and semantic contract test shard 2/2
         run: >-
           .venv/bin/python scripts/run_unittest_shard.py
+          --suite core
           --shard-count 2
           --shard-index 1
 
   parallel:
-    name: tests (1/2)
+    name: core tests (1/2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      SITE_PUBLICATION_PROTOCOL_ROOT: ${{ github.workspace }}/.site-publication-protocol
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check out Site publication protocol
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 3ae5d1e60c65e7a8ebf5f9af0436044484e42983
+          path: .site-publication-protocol
+          sparse-checkout: |
+            scripts/publication_contract.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+
+      - name: Create isolated validation environment
+        run: python -I -m venv --clear .venv
+
+      - name: Install locked validation dependencies
+        run: .venv/bin/python -m pip install --isolated --disable-pip-version-check --no-deps --requirement requirements-dev.lock
+
+      - name: Verify dependency graph
+        run: .venv/bin/python -m pip check
+
+      - name: Run core schema and semantic contract test shard 1/2
+        run: >-
+          .venv/bin/python scripts/run_unittest_shard.py
+          --suite core
+          --shard-count 2
+          --shard-index 0
+
+  real_browser:
+    name: real-browser acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
@@ -152,10 +186,11 @@ jobs:
           google-chrome --version
           "$CHROMEWEBDRIVER" --version
 
-      - name: Run schema and semantic contract test shard 1/2
+      - name: Run real-browser acceptance suite
         run: >-
           .venv/bin/python scripts/run_unittest_shard.py
-          --shard-count 2
+          --suite real-browser
+          --shard-count 1
           --shard-index 0
 
   validate:
@@ -163,13 +198,16 @@ jobs:
     needs:
       - primary
       - parallel
+      - real_browser
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Require successful preflight and both test shards
+      - name: Require successful preflight, core shards, and real-browser acceptance
         env:
           PRIMARY_RESULT: ${{ needs.primary.result }}
           PARALLEL_RESULT: ${{ needs.parallel.result }}
+          BROWSER_RESULT: ${{ needs.real_browser.result }}
         run: |
           test "$PRIMARY_RESULT" = success
           test "$PARALLEL_RESULT" = success
+          test "$BROWSER_RESULT" = success
