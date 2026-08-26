@@ -1,0 +1,6 @@
+{
+  "$schema": "../schemas/service-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "template",
+  "operations": []
+}

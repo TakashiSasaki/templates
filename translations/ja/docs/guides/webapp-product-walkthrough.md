@@ -220,6 +220,57 @@ DELETE /api/tasks/{id}
 GET    /healthz
 ```
 
+`capability.service` を選択しているため、これらの operation が実装され executable になった後、editable machine seed `contracts/service-interface.json` を置き換えます。
+
+```json
+{
+  "$schema": "../schemas/service-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "product",
+  "protocol": "http-json",
+  "operations": [
+    {
+      "id": "list-tasks",
+      "invocation": "GET /api/tasks?status=all|open|completed",
+      "success": "200 JSON task array for a valid status filter",
+      "negative": "400 JSON error for an invalid status filter"
+    },
+    {
+      "id": "get-task",
+      "invocation": "GET /api/tasks/{id}",
+      "success": "200 JSON task for an existing id",
+      "negative": "404 JSON error for a missing id"
+    },
+    {
+      "id": "create-task",
+      "invocation": "POST /api/tasks",
+      "success": "201 JSON task for a non-empty title",
+      "negative": "400 JSON error for an empty title"
+    },
+    {
+      "id": "update-task",
+      "invocation": "PATCH /api/tasks/{id}",
+      "success": "200 JSON updated task for an existing id",
+      "negative": "404 JSON error for a missing id"
+    },
+    {
+      "id": "delete-task",
+      "invocation": "DELETE /api/tasks/{id}",
+      "success": "204 for an existing id",
+      "negative": "404 JSON error when the id no longer exists"
+    },
+    {
+      "id": "health",
+      "invocation": "GET /healthz",
+      "success": "200 JSON status ok",
+      "negative": "404 JSON error for an unknown service path"
+    }
+  ]
+}
+```
+
+listener が起動したことや source route が存在することだけで service contract を `product` にしてはいけません。Section 12 では宣言した全 operation を HTTP boundary 越しに実行し、各 operation の negative path も検査します。Section 15 では各 `service_interface/operation/<id>` target を `integration-test` evidence に接続します。
+
 `CLI_INTERFACE.md`:
 
 ```sh
@@ -645,25 +696,55 @@ class TaskLedgerTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         base = f"http://127.0.0.1:{server.server_port}"
-        try:
-            health = json.load(urllib.request.urlopen(base + "/healthz"))
-            self.assertEqual(health, {"status": "ok"})
-            request = urllib.request.Request(
-                base + "/api/tasks",
-                data=json.dumps({"title": "from api"}).encode(),
-                headers={"Content-Type": "application/json"},
-                method="POST",
+
+        def request(method: str, path: str, payload: dict | None = None):
+            data = None if payload is None else json.dumps(payload).encode()
+            headers = {} if payload is None else {"Content-Type": "application/json"}
+            return urllib.request.urlopen(
+                urllib.request.Request(base + path, data=data, headers=headers, method=method)
             )
-            created = json.load(urllib.request.urlopen(request))
-            open_tasks = json.load(urllib.request.urlopen(base + "/api/tasks?status=open"))
+
+        try:
+            health = json.load(request("GET", "/healthz"))
+            self.assertEqual(health, {"status": "ok"})
+            with self.assertRaises(urllib.error.HTTPError) as missing_health:
+                request("GET", "/not-a-service-route")
+            self.assertEqual(missing_health.exception.code, 404)
+
+            created = json.load(request("POST", "/api/tasks", {"title": "from api"}))
+            with self.assertRaises(urllib.error.HTTPError) as invalid_create:
+                request("POST", "/api/tasks", {"title": ""})
+            self.assertEqual(invalid_create.exception.code, 400)
+
+            open_tasks = json.load(request("GET", "/api/tasks?status=open"))
             self.assertEqual([task["id"] for task in open_tasks], [created["id"]])
-            with self.assertRaises(urllib.error.HTTPError) as raised:
-                urllib.request.urlopen(base + "/api/tasks?status=invalid")
-            self.assertEqual(raised.exception.code, 400)
+            with self.assertRaises(urllib.error.HTTPError) as invalid_filter:
+                request("GET", "/api/tasks?status=invalid")
+            self.assertEqual(invalid_filter.exception.code, 400)
+
+            fetched = json.load(request("GET", f"/api/tasks/{created['id']}"))
+            self.assertEqual(fetched["title"], "from api")
+            with self.assertRaises(urllib.error.HTTPError) as missing_get:
+                request("GET", "/api/tasks/999999")
+            self.assertEqual(missing_get.exception.code, 404)
+
+            updated = json.load(request("PATCH", f"/api/tasks/{created['id']}", {"completed": True}))
+            self.assertTrue(updated["completed"])
+            with self.assertRaises(urllib.error.HTTPError) as missing_patch:
+                request("PATCH", "/api/tasks/999999", {"completed": True})
+            self.assertEqual(missing_patch.exception.code, 404)
+
+            deleted = request("DELETE", f"/api/tasks/{created['id']}")
+            self.assertEqual(deleted.status, 204)
+            deleted.close()
+            with self.assertRaises(urllib.error.HTTPError) as missing_delete:
+                request("DELETE", f"/api/tasks/{created['id']}")
+            self.assertEqual(missing_delete.exception.code, 404)
         finally:
             server.shutdown()
             server.server_close()
             thread.join()
+
 
 
 if __name__ == "__main__":
@@ -781,6 +862,8 @@ command/gate 例:
 各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
 生成された `viewports/base` と `input-capability/keyboard` recordでは、positive/negative proof locatorを `tests/test_task_ledger_browser.py`、proof kindを `end-to-end-test`、command IDを `verify-product` にします。expected resultには、単なるfileの存在ではなく、対応するsuccessful interactionと拒否または不在が確認されたinvalid behaviorを記述します。
+
+`capability.service` を選択しているため、`contracts/service-interface.json` に宣言した全 operation について `contract-item / service_interface / operation / <id>` record を追加します。implementation boundary は `task_ledger/cli.py`、positive / negative proof locator は `tests/test_task_ledger.py`、proof kind は `integration-test` とし、各 operation を `requiredPositiveProofKinds` に `integration-test` を持つ stable requirement から link します。上の expanded HTTP test は6 operationすべてについて documented success と negative path の両方を実行します。service contract が `template` のまま、または source inspection / unit-only proof しかない状態を valid product completion としてはいけません。
 
 `capability.cli` を選択しているため、さらに `contract-item / cli_interface / entrypoint / task-ledger` target の record を1件追加します。implementation boundary は `task_ledger/cli.py`、positive / negative proof locator は `tests/test_task_ledger.py`、proof kind は `integration-test` とし、`requiredPositiveProofKinds` に `integration-test` を含む stable CLI requirement から link します。positive path は help/version/structured export、negative path は invalid argument の exit code を実行します。CLI contract が `template` のまま、または source inspection / unit-only proof しかない状態を valid product completion としてはいけません。
 

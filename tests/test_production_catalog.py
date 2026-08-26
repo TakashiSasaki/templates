@@ -208,7 +208,12 @@ class ProductionCatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             self.resolve({"capability.service"}),
-            ["capability.runtime", "capability.service"],
+            [
+                "capability.runtime",
+                "capability.service",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            ],
         )
 
     def test_full_skill_capability_selection_has_single_portable_owners(self):

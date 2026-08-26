@@ -121,6 +121,21 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         )
         verifier.chmod(0o755)
 
+    def service_operations(self) -> list[dict[str, str]]:
+        return [{'id': 'list-tasks', 'invocation': 'GET /api/tasks?status=all|open|completed', 'success': '200 JSON task array for a valid status filter', 'negative': '400 JSON error for an invalid status filter'}, {'id': 'get-task', 'invocation': 'GET /api/tasks/{id}', 'success': '200 JSON task for an existing id', 'negative': '404 JSON error for a missing id'}, {'id': 'create-task', 'invocation': 'POST /api/tasks', 'success': '201 JSON task for a non-empty title', 'negative': '400 JSON error for an empty title'}, {'id': 'update-task', 'invocation': 'PATCH /api/tasks/{id}', 'success': '200 JSON updated task for an existing id', 'negative': '404 JSON error for a missing id'}, {'id': 'delete-task', 'invocation': 'DELETE /api/tasks/{id}', 'success': '204 for an existing id', 'negative': '404 JSON error when the id no longer exists'}, {'id': 'health', 'invocation': 'GET /healthz', 'success': '200 JSON status ok', 'negative': '404 JSON error for an unknown service path'}]
+
+    def productize_service_contract(self, target: Path) -> None:
+        self.write_json(
+            target / "contracts" / "service-interface.json",
+            {
+                "$schema": "../schemas/service-interface.schema.json",
+                "schemaVersion": 1,
+                "mode": "product",
+                "protocol": "http-json",
+                "operations": self.service_operations(),
+            },
+        )
+
     def productize_cli_contract(self, target: Path) -> None:
         self.write_json(
             target / "contracts" / "cli-interface.json",
@@ -252,6 +267,57 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
                     "requiredPositiveProofKinds": ["end-to-end-test"],
                 }
             )
+        for operation in self.service_operations():
+            operation_id = operation["id"]
+            record_id = f"task-ledger-service-{operation_id}"
+            records.append(
+                {
+                    "id": record_id,
+                    "target": {
+                        "kind": "contract-item",
+                        "contractId": "service_interface",
+                        "itemKind": "operation",
+                        "itemId": operation_id,
+                    },
+                    "implementationBoundary": {
+                        "status": "verified",
+                        "description": "Task Ledger exposes this independently reachable HTTP service operation.",
+                        "locator": "task_ledger/cli.py",
+                    },
+                    "positiveEvidence": [
+                        {
+                            "id": f"{record_id}-positive",
+                            "status": "verified",
+                            "kind": "integration-test",
+                            "description": f"Execute the success path for {operation_id} through HTTP.",
+                            "locator": "tests/test_task_ledger.py",
+                            "commandId": "verify-product",
+                            "expectedResult": operation["success"],
+                        }
+                    ],
+                    "negativeEvidence": [
+                        {
+                            "id": f"{record_id}-negative",
+                            "status": "verified",
+                            "kind": "integration-test",
+                            "description": f"Execute the negative path for {operation_id} through HTTP.",
+                            "locator": "tests/test_task_ledger.py",
+                            "commandId": "verify-product",
+                            "expectedResult": operation["negative"],
+                        }
+                    ],
+                    "releaseGateIds": ["product-verification"],
+                }
+            )
+            requirements.append(
+                {
+                    "id": f"REQ-TASK-LEDGER-SERVICE-{operation_id.upper()}",
+                    "description": f"Task Ledger service operation {operation_id} executes its documented success and negative behavior.",
+                    "recordIds": [record_id],
+                    "requiredPositiveProofKinds": ["integration-test"],
+                }
+            )
+
         cli_record_id = "task-ledger-cli"
         records.append(
             {
@@ -349,6 +415,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             self.assertEqual(browser.returncode, 0, browser.stdout + browser.stderr)
             self.assertIn("viewport and keyboard positive/negative paths passed", browser.stdout)
 
+            self.productize_service_contract(target)
             self.productize_cli_contract(target)
             self.productize_evidence(target)
             validation = self.run_python(

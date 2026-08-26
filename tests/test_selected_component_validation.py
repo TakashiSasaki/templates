@@ -459,5 +459,37 @@ class SelectedComponentValidationTests(unittest.TestCase):
             self.assertEqual(cli_contract["entrypoints"], [])
 
 
+    def test_service_selection_adds_machine_contract_evidence_lifecycle_and_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "consumer"
+            self.apply(target, self.write_config(root, "skill", include=["capability.service"]))
+
+            result, payload = self.run_consumer_validation(target)
+            self.assertEqual(result.returncode, 0, payload)
+            self.assertEqual(payload["status"], "valid")
+            self.assertEqual(
+                set(payload["resolved_components"]),
+                {
+                    "artifact.skill-core",
+                    "capability.runtime",
+                    "capability.service",
+                    "lifecycle.composition-state",
+                    "lifecycle.contract-evolution",
+                    "lifecycle.implementation-evidence",
+                },
+            )
+            checks = {check["id"]: check for check in payload["checks"]}
+            self.assertIn("service-interface", checks)
+            self.assertEqual(checks["service-interface"]["status"], "passed")
+            self.assertIn("Service interface coverage", checks["service-interface"]["stdout"])
+            self.assertEqual(checks["implementation-evidence"]["status"], "deferred")
+            manifest = json.loads((target / "contracts/manifest.json").read_text(encoding="utf-8"))
+            self.assertIn("service_interface", {entry["id"] for entry in manifest["contracts"]})
+            service_contract = json.loads((target / "contracts/service-interface.json").read_text(encoding="utf-8"))
+            self.assertEqual(service_contract["mode"], "template")
+            self.assertEqual(service_contract["operations"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

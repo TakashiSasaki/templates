@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/composition/schemas/service-interface.schema.json",
+  "title": "Service interface contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "mode",
+    "operations"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/service-interface.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "template",
+        "product"
+      ]
+    },
+    "protocol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "invocation",
+          "success",
+          "negative"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "invocation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "success": {
+            "type": "string",
+            "minLength": 1
+          },
+          "negative": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "template"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "maxItems": 0
+          }
+        },
+        "not": {
+          "required": [
+            "protocol"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "product"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "required": [
+          "protocol"
+        ],
+        "properties": {
+          "operations": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

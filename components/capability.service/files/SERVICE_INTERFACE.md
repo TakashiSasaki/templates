@@ -4,11 +4,13 @@ This contract is materialized by `capability.service`. It applies to an independ
 
 `RUNTIME.md` owns runtime, process, listener, port, container, gateway, and deployment selections. This file owns caller-visible service behavior and its security/lifecycle contract.
 
-## Status
+## Machine-readable authority
 
-```text
-Selection status: UNSELECTED
-```
+`contracts/service-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product service claim. Switch it to `product` only after every caller-visible operation is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each operation.
+
+When `capability.service` is selected, product implementation evidence cannot remain valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the service executable-proof obligation. Use `integration-test` or `end-to-end-test` evidence that actually crosses the maintained service boundary.
+
+Keep this narrative contract aligned with the JSON authority. Runtime listener/deployment details remain in `RUNTIME.md`.
 
 ## Public reachability
 
