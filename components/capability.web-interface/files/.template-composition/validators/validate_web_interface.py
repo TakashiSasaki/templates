@@ -13,6 +13,7 @@ WEB_INTERFACE_CONTRACT = Path("contracts/web-interface.json")
 IMPLEMENTATION_EVIDENCE = Path("contracts/implementation-evidence.json")
 BROWSER_PROOF_KINDS = frozenset({"accessibility-test", "end-to-end-test"})
 EXECUTABLE_PROOF_KINDS = frozenset({"integration-test", "end-to-end-test"})
+PLANNING_ENDPOINT_PROOF_KINDS = BROWSER_PROOF_KINDS | EXECUTABLE_PROOF_KINDS
 
 
 def load_json(root: Path, relative: Path) -> dict[str, Any]:
@@ -58,11 +59,48 @@ def proof_label(endpoint_kind: str) -> str:
     return "browser-level" if endpoint_kind == "browser-page" else "executable"
 
 
+
+def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        return ["planning implementation-evidence requirements must be an array"]
+    errors: list[str] = []
+    allowed = ", ".join(sorted(PLANNING_ENDPOINT_PROOF_KINDS))
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            continue
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        for target in requirement.get("targets", []):
+            key = target_key(target)
+            if key[1] != "web_interface":
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            if key[0] != "contract-item" or key[2] != "endpoint":
+                errors.append(
+                    f"Web interface planning requirement {requirement_id!r} has unsupported "
+                    f"target {key}; planning targets must be contract-item/web_interface/endpoint"
+                )
+            elif declared.isdisjoint(PLANNING_ENDPOINT_PROOF_KINDS):
+                errors.append(
+                    f"Web interface planning requirement {requirement_id!r} targets endpoint "
+                    f"{key[3]!r} and must declare a non-static requiredPositiveProofKinds "
+                    f"value ({allowed}); exact browser/executable subtype strength is enforced "
+                    "after the product endpoint kind is declared"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     contract = load_json(root, WEB_INTERFACE_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     interface_mode = contract.get("mode")
     evidence_mode = evidence.get("mode")
+
+    if evidence_mode == "planning":
+        return planning_requirement_errors(evidence)
 
     if interface_mode == "template":
         if evidence_mode == "product":
@@ -230,7 +268,10 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     contract = load_json(root, WEB_INTERFACE_CONTRACT)
-    if contract.get("mode") == "template":
+    evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
+    if evidence.get("mode") == "planning":
+        print("Web interface planning targets and non-static proof strength: OK")
+    elif contract.get("mode") == "template":
         print("Web interface: template mode OK; no product endpoint claim is active")
     else:
         print("Web interface endpoint coverage and proof strength: OK")

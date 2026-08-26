@@ -42,6 +42,38 @@ def executable_proof_present(record: dict[str, Any], field: str) -> bool:
     )
 
 
+
+def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        return ["planning implementation-evidence requirements must be an array"]
+    errors: list[str] = []
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            continue
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        for target in requirement.get("targets", []):
+            key = target_key(target)
+            if key[1] != "service_interface":
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            if key[0] != "contract-item" or key[2] != "operation":
+                errors.append(
+                    f"service planning requirement {requirement_id!r} has unsupported target {key}; "
+                    "service planning targets must be contract-item/service_interface/operation"
+                )
+            elif declared.isdisjoint(EXECUTABLE_PROOF_KINDS):
+                errors.append(
+                    f"service planning requirement {requirement_id!r} targets operation "
+                    f"{key[3]!r} and must declare an executable requiredPositiveProofKinds "
+                    f"value from {sorted(EXECUTABLE_PROOF_KINDS)}"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -52,6 +84,8 @@ def validate(root: Path) -> list[str]:
 
     service_mode = contract.get("mode")
     evidence_mode = evidence.get("mode")
+    if evidence_mode == "planning":
+        return planning_requirement_errors(evidence)
     if service_mode == "template":
         if evidence_mode == "product":
             errors.append(
@@ -145,7 +179,11 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("Service interface coverage and executable evidence strength: OK")
+    evidence = load_json(Path(args.root).resolve(), IMPLEMENTATION_EVIDENCE)
+    if evidence.get("mode") == "planning":
+        print("Service planning targets and executable proof strength: OK")
+    else:
+        print("Service interface coverage and executable evidence strength: OK")
     return 0
 
 

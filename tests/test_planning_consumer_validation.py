@@ -95,7 +95,7 @@ class PlanningConsumerValidationTests(unittest.TestCase):
             )
             self.assertEqual(checks["webapp-implementation-coverage"]["status"], "passed")
             self.assertIn(
-                "planning mode; product target coverage pending",
+                "Webapp planning targets and browser proof strength: OK",
                 checks["webapp-implementation-coverage"]["stdout"],
             )
 

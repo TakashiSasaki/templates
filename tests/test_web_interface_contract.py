@@ -175,7 +175,7 @@ class WebInterfaceContractTests(unittest.TestCase):
         descriptor = json.loads(
             (COMPONENT / "component.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(descriptor["version"], 2)
+        self.assertEqual(descriptor["version"], 3)
         self.assertEqual(
             descriptor["requires"],
             ["capability.runtime", "lifecycle.implementation-evidence"],
