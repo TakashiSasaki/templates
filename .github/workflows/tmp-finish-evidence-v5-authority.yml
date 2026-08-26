@@ -1,0 +1,24 @@
+name: Temporary finish evidence v5 authority
+on:
+  push:
+    branches:
+      - agent/evidence-requirement-targets-v5-pr20
+permissions:
+  contents: write
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply guarded authority updates
+        run: |
+          python .github/tmp/finish-evidence-v5-authority.py
+          rm .github/tmp/finish-evidence-v5-authority.py
+          rm .github/workflows/tmp-finish-evidence-v5-authority.yml
+      - name: Commit authority updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Publish target-bound evidence planning authority"
+          git push
