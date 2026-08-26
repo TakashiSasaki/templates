@@ -10,6 +10,7 @@ from pathlib import Path
 from contract_common import load_json
 
 
+COMPOSITION_PYTHON_TOKEN = "@composition-python"
 _DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _WORKING_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9._-]*$")
@@ -129,12 +130,12 @@ def expected_invocation_argv(
     if relative is None:
         return None
     if invocation == "python-script":
-        return ["python", relative], 1
+        return [COMPOSITION_PYTHON_TOKEN, relative], 1
     if invocation == "python-unittest":
         module = _python_module_from_relative(relative)
         if module is None:
             return None
-        return ["python", "-m", "unittest", module], 3
+        return [COMPOSITION_PYTHON_TOKEN, "-m", "unittest", module], 3
     if invocation == "direct":
         return [f"./{relative}"], 0
     return None
