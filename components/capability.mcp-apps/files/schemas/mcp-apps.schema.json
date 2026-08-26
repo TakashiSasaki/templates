@@ -4,178 +4,112 @@
   "title": "MCP Apps extension contract",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "$schema",
-    "schemaVersion",
-    "mode",
-    "views",
-    "associations"
-  ],
-  "properties": {
-    "$schema": {
-      "const": "../schemas/mcp-apps.schema.json"
-    },
-    "schemaVersion": {
-      "const": 1
-    },
-    "mode": {
-      "enum": [
-        "template",
-        "product"
-      ]
-    },
-    "extension": {
+  "required": ["$schema", "schemaVersion", "mode", "views", "associations"],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+    "nonBlankText": {"type": "string", "minLength": 1},
+    "plannedExtension": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "identifier",
-        "revision",
-        "success",
-        "negative"
-      ],
+      "required": ["id", "identifier", "revision"],
       "properties": {
-        "id": {
-          "const": "mcp-apps"
-        },
-        "identifier": {
-          "const": "io.modelcontextprotocol/ui"
-        },
-        "revision": {
-          "const": "2026-01-26"
-        },
-        "success": {
-          "type": "string",
-          "minLength": 1
-        },
-        "negative": {
-          "type": "string",
-          "minLength": 1
-        }
+        "id": {"const": "mcp-apps"},
+        "identifier": {"const": "io.modelcontextprotocol/ui"},
+        "revision": {"const": "2026-01-26"}
       }
     },
-    "views": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "resourceUri",
-          "mediaType",
-          "success",
-          "negative"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-          },
-          "resourceUri": {
-            "type": "string",
-            "pattern": "^ui://[^\\s]+$"
-          },
-          "mediaType": {
-            "const": "text/html;profile=mcp-app"
-          },
-          "success": {
-            "type": "string",
-            "minLength": 1
-          },
-          "negative": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
+    "productExtension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "identifier", "revision", "success", "negative"],
+      "properties": {
+        "id": {"const": "mcp-apps"},
+        "identifier": {"const": "io.modelcontextprotocol/ui"},
+        "revision": {"const": "2026-01-26"},
+        "success": {"$ref": "#/$defs/nonBlankText"},
+        "negative": {"$ref": "#/$defs/nonBlankText"}
       }
     },
-    "associations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "operationId",
-          "viewId",
-          "success",
-          "negative"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-          },
-          "operationId": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-          },
-          "viewId": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-          },
-          "success": {
-            "type": "string",
-            "minLength": 1
-          },
-          "negative": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
+    "plannedView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "purpose"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "productView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "resourceUri", "mediaType", "success", "negative"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "resourceUri": {"type": "string", "pattern": "^ui://[^\\s]+$"},
+        "mediaType": {"const": "text/html;profile=mcp-app"},
+        "success": {"$ref": "#/$defs/nonBlankText"},
+        "negative": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "plannedAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "operationId", "viewId", "purpose"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "operationId": {"$ref": "#/$defs/identifier"},
+        "viewId": {"$ref": "#/$defs/identifier"},
+        "purpose": {"$ref": "#/$defs/nonBlankText"}
+      }
+    },
+    "productAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "operationId", "viewId", "success", "negative"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "operationId": {"$ref": "#/$defs/identifier"},
+        "viewId": {"$ref": "#/$defs/identifier"},
+        "success": {"$ref": "#/$defs/nonBlankText"},
+        "negative": {"$ref": "#/$defs/nonBlankText"}
       }
     }
   },
+  "properties": {
+    "$schema": {"const": "../schemas/mcp-apps.schema.json"},
+    "schemaVersion": {"const": 2},
+    "mode": {"enum": ["template", "planning", "product"]},
+    "extension": {},
+    "views": {"type": "array", "uniqueItems": true},
+    "associations": {"type": "array", "uniqueItems": true}
+  },
   "allOf": [
     {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "template"
-          }
-        },
-        "required": [
-          "mode"
-        ]
-      },
+      "if": {"properties": {"mode": {"const": "template"}}, "required": ["mode"]},
       "then": {
+        "properties": {"views": {"maxItems": 0}, "associations": {"maxItems": 0}},
+        "not": {"required": ["extension"]}
+      }
+    },
+    {
+      "if": {"properties": {"mode": {"const": "planning"}}, "required": ["mode"]},
+      "then": {
+        "required": ["extension"],
         "properties": {
-          "views": {
-            "maxItems": 0
-          },
-          "associations": {
-            "maxItems": 0
-          }
-        },
-        "not": {
-          "required": [
-            "extension"
-          ]
+          "extension": {"$ref": "#/$defs/plannedExtension"},
+          "views": {"minItems": 1, "items": {"$ref": "#/$defs/plannedView"}},
+          "associations": {"minItems": 1, "items": {"$ref": "#/$defs/plannedAssociation"}}
         }
       }
     },
     {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "product"
-          }
-        },
-        "required": [
-          "mode"
-        ]
-      },
+      "if": {"properties": {"mode": {"const": "product"}}, "required": ["mode"]},
       "then": {
-        "required": [
-          "extension"
-        ],
+        "required": ["extension"],
         "properties": {
-          "views": {
-            "minItems": 1
-          },
-          "associations": {
-            "minItems": 1
-          }
+          "extension": {"$ref": "#/$defs/productExtension"},
+          "views": {"minItems": 1, "items": {"$ref": "#/$defs/productView"}},
+          "associations": {"minItems": 1, "items": {"$ref": "#/$defs/productAssociation"}}
         }
       }
     }
