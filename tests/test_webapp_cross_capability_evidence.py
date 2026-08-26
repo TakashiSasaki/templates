@@ -35,8 +35,20 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
             "id": record_id,
             "target": target,
             "implementationBoundary": {"status": "verified"},
-            "positiveEvidence": [{"status": "verified", "kind": proof_kind}],
-            "negativeEvidence": [{"status": "verified", "kind": proof_kind}],
+            "positiveEvidence": [
+                {
+                    "status": "verified",
+                    "kind": proof_kind,
+                    "commandId": "webapp-proof",
+                }
+            ],
+            "negativeEvidence": [
+                {
+                    "status": "verified",
+                    "kind": proof_kind,
+                    "commandId": "webapp-proof",
+                }
+            ],
             "releaseGateIds": ["release"],
         }
 
@@ -63,6 +75,14 @@ class WebappCrossCapabilityEvidenceBoundaryTests(unittest.TestCase):
 
         evidence = {
             "mode": "product",
+            "commands": [
+                {
+                    "id": "webapp-proof",
+                    "execution": {
+                        "capabilities": ["integration", "end-to-end", "browser"],
+                    },
+                }
+            ],
             "requirements": [
                 {
                     "id": "REQ-SURFACE",
