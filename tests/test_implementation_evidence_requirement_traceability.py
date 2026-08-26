@@ -10,6 +10,11 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = (
     ROOT / "components" / "lifecycle.implementation-evidence" / "files"
@@ -104,7 +109,10 @@ def evidence(*, requirements: list[dict] | None = None, positive_status: str = "
     }
     if requirements is not None:
         result["requirements"] = requirements
-    return result
+    return upgrade_product_evidence_v6(
+        result,
+        browser_command_ids={"product-proof"},
+    )
 
 
 class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
@@ -120,6 +128,7 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
         (contracts / "implementation-evidence.json").write_text(
             json.dumps(value), encoding="utf-8"
         )
+        materialize_declared_harnesses(root, value)
 
     def test_closed_requirement_graph_is_accepted(self) -> None:
         value = evidence(requirements=[requirement()])
@@ -154,13 +163,14 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
     def test_product_without_requirement_ledger_is_rejected_semantically(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            self.write_fixture(root, evidence())
+            value = evidence()
+            self.write_fixture(root, value)
             errors = validator.validate(root)
             self.assertTrue(
                 any("requires a non-empty requirements ledger" in error for error in errors),
                 errors,
             )
-            readiness = validator.release_readiness_errors(evidence())
+            readiness = validator.release_readiness_errors(value)
             self.assertTrue(
                 any("requires a non-empty requirements ledger" in error for error in readiness),
                 readiness,
