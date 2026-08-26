@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,30 @@ PROOF_KIND_CAPABILITY = {
     "inspection": "inspection",
     "other": "other",
 }
+_PYTHON_MODULE_SEGMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _python_module(locator: str) -> str | None:
+    if not locator.endswith(".py"):
+        return None
+    parts = locator[:-3].split("/")
+    if not parts or not all(_PYTHON_MODULE_SEGMENT.fullmatch(part) for part in parts):
+        return None
+    return ".".join(parts)
+
+
+def _invocation_for(command: str, locator: str) -> str:
+    if command == f"python {locator}":
+        return "python-script"
+    module = _python_module(locator)
+    if module is not None and command == f"python -m unittest {module}":
+        return "python-unittest"
+    if command == f"./{locator}":
+        return "direct"
+    raise AssertionError(
+        f"fixture command {command!r} does not exactly invoke declared harness {locator!r}; "
+        "use python-script, python-unittest, or direct invocation"
+    )
 
 
 def upgrade_product_evidence_v6(
@@ -25,7 +50,9 @@ def upgrade_product_evidence_v6(
 
     Capabilities are derived from the proof kinds that already reference each command.
     Browser capability is never inferred from ``end-to-end-test``; callers must opt in
-    for command IDs whose harness actually represents browser execution.
+    for command IDs whose harness actually represents browser execution. The helper also
+    requires the legacy human command text to exactly identify a supported invocation of
+    the declared repository harness instead of manufacturing invocation authority.
     """
 
     evidence["schemaVersion"] = 6
@@ -73,9 +100,17 @@ def upgrade_product_evidence_v6(
         if locator is None:
             candidates = proof_locators.get(command_id, [])
             locator = candidates[0] if candidates else f"tests/{command_id}.py"
+        command_text = command.get("command")
+        if not isinstance(command_text, str):
+            raise AssertionError(f"fixture command {command_id!r} requires command text")
+        invocation = _invocation_for(command_text, locator)
         command["execution"] = {
             "capabilities": sorted(capabilities),
-            "harness": {"kind": "repository-file", "locator": locator},
+            "harness": {
+                "kind": "repository-file",
+                "locator": locator,
+                "invocation": invocation,
+            },
             "supportsNegativePath": command_id in negative_commands,
         }
     return evidence
