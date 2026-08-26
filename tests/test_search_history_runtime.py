@@ -178,6 +178,8 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         static_assets = set(json.loads(match.group(1)))
         self.assertIn("/javascripts/reader-navigation.js", static_assets)
         self.assertIn("/javascripts/search-history.js", static_assets)
+        self.assertIn('root / "javascripts/search-history.js"', checker)
+        self.assertNotIn('root / "javascripts/reader-navigation.js"', checker)
         self.assertIn("Zensical search integration contract changed", checker)
         self.assertIn("search_input.click(trial=True", checker)
         self.assertIn("result = page.locator('ol a[href]').first", review_checker)

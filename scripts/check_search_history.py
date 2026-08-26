@@ -295,7 +295,7 @@ def run_check(site_root: Path, output: Path | None) -> dict[str, Any]:
     root = site_root.resolve(strict=True)
     required = (
         root / "index.html",
-        root / "javascripts/reader-navigation.js",
+        root / "javascripts/search-history.js",
         root / "stylesheets/extra.css",
     )
     missing = [path for path in required if not path.is_file()]
