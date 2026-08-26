@@ -1,0 +1,97 @@
+name: Temporary align worklist requirement traceability
+
+on:
+  push:
+    branches:
+      - agent/webapp-worklist-proof-obligations-pr12
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/webapp-worklist-proof-obligations-pr12
+          fetch-depth: 0
+      - name: Align requirement projection with generic traceability
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement, found {count}: {old!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          path = "components/artifact.webapp-core/files/scripts/scaffold_webapp_evidence.py"
+          replace_once(
+              path,
+              '    dict[str, object],\n]:\n',
+              '    dict[str, dict[str, Any]],\n]:\n',
+          )
+          replace_once(
+              path,
+              '    targets_by_record_id: dict[str, object] = {}\n',
+              '    records_by_id: dict[str, dict[str, Any]] = {}\n',
+          )
+          replace_once(
+              path,
+              '            targets_by_record_id[record_id_value] = record.get("target")\n    return by_target, statuses, targets_by_record_id\n',
+              '            records_by_id[record_id_value] = record\n    return by_target, statuses, records_by_id\n',
+          )
+          replace_once(
+              path,
+              '    targets_by_record_id: dict[str, object],\n',
+              '    records_by_id: dict[str, dict[str, Any]],\n',
+          )
+          replace_once(
+              path,
+              '            for record_id_value in record_ids:\n                artifact_kinds = set(\n                    artifact_required_proof_kinds(\n                        targets_by_record_id.get(record_id_value)\n                    )\n                )\n                if artifact_kinds and declared_kinds.isdisjoint(artifact_kinds):\n                    item["status"] = "missing"\n                    break\n',
+              '            for record_id_value in record_ids:\n                linked_record = records_by_id.get(record_id_value)\n                if linked_record is None:\n                    continue\n                artifact_kinds = set(\n                    artifact_required_proof_kinds(linked_record.get("target"))\n                )\n                if artifact_kinds and declared_kinds.isdisjoint(artifact_kinds):\n                    item["status"] = "missing"\n                positive = linked_record.get("positiveEvidence")\n                if not isinstance(positive, list) or not any(\n                    isinstance(proof, dict) and proof.get("kind") in declared_kinds\n                    for proof in positive\n                ):\n                    item["status"] = "missing"\n',
+          )
+          replace_once(
+              path,
+              '    return sorted(projected, key=lambda item: item["id"])\n\n\ndef _artifact_proof_requirements(\n',
+              '    return sorted(projected, key=lambda item: item["id"])\n\n\ndef _requirement_ledger_status(\n    evidence: dict[str, Any], projected_requirements: list[dict[str, Any]]\n) -> str:\n    if evidence.get("mode") != "product":\n        return "not-applicable"\n    return "verified" if projected_requirements else "missing"\n\n\ndef _artifact_proof_requirements(\n',
+          )
+          replace_once(
+              path,
+              '    canonical_by_target, record_statuses, targets_by_record_id = _canonical_records(\n        evidence\n    )\n',
+              '    canonical_by_target, record_statuses, records_by_id = _canonical_records(\n        evidence\n    )\n',
+          )
+          replace_once(
+              path,
+              '    projected_requirements = _project_requirements(\n        evidence, record_statuses, targets_by_record_id\n    )\n    status = _status_union(\n        list(projected_statuses.values())\n        + [item["status"] for item in projected_requirements]\n    )\n',
+              '    projected_requirements = _project_requirements(\n        evidence, record_statuses, records_by_id\n    )\n    requirement_ledger_status = _requirement_ledger_status(\n        evidence, projected_requirements\n    )\n    status_inputs = (\n        list(projected_statuses.values())\n        + [item["status"] for item in projected_requirements]\n    )\n    if requirement_ledger_status == "missing":\n        status_inputs.append("missing")\n    status = _status_union(status_inputs)\n',
+          )
+          replace_once(
+              path,
+              '        "requirementStatusCounts": {\n            value: sum(item["status"] == value for item in projected_requirements)\n            for value in STATUSES\n        },\n',
+              '        "requirementStatusCounts": {\n            value: sum(item["status"] == value for item in projected_requirements)\n            for value in STATUSES\n        },\n        "requirementLedgerStatus": requirement_ledger_status,\n',
+          )
+
+          replace_once(
+              "components/artifact.webapp-core/files/TEMPLATE.md",
+              'The v2 projection keeps a browser-sensitive record `[missing]` until both evidence directions contain an allowed kind, keeps a linked requirement `[missing]` until its `requiredPositiveProofKinds` intersects the artifact-mandated set, and combines record plus requirement status into the top-level `status`; `statusCounts` remains the record count and `requirementStatusCounts` reports requirement state separately.',
+              'The v2 projection keeps a browser-sensitive record `[missing]` until both evidence directions contain an allowed kind, keeps a linked requirement `[missing]` until its `requiredPositiveProofKinds` intersects the artifact-mandated set and every linked record contains positive evidence with one of the requirement-declared kinds, and combines record plus requirement status into the top-level `status`. Product mode also exposes `requirementLedgerStatus` and cannot project green while the mandatory requirement ledger is empty; `statusCounts` remains the record count and `requirementStatusCounts` reports requirement-row state separately.',
+          )
+
+          Path(".github/workflows/tmp-align-worklist-requirement-traceability.yml").unlink()
+          PY
+      - name: Commit alignment and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "TakashiSasaki templates automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Project generic requirement traceability into Webapp worklists"
+          git push origin HEAD:agent/webapp-worklist-proof-obligations-pr12
