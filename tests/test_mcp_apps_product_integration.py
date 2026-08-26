@@ -146,13 +146,18 @@ class McpAppsProductIntegrationTests(unittest.TestCase):
                 },
             )
             product_apps = apps_case.apps_contract()
+            product_extension = product_apps["extension"]
             self.write_json(
                 target / "contracts/mcp-apps.json",
                 {
                     "$schema": "../schemas/mcp-apps.schema.json",
                     "schemaVersion": 2,
                     "mode": "planning",
-                    "extension": deepcopy(product_apps["extension"]),
+                    "extension": {
+                        "id": product_extension["id"],
+                        "identifier": product_extension["identifier"],
+                        "revision": product_extension["revision"],
+                    },
                     "views": [
                         {"id": view["id"], "purpose": "Render the declared MCP App View."}
                         for view in product_apps["views"]
