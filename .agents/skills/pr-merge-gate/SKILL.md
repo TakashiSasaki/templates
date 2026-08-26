@@ -54,7 +54,7 @@ Record at the beginning of every gate pass:
 4. current exact PR head SHA;
 5. intended semantic scope and effective changed-file set;
 6. exact-head required check state;
-7. CI discovery evidence and conclusion (`CI_DISCOVERED`, `CI_DISCOVERY_PENDING`, or confirmed absent), including the live views consulted;
+7. CI discovery evidence and conclusion (`CI_DISCOVERED`, `CI_DISCOVERY_PENDING`, or `CI_CONFIRMED_ABSENT`), including the live views consulted;
 8. review-request state;
 9. completed independent review evidence and reviewed SHA, if any;
 10. unresolved review-thread count and dispositions;
@@ -76,11 +76,13 @@ Do not skip states. In particular:
 - `reviews = 0 -> MERGE_ALLOWED` is forbidden;
 - absence of review findings is not evidence that review occurred.
 
-Use `CI_DISCOVERY_PENDING` as a transient fail-closed state whenever a workflow or check expected under the current workflow definition is not yet observable for the exact current head and its absence has not been corroborated. `CI_DISCOVERY_PENDING` is neither CI success nor CI failure. It cannot transition directly to `CI_GREEN`, `BLOCKED_CI`, a retrigger mutation, or `MERGE_ALLOWED`; resolve the discovery evidence first.
+Use `CI_DISCOVERY_PENDING` as a transient fail-closed state whenever a workflow or check expected under the current workflow definition is not yet observable for the exact current head and its absence has not been corroborated. `CI_DISCOVERY_PENDING` is neither CI success nor CI failure. It may resolve only to `CI_DISCOVERED` when the expected exact-head evidence becomes visible, or to `CI_CONFIRMED_ABSENT` after the full confirmed-absence protocol succeeds. It cannot transition directly to `CI_GREEN`, `BLOCKED_CI`, a retrigger mutation, or `MERGE_ALLOWED`.
+
+Use `CI_CONFIRMED_ABSENT` only when the confirmed-absence protocol below is satisfied and its concrete observations are recorded. `CI_CONFIRMED_ABSENT` is not a success state and cannot transition to `CI_GREEN` or `MERGE_ALLOWED`; it must lead to `BLOCKED_CI` or to an explicitly justified recovery action, after which discovery begins again for the resulting current head/state.
 
 Use explicit blocked states when the success path cannot advance:
 
-- `BLOCKED_CI`: a required exact-head check is pending, failed, stale, unjustifiably skipped, or confirmed absent after the CI discovery protocol;
+- `BLOCKED_CI`: a required exact-head check is pending, failed, stale, unjustifiably skipped, or is in `CI_CONFIRMED_ABSENT` after the CI discovery protocol;
 - `BLOCKED_REVIEW_MISSING`: no completed independent review exists;
 - `BLOCKED_REVIEW_PENDING`: review was requested but has not completed;
 - `BLOCKED_REVIEW_STALE`: relied-upon review applies to an older head;
@@ -111,17 +113,17 @@ When an expected exact-head run is not visible, enter `CI_DISCOVERY_PENDING` and
 4. Refresh an exact-commit check-run/check-suite view for the same head SHA. Treat the workflow-run view and exact-commit check-run/check-suite view as independently indexed live views; when another independently indexed repository view is available, it may be used as additional corroboration.
 5. Reconcile any discovered run/check to the exact head and expected workflow before classifying it. An older-head result is stale evidence. A concurrency-cancelled run that was superseded by a newer applicable exact-head run is not by itself a CI failure; evaluate the newest applicable run.
 
-Do not classify an expected run as confirmed absent from a single zero-result view, from repeated queries against only one index, or from elapsed wall-clock time alone. A fixed sleep or observation delay is not evidence. Confirmed absence requires all of the following:
+Do not classify an expected run as `CI_CONFIRMED_ABSENT` from a single zero-result view, from repeated queries against only one index, or from elapsed wall-clock time alone. A fixed sleep or observation delay is not evidence. `CI_CONFIRMED_ABSENT` requires all of the following:
 
 - the PR head remained unchanged throughout the observation;
 - the current workflow definition still says the run should exist for that event and scope;
 - the expected run/check remains absent after repeated read-only refreshes in at least two independently indexed live views, including both a workflow-run view and an exact-commit check-run/check-suite view when those views are available;
 - no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists;
-- the agent can state the concrete observations that support the confirmed-absent decision.
+- the agent can state the concrete observations that support the `CI_CONFIRMED_ABSENT` decision.
 
-If those conditions are not all satisfied, remain `CI_DISCOVERY_PENDING`. When doubt remains, fail closed in `CI_DISCOVERY_PENDING`; confirmed absence is a positive evidence decision, not the default result of a timeout or a search returning zero rows.
+If those conditions are not all satisfied, remain `CI_DISCOVERY_PENDING`. When doubt remains, fail closed in `CI_DISCOVERY_PENDING`; `CI_CONFIRMED_ABSENT` is a positive evidence decision, not the default result of a timeout or a search returning zero rows.
 
-Do not close and reopen the pull request, create a no-op commit, push an unrelated change, or otherwise mutate repository/PR state solely to retrigger CI while `CI_DISCOVERY_PENDING`. Only after absence is positively confirmed may a recovery mutation be considered, and the evidence for the confirmed-absent decision must be recorded first. Prefer the least stateful supported recovery action; closing and reopening a PR is an exceptional last-resort recovery operation, not a normal discovery mechanism.
+Do not close and reopen the pull request, create a no-op commit, push an unrelated change, or otherwise mutate repository/PR state solely to retrigger CI while `CI_DISCOVERY_PENDING`. Only after entering `CI_CONFIRMED_ABSENT` may a recovery mutation be considered, and the evidence for that decision must be recorded first. Prefer the least stateful supported recovery action; closing and reopening a PR is an exceptional last-resort recovery operation, not a normal discovery mechanism.
 
 Once all required exact-head workflows/checks are positively discovered or explicitly non-applicable under current policy, record `CI_DISCOVERED`. Advance to `CI_GREEN` only after every required discovered check has an acceptable exact-head result.
 
@@ -158,7 +160,7 @@ Immediately before merge, fetch live state again and verify all of the following
 - current PR head equals the exact accepted head;
 - current target-branch head/base drift is evaluated;
 - effective diff still matches intended scope;
-- CI discovery is resolved as `CI_DISCOVERED`, not `CI_DISCOVERY_PENDING` or assumed absence;
+- CI discovery is resolved as `CI_DISCOVERED`, not `CI_DISCOVERY_PENDING`, `CI_CONFIRMED_ABSENT`, or assumed absence;
 - all required checks for that exact head are successful or explicitly non-applicable under current policy;
 - completed independent review evidence count is at least one;
 - the relied-upon review applies to the exact current head;
@@ -194,9 +196,10 @@ Keep these distinctions explicit:
 Keep these distinctions explicit:
 
 - `zero workflow runs returned` != `workflow did not fire`;
-- `CI_DISCOVERY_PENDING` != `BLOCKED_CI`;
+- `CI_DISCOVERY_PENDING` != `CI_CONFIRMED_ABSENT`;
+- `CI_CONFIRMED_ABSENT` != `BLOCKED_CI` until the absence decision is dispositioned;
 - `CI_DISCOVERED` != `CI_GREEN`;
-- elapsed time != confirmed absence;
+- elapsed time != `CI_CONFIRMED_ABSENT`;
 - older-head run != exact-head evidence;
 - concurrency-cancelled superseded run != current exact-head failure;
 - retrigger mutation != discovery evidence.
@@ -205,7 +208,8 @@ Keep these distinctions explicit:
 
 Do not declare merge readiness and do not call the merge operation if any of the following is true:
 
-- CI discovery is `CI_DISCOVERY_PENDING` or expected-run absence is not positively corroborated;
+- CI discovery is `CI_DISCOVERY_PENDING` or `CI_CONFIRMED_ABSENT`;
+- expected-run absence has not been positively corroborated;
 - completed independent review evidence count is zero;
 - only a review request or pending review exists;
 - relied-upon review targets a different head;
@@ -229,7 +233,7 @@ Report at completion:
 - completed independent review evidence and reviewed SHA;
 - unresolved thread/finding status;
 - base-drift decision;
-- final live-state decision (`MERGE_ALLOWED`, `CI_DISCOVERY_PENDING`, or specific `BLOCKED_*` state);
+- final live-state decision (`MERGE_ALLOWED`, `CI_DISCOVERY_PENDING`, `CI_CONFIRMED_ABSENT`, or specific `BLOCKED_*` state);
 - `expected_head_sha` used for merge;
 - merge result and merge commit SHA;
 - any separate post-merge release/publication status.
