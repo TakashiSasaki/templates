@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
