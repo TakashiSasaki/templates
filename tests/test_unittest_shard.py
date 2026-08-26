@@ -6,8 +6,10 @@ from collections import Counter
 from pathlib import Path
 
 from scripts.run_unittest_shard import (
+    REAL_BROWSER_TEST_IDS,
     TWO_SHARD_TIMING_OVERRIDES,
     discover_tests,
+    select_tests_for_suite,
     shard_index_for_test_id,
 )
 
@@ -69,25 +71,50 @@ class UnittestShardTests(unittest.TestCase):
         }
         self.assertEqual(duplicates, {})
 
+    def test_named_suites_form_an_exact_partition_of_repository_discovery(self) -> None:
+        discovered = discover_tests(ROOT / "tests", "test*.py")
+        all_tests = select_tests_for_suite(discovered, "all")
+        core_tests = select_tests_for_suite(discovered, "core")
+        browser_tests = select_tests_for_suite(discovered, "real-browser")
+
+        all_ids = {test.id() for test in all_tests}
+        core_ids = {test.id() for test in core_tests}
+        browser_ids = {test.id() for test in browser_tests}
+        self.assertEqual(browser_ids, set(REAL_BROWSER_TEST_IDS))
+        self.assertEqual(len(browser_ids), 7)
+        self.assertFalse(core_ids & browser_ids)
+        self.assertEqual(core_ids | browser_ids, all_ids)
+        self.assertEqual(len(core_tests) + len(browser_tests), len(all_tests))
+
     def test_invalid_shard_count_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least 1"):
             shard_index_for_test_id("test_example.ExampleTests.test_case", 0)
 
-    def test_schema_workflow_preserves_full_validation_gate_around_two_shards(self) -> None:
+    def test_schema_workflow_preserves_full_validation_gate_around_core_and_browser_suites(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("\n  primary:\n", workflow)
-        self.assertIn("name: preflight + tests (2/2)", workflow)
+        self.assertIn("name: preflight + core tests (2/2)", workflow)
         self.assertIn("\n  parallel:\n", workflow)
-        self.assertIn("name: tests (1/2)", workflow)
+        self.assertIn("name: core tests (1/2)", workflow)
+        self.assertIn("\n  real_browser:\n", workflow)
+        self.assertIn("name: real-browser acceptance", workflow)
         self.assertIn("\n  validate:\n", workflow)
-        self.assertIn("scripts/run_unittest_shard.py --shard-count 2 --verify-only", workflow)
+        self.assertIn(
+            "scripts/run_unittest_shard.py --suite core --shard-count 2 --verify-only",
+            workflow,
+        )
+        self.assertIn("--suite core", workflow)
         self.assertIn("--shard-index 1", workflow)
         self.assertIn("--shard-index 0", workflow)
+        self.assertIn("--suite real-browser", workflow)
+        self.assertIn("--shard-count 1", workflow)
         self.assertIn("if: always()", workflow)
         self.assertIn("- primary", workflow)
         self.assertIn("- parallel", workflow)
+        self.assertIn("- real_browser", workflow)
         self.assertIn("PRIMARY_RESULT: ${{ needs.primary.result }}", workflow)
         self.assertIn("PARALLEL_RESULT: ${{ needs.parallel.result }}", workflow)
+        self.assertIn("BROWSER_RESULT: ${{ needs.real_browser.result }}", workflow)
         self.assertNotIn("needs: preflight", workflow)
         self.assertNotIn("python -m unittest discover -s tests -v", workflow)
 

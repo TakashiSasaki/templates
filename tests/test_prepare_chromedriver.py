@@ -135,12 +135,16 @@ class PrepareChromeDriverTests(unittest.TestCase):
                             Path(temporary) / "chromedriver",
                         )
 
-    def test_schema_workflow_prepares_driver_for_both_test_bearing_jobs(self) -> None:
+    def test_schema_workflow_prepares_driver_only_for_real_browser_job(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertEqual(workflow.count("- name: Prepare compatible ChromeDriver"), 2)
-        self.assertEqual(workflow.count("scripts/prepare_chromedriver.py"), 2)
-        self.assertEqual(workflow.count('echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"'), 2)
-        self.assertEqual(workflow.count('"$CHROMEWEBDRIVER" --version'), 2)
+        self.assertEqual(workflow.count("- name: Prepare compatible ChromeDriver"), 1)
+        self.assertEqual(workflow.count("scripts/prepare_chromedriver.py"), 1)
+        self.assertEqual(workflow.count('echo "CHROMEWEBDRIVER=$driver_path" >> "$GITHUB_ENV"'), 1)
+        self.assertEqual(workflow.count('"$CHROMEWEBDRIVER" --version'), 1)
+        browser_job = workflow.split("\n  real_browser:\n", 1)[1].split("\n  validate:\n", 1)[0]
+        core_jobs = workflow.split("\n  real_browser:\n", 1)[0]
+        self.assertIn("Prepare compatible ChromeDriver", browser_job)
+        self.assertNotIn("Prepare compatible ChromeDriver", core_jobs)
         self.assertNotIn("\n          chromedriver --version\n", workflow)
 
 
