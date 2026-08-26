@@ -25,6 +25,8 @@ PROOF_KIND_CAPABILITY = {
 }
 _DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+_PYTHON_MODULE_SEGMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_HARNESS_INVOCATIONS = {"python-script", "python-unittest", "direct"}
 
 
 def _safe_repository_locator(value: str) -> bool:
@@ -45,6 +47,28 @@ def _safe_repository_locator(value: str) -> bool:
         and _REPOSITORY_SEGMENT_PATTERN.fullmatch(part) is not None
         for part in parts
     )
+
+
+def _python_module_from_locator(locator: str) -> str | None:
+    if not locator.endswith(".py"):
+        return None
+    parts = locator[:-3].split("/")
+    if not parts or not all(_PYTHON_MODULE_SEGMENT_PATTERN.fullmatch(part) for part in parts):
+        return None
+    return ".".join(parts)
+
+
+def expected_harness_command(locator: str, invocation: str) -> str | None:
+    """Return the only accepted human command rendering for a harness invocation."""
+
+    if invocation == "python-script":
+        return f"python {locator}"
+    if invocation == "python-unittest":
+        module = _python_module_from_locator(locator)
+        return f"python -m unittest {module}" if module is not None else None
+    if invocation == "direct":
+        return f"./{locator}"
+    return None
 
 
 def _duplicates(values: list[Any]) -> set[Any]:
@@ -172,7 +196,9 @@ def proof_execution_errors(
                     f"implementation command {command_id}: execution harness kind must be 'repository-file'"
                 )
             locator = harness.get("locator")
-            if not isinstance(locator, str) or not locator:
+            invocation = harness.get("invocation")
+            locator_valid = isinstance(locator, str) and bool(locator)
+            if not locator_valid:
                 errors.append(
                     f"implementation command {command_id}: execution harness locator is required"
                 )
@@ -180,7 +206,25 @@ def proof_execution_errors(
                 errors.append(
                     f"implementation command {command_id}: execution harness locator must be a safe repository-relative file path: {locator}"
                 )
-            elif root is not None:
+                locator_valid = False
+            if invocation not in _HARNESS_INVOCATIONS:
+                errors.append(
+                    f"implementation command {command_id}: execution harness invocation must be one of {sorted(_HARNESS_INVOCATIONS)}"
+                )
+            elif locator_valid:
+                assert isinstance(locator, str)
+                expected_command = expected_harness_command(locator, invocation)
+                if expected_command is None:
+                    errors.append(
+                        f"implementation command {command_id}: harness {locator!r} cannot use invocation {invocation!r}"
+                    )
+                elif command.get("command") != expected_command:
+                    errors.append(
+                        f"implementation command {command_id}: command must exactly invoke declared harness {locator!r} "
+                        f"using {invocation!r}; expected {expected_command!r}, got {command.get('command')!r}"
+                    )
+            if locator_valid and root is not None:
+                assert isinstance(locator, str)
                 candidate = root / locator
                 if candidate.is_symlink():
                     errors.append(
