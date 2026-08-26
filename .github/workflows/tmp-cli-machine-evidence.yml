@@ -17,11 +17,15 @@ jobs:
         with:
           ref: agent/cli-machine-evidence-pr14
           fetch-depth: 0
-      - name: Apply CLI authority patch
-        run: python .github/tmp-cli-machine-evidence.py
+      - name: Fix and apply CLI authority patch
+        shell: bash
+        run: |
+          python .github/fix-cli-machine-evidence-script.py
+          python .github/tmp-cli-machine-evidence.py
       - name: Commit patch and remove temporary files
         shell: bash
         run: |
+          rm .github/fix-cli-machine-evidence-script.py
           rm .github/tmp-cli-machine-evidence.py
           rm .github/workflows/tmp-cli-machine-evidence.yml
           git config user.name "TakashiSasaki templates automation"
