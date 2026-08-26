@@ -71,6 +71,15 @@
       "purpose": "Validate selected service operation coverage and require executable implementation-evidence proof strength."
     },
     {
+      "id": "web-interface",
+      "component": "capability.web-interface",
+      "entrypoint": ".template-composition/validators/validate_web_interface.py",
+      "arguments": [
+        "."
+      ],
+      "purpose": "Validate standalone Web interface endpoint coverage and require browser-level or executable implementation-evidence proof strength."
+    },
+    {
       "id": "release-bundle-template",
       "component": "lifecycle.release-bundle",
       "entrypoint": ".template-composition/validators/validate_release_bundle.py",

@@ -2,7 +2,33 @@
 
 This contract is materialized by `capability.web-interface`. It defines an ordinary browser-facing page for verification, diagnostics, demonstration, or product operation. It is independent of MCP Apps.
 
-`RUNTIME.md` owns process, listener, port, container, gateway, reverse-proxy, external-origin, and deployment-selection choices. This file owns browser-visible routing, interaction, security, health, and failure behavior.
+`RUNTIME.md` owns process, listener, port, container, gateway, reverse-proxy, external-origin, and deployment-selection choices. `contracts/web-interface.json` owns the externally reachable endpoint inventory. This file owns the remaining interaction, security, health, and failure behavior.
+
+## Machine-readable endpoint authority
+
+`contracts/web-interface.json` is the authoritative inventory of externally reachable standalone Web interface endpoints. This Markdown file remains the qualitative authority for interaction, security, authorization, health, and failure-isolation policy that is not yet represented in the machine contract.
+
+Keep the machine contract in `template` mode while no product Web interface claim exists. Before product implementation evidence becomes active, switch it to `product` mode and enumerate every caller-visible endpoint with a stable `id`, `kind`, HTTP `method`, relative `path`, and `purpose`.
+
+Each product endpoint maps to one implementation-evidence target:
+
+```json
+{
+  "kind": "contract-item",
+  "contractId": "web_interface",
+  "itemKind": "endpoint",
+  "itemId": "<endpoint-id>"
+}
+```
+
+The capability validator requires exactly one evidence record per declared endpoint and at least one linked product requirement. Proof strength is endpoint-specific:
+
+- `browser-page`: positive and negative evidence must include `accessibility-test` or `end-to-end-test`, and a linked requirement must declare one of those browser-level proof kinds.
+- `backend-api` and `health`: positive and negative evidence must include `integration-test` or `end-to-end-test`, and a linked requirement must declare one of those executable proof kinds.
+
+A deferred proof may keep the evidence graph semantically valid, but release readiness remains blocked until the generic implementation-evidence release gate sees verified proof. Static inspection or unit-only proof is not sufficient to claim a caller-visible standalone interface is complete.
+
+This contract describes externally reachable interface endpoints. Internal Webapp routes remain owned by the Webapp route/surface contracts and must not be duplicated here unless they are also independently exposed as standalone interface endpoints.
 
 ## Status and purpose
 

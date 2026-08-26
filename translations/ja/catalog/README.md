@@ -24,7 +24,7 @@ optional application capability は、外部から見える product の挙動に
 | MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` | MCP protocol、transport、client、security、semantic-equivalence contract |
 | MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` | MCP Apps resource、bridge、visibility、sandbox、fallback contract |
 | 独立して到達可能な non-browser service | `capability.service` | `capability.runtime` + implementation evidence（および contract evolution） | machine-readable service operation contract と executable-proof enforcement |
-| application runtime によって提供される standalone browser-facing interface | `capability.web-interface` | `capability.runtime` | Web interface、routing、security、health、failure-isolation contract |
+| application runtime によって提供される standalone browser-facing interface | `capability.web-interface` | `capability.runtime` + implementation evidence（および contract evolution） | browser/executable proof-strength enforcement を伴う machine-readable external endpoint contract と、定性的な security / failure-isolation guidance |
 
 browser-facing artifact であることだけでは、`capability.runtime` や `capability.web-interface` は必要になりません。たとえば static/CDN Webapp は optional component なしで `webapp` recipe を使用できます。runtime-bound capability は、product が実際にその挙動を公開するときだけ追加します。
 
