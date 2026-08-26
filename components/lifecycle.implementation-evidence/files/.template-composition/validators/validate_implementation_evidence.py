@@ -102,6 +102,74 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
     return warnings
 
 
+
+def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
+    """Validate the explicit requirement -> record edge of the evidence graph.
+
+    Requirement text is intentionally opaque to this validator. Once a consumer
+    registers a stable requirement ID, however, its references must resolve to
+    verified implementation records. The existing record validation then closes
+    the graph through proofs, commands, and release gates.
+    """
+
+    requirements = evidence.get("requirements")
+    if requirements is None:
+        # The field is optional for legacy/template-shaped product documents.
+        # A consumer that declares requirements opts into the closed graph below.
+        return []
+    if not isinstance(requirements, list):
+        return ["implementation-evidence requirements must be an array"]
+
+    records = evidence.get("records", [])
+    if not isinstance(records, list):
+        return ["implementation-evidence records must be an array"]
+    records_by_id = {
+        record.get("id"): record
+        for record in records
+        if isinstance(record, dict) and isinstance(record.get("id"), str)
+    }
+
+    errors: list[str] = []
+    requirement_ids = [
+        requirement.get("id")
+        for requirement in requirements
+        if isinstance(requirement, dict)
+    ]
+    for duplicate in sorted(_duplicates(requirement_ids)):
+        errors.append(f"duplicate implementation-evidence requirement id: {duplicate}")
+
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            errors.append(f"requirement {index}: must be an object")
+            continue
+        requirement_id = requirement.get("id")
+        owner = f"requirement {requirement_id!r}"
+        record_refs = requirement.get("recordIds")
+        if not isinstance(record_refs, list) or not record_refs:
+            errors.append(f"{owner}: recordIds must contain at least one record")
+            continue
+        for duplicate in sorted(_duplicates(record_refs)):
+            errors.append(f"{owner}: duplicate record reference: {duplicate}")
+        for record_id in record_refs:
+            record = records_by_id.get(record_id)
+            if record is None:
+                errors.append(f"{owner}: unknown implementation-evidence record {record_id}")
+                continue
+            positive = record.get("positiveEvidence")
+            if not isinstance(positive, list) or not any(
+                isinstance(proof, dict) and proof.get("status") == "verified"
+                for proof in positive
+            ):
+                errors.append(
+                    f"{owner}: linked record {record_id} has no verified positive evidence"
+                )
+            gates = record.get("releaseGateIds")
+            if not isinstance(gates, list) or not gates:
+                errors.append(
+                    f"{owner}: linked record {record_id} has no release gate"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -146,6 +214,8 @@ def validate(root: Path) -> list[str]:
         return errors
     if mode != "product":
         return [f"unsupported implementation-evidence mode: {mode!r}"]
+
+    errors.extend(requirement_traceability_errors(evidence))
 
     for record in records:
         owner = f"record {record['id']}"
