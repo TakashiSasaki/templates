@@ -10,6 +10,10 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+from executable_proof_test_support import (
+    materialize_declared_harnesses,
+    upgrade_product_evidence_v6,
+)
 from lifecycle_checkpoint_test_support import (
     create_planning_checkpoint,
     planning_evidence_from_product,
@@ -53,7 +57,7 @@ class McpInterfaceContractTests(unittest.TestCase):
             }
         transport_record_id = "mcp-interface-transport-stdio"
         operation_record_id = "mcp-interface-operation-stdio-list-records"
-        return {
+        value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
             "schemaVersion": 5,
             "mode": "product",
@@ -65,6 +69,10 @@ class McpInterfaceContractTests(unittest.TestCase):
             ],
             "records": [record(transport_record_id, "transport", "stdio", "mcp-transport-positive", "mcp-transport-negative"), record(operation_record_id, "operation", "stdio-list-records", "mcp-operation-positive", "mcp-operation-negative")],
         }
+        return upgrade_product_evidence_v6(
+            value,
+            harness_by_command={"mcp-proof": "tests/test_mcp_contract.py"},
+        )
 
     def run_validator(self, contract: dict, evidence: dict) -> subprocess.CompletedProcess[str]:
         temp = tempfile.TemporaryDirectory()
@@ -184,6 +192,7 @@ class McpInterfaceContractTests(unittest.TestCase):
 
             self.write_json(target / "contracts" / "mcp-interface.json", self.product_contract())
             self.write_json(target / "contracts" / "implementation-evidence.json", product_evidence)
+            materialize_declared_harnesses(target, product_evidence)
             runner = target / ".template-composition" / "validate.py"
             validate_result = subprocess.run([sys.executable, str(runner), str(target), "--format", "json"], cwd=target, text=True, capture_output=True, check=False)
             try:
