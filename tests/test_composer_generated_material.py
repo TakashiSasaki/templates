@@ -63,6 +63,7 @@ class ComposerGeneratedMaterialTests(unittest.TestCase):
                 [entry["id"] for entry in manifest["contracts"]],
                 [
                     "implementation_evidence",
+                    "lifecycle_checkpoints",
                     "routes",
                     "surfaces",
                     "ui_states",
