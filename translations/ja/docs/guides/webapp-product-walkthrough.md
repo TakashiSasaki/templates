@@ -225,7 +225,7 @@ GET    /healthz
 ```json
 {
   "$schema": "../schemas/service-interface.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "product",
   "protocol": "http-json",
   "operations": [
@@ -283,7 +283,7 @@ python -m task_ledger.cli --database task-ledger.db export
 ```json
 {
   "$schema": "../schemas/cli-interface.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "product",
   "entrypoints": [
     {
