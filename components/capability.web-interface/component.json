@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "capability.web-interface",
   "kind": "capability",
-  "version": 2,
+  "version": 3,
   "summary": "Standalone browser-facing endpoint contract with machine-checked implementation evidence.",
   "requires": [
     "capability.runtime",

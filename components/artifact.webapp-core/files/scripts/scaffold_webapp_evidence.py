@@ -161,6 +161,13 @@ def _project_requirements(
                 f"canonical requirement {requirement_id!r} has invalid proof kinds"
             )
         item["requiredPositiveProofKinds"] = list(required_kinds)
+        targets = requirement.get("targets")
+        if targets is not None:
+            if not isinstance(targets, list):
+                raise ValueError(
+                    f"canonical requirement {requirement_id!r} has invalid targets"
+                )
+            item["targets"] = list(targets)
 
         if mode == "planning":
             if record_ids:

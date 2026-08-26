@@ -41,12 +41,60 @@ def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
     return {p.get("kind") for p in proofs if isinstance(p, dict) and isinstance(p.get("kind"), str)}
 
 
+
+def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        return ["planning implementation-evidence requirements must be an array"]
+    policies = {
+        "extension": EXTENSION_PROOF_KINDS,
+        "view": VIEW_PROOF_KINDS,
+        "association": ASSOCIATION_PROOF_KINDS,
+    }
+    errors: list[str] = []
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            continue
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        for target in requirement.get("targets", []):
+            key = target_key(target)
+            if key[1] != "mcp_apps":
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            item_kind = key[2]
+            allowed = policies.get(item_kind)
+            if key[0] != "contract-item" or allowed is None:
+                errors.append(
+                    f"MCP Apps planning requirement {requirement_id!r} has unsupported "
+                    f"target {key}; Apps planning targets must be extension, view, or association items"
+                )
+                continue
+            if item_kind == "extension" and key[3] != "mcp-apps":
+                errors.append(
+                    f"MCP Apps planning requirement {requirement_id!r} must use the stable "
+                    "extension target id 'mcp-apps'"
+                )
+            if declared.isdisjoint(allowed):
+                errors.append(
+                    f"MCP Apps planning requirement {requirement_id!r} targets {item_kind} "
+                    f"{key[3]!r} and must declare compatible requiredPositiveProofKinds "
+                    f"({', '.join(sorted(allowed))})"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     apps = load_json(root, APPS_CONTRACT)
     mcp = load_json(root, MCP_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     apps_mode = apps.get("mode")
     evidence_mode = evidence.get("mode")
+
+    if evidence_mode == "planning":
+        return planning_requirement_errors(evidence)
 
     if apps_mode == "template":
         if evidence_mode == "product":
@@ -173,7 +221,11 @@ def main() -> int:
     if errors:
         for error in errors: print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("MCP Apps contract/evidence coverage: OK")
+    evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
+    if evidence.get("mode") == "planning":
+        print("MCP Apps planning targets and proof strength: OK")
+    else:
+        print("MCP Apps contract/evidence coverage: OK")
     return 0
 
 

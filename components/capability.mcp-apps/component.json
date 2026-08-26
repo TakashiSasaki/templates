@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "capability.mcp-apps",
   "kind": "capability",
-  "version": 2,
+  "version": 3,
   "summary": "Machine-readable MCP Apps extension, View resource, and tool association contract.",
   "requires": [
     "capability.mcp"

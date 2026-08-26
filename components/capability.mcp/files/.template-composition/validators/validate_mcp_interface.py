@@ -52,11 +52,47 @@ def evidence_target(item_kind: str, item_id: str) -> tuple[str, str, str, str]:
     return ("contract-item", "mcp_interface", item_kind, item_id)
 
 
+
+def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        return ["planning implementation-evidence requirements must be an array"]
+    errors: list[str] = []
+    allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            continue
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        for target in requirement.get("targets", []):
+            key = target_key(target)
+            if key[1] != "mcp_interface":
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            if key[0] != "contract-item" or key[2] not in {"transport", "operation"}:
+                errors.append(
+                    f"MCP planning requirement {requirement_id!r} has unsupported target {key}; "
+                    "MCP planning targets must be transport or operation contract items"
+                )
+            elif declared.isdisjoint(EXECUTABLE_PROOF_KINDS):
+                errors.append(
+                    f"MCP planning requirement {requirement_id!r} targets {key[2]} "
+                    f"{key[3]!r} and must declare an executable requiredPositiveProofKinds "
+                    f"value ({allowed})"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     contract = load_json(root, MCP_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     mcp_mode = contract.get("mode")
     evidence_mode = evidence.get("mode")
+
+    if evidence_mode == "planning":
+        return planning_requirement_errors(evidence)
 
     if mcp_mode == "template":
         if evidence_mode == "product":
@@ -249,7 +285,10 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     contract = load_json(root, MCP_CONTRACT)
-    if contract.get("mode") == "template":
+    evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
+    if evidence.get("mode") == "planning":
+        print("MCP planning targets and executable proof strength: OK")
+    elif contract.get("mode") == "template":
         print("MCP interface: template mode OK; no product transport/operation claim is active")
     else:
         print("MCP transport/operation coverage and executable proof strength: OK")

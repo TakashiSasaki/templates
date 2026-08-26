@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "capability.service",
   "kind": "capability",
-  "version": 2,
+  "version": 3,
   "summary": "Independently reachable non-browser service contract.",
   "requires": [
     "capability.runtime",

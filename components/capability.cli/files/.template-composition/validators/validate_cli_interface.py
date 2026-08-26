@@ -46,11 +46,47 @@ def proof_kinds(record: dict[str, Any], field: str) -> set[str]:
     }
 
 
+
+def planning_requirement_errors(evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        return ["planning implementation-evidence requirements must be an array"]
+    errors: list[str] = []
+    allowed = ", ".join(sorted(EXECUTABLE_PROOF_KINDS))
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            continue
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        for target in requirement.get("targets", []):
+            key = target_key(target)
+            if key[1] != "cli_interface":
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            if key[0] != "contract-item" or key[2] != "entrypoint":
+                errors.append(
+                    f"CLI planning requirement {requirement_id!r} has unsupported target {key}; "
+                    "CLI planning targets must be contract-item/cli_interface/entrypoint"
+                )
+            elif declared.isdisjoint(EXECUTABLE_PROOF_KINDS):
+                errors.append(
+                    f"CLI planning requirement {requirement_id!r} targets entrypoint "
+                    f"{key[3]!r} and must declare an executable requiredPositiveProofKinds "
+                    f"value ({allowed})"
+                )
+    return errors
+
 def validate(root: Path) -> list[str]:
     contract = load_json(root, CLI_CONTRACT)
     evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
     cli_mode = contract.get("mode")
     evidence_mode = evidence.get("mode")
+
+    if evidence_mode == "planning":
+        return planning_requirement_errors(evidence)
 
     if cli_mode == "template":
         if evidence_mode == "product":
@@ -207,7 +243,10 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
     contract = load_json(root, CLI_CONTRACT)
-    if contract.get("mode") == "template":
+    evidence = load_json(root, IMPLEMENTATION_EVIDENCE)
+    if evidence.get("mode") == "planning":
+        print("CLI planning targets and executable proof strength: OK")
+    elif contract.get("mode") == "template":
         print("CLI interface: template mode OK; no product CLI claim is active")
     else:
         print("CLI interface and executable evidence strength: OK")

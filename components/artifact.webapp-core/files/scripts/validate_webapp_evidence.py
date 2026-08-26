@@ -144,6 +144,50 @@ def browser_level_requirement_errors(evidence: dict[str, Any]) -> list[str]:
     return errors
 
 
+
+def planning_requirement_errors(root: Path, evidence: dict[str, Any]) -> list[str]:
+    requirements = evidence.get("requirements")
+    if not isinstance(requirements, list):
+        raise TypeError("implementation evidence requirements must be a JSON array")
+    allowed = {target_key(target) for target in allowed_targets(root)}
+    allowed_kinds = ", ".join(sorted(BROWSER_LEVEL_PROOF_KINDS))
+    errors: list[str] = []
+    for index, requirement in enumerate(requirements):
+        if not isinstance(requirement, dict):
+            raise TypeError(f"implementation evidence requirement {index} must be a JSON object")
+        declared = {
+            kind
+            for kind in requirement.get("requiredPositiveProofKinds", [])
+            if isinstance(kind, str)
+        }
+        targets = requirement.get("targets")
+        if not isinstance(targets, list):
+            raise TypeError(
+                f"implementation evidence requirement {index} targets must be a JSON array"
+            )
+        for target in targets:
+            if not isinstance(target, dict):
+                raise TypeError(
+                    f"implementation evidence requirement {index} target must be a JSON object"
+                )
+            key = target_key(target)
+            if len(key) < 2 or key[1] not in DOMAIN_IDS:
+                continue
+            requirement_id = requirement.get("id", f"index-{index}")
+            if key not in allowed:
+                errors.append(
+                    f"unknown planning Webapp requirement target for {requirement_id!r}: {key}"
+                )
+            if requires_browser_level_proof(target) and declared.isdisjoint(
+                BROWSER_LEVEL_PROOF_KINDS
+            ):
+                errors.append(
+                    f"planning requirement {requirement_id!r} targets browser-sensitive "
+                    f"Webapp item {key} and must declare at least one browser-level "
+                    f"requiredPositiveProofKinds value ({allowed_kinds})"
+                )
+    return errors
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -164,7 +208,12 @@ def main() -> int:
             print("Webapp evidence coverage: template mode OK")
             return 0
         if mode == "planning":
-            print("Webapp evidence coverage: planning mode; product target coverage pending")
+            planning_errors = planning_requirement_errors(root, evidence)
+            if planning_errors:
+                for error in planning_errors:
+                    print(f"ERROR: {error}", file=sys.stderr)
+                return 1
+            print("Webapp planning targets and browser proof strength: OK")
             return 0
         if mode != "product":
             raise ValueError(f"unsupported implementation-evidence mode: {mode!r}")
