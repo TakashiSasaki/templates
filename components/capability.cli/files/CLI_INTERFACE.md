@@ -6,9 +6,14 @@ Private helper scripts are not public CLIs and do not require this contract.
 
 ## Machine-readable authority
 
-`contracts/cli-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product CLI claim. Switch it to `product` only after every caller-visible entrypoint is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each entrypoint.
+`contracts/cli-interface.json` is the canonical machine-readable state for this selected capability. Its lifecycle is `template` -> `planning` -> `product`.
 
-When `capability.cli` is selected, product implementation evidence cannot remain release-valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation. Use `integration-test` or `end-to-end-test` proof kinds for the required executable positive and negative evidence.
+- `template` makes no caller-visible CLI claim and keeps the entrypoint inventory empty.
+- Before product coding, switch to `planning` and enumerate every intended caller-visible entrypoint by stable `id` and non-empty `purpose`. Do not invent implementation commands, working directories, output selectors, or exit-code mappings at this stage.
+- Bind each planned entrypoint exactly to an implementation-evidence planning target `contract-item / cli_interface / entrypoint / <entrypoint-id>`, with executable proof strength declared before coding. Composition validation must pass in this planning state.
+- Promote the same stable IDs to `product` only when the operational invocation/output/exit-code contract is concrete. Product implementation evidence then supplies the executable positive and negative proof for those entrypoints.
+
+When `capability.cli` is selected, planning implementation evidence cannot validate while this contract is still in `template` mode, and phantom planning target IDs are rejected. Product implementation evidence cannot remain release-valid while this contract is not in `product` mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation. Use `integration-test` or `end-to-end-test` proof kinds for caller-visible CLI execution.
 
 Keep the narrative notes below aligned with the machine contract; when they conflict, the JSON contract is authoritative for validation.
 
