@@ -141,7 +141,7 @@ If any condition changed, leave `MERGE_ALLOWED` and report the corresponding blo
 
 ### 8. Merge with an immutable head guard
 
-Only after the final live-state refresh reaches `MERGE_ALLOWED`, invoke the repository merge operation with `expected_head_sha` set to the exact accepted PR head SHA. Never omit `expected_head_sha` for an agent-performed merge.
+Only after the final live-state refresh reaches `MERGE_ALLOWED`, invoke the repository merge operation with `expected_head_sha` set to the exact accepted PR head SHA. In this repository's GitHub connector, use the merge operation's `expected_head_sha` argument; the corresponding GitHub REST merge field is `sha`. Never omit `expected_head_sha` for an agent-performed merge.
 
 If the merge API rejects the operation because the head or repository state moved, do not retry blindly. Refresh live state and run the gate again.
 
