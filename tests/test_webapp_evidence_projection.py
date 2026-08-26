@@ -67,8 +67,12 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
                             "itemId": "main",
                         },
                         "implementationBoundary": {"status": "verified"},
-                        "positiveEvidence": [{"status": proof_status}],
-                        "negativeEvidence": [{"status": "verified"}],
+                        "positiveEvidence": [
+                            {"status": proof_status, "kind": "end-to-end-test"}
+                        ],
+                        "negativeEvidence": [
+                            {"status": "verified", "kind": "end-to-end-test"}
+                        ],
                         "releaseGateIds": ["release"],
                     }
                 ],
@@ -96,6 +100,7 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
                 [{"id": "surfaces-surface-main", "status": "verified"}],
             )
             self.assertEqual(verified["requirements"][0]["status"], "verified")
+            self.assertEqual(verified["artifactProofRequirements"], [])
 
             self.fixture(root, "deferred")
             deferred = self.assert_render_does_not_mutate(root)
@@ -113,16 +118,42 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             self.write_json(root / "contracts/surfaces.json", {"surfaces": [{"id": "main"}]})
-            self.write_json(root / "contracts/routes.json", {"routes": []})
+            self.write_json(root / "contracts/routes.json", {"routes": [{"id": "home"}]})
             self.write_json(root / "contracts/ui-states.json", {"states": []})
-            self.write_json(root / "contracts/viewports.json", {"viewports": [], "inputCapabilities": []})
+            self.write_json(
+                root / "contracts/viewports.json",
+                {"viewports": [{"id": "base"}], "inputCapabilities": ["keyboard"]},
+            )
 
             worklist = scaffold.render_worklist(root)
 
             self.assertEqual(worklist["status"], "missing")
-            self.assertEqual(worklist["statusCounts"]["missing"], 1)
-            self.assertEqual(worklist["recordStatuses"][0]["status"], "missing")
+            self.assertEqual(worklist["statusCounts"]["missing"], 4)
+            self.assertTrue(
+                all(item["status"] == "missing" for item in worklist["recordStatuses"])
+            )
             self.assertEqual(worklist["requirements"], [])
+            self.assertEqual(
+                [item["recordId"] for item in worklist["artifactProofRequirements"]],
+                [
+                    "routes-route-home",
+                    "viewports-input-capability-keyboard",
+                    "viewports-viewport-base",
+                ],
+            )
+            for item in worklist["artifactProofRequirements"]:
+                self.assertEqual(
+                    item["positiveEvidenceKindAtLeastOneOf"],
+                    ["accessibility-test", "end-to-end-test"],
+                )
+                self.assertEqual(
+                    item["negativeEvidenceKindAtLeastOneOf"],
+                    ["accessibility-test", "end-to-end-test"],
+                )
+                self.assertEqual(
+                    item["linkedRequirementRequiredPositiveProofKindAtLeastOneOf"],
+                    ["accessibility-test", "end-to-end-test"],
+                )
 
 
 if __name__ == "__main__":

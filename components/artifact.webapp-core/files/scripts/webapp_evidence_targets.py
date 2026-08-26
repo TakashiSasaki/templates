@@ -9,6 +9,14 @@ from typing import Any
 
 DOMAIN_IDS = {"surfaces", "routes", "ui_states", "viewports"}
 RECORD_ID = re.compile(r"^[a-z][a-z0-9-]*$")
+BROWSER_LEVEL_PROOF_KINDS = ("accessibility-test", "end-to-end-test")
+BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
+    {
+        ("routes", "route"),
+        ("viewports", "input-capability"),
+        ("viewports", "viewport"),
+    }
+)
 
 
 def load_json(root: Path, relative: str) -> dict[str, Any]:
@@ -29,6 +37,22 @@ def target_key(target: dict[str, Any]) -> tuple[Any, ...]:
         target.get("itemKind"),
         target.get("itemId"),
     )
+
+
+def artifact_required_proof_kinds(target: object) -> tuple[str, ...]:
+    """Return artifact-mandated proof-kind alternatives for a Webapp target."""
+    if (
+        isinstance(target, dict)
+        and target.get("kind") == "contract-item"
+        and (target.get("contractId"), target.get("itemKind"))
+        in BROWSER_SENSITIVE_CONTRACT_ITEMS
+    ):
+        return BROWSER_LEVEL_PROOF_KINDS
+    return ()
+
+
+def requires_browser_level_proof(target: object) -> bool:
+    return bool(artifact_required_proof_kinds(target))
 
 
 def _sort_key(target: dict[str, Any]) -> str:

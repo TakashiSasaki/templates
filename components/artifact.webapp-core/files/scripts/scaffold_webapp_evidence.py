@@ -10,9 +10,19 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
-    from .webapp_evidence_targets import expected_targets, record_id, target_key
+    from .webapp_evidence_targets import (
+        artifact_required_proof_kinds,
+        expected_targets,
+        record_id,
+        target_key,
+    )
 else:
-    from webapp_evidence_targets import expected_targets, record_id, target_key
+    from webapp_evidence_targets import (
+        artifact_required_proof_kinds,
+        expected_targets,
+        record_id,
+        target_key,
+    )
 
 
 CANONICAL_EVIDENCE = Path("contracts/implementation-evidence.json")
@@ -49,6 +59,19 @@ def _record_status(record: object) -> str:
         for proof in proofs
     ):
         return "missing"
+
+    artifact_kinds = set(artifact_required_proof_kinds(record.get("target")))
+    if artifact_kinds:
+        for proof_set in proof_sets:
+            assert isinstance(proof_set, list)
+            observed_kinds = {
+                proof.get("kind")
+                for proof in proof_set
+                if isinstance(proof, dict) and isinstance(proof.get("kind"), str)
+            }
+            if observed_kinds.isdisjoint(artifact_kinds):
+                return "missing"
+
     if any(proof.get("status") == "deferred" for proof in proofs):
         return "deferred"
     if not isinstance(record.get("releaseGateIds"), list) or not record["releaseGateIds"]:
@@ -68,12 +91,17 @@ def _load_canonical(root: Path) -> dict[str, Any]:
 
 def _canonical_records(
     evidence: dict[str, Any],
-) -> tuple[dict[tuple[Any, ...], dict[str, Any]], dict[str, str]]:
+) -> tuple[
+    dict[tuple[Any, ...], dict[str, Any]],
+    dict[str, str],
+    dict[str, dict[str, Any]],
+]:
     records = evidence.get("records", [])
     if not isinstance(records, list):
         raise ValueError("canonical implementation evidence records must be an array")
     by_target: dict[tuple[Any, ...], dict[str, Any]] = {}
     statuses: dict[str, str] = {}
+    records_by_id: dict[str, dict[str, Any]] = {}
     for index, record in enumerate(records):
         if not isinstance(record, dict) or not isinstance(record.get("target"), dict):
             raise ValueError(
@@ -90,11 +118,14 @@ def _canonical_records(
         record_id_value = record.get("id")
         if isinstance(record_id_value, str):
             statuses[record_id_value] = _record_status(record)
-    return by_target, statuses
+            records_by_id[record_id_value] = record
+    return by_target, statuses, records_by_id
 
 
 def _project_requirements(
-    evidence: dict[str, Any], record_statuses: dict[str, str]
+    evidence: dict[str, Any],
+    record_statuses: dict[str, str],
+    records_by_id: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     requirements = evidence.get("requirements", [])
     if requirements is None:
@@ -133,14 +164,61 @@ def _project_requirements(
             "status": _status_union(statuses),
         }
         required_kinds = requirement.get("requiredPositiveProofKinds")
-        if required_kinds is not None:
+        if required_kinds is None:
+            item["status"] = "missing"
+        else:
             if not isinstance(required_kinds, list) or not required_kinds:
                 raise ValueError(
                     f"canonical requirement {requirement_id!r} has invalid proof kinds"
                 )
             item["requiredPositiveProofKinds"] = list(required_kinds)
+            declared_kinds = {kind for kind in required_kinds if isinstance(kind, str)}
+            for record_id_value in record_ids:
+                linked_record = records_by_id.get(record_id_value)
+                if linked_record is None:
+                    continue
+                artifact_kinds = set(
+                    artifact_required_proof_kinds(linked_record.get("target"))
+                )
+                if artifact_kinds and declared_kinds.isdisjoint(artifact_kinds):
+                    item["status"] = "missing"
+                positive = linked_record.get("positiveEvidence")
+                if not isinstance(positive, list) or not any(
+                    isinstance(proof, dict) and proof.get("kind") in declared_kinds
+                    for proof in positive
+                ):
+                    item["status"] = "missing"
         projected.append(item)
     return sorted(projected, key=lambda item: item["id"])
+
+
+def _requirement_ledger_status(
+    evidence: dict[str, Any], projected_requirements: list[dict[str, Any]]
+) -> str:
+    if evidence.get("mode") != "product":
+        return "not-applicable"
+    return "verified" if projected_requirements else "missing"
+
+
+def _artifact_proof_requirements(
+    targets: tuple[dict[str, Any], ...]
+) -> list[dict[str, Any]]:
+    projected: list[dict[str, Any]] = []
+    for target in targets:
+        kinds = artifact_required_proof_kinds(target)
+        if not kinds:
+            continue
+        kind_options = list(kinds)
+        projected.append(
+            {
+                "recordId": record_id(target),
+                "target": target,
+                "positiveEvidenceKindAtLeastOneOf": kind_options,
+                "negativeEvidenceKindAtLeastOneOf": kind_options,
+                "linkedRequirementRequiredPositiveProofKindAtLeastOneOf": kind_options,
+            }
+        )
+    return sorted(projected, key=lambda item: item["recordId"])
 
 
 def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
@@ -173,7 +251,9 @@ def record_skeleton(target: dict[str, Any]) -> dict[str, Any]:
 def render_worklist(root: Path) -> dict[str, Any]:
     targets = expected_targets(root)
     evidence = _load_canonical(root)
-    canonical_by_target, record_statuses = _canonical_records(evidence)
+    canonical_by_target, record_statuses, records_by_id = _canonical_records(
+        evidence
+    )
     projected_statuses = {
         record_id(target): (
             _record_status(canonical_by_target[target_key(target)])
@@ -186,22 +266,40 @@ def render_worklist(root: Path) -> dict[str, Any]:
     identifiers = [record["id"] for record in records]
     if len(identifiers) != len(set(identifiers)):
         raise ValueError("Webapp evidence worklist produces duplicate record ids")
-    status = _status_union(list(projected_statuses.values()))
+    projected_requirements = _project_requirements(
+        evidence, record_statuses, records_by_id
+    )
+    requirement_ledger_status = _requirement_ledger_status(
+        evidence, projected_requirements
+    )
+    status_inputs = (
+        list(projected_statuses.values())
+        + [item["status"] for item in projected_requirements]
+    )
+    if requirement_ledger_status == "missing":
+        status_inputs.append("missing")
+    status = _status_union(status_inputs)
     return {
         "format": "webapp-implementation-evidence-worklist",
-        "formatVersion": 1,
+        "formatVersion": 2,
         "status": status,
         "statusCounts": {
             value: sum(projected_statuses[record_id_value] == value for record_id_value in projected_statuses)
             for value in STATUSES
         },
+        "requirementStatusCounts": {
+            value: sum(item["status"] == value for item in projected_requirements)
+            for value in STATUSES
+        },
+        "requirementLedgerStatus": requirement_ledger_status,
         "recordStatuses": [
             {"id": record_id_value, "status": projected_statuses[record_id_value]}
             for record_id_value in sorted(projected_statuses)
         ],
         "recordCount": len(records),
+        "artifactProofRequirements": _artifact_proof_requirements(targets),
         "records": records,
-        "requirements": _project_requirements(evidence, record_statuses),
+        "requirements": projected_requirements,
     }
 
 

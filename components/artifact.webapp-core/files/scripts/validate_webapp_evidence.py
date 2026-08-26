@@ -9,19 +9,23 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
-    from .webapp_evidence_targets import allowed_targets, expected_targets, target_key
+    from .webapp_evidence_targets import (
+        BROWSER_LEVEL_PROOF_KINDS,
+        BROWSER_SENSITIVE_CONTRACT_ITEMS,
+        allowed_targets,
+        expected_targets,
+        requires_browser_level_proof,
+        target_key,
+    )
 else:
-    from webapp_evidence_targets import allowed_targets, expected_targets, target_key
-
-
-BROWSER_LEVEL_PROOF_KINDS = frozenset({"accessibility-test", "end-to-end-test"})
-BROWSER_SENSITIVE_CONTRACT_ITEMS = frozenset(
-    {
-        ("routes", "route"),
-        ("viewports", "input-capability"),
-        ("viewports", "viewport"),
-    }
-)
+    from webapp_evidence_targets import (
+        BROWSER_LEVEL_PROOF_KINDS,
+        BROWSER_SENSITIVE_CONTRACT_ITEMS,
+        allowed_targets,
+        expected_targets,
+        requires_browser_level_proof,
+        target_key,
+    )
 
 
 def load(root: Path, relative: str) -> object:
@@ -48,14 +52,6 @@ def actual_targets(evidence: object) -> list[tuple[Any, ...]]:
         actual.append(target_key(target))
     return actual
 
-
-def requires_browser_level_proof(target: object) -> bool:
-    return (
-        isinstance(target, dict)
-        and target.get("kind") == "contract-item"
-        and (target.get("contractId"), target.get("itemKind"))
-        in BROWSER_SENSITIVE_CONTRACT_ITEMS
-    )
 
 
 def browser_level_proof_errors(evidence: dict[str, Any]) -> list[str]:
