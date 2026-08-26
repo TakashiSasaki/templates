@@ -9,9 +9,9 @@ The initial composition baseline uses MCP `2026-07-28` Modern protocol semantics
 `contracts/mcp-interface.json` follows `template` -> `planning` -> `product`.
 
 - `template` makes no caller-visible MCP claim and keeps transport/operation inventories empty.
-- Before product coding, switch to `planning`, enumerate each intended transport with stable `id`, `kind`, and `purpose`, and enumerate each intended operation exposure with stable `id`, operation `kind`, `transportId`, and `purpose`. These are caller-visible planning decisions; protocol probes, wire names, success behavior, and negative behavior remain product-only.
+- Before product coding, switch to `planning`, declare the selected core protocol revision (`2026-07-28` for schema v2), enumerate each intended transport with stable `id`, `kind`, and `purpose`, and enumerate each intended operation exposure with stable `id`, operation `kind`, `transportId`, and `purpose`. These are caller-visible planning decisions; protocol probes, wire operation names, success behavior, and negative behavior remain product-only.
 - Bind every planned transport and operation exactly to implementation-evidence planning targets (`contract-item / mcp_interface / transport / <transport-id>` and `contract-item / mcp_interface / operation / <operation-id>`). The validator checks that every planned operation references a planned transport and rejects phantom/omitted item IDs before coding.
-- Promote the same stable IDs to `product`, declare the `2026-07-28` revision and the complete operational transport/operation definitions, then attach executable positive and negative implementation evidence.
+- Promote the same stable IDs, relationships, transport kinds, operation kinds, and protocol revision to `product`; enrich them with the complete operational transport/operation definitions, then attach executable positive and negative implementation evidence.
 
 Every product target requires exactly one implementation-evidence record, a linked product requirement, and both positive and negative executable proof. At least one `integration-test` or `end-to-end-test` proof kind must be present in each polarity, and the linked requirement must declare compatible positive-proof strength. Static inspection and unit-only proof do not establish caller-visible MCP execution.
 
