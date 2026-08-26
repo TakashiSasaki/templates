@@ -346,7 +346,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
         for operation in self.service_operations():
             operation_id = operation["id"]
             record_id = f"task-ledger-service-{operation_id}"
-            target = {
+            service_target = {
                 "kind": "contract-item",
                 "contractId": "service_interface",
                 "itemKind": "operation",
@@ -355,7 +355,7 @@ class TaskLedgerWalkthroughBrowserAcceptanceTests(unittest.TestCase):
             records.append(
                 {
                     "id": record_id,
-                    "target": target,
+                    "target": service_target,
                     "implementationBoundary": {
                         "status": "verified",
                         "description": "Task Ledger exposes this independently reachable HTTP service operation.",
