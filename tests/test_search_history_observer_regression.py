@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = ROOT / "assets/javascripts/reader-navigation.js"
+RUNTIME = ROOT / "assets/javascripts/search-history.js"
 
 
 class SearchHistoryObserverRegressionTests(unittest.TestCase):

@@ -7,21 +7,30 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = ROOT / "assets/javascripts/reader-navigation.js"
+RUNTIME = ROOT / "assets/javascripts/search-history.js"
+READER_NAV_RUNTIME = ROOT / "assets/javascripts/reader-navigation.js"
 TEMPLATE = ROOT / "zensical.template.toml"
 WORKER = ROOT / "assets/service-worker.js"
 BROWSER_CHECK = ROOT / "scripts/check_search_history.py"
 REVIEW_BROWSER_CHECK = ROOT / "scripts/check_search_history_review_regressions.py"
 BUILD_WORKFLOW = ROOT / ".github/workflows/build-pages.yml"
 SEARCH_WORKFLOW = ROOT / ".github/workflows/search-history-regression.yml"
+SEARCH_HISTORY_MARKER = (
+    "/* Site-local search history integrated through Zensical's open Shadow DOM contract. */"
+)
 
 
 class SearchHistoryRuntimeContractTests(unittest.TestCase):
     def search_runtime(self) -> str:
         source = RUNTIME.read_text(encoding="utf-8")
-        marker = "/* Site-local search history integrated through Zensical's open Shadow DOM contract. */"
-        self.assertIn(marker, source)
-        return source.split(marker, 1)[1]
+        self.assertIn(SEARCH_HISTORY_MARKER, source)
+        return source.split(SEARCH_HISTORY_MARKER, 1)[1]
+
+    def test_search_history_has_a_dedicated_site_runtime_asset(self) -> None:
+        reader_navigation = READER_NAV_RUNTIME.read_text(encoding="utf-8")
+        self.assertNotIn(SEARCH_HISTORY_MARKER, reader_navigation)
+        self.assertNotIn("SEARCH_HISTORY_STORAGE_KEY", reader_navigation)
+        self.assertTrue(RUNTIME.is_file())
 
     def test_zensical_boundary_uses_open_shadow_root_semantics(self) -> None:
         source = self.search_runtime()
@@ -146,9 +155,12 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         build_workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
         search_workflow = SEARCH_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('"javascripts/reader-navigation.js"', template)
+        self.assertIn('"javascripts/search-history.js"', template)
         match = re.search(r"const STATIC_ASSETS = (\[[^;]+\]);", worker)
         self.assertIsNotNone(match)
-        self.assertIn("/javascripts/reader-navigation.js", set(json.loads(match.group(1))))
+        static_assets = set(json.loads(match.group(1)))
+        self.assertIn("/javascripts/reader-navigation.js", static_assets)
+        self.assertIn("/javascripts/search-history.js", static_assets)
         self.assertIn("Zensical search integration contract changed", checker)
         self.assertIn("search_input.click(trial=True", checker)
         self.assertIn("result = page.locator('ol a[href]').first", review_checker)
