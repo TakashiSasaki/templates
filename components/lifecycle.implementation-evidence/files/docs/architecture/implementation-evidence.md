@@ -41,3 +41,17 @@ The requirement ledger is an optional extension for existing product documents s
 The existing `evidenceProof.kind` is the execution-strength classification; it is not a claim that every proof is browser-backed. Use `inspection` for static source/HTML/JSON inspection, `unit-test`, `integration-test`, or `migration-test` for executable process-level checks, and `end-to-end-test` or `accessibility-test` for browser interaction and keyboard/focus behavior. Artifact validators decide which kinds are sufficient for a target.
 
 A product proof may be `deferred` when the required environment is unavailable. Deferred evidence is retained as an explicit incomplete state and may allow structural validation to describe the composition as valid, but release readiness rejects every non-`verified` proof. Static inspection must therefore never be silently promoted to browser interaction evidence.
+
+
+A requirement may also declare `requiredPositiveProofKinds` when the caller-visible behavior needs a minimum execution class:
+
+```json
+{
+  "id": "browser-severity-filter",
+  "description": "Browser UI can filter records by severity.",
+  "recordIds": ["browser-severity-filter"],
+  "requiredPositiveProofKinds": ["end-to-end-test", "accessibility-test"]
+}
+```
+
+The validator checks only the declared proof-kind edge. For example, a CLI requirement can require `integration-test`, while a browser interaction requirement can require `end-to-end-test` or `accessibility-test`. This prevents a static `inspection` proof from satisfying a caller-visible interactive requirement without making Composition infer product semantics from prose.

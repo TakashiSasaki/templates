@@ -162,8 +162,19 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 for proof in positive
             ):
                 errors.append(
-                    f"{owner}: linked record {record_id} has no verified positive evidence"
+                    f"{owner}: linked record {record_id} has no traceable positive evidence"
                 )
+            required_kinds = requirement.get("requiredPositiveProofKinds")
+            if isinstance(required_kinds, list) and required_kinds:
+                if not isinstance(positive, list) or not any(
+                    isinstance(proof, dict)
+                    and proof.get("kind") in required_kinds
+                    for proof in positive
+                ):
+                    errors.append(
+                        f"{owner}: linked record {record_id} has no positive proof "
+                        f"with a required kind ({', '.join(sorted(required_kinds))})"
+                    )
             gates = record.get("releaseGateIds")
             if not isinstance(gates, list) or not gates:
                 errors.append(
