@@ -55,6 +55,8 @@
         {"id": "composition-state", "canonical": "Composition state", "localized": "Composition state"},
         {"id": "contract-evolution", "canonical": "Contract evolution", "localized": "Contract evolution"},
         {"id": "implementation-evidence", "canonical": "Implementation evidence", "localized": "実装 evidence"},
+        {"id": "implementation-evidence-v1-v2", "canonical": "Implementation evidence v1 to v2", "localized": "Implementation evidence v1 → v2"},
+        {"id": "implementation-evidence-v2-v3", "canonical": "Implementation evidence v2 to v3", "localized": "Implementation evidence v2 → v3"},
         {"id": "release-execution", "canonical": "Release execution", "localized": "Release execution"},
         {"id": "release-evidence", "canonical": "Release evidence", "localized": "Release evidence"},
         {"id": "release-bundle", "canonical": "Release bundle", "localized": "Release bundle"},
