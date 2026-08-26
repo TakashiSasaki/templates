@@ -37,8 +37,6 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
             )
 
     def add_admin_contracts(self, target: Path) -> None:
-        # Authentication/status/multi-viewport behavior is product-owned. Install
-        # the explicit rich auth fixture before adding the admin-specific surface.
         self.install_auth_contract_fixture(target)
 
         surfaces_path = target / "contracts/surfaces.json"
@@ -252,11 +250,23 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
 
         self.add_admin_contracts(target)
         records = self.scaffold_product_evidence(target)
+        requirements = [
+            {
+                "id": f"REQ-AUTH-WEBAPP-{index:03d}",
+                "description": (
+                    "The authenticated Webapp product requires evidence for target "
+                    + json.dumps(record["target"], sort_keys=True, separators=(",", ":"))
+                ),
+                "recordIds": [record["id"]],
+                "requiredPositiveProofKinds": [record["positiveEvidence"][0]["kind"]],
+            }
+            for index, record in enumerate(records, 1)
+        ]
         self.write_json(
             target / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "mode": "product",
                 "commands": [
                     {
@@ -279,6 +289,7 @@ class WebappAuthenticationProductizationTests(unittest.TestCase):
                     }
                 ],
                 "records": records,
+                "requirements": requirements,
             },
         )
         self.write_json(
