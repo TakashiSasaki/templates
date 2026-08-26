@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - composition
-      - "agent/composition-**"
   pull_request:
     branches:
       - composition
