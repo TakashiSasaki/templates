@@ -17,6 +17,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify_browser:
+    name: classify real-browser requirement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - name: Check out repository history for change classification
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify real-browser requirement
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 -I scripts/classify_real_browser_ci.py
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --github-output "$GITHUB_OUTPUT"
+
   primary:
     name: preflight + core tests (2/2)
     runs-on: ubuntu-24.04
@@ -136,6 +162,9 @@ jobs:
 
   real_browser:
     name: real-browser acceptance
+    needs:
+      - classify_browser
+    if: needs.classify_browser.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
@@ -196,18 +225,33 @@ jobs:
   validate:
     if: always()
     needs:
+      - classify_browser
       - primary
       - parallel
       - real_browser
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Require successful preflight, core shards, and real-browser acceptance
+      - name: Require successful core validation and policy-correct browser outcome
         env:
+          CLASSIFIER_RESULT: ${{ needs.classify_browser.result }}
           PRIMARY_RESULT: ${{ needs.primary.result }}
           PARALLEL_RESULT: ${{ needs.parallel.result }}
+          BROWSER_REQUIRED: ${{ needs.classify_browser.outputs.required }}
           BROWSER_RESULT: ${{ needs.real_browser.result }}
         run: |
+          test "$CLASSIFIER_RESULT" = success
           test "$PRIMARY_RESULT" = success
           test "$PARALLEL_RESULT" = success
-          test "$BROWSER_RESULT" = success
+          case "$BROWSER_REQUIRED" in
+            true)
+              test "$BROWSER_RESULT" = success
+              ;;
+            false)
+              test "$BROWSER_RESULT" = skipped
+              ;;
+            *)
+              echo "invalid real-browser classification: $BROWSER_REQUIRED" >&2
+              exit 1
+              ;;
+          esac
