@@ -18,6 +18,53 @@
   const observedRoots = new WeakMap();
   let bodyObserver;
 
+  const ZensicalSearchAdapter = Object.freeze({
+    shadowRoots(body) {
+      const roots = [];
+      for (const host of body?.children || []) {
+        if (host.shadowRoot) {
+          roots.push(host.shadowRoot);
+        }
+      }
+      return roots;
+    },
+
+    input(root) {
+      const input = root.querySelector(SEARCH_INPUT_SELECTOR);
+      return input instanceof HTMLInputElement ? input : undefined;
+    },
+
+    resultAnchors(root, section) {
+      return Array.from(root.querySelectorAll("ol a[href]")).filter(
+        (anchor) => !section.contains(anchor),
+      );
+    },
+
+    isResultAnchor(root, section, target) {
+      const anchor = target.closest("a[href]");
+      return Boolean(
+        anchor &&
+          root.contains(anchor) &&
+          !section.contains(anchor) &&
+          anchor.closest("ol"),
+      );
+    },
+
+    replayQuery(input, query) {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      if (descriptor?.set) {
+        descriptor.set.call(input, query);
+      } else {
+        input.value = query;
+      }
+      const inputEvent =
+        typeof InputEvent === "function"
+          ? new InputEvent("input", { bubbles: true, inputType: "insertText", data: query })
+          : new Event("input", { bubbles: true });
+      input.dispatchEvent(inputEvent);
+    },
+  });
+
   function normalizeQuery(value) {
     if (typeof value !== "string") {
       return "";
@@ -288,9 +335,8 @@
   }
 
   function renderAll() {
-    for (const host of document.body?.children || []) {
-      const root = host.shadowRoot;
-      const state = root ? rootState.get(root) : undefined;
+    for (const root of ZensicalSearchAdapter.shadowRoots(document.body)) {
+      const state = rootState.get(root);
       if (state) {
         renderHistory(state);
       }
@@ -325,10 +371,7 @@
       return;
     }
     const destinations = new Set();
-    for (const anchor of state.root.querySelectorAll("ol a[href]")) {
-      if (state.section.contains(anchor)) {
-        continue;
-      }
+    for (const anchor of ZensicalSearchAdapter.resultAnchors(state.root, state.section)) {
       const key = navigationKey(anchor.href);
       if (key) {
         destinations.add(key);
@@ -359,9 +402,8 @@
     if (!key) {
       return;
     }
-    for (const host of document.body?.children || []) {
-      const root = host.shadowRoot;
-      const state = root ? rootState.get(root) : undefined;
+    for (const root of ZensicalSearchAdapter.shadowRoots(document.body)) {
+      const state = rootState.get(root);
       const pending = state?.pendingEnter;
       if (!state || !pending) {
         continue;
@@ -379,9 +421,8 @@
 
   function storePendingEnterForNextDocument() {
     let stored = false;
-    for (const host of document.body?.children || []) {
-      const root = host.shadowRoot;
-      const state = root ? rootState.get(root) : undefined;
+    for (const root of ZensicalSearchAdapter.shadowRoots(document.body)) {
+      const state = rootState.get(root);
       const pending = state?.pendingEnter;
       if (!state || !pending || Date.now() > pending.expiresAt) {
         continue;
@@ -445,15 +486,6 @@
     return true;
   }
 
-  function setSearchInputValue(input, value) {
-    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
-    if (descriptor?.set) {
-      descriptor.set.call(input, value);
-    } else {
-      input.value = value;
-    }
-  }
-
   function replayQuery(event, state, control) {
     event.preventDefault();
     event.stopPropagation();
@@ -463,19 +495,9 @@
       return;
     }
     rememberQuery(query);
-    setSearchInputValue(state.input, query);
-    const inputEvent =
-      typeof InputEvent === "function"
-        ? new InputEvent("input", { bubbles: true, inputType: "insertText", data: query })
-        : new Event("input", { bubbles: true });
-    state.input.dispatchEvent(inputEvent);
+    ZensicalSearchAdapter.replayQuery(state.input, query);
     state.input.focus({ preventScroll: true });
     renderHistory(state);
-  }
-
-  function isSearchResultAnchor(root, section, target) {
-    const anchor = target.closest("a[href]");
-    return Boolean(anchor && root.contains(anchor) && !section.contains(anchor) && anchor.closest("ol"));
   }
 
   function bindRoot(root, input) {
@@ -528,7 +550,7 @@
           replayQuery(event, current, historyControl);
           return;
         }
-        if (isSearchResultAnchor(root, current.section, target)) {
+        if (ZensicalSearchAdapter.isResultAnchor(root, current.section, target)) {
           cancelPendingEnter(current);
           rememberQuery(current.input.value);
           queueMicrotask(() => {
@@ -606,8 +628,8 @@
   }
 
   function enhanceShadowRoot(root) {
-    const input = root.querySelector(SEARCH_INPUT_SELECTOR);
-    if (!(input instanceof HTMLInputElement)) {
+    const input = ZensicalSearchAdapter.input(root);
+    if (!input) {
       return false;
     }
     bindRoot(root, input);
@@ -630,9 +652,9 @@
     }
     const observer = new MutationObserver((records) => {
       const state = rootState.get(root);
-      const input = root.querySelector(SEARCH_INPUT_SELECTOR);
+      const input = ZensicalSearchAdapter.input(root);
       if (
-        input instanceof HTMLInputElement &&
+        input &&
         (!state ||
           state.input !== input ||
           !state.style.isConnected ||
@@ -659,10 +681,8 @@
     if (!document.body) {
       return;
     }
-    for (const host of document.body.children) {
-      if (host.shadowRoot) {
-        observeShadowRoot(host.shadowRoot);
-      }
+    for (const root of ZensicalSearchAdapter.shadowRoots(document.body)) {
+      observeShadowRoot(root);
     }
     renderAll();
   }

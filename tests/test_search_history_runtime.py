@@ -32,13 +32,28 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
         self.assertNotIn("SEARCH_HISTORY_STORAGE_KEY", reader_navigation)
         self.assertTrue(RUNTIME.is_file())
 
-    def test_zensical_boundary_uses_open_shadow_root_semantics(self) -> None:
+    def test_zensical_boundary_is_isolated_in_adapter(self) -> None:
         source = self.search_runtime()
-        self.assertIn("for (const host of document.body.children)", source)
-        self.assertIn("if (host.shadowRoot)", source)
-        self.assertIn("root.querySelector(SEARCH_INPUT_SELECTOR)", source)
+        self.assertIn("const ZensicalSearchAdapter = Object.freeze({", source)
+        adapter = source.split("const ZensicalSearchAdapter = Object.freeze({", 1)[1].split(
+            "\n  function normalizeQuery", 1
+        )[0]
+        self.assertIn("shadowRoots(body)", adapter)
+        self.assertIn("for (const host of body?.children || [])", adapter)
+        self.assertIn("if (host.shadowRoot)", adapter)
+        self.assertIn("input(root)", adapter)
+        self.assertIn("root.querySelector(SEARCH_INPUT_SELECTOR)", adapter)
+        self.assertIn("resultAnchors(root, section)", adapter)
+        self.assertIn('root.querySelectorAll("ol a[href]")', adapter)
+        self.assertIn("isResultAnchor(root, section, target)", adapter)
+        self.assertIn("replayQuery(input, query)", adapter)
+        self.assertEqual(source.count("root.querySelector(SEARCH_INPUT_SELECTOR)"), 1)
+        self.assertEqual(source.count('root.querySelectorAll("ol a[href]")'), 1)
+        self.assertIn("ZensicalSearchAdapter.shadowRoots(document.body)", source)
+        self.assertIn("ZensicalSearchAdapter.resultAnchors(state.root, state.section)", source)
+        self.assertIn("ZensicalSearchAdapter.input(root)", source)
+        self.assertIn("ZensicalSearchAdapter.isResultAnchor(root, current.section, target)", source)
         self.assertIn("const SEARCH_INPUT_SELECTOR = 'input[role=\"combobox\"]';", source)
-        self.assertIn('root.querySelectorAll("ol a[href]")', source)
         self.assertNotIn(".md-search__scrollwrap", source)
         self.assertNotIn("md-search-result__link", source)
         self.assertNotIn('data-md-component="search-query"', source)
@@ -113,9 +128,11 @@ class SearchHistoryRuntimeContractTests(unittest.TestCase):
     def test_replay_uses_react_compatible_bubbling_input_event(self) -> None:
         source = self.search_runtime()
         self.assertIn('Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")', source)
-        self.assertIn("descriptor.set.call(input, value);", source)
+        self.assertIn("descriptor.set.call(input, query);", source)
         self.assertIn('new InputEvent("input", { bubbles: true, inputType: "insertText", data: query })', source)
-        self.assertIn("state.input.dispatchEvent(inputEvent);", source)
+        self.assertIn("input.dispatchEvent(inputEvent);", source)
+        self.assertIn("ZensicalSearchAdapter.replayQuery(state.input, query);", source)
+        self.assertNotIn("function setSearchInputValue", source)
         self.assertIn('button.addEventListener("click", (event) => replayQuery(event, state, button));', source)
 
     def test_site_owned_controls_are_isolated_before_shadow_root_delegation(self) -> None:
