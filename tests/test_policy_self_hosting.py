@@ -74,6 +74,8 @@ def test_repository_self_hosting_workflow_checks_with_consumer_pin() -> None:
 
     workflow = SELF_HOST_WORKFLOW_PATH.read_text(encoding="utf-8")
     assert f"uses: TakashiSasaki/templates@{revision}" in workflow
+    assert "uses: TakashiSasaki/templates@policy" not in workflow
+    assert "uses: TakashiSasaki/templates@main" not in workflow
     assert "command: check" in workflow
     assert "config: .agent-policy.yml" in workflow
 
