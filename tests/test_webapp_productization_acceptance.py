@@ -435,6 +435,7 @@ class WebappProductizationAcceptanceTests(unittest.TestCase):
                         "argv": ["python", "product/prove_webapp.py"],
                         "workingDirectory": ".",
                         "harnessLocator": "product/prove_webapp.py",
+                        "harnessArgumentIndex": 1,
                     }
                 ],
             },
