@@ -34,24 +34,33 @@ validator = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(validator)
 
 
-def requirement(record_id: str = "browser-filter") -> dict:
+def browser_target(item_id: str = "main") -> dict:
     return {
+        "kind": "contract-item",
+        "contractId": "surfaces",
+        "itemKind": "surface",
+        "itemId": item_id,
+    }
+
+
+def requirement(
+    record_id: str = "browser-filter", *, targets: list[dict] | None = None
+) -> dict:
+    value = {
         "id": "REQ-SEVERITY-BROWSER-FILTER",
         "description": "Browser UI can filter records by severity.",
         "recordIds": [record_id],
         "requiredPositiveProofKinds": ["end-to-end-test"],
     }
+    if targets is not None:
+        value["targets"] = targets
+    return value
 
 
 def evidence(*, requirements: list[dict] | None = None, positive_status: str = "verified") -> dict:
     record = {
         "id": "browser-filter",
-        "target": {
-            "kind": "contract-item",
-            "contractId": "surfaces",
-            "itemKind": "surface",
-            "itemId": "main",
-        },
+        "target": browser_target(),
         "implementationBoundary": {
             "status": "verified",
             "description": "The browser filter implementation boundary is identified.",
@@ -79,7 +88,7 @@ def evidence(*, requirements: list[dict] | None = None, positive_status: str = "
     }
     result = {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "mode": "product",
         "commands": [{
             "id": "product-proof",
@@ -118,6 +127,29 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
             root = Path(temp_dir)
             self.write_fixture(root, value)
             self.assertEqual(validator.validate(root), [])
+
+    def test_product_requirement_targets_are_optional_but_checked_when_present(self) -> None:
+        matched = evidence(requirements=[requirement(targets=[browser_target()])])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, matched)
+            self.assertEqual(validator.validate(root), [])
+
+        mismatched = evidence(
+            requirements=[requirement(targets=[browser_target("other-surface")])]
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.write_fixture(root, mismatched)
+            errors = validator.validate(root)
+            self.assertTrue(
+                any("declared target" in error and "no linked implementation record" in error for error in errors),
+                errors,
+            )
+            self.assertTrue(
+                any("undeclared requirement target" in error for error in errors),
+                errors,
+            )
 
     def test_product_without_requirement_ledger_is_rejected_semantically(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -175,6 +207,9 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
         schema_validator = Draft202012Validator(schema)
         value = evidence(requirements=[requirement()])
         schema_validator.validate(value)
+        schema_validator.validate(
+            evidence(requirements=[requirement(targets=[browser_target()])])
+        )
 
         invalid_records = json.loads(json.dumps(value))
         invalid_records["requirements"][0]["recordIds"] = []
@@ -185,6 +220,10 @@ class ImplementationEvidenceRequirementTraceabilityTests(unittest.TestCase):
         del missing_kinds["requirements"][0]["requiredPositiveProofKinds"]
         with self.assertRaises(ValidationError):
             schema_validator.validate(missing_kinds)
+
+        empty_targets = evidence(requirements=[requirement(targets=[])])
+        with self.assertRaises(ValidationError):
+            schema_validator.validate(empty_targets)
 
 
 if __name__ == "__main__":

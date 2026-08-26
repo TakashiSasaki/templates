@@ -42,7 +42,7 @@ class ServiceInterfaceContractTests(unittest.TestCase):
         required_kind = requirement_kind or proof_kind
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "product",
             "commands": [{"id": "service-proof", "command": "python -m unittest tests.test_service", "purpose": "Exercise the public service boundary."}],
             "releaseGates": [{"id": "release", "purpose": "Run executable service proof.", "commandIds": ["service-proof"]}],

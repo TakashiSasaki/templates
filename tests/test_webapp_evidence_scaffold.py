@@ -186,7 +186,7 @@ class WebappEvidenceScaffoldTests(unittest.TestCase):
                 evidence_path,
                 {
                     "$schema": "../schemas/implementation-evidence.schema.json",
-                    "schemaVersion": 4,
+                    "schemaVersion": 5,
                     "mode": "product",
                     "commands": [
                         {

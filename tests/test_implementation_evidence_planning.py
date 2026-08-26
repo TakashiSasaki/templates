@@ -32,7 +32,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
     def planning_document(self) -> dict:
         return {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "planning",
             "commands": [],
             "releaseGates": [],
@@ -41,12 +41,28 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
                 {
                     "id": "REQ-PLAN-BROWSER-FILTER",
                     "description": "The browser filters caller-visible records by severity.",
+                    "targets": [
+                        {
+                            "kind": "contract-item",
+                            "contractId": "routes",
+                            "itemKind": "route",
+                            "itemId": "home",
+                        }
+                    ],
                     "recordIds": [],
                     "requiredPositiveProofKinds": ["end-to-end-test"],
                 },
                 {
                     "id": "REQ-PLAN-CLI-FILTER",
                     "description": "The packaged CLI filters caller-visible records by severity.",
+                    "targets": [
+                        {
+                            "kind": "contract-item",
+                            "contractId": "cli_interface",
+                            "itemKind": "entrypoint",
+                            "itemId": "records",
+                        }
+                    ],
                     "recordIds": [],
                     "requiredPositiveProofKinds": ["integration-test"],
                 },
@@ -85,12 +101,20 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         planning = self.planning_document()
         validator.validate(planning)
 
-        bad = json.loads(json.dumps(planning))
-        bad["requirements"][0]["recordIds"] = ["premature-record"]
-        self.assertTrue(list(validator.iter_errors(bad)))
+        missing_targets = json.loads(json.dumps(planning))
+        del missing_targets["requirements"][0]["targets"]
+        self.assertTrue(list(validator.iter_errors(missing_targets)))
+
+        empty_targets = json.loads(json.dumps(planning))
+        empty_targets["requirements"][0]["targets"] = []
+        self.assertTrue(list(validator.iter_errors(empty_targets)))
+
+        premature = json.loads(json.dumps(planning))
+        premature["requirements"][0]["recordIds"] = ["premature-record"]
+        self.assertTrue(list(validator.iter_errors(premature)))
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            target = self.materialize(Path(temp_dir))
+            target = self.materialize(Path(temp_dir), include=["capability.cli"])
             evidence_path = target / "contracts" / "implementation-evidence.json"
             self.write_json(evidence_path, planning)
 
@@ -100,7 +124,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
                 ".",
             )
             self.assertEqual(generic.returncode, 0, generic.stdout + generic.stderr)
-            self.assertIn("planning requirement ledger", generic.stdout)
+            self.assertIn("target-bound", generic.stdout)
             self.assertIn("Release readiness: NOT READY", generic.stdout)
 
             webapp = self.run_python(target, "scripts/validate_webapp_evidence.py")
@@ -133,18 +157,16 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             self.assertNotEqual(readiness.returncode, 0)
             self.assertIn("mode 'planning' is not 'product'", readiness.stderr)
 
-            planning["requirements"][1]["id"] = planning["requirements"][0]["id"]
-            planning["requirements"][1]["description"] = "Different text, same stable ID."
-            self.write_json(evidence_path, planning)
-            duplicate = self.run_python(
+            unknown = self.planning_document()
+            unknown["requirements"][0]["targets"][0]["contractId"] = "not_registered"
+            self.write_json(evidence_path, unknown)
+            rejected = self.run_python(
                 target,
                 ".template-composition/validators/validate_implementation_evidence.py",
                 ".",
             )
-            self.assertNotEqual(duplicate.returncode, 0)
-            self.assertIn(
-                "duplicate implementation-evidence requirement id", duplicate.stderr
-            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("unknown contract target not_registered", rejected.stderr)
 
     def test_planning_keeps_release_execution_in_template_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -173,7 +195,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             )
             self.assertIn("Release execution validation: OK", validation.stdout)
 
-    def test_template_is_not_release_ready_and_prompt_uses_planning_before_coding(self) -> None:
+    def test_template_is_not_release_ready_and_prompt_uses_target_bound_planning_before_coding(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(Path(temp_dir))
             readiness = self.run_python(
@@ -188,19 +210,20 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
         prompt = PROMPT.read_text(encoding="utf-8")
         self.assertIn("Before product coding", prompt)
         self.assertIn("implementation-evidence planning state", prompt)
+        self.assertIn("contract target", prompt)
         self.assertIn("empty recordIds", prompt)
         self.assertIn("requiredPositiveProofKinds", prompt)
         self.assertIn("Preserve those IDs", prompt)
 
-    def test_v4_migration_guide_is_published(self) -> None:
+    def test_v5_migration_guide_is_published(self) -> None:
         catalog = json.loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))
         documents = {document["id"]: document for document in catalog["documents"]}
         self.assertEqual(
-            documents["implementation-evidence-v4-migration"]["source"],
-            "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v3-to-v4.md",
+            documents["implementation-evidence-v5-migration"]["source"],
+            "components/lifecycle.implementation-evidence/files/docs/migrations/implementation-evidence-v4-to-v5.md",
         )
-        self.assertFalse(documents["implementation-evidence-v4-migration"]["optional"])
-        self.assertFalse(documents["implementation-evidence-v4-migration"]["home"])
+        self.assertFalse(documents["implementation-evidence-v5-migration"]["optional"])
+        self.assertFalse(documents["implementation-evidence-v5-migration"]["home"])
 
 
 if __name__ == "__main__":

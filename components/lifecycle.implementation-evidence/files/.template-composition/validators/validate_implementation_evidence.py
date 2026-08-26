@@ -25,6 +25,53 @@ def _duplicates(values: list[Any]) -> set[Any]:
     return out
 
 
+def _target_signature(target: object) -> tuple[Any, ...]:
+    if not isinstance(target, dict):
+        return ("invalid", repr(target))
+    kind = target.get("kind")
+    if kind == "contract-item":
+        return (
+            "contract-item",
+            target.get("contractId"),
+            target.get("itemKind"),
+            target.get("itemId"),
+        )
+    if kind == "contract-transition":
+        return (
+            "contract-transition",
+            target.get("contractId"),
+            target.get("fromVersion"),
+            target.get("toVersion"),
+        )
+    return (kind, target.get("contractId"))
+
+
+def _target_text(signature: tuple[Any, ...]) -> str:
+    return "/".join(str(value) for value in signature)
+
+
+def _target_contract_errors(
+    target: object,
+    known_contracts: dict[str, Any],
+    owner: str,
+) -> list[str]:
+    if not isinstance(target, dict):
+        return [f"{owner}: target must be an object"]
+    contract_id = target.get("contractId")
+    if contract_id not in known_contracts:
+        return [f"{owner}: unknown contract target {contract_id}"]
+    if target.get("kind") != "contract-transition":
+        return []
+    transitions = {
+        (entry["version"] - 1, entry["version"])
+        for entry in known_contracts[contract_id]["versionHistory"][1:]
+    }
+    pair = (target.get("fromVersion"), target.get("toVersion"))
+    if pair not in transitions:
+        return [f"{owner}: unknown contract transition {contract_id} {pair}"]
+    return []
+
+
 def _target_family(target: dict[str, Any]) -> tuple[str, str]:
     contract_id = target.get("contractId")
     target_kind = target.get("kind")
@@ -102,8 +149,11 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
     return warnings
 
 
-def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
-    """Validate the stable requirement ledger and product requirement -> record edges."""
+def requirement_traceability_errors(
+    evidence: dict[str, Any],
+    known_contracts: dict[str, Any] | None = None,
+) -> list[str]:
+    """Validate stable requirement intent, targets, and product record edges."""
 
     mode = evidence.get("mode")
     requirements = evidence.get("requirements")
@@ -146,6 +196,34 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 f"{owner}: requiredPositiveProofKinds must contain at least one proof kind"
             )
             required_kinds = []
+
+        targets = requirement.get("targets")
+        if mode == "planning":
+            if not isinstance(targets, list) or not targets:
+                errors.append(
+                    f"{owner}: planning targets must contain at least one contract target"
+                )
+                targets = []
+        elif targets is None:
+            targets = []
+        elif not isinstance(targets, list) or not targets:
+            errors.append(
+                f"{owner}: product targets, when present, must contain at least one contract target"
+            )
+            targets = []
+        target_signatures = [_target_signature(target) for target in targets]
+        for duplicate in sorted(_duplicates(target_signatures), key=str):
+            errors.append(f"{owner}: duplicate target: {_target_text(duplicate)}")
+        if known_contracts is not None:
+            for target_index, target in enumerate(targets):
+                errors.extend(
+                    _target_contract_errors(
+                        target,
+                        known_contracts,
+                        f"{owner} target {target_index}",
+                    )
+                )
+
         record_refs = requirement.get("recordIds")
         if not isinstance(record_refs, list):
             errors.append(f"{owner}: recordIds must be an array")
@@ -161,11 +239,16 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
             continue
         for duplicate in sorted(_duplicates(record_refs)):
             errors.append(f"{owner}: duplicate record reference: {duplicate}")
+
+        linked_target_signatures: list[tuple[Any, ...]] = []
+        all_records_known = True
         for record_id in record_refs:
             record = records_by_id.get(record_id)
             if record is None:
+                all_records_known = False
                 errors.append(f"{owner}: unknown implementation-evidence record {record_id}")
                 continue
+            linked_target_signatures.append(_target_signature(record.get("target")))
             positive = record.get("positiveEvidence")
             if not isinstance(positive, list) or not any(
                 isinstance(proof, dict)
@@ -190,7 +273,20 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"{owner}: linked record {record_id} has no release gate"
                 )
+
+        if all_records_known and targets:
+            declared = set(target_signatures)
+            linked = set(linked_target_signatures)
+            for missing in sorted(declared - linked, key=str):
+                errors.append(
+                    f"{owner}: declared target {_target_text(missing)} has no linked implementation record"
+                )
+            for extra in sorted(linked - declared, key=str):
+                errors.append(
+                    f"{owner}: linked implementation record targets undeclared requirement target {_target_text(extra)}"
+                )
     return errors
+
 
 def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
     """Return blockers that prevent approved release evidence.
@@ -295,29 +391,17 @@ def validate(root: Path) -> list[str]:
             errors.append(
                 "planning implementation evidence may contain only the requirement ledger"
             )
-        errors.extend(requirement_traceability_errors(evidence))
+        errors.extend(requirement_traceability_errors(evidence, known_contracts))
         return errors
     if mode != "product":
         return [f"unsupported implementation-evidence mode: {mode!r}"]
 
-    errors.extend(requirement_traceability_errors(evidence))
+    errors.extend(requirement_traceability_errors(evidence, known_contracts))
 
     for record in records:
         owner = f"record {record['id']}"
         target = record.get("target", {})
-        contract_id = target.get("contractId")
-        if contract_id not in known_contracts:
-            errors.append(f"{owner}: unknown contract target {contract_id}")
-        elif target.get("kind") == "contract-transition":
-            transitions = {
-                (entry["version"] - 1, entry["version"])
-                for entry in known_contracts[contract_id]["versionHistory"][1:]
-            }
-            pair = (target.get("fromVersion"), target.get("toVersion"))
-            if pair not in transitions:
-                errors.append(
-                    f"{owner}: unknown contract transition {contract_id} {pair}"
-                )
+        errors.extend(_target_contract_errors(target, known_contracts, owner))
 
         gate_refs = set(record.get("releaseGateIds", []))
         used_gates.update(gate_refs)
@@ -389,7 +473,7 @@ def main() -> int:
         if evidence.get("mode") == "planning":
             print(
                 "Release readiness: NOT READY "
-                "(planning requirement ledger is not yet linked to implementation evidence)"
+                "(planning requirement ledger is target-bound but not yet linked to implementation evidence)"
             )
         deferred = [
             proof.get("id")

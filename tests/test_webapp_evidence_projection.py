@@ -45,7 +45,7 @@ class WebappEvidenceProjectionTests(unittest.TestCase):
             root / "contracts/implementation-evidence.json",
             {
                 "$schema": "../schemas/implementation-evidence.schema.json",
-                "schemaVersion": 4,
+                "schemaVersion": 5,
                 "mode": "product",
                 "commands": [],
                 "releaseGates": [],

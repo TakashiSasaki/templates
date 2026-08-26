@@ -29,7 +29,7 @@ def load_schema() -> dict:
 def product_document() -> dict:
     return {
         "$schema": "../schemas/implementation-evidence.schema.json",
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "mode": "product",
         "commands": [
             {
@@ -165,7 +165,7 @@ class ImplementationEvidenceSchemaTests(unittest.TestCase):
     def test_template_mode_remains_structurally_empty(self) -> None:
         value = {
             "$schema": "../schemas/implementation-evidence.schema.json",
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "mode": "template",
             "commands": [],
             "releaseGates": [],
