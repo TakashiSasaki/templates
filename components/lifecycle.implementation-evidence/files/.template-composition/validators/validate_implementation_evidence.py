@@ -38,12 +38,7 @@ def _target_family(target: dict[str, Any]) -> tuple[str, str]:
 
 
 def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
-    """Return non-fatal diagnostics for suspiciously broad exact proof reuse.
-
-    One parameterized or end-to-end proof may legitimately cover many items in the same
-    contract family. A warning is therefore emitted only when the exact same proof
-    execution signature is reused across at least three distinct contract/item families.
-    """
+    """Return non-fatal diagnostics for suspiciously broad exact proof reuse."""
 
     usages: dict[
         tuple[str, str, str, str, str],
@@ -74,9 +69,7 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
                     str(proof.get("commandId")),
                     str(proof.get("expectedResult")),
                 )
-                usages[signature].append(
-                    (family, record_id, str(proof.get("id")))
-                )
+                usages[signature].append((family, record_id, str(proof.get("id"))))
 
     warnings: list[str] = []
     for signature in sorted(usages):
@@ -102,23 +95,14 @@ def proof_reuse_warnings(records: list[dict[str, Any]]) -> list[str]:
     return warnings
 
 
-
 def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
-    """Validate the explicit requirement -> record edge of the evidence graph.
-
-    Requirement text is intentionally opaque to this validator. Once a consumer
-    registers a stable requirement ID, however, its references must resolve to
-    verified implementation records. The existing record validation then closes
-    the graph through proofs, commands, and release gates.
-    """
+    """Validate the explicit requirement -> record edge of the evidence graph."""
 
     requirements = evidence.get("requirements")
-    if requirements is None:
-        # The field is optional for legacy/template-shaped product documents.
-        # A consumer that declares requirements opts into the closed graph below.
-        return []
     if not isinstance(requirements, list):
         return ["implementation-evidence requirements must be an array"]
+    if evidence.get("mode") == "product" and not requirements:
+        return ["product implementation evidence requires at least one explicit requirement"]
 
     records = evidence.get("records", [])
     if not isinstance(records, list):
@@ -162,23 +146,16 @@ def requirement_traceability_errors(evidence: dict[str, Any]) -> list[str]:
                 for proof in positive
             ):
                 errors.append(
-                    f"{owner}: linked record {record_id} has no verified positive evidence"
+                    f"{owner}: linked record {record_id} has no verified or deferred positive evidence"
                 )
             gates = record.get("releaseGateIds")
             if not isinstance(gates, list) or not gates:
-                errors.append(
-                    f"{owner}: linked record {record_id} has no release gate"
-                )
+                errors.append(f"{owner}: linked record {record_id} has no release gate")
     return errors
 
 
 def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
-    """Return blockers that prevent approved release evidence.
-
-    Structural validation may preserve deferred proof records so that a consumer
-    can distinguish an incomplete environment from malformed JSON. Release
-    production is stricter: every product record and every proof must be verified.
-    """
+    """Return blockers that prevent approved release evidence."""
 
     errors = requirement_traceability_errors(evidence)
     records = evidence.get("records", [])
@@ -219,6 +196,7 @@ def release_readiness_errors(evidence: dict[str, Any]) -> list[str]:
                     )
     return errors
 
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -229,13 +207,17 @@ def validate(root: Path) -> list[str]:
     if not isinstance(evidence, dict):
         return ["implementation evidence must be an object"]
 
+    requirements = evidence.get("requirements", [])
     commands = evidence.get("commands", [])
     gates = evidence.get("releaseGates", [])
     records = evidence.get("records", [])
     mode = evidence.get("mode")
-    command_ids = [entry.get("id") for entry in commands]
-    gate_ids = [entry.get("id") for entry in gates]
-    record_ids = [entry.get("id") for entry in records]
+    if not all(isinstance(value, list) for value in (requirements, commands, gates, records)):
+        return ["implementation evidence collections must be arrays"]
+
+    command_ids = [entry.get("id") for entry in commands if isinstance(entry, dict)]
+    gate_ids = [entry.get("id") for entry in gates if isinstance(entry, dict)]
+    record_ids = [entry.get("id") for entry in records if isinstance(entry, dict)]
     for label, values in (
         ("command", command_ids),
         ("release gate", gate_ids),
@@ -252,13 +234,15 @@ def validate(root: Path) -> list[str]:
     proof_ids: list[Any] = []
     gate_commands: dict[Any, set[Any]] = {}
     for gate in gates:
+        if not isinstance(gate, dict):
+            continue
         refs = set(gate.get("commandIds", []))
-        gate_commands[gate["id"]] = refs
+        gate_commands[gate.get("id")] = refs
         for missing in sorted(refs - known_commands):
-            errors.append(f"release gate {gate['id']}: unknown command {missing}")
+            errors.append(f"release gate {gate.get('id')}: unknown command {missing}")
 
     if mode == "template":
-        if commands or gates or records:
+        if requirements or commands or gates or records:
             errors.append("template implementation evidence must be empty")
         return errors
     if mode != "product":
@@ -267,8 +251,13 @@ def validate(root: Path) -> list[str]:
     errors.extend(requirement_traceability_errors(evidence))
 
     for record in records:
-        owner = f"record {record['id']}"
+        if not isinstance(record, dict):
+            continue
+        owner = f"record {record.get('id')}"
         target = record.get("target", {})
+        if not isinstance(target, dict):
+            errors.append(f"{owner}: target must be an object")
+            continue
         contract_id = target.get("contractId")
         if contract_id not in known_contracts:
             errors.append(f"{owner}: unknown contract target {contract_id}")
@@ -279,9 +268,7 @@ def validate(root: Path) -> list[str]:
             }
             pair = (target.get("fromVersion"), target.get("toVersion"))
             if pair not in transitions:
-                errors.append(
-                    f"{owner}: unknown contract transition {contract_id} {pair}"
-                )
+                errors.append(f"{owner}: unknown contract transition {contract_id} {pair}")
 
         gate_refs = set(record.get("releaseGateIds", []))
         used_gates.update(gate_refs)
@@ -292,8 +279,10 @@ def validate(root: Path) -> list[str]:
         proofs = list(record.get("positiveEvidence", [])) + list(
             record.get("negativeEvidence", [])
         )
-        proof_ids.extend(proof.get("id") for proof in proofs)
         for proof in proofs:
+            if not isinstance(proof, dict):
+                continue
+            proof_ids.append(proof.get("id"))
             command_id = proof.get("commandId")
             if command_id:
                 used_commands.add(command_id)
@@ -333,17 +322,12 @@ def main() -> int:
     args = parser.parse_args()
     root = Path(args.root).resolve()
     evidence = load_json(root / "contracts/implementation-evidence.json")
-    errors = (
-        release_readiness_errors(evidence)
-        if args.release_readiness
-        else validate(root)
-    )
+    errors = release_readiness_errors(evidence) if args.release_readiness else validate(root)
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    evidence = load_json(root / "contracts/implementation-evidence.json")
     if isinstance(evidence, dict) and evidence.get("mode") == "product":
         records = evidence.get("records", [])
         if isinstance(records, list):
