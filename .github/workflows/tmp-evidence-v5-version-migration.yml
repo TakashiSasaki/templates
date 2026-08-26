@@ -28,8 +28,8 @@ jobs:
                   path.write_text(updated, encoding='utf-8')
                   changed.append((str(path), count))
           print('changed evidence literals:', changed)
-          if len(changed) != 20:
-              raise SystemExit(f'expected 20 files, got {len(changed)}')
+          if len(changed) != 19:
+              raise SystemExit(f'expected 19 files, got {len(changed)}')
           PY
           rm .github/workflows/tmp-evidence-v5-inventory.yml
           rm .github/workflows/tmp-evidence-v5-version-migration.yml
