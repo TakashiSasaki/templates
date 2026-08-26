@@ -192,6 +192,31 @@ class ExecutableProofSemanticsTests(unittest.TestCase):
             errors,
         )
 
+    def test_symlink_harness_is_rejected_by_validation_and_release_readiness(self) -> None:
+        evidence = product_evidence()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            root = workspace / "consumer"
+            self.write_consumer(root, evidence)
+            outside = workspace / "outside.py"
+            outside.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            harness = root / "tests" / "proof.py"
+            harness.unlink()
+            try:
+                harness.symlink_to(outside)
+            except OSError as exc:
+                self.skipTest(f"symlink creation is unavailable: {exc}")
+            structural = implementation.validate(root)
+            readiness = implementation.release_readiness_errors(evidence, root)
+        self.assertTrue(
+            any("regular non-symlink file" in error for error in structural),
+            structural,
+        )
+        self.assertTrue(
+            any("regular non-symlink file" in error for error in readiness),
+            readiness,
+        )
+
     def test_browser_sensitive_target_requires_browser_command_capability(self) -> None:
         evidence = product_evidence(capabilities=["end-to-end"])
         errors = webapp.browser_level_proof_errors(evidence)
