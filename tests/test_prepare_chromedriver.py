@@ -7,10 +7,12 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import call, patch
+from urllib.error import HTTPError
 
 from scripts.prepare_chromedriver import (
     ARCHIVE_MEMBER,
     ChromeDriverPreparationError,
+    download_bytes,
     driver_archive_url,
     latest_release_url,
     parse_four_part_version,
@@ -78,6 +80,18 @@ class PrepareChromeDriverTests(unittest.TestCase):
             ],
         )
         release.assert_called_once_with(latest_release_url(chrome))
+
+    def test_missing_ok_suppresses_only_http_404(self) -> None:
+        url = driver_archive_url("151.0.7922.173")
+        not_found = HTTPError(url, 404, "Not Found", hdrs=None, fp=None)
+        server_error = HTTPError(url, 500, "Server Error", hdrs=None, fp=None)
+
+        with patch("scripts.prepare_chromedriver.urlopen", side_effect=not_found):
+            self.assertIsNone(download_bytes(url, missing_ok=True))
+
+        with patch("scripts.prepare_chromedriver.urlopen", side_effect=server_error):
+            with self.assertRaises(ChromeDriverPreparationError):
+                download_bytes(url, missing_ok=True)
 
     def test_driver_resolution_accepts_latest_patch_for_same_build(self) -> None:
         self.assertEqual(
