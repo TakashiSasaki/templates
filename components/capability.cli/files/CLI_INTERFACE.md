@@ -8,7 +8,7 @@ Private helper scripts are not public CLIs and do not require this contract.
 
 `contracts/cli-interface.json` is the canonical machine-readable state for this selected capability. Its initial `template` mode makes no product CLI claim. Switch it to `product` only after every caller-visible entrypoint is concrete and the shared implementation-evidence graph contains executable positive and negative proof for each entrypoint.
 
-When `capability.cli` is selected, product implementation evidence cannot remain release-valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation.
+When `capability.cli` is selected, product implementation evidence cannot remain release-valid while this contract is still in template mode. Static source inspection and unit-only proof do not satisfy the CLI executable-proof obligation. Use `integration-test` or `end-to-end-test` proof kinds for the required executable positive and negative evidence.
 
 Keep the narrative notes below aligned with the machine contract; when they conflict, the JSON contract is authoritative for validation.
 
