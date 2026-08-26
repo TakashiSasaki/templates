@@ -1,0 +1,29 @@
+name: Temporary add planning migration publication entry
+on:
+  push:
+    branches:
+      - agent/planning-requirement-ledger-pr16
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/planning-requirement-ledger-pr16
+          fetch-depth: 0
+      - name: Add catalog entry
+        run: |
+          python .github/tmp/add_planning_publication.py
+          python -m json.tool docs/publication-catalog.json >/dev/null
+      - name: Commit publication entry and self-delete
+        run: |
+          rm -f .github/tmp/add_planning_publication.py
+          rm -f .github/workflows/tmp-add-planning-publication.yml
+          git config user.name 'TakashiSasaki templates automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Publish implementation-evidence v4 migration guide'
+          git push origin HEAD:agent/planning-requirement-ledger-pr16
