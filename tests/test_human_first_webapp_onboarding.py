@@ -110,22 +110,27 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "real positive and negative",
             "positive and negative `end-to-end-test` paths",
             "Do not relabel source inspection, HTTP reachability, or unit tests",
-            "keep the evidence document in `template` mode",
+            "mark the affected proof `deferred`",
+            "release readiness must remain `NOT READY`",
+            "non-empty `requiredPositiveProofKinds`",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, text)
         self.assertNotIn("browser UI for creating, listing, editing", text)
+        self.assertNotIn("keep the evidence document in `template` mode", text)
 
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         for expected in (
             "completion requirement ではありません",
             "API は title update も提供します",
             "browser title editing を claim しません",
-            "browser-level proofになりません",
+            "browser-level proof になりません",
             "実ブラウザを使う positive / negative",
             "positive/negative `end-to-end-test` path",
-            "HTTP reachability、unit testをbrowser proofとして再分類",
-            "evidence documentを `template` modeに保ちます",
+            "HTTP reachability、unit test を browser proof として再分類してはいけません",
+            "該当 proof を `deferred`",
+            "release readiness は `NOT READY`",
+            "non-empty な `requiredPositiveProofKinds`",
             "`minWidthPx: 0`",
             "coverage-start sentinel",
             "実用上の最小幅は 320px",
@@ -135,6 +140,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
+        self.assertNotIn("evidence documentを `template` modeに保ちます", japanese)
 
     def test_real_browser_proof_is_immutable_and_runs_before_product_claim(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")

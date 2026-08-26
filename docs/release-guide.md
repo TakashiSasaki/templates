@@ -50,14 +50,16 @@ python scripts/scaffold_webapp_evidence.py
 The scaffold is non-destructive. Use its records to populate product-mode implementation evidence with:
 
 - the implementation boundary for each required target;
+- an explicit stable requirement ID for every caller-visible product requirement;
+- each requirement's linked `recordIds` and non-empty `requiredPositiveProofKinds` declaration;
 - positive evidence;
 - negative evidence where required;
 - the authoritative proof `commandId`; and
 - the release gate IDs that consume that proof.
 
-The human-readable `command` stored in implementation evidence identifies the proof for review and digest binding. It is not parsed as shell input by the release producer.
+The human-readable `command` stored in implementation evidence identifies the proof for review and digest binding. It is not parsed as shell input by the release producer. If a required execution environment is temporarily unavailable after the proof definition and locator exist, keep the product requirement visible and mark that proof `deferred`; do not substitute weaker static evidence. Deferred evidence may remain structurally valid, but release readiness and release production reject it.
 
-Run the implementation-evidence and Webapp evidence validators while filling these records. Product evidence should fail closed until every required target and release gate is covered.
+Run the implementation-evidence and Webapp evidence validators while filling these records, and run `python .template-composition/validators/validate_implementation_evidence.py . --release-readiness` before release production. Product evidence should fail closed until every required target, requirement-to-proof-kind edge, and release gate is covered; release readiness should fail until every required proof is `verified`.
 
 ## 3. Define the executable release argv
 

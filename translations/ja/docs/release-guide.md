@@ -52,14 +52,16 @@ python scripts/scaffold_webapp_evidence.py
 scaffold は non-destructive です。生成された record を使用し、product-mode implementation evidence に次を記録します。
 
 - 必要な各 target の implementation boundary。
+- すべての caller-visible product requirement に対する明示的で stable な requirement ID。
+- 各 requirement の linked `recordIds` と non-empty な `requiredPositiveProofKinds` 宣言。
 - positive evidence。
 - 必要な場合の negative evidence。
 - authoritative proof の `commandId`。
 - その proof を利用する release gate ID。
 
-implementation evidence に保存する human-readable な `command` は、review と digest binding のために proof を識別します。release producer がこれを shell input として parse することはありません。
+implementation evidence に保存する human-readable な `command` は、review と digest binding のために proof を識別します。release producer がこれを shell input として parse することはありません。proof 定義と locator が存在した後で必要な実行環境が一時的に利用できない場合は、product requirement を machine-visible なまま維持し、その proof を `deferred` にします。より弱い static evidence で代用してはいけません。deferred evidence は構造的には有効であり得ますが、release readiness と release production は拒否します。
 
-record を埋める間も implementation-evidence validator と Webapp evidence validator を実行してください。必要な target と release gate がすべて cover されるまで product evidence は fail closed であるべきです。
+record を埋める間も implementation-evidence validator と Webapp evidence validator を実行し、release production 前には `python .template-composition/validators/validate_implementation_evidence.py . --release-readiness` を実行してください。必要な target、requirement-to-proof-kind edge、release gate がすべて cover されるまで product evidence は fail closed であり、必要な proof がすべて `verified` になるまで release readiness は fail すべきです。
 
 ## 3. 実行可能な release argv を定義する
 
