@@ -4,14 +4,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from test_webapp_productization_acceptance import (
-    WebappProductizationAcceptanceTests,
-)
+import test_webapp_productization_acceptance as productization_acceptance
 
 
 class WebappProductizationBundleFailClosedTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.fixture = WebappProductizationAcceptanceTests(methodName="runTest")
+        self.fixture = productization_acceptance.WebappProductizationAcceptanceTests(
+            methodName="runTest"
+        )
 
     def test_bundle_revision_and_artifact_digest_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
