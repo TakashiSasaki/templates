@@ -37,7 +37,19 @@ def evidence(
 ) -> dict:
     return {
         "mode": "product",
-        "commands": [],
+        "commands": [
+            {
+                "id": "focus-proof",
+                "execution": {
+                    "capabilities": [
+                        "integration",
+                        "end-to-end",
+                        "accessibility",
+                        "browser",
+                    ]
+                },
+            }
+        ],
         "releaseGates": [],
         "requirements": [
             {
@@ -58,10 +70,20 @@ def evidence(
                 },
                 "implementationBoundary": {"status": "verified"},
                 "positiveEvidence": [
-                    {"id": "positive", "status": "verified", "kind": proof_kind}
+                    {
+                        "id": "positive",
+                        "status": "verified",
+                        "kind": proof_kind,
+                        "commandId": "focus-proof",
+                    }
                 ],
                 "negativeEvidence": [
-                    {"id": "negative", "status": "verified", "kind": proof_kind}
+                    {
+                        "id": "negative",
+                        "status": "verified",
+                        "kind": proof_kind,
+                        "commandId": "focus-proof",
+                    }
                 ],
                 "releaseGateIds": ["release"],
             }
