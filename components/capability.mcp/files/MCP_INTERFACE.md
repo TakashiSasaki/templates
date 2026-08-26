@@ -30,7 +30,8 @@ This marker is guidance only. Product selection is machine-visible only when `co
 ## Core protocol
 
 ```text
-Runtime, SDK, revision, and schema source of truth: RUNTIME.md
+Runtime and SDK source of truth: RUNTIME.md
+Selected core protocol revision: contracts/mcp-interface.json
 Public compatibility statement: TODO
 Discovery/negotiation behavior: TODO
 Unsupported revision behavior: TODO
