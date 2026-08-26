@@ -2,23 +2,48 @@
   "schema_version": 1,
   "id": "lifecycle.implementation-evidence",
   "kind": "lifecycle",
-  "version": 2,
-  "summary": "Artifact-neutral implementation boundaries, proofs, commands, and release-gate contract.",
-  "requires": ["lifecycle.contract-evolution"],
+  "version": 3,
+  "summary": "Artifact-neutral implementation boundaries, explicit product requirements, proofs, commands, and release-gate contract.",
+  "requires": [
+    "lifecycle.contract-evolution"
+  ],
   "conflicts": [],
-  "contract_registrations": [{
-    "id": "implementation_evidence",
-    "document": "contracts/implementation-evidence.json",
-    "schema": "schemas/implementation-evidence.schema.json",
-    "migration_slug": "implementation-evidence",
-    "document_schema_version": 1,
-    "version_history": [{"version":1,"change_type":"initial"}],
-    "purpose": "Map artifact-defined contract targets to implementation boundaries, positive/negative proofs, authoritative commands, and release gates."
-  }],
+  "contract_registrations": [
+    {
+      "id": "implementation_evidence",
+      "document": "contracts/implementation-evidence.json",
+      "schema": "schemas/implementation-evidence.schema.json",
+      "migration_slug": "implementation-evidence",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Map explicit product requirements and artifact-defined contract targets to implementation boundaries, positive/negative proofs, authoritative commands, and release gates."
+    }
+  ],
   "materials": [
-    {"source":"files/contracts/implementation-evidence.json","destination":"contracts/implementation-evidence.json","ownership":"seed"},
-    {"source":"files/schemas/implementation-evidence.schema.json","destination":"schemas/implementation-evidence.schema.json","ownership":"managed"},
-    {"source":"files/.template-composition/validators/validate_implementation_evidence.py","destination":".template-composition/validators/validate_implementation_evidence.py","ownership":"managed"},
-    {"source":"files/docs/architecture/implementation-evidence.md","destination":"docs/architecture/implementation-evidence.md","ownership":"managed"}
+    {
+      "source": "files/contracts/implementation-evidence.json",
+      "destination": "contracts/implementation-evidence.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/implementation-evidence.schema.json",
+      "destination": "schemas/implementation-evidence.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_implementation_evidence.py",
+      "destination": ".template-composition/validators/validate_implementation_evidence.py",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/docs/architecture/implementation-evidence.md",
+      "destination": "docs/architecture/implementation-evidence.md",
+      "ownership": "managed"
+    }
   ]
 }
