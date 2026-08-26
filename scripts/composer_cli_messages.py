@@ -22,6 +22,14 @@ def consumer_message(entry: dict[str, Any]) -> str:
     destination = _value(entry, "destination", "the affected destination")
     component = _value(entry, "component", "the affected component")
 
+    if code == "NOT_A_MANAGED_CONSUMER_ENTRYPOINT":
+        return (
+            "Composition material exists without a managed consumer lock. "
+            "Do not run materialized .template-composition files directly; use the "
+            "installed Composition skill runner for initial composition, for example "
+            "`python scripts/run.py --repository <root> plan --config composition.json`."
+        )
+
     if code == "MANAGED_LOCK_REQUIRED":
         return (
             "This managed operation requires .template-composition/lock.json. "
