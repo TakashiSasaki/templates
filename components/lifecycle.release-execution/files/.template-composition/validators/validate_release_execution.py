@@ -14,7 +14,6 @@ _DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
 _REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _WORKING_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9._-]*$")
 _PYTHON_MODULE_SEGMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_HARNESS_INVOCATIONS = {"python-script", "python-unittest", "direct"}
 
 
 def _index(items: object, key: str, label: str) -> tuple[dict[str, dict], list[str]]:
@@ -37,6 +36,26 @@ def _index(items: object, key: str, label: str) -> tuple[dict[str, dict], list[s
     return result, errors
 
 
+def _python_module_from_locator(locator: str) -> str | None:
+    if not locator.endswith(".py"):
+        return None
+    parts = locator[:-3].split("/")
+    if not parts or not all(_PYTHON_MODULE_SEGMENT_PATTERN.fullmatch(part) for part in parts):
+        return None
+    return ".".join(parts)
+
+
+def _infer_harness_invocation(command_text: object, locator: str) -> str | None:
+    if command_text == f"python {locator}":
+        return "python-script"
+    module = _python_module_from_locator(locator)
+    if module is not None and command_text == f"python -m unittest {module}":
+        return "python-unittest"
+    if command_text == f"./{locator}":
+        return "direct"
+    return None
+
+
 def _implementation_harness(command: dict) -> tuple[str, str] | None:
     execution = command.get("execution")
     if not isinstance(execution, dict):
@@ -45,14 +64,11 @@ def _implementation_harness(command: dict) -> tuple[str, str] | None:
     if not isinstance(harness, dict):
         return None
     locator = harness.get("locator")
-    invocation = harness.get("invocation")
-    if (
-        not isinstance(locator, str)
-        or not locator
-        or invocation not in _HARNESS_INVOCATIONS
-    ):
+    if not isinstance(locator, str) or not locator:
         return None
-    assert isinstance(invocation, str)
+    invocation = _infer_harness_invocation(command.get("command"), locator)
+    if invocation is None:
+        return None
     return locator, invocation
 
 
@@ -222,7 +238,7 @@ def validate(root: Path) -> list[str]:
         implementation_harness = _implementation_harness(authoritative)
         if implementation_harness is None:
             errors.append(
-                f"implementation command {command_id}: execution harness locator and supported invocation are required before release binding"
+                f"implementation command {command_id}: command and execution harness must identify one supported exact invocation before release binding"
             )
             continue
         expected_harness, invocation = implementation_harness
@@ -252,13 +268,13 @@ def validate(root: Path) -> list[str]:
             if argv != expected_argv:
                 errors.append(
                     f"release execution command {command_id}: argv must exactly execute declared harness "
-                    f"{harness_locator!r} using {invocation!r} from workingDirectory {working_directory!r}; "
+                    f"{harness_locator!r} using inferred {invocation!r} invocation from workingDirectory {working_directory!r}; "
                     f"expected {expected_argv!r}, got {argv!r}"
                 )
         if index_valid and harness_argument_index != expected_index:
             errors.append(
                 f"release execution command {command_id}: harnessArgumentIndex must be {expected_index} "
-                f"for {invocation!r}, got {harness_argument_index}"
+                f"for inferred {invocation!r} invocation, got {harness_argument_index}"
             )
 
     return errors
