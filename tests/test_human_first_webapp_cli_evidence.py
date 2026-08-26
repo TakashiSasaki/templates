@@ -59,7 +59,7 @@ class HumanFirstWebappCliEvidenceTests(unittest.TestCase):
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         for expected in (
             "`contracts/cli-interface.json` | `seed`",
-            "`cli_interface / entrypoint / task-ledger`",
+            "`contract-item / cli_interface / entrypoint / task-ledger`",
             "proof kind は `integration-test`",
             "invalid argument の exit code",
             'action="version", version="Task Ledger 1.0"',
