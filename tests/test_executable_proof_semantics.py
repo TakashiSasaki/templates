@@ -56,6 +56,7 @@ def product_evidence(
                     "harness": {
                         "kind": "repository-file",
                         "locator": "tests/proof.py",
+                        "invocation": "python-script",
                     },
                     "supportsNegativePath": supports_negative,
                 },
@@ -161,6 +162,20 @@ class ExecutableProofSemanticsTests(unittest.TestCase):
         evidence = product_evidence(capabilities=["inspection"])
         errors = implementation.proof_execution_errors(evidence)
         self.assertTrue(any("end-to-end" in error for error in errors), errors)
+
+    def test_unrelated_launcher_cannot_claim_declared_harness(self) -> None:
+        evidence = product_evidence()
+        evidence["commands"][0]["command"] = "echo tests/proof.py"
+        errors = implementation.proof_execution_errors(evidence)
+        readiness = implementation.release_readiness_errors(evidence)
+        self.assertTrue(
+            any("command must exactly invoke declared harness" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("command must exactly invoke declared harness" in error for error in readiness),
+            readiness,
+        )
 
     def test_negative_proof_requires_negative_path_capability(self) -> None:
         evidence = product_evidence(supports_negative=False)
