@@ -129,6 +129,15 @@ Before declaring a pull request merge-ready, fetch the current target branch ful
 _Source: `TakashiSasaki/templates@0666614b31b213e489e0d59b768ef9402e7f78f1:policy/pull-request/target-branch-head-freshness.md`; rule ID: `pull-request.verify-target-branch-head-freshness`; severity: `mandatory`._
 
 
+## Require an independent exact-head review before merge
+
+Before merging a pull request, require at least one completed review from an independent reviewer or review system for the exact proposed head commit. A review request, pending review, absence of review findings, or zero completed reviews is not review evidence and must block merge. The agent or actor that implemented the proposed change must not count its own self-review as the required independent review.
+
+If the proposed head changes after the relied-upon review, treat that review as stale and obtain a new completed review for the new exact head before merge. If the required reviewer is unavailable or does not complete the review, report the pull request as blocked rather than waiving the requirement. Only an explicit repository policy may define an exception; an implementing agent must not invent or self-authorize one.
+
+_Source: `TakashiSasaki/templates@0666614b31b213e489e0d59b768ef9402e7f78f1:policy/pull-request/independent-exact-head-review.md`; rule ID: `pull-request.require-independent-exact-head-review`; severity: `mandatory`._
+
+
 ## Close review threads before merge
 
 Before merging a pull request, inspect the current review threads and submitted reviews for the exact proposed head. Resolve each actionable thread through a code or documentation change, or record an explicit disposition when no change is warranted. Do not merge while unresolved review threads remain unless an explicit repository policy defines a documented exception.
