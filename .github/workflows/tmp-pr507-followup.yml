@@ -14,6 +14,8 @@ jobs:
         with:
           ref: agent/cli-machine-evidence-pr14
           fetch-depth: 0
+      - name: Fix follow-up patch script
+        run: python .github/tmp/fix_pr507_followup.py
       - name: Apply follow-up patch
         run: python .github/tmp/patch_pr507_followup.py
       - name: Verify focused syntax
@@ -23,6 +25,7 @@ jobs:
           python -m py_compile tests/test_composition_lock_v2.py
       - name: Commit patch and remove temporary files
         run: |
+          rm .github/tmp/fix_pr507_followup.py
           rm .github/tmp/patch_pr507_followup.py
           rm .github/workflows/tmp-pr507-followup.yml
           git config user.name 'TakashiSasaki templates automation'
