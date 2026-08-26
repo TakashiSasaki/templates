@@ -48,11 +48,13 @@ jobs:
   # baseline, so Windows path, subprocess, shell, venv, and filesystem behavior
   # remains a merge-time check without paying for four Windows versions per PR.
   # On an exact composition push these jobs are part of the authoritative proof.
+  # always() crosses the intentionally skipped push classifier; !cancelled()
+  # preserves concurrency cancellation so superseded runs do not keep spending.
   clean-runtime:
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -103,7 +105,7 @@ jobs:
     name: materialized validation / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
@@ -152,7 +154,7 @@ jobs:
     name: installed skill / ${{ matrix.os }} / Python 3.12
     needs:
       - classify_runtime
-    if: ${{ always() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
     strategy:
       fail-fast: false
       matrix:
