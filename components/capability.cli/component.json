@@ -2,17 +2,49 @@
   "schema_version": 1,
   "id": "capability.cli",
   "kind": "capability",
-  "version": 1,
+  "version": 2,
   "summary": "Stable caller-visible packaged CLI contract.",
   "requires": [
-    "capability.runtime"
+    "capability.runtime",
+    "lifecycle.implementation-evidence"
   ],
   "conflicts": [],
+  "contract_registrations": [
+    {
+      "id": "cli_interface",
+      "document": "contracts/cli-interface.json",
+      "schema": "schemas/cli-interface.schema.json",
+      "migration_slug": "cli-interface",
+      "document_schema_version": 1,
+      "version_history": [
+        {
+          "version": 1,
+          "change_type": "initial"
+        }
+      ],
+      "purpose": "Declare caller-visible packaged CLI entrypoints, invocation probes, structured output, and exit-code contracts."
+    }
+  ],
   "materials": [
     {
       "source": "files/CLI_INTERFACE.md",
       "destination": "CLI_INTERFACE.md",
       "ownership": "seed"
+    },
+    {
+      "source": "files/contracts/cli-interface.json",
+      "destination": "contracts/cli-interface.json",
+      "ownership": "seed"
+    },
+    {
+      "source": "files/schemas/cli-interface.schema.json",
+      "destination": "schemas/cli-interface.schema.json",
+      "ownership": "managed"
+    },
+    {
+      "source": "files/.template-composition/validators/validate_cli_interface.py",
+      "destination": ".template-composition/validators/validate_cli_interface.py",
+      "ownership": "managed"
     }
   ]
 }

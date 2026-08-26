@@ -199,7 +199,12 @@ class ProductionCatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             self.resolve({"capability.cli"}),
-            ["capability.cli", "capability.runtime"],
+            [
+                "capability.cli",
+                "capability.runtime",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            ],
         )
         self.assertEqual(
             self.resolve({"capability.service"}),

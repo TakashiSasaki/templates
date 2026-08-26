@@ -15,7 +15,7 @@
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
-      "canonical_blob_sha": "fac18e42137720e7850dd233106cec5fb4a851ff",
+      "canonical_blob_sha": "a02910068d5c819ccc0c6e84d0037602ed2d22e7",
       "surfaces": [
         "reader"
       ]
@@ -96,7 +96,7 @@
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "c693405ae87f40f84305a6aa7767a0595839d90a",
+      "canonical_blob_sha": "5a02f1aeb5a71b97c4a2871e22060a607b8b4169",
       "surfaces": [
         "reader"
       ]

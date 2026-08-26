@@ -179,6 +179,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 | --- | --- | --- |
 | `README.md`, `TEMPLATE.md`, `RUNTIME.md`, `CLI_INTERFACE.md`, `SERVICE_INTERFACE.md` | `seed` | **編集する。** consumer ownership に移っています。 |
 | Webapp contract JSON | `seed` | **編集する。** product の実態に合わせる。 |
+| `contracts/cli-interface.json` | `seed` | **selected CLI を product claim にするとき編集する。** caller-visible CLI と executable proof が揃うまでは `template` mode を維持する。 |
 | `contracts/implementation-evidence.json` | `seed` | **real proof ができてから編集する。** |
 | `contracts/manifest.json` | `generated` | **hand-edit しない。** |
 | `schemas/*.schema.json` | `managed` | **hand-edit しない。** |
@@ -225,6 +226,41 @@ GET    /healthz
 python -m task_ledger.cli --database task-ledger.db list --status all
 python -m task_ledger.cli --database task-ledger.db export
 ```
+
+`capability.cli` を選択しているため、実装後には editable seed `contracts/cli-interface.json` も caller-visible product contract にします。
+
+```json
+{
+  "$schema": "../schemas/cli-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "product",
+  "entrypoints": [
+    {
+      "id": "task-ledger",
+      "command": ["python", "-m", "task_ledger.cli", "--database", "task-ledger.db"],
+      "workingDirectory": ".",
+      "helpArguments": ["--help"],
+      "versionArguments": ["--version"],
+      "structuredOutput": {
+        "arguments": ["export"],
+        "format": "json",
+        "contractVersionField": "contractVersion"
+      },
+      "exitCodes": {
+        "success": 0,
+        "negativeResult": 1,
+        "invalidInput": 2,
+        "unavailable": 3,
+        "refused": 4,
+        "internalFailure": 5,
+        "additionalInputRequired": 6
+      }
+    }
+  ]
+}
+```
+
+source file が存在するだけで `product` にしてはいけません。下の product verifier が `--help`、`--version`、structured `export`、invalid-input path を実行し、Section 15 で `cli_interface/entrypoint/task-ledger` evidence record に接続します。
 
 ## 12. Minimal consumer-owned implementation と tests を作る
 
@@ -412,6 +448,7 @@ def make_server(database: str, host: str, port: int) -> ThreadingHTTPServer:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version="Task Ledger 1.0")
     parser.add_argument("--database", required=True)
     subcommands = parser.add_subparsers(dest="command", required=True)
     list_parser = subcommands.add_parser("list")
@@ -428,7 +465,13 @@ def main() -> int:
             print(f"{task['id']}\t[{marker}]\t{task['title']}")
         return 0
     if args.command == "export":
-        print(json.dumps(list_tasks(args.database), ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"contractVersion": "1", "tasks": list_tasks(args.database)},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     server = make_server(args.database, args.host, args.port)
@@ -557,7 +600,45 @@ class TaskLedgerTests(unittest.TestCase):
             capture_output=True,
             check=True,
         )
-        self.assertEqual(json.loads(result.stdout)[0]["title"], "export me")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["contractVersion"], "1")
+        self.assertEqual(payload["tasks"][0]["title"], "export me")
+
+        help_result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "--help"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("export", help_result.stdout)
+
+        version_result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "--version"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(version_result.returncode, 0, version_result.stderr)
+        self.assertEqual(version_result.stdout.strip(), "Task Ledger 1.0")
+
+        invalid = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "task_ledger.cli",
+                "--database",
+                self.database,
+                "list",
+                "--status",
+                "invalid",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("invalid choice", invalid.stderr)
 
     def test_http_api_positive_and_negative_paths(self) -> None:
         server = make_server(self.database, "127.0.0.1", 0)
@@ -700,6 +781,8 @@ command/gate 例:
 各 record は actual worklist target、implementation-boundary locator、positive/negative proof locators、expected results、selected gate を持つ必要があります。
 
 生成された `viewports/base` と `input-capability/keyboard` recordでは、positive/negative proof locatorを `tests/test_task_ledger_browser.py`、proof kindを `end-to-end-test`、command IDを `verify-product` にします。expected resultには、単なるfileの存在ではなく、対応するsuccessful interactionと拒否または不在が確認されたinvalid behaviorを記述します。
+
+`capability.cli` を選択しているため、さらに `contract-item / cli_interface / entrypoint / task-ledger` target の record を1件追加します。implementation boundary は `task_ledger/cli.py`、positive / negative proof locator は `tests/test_task_ledger.py`、proof kind は `integration-test` とし、`requiredPositiveProofKinds` に `integration-test` を含む stable CLI requirement から link します。positive path は help/version/structured export、negative path は invalid argument の exit code を実行します。CLI contract が `template` のまま、または source inspection / unit-only proof しかない状態を valid product completion としてはいけません。
 
 product evidence を変更するたびに structural validation を実行し、その evidence が release を承認できると claim する前に、より厳しい release-readiness check を実行します。
 

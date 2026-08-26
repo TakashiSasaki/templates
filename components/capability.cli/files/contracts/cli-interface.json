@@ -1,0 +1,6 @@
+{
+  "$schema": "../schemas/cli-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "template",
+  "entrypoints": []
+}

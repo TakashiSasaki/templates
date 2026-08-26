@@ -96,6 +96,18 @@ class CatalogConsumerSelectionGuideTests(unittest.TestCase):
             },
         )
         self.assertEqual(
+            dependency_closure("artifact.skill-core", "capability.cli"),
+            {
+                "artifact.skill-core",
+                "capability.cli",
+                "capability.runtime",
+                "lifecycle.composition-state",
+                "lifecycle.contract-evolution",
+                "lifecycle.implementation-evidence",
+            },
+        )
+
+        self.assertEqual(
             dependency_closure("artifact.skill-core", "lifecycle.release-bundle"),
             {
                 "artifact.skill-core",

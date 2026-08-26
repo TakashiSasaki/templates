@@ -342,6 +342,7 @@ For this Task Ledger configuration, concrete examples are:
 | `CLI_INTERFACE.md` | `seed` | **Edit it.** Define the supported `list` / `export` behavior. |
 | `SERVICE_INTERFACE.md` | `seed` | **Edit it.** Define the independently supported JSON API. |
 | `contracts/routes.json`, `contracts/surfaces.json`, `contracts/ui-states.json`, `contracts/viewports.json` | `seed` | **Edit them.** Make the browser contracts truthful for Task Ledger. |
+| `contracts/cli-interface.json` | `seed` | **Edit it when the selected CLI becomes a product claim.** Keep it in `template` mode until the caller-visible CLI and executable proof exist. |
 | `contracts/implementation-evidence.json` | `seed` | **Edit later, after real proofs exist.** It initially remains in `template` mode. |
 | `contracts/manifest.json` | `generated` | **Do not hand-edit it.** Composition regenerates it deterministically. |
 | `schemas/*.schema.json` | `managed` | **Do not hand-edit them.** They remain Composition-owned. |
@@ -418,6 +419,41 @@ python -m task_ledger.cli --database task-ledger.db export
 ```
 
 Document stdout/stderr, exit status, invalid arguments, persistence-target selection, and whether CLI operations have semantics equivalent to corresponding API operations.
+
+Because `capability.cli` is selected, also replace the editable machine seed `contracts/cli-interface.json` with the caller-visible product contract after the implementation exists:
+
+```json
+{
+  "$schema": "../schemas/cli-interface.schema.json",
+  "schemaVersion": 1,
+  "mode": "product",
+  "entrypoints": [
+    {
+      "id": "task-ledger",
+      "command": ["python", "-m", "task_ledger.cli", "--database", "task-ledger.db"],
+      "workingDirectory": ".",
+      "helpArguments": ["--help"],
+      "versionArguments": ["--version"],
+      "structuredOutput": {
+        "arguments": ["export"],
+        "format": "json",
+        "contractVersionField": "contractVersion"
+      },
+      "exitCodes": {
+        "success": 0,
+        "negativeResult": 1,
+        "invalidInput": 2,
+        "unavailable": 3,
+        "refused": 4,
+        "internalFailure": 5,
+        "additionalInputRequired": 6
+      }
+    }
+  ]
+}
+```
+
+Do not switch this contract to `product` merely because the CLI source file exists. The `--help`, `--version`, structured `export`, and invalid-input paths below are executed by the product verifier, and Section 15 links those executable checks to a `cli_interface/entrypoint/task-ledger` evidence record.
 
 ## 12. Create the minimal consumer-owned implementation and tests
 
@@ -607,6 +643,7 @@ def make_server(database: str, host: str, port: int) -> ThreadingHTTPServer:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version="Task Ledger 1.0")
     parser.add_argument("--database", required=True)
     subcommands = parser.add_subparsers(dest="command", required=True)
     list_parser = subcommands.add_parser("list")
@@ -623,7 +660,13 @@ def main() -> int:
             print(f"{task['id']}\t[{marker}]\t{task['title']}")
         return 0
     if args.command == "export":
-        print(json.dumps(list_tasks(args.database), ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"contractVersion": "1", "tasks": list_tasks(args.database)},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     server = make_server(args.database, args.host, args.port)
@@ -752,7 +795,45 @@ class TaskLedgerTests(unittest.TestCase):
             capture_output=True,
             check=True,
         )
-        self.assertEqual(json.loads(result.stdout)[0]["title"], "export me")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["contractVersion"], "1")
+        self.assertEqual(payload["tasks"][0]["title"], "export me")
+
+        help_result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "--help"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("export", help_result.stdout)
+
+        version_result = subprocess.run(
+            [sys.executable, "-m", "task_ledger.cli", "--database", self.database, "--version"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(version_result.returncode, 0, version_result.stderr)
+        self.assertEqual(version_result.stdout.strip(), "Task Ledger 1.0")
+
+        invalid = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "task_ledger.cli",
+                "--database",
+                self.database,
+                "list",
+                "--status",
+                "invalid",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("invalid choice", invalid.stderr)
 
     def test_http_api_positive_and_negative_paths(self) -> None:
         server = make_server(self.database, "127.0.0.1", 0)
@@ -859,7 +940,7 @@ Composition does not choose the product test runner. Task Ledger now has one ind
 
 **Expected**
 
-The consumer-owned unit/integration checks pass and the command exits successfully. The tests exercise SQLite persistence across independent connections, filtering/update behavior, CLI export, an independently reachable JSON API, health, and a negative invalid-filter case.
+The consumer-owned unit/integration checks pass and the command exits successfully. The tests exercise SQLite persistence across independent connections, filtering/update behavior, CLI help/version/structured export plus an invalid-argument exit-2 path, an independently reachable JSON API, health, and a negative invalid-filter case.
 
 **Repository change**
 
@@ -933,6 +1014,8 @@ A command and gate can look like:
 Each record still needs its exact worklist target, verified implementation-boundary locator, verified positive/negative proof locators, expected results, and selected gate. Do not copy a sample target from this guide; the authoritative target set belongs to the consumer repository.
 
 For the generated `viewports/base` and `input-capability/keyboard` records, use `tests/test_task_ledger_browser.py` as the positive and negative proof locator, `end-to-end-test` as the proof kind, and `verify-product` as the command ID. The expected results must describe the corresponding successful interaction and rejected/absent invalid behavior rather than merely saying that the file exists.
+
+Because `capability.cli` is selected, add one further record whose target is `contract-item / cli_interface / entrypoint / task-ledger`. Its implementation boundary is `task_ledger/cli.py`; its positive and negative proof locator is `tests/test_task_ledger.py`; and its proof kind is `integration-test`. Link that record from a stable CLI requirement whose `requiredPositiveProofKinds` contains `integration-test`. The positive path covers help/version/structured export, while the negative path covers the invalid-argument exit code. A selected CLI contract left in `template` mode, or a CLI record backed only by source inspection/unit-only proof, must keep Composition validation invalid.
 
 Run the structural validation whenever product evidence changes. Run the stricter release-readiness check before claiming that the evidence can approve a release.
 
@@ -1051,6 +1134,7 @@ The **implemented-product milestone** is stronger. It additionally requires:
 - product source and tests exist;
 - the authoritative product verification command passes;
 - implementation evidence is in `product` mode with complete current-target coverage;
+- when `capability.cli` is selected, `contracts/cli-interface.json` is in truthful `product` mode and every declared CLI entrypoint has executable positive/negative evidence;
 - every caller-visible product requirement has a stable requirement ID, linked records, and a non-empty `requiredPositiveProofKinds` declaration;
 - real positive/negative proofs satisfy those declared proof kinds, including browser-level proof for browser-sensitive requirements, with no required proof left `deferred`;
 - Composition validation passes with implementation evidence executed rather than template-deferred;

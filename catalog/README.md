@@ -18,7 +18,7 @@ Select optional application capabilities according to externally visible behavio
 | Need | Include | Automatically adds | What it contributes |
 | --- | --- | --- | --- |
 | A maintained implementation runtime, dependency/distribution rules, commands, environment, or deployment lifecycle | `capability.runtime` | — | Runtime selection and maintenance contract |
-| A packaged command-line interface | `capability.cli` | `capability.runtime` | Caller-visible CLI contract |
+| A packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence (and contract evolution) | Machine-readable caller-visible CLI contract with executable-proof enforcement |
 | An MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` | MCP protocol, transport, client, security, and semantic-equivalence contract |
 | An MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp` and therefore `capability.runtime` | MCP Apps resources, bridge, visibility, sandbox, and fallback contract |
 | An independently reachable non-browser service | `capability.service` | `capability.runtime` | Service interface contract |

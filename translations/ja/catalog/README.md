@@ -20,7 +20,7 @@ optional application capability は、外部から見える product の挙動に
 | 必要なもの | Include | 自動的に追加されるもの | 追加される契約 |
 | --- | --- | --- | --- |
 | 維持対象となる implementation runtime、dependency/distribution 規則、command、environment、deployment lifecycle | `capability.runtime` | — | runtime の選択・保守契約 |
-| packaged command-line interface | `capability.cli` | `capability.runtime` | caller-visible CLI contract |
+| packaged command-line interface | `capability.cli` | `capability.runtime` + implementation evidence（および contract evolution） | executable-proof enforcement を伴う machine-readable caller-visible CLI contract |
 | MCP protocol endpoint/interface | `capability.mcp` | `capability.runtime` | MCP protocol、transport、client、security、semantic-equivalence contract |
 | MCP Apps extension UI | `capability.mcp-apps` | `capability.mcp`、したがって `capability.runtime` | MCP Apps resource、bridge、visibility、sandbox、fallback contract |
 | 独立して到達可能な non-browser service | `capability.service` | `capability.runtime` | service interface contract |
