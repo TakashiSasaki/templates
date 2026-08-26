@@ -42,10 +42,7 @@ class LifecycleCheckpointWriterTests(unittest.TestCase):
                 ]
             },
         )
-        write(
-            self.root / "contracts/implementation-evidence.json",
-            {"mode": "planning", "requirements": []},
-        )
+        write(self.root / "contracts/implementation-evidence.json", {"mode": "planning", "requirements": []})
         write(
             self.root / "contracts/lifecycle-checkpoints.json",
             {
@@ -80,11 +77,36 @@ class LifecycleCheckpointWriterTests(unittest.TestCase):
         snapshot = self.root / entry["snapshotPath"]
         self.assertTrue((snapshot / "validation.json").is_file())
         self.assertTrue((snapshot / "contracts/implementation-evidence.json").is_file())
+        self.assertTrue((snapshot / "schemas/lifecycle-checkpoints.schema.json").is_file())
 
-    def test_checkpoint_fails_closed_when_canonical_validation_is_invalid(self) -> None:
+    def test_checkpoint_fails_closed_when_prewrite_validation_is_invalid(self) -> None:
         validator = self.root / ".template-composition/validate.py"
         validator.write_text(
             "import json,sys\nprint(json.dumps({'schema_version': 1, 'status': 'invalid', 'checks': []}))\nsys.exit(1)\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(writer.CheckpointError):
+            writer.create_checkpoint(
+                self.root,
+                checkpoint_id="initial-planning",
+                phase="planning",
+                from_id=None,
+                source_revision=None,
+            )
+        ledger = json.loads((self.root / "contracts/lifecycle-checkpoints.json").read_text(encoding="utf-8"))
+        self.assertEqual(ledger["checkpoints"], [])
+        self.assertFalse((self.root / "artifacts/lifecycle/001-initial-planning").exists())
+
+    def test_postwrite_validation_failure_rolls_back_ledger_and_snapshot(self) -> None:
+        validator = self.root / ".template-composition/validate.py"
+        validator.write_text(
+            "from pathlib import Path\n"
+            "import json,sys\n"
+            "root=Path(sys.argv[1])\n"
+            "ledger=json.loads((root/'contracts/lifecycle-checkpoints.json').read_text())\n"
+            "valid=not ledger.get('checkpoints')\n"
+            "print(json.dumps({'schema_version':1,'status':'valid' if valid else 'invalid','checks':[]}))\n"
+            "raise SystemExit(0 if valid else 1)\n",
             encoding="utf-8",
         )
         with self.assertRaises(writer.CheckpointError):
