@@ -1,7 +1,8 @@
 {
   "$schema": "../schemas/implementation-evidence.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "mode": "template",
+  "requirements": [],
   "commands": [],
   "releaseGates": [],
   "records": []
