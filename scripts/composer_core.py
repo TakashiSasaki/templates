@@ -721,34 +721,135 @@ def load_configuration(path: Path) -> tuple[bytes, dict[str, Any]]:
     return data, value
 
 
+def _has_materialized_composition_material(target: Path) -> bool:
+    """Detect reserved Composition files that are not backed by a consumer lock."""
+    metadata = target / ".template-composition"
+    if metadata.is_symlink() or not metadata.is_dir():
+        return False
+    for relative in ("validate.py", "validate_composition.py", "validators"):
+        candidate = metadata / relative
+        if candidate.is_symlink() or candidate.is_file() or candidate.is_dir():
+            return True
+    return False
+
+
+def _inspect_guidance(state: str) -> dict[str, Any]:
+    guidance: dict[str, Any] = {
+        "current_state": state,
+        "normal_consumer_entrypoint": (
+            "python scripts/run.py --repository <root> <operation>"
+        ),
+        "recovery_required": state == "managed-interrupted",
+    }
+    if state in {"absent", "unmanaged"}:
+        guidance.update(
+            {
+                "relevant_mode": "initial",
+                "allowed_next_operations": [
+                    "inspect",
+                    "plan --config composition.json",
+                    "apply --config composition.json",
+                ],
+            }
+        )
+    elif state == "managed-valid":
+        guidance.update(
+            {
+                "relevant_mode": "managed",
+                "allowed_next_operations": [
+                    "inspect",
+                    "validate",
+                    "plan --mode update",
+                    "plan --mode upgrade --config composition.json",
+                ],
+            }
+        )
+    elif state == "managed-interrupted":
+        guidance.update(
+            {
+                "relevant_mode": "recovery",
+                "allowed_next_operations": [
+                    "inspect",
+                    "apply --mode update",
+                    "apply --mode upgrade",
+                ],
+            }
+        )
+    else:
+        guidance.update(
+            {
+                "relevant_mode": "repair",
+                "allowed_next_operations": ["inspect"],
+            }
+        )
+    return guidance
+
+
+def _inspect_payload(
+    state: str, target: Path, **fields: Any
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "state": state,
+        "target": str(target),
+        "guidance": _inspect_guidance(state),
+    }
+    payload.update(fields)
+    return payload
+
+
 def command_inspect(target: Path) -> tuple[int, dict[str, Any]]:
     if not target.exists():
-        return 0, {"state": "absent", "target": str(target)}
+        return 0, _inspect_payload("absent", target)
     if target.is_symlink():
-        return 2, {"state": "invalid", "target": str(target), "errors": ["target root is a symbolic link"]}
+        return 2, _inspect_payload(
+            "invalid",
+            target,
+            errors=["target root is a symbolic link"],
+        )
     transaction = target / TRANSACTION_RELATIVE
     if transaction.exists() or transaction.is_symlink():
-        return 2, {
-            "state": "managed-interrupted",
-            "target": str(target),
-            "errors": [f"composition transaction is present; recovery required: {TRANSACTION_RELATIVE}"],
-        }
+        return 2, _inspect_payload(
+            "managed-interrupted",
+            target,
+            errors=[
+                "composition transaction is present; recovery required: "
+                f"{TRANSACTION_RELATIVE}"
+            ],
+        )
     lock_path = target / LOCK_RELATIVE
     if not lock_path.exists() and not lock_path.is_symlink():
-        return 0, {"state": "unmanaged", "target": str(target)}
+        if _has_materialized_composition_material(target):
+            return 2, _inspect_payload(
+                "unmanaged-materialized",
+                target,
+                code="NOT_A_MANAGED_CONSUMER_ENTRYPOINT",
+                message=(
+                    "Composition material exists without a consumer lock. "
+                    "Do not execute materialized .template-composition files directly; "
+                    "use the installed Composition skill runner for initial composition."
+                ),
+                errors=[
+                    "normal consumer entrypoint is the installed Composition skill runner; "
+                    "materialized Composition files require a managed lock"
+                ],
+            )
+        return 0, _inspect_payload("unmanaged", target)
     try:
         valid, errors = validate_consumer_with_source_validator(target)
     except CompositionError as exc:
-        return 2, {"state": "managed-invalid", "target": str(target), "errors": [exc.message]}
+        return 2, _inspect_payload(
+            "managed-invalid",
+            target,
+            errors=[exc.message],
+        )
     return (
         0 if valid else 2,
-        {
-            "state": "managed-valid" if valid else "managed-invalid",
-            "target": str(target),
-            "errors": errors,
-        },
+        _inspect_payload(
+            "managed-valid" if valid else "managed-invalid",
+            target,
+            errors=errors,
+        ),
     )
-
 
 def command_plan(config_path: Path, target: Path) -> tuple[int, dict[str, Any]]:
     state = load_source_state()

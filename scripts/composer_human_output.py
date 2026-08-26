@@ -156,6 +156,11 @@ def render_human(payload: dict[str, Any], command: str) -> str:
             lines.append(f"Error: {message}")
         if state in {"absent", "unmanaged"}:
             lines.append("Next: create or select composition.json, then run plan.")
+        elif state == "unmanaged-materialized":
+            lines.append(
+                "Next: use the installed Composition skill runner; do not execute "
+                "materialized .template-composition files directly."
+            )
         elif state == "managed-valid":
             lines.append(
                 "Next: continue ordinary consumer work and run validate after edits; "
