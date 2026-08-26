@@ -1,0 +1,46 @@
+{
+  "$schema": "../schemas/implementation-evidence.schema.json",
+  "schemaVersion": 2,
+  "mode": "product",
+  "requirements": [
+    {"id": "REQ-SEVERITY-API", "description": "API payloads include severity."},
+    {"id": "REQ-SEVERITY-CLI-FILTER", "description": "CLI list can filter by severity."},
+    {"id": "REQ-SEVERITY-EDIT-UI", "description": "Browser UI can create and edit severity."},
+    {"id": "REQ-SEVERITY-BROWSER-FILTER", "description": "Browser UI can filter records by severity."}
+  ],
+  "commands": [
+    {"id": "field-log-tests", "command": "python -m unittest tests.test_field_log", "purpose": "Run the authoritative Field Log product evidence."}
+  ],
+  "releaseGates": [
+    {"id": "field-log-release", "purpose": "Block release until all Field Log product evidence passes.", "commandIds": ["field-log-tests"]}
+  ],
+  "records": [
+    {
+      "id": "severity-api",
+      "requirementIds": ["REQ-SEVERITY-API"],
+      "target": {"kind": "contract-item", "contractId": "field_log", "itemKind": "product-capability", "itemId": "severity-api"},
+      "implementationBoundary": {"status": "verified", "description": "severity-api implementation boundary.", "locator": "product/severity-api.py"},
+      "positiveEvidence": [{"id": "severity-api-positive", "status": "verified", "kind": "integration-test", "description": "Positive executable proof for severity-api.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-api succeeds for a valid caller-visible use."}],
+      "negativeEvidence": [{"id": "severity-api-negative", "status": "verified", "kind": "integration-test", "description": "Negative executable proof for severity-api.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-api rejects an invalid or non-matching use."}],
+      "releaseGateIds": ["field-log-release"]
+    },
+    {
+      "id": "severity-cli-filter",
+      "requirementIds": ["REQ-SEVERITY-CLI-FILTER"],
+      "target": {"kind": "contract-item", "contractId": "field_log", "itemKind": "product-capability", "itemId": "severity-cli-filter"},
+      "implementationBoundary": {"status": "verified", "description": "severity-cli-filter implementation boundary.", "locator": "product/severity-cli-filter.py"},
+      "positiveEvidence": [{"id": "severity-cli-filter-positive", "status": "verified", "kind": "integration-test", "description": "Positive executable proof for severity-cli-filter.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-cli-filter succeeds for a valid caller-visible use."}],
+      "negativeEvidence": [{"id": "severity-cli-filter-negative", "status": "verified", "kind": "integration-test", "description": "Negative executable proof for severity-cli-filter.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-cli-filter rejects an invalid or non-matching use."}],
+      "releaseGateIds": ["field-log-release"]
+    },
+    {
+      "id": "severity-edit-ui",
+      "requirementIds": ["REQ-SEVERITY-EDIT-UI"],
+      "target": {"kind": "contract-item", "contractId": "field_log", "itemKind": "product-capability", "itemId": "severity-edit-ui"},
+      "implementationBoundary": {"status": "verified", "description": "severity-edit-ui implementation boundary.", "locator": "product/severity-edit-ui.py"},
+      "positiveEvidence": [{"id": "severity-edit-ui-positive", "status": "verified", "kind": "integration-test", "description": "Positive executable proof for severity-edit-ui.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-edit-ui succeeds for a valid caller-visible use."}],
+      "negativeEvidence": [{"id": "severity-edit-ui-negative", "status": "verified", "kind": "integration-test", "description": "Negative executable proof for severity-edit-ui.", "locator": "tests/test_field_log.py", "commandId": "field-log-tests", "expectedResult": "severity-edit-ui rejects an invalid or non-matching use."}],
+      "releaseGateIds": ["field-log-release"]
+    }
+  ]
+}
