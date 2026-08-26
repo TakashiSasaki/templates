@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -22,6 +23,28 @@ PROOF_KIND_CAPABILITY = {
     "inspection": "inspection",
     "other": "other",
 }
+_DRIVE_PREFIX_PATTERN = re.compile(r"^[A-Za-z]:")
+_REPOSITORY_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _safe_repository_locator(value: str) -> bool:
+    """Mirror repositoryLocator schema safety for direct semantic callers."""
+
+    if (
+        not value
+        or value.startswith("/")
+        or "\\" in value
+        or "\x00" in value
+        or _DRIVE_PREFIX_PATTERN.match(value)
+    ):
+        return False
+    parts = value.split("/")
+    return bool(parts) and all(
+        part not in {"", ".", ".."}
+        and part.lower() != ".git"
+        and _REPOSITORY_SEGMENT_PATTERN.fullmatch(part) is not None
+        for part in parts
+    )
 
 
 def _duplicates(values: list[Any]) -> set[Any]:
@@ -152,6 +175,10 @@ def proof_execution_errors(
             if not isinstance(locator, str) or not locator:
                 errors.append(
                     f"implementation command {command_id}: execution harness locator is required"
+                )
+            elif not _safe_repository_locator(locator):
+                errors.append(
+                    f"implementation command {command_id}: execution harness locator must be a safe repository-relative file path: {locator}"
                 )
             elif root is not None:
                 candidate = root / locator
