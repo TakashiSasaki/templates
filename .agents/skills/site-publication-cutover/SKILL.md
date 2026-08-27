@@ -29,7 +29,7 @@ Do not use this skill to:
 - author or repair canonical Policy/toolchain semantics;
 - publish a mutable branch tip instead of an exact reviewed full commit SHA;
 - treat legacy Skill or Webapp branches as current external providers;
-- perform only generic Site PR merge/review work with no provider publication change; use `site-pr-exact-head-acceptance` for that.
+- perform only generic Site PR acceptance/merge work with no provider publication change; use `site-pr-exact-head-acceptance` and `pr-merge-gate` for that.
 
 If the provider revision itself is invalid, incomplete, or not reviewed to the required standard, stop the Site cutover and return the correction to the owning provider.
 
@@ -79,7 +79,7 @@ Do not infer the target SHA from a branch name when a merged/reviewed commit ide
 7. Update focused regression expectations only when they intentionally bind the changed publication identity or reader route. Do not mechanically replace old SHAs in unrelated historical evidence.
 8. Run the current Site validation path against the exact locks.
 9. Inspect generated provenance and representative assembled outputs to prove the target revision, not a mutable or fallback revision, was consumed.
-10. Hand final PR acceptance to `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`.
+10. Hand Site-specific PR acceptance to `.agents/skills/site-pr-exact-head-acceptance/SKILL.md`, then final review/merge authorization to `.agents/skills/pr-merge-gate/SKILL.md`.
 
 ## Decision points
 
