@@ -9,7 +9,7 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "examples/evaluations/evaluation-scorecard.schema.json"
-GUIDE = ROOT / "examples/evaluations/evaluation-scorecard.md"
+GUIDE = ROOT / "examples/evaluations/evaluation-scorecard.txt"
 
 
 class EvaluationScorecardTests(unittest.TestCase):
