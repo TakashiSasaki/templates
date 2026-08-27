@@ -5,6 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "$schema",
     "schema_version",
     "repository",
     "canonical_url",
@@ -15,6 +16,7 @@
     "workflow"
   ],
   "properties": {
+    "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
     "schema_version": {"const": 1},
     "repository": {"const": "TakashiSasaki/templates"},
     "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
