@@ -1,0 +1,59 @@
+name: Retry executable lifecycle next step v2
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Run corrected finalizer and remove staging workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/finalize-executable-lifecycle-step.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY\n", start)
+          code = textwrap.dedent(source[start:end])
+          old = '''checkpoint_component = replace_once(
+              checkpoint_component, '"version": 1', '"version": 2', label="checkpoint component version"
+          )'''
+          new = '''if checkpoint_component.count('  "version": 1,') != 1:
+              raise SystemExit("checkpoint component exact version line mismatch")
+          checkpoint_component = checkpoint_component.replace(
+              '  "version": 1,', '  "version": 2,', 1
+          )'''
+          old = textwrap.dedent(old)
+          new = textwrap.dedent(new)
+          if old not in code:
+              raise SystemExit('checkpoint component replacement block missing')
+          code = code.replace(old, new, 1)
+          deletion = 'entries.append({"path": workflow_path, "mode": "100644", "type": "blob", "sha": None})'
+          extra = '\n'.join([
+              'entries.append({"path": ".github/workflows/retry-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry2-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+          ])
+          if deletion not in code:
+              raise SystemExit('workflow deletion marker missing')
+          code = code.replace(deletion, deletion + '\n' + extra, 1)
+          exec(compile(code, '<corrected-finalizer-v2>', 'exec'), {'__name__': '__main__'})
+          PY
