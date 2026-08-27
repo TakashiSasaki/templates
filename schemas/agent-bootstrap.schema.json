@@ -86,7 +86,7 @@
     "bootstrap": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["download", "verify", "execute", "installation_modes", "verified_installer_argv", "argument_bindings", "caller_inputs"],
+      "required": ["download", "verify", "execute", "installation_modes", "canonical_operation", "reimplementation_policy", "verified_installer_argv", "argument_bindings", "caller_inputs"],
       "properties": {
         "download": {"const": "https"},
         "verify": {"const": "sha256-before-execute"},
@@ -101,6 +101,8 @@
           "minItems": 2,
           "maxItems": 2
         },
+        "canonical_operation": {"const": "execute-verified-installer-argv"},
+        "reimplementation_policy": {"const": "do-not-reimplement"},
         "verified_installer_argv": {
           "type": "array",
           "prefixItems": [

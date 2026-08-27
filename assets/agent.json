@@ -5,7 +5,7 @@
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Compose new or existing software repositories",
   "composition": {
-    "publication_revision": "4a189c645fd341f179cfc6388c016a7a75836141",
+    "publication_revision": "6b20d0364aeb32501d4e490fc871e843e268e48b",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "677dc68fe35fc285638b46685950d31e3a3d3c2f",
@@ -41,6 +41,8 @@
       "persistent",
       "transient"
     ],
+    "canonical_operation": "execute-verified-installer-argv",
+    "reimplementation_policy": "do-not-reimplement",
     "verified_installer_argv": [
       "{python}",
       "-I",

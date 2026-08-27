@@ -206,6 +206,8 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
             "verify": "sha256-before-execute",
             "execute": "python-isolated",
             "installation_modes": ["persistent", "transient"],
+            "canonical_operation": "execute-verified-installer-argv",
+            "reimplementation_policy": "do-not-reimplement",
             "verified_installer_argv": [
                 "{python}",
                 "-I",

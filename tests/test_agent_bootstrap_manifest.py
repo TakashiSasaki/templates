@@ -86,6 +86,8 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             + "/skills/composition/SKILL.md",
         )
         self.assertEqual(manifest["bootstrap"]["verify"], "sha256-before-execute")
+        self.assertEqual(manifest["bootstrap"]["canonical_operation"], "execute-verified-installer-argv")
+        self.assertEqual(manifest["bootstrap"]["reimplementation_policy"], "do-not-reimplement")
         self.assertEqual(
             manifest["bootstrap"]["verified_installer_argv"][:4],
             ["{python}", "-I", "-c", bootstrap.VERIFIED_INSTALLER_BOOTSTRAP],
