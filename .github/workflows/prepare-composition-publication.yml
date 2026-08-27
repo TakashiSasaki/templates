@@ -17,7 +17,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
-          GH_EVENT_PATH: ${{ github.event_path }}
         run: |
           python - <<'PY'
           import base64
@@ -85,7 +84,7 @@ jobs:
               header = f"blob {len(data)}\0".encode("ascii")
               return hashlib.sha1(header + data).hexdigest()
 
-          with open(os.environ["GH_EVENT_PATH"], encoding="utf-8") as handle:
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as handle:
               event = json.load(handle)
           head_sha = event["pull_request"]["head"]["sha"]
           head_ref = event["pull_request"]["head"]["ref"]
