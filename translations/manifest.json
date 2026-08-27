@@ -87,7 +87,7 @@
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
-      "canonical_blob_sha": "04a757241160e38dede721b7bd658104c0dd5539",
+      "canonical_blob_sha": "7c7d54a70380e73969b24d0b3ddf36e1cd748e41",
       "surfaces": [
         "reader"
       ]
@@ -96,7 +96,7 @@
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "47c4caa9f5c2b8edd4264e260d01419e88f46c55",
+      "canonical_blob_sha": "496067bccbeefb53f366e2301d1d878127276352",
       "surfaces": [
         "reader"
       ]
