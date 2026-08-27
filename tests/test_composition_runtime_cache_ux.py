@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_PATH = ROOT / "skills" / "composition" / "scripts" / "runtime.py"
+RUNTIME_PATH = ROOT / "skills" / "composition" / "scripts" / "runtime_checkout.py"
 
 
 def load_runtime():
