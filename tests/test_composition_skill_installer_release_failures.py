@@ -28,24 +28,31 @@ verifier = load_verifier()
 
 class CompositionSkillInstallerReleaseFailureTests(unittest.TestCase):
     def test_verify_rejects_installer_skill_source_pin_mismatch(self) -> None:
-        original = verifier.require_text_file
+        original = verifier.require_file
 
-        def mismatched_installer(revision: str, path: str) -> str:
+        def mismatched_installer(revision: str, path: str) -> bytes:
             if path == "scripts/install_composition_skill.py":
                 return (
                     'TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"\n'
                     'SKILL_SOURCE_REVISION = "0000000000000000000000000000000000000000"\n'
-                )
+                ).encode("utf-8")
             return original(revision, path)
 
         with mock.patch.object(
-            verifier, "require_text_file", side_effect=mismatched_installer
-        ):
+            verifier, "require_file", side_effect=mismatched_installer
+        ), mock.patch.object(verifier, "require_sha256", return_value="0" * 64):
             with self.assertRaisesRegex(
                 ValueError,
                 "installer skill source revision differs from release descriptor",
             ):
                 verifier.verify()
+
+    def test_require_sha256_rejects_installer_digest_mismatch(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "pinned installer SHA-256 mismatch: expected .* got ",
+        ):
+            verifier.require_sha256(b"tampered-installer\n", "0" * 64, "pinned installer")
 
     def test_verify_rejects_runtime_lock_digest_mismatch(self) -> None:
         original = verifier.require_file

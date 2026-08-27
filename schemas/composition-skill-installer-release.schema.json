@@ -11,11 +11,12 @@
     "installer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repository", "revision", "path"],
+      "required": ["repository", "revision", "path", "sha256"],
       "properties": {
         "repository": {"const": "TakashiSasaki/templates"},
         "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "path": {"const": "scripts/install_composition_skill.py"}
+        "path": {"const": "scripts/install_composition_skill.py"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     },
     "skill_source": {

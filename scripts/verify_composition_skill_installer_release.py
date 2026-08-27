@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 SCHEMA = ROOT / "schemas" / "composition-skill-installer-release.schema.json"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_REVISION = re.compile(
     r'^SKILL_SOURCE_REVISION = "([0-9a-f]{40})"$', re.MULTILINE
 )
@@ -118,6 +119,17 @@ def full_sha(value: object, label: str) -> str:
     return value
 
 
+def require_sha256(data: bytes, expected: object, label: str) -> str:
+    if not isinstance(expected, str) or SHA256.fullmatch(expected) is None:
+        raise ValueError(f"{label} SHA-256 must be 64 lowercase hexadecimal characters")
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        raise ValueError(
+            f"{label} SHA-256 mismatch: expected {expected}, got {actual}"
+        )
+    return actual
+
+
 def require_strict_ancestor(ancestor: str, descendant: str, label: str) -> None:
     if ancestor == descendant:
         raise ValueError(f"{label} must be a strict ancestor")
@@ -153,7 +165,14 @@ def verify(git_ref: str | None = None) -> tuple[str, str, str]:
     toolchain_revision = full_sha(toolchain.get("revision"), "toolchain")
 
     installer_path = str(installer["path"])
-    installer_source = require_text_file(installer_revision, installer_path)
+    installer_data = require_file(installer_revision, installer_path)
+    require_sha256(installer_data, installer.get("sha256"), "pinned installer")
+    try:
+        installer_source = installer_data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(
+            f"pinned file is not UTF-8: {installer_revision}:{installer_path}"
+        ) from exc
     if REPOSITORY_IDENTITY not in installer_source:
         raise ValueError("pinned installer does not identify TakashiSasaki/templates")
     source_match = SOURCE_REVISION.search(installer_source)

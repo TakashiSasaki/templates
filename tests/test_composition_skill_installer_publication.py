@@ -18,6 +18,7 @@ CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
 SKILL_WALKTHROUGH = ROOT / "docs" / "guides" / "skill-first-use-walkthrough.md"
 WEBAPP_WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
 INSTALLER_REVISION = "08c7c9ac647000b7e7232ad5eda4f0b3506a7675"
+INSTALLER_SHA256 = "20f09a136c102e58c4b7c7357b1d5d1dcbdde08270d1ac3c95f03ad9d80ccbbe"
 SKILL_REVISION = "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7"
 TOOLCHAIN_REVISION = "16d3eb411729a79549dbaaf6dab1d05207f83415"
 RAW_INSTALLER_URL = (
@@ -25,6 +26,7 @@ RAW_INSTALLER_URL = (
     f"{INSTALLER_REVISION}/scripts/install_composition_skill.py"
 )
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def load_script() -> ModuleType:
@@ -60,6 +62,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
                 "repository": "TakashiSasaki/templates",
                 "revision": INSTALLER_REVISION,
                 "path": "scripts/install_composition_skill.py",
+                "sha256": INSTALLER_SHA256,
             },
         )
         self.assertEqual(
@@ -79,6 +82,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         )
         for revision in (INSTALLER_REVISION, SKILL_REVISION, TOOLCHAIN_REVISION):
             self.assertIsNotNone(FULL_SHA.fullmatch(revision))
+        self.assertIsNotNone(SHA256.fullmatch(INSTALLER_SHA256))
         self.assertEqual(len({INSTALLER_REVISION, SKILL_REVISION, TOOLCHAIN_REVISION}), 3)
 
     def test_release_verifier_matches_pinned_history_and_head_ancestry(self) -> None:
@@ -94,6 +98,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         self.assertIn("skill source revision", content)
         self.assertIn("stable Composition toolchain revision", content)
         self.assertIn(INSTALLER_REVISION, content)
+        self.assertIn(INSTALLER_SHA256, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
         self.assertIn("read-only `doctor` command", content)
