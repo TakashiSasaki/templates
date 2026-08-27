@@ -45,8 +45,8 @@ import sys
 import tempfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
-expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/01c65730afdbd431749ffd00e790ff3c5bd72015/scripts/install_composition_skill.py"
+expected = "7c2ed9ae19e331f1042299f7f55014632e0b21cceca7df8a56750b2e222c3194"
 data = urllib.request.urlopen(url, timeout=30).read()
 actual = hashlib.sha256(data).hexdigest()
 if actual != expected:
@@ -64,7 +64,7 @@ finally:
 
 A digest mismatch exits before installer bytes are written or an installer process is launched. The printed digest is useful audit evidence. If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `677dc68fe35fc285638b46685950d31e3a3d3c2f` installs skill source `69af2ed811875f95838bf978ee09365554405664`; that skill's runtime manifest selects stable Composition toolchain revision `16d3eb411729a79549dbaaf6dab1d05207f83415`. The installer bytes are additionally pinned by SHA-256 `134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL, and do not replace the verified bootstrap with direct execution of downloaded bytes.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `01c65730afdbd431749ffd00e790ff3c5bd72015` installs skill source `cc180cecbde7f75cd5f07c1aa311014d6db7c97c`; that skill's runtime manifest selects stable Composition toolchain revision `2bf8c86060d48281a03807b2429ce045aa8e2a91`. The installer bytes are additionally pinned by SHA-256 `7c2ed9ae19e331f1042299f7f55014632e0b21cceca7df8a56750b2e222c3194`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL, and do not replace the verified bootstrap with direct execution of downloaded bytes.
 
 The normal command shape is:
 
