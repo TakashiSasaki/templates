@@ -112,6 +112,8 @@ class CompositionArchiveRuntimeTests(unittest.TestCase):
         for relative in (
             "NUL",
             "con.txt",
+            "COM¹.txt",
+            "LPT²",
             "trailing.",
             "trailing ",
             "bad?name",
