@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "repository": "TakashiSasaki/templates",
+  "canonical_url": "https://templates.moukaeritai.work/agent.json",
+  "purpose": "Compose new or existing software repositories",
+  "composition": {
+    "publication_revision": "69af2ed811875f95838bf978ee09365554405664",
+    "installer": {
+      "repository": "TakashiSasaki/templates",
+      "revision": "08c7c9ac647000b7e7232ad5eda4f0b3506a7675",
+      "path": "scripts/install_composition_skill.py",
+      "sha256": "20f09a136c102e58c4b7c7357b1d5d1dcbdde08270d1ac3c95f03ad9d80ccbbe",
+      "url": "https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py"
+    },
+    "skill": {
+      "name": "composition",
+      "repository": "TakashiSasaki/templates",
+      "revision": "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7",
+      "path": "skills/composition",
+      "entrypoint": "scripts/run.py"
+    },
+    "toolchain": {
+      "repository": "TakashiSasaki/templates",
+      "revision": "16d3eb411729a79549dbaaf6dab1d05207f83415"
+    }
+  },
+  "requirements": {
+    "python": {
+      "minimum": "3.11",
+      "maximum": "3.14"
+    },
+    "https": true
+  },
+  "bootstrap": {
+    "download": "https",
+    "verify": "sha256",
+    "execute": "python-isolated",
+    "installation_modes": [
+      "persistent",
+      "transient"
+    ]
+  },
+  "workflow": {
+    "diagnose": "doctor",
+    "provenance": "provenance",
+    "inspect_before_mutation": "inspect",
+    "plan_before_apply": true,
+    "validate_after_apply": true
+  }
+}
