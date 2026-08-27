@@ -4,11 +4,11 @@ This directory records the immutable publication identities for the installable 
 
 The stable publication deliberately separates three full-SHA identities:
 
-- **installer script revision** `08c7c9ac647000b7e7232ad5eda4f0b3506a7675` — the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `e8ee87483ea97e6cce8f27e6438d98a5a7c724a7` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
+- **installer script revision** `677dc68fe35fc285638b46685950d31e3a3d3c2f` — the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `69af2ed811875f95838bf978ee09365554405664` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
 - **stable Composition toolchain revision** `16d3eb411729a79549dbaaf6dab1d05207f83415` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
 
-The published installer bytes are additionally pinned by SHA-256: `20f09a136c102e58c4b7c7357b1d5d1dcbdde08270d1ac3c95f03ad9d80ccbbe`.
+The published installer bytes are additionally pinned by SHA-256: `134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34`.
 
 `composition-installer.json` is the machine-readable authority for these identities and the installer digest. `scripts/verify_composition_skill_installer_release.py` verifies the descriptor against repository history, the pinned installer bytes, the complete runnable Skill distribution, the complete snapshot-aware toolchain surface, the runtime-lock digest, and strict ancestry between the three immutable revisions.
 
@@ -25,7 +25,7 @@ The target may be a persistent Agent Skills directory when the host exposes one,
 For interactive users who prefer a compact command, install the published skill with an installer URL pinned to the installer script revision:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 The machine-oriented bootstrap above is preferred when the caller can verify the published digest before execution. For an existing Composition skill installation, append `--replace`. Replacement remains guarded by the local skill installer and is accepted only when the destination is already identified as this skill.

@@ -81,7 +81,7 @@ sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_
 product repository 外へ reviewed immutable installer で install します。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
