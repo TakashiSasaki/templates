@@ -97,15 +97,37 @@ Install the published Composition skill outside Task Ledger.
 
 ## 3. Install Composition
 
-Normal consumers install the Composition skill through the reviewed immutable installer. Pick an installation directory outside the product repository; this walkthrough uses `/absolute/path/to/agent-skills/composition`.
+Normal consumers install the Composition skill through the reviewed immutable installer. Pick an installation directory outside the product repository; this walkthrough uses `/absolute/path/to/agent-skills/composition`. The stable release publishes both the installer full-SHA identity and its SHA-256 digest, so verify the downloaded bytes before writing or executing them.
 
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /absolute/path/to/agent-skills/composition
 ```
 
-If that destination already contains an installed Composition skill, use the documented `--replace` path in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill) rather than deleting or overwriting an arbitrary directory.
+A digest mismatch exits before installer bytes are written or an installer process is launched. The printed verified digest is useful audit evidence. If that destination already contains an installed Composition skill, append `--replace`; replacement remains guarded by the installer and is accepted only for an existing directory identified as this skill.
 
 **Expected**
 
@@ -117,7 +139,7 @@ None in Task Ledger. The skill is installed at the separate destination you sele
 
 **What this means**
 
-You now have the normal consumer entry point. The full-SHA installer URL is intentional: Composition uses reviewed immutable source identities rather than a mutable branch or tag. You do not need to understand the installer/skill/toolchain SHA roles before continuing; see [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) when you need that trust detail.
+You now have the normal consumer entry point. The full-SHA installer URL and the published SHA-256 serve different purposes: the SHA identifies the reviewed source revision, while the digest verifies the bytes actually received before execution. You do not need to understand the installer/skill/toolchain SHA roles before continuing; see [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) when you need that trust detail.
 
 Before first Composer execution, you may run the installed skill's read-only local doctor:
 
