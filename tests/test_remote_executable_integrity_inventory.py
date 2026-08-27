@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INVENTORY = ROOT / "examples/evaluations/remote-executable-integrity-inventory.md"
+INVENTORY = ROOT / "examples/evaluations/remote-executable-integrity-inventory.txt"
 
 
 class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
