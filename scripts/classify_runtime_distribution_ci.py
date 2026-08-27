@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 DESCRIPTION = "Classify whether Policy requires the full runtime compatibility matrix."
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 ZERO_SHA = "0" * 40
