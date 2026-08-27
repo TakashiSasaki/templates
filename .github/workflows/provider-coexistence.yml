@@ -13,8 +13,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  coexistence:
+  classify:
+    name: Classify provider coexistence scope
     if: github.repository == 'TakashiSasaki/templates'
+    runs-on: ubuntu-24.04
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      matched_count: ${{ steps.classify.outputs.matched_count }}
+      matched_paths: ${{ steps.classify.outputs.matched_paths }}
+
+    steps:
+      - name: Check out exact Site candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.13'
+
+      - name: Collect exact pull-request changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/provider-coexistence-paths.txt"
+          test -s "$RUNNER_TEMP/provider-coexistence-paths.txt"
+
+      - name: Classify provider coexistence scope
+        id: classify
+        run: |
+          python scripts/classify_provider_coexistence.py \
+            --changed-paths "$RUNNER_TEMP/provider-coexistence-paths.txt" \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Report classification
+        env:
+          REQUIRED: ${{ steps.classify.outputs.required }}
+          MATCHED_COUNT: ${{ steps.classify.outputs.matched_count }}
+          MATCHED_PATHS: ${{ steps.classify.outputs.matched_paths }}
+        run: |
+          {
+            echo '## Provider coexistence scope'
+            echo
+            echo "- required: \`$REQUIRED\`"
+            echo "- matched paths: \`$MATCHED_COUNT\`"
+            echo "- inputs: \`$MATCHED_PATHS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  coexistence:
+    name: Validate exact provider coexistence
+    if: >-
+      github.repository == 'TakashiSasaki/templates' &&
+      needs.classify.outputs.required == 'true'
+    needs: classify
     runs-on: ubuntu-24.04
 
     steps:
@@ -84,3 +139,32 @@ jobs:
             --policy-root policy-source \
             --policy-cli "$PWD/.venv-policy/bin/agent-policy" \
             --policy-revision "${{ steps.publication_refs.outputs.policy }}"
+
+  gate:
+    name: Provider coexistence gate
+    if: ${{ always() && github.repository == 'TakashiSasaki/templates' }}
+    needs:
+      - classify
+      - coexistence
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Require coherent classification and validation result
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          REQUIRED: ${{ needs.classify.outputs.required }}
+          COEXISTENCE_RESULT: ${{ needs.coexistence.result }}
+        run: |
+          test "$CLASSIFY_RESULT" = success
+          case "$REQUIRED" in
+            true)
+              test "$COEXISTENCE_RESULT" = success
+              ;;
+            false)
+              test "$COEXISTENCE_RESULT" = skipped
+              ;;
+            *)
+              echo "::error::Unexpected provider coexistence classification: $REQUIRED"
+              exit 1
+              ;;
+          esac

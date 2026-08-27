@@ -17,6 +17,7 @@ ACTIVE_OPERATIONAL_FILES = (
     ".github/workflows/build-pages.yml",
     ".github/workflows/deploy-pages.yml",
     ".github/workflows/provider-coexistence.yml",
+    "scripts/classify_provider_coexistence.py",
     "scripts/resolve_publication_sources.py",
     "scripts/validate_provider_coexistence.py",
     "scripts/generate_repository_trees_composition.py",

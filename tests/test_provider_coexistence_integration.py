@@ -37,6 +37,13 @@ class ProviderCoexistenceIntegrationTests(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("name: Provider coexistence integration", workflow)
+        self.assertIn("scripts/classify_provider_coexistence.py", workflow)
+        self.assertIn("git diff --name-only --no-renames", workflow)
+        self.assertIn("needs.classify.outputs.required == 'true'", workflow)
+        self.assertIn("name: Provider coexistence gate", workflow)
+        self.assertIn('test "$CLASSIFY_RESULT" = success', workflow)
+        self.assertIn('test "$COEXISTENCE_RESULT" = success', workflow)
+        self.assertIn('test "$COEXISTENCE_RESULT" = skipped', workflow)
         self.assertIn("--lock site-source/publication-sources.json", workflow)
         self.assertIn("ref: ${{ steps.publication_refs.outputs.composition }}", workflow)
         self.assertIn("ref: ${{ steps.publication_refs.outputs.policy }}", workflow)
