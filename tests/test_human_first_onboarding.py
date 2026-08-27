@@ -59,7 +59,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         lock = json.loads(SOURCE_LOCK.read_text(encoding="utf-8"))
         self.assertEqual(
             lock["publications"]["composition"]["revision"],
-            "6b20d0364aeb32501d4e490fc871e843e268e48b",
+            "2cf6367241dbc9ee6dfecd0e059d34d7ced195cd",
         )
         self.assertEqual(
             lock["publications"]["policy"]["revision"],
