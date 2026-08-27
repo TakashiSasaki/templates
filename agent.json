@@ -1,6 +1,6 @@
 {
   "$schema": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Compose new or existing software repositories",
@@ -35,15 +35,28 @@
   },
   "bootstrap": {
     "download": "https",
-    "verify": "sha256",
+    "verify": "sha256-before-execute",
     "execute": "python-isolated",
     "installation_modes": [
       "persistent",
       "transient"
     ],
-    "installer_argv": [
+    "verified_installer_argv": [
       "{python}",
       "-I",
+      "-c",
+      "import hashlib\nimport pathlib\nimport subprocess\nimport sys\nimport urllib.request\n\nurl, expected, installer_file, skill_target = sys.argv[1:5]\ndata = urllib.request.urlopen(url, timeout=30).read()\nactual = hashlib.sha256(data).hexdigest()\nif actual != expected:\n    raise SystemExit(\n        f\"installer SHA-256 mismatch: expected {expected}, got {actual}\"\n    )\npath = pathlib.Path(installer_file)\npath.write_bytes(data)\nsubprocess.run(\n    [sys.executable, \"-I\", str(path), skill_target],\n    check=True,\n)\n",
+      "{installer_url}",
+      "{installer_sha256}",
+      "{installer_file}",
+      "{skill_target}"
+    ],
+    "argument_bindings": {
+      "{installer_url}": "composition.installer.url",
+      "{installer_sha256}": "composition.installer.sha256"
+    },
+    "caller_inputs": [
+      "{python}",
       "{installer_file}",
       "{skill_target}"
     ]
