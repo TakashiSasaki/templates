@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Small-model evaluation scorecard",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evaluation_id",
+    "environment_fingerprint",
+    "dimensions",
+    "next_clean_room_rerun_conditions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "evaluation_id": {"type": "string", "minLength": 1},
+    "environment_fingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "fresh_conversation",
+        "outside_maintainer_workspace",
+        "inherited_instructions_recorded",
+        "available_tools",
+        "git_availability",
+        "browser_availability",
+        "network_restrictions",
+        "user_intervention_count",
+        "transcript_completeness"
+      ],
+      "properties": {
+        "model": {"type": "string"},
+        "fresh_conversation": {"type": "boolean"},
+        "outside_maintainer_workspace": {"type": "boolean"},
+        "inherited_instructions_recorded": {"type": "boolean"},
+        "available_tools": {"type": "array", "items": {"type": "string"}},
+        "git_availability": {"type": "string"},
+        "browser_availability": {"type": "string"},
+        "network_restrictions": {"type": "string"},
+        "user_intervention_count": {"type": "integer", "minimum": 0},
+        "transcript_completeness": {"enum": ["complete", "partial", "unavailable"]}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_point_discovery",
+        "machine_bootstrap_discovery",
+        "canonical_bootstrap_execution",
+        "integrity_verification",
+        "role_separation",
+        "lifecycle_correctness",
+        "managed_generated_boundary",
+        "product_evidence_completion",
+        "browser_proof_handling",
+        "release_readiness_honesty",
+        "recovery_quality",
+        "user_intervention",
+        "dead_ends"
+      ],
+      "properties": {
+        "entry_point_discovery": {"$ref": "#/$defs/score"},
+        "machine_bootstrap_discovery": {"$ref": "#/$defs/score"},
+        "canonical_bootstrap_execution": {"$ref": "#/$defs/score"},
+        "integrity_verification": {"$ref": "#/$defs/score"},
+        "role_separation": {"$ref": "#/$defs/score"},
+        "lifecycle_correctness": {"$ref": "#/$defs/score"},
+        "managed_generated_boundary": {"$ref": "#/$defs/score"},
+        "product_evidence_completion": {"$ref": "#/$defs/score"},
+        "browser_proof_handling": {"$ref": "#/$defs/score"},
+        "release_readiness_honesty": {"$ref": "#/$defs/score"},
+        "recovery_quality": {"$ref": "#/$defs/score"},
+        "user_intervention": {"$ref": "#/$defs/score"},
+        "dead_ends": {"$ref": "#/$defs/score"}
+      }
+    },
+    "next_clean_room_rerun_conditions": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "$defs": {
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "attribution", "notes"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "BLOCKED", "NOT TESTED"]},
+        "attribution": {
+          "enum": [
+            "repository defect",
+            "documentation/discoverability defect",
+            "machine-contract defect",
+            "evaluator mistake",
+            "environment limitation",
+            "evidence-capture limitation"
+          ]
+        },
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}
