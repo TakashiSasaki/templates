@@ -35,7 +35,8 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
             "user intervention count",
             "complete transcript",
         ):
-            self.assertIn(phrase, self.text)
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
 
     def test_protocol_separates_lifecycle_and_attribution(self) -> None:
         for phrase in (
@@ -45,11 +46,15 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
             "product-state validation",
             "release-readiness status",
             "repository defect",
+            "documentation or discoverability defect",
+            "machine-contract defect",
+            "evaluator mistake",
             "environment limitation",
             "evidence-capture limitation",
             "PASS, FAIL, BLOCKED, or NOT TESTED",
         ):
-            self.assertIn(phrase, self.text)
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
         self.assertIn("planning/template evidence must not be reported as product evidence", self.text)
         self.assertIn("Deferred required browser proof keeps release readiness NOT READY", self.text)
 
