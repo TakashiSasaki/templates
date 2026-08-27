@@ -45,13 +45,14 @@
         "skill": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "repository", "revision", "path", "entrypoint"],
+          "required": ["name", "repository", "revision", "path", "entrypoint", "instructions_url"],
           "properties": {
             "name": {"const": "composition"},
             "repository": {"const": "TakashiSasaki/templates"},
             "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
             "path": {"const": "skills/composition"},
-            "entrypoint": {"const": "scripts/run.py"}
+            "entrypoint": {"const": "scripts/run.py"},
+            "instructions_url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/skills/composition/SKILL\\.md$"}
           }
         },
         "toolchain": {
@@ -85,7 +86,7 @@
     "bootstrap": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["download", "verify", "execute", "installation_modes"],
+      "required": ["download", "verify", "execute", "installation_modes", "installer_argv"],
       "properties": {
         "download": {"const": "https"},
         "verify": {"const": "sha256"},
@@ -99,6 +100,18 @@
           "items": false,
           "minItems": 2,
           "maxItems": 2
+        },
+        "installer_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"},
+            {"const": "-I"},
+            {"const": "{installer_file}"},
+            {"const": "{skill_target}"}
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4
         }
       }
     },
@@ -106,6 +119,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "runner_argv",
         "diagnose",
         "provenance",
         "inspect_before_mutation",
@@ -113,6 +127,19 @@
         "validate_after_apply"
       ],
       "properties": {
+        "runner_argv": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"},
+            {"const": "{skill_target}/scripts/run.py"},
+            {"const": "--repository"},
+            {"const": "{repository}"},
+            {"const": "{command}"}
+          ],
+          "items": false,
+          "minItems": 5,
+          "maxItems": 5
+        },
         "diagnose": {"const": "doctor"},
         "provenance": {"const": "provenance"},
         "inspect_before_mutation": {"const": "inspect"},
