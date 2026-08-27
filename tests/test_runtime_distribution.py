@@ -93,8 +93,65 @@ def test_runtime_workflow_trigger_tiers_are_exact() -> None:
 
     triggers = document["on"]
     assert set(triggers) == {"push", "pull_request"}
-    assert triggers["push"] == {"branches": ["policy"]}
-    assert triggers["pull_request"] == {"branches": ["policy"]}
+    assert triggers["push"] == {
+        "branches": ["policy"],
+        "tags": ["policy-compatibility-*"],
+    }
+    assert triggers["pull_request"] == {
+        "branches": ["policy"],
+        "types": ["opened", "synchronize", "reopened", "labeled", "unlabeled"],
+    }
+    assert "schedule" not in triggers
+    assert "workflow_dispatch" not in triggers
+
+
+def test_runtime_workflow_classifies_before_running_full_matrix() -> None:
+    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
+        encoding="utf-8"
+    )
+    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+    jobs = document["jobs"]
+
+    classifier = jobs["classify_runtime"]
+    assert classifier["runs-on"] == "ubuntu-24.04"
+    assert classifier["outputs"]["required"] == "${{ steps.classify.outputs.required }}"
+    command = classifier["steps"][1]["run"]
+    assert "scripts/classify_runtime_distribution_ci.py" in command
+    assert "--force-compatibility" in command
+    classifier_text = workflow.split("\n  classify_runtime:\n", 1)[1].split(
+        "\n  clean-install:\n", 1
+    )[0]
+    assert "ci/full-compatibility" in classifier_text
+    assert "refs/tags/policy-compatibility-" in classifier_text
+    assert "github.event.before" in classifier_text
+
+    clean_install = jobs["clean-install"]
+    assert clean_install["needs"] == ["classify_runtime"]
+    assert "needs.classify_runtime.outputs.required == 'true'" in clean_install["if"]
+    assert clean_install["strategy"]["fail-fast"] == "false"
+    assert clean_install["strategy"]["matrix"] == {
+        "platform": [
+            {"os": "ubuntu-24.04", "pip-config-file": "/dev/null"},
+            {"os": "windows-2022", "pip-config-file": "NUL"},
+        ],
+        "python-version": ["3.11", "3.12", "3.13", "3.14"],
+    }
+
+
+def test_runtime_workflow_final_gate_enforces_skip_and_success_semantics() -> None:
+    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
+        encoding="utf-8"
+    )
+    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+    validate = document["jobs"]["validate"]
+
+    assert validate["if"] == "${{ always() }}"
+    assert validate["needs"] == ["classify_runtime", "clean-install"]
+    run = validate["steps"][0]["run"]
+    assert 'test "$CLASSIFIER_RESULT" = success' in run
+    assert 'test "$CLEAN_INSTALL_RESULT" = success' in run
+    assert 'test "$CLEAN_INSTALL_RESULT" = skipped' in run
+    assert "invalid runtime compatibility classification" in run
 
 
 def test_runtime_verifier_imports_shared_helpers_under_isolated_python() -> None:
