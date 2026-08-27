@@ -123,19 +123,21 @@ class SnapshotSourceContextTests(unittest.TestCase):
             {},
             io.BytesIO(),
         )
-        with mock.patch(
-            "composer_source.urllib.request.urlopen",
-            side_effect=error,
-        ):
-            with self.assertRaisesRegex(
-                composer_source.SourceContextError,
-                "unavailable from the canonical GitHub history",
-            ) as caught:
-                composer_source.verify_github_descendant(
-                    "TakashiSasaki/templates",
-                    "1" * 40,
-                    "2" * 40,
-                )
+
+        def opener(_request, *, timeout: int):
+            self.assertEqual(timeout, 30)
+            raise error
+
+        with self.assertRaisesRegex(
+            composer_source.SourceContextError,
+            "unavailable from the canonical GitHub history",
+        ) as caught:
+            composer_source.verify_github_descendant(
+                "TakashiSasaki/templates",
+                "1" * 40,
+                "2" * 40,
+                opener=opener,
+            )
         self.assertEqual(caught.exception.code, "OLD_SOURCE_REVISION_UNAVAILABLE")
 
 
