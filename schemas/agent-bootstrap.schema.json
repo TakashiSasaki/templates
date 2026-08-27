@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
+  "title": "TakashiSasaki/templates coding-agent bootstrap manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repository",
+    "canonical_url",
+    "purpose",
+    "composition",
+    "requirements",
+    "bootstrap",
+    "workflow"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "repository": {"const": "TakashiSasaki/templates"},
+    "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
+    "purpose": {"const": "Compose new or existing software repositories"},
+    "composition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publication_revision", "installer", "skill", "toolchain"],
+      "properties": {
+        "publication_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "installer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision", "path", "sha256", "url"],
+          "properties": {
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "path": {"const": "scripts/install_composition_skill.py"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "url": {"type": "string", "pattern": "^https://raw\\.githubusercontent\\.com/TakashiSasaki/templates/[0-9a-f]{40}/scripts/install_composition_skill\\.py$"}
+          }
+        },
+        "skill": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "repository", "revision", "path", "entrypoint"],
+          "properties": {
+            "name": {"const": "composition"},
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "path": {"const": "skills/composition"},
+            "entrypoint": {"const": "scripts/run.py"}
+          }
+        },
+        "toolchain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision"],
+          "properties": {
+            "repository": {"const": "TakashiSasaki/templates"},
+            "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python", "https"],
+      "properties": {
+        "python": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": {"const": "3.11"},
+            "maximum": {"const": "3.14"}
+          }
+        },
+        "https": {"const": true}
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["download", "verify", "execute", "installation_modes"],
+      "properties": {
+        "download": {"const": "https"},
+        "verify": {"const": "sha256"},
+        "execute": {"const": "python-isolated"},
+        "installation_modes": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "persistent"},
+            {"const": "transient"}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diagnose",
+        "provenance",
+        "inspect_before_mutation",
+        "plan_before_apply",
+        "validate_after_apply"
+      ],
+      "properties": {
+        "diagnose": {"const": "doctor"},
+        "provenance": {"const": "provenance"},
+        "inspect_before_mutation": {"const": "inspect"},
+        "plan_before_apply": {"const": true},
+        "validate_after_apply": {"const": true}
+      }
+    }
+  }
+}
