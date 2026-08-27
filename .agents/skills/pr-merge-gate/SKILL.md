@@ -76,7 +76,7 @@ Do not skip states. In particular:
 - `reviews = 0 -> MERGE_ALLOWED` is forbidden;
 - absence of review findings is not evidence that review occurred.
 
-Use `CI_DISCOVERY_PENDING` as a transient fail-closed state whenever a workflow or check expected under the current workflow definition is not yet observable for the exact current head and its absence has not been corroborated. `CI_DISCOVERY_PENDING` is neither CI success nor CI failure. It may resolve only to `CI_DISCOVERED` when positive exact-head evidence becomes visible, or to `CI_CONFIRMED_ABSENT` after the full confirmed-absence protocol succeeds. It cannot transition directly to `CI_GREEN`, `BLOCKED_CI`, a retrigger mutation, or `MERGE_ALLOWED`.
+Use `CI_DISCOVERY_PENDING` as a transient fail-closed state whenever a workflow or check expected under the current workflow definition is not yet observable for the exact current head and its absence has not been corroborated. `CI_DISCOVERY_PENDING` is neither CI success nor CI failure. It may resolve only to `CI_DISCOVERED` when the expected exact-head evidence becomes visible, or to `CI_CONFIRMED_ABSENT` after the full confirmed-absence protocol succeeds. It cannot transition directly to `CI_GREEN`, `BLOCKED_CI`, a retrigger mutation, or `MERGE_ALLOWED`.
 
 Use `CI_CONFIRMED_ABSENT` only when the confirmed-absence protocol below is satisfied and its concrete observations are recorded. `CI_CONFIRMED_ABSENT` is not a success state and cannot transition to `CI_GREEN` or `MERGE_ALLOWED`; it must lead to `BLOCKED_CI` or to an explicitly justified recovery action, after which discovery begins again for the resulting current head/state.
 
