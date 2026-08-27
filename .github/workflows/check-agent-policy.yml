@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: TakashiSasaki/templates@0666614b31b213e489e0d59b768ef9402e7f78f1
+      - uses: TakashiSasaki/templates@b12b190cff4a9f5fa9f9ba76cc3425c479b67b87
         with:
           command: check
           config: .agent-policy.yml
