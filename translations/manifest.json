@@ -62,21 +62,21 @@
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
-      "canonical_blob_sha": "cbbd46d57d532eb6631b572b1d61486c70655c0d",
+      "canonical_blob_sha": "537164960be211be5c17ec32cd5689c482e28dfd",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
-      "canonical_blob_sha": "aec29577c81133d14ea0a59a0b469f63b018441f",
+      "canonical_blob_sha": "88bbeee37aefb5701b3c2d22e3409d63943e3de0",
       "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "cb59577a3ef6588b4082e949e2dd43ccc9f975f6",
+      "canonical_blob_sha": "d69ea21d0b73df531c71c50d37815cd7643884e1",
       "surfaces": ["reader"]
     },
     {
