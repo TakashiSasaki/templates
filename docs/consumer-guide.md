@@ -38,12 +38,12 @@ Use environment-appropriate paths and keep these caches outside the product repo
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `9c1c093fca1e7e47a9974150e7739665ec570f6e` installs skill source `f9508b92f5b7835fa1af9741f3941f32f6d3db28`; that skill's runtime manifest selects stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `cb06bce5108d804a8f07fb3adb71ff4fd051e12a` installs skill source `06f6734c372bb30f633e6a53f78532a4cfbb7981`; that skill's runtime manifest selects stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
@@ -53,7 +53,17 @@ python /path/to/agent-skills/composition/scripts/run.py \
   COMMAND [COMPOSER OPTIONS]
 ```
 
-For example:
+After installation, use the read-only doctor before first acquisition when you need to diagnose local bootstrap prerequisites or cache behavior:
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  doctor
+```
+
+Use `doctor --format json` for machine-readable diagnostics. Doctor checks the selected immutable revision, supported CPython, Git availability, runner-cache write/atomic-rename capability, and any locally available source/runtime cache with the same validators used by normal runner execution. It does not contact the Git remote or package indexes and does not acquire source/runtime state. A `READY` result is therefore a local bootstrap diagnosis, not Composition validation and not a guarantee that a later cold acquisition will have network/package availability.
+
+For example, inspect the repository with:
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
