@@ -5,6 +5,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 import run_checkout as _impl
 import runtime
 
@@ -197,12 +201,10 @@ def render_doctor_human(payload: dict[str, Any]) -> str:
     assert isinstance(acquisition, dict)
     assert isinstance(commands, dict)
     host_python = checks["host_python"]
-    git = checks["git"]
     source = checks["source_cache"]
     runtime_cache = checks["runtime_cache"]
     runner_cache = checks["runner_cache"]
     assert isinstance(host_python, dict)
-    assert isinstance(git, dict)
     assert isinstance(source, dict)
     assert isinstance(runtime_cache, dict)
     assert isinstance(runner_cache, dict)
