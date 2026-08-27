@@ -5,7 +5,7 @@ description: Create, inspect, update, upgrade, recover, and validate repositorie
 
 # Composition
 
-Use this as the single repository-facing entry point for the Composition Composer.
+Use this as the single repository-facing entry point for the Composition Composer. Normal consumers do not clone `TakashiSasaki/templates` or any provider branch. The installed Skill acquires the selected immutable Composition revision as an HTTPS archive for each Composer invocation, verifies a snapshot inventory, executes it from an OS temporary directory, and removes that source snapshot on exit.
 
 ## Choose the operation
 
@@ -17,18 +17,27 @@ Use this as the single repository-facing entry point for the Composition Compose
 6. Use `validate` after a successful apply.
 7. If inspect reports interrupted managed state, do not delete the transaction marker. Rerun the matching `apply --mode update` or `apply --mode upgrade`; the runner selects the transaction-pinned full SHA automatically.
 
+## Consumer prerequisites
+
+Normal consumer execution requires:
+
+- CPython 3.11, 3.12, 3.13, or 3.14; and
+- HTTPS access when the selected immutable source archive or Python packages must be acquired.
+
+Normal consumers do **not** need Git, `git clone`, `curl`, `wget`, a templates checkout, a manually created virtual environment, or knowledge of the `site` / `composition` / `policy` branch topology. Git remains appropriate for Composition authority maintainers who deliberately run the Composer from a reviewed source checkout.
+
 ## Commands
 
-To diagnose the local runner prerequisites and cache state without acquiring a source checkout/runtime or contacting the Git remote/package indexes:
+To diagnose local runner prerequisites and runtime-cache write capability without downloading source or contacting package indexes:
 
 ```text
 python scripts/run.py --repository <root> doctor
 python scripts/run.py --repository <root> doctor --format json
 ```
 
-`doctor` is repository-read-only and performs no network acquisition. It does execute the same transient write-plus-atomic-rename probes used by normal cache acquisition under the effective runner cache, then removes the probe artifacts; this may create the otherwise-empty `sources/` and `runtimes/` cache parent directories. Cache misses are reported as acquisition requirements, not validation success or failure. The report identifies the selected immutable toolchain revision, host CPython support, Git availability, effective cache root/override, validated source/runtime cache state when locally available, whether acquisition is required, and exact `inspect`/`validate` runner argv. It deliberately reports remote/package-source availability as `not-probed` rather than turning an unreliable network ping into authority.
+`doctor` is repository-read-only and performs no network acquisition. It probes the effective persistent runtime-cache parent with the same transient write-plus-atomic-rename capability required by runtime construction, then removes probe artifacts. Source acquisition is reported as `ephemeral`: normal execution obtains a fresh full-SHA archive in an OS temporary directory rather than creating a persistent source cache. Doctor deliberately reports remote/package-source availability as `not-probed`; `READY` means only that locally observable prerequisites do not block the normal path.
 
-To inspect provenance without acquiring a source checkout or runtime:
+To inspect provenance without source or runtime acquisition:
 
 ```text
 python scripts/run.py --repository <root> provenance
@@ -64,13 +73,14 @@ The runner owns the Composer target argument. Do not pass `--target`; use `--rep
 
 `doctor` answers whether the installed runner has locally observable prerequisites to run or acquire its selected immutable toolchain. It is not a Composer validation result and must not be used as a release/readiness proof. In particular:
 
-- `status: ready` means the local CPython/Git/cache conditions do not currently block the normal runner path; it does not guarantee network or package-index availability for a cache miss;
-- source/runtime cache `valid` means the existing local entry passed the same cache validators used by normal execution;
-- source/runtime cache `absent` or `invalid` means normal execution will need acquisition/rebuild when local prerequisites permit it;
-- `package_source.status: not-probed` is intentional because doctor performs no remote/package-index requests;
-- the canonical repository operation remains the exact `inspect`, `plan`, `apply`, or `validate` command reported/selected by the runner, and materialized `.template-composition/validate.py` remains the selected consumer-validation authority after composition.
+- `status: ready` means supported local CPython and runtime-cache conditions do not currently block normal execution; it does not guarantee GitHub or package-index availability;
+- `checks.git.status: not-required` is intentional for normal consumer execution;
+- `checks.source_cache.status: ephemeral` means no persistent Composition source checkout is expected;
+- runtime-cache state is only a performance/runtime-acquisition signal and never changes source selection or Composer semantics;
+- `package_source.status: not-probed` is intentional because doctor performs no remote/package-index requests; and
+- the canonical repository operation remains the exact `inspect`, `plan`, `apply`, or `validate` command selected by the runner, while materialized `.template-composition/validate.py` remains consumer validation authority after composition.
 
-Use doctor to explain bootstrap failures, then execute the reported canonical command. Do not edit lock/transaction/cache markers to force a green doctor report.
+Use doctor to explain bootstrap failures, then execute the canonical command. Do not edit lock, transaction, installation-receipt, or runtime-cache markers to force a green report.
 
 ## Provenance and trust roles
 
@@ -84,47 +94,57 @@ Use doctor to explain bootstrap failures, then execute the reported canonical co
 | `consumer_lock` | `.template-composition/lock.json` | Source revision that materialized the currently managed consumer state. It is absent for an unmanaged repository. |
 | `transaction` | `.template-composition/transaction.json` | Recovery source authority while an update or upgrade transaction is interrupted. |
 
-The output also reports whether the selected toolchain matches the stable toolchain and, when a consumer lock exists, whether the lock source matches the currently selected toolchain. These comparisons explain differences; they do not change source-selection semantics.
-
-An advanced `--revision <full-sha>` may be supplied with `provenance` or `doctor` to inspect which source would be selected. A recovery transaction remains authoritative and rejects a conflicting explicit revision exactly as normal Composer execution does.
+An advanced `--revision <full-sha>` may be supplied with `provenance`, `doctor`, or normal Composer execution. A recovery transaction remains authoritative and rejects a conflicting explicit revision exactly as normal execution does.
 
 ## Immutable source selection
 
 - The normal source revision is the full SHA in `runtime-manifest.json`.
 - A managed recovery transaction overrides that default with the exact full SHA in `.template-composition/transaction.json`.
 - An advanced `--revision <full-sha>` override is accepted only when no recovery transaction requires another revision.
-- Mutable branch and tag names are not accepted as executable source identities.
+- Mutable branch and tag names are never accepted as executable source identities.
 - The canonical executable repository is always `TakashiSasaki/templates`.
 
-## Runtime behavior
+## Source snapshot and runtime behavior
 
-The runner persistently caches source checkouts and isolated Python runtimes without changing source-selection or Composer semantics.
+For the selected full SHA the runner:
 
-For the selected full SHA it:
+1. downloads `https://codeload.github.com/TakashiSasaki/templates/tar.gz/<full-sha>` with Python's standard library;
+2. rejects unsafe archive paths, symbolic/hard links, duplicate or portable-colliding paths, unsupported member types, and configured download/extraction/member-count limits;
+3. extracts the immutable source into an OS temporary directory and records a SHA-256 inventory of every regular source file;
+4. passes repository identity, full revision, and that inventory to the Composer as source-context metadata; Composer authority reads must remain inside the snapshot, be present in the inventory, and retain their acquired digest;
+5. reads that snapshot revision's `requirements-runtime.lock` and, for the stable manifest revision, verifies the lock SHA-256 recorded in `runtime-manifest.json`;
+6. derives a persistent runtime-cache identity from repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
+7. reuses a matching runtime only after validating its marker, lock digest, Python/platform identity, `pip check`, and the source revision's runtime-environment verifier; otherwise it builds and atomically installs a fresh isolated runtime with dependency resolution and pip's download cache disabled;
+8. executes the selected revision's `scripts/compose.py` with `--target` injected from runner `--repository`; and
+9. removes the source snapshot/context temporary directory when the invocation exits normally or through a handled exception.
 
-1. reuses a validated source cache when available, otherwise fetches that exact revision from the canonical repository with Git and records it in a cache keyed by revision;
-2. verifies the cached checkout is detached at the expected full SHA, has the canonical remote, is byte-clean, uses LF-preserving checkout settings, and retains traversable ancestor history;
-3. reads that revision's `requirements-runtime.lock` and, for the stable manifest revision, verifies the lock SHA-256 recorded in `runtime-manifest.json`;
-4. derives a runtime-cache identity from repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
-5. reuses a matching runtime only after checking its marker, lock digest, Python/platform identity, `pip check`, and the source revision's runtime-environment verifier;
-6. on a runtime miss or invalid entry, creates an isolated virtual environment, installs the exact lock with dependency resolution and pip's download cache disabled, validates it, and atomically installs the cache entry; and
-7. executes the selected revision's `scripts/compose.py` with the runner repository injected as `--target`.
+`COMPOSITION_RUNTIME_CACHE` may override the persistent runtime-cache root for controlled environments and tests. The default follows platform cache conventions under `composition/runner-v1`. Source snapshots are not stored there.
 
-A valid source/runtime cache hit performs no network acquisition. `COMPOSITION_RUNTIME_CACHE` may override the cache root for controlled environments and tests. Otherwise platform cache conventions are used under a `composition/runner-v1` namespace.
+A normal Composer command therefore requires GitHub source-archive availability for each invocation, even when the Python runtime cache is warm. `doctor` and `provenance` remain network-free. A materialized consumer validator can be invoked independently according to the validation contract generated into the consumer repository.
 
-A cache miss requires a writable cache parent with atomic rename support. The runner probes those capabilities before acquisition/build work. If the selected cache path cannot support them, the runner reports an actionable error naming the path and `COMPOSITION_RUNTIME_CACHE` instead of exposing a raw filesystem traceback. Runtime dependency installation uses `pip --no-cache-dir`, so changing `COMPOSITION_RUNTIME_CACHE` is sufficient; no separate pip/XDG cache override is required for the Composition runner.
+Managed `update` / `upgrade` additionally verify that the selected new full SHA descends from the lock's old full SHA. Snapshot-backed consumer execution performs that revision-transition check with GitHub's compare API and fails closed on unavailable, malformed, rate-limited, or non-descendant results. Reviewed-checkout authority-maintainer execution may perform the same semantic check using local Git history.
 
-Cache layout and reuse are performance details. Revision selection, Composer arguments, managed-recovery semantics, lock/transaction semantics, and material ownership remain authoritative outside the cache implementation.
+## Filesystem hygiene
+
+Intentional persistent state is limited to:
+
+- the installed Composition Skill when the user chose to install it;
+- the consumer repository material and `.template-composition/**` state produced by Composition; and
+- the named validated Python runtime cache used as a performance optimization.
+
+The selected templates source checkout is not consumer state. Normal execution treats it as disposable acquisition material and does not create a persistent clone or source cache. Temporary download/extraction/build staging is cleaned after normal completion and handled failures; an OS/process crash can still leave ordinary operating-system temporary artifacts and is not claimed to be transactionally erasable.
 
 ## Safety requirements
 
-- Require Git on `PATH` and CPython 3.11 through 3.14 for Composer execution.
+- Require only supported CPython for normal consumer bootstrap/runtime; do not introduce Git as a hidden consumer prerequisite.
 - Execute only a full lowercase 40-character commit SHA from `TakashiSasaki/templates`.
+- Reject unsafe archive structure and source bytes that differ from the acquisition inventory.
+- Treat GitHub ancestry-verification failure as a managed-transition blocker rather than guessing history.
 - Treat `.template-composition/transaction.json` as authoritative during recovery.
 - Never silently fall back to the stable manifest revision when transaction metadata is malformed.
 - Do not pass through a second Composer `--target`.
-- Treat invalid source/runtime cache entries as misses; never trust a cache marker alone.
-- Treat a present but malformed installation receipt, consumer lock, or transaction as an error rather than inventing provenance.
+- Treat invalid runtime-cache entries as misses; never trust a cache marker alone.
+- Treat a present but malformed installation receipt, consumer lock, transaction, or source-context document as an error rather than inventing provenance.
 - Do not modify `.template-composition/lock.json` or transaction metadata outside the Composer.
 - Treat doctor as diagnostic only; a ready doctor report does not replace `validate` or prove remote acquisition will succeed.
 - Review plans before applying mutations.
