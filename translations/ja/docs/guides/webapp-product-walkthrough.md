@@ -839,10 +839,24 @@ Webapp evidence validator は、宣言された `viewports/base` と `input-capa
 "${CHROMEWEBDRIVER:-chromedriver}" --version
 ```
 
-review済みのstandard-library WebDriver proofをconsumer-owned test directoryへdownloadします。full-SHA URLはimmutableで、Python package dependencyはありません。
+review済みのstandard-library WebDriver proofを、受信したbytesを保持したままconsumer-owned test directoryへ取得します。full-SHA URLはimmutableで、Python package dependencyはありません。memory上のbytesをwriteする前にhashし、text reserialization、newline normalization、後からの再構成をdigest入力にしてはいけません。
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/7e1352a527cdfa6a20ac5df1a81b404b4a6699b3/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c '
+import hashlib
+import pathlib
+import urllib.request
+
+data = urllib.request.urlopen("https://raw.githubusercontent.com/TakashiSasaki/templates/7e1352a527cdfa6a20ac5df1a81b404b4a6699b3/examples/onboarding/task-ledger/browser_proof.py", timeout=30).read()
+expected = "7921d0308850aeefdb71332c5f089bf6a5d2ed1e50bf5f77b5d3d40eda53030b"
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"browser proof SHA-256 mismatch: expected {expected}, got {actual}")
+destination = pathlib.Path("tests/test_task_ledger_browser.py")
+destination.parent.mkdir(parents=True, exist_ok=True)
+destination.write_bytes(data)
+print(f"Verified browser proof SHA-256: {actual} ({len(data)} bytes)")
+'
 ```
 
 このproofはtemporary SQLite databaseでTask Ledgerを起動し、実際のheadless Chrome sessionから次を検査します。

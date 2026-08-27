@@ -1027,10 +1027,24 @@ Use a matching Chrome or Chrome for Testing binary and ChromeDriver. If they are
 "${CHROMEWEBDRIVER:-chromedriver}" --version
 ```
 
-Download the reviewed standard-library WebDriver proof into the consumer-owned test directory. The full-SHA URL is immutable and the script has no Python package dependency:
+Acquire the reviewed standard-library WebDriver proof into the consumer-owned test directory while preserving the exact received bytes. The full-SHA URL is immutable and the script has no Python package dependency. Hash the in-memory bytes before writing them; do not use text reserialization, newline normalization, or a later reconstruction as the digest input:
 
 ```sh
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/TakashiSasaki/templates/7e1352a527cdfa6a20ac5df1a81b404b4a6699b3/examples/onboarding/task-ledger/browser_proof.py', 'tests/test_task_ledger_browser.py')"
+python -c '
+import hashlib
+import pathlib
+import urllib.request
+
+data = urllib.request.urlopen("https://raw.githubusercontent.com/TakashiSasaki/templates/7e1352a527cdfa6a20ac5df1a81b404b4a6699b3/examples/onboarding/task-ledger/browser_proof.py", timeout=30).read()
+expected = "7921d0308850aeefdb71332c5f089bf6a5d2ed1e50bf5f77b5d3d40eda53030b"
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"browser proof SHA-256 mismatch: expected {expected}, got {actual}")
+destination = pathlib.Path("tests/test_task_ledger_browser.py")
+destination.parent.mkdir(parents=True, exist_ok=True)
+destination.write_bytes(data)
+print(f"Verified browser proof SHA-256: {actual} ({len(data)} bytes)")
+'
 ```
 
 The proof starts Task Ledger with a temporary SQLite database and drives it through a real headless Chrome session. It covers:

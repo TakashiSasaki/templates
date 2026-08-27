@@ -15,6 +15,7 @@ CONFIG_SCHEMA = ROOT / "schemas" / "composition-config.schema.json"
 INSTALLER_RELEASE = ROOT / "release" / "composition-installer.json"
 BROWSER_PROOF = ROOT / "examples" / "onboarding" / "task-ledger" / "browser_proof.py"
 BROWSER_PROOF_REVISION = "7e1352a527cdfa6a20ac5df1a81b404b4a6699b3"
+BROWSER_PROOF_SHA256 = "7921d0308850aeefdb71332c5f089bf6a5d2ed1e50bf5f77b5d3d40eda53030b"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
@@ -181,6 +182,9 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             f"{BROWSER_PROOF_REVISION}/examples/onboarding/task-ledger/browser_proof.py"
         )
         self.assertIn(expected_url, text)
+        self.assertIn(BROWSER_PROOF_SHA256, text)
+        self.assertIn("destination.write_bytes(data)", text)
+        self.assertNotIn("urlretrieve(", text)
         self.assertIn("CHROMEWEBDRIVER", text)
         self.assertIn("CHROME_BINARY", text)
         self.assertIn('<h1 id="main-heading" tabindex="-1">Task Ledger</h1>', text)
