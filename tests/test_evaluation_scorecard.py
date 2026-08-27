@@ -59,7 +59,8 @@ class EvaluationScorecardTests(unittest.TestCase):
             "fresh conversation",
             "complete transcript capture",
         ):
-            self.assertIn(phrase, self.text)
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
 
     def test_valid_scorecard_instance_and_invalid_status(self) -> None:
         score = {"status": "PASS", "attribution": "repository defect", "notes": "controlled"}
@@ -88,10 +89,23 @@ class EvaluationScorecardTests(unittest.TestCase):
         }
         validator = Draft202012Validator(self.schema)
         validator.validate(payload)
-        invalid = json.loads(json.dumps(payload))
-        invalid["dimensions"]["dead_ends"]["status"] = "UNKNOWN"
-        with self.assertRaises(ValidationError):
-            validator.validate(invalid)
+        invalid_cases = (
+            ("invalid status", lambda value: value["dimensions"]["dead_ends"].__setitem__("status", "UNKNOWN")),
+            ("invalid attribution", lambda value: value["dimensions"]["dead_ends"].__setitem__("attribution", "unknown attribution")),
+            ("invalid transcript completeness", lambda value: value["environment_fingerprint"].__setitem__("transcript_completeness", "other")),
+            ("negative intervention count", lambda value: value["environment_fingerprint"].__setitem__("user_intervention_count", -1)),
+            ("empty rerun conditions", lambda value: value.__setitem__("next_clean_room_rerun_conditions", [])),
+            ("empty model", lambda value: value["environment_fingerprint"].__setitem__("model", "")),
+            ("empty rerun condition", lambda value: value.__setitem__("next_clean_room_rerun_conditions", [""])),
+            ("extra root property", lambda value: value.__setitem__("unexpected", True)),
+            ("extra score property", lambda value: value["dimensions"]["dead_ends"].__setitem__("unexpected", True)),
+        )
+        for name, mutate in invalid_cases:
+            with self.subTest(case=name):
+                invalid = json.loads(json.dumps(payload))
+                mutate(invalid)
+                with self.assertRaises(ValidationError):
+                    validator.validate(invalid)
 
     def test_guide_preserves_clean_room_boundary(self) -> None:
         self.assertIn("future clean-room run", self.text)
