@@ -286,6 +286,22 @@ class SnapshotSourceContext:
             )
         return _validate_revision(self.pinned_revision, label="source revision")
 
+    def _assert_authority_parent_chain(self, relative: str) -> None:
+        if self.root.is_symlink() or not self.root.is_dir():
+            raise SourceContextError(
+                "INVALID_SOURCE_CONTEXT",
+                "source snapshot root must remain a regular non-symlink directory",
+            )
+        current = self.root
+        for part in PurePosixPath(relative).parts[:-1]:
+            current = current / part
+            if current.is_symlink() or not current.is_dir():
+                raise SourceContextError(
+                    "INVALID_SOURCE_AUTHORITY",
+                    "source authority parent must remain a regular non-symlink "
+                    f"directory: {relative}",
+                )
+
     def assert_authority(self, path: Path) -> None:
         try:
             relative = path.relative_to(self.root).as_posix()
@@ -301,11 +317,21 @@ class SnapshotSourceContext:
                 "source authority is not present in the immutable source snapshot: "
                 f"{relative}",
             )
+        self._assert_authority_parent_chain(relative)
         if path.is_symlink() or not path.is_file():
             raise SourceContextError(
                 "INVALID_SOURCE_AUTHORITY",
                 f"source authority must be a regular non-symlink file: {relative}",
             )
+        try:
+            resolved_root = self.root.resolve(strict=True)
+            resolved_path = path.resolve(strict=True)
+            resolved_path.relative_to(resolved_root)
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise SourceContextError(
+                "INVALID_SOURCE_AUTHORITY",
+                f"source authority must remain inside the immutable snapshot: {relative}",
+            ) from exc
         try:
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
         except OSError as exc:
@@ -313,6 +339,7 @@ class SnapshotSourceContext:
                 "INVALID_SOURCE_AUTHORITY",
                 f"cannot read source authority {relative}: {exc}",
             ) from exc
+        self._assert_authority_parent_chain(relative)
         if actual != expected:
             raise SourceContextError(
                 "DIRTY_SOURCE",
