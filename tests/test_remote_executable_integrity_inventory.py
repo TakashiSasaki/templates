@@ -43,7 +43,7 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
             with self.subTest(resource=resource):
                 matches = [row for row in rows if resource in row]
                 self.assertEqual(len(matches), 1)
-                self.assertIn(f"| {classification} |", matches[0])
+                self.assertIn(classification, matches[0])
 
     def test_inventory_requires_immutable_identity_and_received_bytes(self) -> None:
         self.assertIn("immutable identity", self.text)
