@@ -11,6 +11,7 @@ itself.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Iterable, TextIO
 
@@ -39,9 +40,14 @@ def normalize_path(value: str) -> str:
     return path
 
 
+def _requires_provider_coexistence(normalized_path: str) -> bool:
+    return normalized_path in REQUIRED_EXACT_PATHS or normalized_path.endswith(
+        REQUIRED_SUFFIXES
+    )
+
+
 def requires_provider_coexistence(path: str) -> bool:
-    normalized = normalize_path(path)
-    return normalized in REQUIRED_EXACT_PATHS or normalized.endswith(REQUIRED_SUFFIXES)
+    return _requires_provider_coexistence(normalize_path(path))
 
 
 def classify_paths(paths: Iterable[str]) -> tuple[bool, tuple[str, ...]]:
@@ -53,7 +59,7 @@ def classify_paths(paths: Iterable[str]) -> tuple[bool, tuple[str, ...]]:
             {
                 path
                 for path in normalized
-                if requires_provider_coexistence(path)
+                if _requires_provider_coexistence(path)
             }
         )
     )
@@ -84,7 +90,8 @@ def main() -> int:
         with args.output.open("a", encoding="utf-8") as output:
             write_outputs(output, required=required, matched=matched)
     except (OSError, UnicodeError, ClassificationError) as exc:
-        raise SystemExit(f"provider coexistence classification failed: {exc}") from exc
+        print(f"provider coexistence classification failed: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
