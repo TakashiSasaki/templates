@@ -31,3 +31,16 @@ The default cache is the platform cache location under `composition/validation-v
 The selected validators themselves run with the isolated cached interpreter. Dispatch still invokes Python directly without shell parsing, so the same contract applies on Windows and POSIX systems. Human-readable output is the default; `--format json` emits deterministic machine-readable check results.
 
 Release evidence and release bundles have an additional boundary. Template-mode documents can be validated during ordinary repository validation. Product-mode evidence is bound to an exact product revision and therefore remains deferred to the product-owned exact-candidate release operation; ordinary validation reports that deferral explicitly instead of weakening or pretending to satisfy the revision-bound validator.
+
+
+## Lifecycle next-action projection
+
+The self-contained validation entrypoint emits a nested `lifecycle` projection in its `--format json` result. The projection is derived from the existing Composition validation checks and the consumer-owned `contracts/implementation-evidence.json` mode; it is not a second lifecycle authority.
+
+- `lifecycle_stage: scaffold-valid` means Composition is valid, but `template` or `planning` evidence is not an implemented-product milestone.
+- `lifecycle_stage: implemented-product` requires `product` evidence mode and successful ordinary validation.
+- `release_readiness: not-evaluated` means the ordinary validator has not run the revision-bound release-readiness operation.
+- `release_readiness: not-ready` is emitted when a selected validator is deferred; deferred browser proof must never be presented as release-ready.
+- `next_actions` is a deterministic ordered list. In particular, planning state points to product implementation, product evidence, product verification, product-state validation, and release-readiness checking.
+
+The projection schema is materialized at `.template-composition/lifecycle-next-actions.schema.json` and is validated by Composition tests. Existing validator checks and their fail-closed behavior remain authoritative.

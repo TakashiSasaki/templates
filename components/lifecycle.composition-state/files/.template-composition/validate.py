@@ -730,15 +730,171 @@ def _condition_decision(
     return "deferred", condition["message"]
 
 
+
+def _evidence_mode(root: Path) -> str:
+    """Read the consumer evidence mode for the lifecycle projection only."""
+    try:
+        evidence = _load_json(root / "contracts/implementation-evidence.json")
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return "missing"
+    if not isinstance(evidence, dict):
+        return "invalid"
+    mode = evidence.get("mode")
+    return mode if mode in {"template", "planning", "product"} else "invalid"
+
+
+def _lifecycle_projection(
+    root: Path, status: str, checks: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Project existing validation/evidence state into deterministic next actions.
+
+    This is a presentation projection, not a second lifecycle authority. It
+    deliberately reports ordinary validation and revision-bound release
+    readiness as separate dimensions.
+    """
+    mode = _evidence_mode(root)
+    failed = status != "valid" or any(
+        check.get("status") == "failed" for check in checks
+    )
+    if failed:
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "composition-invalid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["composition-validation-failed"],
+            "deferred_checks": [],
+            "next_actions": ["inspect", "plan", "apply", "validate"],
+        }
+
+    if mode == "template":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "scaffold-valid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["implementation-evidence-template"],
+            "deferred_checks": [],
+            "next_actions": [
+                "define-product-requirements",
+                "implement-product",
+                "populate-product-evidence",
+                "run-product-verifier",
+                "validate-product-state",
+                "check-release-readiness",
+            ],
+        }
+
+    if mode == "planning":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "scaffold-valid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["implementation-evidence-planning"],
+            "deferred_checks": [],
+            "next_actions": [
+                "implement-product",
+                "populate-product-evidence",
+                "run-product-verifier",
+                "validate-product-state",
+                "check-release-readiness",
+            ],
+        }
+
+    if mode == "product":
+        deferred = sorted(
+            str(check.get("id"))
+            for check in checks
+            if check.get("status") == "deferred"
+        )
+        if deferred:
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "implemented-product",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "not-ready",
+                "blocking_conditions": ["deferred-proof"],
+                "deferred_checks": deferred,
+                "next_actions": [
+                    "resolve-deferred-proof",
+                    "run-product-verifier",
+                    "validate-product-state",
+                    "check-release-readiness",
+                ],
+            }
+
+        explicitly_ready = any(
+            check.get("id") == "release-readiness"
+            and check.get("status") == "passed"
+            for check in checks
+        )
+        if explicitly_ready:
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "release-ready",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "ready",
+                "blocking_conditions": [],
+                "deferred_checks": [],
+                "next_actions": [],
+            }
+
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "implemented-product",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["release-readiness-not-evaluated"],
+            "deferred_checks": [],
+            "next_actions": ["check-release-readiness"],
+        }
+
+    return {
+        "schema_version": 1,
+        "lifecycle_stage": "scaffold-valid",
+        "implementation_evidence_mode": mode,
+        "release_readiness": "not-evaluated",
+        "blocking_conditions": ["implementation-evidence-missing"],
+        "deferred_checks": [],
+        "next_actions": [
+            "define-product-requirements",
+            "implement-product",
+            "populate-product-evidence",
+            "run-product-verifier",
+            "validate-product-state",
+            "check-release-readiness",
+        ],
+    }
+
+
+def _validation_result(
+    root: Path,
+    *,
+    status: str,
+    target: str,
+    resolved_components: list[str],
+    checks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    result = {
+        "schema_version": 1,
+        "status": status,
+        "target": target,
+        "resolved_components": resolved_components,
+        "checks": checks,
+    }
+    result["lifecycle"] = _lifecycle_projection(root, status, checks)
+    return result
+
 def validate(root: Path) -> dict[str, Any]:
     state_validator = root / STATE_VALIDATOR_RELATIVE
     if state_validator.is_symlink() or not state_validator.is_file():
-        return {
-            "schema_version": 1,
-            "status": "invalid",
-            "target": str(root),
-            "resolved_components": [],
-            "checks": [
+        return _validation_result(
+            root,
+            status="invalid",
+            target=str(root),
+            resolved_components=[],
+            checks=[
                 _failed_check(
                     check_id="composition-state",
                     component="lifecycle.composition-state",
@@ -750,7 +906,7 @@ def validate(root: Path) -> dict[str, Any]:
                     ),
                 )
             ],
-        }
+        )
 
     state = _run_process(root, STATE_VALIDATOR_RELATIVE, [str(root)])
     state_check = _process_check(
@@ -761,103 +917,70 @@ def validate(root: Path) -> dict[str, Any]:
         purpose="Validate the resolved Composition lock and material ownership state.",
     )
     if state.returncode != 0:
-        return {
-            "schema_version": 1,
-            "status": "invalid",
-            "target": str(root),
-            "resolved_components": [],
-            "checks": [state_check],
-        }
+        return _validation_result(
+            root,
+            status="invalid",
+            target=str(root),
+            resolved_components=[],
+            checks=[state_check],
+        )
 
     try:
         lock = _load_json(root / LOCK_RELATIVE)
         if not isinstance(lock, dict):
-            raise ValidationRegistryError(
-                "composition lock must contain a JSON object"
-            )
+            raise ValidationRegistryError("composition lock must contain a JSON object")
         resolved_entries = lock.get("resolved_components")
         if not isinstance(resolved_entries, list):
-            raise ValidationRegistryError(
-                "composition lock resolved_components must be an array"
-            )
+            raise ValidationRegistryError("composition lock resolved_components must be an array")
         selected = [
             entry.get("id")
             for entry in resolved_entries
             if isinstance(entry, dict) and isinstance(entry.get("id"), str)
         ]
         if len(selected) != len(resolved_entries):
-            raise ValidationRegistryError(
-                "composition lock has invalid resolved component entries"
-            )
+            raise ValidationRegistryError("composition lock has invalid resolved component entries")
         selected_set = set(selected)
         files = _lock_files(lock)
-        _require_locked_material(
-            files,
-            REGISTRY_RELATIVE,
-            component="lifecycle.composition-state",
-            ownership="managed",
-        )
-        _require_locked_material(
-            files,
-            RUNNER_RELATIVE,
-            component="lifecycle.composition-state",
-            ownership="managed",
-        )
-        runtime_lines, runtime_requirements, registry = _load_registry(
-            root / REGISTRY_RELATIVE
-        )
-    except (
-        OSError,
-        UnicodeError,
-        json.JSONDecodeError,
-        StrictJsonError,
-        ValidationRegistryError,
-    ) as exc:
-        return {
-            "schema_version": 1,
-            "status": "invalid",
-            "target": str(root),
-            "resolved_components": [],
-            "checks": [
+        _require_locked_material(files, REGISTRY_RELATIVE, component="lifecycle.composition-state", ownership="managed")
+        _require_locked_material(files, RUNNER_RELATIVE, component="lifecycle.composition-state", ownership="managed")
+        runtime_lines, runtime_requirements, registry = _load_registry(root / REGISTRY_RELATIVE)
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError, ValidationRegistryError) as exc:
+        return _validation_result(
+            root,
+            status="invalid",
+            target=str(root),
+            resolved_components=[],
+            checks=[
                 state_check,
                 _failed_check(
                     check_id="validation-registry",
                     component="lifecycle.composition-state",
                     entrypoint=REGISTRY_RELATIVE,
-                    purpose=(
-                        "Resolve validator dispatch and validation runtime from "
-                        "the trusted managed registry and composition lock."
-                    ),
+                    purpose="Resolve validator dispatch and validation runtime from the trusted managed registry and composition lock.",
                     message=str(exc),
                 ),
             ],
-        }
+        )
 
     try:
-        validation_python, validation_environment = _ensure_validation_python(
-            runtime_lines,
-            runtime_requirements,
-        )
+        validation_python, validation_environment = _ensure_validation_python(runtime_lines, runtime_requirements)
     except ValidationRuntimeError as exc:
-        return {
-            "schema_version": 1,
-            "status": "invalid",
-            "target": str(root),
-            "resolved_components": selected,
-            "checks": [
+        return _validation_result(
+            root,
+            status="invalid",
+            target=str(root),
+            resolved_components=selected,
+            checks=[
                 state_check,
                 _failed_check(
                     check_id="validation-runtime",
                     component="lifecycle.composition-state",
                     entrypoint=REGISTRY_RELATIVE,
-                    purpose=(
-                        "Provide the exact isolated Python dependency set used "
-                        "by selected component validators."
-                    ),
+                    purpose="Provide the exact isolated Python dependency set used by selected component validators.",
                     message=str(exc),
                 ),
             ],
-        }
+        )
 
     checks: list[dict[str, Any]] = [state_check]
     for entry in registry:
@@ -865,90 +988,30 @@ def validate(root: Path) -> dict[str, Any]:
         if component not in selected_set:
             continue
         try:
-            _require_locked_material(
-                files,
-                entry["entrypoint"],
-                component=component,
-                ownership="managed",
-            )
+            _require_locked_material(files, entry["entrypoint"], component=component, ownership="managed")
         except ValidationRegistryError as exc:
-            checks.append(
-                _failed_check(
-                    check_id=entry["id"],
-                    component=component,
-                    entrypoint=entry["entrypoint"],
-                    purpose=entry["purpose"],
-                    message=str(exc),
-                )
-            )
+            checks.append(_failed_check(check_id=entry["id"], component=component, entrypoint=entry["entrypoint"], purpose=entry["purpose"], message=str(exc)))
             continue
-
         condition = entry["when"]
         if condition is not None:
             try:
-                decision, message = _condition_decision(
-                    root,
-                    condition,
-                    files,
-                    component=component,
-                )
+                decision, message = _condition_decision(root, condition, files, component=component)
             except ValidationRegistryError as exc:
                 decision, message = "failed", str(exc)
             if decision == "failed":
-                checks.append(
-                    _failed_check(
-                        check_id=entry["id"],
-                        component=component,
-                        entrypoint=entry["entrypoint"],
-                        purpose=entry["purpose"],
-                        message=message or "validation condition failed",
-                    )
-                )
+                checks.append(_failed_check(check_id=entry["id"], component=component, entrypoint=entry["entrypoint"], purpose=entry["purpose"], message=message or "validation condition failed"))
                 continue
             if decision == "deferred":
-                checks.append(
-                    {
-                        "id": entry["id"],
-                        "component": component,
-                        "status": "deferred",
-                        "entrypoint": entry["entrypoint"],
-                        "purpose": entry["purpose"],
-                        "returncode": None,
-                        "stdout": "",
-                        "stderr": message or "",
-                    }
-                )
+                checks.append({
+                    "id": entry["id"], "component": component, "status": "deferred",
+                    "entrypoint": entry["entrypoint"], "purpose": entry["purpose"],
+                    "returncode": None, "stdout": "", "stderr": message or "",
+                })
                 continue
-
-        process = _run_process(
-            root,
-            entry["entrypoint"],
-            entry["arguments"],
-            python=validation_python,
-            environment=validation_environment,
-        )
-        checks.append(
-            _process_check(
-                check_id=entry["id"],
-                component=component,
-                entrypoint=entry["entrypoint"],
-                process=process,
-                purpose=entry["purpose"],
-            )
-        )
-
-    return {
-        "schema_version": 1,
-        "status": (
-            "invalid"
-            if any(check["status"] == "failed" for check in checks)
-            else "valid"
-        ),
-        "target": str(root),
-        "resolved_components": selected,
-        "checks": checks,
-    }
-
+        process = _run_process(root, entry["entrypoint"], entry["arguments"], python=validation_python, environment=validation_environment)
+        checks.append(_process_check(check_id=entry["id"], component=component, entrypoint=entry["entrypoint"], process=process, purpose=entry["purpose"]))
+    status = "invalid" if any(check["status"] == "failed" for check in checks) else "valid"
+    return _validation_result(root, status=status, target=str(root), resolved_components=selected, checks=checks)
 
 def _render_human(result: dict[str, Any]) -> None:
     for check in result["checks"]:
