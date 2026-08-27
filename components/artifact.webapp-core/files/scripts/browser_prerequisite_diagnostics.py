@@ -18,6 +18,14 @@ BLOCKING_CODES = (
     "localhost-browser-sandbox-restricted",
 )
 
+BLOCKING_BY_PREREQUISITE = {
+    "browser_binary": "browser-binary-unavailable",
+    "webdriver": "webdriver-unavailable",
+    "compatibility": "incompatible-browser-driver",
+    "localhost": "localhost-browser-sandbox-restricted",
+}
+
+
 
 def diagnose(
     *,
@@ -41,15 +49,17 @@ def diagnose(
     if localhost not in LOCALHOST_STATES:
         raise ValueError(f"unsupported localhost state: {localhost!r}")
 
-    blocked: list[str] = []
-    if browser_binary == "unavailable":
-        blocked.append("browser-binary-unavailable")
-    if webdriver == "unavailable":
-        blocked.append("webdriver-unavailable")
-    if compatibility == "incompatible":
-        blocked.append("incompatible-browser-driver")
-    if localhost == "restricted":
-        blocked.append("localhost-browser-sandbox-restricted")
+    values = {
+        "browser_binary": browser_binary,
+        "webdriver": webdriver,
+        "compatibility": compatibility,
+        "localhost": localhost,
+    }
+    blocked = [
+        BLOCKING_BY_PREREQUISITE[name]
+        for name, value in values.items()
+        if value in {"unavailable", "incompatible", "restricted"}
+    ]
 
     observations = (browser_binary, webdriver, compatibility, localhost)
     if blocked:
@@ -74,7 +84,7 @@ def diagnose(
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--browser-binary", choices=BROWSER_STATES, default="not-checked")
     parser.add_argument("--webdriver", choices=BROWSER_STATES, default="not-checked")
@@ -83,7 +93,7 @@ def main() -> int:
     )
     parser.add_argument("--localhost", choices=LOCALHOST_STATES, default="not-checked")
     parser.add_argument("--format", choices=("json",), default="json")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     print(
         json.dumps(
             diagnose(

@@ -60,6 +60,49 @@ class BrowserPrerequisiteDiagnosticsTests(unittest.TestCase):
         self.assertEqual(value["status"], "unavailable")
         self.assertEqual(value["release_impact"], "not-ready")
 
+    def test_individual_prerequisite_blockers(self) -> None:
+        cases = [
+            ({"browser_binary": "unavailable"}, ["browser-binary-unavailable"]),
+            ({"webdriver": "unavailable"}, ["webdriver-unavailable"]),
+            ({"compatibility": "incompatible"}, ["incompatible-browser-driver"]),
+            ({"localhost": "restricted"}, ["localhost-browser-sandbox-restricted"]),
+        ]
+        for kwargs, expected_blocked in cases:
+            with self.subTest(kwargs=kwargs):
+                value = diagnostics.diagnose(**kwargs)
+                self.assert_valid(value)
+                self.assertEqual(value["status"], "unavailable")
+                self.assertEqual(value["missing_or_blocked_prerequisites"], expected_blocked)
+                self.assertEqual(value["release_impact"], "not-ready")
+
+    def test_mixed_partial_prerequisites_are_not_evaluated(self) -> None:
+        value = diagnostics.diagnose(
+            browser_binary="available",
+            webdriver="available",
+            compatibility="not-checked",
+            localhost="allowed",
+        )
+        self.assert_valid(value)
+        self.assertEqual(value["status"], "not-checked")
+        self.assertEqual(value["missing_or_blocked_prerequisites"], [])
+        self.assertEqual(value["release_impact"], "not-evaluated")
+
+    def test_invalid_prerequisite_states_raise_value_error(self) -> None:
+        for parameter in ("browser_binary", "webdriver", "compatibility", "localhost"):
+            with self.subTest(parameter=parameter):
+                with self.assertRaises(ValueError):
+                    diagnostics.diagnose(**{parameter: "unsupported-state"})
+
+    def test_cli_accepts_explicit_arguments(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            diagnostics.main([
+                "--browser-binary", "available",
+                "--webdriver", "available",
+                "--compatibility", "compatible",
+                "--localhost", "allowed",
+            ])
+        self.assertEqual(raised.exception.code, 0)
+
     def test_unchecked_prerequisites_are_not_claimed_available(self) -> None:
         value = diagnostics.diagnose()
         self.assert_valid(value)
