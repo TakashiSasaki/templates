@@ -10,7 +10,9 @@ from scripts.classify_composition_ci import (
     ClassificationError,
     ZERO_SHA,
     changed_paths,
+    classify_compatibility_paths,
     classify_paths,
+    is_compatibility_sensitive_path,
     is_documentation_only_path,
     write_github_output,
 )
@@ -50,29 +52,98 @@ class CompositionCIClassifierTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertFalse(is_documentation_only_path(path))
 
+    def test_compatibility_sensitive_policy_is_conservative_and_future_proof(self) -> None:
+        for path in (
+            "scripts/compose.py",
+            "scripts/new_future_helper.py",
+            "tests/test_future_runtime.py",
+            ".github/workflows/schema-validation.yml",
+            ".github/workflows/future-runtime.yml",
+            "requirements-runtime.lock",
+            "release/composition-installer.json",
+            "skills/composition/scripts/run.py",
+            "skills/composition/SKILL.md",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(is_compatibility_sensitive_path(path))
+
+        for path in (
+            "README.md",
+            "docs/index.md",
+            "translations/ja/docs/index.md",
+            "components/artifact.webapp-core/component.json",
+            "recipes/webapp.json",
+            "schemas/artifact.schema.json",
+            "requirements-dev.lock",
+        ):
+            with self.subTest(path=path):
+                self.assertFalse(is_compatibility_sensitive_path(path))
+
     def test_unsafe_or_ambiguous_paths_fail_closed(self) -> None:
         for path in ("", "/docs/x.md", "../docs/x.md", "docs/../x.md", "docs\\x.md"):
             with self.subTest(path=path):
                 self.assertFalse(is_documentation_only_path(path))
+                self.assertTrue(is_compatibility_sensitive_path(path))
                 required, reason = classify_paths([path])
                 self.assertTrue(required)
                 self.assertEqual(reason, "composition-sensitive-change")
+                compatibility_required, compatibility_reason = classify_compatibility_paths(
+                    [path]
+                )
+                self.assertTrue(compatibility_required)
+                self.assertEqual(
+                    compatibility_reason, "compatibility-sensitive-change"
+                )
 
-    def test_only_documentation_changes_can_skip_behavioral_ci(self) -> None:
-        required, reason = classify_paths(
-            ["README.md", "docs/index.md", "translations/ja/docs/index.md"]
-        )
+    def test_only_documentation_changes_can_skip_behavioral_and_compatibility_ci(self) -> None:
+        paths = ["README.md", "docs/index.md", "translations/ja/docs/index.md"]
+        required, reason = classify_paths(paths)
         self.assertFalse(required)
         self.assertEqual(reason, "documentation-only")
+
+        compatibility_required, compatibility_reason = classify_compatibility_paths(paths)
+        self.assertFalse(compatibility_required)
+        self.assertEqual(compatibility_reason, "compatibility-insensitive-change")
+
+    def test_behavioral_non_python_data_change_uses_fast_tier_only(self) -> None:
+        paths = ["components/artifact.webapp-core/component.json", "recipes/webapp.json"]
+        required, reason = classify_paths(paths)
+        self.assertTrue(required)
+        self.assertEqual(reason, "composition-sensitive-change")
+
+        compatibility_required, compatibility_reason = classify_compatibility_paths(paths)
+        self.assertFalse(compatibility_required)
+        self.assertEqual(compatibility_reason, "compatibility-insensitive-change")
+
+    def test_python_or_runtime_surface_requires_full_compatibility(self) -> None:
+        for path in (
+            "scripts/compose.py",
+            "requirements-runtime.lock",
+            "skills/composition/SKILL.md",
+            ".github/workflows/composer-runtime.yml",
+        ):
+            with self.subTest(path=path):
+                required, reason = classify_compatibility_paths([path])
+                self.assertTrue(required)
+                self.assertEqual(reason, "compatibility-sensitive-change")
 
     def test_mixed_unknown_and_empty_changes_fail_closed(self) -> None:
         required, reason = classify_paths(["docs/index.md", "scripts/compose.py"])
         self.assertTrue(required)
         self.assertEqual(reason, "composition-sensitive-change")
 
+        compatibility_required, compatibility_reason = classify_compatibility_paths(
+            ["docs/index.md", "scripts/compose.py"]
+        )
+        self.assertTrue(compatibility_required)
+        self.assertEqual(compatibility_reason, "compatibility-sensitive-change")
+
         required, reason = classify_paths([])
         self.assertTrue(required)
         self.assertEqual(reason, "no-changes")
+        compatibility_required, compatibility_reason = classify_compatibility_paths([])
+        self.assertTrue(compatibility_required)
+        self.assertEqual(compatibility_reason, "no-changes")
 
     @patch("scripts.classify_composition_ci.subprocess.run")
     def test_git_diff_disables_rename_detection_and_parses_nul_paths(self, run) -> None:
@@ -106,11 +177,17 @@ class CompositionCIClassifierTests(unittest.TestCase):
                 output,
                 required=False,
                 reason="documentation-only",
+                compatibility_required=True,
+                compatibility_reason="explicit-checkpoint",
                 count=3,
             )
             self.assertEqual(
                 output.read_text(encoding="utf-8"),
-                "required=false\nreason=documentation-only\nchanged_count=3\n",
+                "required=false\n"
+                "reason=documentation-only\n"
+                "compatibility_required=true\n"
+                "compatibility_reason=explicit-checkpoint\n"
+                "changed_count=3\n",
             )
 
     def test_zero_sha_is_the_explicit_unbounded_push_sentinel(self) -> None:
@@ -143,51 +220,54 @@ class CompositionCIClassifierTests(unittest.TestCase):
         self.assertNotIn("schedule:", workflow)
         self.assertNotIn("workflow_dispatch:", workflow)
 
-    def test_consumer_workflow_skips_only_pr_matrices_after_successful_classification(self) -> None:
+    def test_consumer_workflow_uses_two_independent_fail_closed_classifications(self) -> None:
         workflow = CONSUMER_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("\n  classify_runtime:\n", workflow)
-        self.assertIn("name: classify consumer-runtime requirement", workflow)
-        self.assertIn("if: ${{ github.event_name == 'pull_request' }}", workflow)
-        self.assertIn("scripts/classify_composition_ci.py", workflow)
-
-        conditional = (
-            "if: ${{ always() && !cancelled() && "
-            "(github.event_name != 'pull_request' || "
-            "needs.classify_runtime.outputs.required == 'true') }}"
+        classifier = workflow.split("\n  classify_runtime:\n", 1)[1].split(
+            "\n  clean-runtime:\n", 1
+        )[0]
+        self.assertIn("name: classify consumer-runtime requirement", classifier)
+        self.assertNotIn("if: ${{ github.event_name == 'pull_request' }}", classifier)
+        self.assertIn("scripts/classify_composition_ci.py", classifier)
+        self.assertIn(
+            "required: ${{ steps.classify.outputs.required }}", classifier
         )
-        self.assertEqual(workflow.count("- classify_runtime"), 4)
-        self.assertEqual(workflow.count(conditional), 3)
+        self.assertIn(
+            "compatibility_required: ${{ steps.classify.outputs.compatibility_required }}",
+            classifier,
+        )
+        self.assertIn("--force-compatibility", classifier)
+        self.assertIn("ci/full-compatibility", classifier)
+        self.assertIn("refs/tags/composition-compatibility-", classifier)
 
         validate = workflow.split("\n  validate:\n", 1)[1]
         self.assertIn("name: consumer runtime validate", validate)
         self.assertIn("if: ${{ always() }}", validate)
-        for dependency in (
-            "classify_runtime",
-            "clean-runtime",
-            "materialized-validation",
-            "skill-runner",
-        ):
-            self.assertIn(f"- {dependency}", validate)
-        self.assertIn("EVENT_NAME: ${{ github.event_name }}", validate)
-        self.assertIn("CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}", validate)
         self.assertIn("RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}", validate)
-        self.assertIn("CLEAN_RUNTIME_RESULT: ${{ needs.clean-runtime.result }}", validate)
         self.assertIn(
-            "MATERIALIZED_VALIDATION_RESULT: ${{ needs.materialized-validation.result }}",
+            "COMPATIBILITY_REQUIRED: ${{ needs.classify_runtime.outputs.compatibility_required }}",
             validate,
         )
-        self.assertIn("SKILL_RUNNER_RESULT: ${{ needs.skill-runner.result }}", validate)
-        self.assertIn('test "$CLASSIFIER_RESULT" = skipped', validate)
         self.assertIn('test "$CLASSIFIER_RESULT" = success', validate)
         self.assertIn('test "$CLEAN_RUNTIME_RESULT" = success', validate)
         self.assertIn('test "$CLEAN_RUNTIME_RESULT" = skipped', validate)
-        self.assertIn('echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED"', validate)
+        self.assertIn('test "$COMPATIBILITY_CLEAN_RESULT" = success', validate)
+        self.assertIn('test "$COMPATIBILITY_CLEAN_RESULT" = skipped', validate)
+        self.assertIn(
+            'echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED"', validate
+        )
+        self.assertIn(
+            'echo "invalid compatibility classification: $COMPATIBILITY_REQUIRED"',
+            validate,
+        )
 
-    def test_consumer_push_trigger_remains_unconditional(self) -> None:
+    def test_consumer_trigger_keeps_authority_push_and_explicit_checkpoints(self) -> None:
         workflow = CONSUMER_WORKFLOW.read_text(encoding="utf-8")
         trigger = workflow.split("\njobs:\n", 1)[0]
         self.assertIn("push:", trigger)
         self.assertIn("- composition", trigger)
+        self.assertIn("composition-compatibility-*", trigger)
+        self.assertIn("labeled", trigger)
+        self.assertIn("unlabeled", trigger)
         self.assertNotIn("paths-ignore:", trigger)
         self.assertNotIn("paths:", trigger)
 
