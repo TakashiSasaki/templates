@@ -30,6 +30,12 @@ EXTRACTED_LIMIT = 128 * 1024 * 1024
 MEMBER_LIMIT = 20000
 SOURCE_CONTEXT_ENV = "COMPOSITION_SOURCE_CONTEXT"
 SNAPSHOT_SCHEMA = 1
+WINDOWS_FORBIDDEN_CHARS = frozenset('<>:"\\|?*')
+WINDOWS_RESERVED_STEMS = frozenset(
+    {"con", "prn", "aux", "nul"}
+    | {f"com{index}" for index in range(1, 10)}
+    | {f"lpt{index}" for index in range(1, 10)}
+)
 REQUIRED_SNAPSHOT_PATHS = frozenset(
     {
         "requirements-runtime.lock",
@@ -115,6 +121,14 @@ def download_source_archive(
     return data
 
 
+def _portable_archive_part(part: str) -> bool:
+    if part in {"", ".", ".."} or part.endswith((" ", ".")):
+        return False
+    if any(ord(character) < 32 or character in WINDOWS_FORBIDDEN_CHARS for character in part):
+        return False
+    return part.split(".", 1)[0].casefold() not in WINDOWS_RESERVED_STEMS
+
+
 def _safe_archive_relative(
     member: tarfile.TarInfo,
     archive_root: str | None,
@@ -126,7 +140,7 @@ def _safe_archive_relative(
             f"unsafe path in Composition source archive: {member.name}"
         )
     root = parts[0]
-    if root in {"", ".", ".."} or "\\" in root or ":" in root:
+    if not _portable_archive_part(root):
         raise _impl.RunnerError(
             f"unsafe root in Composition source archive: {member.name}"
         )
@@ -137,10 +151,7 @@ def _safe_archive_relative(
     relative_parts = parts[1:]
     if not relative_parts:
         return root, None
-    if any(
-        part in {"", ".", ".."} or "\\" in part or ":" in part
-        for part in relative_parts
-    ):
+    if any(not _portable_archive_part(part) for part in relative_parts):
         raise _impl.RunnerError(
             f"unsafe path in Composition source archive: {member.name}"
         )
