@@ -24,11 +24,12 @@ for _name, _value in vars(_impl).items():
 
 def _select_source_context() -> Any:
     # A real authority checkout must never be downgraded to caller-supplied snapshot
-    # metadata through an inherited environment variable. Archive-backed normal
-    # consumers have no .git directory and therefore require the runner-provided
-    # immutable snapshot context.
-    git_directory = _impl.SOURCE_ROOT / ".git"
-    if git_directory.is_dir() and not git_directory.is_symlink():
+    # metadata through an inherited environment variable. Standard checkouts use a
+    # .git directory while Git worktrees use a .git control file. Archive-backed
+    # normal consumers have neither and therefore require runner-provided immutable
+    # snapshot metadata.
+    git_control = _impl.SOURCE_ROOT / ".git"
+    if git_control.exists() and not git_control.is_symlink():
         return composer_source.GitSourceContext(_impl.SOURCE_ROOT)
     return composer_source.context_from_environment(_impl.SOURCE_ROOT)
 
