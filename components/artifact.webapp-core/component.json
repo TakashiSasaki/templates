@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "artifact.webapp-core",
   "kind": "artifact",
-  "version": 12,
+  "version": 13,
   "summary": "Framework-neutral browser application surfaces, routes, visible states, viewports, and Web-specific validation.",
   "requires": [
     "lifecycle.composition-state",
@@ -56,6 +56,8 @@
     {"source":"files/scripts/validate_contracts_impl.py","destination":"scripts/validate_contracts_impl.py","ownership":"managed"},
     {"source":"files/scripts/webapp_evidence_targets.py","destination":"scripts/webapp_evidence_targets.py","ownership":"managed"},
     {"source":"files/scripts/scaffold_webapp_evidence.py","destination":"scripts/scaffold_webapp_evidence.py","ownership":"managed"},
-    {"source":"files/scripts/validate_webapp_evidence.py","destination":"scripts/validate_webapp_evidence.py","ownership":"managed"}
+    {"source":"files/scripts/validate_webapp_evidence.py","destination":"scripts/validate_webapp_evidence.py","ownership":"managed"},
+    {"source":"files/scripts/browser_prerequisite_diagnostics.py","destination":"scripts/browser_prerequisite_diagnostics.py","ownership":"managed"},
+    {"source":"files/schemas/browser-proof-diagnostics.schema.json","destination":"schemas/browser-proof-diagnostics.schema.json","ownership":"managed"}
   ]
 }
