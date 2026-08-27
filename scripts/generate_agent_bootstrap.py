@@ -141,6 +141,10 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
         "https://raw.githubusercontent.com/TakashiSasaki/templates/"
         f"{installer['revision']}/{installer['path']}"
     )
+    instructions_url = (
+        "https://raw.githubusercontent.com/TakashiSasaki/templates/"
+        f"{skill_source['revision']}/{skill_source['path']}/SKILL.md"
+    )
 
     return {
         "$schema": SCHEMA_URL,
@@ -163,6 +167,7 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
                 "revision": skill_source["revision"],
                 "path": skill_source["path"],
                 "entrypoint": "scripts/run.py",
+                "instructions_url": instructions_url,
             },
             "toolchain": {
                 "repository": REPOSITORY,
@@ -178,8 +183,21 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
             "verify": "sha256",
             "execute": "python-isolated",
             "installation_modes": ["persistent", "transient"],
+            "installer_argv": [
+                "{python}",
+                "-I",
+                "{installer_file}",
+                "{skill_target}",
+            ],
         },
         "workflow": {
+            "runner_argv": [
+                "{python}",
+                "{skill_target}/scripts/run.py",
+                "--repository",
+                "{repository}",
+                "{command}",
+            ],
             "diagnose": "doctor",
             "provenance": "provenance",
             "inspect_before_mutation": "inspect",
