@@ -4,12 +4,17 @@ import hashlib
 import io
 import json
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, Sequence
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 import runtime_checkout as _impl
 
@@ -31,6 +36,8 @@ REQUIRED_SNAPSHOT_PATHS = frozenset(
         "scripts/compose.py",
         "scripts/composer_core.py",
         "scripts/composer_core_impl.py",
+        "scripts/composer_managed.py",
+        "scripts/composer_managed_impl.py",
         "scripts/composer_source.py",
         "scripts/verify_runtime_environment.py",
     }
@@ -67,14 +74,15 @@ def source_archive_url(revision: str) -> str:
 def download_source_archive(
     revision: str,
     *,
-    opener: Opener = urllib.request.urlopen,
+    opener: Opener | None = None,
 ) -> bytes:
     request = urllib.request.Request(
         source_archive_url(revision),
         headers={"User-Agent": "composition-runner/2"},
     )
+    open_url = urllib.request.urlopen if opener is None else opener
     try:
-        with opener(request, timeout=30) as response:
+        with open_url(request, timeout=30) as response:
             raw_length = getattr(response.headers, "get", lambda _key: None)(
                 "Content-Length"
             )
@@ -137,6 +145,22 @@ def _safe_archive_relative(
             f"unsafe path in Composition source archive: {member.name}"
         )
     return root, PurePosixPath(*relative_parts)
+
+
+def _validate_archive_structure(
+    selected: dict[PurePosixPath, tarfile.TarInfo],
+) -> None:
+    entries = sorted(selected)
+    for index, left in enumerate(entries):
+        left_member = selected[left]
+        for right in entries[index + 1 :]:
+            if len(left.parts) >= len(right.parts):
+                continue
+            if left.parts == right.parts[: len(left.parts)] and not left_member.isdir():
+                raise _impl.RunnerError(
+                    "Composition source archive file/directory paths conflict: "
+                    f"{left}, {right}"
+                )
 
 
 def extract_source_snapshot(
@@ -205,6 +229,7 @@ def extract_source_snapshot(
                         )
                 selected[relative] = member
 
+            _validate_archive_structure(selected)
             inventory: dict[str, str] = {}
             for relative, member in sorted(
                 selected.items(),
