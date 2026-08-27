@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-"""Classify whether Policy requires the full runtime compatibility matrix."""
-
 from __future__ import annotations
 
 import argparse
@@ -10,6 +8,7 @@ import sys
 from pathlib import Path
 
 
+DESCRIPTION = "Classify whether Policy requires the full runtime compatibility matrix."
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 ZERO_SHA = "0" * 40
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -100,7 +99,7 @@ def write_github_output(path: Path, *, required: bool, reason: str, count: int) 
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
     parser.add_argument("--github-output", type=Path, required=True)
