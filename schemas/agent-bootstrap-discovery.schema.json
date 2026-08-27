@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://templates.moukaeritai.work/schemas/agent-bootstrap-discovery.schema.json",
+  "title": "Composition agent bootstrap discovery",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "distribution"],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "manifest_path"],
+      "properties": {
+        "repository": {
+          "const": "TakashiSasaki/templates"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "manifest_path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9._/-]+$"
+        }
+      }
+    }
+  }
+}
