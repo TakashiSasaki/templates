@@ -121,11 +121,12 @@ Included modules:
 <!-- PROFILE: pull-request -->
 ### `pull-request`
 
-Use when the context owns pull-request lifecycle work. This profile is operational: it requires freshness against the target branch and closure of review threads before the pull-request task is considered complete.
+Use when the context owns pull-request lifecycle work. This profile is operational: it requires freshness against the target branch, at least one completed independent review bound to the exact proposed head, and closure of review threads before the pull-request task is considered complete. A requested or pending review, zero completed reviews, absence of findings, or a review of an older head does not satisfy the merge boundary.
 
 Included modules:
 
 - `policy/pull-request/target-branch-head-freshness.md`
+- `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-thread-closure.md`
 
 <!-- PROFILE: review -->
