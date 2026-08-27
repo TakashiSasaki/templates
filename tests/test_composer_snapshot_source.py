@@ -55,6 +55,42 @@ class SnapshotSourceContextTests(unittest.TestCase):
                 context.assert_authority(authority)
             self.assertEqual(caught.exception.code, "DIRTY_SOURCE")
 
+    def test_snapshot_authority_rejects_parent_symlink_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            root = base / "source"
+            nested = root / "catalog"
+            nested.mkdir(parents=True)
+            authority = nested / "authority.json"
+            original = b"{}\n"
+            authority.write_bytes(original)
+            context = composer_source.SnapshotSourceContext(
+                root=root,
+                repository="TakashiSasaki/templates",
+                pinned_revision="1" * 40,
+                files={
+                    "catalog/authority.json": hashlib.sha256(original).hexdigest(),
+                },
+            )
+            context.assert_authority(authority)
+
+            external = base / "external"
+            external.mkdir()
+            (external / "authority.json").write_bytes(original)
+            authority.unlink()
+            nested.rmdir()
+            try:
+                nested.symlink_to(external, target_is_directory=True)
+            except (NotImplementedError, OSError) as exc:
+                self.skipTest(f"directory symlinks are unavailable: {exc}")
+
+            with self.assertRaisesRegex(
+                composer_source.SourceContextError,
+                "parent must remain",
+            ) as caught:
+                context.assert_authority(root / "catalog" / "authority.json")
+            self.assertEqual(caught.exception.code, "INVALID_SOURCE_AUTHORITY")
+
     def test_context_from_environment_loads_snapshot_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "source"
