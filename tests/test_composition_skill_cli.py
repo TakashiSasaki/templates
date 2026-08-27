@@ -34,6 +34,7 @@ class CompositionSkillCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--repository", result.stdout)
         self.assertIn("--revision", result.stdout)
+        self.assertIn("doctor", result.stdout)
         self.assertIn("inspect", result.stdout)
         self.assertIn("validate", result.stdout)
 
