@@ -40,12 +40,12 @@ export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cac
 通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`9c1c093fca1e7e47a9974150e7739665ec570f6e` の installer は skill source `f9508b92f5b7835fa1af9741f3941f32f6d3db28` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`cb06bce5108d804a8f07fb3adb71ff4fd051e12a` の installer は skill source `06f6734c372bb30f633e6a53f78532a4cfbb7981` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
 
 通常の command shape は次のとおりです。
 
@@ -55,7 +55,17 @@ python /path/to/agent-skills/composition/scripts/run.py \
   COMMAND [COMPOSER OPTIONS]
 ```
 
-例:
+install 後、最初の acquisition の前に local bootstrap prerequisites や cache behavior を診断したい場合は、read-only `doctor` を使用します。
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  doctor
+```
+
+machine-readable diagnostics には `doctor --format json` を使用します。doctor は selected immutable revision、対応 CPython、Git availability、runner-cache の write/atomic-rename capability、および local に存在する source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime state を acquire しません。したがって `READY` は local bootstrap diagnosis であり、Composition validation の成功を意味せず、cold acquisition 時の network/package availability も保証しません。
+
+repository を inspect する例:
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
