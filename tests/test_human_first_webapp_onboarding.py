@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import unittest
@@ -173,6 +174,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, japanese)
+        self.assertNotIn("urlretrieve(", japanese)
         self.assertNotIn("evidence documentを `template` modeに保ちます", japanese)
 
     def test_real_browser_proof_is_immutable_and_runs_before_product_claim(self) -> None:
@@ -185,6 +187,7 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         self.assertIn(BROWSER_PROOF_SHA256, text)
         self.assertIn("destination.write_bytes(data)", text)
         self.assertNotIn("urlretrieve(", text)
+        self.assertEqual(hashlib.sha256(BROWSER_PROOF.read_bytes()).hexdigest(), BROWSER_PROOF_SHA256)
         self.assertIn("CHROMEWEBDRIVER", text)
         self.assertIn("CHROME_BINARY", text)
         self.assertIn('<h1 id="main-heading" tabindex="-1">Task Ledger</h1>', text)
@@ -232,6 +235,8 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         for expected in (
             expected_url,
+            BROWSER_PROOF_SHA256,
+            "destination.write_bytes(data)",
             "実ブラウザによる viewport / keyboard proof",
             "genuine 200% browser page-scale",
             "unknown routeのbrowser negative path",
