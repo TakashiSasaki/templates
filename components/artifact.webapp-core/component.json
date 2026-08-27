@@ -58,6 +58,6 @@
     {"source":"files/scripts/scaffold_webapp_evidence.py","destination":"scripts/scaffold_webapp_evidence.py","ownership":"managed"},
     {"source":"files/scripts/validate_webapp_evidence.py","destination":"scripts/validate_webapp_evidence.py","ownership":"managed"},
     {"source":"files/scripts/browser_prerequisite_diagnostics.py","destination":"scripts/browser_prerequisite_diagnostics.py","ownership":"managed"},
-    {"source":"files/schemas/browser-proof-diagnostics.schema.json","destination":"schemas/browser-proof-diagnostics.schema.json","ownership":"managed"}
+    {"source":"files/.template-composition/browser-proof-diagnostics.schema.json","destination":".template-composition/browser-proof-diagnostics.schema.json","ownership":"managed"}
   ]
 }
