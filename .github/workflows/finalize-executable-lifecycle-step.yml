@@ -1,0 +1,494 @@
+name: Finalize executable lifecycle next step
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Build and publish final tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import textwrap
+          import urllib.request
+          from pathlib import Path
+
+          repo = os.environ["REPOSITORY"]
+          branch = os.environ["BRANCH"]
+          parent_sha = os.environ["PARENT_SHA"]
+          token = os.environ["GH_TOKEN"]
+          workflow_path = ".github/workflows/finalize-executable-lifecycle-step.yml"
+
+          checkpoint_component_path = "components/lifecycle.lifecycle-checkpoints/component.json"
+          action_registry_path = "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"
+          action_schema_path = "components/lifecycle.lifecycle-checkpoints/files/schemas/lifecycle-checkpoint-actions.schema.json"
+          checkpoint_docs_path = "components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md"
+          state_component_path = "components/lifecycle.composition-state/component.json"
+          projection_schema_path = "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
+          runner_path = "components/lifecycle.composition-state/files/.template-composition/validate.py"
+          state_docs_path = "components/lifecycle.composition-state/files/docs/architecture/composition-state.md"
+          tests_path = "tests/test_lifecycle_next_actions.py"
+
+          def replace_once(text: str, old: str, new: str, *, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one replacement target, found {count}")
+              return text.replace(old, new, 1)
+
+          action_registry = json.dumps(
+              {
+                  "schema_version": 1,
+                  "actions": {
+                      "create-planning-checkpoint": {
+                          "argv": [
+                              "{python}",
+                              ".template-composition/checkpoint.py",
+                              "planning",
+                              "--id",
+                              "{checkpoint_id}",
+                          ],
+                          "caller_inputs": ["{python}", "{checkpoint_id}"],
+                          "bindings": {},
+                      },
+                      "create-product-checkpoint": {
+                          "argv": [
+                              "{python}",
+                              ".template-composition/checkpoint.py",
+                              "product",
+                              "--id",
+                              "{checkpoint_id}",
+                              "--from",
+                              "{planning_checkpoint_id}",
+                          ],
+                          "caller_inputs": ["{python}", "{checkpoint_id}"],
+                          "bindings": {
+                              "{planning_checkpoint_id}": "latest-checkpoint-id"
+                          },
+                      },
+                  },
+              },
+              indent=2,
+          ) + "\n"
+
+          action_schema = json.dumps(
+              {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "title": "Lifecycle checkpoint executable action registry",
+                  "type": "object",
+                  "additionalProperties": False,
+                  "required": ["schema_version", "actions"],
+                  "properties": {
+                      "schema_version": {"const": 1},
+                      "actions": {
+                          "type": "object",
+                          "additionalProperties": False,
+                          "required": [
+                              "create-planning-checkpoint",
+                              "create-product-checkpoint",
+                          ],
+                          "properties": {
+                              name: {
+                                  "type": "object",
+                                  "additionalProperties": False,
+                                  "required": ["argv", "caller_inputs", "bindings"],
+                                  "properties": {
+                                      "argv": {
+                                          "type": "array",
+                                          "minItems": 1,
+                                          "items": {"type": "string", "minLength": 1},
+                                      },
+                                      "caller_inputs": {
+                                          "type": "array",
+                                          "uniqueItems": True,
+                                          "items": {"type": "string", "pattern": "^\\{[a-z_]+\\}$"},
+                                      },
+                                      "bindings": {
+                                          "type": "object",
+                                          "additionalProperties": {"enum": ["latest-checkpoint-id"]},
+                                          "propertyNames": {"pattern": "^\\{[a-z_]+\\}$"},
+                                      },
+                                  },
+                              }
+                              for name in (
+                                  "create-planning-checkpoint",
+                                  "create-product-checkpoint",
+                              )
+                          },
+                      },
+                  },
+              },
+              indent=2,
+          ) + "\n"
+
+          checkpoint_component = Path(checkpoint_component_path).read_text(encoding="utf-8")
+          checkpoint_component = replace_once(
+              checkpoint_component, '"version": 1', '"version": 2', label="checkpoint component version"
+          )
+          insertion = '''    {
+                "source": "files/.template-composition/lifecycle-checkpoint-actions.json",
+                "destination": ".template-composition/lifecycle-checkpoint-actions.json",
+                "ownership": "managed"
+              },
+              {
+                "source": "files/schemas/lifecycle-checkpoint-actions.schema.json",
+                "destination": "schemas/lifecycle-checkpoint-actions.schema.json",
+                "ownership": "managed"
+              },
+          '''
+          checkpoint_component = replace_once(
+              checkpoint_component,
+              '    {\n      "source": "files/.template-composition/checkpoint.py",',
+              textwrap.dedent(insertion).rstrip("\n") + '\n    {\n      "source": "files/.template-composition/checkpoint.py",',
+              label="checkpoint registry materials",
+          )
+
+          state_component = Path(state_component_path).read_text(encoding="utf-8")
+          state_component = replace_once(
+              state_component, '"version": 12', '"version": 13', label="state component version"
+          )
+
+          projection_schema = json.loads(Path(projection_schema_path).read_text(encoding="utf-8"))
+          blockers = projection_schema["properties"]["blocking_conditions"]["items"]["enum"]
+          marker = "checkpoint-state-invalid"
+          blockers.insert(blockers.index(marker) + 1, "checkpoint-command-registry-invalid")
+          projection_schema["properties"]["next_action_command"] = {
+              "type": "object",
+              "additionalProperties": False,
+              "required": ["action", "argv", "caller_inputs"],
+              "properties": {
+                  "action": {
+                      "enum": [
+                          "create-planning-checkpoint",
+                          "create-product-checkpoint",
+                      ]
+                  },
+                  "argv": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {"type": "string", "minLength": 1},
+                  },
+                  "caller_inputs": {
+                      "type": "array",
+                      "uniqueItems": True,
+                      "items": {"type": "string", "pattern": "^\\{[a-z_]+\\}$"},
+                  },
+              },
+          }
+          projection_schema_text = json.dumps(projection_schema, indent=2) + "\n"
+
+          runner = Path(runner_path).read_text(encoding="utf-8")
+          helper_marker = "\ndef _lifecycle_projection(\n"
+          if helper_marker not in runner:
+              raise SystemExit("projection helper insertion marker not found")
+          helper = r'''
+          def _checkpoint_action_command(
+              root: Path, action: str
+          ) -> dict[str, Any] | None:
+              """Resolve a checkpoint-owned executable action without duplicating its CLI."""
+              try:
+                  registry = _load_json(
+                      root / ".template-composition/lifecycle-checkpoint-actions.json"
+                  )
+              except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+                  return None
+              if not isinstance(registry, dict) or registry.get("schema_version") != 1:
+                  return None
+              actions = registry.get("actions")
+              if not isinstance(actions, dict):
+                  return None
+              definition = actions.get(action)
+              if not isinstance(definition, dict):
+                  return None
+              argv = definition.get("argv")
+              caller_inputs = definition.get("caller_inputs")
+              bindings = definition.get("bindings")
+              if (
+                  not isinstance(argv, list)
+                  or not argv
+                  or not all(isinstance(arg, str) and arg for arg in argv)
+                  or not isinstance(caller_inputs, list)
+                  or not all(isinstance(item, str) and item for item in caller_inputs)
+                  or not isinstance(bindings, dict)
+              ):
+                  return None
+
+              resolved: dict[str, str] = {}
+              if bindings:
+                  try:
+                      ledger = _load_json(root / "contracts/lifecycle-checkpoints.json")
+                  except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+                      return None
+                  checkpoints = ledger.get("checkpoints") if isinstance(ledger, dict) else None
+                  if not isinstance(checkpoints, list) or not checkpoints:
+                      return None
+                  latest = checkpoints[-1]
+                  latest_id = latest.get("id") if isinstance(latest, dict) else None
+                  if not isinstance(latest_id, str) or not latest_id:
+                      return None
+                  for placeholder, source in bindings.items():
+                      if (
+                          not isinstance(placeholder, str)
+                          or source != "latest-checkpoint-id"
+                      ):
+                          return None
+                      resolved[placeholder] = latest_id
+
+              resolved_argv = [resolved.get(arg, arg) for arg in argv]
+              return {
+                  "action": action,
+                  "argv": resolved_argv,
+                  "caller_inputs": caller_inputs,
+              }
+
+
+          def _checkpoint_command_failure(mode: str) -> dict[str, Any]:
+              return {
+                  "schema_version": 1,
+                  "lifecycle_stage": "composition-invalid",
+                  "implementation_evidence_mode": mode,
+                  "release_readiness": "not-evaluated",
+                  "blocking_conditions": ["checkpoint-command-registry-invalid"],
+                  "deferred_checks": [],
+                  "next_actions": ["inspect", "plan", "apply", "validate"],
+              }
+
+          '''
+          runner = runner.replace(helper_marker, "\n" + textwrap.dedent(helper) + "def _lifecycle_projection(\n", 1)
+
+          planning_old = '''              if checkpoints_selected and checkpoint_phase != "planning":
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "scaffold-valid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": [
+                          "implementation-evidence-planning",
+                          "planning-checkpoint-required",
+                      ],
+                      "deferred_checks": [],
+                      "next_actions": ["create-planning-checkpoint"],
+                  }
+          '''
+          planning_new = '''              if checkpoints_selected and checkpoint_phase != "planning":
+                  command = _checkpoint_action_command(root, "create-planning-checkpoint")
+                  if command is None:
+                      return _checkpoint_command_failure(mode)
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "scaffold-valid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": [
+                          "implementation-evidence-planning",
+                          "planning-checkpoint-required",
+                      ],
+                      "deferred_checks": [],
+                      "next_actions": ["create-planning-checkpoint"],
+                      "next_action_command": command,
+                  }
+          '''
+          runner = replace_once(
+              runner,
+              textwrap.dedent(planning_old),
+              textwrap.dedent(planning_new),
+              label="planning checkpoint command projection",
+          )
+
+          product_old = '''              if checkpoints_selected and checkpoint_phase != "product":
+                  blockers = ["product-checkpoint-required"]
+                  readiness = "not-evaluated"
+                  if deferred:
+                      blockers.append("deferred-proof")
+                      readiness = "not-ready"
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "implemented-product",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": readiness,
+                      "blocking_conditions": blockers,
+                      "deferred_checks": deferred,
+                      "next_actions": ["create-product-checkpoint"],
+                  }
+          '''
+          product_new = '''              if checkpoints_selected and checkpoint_phase != "product":
+                  command = _checkpoint_action_command(root, "create-product-checkpoint")
+                  if command is None:
+                      return _checkpoint_command_failure(mode)
+                  blockers = ["product-checkpoint-required"]
+                  readiness = "not-evaluated"
+                  if deferred:
+                      blockers.append("deferred-proof")
+                      readiness = "not-ready"
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "implemented-product",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": readiness,
+                      "blocking_conditions": blockers,
+                      "deferred_checks": deferred,
+                      "next_actions": ["create-product-checkpoint"],
+                      "next_action_command": command,
+                  }
+          '''
+          runner = replace_once(
+              runner,
+              textwrap.dedent(product_old),
+              textwrap.dedent(product_new),
+              label="product checkpoint command projection",
+          )
+
+          checkpoint_docs = Path(checkpoint_docs_path).read_text(encoding="utf-8")
+          append_checkpoint_docs = '''
+
+          ## Machine-executable checkpoint actions
+
+          `.template-composition/lifecycle-checkpoint-actions.json` is the checkpoint component's managed machine registry for executable checkpoint actions. Its shape is validated by `schemas/lifecycle-checkpoint-actions.schema.json` in Composition regression coverage. The registry, not `lifecycle.composition-state`, owns the checkpoint writer path and CLI argument templates.
+
+          The registry exposes `create-planning-checkpoint` and `create-product-checkpoint`. `{python}` and `{checkpoint_id}` are caller inputs. For product checkpoints, `{planning_checkpoint_id}` is bound from the current validated ledger's latest planning checkpoint before the command is projected. The writer remains authoritative for validation, parentage, snapshotting, and rollback; the registry only describes how to invoke it.
+          '''
+          checkpoint_docs = checkpoint_docs.rstrip() + "\n" + textwrap.dedent(append_checkpoint_docs).lstrip()
+
+          state_docs = Path(state_docs_path).read_text(encoding="utf-8")
+          state_docs += textwrap.dedent('''
+
+          ### Executable checkpoint next step
+
+          When the immediate `next_actions` item is a checkpoint action, the projection also emits `next_action_command`. This object is resolved from the selected checkpoint component's managed `.template-composition/lifecycle-checkpoint-actions.json` registry; Composition-state does not hard-code the checkpoint writer path or its CLI template. Caller-owned placeholders remain explicit, while product checkpoint projection resolves the validated latest planning checkpoint ID into the `--from` argument.
+
+          If the selected checkpoint command registry is missing or malformed, the projection fails closed with `checkpoint-command-registry-invalid` instead of guessing an invocation.
+          ''')
+
+          tests = Path(tests_path).read_text(encoding="utf-8")
+          tests = replace_once(
+              tests,
+              'SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"\n',
+              'SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"\nACTION_REGISTRY_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"\nACTION_SCHEMA_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/schemas/lifecycle-checkpoint-actions.schema.json"\n',
+              label="test registry paths",
+          )
+          tests = replace_once(
+              tests,
+              '        cls.schema_validator = Draft202012Validator(schema)\n',
+              '        cls.schema_validator = Draft202012Validator(schema)\n        action_schema = json.loads(ACTION_SCHEMA_PATH.read_text(encoding="utf-8"))\n        Draft202012Validator.check_schema(action_schema)\n        cls.action_schema_validator = Draft202012Validator(action_schema)\n        cls.action_registry = json.loads(ACTION_REGISTRY_PATH.read_text(encoding="utf-8"))\n        cls.action_schema_validator.validate(cls.action_registry)\n',
+              label="test registry schema setup",
+          )
+          tests = replace_once(
+              tests,
+              '        malformed_checkpoint_ledger: bool = False,\n',
+              '        malformed_checkpoint_ledger: bool = False,\n        malformed_action_registry: bool = False,\n',
+              label="test helper registry flag",
+          )
+          tests = replace_once(
+              tests,
+              '                    if checkpoints_selected:\n                        active_checks.append(\n',
+              '                    if checkpoints_selected:\n                        action_registry = root / ".template-composition" / "lifecycle-checkpoint-actions.json"\n                        action_registry.parent.mkdir(exist_ok=True)\n                        if malformed_action_registry:\n                            action_registry.write_text("{}", encoding="utf-8")\n                        else:\n                            action_registry.write_text(json.dumps(self.action_registry), encoding="utf-8")\n                        active_checks.append(\n',
+              label="test helper registry materialization",
+          )
+          tests = replace_once(
+              tests,
+              '        self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])\n        self.assertNotIn("implement-product", value["next_actions"])\n',
+              '        self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])\n        self.assertEqual(value["next_action_command"]["action"], "create-planning-checkpoint")\n        self.assertEqual(\n            value["next_action_command"]["argv"],\n            ["{python}", ".template-composition/checkpoint.py", "planning", "--id", "{checkpoint_id}"],\n        )\n        self.assertNotIn("implement-product", value["next_actions"])\n',
+              label="planning command assertion",
+          )
+          tests = replace_once(
+              tests,
+              '        self.assertEqual(value["next_actions"], ["create-product-checkpoint"])\n        self.assertNotIn("check-release-readiness", value["next_actions"])\n',
+              '        self.assertEqual(value["next_actions"], ["create-product-checkpoint"])\n        self.assertEqual(value["next_action_command"]["action"], "create-product-checkpoint")\n        self.assertEqual(\n            value["next_action_command"]["argv"],\n            ["{python}", ".template-composition/checkpoint.py", "product", "--id", "{checkpoint_id}", "--from", "planning-1"],\n        )\n        self.assertNotIn("check-release-readiness", value["next_actions"])\n',
+              label="product command assertion",
+          )
+          tests = replace_once(
+              tests,
+              '                  checkpoint_phase="planning",\n              )\n',
+              '                  checkpoint_phase="planning",\n              )\n',
+              label="noop guard for test source stability",
+          )
+          insert_before = '    def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:\n'
+          registry_test = '''    def test_malformed_checkpoint_action_registry_fails_closed(self) -> None:
+              value = self.project(
+                  "planning",
+                  checkpoints_selected=True,
+                  malformed_action_registry=True,
+              )
+              self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+              self.assertEqual(
+                  value["blocking_conditions"],
+                  ["checkpoint-command-registry-invalid"],
+              )
+              self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
+          '''
+          if insert_before not in tests:
+              raise SystemExit("test insertion marker not found")
+          tests = tests.replace(insert_before, textwrap.dedent(registry_test) + insert_before, 1)
+
+          # Product command binding needs a concrete planning checkpoint ID in fixtures.
+          tests = tests.replace(
+              'checkpoints.append({"phase": checkpoint_phase})',
+              'checkpoints.append({"phase": checkpoint_phase, "id": "planning-1" if checkpoint_phase == "planning" else "product-1"})',
+          )
+
+          updated = {
+              checkpoint_component_path: checkpoint_component,
+              action_registry_path: action_registry,
+              action_schema_path: action_schema,
+              checkpoint_docs_path: checkpoint_docs,
+              state_component_path: state_component,
+              projection_schema_path: projection_schema_text,
+              runner_path: runner,
+              state_docs_path: state_docs,
+              tests_path: tests,
+          }
+
+          api = f"https://api.github.com/repos/{repo}"
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "Content-Type": "application/json",
+          }
+
+          def request(method: str, url: str, payload: dict | None = None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(url, data=body, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  return json.load(response)
+
+          parent = request("GET", f"{api}/git/commits/{parent_sha}")
+          entries = []
+          for path, content in updated.items():
+              blob = request("POST", f"{api}/git/blobs", {"content": content, "encoding": "utf-8"})
+              entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+          entries.append({"path": workflow_path, "mode": "100644", "type": "blob", "sha": None})
+          tree = request("POST", f"{api}/git/trees", {"base_tree": parent["tree"]["sha"], "tree": entries})
+          commit = request(
+              "POST",
+              f"{api}/git/commits",
+              {
+                  "message": "Expose checkpoint-owned executable lifecycle commands",
+                  "tree": tree["sha"],
+                  "parents": [parent_sha],
+              },
+          )
+          request("PATCH", f"{api}/git/refs/heads/{branch}", {"sha": commit["sha"], "force": False})
+          print(f"final_head={commit['sha']}")
+          PY
