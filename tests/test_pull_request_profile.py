@@ -13,6 +13,7 @@ POLICY_DIR = ROOT / "policy/pull-request"
 
 EXPECTED = [
     "pull-request.verify-target-branch-head-freshness",
+    "pull-request.require-independent-exact-head-review",
     "pull-request.close-review-threads-before-merge",
 ]
 
@@ -71,6 +72,25 @@ def test_pull_request_profile_composes_with_coding_and_review_contexts() -> None
         rule_ids = [rule.id for rule in rules]
         assert len(rule_ids) == len(set(rule_ids))
         assert set(EXPECTED).issubset(rule_ids)
+
+
+def test_independent_review_rule_fails_closed_for_missing_or_stale_review() -> None:
+    rule = (POLICY_DIR / "independent-exact-head-review.md").read_text(
+        encoding="utf-8"
+    )
+    required_semantics = (
+        "at least one completed review",
+        "exact proposed head commit",
+        "zero completed reviews is not review evidence",
+        "must block merge",
+        "self-review",
+        "review metadata",
+        "treat the review as stale",
+        "blocked rather than waiving the requirement",
+        "must not invent or self-authorize one",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
 
 
 def test_pull_request_rules_are_provider_neutral() -> None:
