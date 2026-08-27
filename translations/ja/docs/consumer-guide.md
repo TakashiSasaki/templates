@@ -37,12 +37,12 @@ cache は product repository の外側に置きます。`COMPOSITION_RUNTIME_CAC
 通常の consumer は immutable かつ stdlib-only の bootstrap script から公開済み Composition skill をインストールします。installer URL は branch/tag ではなく review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 既存 destination にこの Composition skill がある場合は `--replace` を追加できます。`SKILL.md` によって `composition` skill と識別できない directory の replacement は拒否されます。
 
-公開済み immutable identity は役割ごとに分かれています。installer `08c7c9ac647000b7e7232ad5eda4f0b3506a7675` は skill source `e8ee87483ea97e6cce8f27e6438d98a5a7c724a7` をインストールし、その runtime manifest は stable toolchain `16d3eb411729a79549dbaaf6dab1d05207f83415` を選択します。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。
+公開済み immutable identity は役割ごとに分かれています。installer `677dc68fe35fc285638b46685950d31e3a3d3c2f` は skill source `69af2ed811875f95838bf978ee09365554405664` をインストールし、その runtime manifest は stable toolchain `16d3eb411729a79549dbaaf6dab1d05207f83415` を選択します。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。
 
 通常の command shape は次のとおりです。
 
