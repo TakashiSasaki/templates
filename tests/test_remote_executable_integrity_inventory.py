@@ -35,15 +35,20 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
         expected = {
             "scripts/install_composition_skill.py": "downloaded then executed",
             "skills/composition/scripts/runtime_checkout.py": "imported/loaded as executable code",
+            "skills/composition/scripts/run_checkout.py": "imported/loaded as executable code",
             "examples/onboarding/task-ledger/browser_proof.py": "downloaded then executed",
             "scripts/prepare_chromedriver.py": "downloaded then executed",
+            "Documentation-only external links": "documentation-only",
+            "Contract JSON, schemas, and generated local files": "data only",
         }
         rows = [line for line in self.text.splitlines() if line.startswith("|")]
         for resource, classification in expected.items():
             with self.subTest(resource=resource):
                 matches = [row for row in rows if resource in row]
                 self.assertEqual(len(matches), 1)
-                self.assertIn(classification, matches[0])
+                columns = [column.strip() for column in matches[0].split("|")[1:-1]]
+                self.assertGreaterEqual(len(columns), 3)
+                self.assertIn(classification, columns[2])
 
     def test_inventory_requires_immutable_identity_and_received_bytes(self) -> None:
         self.assertIn("immutable identity", self.text)
