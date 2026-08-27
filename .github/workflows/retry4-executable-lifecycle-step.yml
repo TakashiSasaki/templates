@@ -1,0 +1,102 @@
+name: Retry executable lifecycle next step v4
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Run corrected finalizer and remove all staging workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/finalize-executable-lifecycle-step.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY\n", start)
+          code = textwrap.dedent(source[start:end])
+
+          # Replace fragile checkpoint component version editing.
+          old_start = code.index('checkpoint_component = replace_once(\n')
+          old_end_marker = 'label="checkpoint component version"\n)\n'
+          old_end = code.index(old_end_marker, old_start) + len(old_end_marker)
+          replacement = '''import re
+          version_pattern = re.compile(r'(?m)^  "version": 1,$')
+          checkpoint_component, version_count = version_pattern.subn(
+              '  "version": 2,', checkpoint_component
+          )
+          if version_count != 1:
+              raise SystemExit(
+                  f"checkpoint component exact version line mismatch: {version_count}"
+              )
+          '''
+          code = code[:old_start] + textwrap.dedent(replacement) + code[old_end:]
+
+          # Replace old exact-block runner rewriting with unique anchored edits.
+          section_start = code.index("planning_old = '''")
+          section_end_marker = '    label="product checkpoint command projection",\n)\n'
+          section_end = code.index(section_end_marker, section_start) + len(section_end_marker)
+          runner_edits = r'''planning_anchor = '        if checkpoints_selected and checkpoint_phase != "planning":\n            return {\n'
+          planning_replacement = '        if checkpoints_selected and checkpoint_phase != "planning":\n            command = _checkpoint_action_command(root, "create-planning-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            return {\n'
+          if runner.count(planning_anchor) != 1:
+              raise SystemExit(f"planning command anchor mismatch: {runner.count(planning_anchor)}")
+          runner = runner.replace(planning_anchor, planning_replacement, 1)
+          planning_action = '                "next_actions": ["create-planning-checkpoint"],\n            }\n'
+          planning_action_replacement = '                "next_actions": ["create-planning-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if runner.count(planning_action) != 1:
+              raise SystemExit(f"planning action anchor mismatch: {runner.count(planning_action)}")
+          runner = runner.replace(planning_action, planning_action_replacement, 1)
+
+          product_anchor = '        if checkpoints_selected and checkpoint_phase != "product":\n            blockers = ["product-checkpoint-required"]\n'
+          product_replacement = '        if checkpoints_selected and checkpoint_phase != "product":\n            command = _checkpoint_action_command(root, "create-product-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            blockers = ["product-checkpoint-required"]\n'
+          if runner.count(product_anchor) != 1:
+              raise SystemExit(f"product command anchor mismatch: {runner.count(product_anchor)}")
+          runner = runner.replace(product_anchor, product_replacement, 1)
+          product_action = '                "next_actions": ["create-product-checkpoint"],\n            }\n'
+          product_action_replacement = '                "next_actions": ["create-product-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if runner.count(product_action) != 1:
+              raise SystemExit(f"product action anchor mismatch: {runner.count(product_action)}")
+          runner = runner.replace(product_action, product_action_replacement, 1)
+          '''
+          code = code[:section_start] + textwrap.dedent(runner_edits) + code[section_end:]
+
+          # Remove the staging-only no-op test guard.
+          noop_label = '    label="noop guard for test source stability",\n)\n'
+          noop_end = code.index(noop_label) + len(noop_label)
+          noop_start = code.rfind('tests = replace_once(\n', 0, noop_end)
+          if noop_start < 0:
+              raise SystemExit('noop guard start not found')
+          code = code[:noop_start] + code[noop_end:]
+
+          deletion = 'entries.append({"path": workflow_path, "mode": "100644", "type": "blob", "sha": None})'
+          if deletion not in code:
+              raise SystemExit('workflow deletion marker missing')
+          extra_deletions = '\n'.join([
+              'entries.append({"path": ".github/workflows/retry-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry2-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry3-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry4-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+          ])
+          code = code.replace(deletion, deletion + '\n' + extra_deletions, 1)
+
+          exec(compile(code, '<corrected-finalizer-v4>', 'exec'), {'__name__': '__main__'})
+          PY
