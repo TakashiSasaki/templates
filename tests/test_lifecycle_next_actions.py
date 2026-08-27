@@ -69,6 +69,15 @@ class LifecycleNextActionsTests(unittest.TestCase):
         self.assertEqual(ready["release_readiness"], "ready")
         self.assertEqual(ready["next_actions"], [])
 
+
+    def test_invalid_evidence_fails_closed_to_repair_actions(self) -> None:
+        value = self.project("unexpected-mode")
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"], ["implementation-evidence-invalid"]
+        )
+        self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
     def test_invalid_composition_fails_closed_to_repair_actions(self) -> None:
         value = self.project("product", status="invalid")
         self.assertEqual(value["lifecycle_stage"], "composition-invalid")
