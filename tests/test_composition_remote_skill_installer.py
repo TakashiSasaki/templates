@@ -119,6 +119,8 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
             "templates-source/skills/composition/file:stream",
             "templates-source/skills/composition/NUL",
             "templates-source/skills/composition/con.txt",
+            "templates-source/skills/composition/COM¹.txt",
+            "templates-source/skills/composition/LPT²",
             "templates-source/skills/composition/trailing.",
             "templates-source/skills/composition/trailing ",
             "templates-source/skills/composition/bad?name",
