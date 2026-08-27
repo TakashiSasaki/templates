@@ -171,7 +171,15 @@ python /path/to/agent-skills/composition/scripts/run.py \
   plan --config composition.json
 ```
 
-relative `--config` は `--repository` ではなく invocation process の current working directory から解決されます。必要なら absolute path を使用します。
+relative な `--config` path は `--repository` を基準にせず、invocation process の current working directory から解決されます。target repository に config があり別 directory から runner を実行する場合は absolute path を使用します。
+
+```sh
+python /path/to/agent-skills/composition/scripts/run.py \
+  --repository /path/to/repository \
+  plan --config /path/to/repository/composition.json
+```
+
+同じ path rule は `--config` を受け取る initial / new-upgrade command すべてに適用されます。
 
 initial planning は read-only です。`create`、意図した `adopt-identical`、および conflicts を確認します。conflict があれば apply しません。
 
