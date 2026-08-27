@@ -31,6 +31,20 @@ class RemoteExecutableIntegrityInventoryTests(unittest.TestCase):
         ):
             self.assertIn(classification, self.text)
 
+    def test_table_rows_bind_resources_to_classifications(self) -> None:
+        expected = {
+            "scripts/install_composition_skill.py": "downloaded then executed",
+            "skills/composition/scripts/runtime_checkout.py": "imported/loaded as executable code",
+            "examples/onboarding/task-ledger/browser_proof.py": "downloaded then executed",
+            "scripts/prepare_chromedriver.py": "downloaded then executed",
+        }
+        rows = [line for line in self.text.splitlines() if line.startswith("|")]
+        for resource, classification in expected.items():
+            with self.subTest(resource=resource):
+                matches = [row for row in rows if resource in row]
+                self.assertEqual(len(matches), 1)
+                self.assertIn(f"| {classification} |", matches[0])
+
     def test_inventory_requires_immutable_identity_and_received_bytes(self) -> None:
         self.assertIn("immutable identity", self.text)
         self.assertIn("exact bytes received for execution", self.text)
