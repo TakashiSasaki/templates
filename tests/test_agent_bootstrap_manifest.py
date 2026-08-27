@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 from scripts import generate_agent_bootstrap as bootstrap
+from scripts.assemble_publications import copy_asset
+from scripts.prepare_repository_tree_publication import prepare
 from scripts.resolve_publication_sources import resolve_sources
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -118,6 +120,28 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         )
         self.assertEqual(manifest["$schema"], schema_value["$id"])
         self.assertEqual(manifest["canonical_url"], bootstrap.CANONICAL_URL)
+
+    def test_site_asset_pipeline_places_discovery_contract_at_public_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            prepared = temporary_root / "site-publication"
+            prepare(ROOT, prepared)
+            self.assertEqual(
+                (prepared / "assets/agent.json").read_bytes(),
+                (ROOT / "agent.json").read_bytes(),
+            )
+
+            docs_root = temporary_root / "build-docs"
+            docs_root.mkdir()
+            copy_asset(prepared / "assets", docs_root, "site assets")
+            self.assertEqual(
+                (docs_root / "agent.json").read_bytes(),
+                (ROOT / "agent.json").read_bytes(),
+            )
+            self.assertEqual(
+                (docs_root / "schemas/agent-bootstrap.schema.json").read_bytes(),
+                (ROOT / "schemas/agent-bootstrap.schema.json").read_bytes(),
+            )
 
     def test_exact_checked_out_composition_descriptor_matches_projection_when_available(self) -> None:
         composition_root = ROOT.parent / "composition-source"
