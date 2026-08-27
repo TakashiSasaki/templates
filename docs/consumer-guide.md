@@ -21,10 +21,9 @@ Start from what you want to do:
 
 ## Install and run the Composition skill
 
-The supported runner prerequisites are:
+The supported normal-consumer prerequisite is CPython 3.11, 3.12, 3.13, or 3.14. Git is not required for normal Composition consumption. You do not clone `TakashiSasaki/templates`, `composition`, `site`, or `policy` before using the templates. The installed runner acquires the selected immutable Composition revision over HTTPS and uses Python's standard library for source bootstrap.
 
-- Git available on `PATH`; and
-- CPython 3.11, 3.12, 3.13, or 3.14.
+Cold execution also requires network access to GitHub for the selected full-SHA source archive and, when a matching Python runtime is not already cached, access to the configured Python package source. Managed `update` / `upgrade` additionally requires GitHub's compare API to establish old-to-new revision ancestry. Those network dependencies fail closed; the runner does not substitute a mutable branch or guess ancestry.
 
 If you are running in a sandbox, container, CI worker, or other environment whose default user cache is not writable, choose writable cache roots before the first runner invocation. The runner and materialized validator support separate cache overrides:
 
@@ -33,17 +32,17 @@ export COMPOSITION_RUNTIME_CACHE=/path/to/writable/composition-runtime-cache
 export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cache
 ```
 
-Use environment-appropriate paths and keep these caches outside the product repository. An unwritable default cache is an environment problem, not a reason to change Composition ownership or execute a mutable source revision.
+Use environment-appropriate paths and keep these caches outside the product repository. `COMPOSITION_RUNTIME_CACHE` contains validated Python runtime state only; normal Composition source snapshots are disposable and are not stored there. An unwritable default cache is an environment problem, not a reason to change Composition ownership or execute a mutable source revision.
 
 Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `cb06bce5108d804a8f07fb3adb71ff4fd051e12a` installs skill source `06f6734c372bb30f633e6a53f78532a4cfbb7981`; that skill's runtime manifest selects stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `08c7c9ac647000b7e7232ad5eda4f0b3506a7675` installs skill source `e8ee87483ea97e6cce8f27e6438d98a5a7c724a7`; that skill's runtime manifest selects stable Composition toolchain revision `16d3eb411729a79549dbaaf6dab1d05207f83415`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
 
 The normal command shape is:
 
@@ -53,7 +52,7 @@ python /path/to/agent-skills/composition/scripts/run.py \
   COMMAND [COMPOSER OPTIONS]
 ```
 
-After installation, use the read-only doctor before first acquisition when you need to diagnose local bootstrap prerequisites or cache behavior:
+After installation, use the read-only doctor before first acquisition when you need to diagnose local bootstrap prerequisites or runtime-cache behavior:
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -61,7 +60,7 @@ python /path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-Use `doctor --format json` for machine-readable diagnostics. Doctor checks the selected immutable revision, supported CPython, Git availability, runner-cache write/atomic-rename capability, and any locally available source/runtime cache with the same validators used by normal runner execution. It does not contact the Git remote or package indexes and does not acquire source/runtime state. A `READY` result is therefore a local bootstrap diagnosis, not Composition validation and not a guarantee that a later cold acquisition will have network/package availability.
+Use `doctor --format json` for machine-readable diagnostics. Doctor checks the selected immutable revision, supported CPython, and persistent runtime-cache write/atomic-rename capability. It reports Git as `not-required` for normal consumer execution and source acquisition as `ephemeral`. It does not contact GitHub or package indexes and does not acquire source/runtime state. A `READY` result is therefore a local bootstrap diagnosis, not Composition validation and not a guarantee that later cold acquisition will have network/package availability.
 
 For example, inspect the repository with:
 
@@ -81,37 +80,43 @@ Composition authority maintainers may instead install the skill from an exact re
 python skills/composition/scripts/install.py /path/to/agent-skills/composition
 ```
 
-This is an advanced source-maintenance path, not the normal consumer installation route. The checkout itself must be an exact reviewed revision rather than a mutable branch identity. Use `--replace` only for an existing installation already identified as the Composition skill.
+This is an advanced source-maintenance path, not the normal consumer installation route. The checkout itself must be an exact reviewed revision rather than a mutable branch identity. Git is an expected maintainer prerequisite for this reviewed-checkout path. Use `--replace` only for an existing installation already identified as the Composition skill.
 
-### Immutable source, runtime selection, and cache reuse
+### Immutable source snapshots and runtime reuse
 
-The installed skill does not execute a mutable `composition` branch or tag.
+The installed skill does not execute a mutable `composition` branch or tag and does not create a persistent templates checkout.
 
-`runtime-manifest.json` records the normal full-SHA Composition source revision and the SHA-256 of that revision's `requirements-runtime.lock`. On each invocation the runner:
+`runtime-manifest.json` records the normal full-SHA Composition source revision and the SHA-256 of that revision's `requirements-runtime.lock`. On each Composer invocation the runner:
 
 1. chooses an immutable full SHA;
-2. reuses a validated cached checkout for that exact revision when available, otherwise fetches that exact revision from `TakashiSasaki/templates` with its ancestor history;
-3. verifies that the checkout remains detached at the selected SHA, points to the canonical remote, is byte-clean, uses LF-preserving checkout settings, and has traversable history;
-4. verifies the stable runtime-lock digest when the stable manifest revision is selected;
-5. derives a runtime-cache identity from the repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
-6. reuses a runtime only after validating its marker, cached lock digest, Python/platform identity, `pip check`, and the source revision's runtime verifier; otherwise it builds and atomically installs a new isolated runtime from the exact lock with dependency resolution disabled; and
-7. invokes that revision's `scripts/compose.py`.
+2. downloads `https://codeload.github.com/TakashiSasaki/templates/tar.gz/<full-sha>` with Python's standard library;
+3. rejects unsafe archive paths, symbolic/hard links, duplicate or portable-colliding paths, unsupported member types, and configured archive limits;
+4. extracts the revision into an OS temporary directory, records a SHA-256 inventory of every regular file, and supplies repository/revision/inventory metadata to the Composer;
+5. requires every Composer authority file to remain inside that acquired snapshot, be present in the inventory, and retain its acquired digest;
+6. verifies the stable runtime-lock digest when the stable manifest revision is selected;
+7. derives a persistent runtime-cache identity from repository, revision, lock SHA-256, CPython major/minor version, and platform/machine;
+8. reuses a runtime only after validating its marker, cached lock digest, Python/platform identity, `pip check`, and the source revision's runtime verifier; otherwise it builds and atomically installs a new isolated runtime from the exact lock with dependency resolution disabled; and
+9. invokes that revision's `scripts/compose.py`, then removes the temporary source snapshot/context on normal completion or a handled failure.
 
-An advanced `--revision <full-sha>` may select another exact Composition revision. Mutable names are rejected.
+An advanced `--revision <full-sha>` may select another exact Composition revision that supports the current immutable snapshot execution contract. Mutable names are rejected.
 
 If `.template-composition/transaction.json` exists, managed recovery is stricter: the transaction's exact source revision overrides the stable manifest pin. A conflicting `--revision` is rejected rather than silently changing the recovery context. Malformed transaction metadata also fails closed.
 
-A valid source/runtime cache hit requires no network acquisition. By default the runner uses the platform cache location under a `composition/runner-v1` namespace. `COMPOSITION_RUNTIME_CACHE=/path/to/cache` may override that root for controlled environments or tests. Invalid cache entries are treated as misses and are never trusted from marker metadata alone.
+There is deliberately no persistent source-cache hit. Each normal `inspect`, `plan`, `apply`, or runner `validate` invocation reacquires the selected immutable source archive. The named `COMPOSITION_RUNTIME_CACHE` remains persistent because rebuilding the same validated Python environment is an avoidable performance cost. Consequently a warm runtime does not make normal Composer execution fully offline: GitHub source-archive availability is still required. `doctor` and `provenance` remain network-free.
 
-Materialized validation is self-contained. Normal consumers run `validate` without manually creating a validation virtual environment. On a cold validation, the validator may construct an isolated validation runtime in the platform cache and perform package acquisition for the exact reviewed validation requirement set. A valid warm validation cache is reused without package acquisition. Validation cache state lives outside the product repository and does not modify the product repository. Its identity includes the exact requirement-set SHA-256, CPython major/minor version, and platform/machine. The default platform cache uses a `composition/validation-v1` namespace; controlled or read-only environments and tests may set `COMPOSITION_VALIDATION_CACHE=/path/to/writable/cache` to select a writable cache root.
+Materialized validation is self-contained. Normal consumers run runner `validate` without manually creating a validation virtual environment. On a cold materialized validation, the validator may construct an isolated validation runtime in the platform cache and perform package acquisition for the exact reviewed validation requirement set. A valid warm validation cache is reused without package acquisition. Validation cache state lives outside the product repository and does not modify the product repository. Its identity includes the exact requirement-set SHA-256, CPython major/minor version, and platform/machine. The default platform cache uses a `composition/validation-v1` namespace; controlled or read-only environments and tests may set `COMPOSITION_VALIDATION_CACHE=/path/to/writable/cache` to select a writable cache root.
 
-Cache layout and reuse are performance details. They do not change revision selection, recovery, Composer arguments, lock/transaction semantics, or material ownership.
+Cache layout and reuse are performance details. They do not change revision selection, recovery, Composer arguments, lock/transaction semantics, source identity, or material ownership.
+
+### Managed revision ancestry without a consumer Git checkout
+
+Managed `update` and `upgrade` must prove that the new selected source revision is the old lock revision or its descendant. Snapshot-backed normal-consumer execution performs this check through GitHub's compare API using the two immutable full SHAs. `ahead` and `identical` transitions are accepted; `behind` and `diverged` transitions are rejected. Unknown commits, HTTP/network failures, rate limiting, malformed responses, and unsupported statuses fail closed rather than permitting an unverified transition.
+
+This network check verifies revision ancestry; it does not turn a branch name into authority. The lock and runner continue to use full commit SHAs only.
 
 ### Direct source-checkout execution
 
-Composition authority maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. Normal consumers should prefer the installed skill because it owns immutable source selection and runtime setup.
-
-Managed `update` and `upgrade` require the old revision recorded in the consumer lock to be available in the selected source revision's Git ancestry. The runner's exact-SHA source cache retains and validates traversable ancestor history for that check.
+Composition authority maintainers may still execute `scripts/compose.py` directly from an exact clean Composition checkout. That path uses the consumer runtime contract in `requirements-runtime.lock` established independently of the runner. The Git-backed source context verifies the reviewed checkout revision, tracked authority files, dirty state, and managed ancestry from local Git history. Normal consumers should prefer the installed skill because it owns immutable source selection, snapshot validation, and runtime setup without requiring a templates clone.
 
 ## Consumer configuration
 
@@ -376,7 +381,8 @@ Common cases are:
 - `COMPONENT_VERSION_UPGRADE_REQUIRED` — use `upgrade` with an explicit configuration representing the desired intent.
 - `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` / `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` — current upgrade does not infer that migration; an explicit source-side migration design is required.
 - `SOURCE_REVISION_NOT_DESCENDANT` — use a Composition revision that is the locked source revision or its descendant.
-- `OLD_SOURCE_REVISION_UNAVAILABLE` — the selected exact revision must include the old locked revision in its ancestor history.
+- `OLD_SOURCE_REVISION_UNAVAILABLE` — GitHub could not resolve the old locked full SHA in the canonical repository history; verify the recorded source identity/revision and retry when the canonical history is available.
+- `SOURCE_TRANSITION_UNAVAILABLE` — archive-backed managed execution could not establish ancestry because the GitHub compare response was unavailable, rate-limited, malformed, or otherwise unusable. Retry rather than bypassing the check.
 - `DESTINATION_CONFLICT` — remove or deliberately reconcile the conflicting ordinary repository path; do not rely on Composer overwrite.
 - `RECOVERY_REQUIRED` — finish the existing transaction instead of starting a new plan.
 

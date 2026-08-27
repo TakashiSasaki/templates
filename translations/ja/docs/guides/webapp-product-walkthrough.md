@@ -12,7 +12,7 @@ Python / SQLite は Task Ledger の product decision であり、Composition の
 
 ## 0. この walkthrough で何を作るか
 
-`TakashiSasaki/templates` 自体を application repository にするのではなく、**別の `task-ledger` product repository** を作ります。
+`TakashiSasaki/templates` 自体を application repository にするのではなく、**別の `task-ledger` product repository** を作ります。通常の Composition consumption のために templates repository を clone する必要はありません。
 
 ```text
 TakashiSasaki/templates
@@ -56,18 +56,19 @@ git init
 
 **Expected:** 独立した Git repository ができ、`.template-composition/lock.json` はまだありません。
 
-**Repository change:** repository 自体を作成します。Composition material はまだありません。
+**Repository change:** repository 自体を作成します。Composition material はまだありません。ここで Git を使うのは Task Ledger を普通の version-controlled product repository として作るためであり、Composition consumer runner の prerequisite だからではありません。
 
-**Next:** prerequisites を確認します。
+**Next:** Composition runner の prerequisite を確認します。
 
-## 2. Prerequisites を確認する
+## 2. Prerequisite を確認する
 
-supported prerequisites は Git と CPython 3.11–3.14 です。
+通常の Composition consumption に必要なのは CPython 3.11–3.14 です。Composition runner 自体に Git は不要です。
 
 ```sh
-git --version
 python --version
 ```
+
+Python が 3.11–3.14 を報告することを確認します。cold runner execution では GitHub への HTTPS access が必要で、matching Python runtime cache が無ければ configured Python package source への access も必要です。
 
 sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_CACHE` と `COMPOSITION_VALIDATION_CACHE` を product repository 外の writable directory に設定します。
 
@@ -80,16 +81,16 @@ sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_
 product repository 外へ reviewed immutable installer で install します。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
 
-**Repository change:** Task Ledger にはなし。
+**Repository change:** Task Ledger にはなし。Composition Skill と runtime/validation cache は repository 外にあり、selected Composition source は invocation ごとの ephemeral full-SHA archive snapshot で、templates checkout として保持されません。
 
-full SHA は immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse) を参照してください。
+full SHA は immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) を参照してください。
 
-最初の acquisition の前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
+最初の Composer execution 前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -97,7 +98,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、Git、runner-cache の write/atomic-rename capability、および既存 source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime acquisition も行いません。`READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証しません。
+`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、effective runtime-cache path、acquisition mode を確認します。normal consumer の Git は `not-required`、source acquisition は `ephemeral-full-sha-archive` と報告されます。GitHub や package index には接続せず、source/runtime acquisition も行いません。runtime cache の transient write/atomic-rename probe は行いますが、persistent source checkout は作りません。`READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証しません。
 
 ## 4. `composition.json` を作る
 
@@ -932,6 +933,8 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   apply --mode update
 ```
 
+consumer-owned seed changesは保持され、clean managed/generated materialはreview済みplanに従ってreplace/removeされます。old lock revisionからselected revisionへのancestryはGitHub compare APIで検証されるため、local Git historyは不要です。
+
 `COMPONENT_VERSION_UPGRADE_REQUIRED` または intentional intent change なら explicit upgrade:
 
 ```sh
@@ -947,7 +950,7 @@ lock metadata を hand-edit して conflict を成功に見せてはいけませ
 
 ## Completion checklist
 
-**First-use scaffold milestone:** separate product repository、Composition install、read-only `doctor` による local bootstrap diagnosis、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
+**First-use scaffold milestone:** separate product repository、Composition install、templates checkoutなしのnormal consumption、read-only `doctor` による local bootstrap diagnosis、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
 
 **Implemented-product milestone:** truthful consumer contracts、product source/tests、complete current-target coverage、stable requirement ID と linked record/non-empty `requiredPositiveProofKinds` を持つすべての caller-visible requirement、宣言した kind を満たす real positive/negative proof（required proof に `deferred` を残さない）、passing product verifier、executed implementation-evidence を含む valid Composition validation、passing release-readiness validation、必要なら独立した valid Policy state。
 

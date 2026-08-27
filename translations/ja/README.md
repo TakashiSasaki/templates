@@ -12,7 +12,9 @@ consumer repository は、artifact recipe と明示的な consumer intent から
 
 Agent Skill の作成、既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling など、その他の consumer work には [Using Composition](docs/consumer-guide.md) を使用します。
 
-通常の consumer は installable な `skills/composition/` runner を使用します。Git と CPython 3.11 から 3.14 が対応 prerequisite です。runner は immutable な full-SHA Composition source revision を選択し、dependency resolution を無効にして正確な `requirements-runtime.lock` environment を構築し、consumer repository を target として既存の Composer を呼び出します。Composition authority 自体を保守する担当者は direct source-checkout entrypoint も引き続き利用でき、clean consumer-runtime matrix では Ubuntu 24.04 と Windows Server 2022 を検証しています。
+通常の consumer は installable な `skills/composition/` runner を使用し、`TakashiSasaki/templates` や provider branch を clone しません。local prerequisite は CPython 3.11 から 3.14 であり、通常の consumer execution に Git は不要です。runner は immutable な full-SHA Composition revision を選択し、その revision の GitHub HTTPS archive を OS の temporary directory に取得して source-file digest inventory を検証し、正確に validation 済みの Python runtime を構築または再利用し、consumer repository を target として Composer を呼び出した後、source snapshot を削除します。Composition authority 保守者は direct reviewed-source-checkout entrypoint を引き続き利用でき、その path では Git が authority-maintenance prerequisite です。
+
+名前付き runtime cache は performance のため意図的に persistent ですが、通常の source acquisition は disposable です。templates checkout は consumer state ではなく、runner cache に保持されません。archive snapshot から実行する managed `update` / `upgrade` は、old-to-new revision ancestry を GitHub compare API で検証し、ancestry を確立できない場合は fail closed します。
 
 正確な CLI options、inspect states、plan fields、ownership semantics、recovery rules、diagnostic codes、および exit behavior については、[Composer reference](docs/reference/composer.md) を参照してください。
 

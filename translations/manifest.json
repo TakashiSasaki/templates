@@ -6,146 +6,113 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "ae01b85011019bb752eab2b6c11963424951fc14",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "dcd5faeb9f526c3b607fc64e4aa86bcf785b28c9",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "catalog/README.md",
       "language": "ja",
       "translation": "translations/ja/catalog/README.md",
       "canonical_blob_sha": "81cf8b7e12e3cce0b579d9c19ce7fc03fdb99d06",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "components/artifact.skill-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.skill-core/files/README.md",
       "canonical_blob_sha": "c4384cc6cab8919cad8766ec5bedd4729bdfa850",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "components/artifact.webapp-core/files/README.md",
       "language": "ja",
       "translation": "translations/ja/components/artifact.webapp-core/files/README.md",
       "canonical_blob_sha": "33de639ee6b87acd1121a45f453106113283fdd8",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/catalog.md",
       "canonical_blob_sha": "3eed38ada5cd37e008b653d930739f3e2ff7933f",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/composition-model.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composition-model.md",
       "canonical_blob_sha": "ffd3bdb2b97fe471de19b5de5eb1fd919f0e56be",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/composer-mvp.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/composer-mvp.md",
       "canonical_blob_sha": "3b703044d79dce22db2a8e40e9428b0078de1a43",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/architecture/generated-contract-manifest.md",
       "language": "ja",
       "translation": "translations/ja/docs/architecture/generated-contract-manifest.md",
       "canonical_blob_sha": "ac0b5a4585f4cd35a098c193ac4c907179490875",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
-      "canonical_blob_sha": "7321e598e021262be4a6cdb9ef0cfe6d4984f9ba",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "d0ef0729c8e6c9d2582989f21f675c3b80169d77",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/skill-first-use-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/skill-first-use-walkthrough.md",
-      "canonical_blob_sha": "04a757241160e38dede721b7bd658104c0dd5539",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "7c7d54a70380e73969b24d0b3ddf36e1cd748e41",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/guides/webapp-product-walkthrough.md",
       "language": "ja",
       "translation": "translations/ja/docs/guides/webapp-product-walkthrough.md",
-      "canonical_blob_sha": "47c4caa9f5c2b8edd4264e260d01419e88f46c55",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "496067bccbeefb53f366e2301d1d878127276352",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/index.md",
       "language": "ja",
       "translation": "translations/ja/docs/index.md",
       "canonical_blob_sha": "0a78525a3b4a9198187eb5e5f8e05825921e8be0",
-      "surfaces": [
-        "reader",
-        "guided"
-      ]
+      "surfaces": ["reader", "guided"]
     },
     {
       "canonical": "docs/publication-catalog.md",
       "language": "ja",
       "translation": "translations/ja/docs/publication-catalog.md",
       "canonical_blob_sha": "80207656fc6c1ee711d7ac5860c64357517a34b5",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/reference/composer.md",
       "language": "ja",
       "translation": "translations/ja/docs/reference/composer.md",
-      "canonical_blob_sha": "f3ae736f7c776098a584d7af3cd4bef061456de6",
-      "surfaces": [
-        "reader"
-      ]
+      "canonical_blob_sha": "5762b8d30b63c85cd74df46161c92827e4be61fe",
+      "surfaces": ["reader"]
     },
     {
       "canonical": "docs/release-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/release-guide.md",
       "canonical_blob_sha": "038b9ab421c1de1bde945c55e75a47ef8adc0abb",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     },
     {
       "canonical": "schemas/README.md",
       "language": "ja",
       "translation": "translations/ja/schemas/README.md",
       "canonical_blob_sha": "34c12fd31372732f11c296f72b1110453a03fa84",
-      "surfaces": [
-        "reader"
-      ]
+      "surfaces": ["reader"]
     }
   ]
 }

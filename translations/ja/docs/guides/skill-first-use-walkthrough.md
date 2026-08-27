@@ -8,7 +8,7 @@
 
 ## 0. この walkthrough で何を作るか
 
-`TakashiSasaki/templates` の中ではなく、**別 consumer repository** に Skill を作ります。
+`TakashiSasaki/templates` の中ではなく、**別 consumer repository** に Skill を作ります。Composition を使うためだけに `TakashiSasaki/templates` を clone する必要もありません。
 
 ```text
 TakashiSasaki/templates
@@ -50,28 +50,31 @@ git init
 
 **Expected:** 独立 Git repository が存在し、`.template-composition/lock.json` はまだありません。
 
-**Repository change:** consumer repository 自体を作成します。
+**Repository change:** consumer repository 自体を作成します。ここで Git を使うのは通常の version-controlled product repository を作るためであり、Composition consumer runner の prerequisite だからではありません。
 
-## 2. Prerequisites を確認する
+## 2. Prerequisite を確認する
+
+通常の Composition consumption に必要なのは CPython 3.11–3.14 です。Composition runner 自体に Git は不要で、templates checkout も不要です。
 
 ```sh
-git --version
 python --version
 ```
 
-Git と CPython 3.11–3.14 が必要です。
+Python が 3.11–3.14 を報告することを確認します。cold runner execution では GitHub への HTTPS access が必要で、matching Python runtime cache が無ければ configured Python package source への access も必要です。
 
 ## 3. Composition を install する
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
 
-Release Note Helper repository には変更ありません。full SHA は reviewed immutable-source model のためです。
+Release Note Helper repository には変更ありません。Composition Skill と runtime/validation cache は consumer repository 外にあり、selected Composition source は ephemeral full-SHA archive snapshot として使われ、templates checkout として保持されません。
 
-最初の acquisition の前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
+full SHA は reviewed immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) を参照してください。
+
+最初の Composer execution 前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -79,7 +82,9 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、Git、runner-cache の write/atomic-rename capability、および既存 source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime acquisition も行いません。したがって `READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証するものではありません。
+`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、effective runtime-cache path、acquisition mode を確認します。normal consumer の Git は `not-required`、source acquisition は ephemeral full-SHA archive と報告されます。GitHub や package index には接続せず、source/runtime acquisition も行いません。runtime cache の transient write/atomic-rename probe は実行して後始末しますが、persistent source checkout は作りません。
+
+したがって `READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証するものではありません。
 
 ## 4. `composition.json` を作る
 
@@ -275,7 +280,7 @@ first-use success:
 - separate consumer repository。
 - Composition が repository 外に install 済み。
 - `doctor` で local bootstrap readiness を read-only に確認できる。
-- minimal `skill` recipe の `composition.json`。
+- `composition.json` selects minimal `skill` recipe。
 - `inspect -> plan -> review -> apply -> validate` を正しい順序で実行。
 - plan が read-only と理解。
 - seed / managed / ordinary consumer ownership を理解し、active seed destination を lock にある間保持。

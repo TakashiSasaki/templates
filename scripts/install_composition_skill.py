@@ -14,19 +14,28 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO, Protocol
 
 TOOLCHAIN_REPOSITORY = "TakashiSasaki/templates"
-SKILL_SOURCE_REVISION = "06f6734c372bb30f633e6a53f78532a4cfbb7981"
+SKILL_SOURCE_REVISION = "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ARCHIVE_LIMIT = 16 * 1024 * 1024
 SKILL_LIMIT = 8 * 1024 * 1024
 SKILL_PREFIX = ("skills", "composition")
 INSTALLATION_RECEIPT = PurePosixPath("installation-receipt.json")
+WINDOWS_FORBIDDEN_CHARS = frozenset('<>:"\\|?*')
+WINDOWS_RESERVED_STEMS = frozenset(
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {f"com{index}" for index in range(1, 10)}
+    | {f"lpt{index}" for index in range(1, 10)}
+    | {f"{prefix}{digit}" for prefix in ("com", "lpt") for digit in "¹²³"}
+)
 REQUIRED_SKILL_PATHS = frozenset(
     {
         PurePosixPath("SKILL.md"),
         PurePosixPath("runtime-manifest.json"),
         PurePosixPath("scripts/install.py"),
         PurePosixPath("scripts/run.py"),
+        PurePosixPath("scripts/run_checkout.py"),
         PurePosixPath("scripts/runtime.py"),
+        PurePosixPath("scripts/runtime_checkout.py"),
     }
 )
 
@@ -84,6 +93,14 @@ def download_archive(
     return data
 
 
+def _portable_archive_part(part: str) -> bool:
+    if part in {"", ".", ".."} or part.endswith((" ", ".")):
+        return False
+    if any(ord(character) < 32 or character in WINDOWS_FORBIDDEN_CHARS for character in part):
+        return False
+    return part.split(".", 1)[0].casefold() not in WINDOWS_RESERVED_STEMS
+
+
 def safe_relative_member(member: tarfile.TarInfo) -> PurePosixPath | None:
     path = PurePosixPath(member.name)
     parts = path.parts
@@ -94,10 +111,7 @@ def safe_relative_member(member: tarfile.TarInfo) -> PurePosixPath | None:
     relative_parts = parts[3:]
     if not relative_parts:
         return PurePosixPath(".")
-    if any(
-        part in {"", ".", ".."} or "\\" in part or ":" in part
-        for part in relative_parts
-    ):
+    if any(not _portable_archive_part(part) for part in relative_parts):
         raise RuntimeError(f"unsafe path in skill archive: {member.name}")
     relative = PurePosixPath(*relative_parts)
     if relative == INSTALLATION_RECEIPT:
@@ -111,6 +125,7 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
     destination = destination.resolve()
     destination.mkdir(parents=True, exist_ok=True)
     selected: dict[PurePosixPath, tarfile.TarInfo] = {}
+    portable: dict[str, PurePosixPath] = {}
     total_size = 0
     archive_root: str | None = None
 
@@ -121,7 +136,7 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
                 if relative is None:
                     continue
                 root = PurePosixPath(member.name).parts[0]
-                if root in {"", ".", ".."} or "\\" in root or ":" in root:
+                if not _portable_archive_part(root):
                     raise RuntimeError(
                         f"unsafe root prefix in skill archive: {member.name}"
                     )
@@ -140,6 +155,14 @@ def extract_skill_archive(data: bytes, destination: Path) -> Path:
                     )
                 if relative in selected:
                     raise RuntimeError(f"duplicate path in skill archive: {relative}")
+                portable_key = relative.as_posix().casefold()
+                previous = portable.get(portable_key)
+                if previous is not None and previous != relative:
+                    raise RuntimeError(
+                        "portable path collision in skill archive: "
+                        f"{previous}, {relative}"
+                    )
+                portable[portable_key] = relative
                 if member.isfile():
                     if member.size < 0:
                         raise RuntimeError(
@@ -197,7 +220,7 @@ def installation_receipt_payload(
     if repository != TOOLCHAIN_REPOSITORY:
         raise ValueError("skill source repository is unsupported")
     if FULL_SHA.fullmatch(revision) is None:
-        raise ValueError("skill source revision must be a full lowercase commit SHA")
+        raise ValueError("skill source revision must be a full lowercase SHA")
     return {
         "schema_version": 1,
         "source": {

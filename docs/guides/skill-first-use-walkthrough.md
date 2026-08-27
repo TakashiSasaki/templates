@@ -6,7 +6,7 @@ The example Skill is **Release Note Helper**. It is a knowledge-augmented Skill 
 
 ## 0. What this walkthrough will produce
 
-Create the Skill as a **separate consumer repository**. Do not implement it inside `TakashiSasaki/templates`.
+Create the Skill as a **separate consumer repository**. Do not implement it inside `TakashiSasaki/templates`, and do not clone `TakashiSasaki/templates` merely to use Composition.
 
 ```text
 TakashiSasaki/templates
@@ -56,30 +56,33 @@ A separate Git repository exists and has no `.template-composition/lock.json` ye
 
 **Repository change**
 
-Yes. You created the consumer repository itself; Composition has not materialized anything yet.
+Yes. You created the consumer repository itself; Composition has not materialized anything yet. Git is used here because this walkthrough creates an ordinary version-controlled product repository; Git is not a prerequisite of the Composition consumer runner itself.
 
 **Next**
 
-Check prerequisites.
+Check the Composition runner prerequisite.
 
 ## 2. Check prerequisites
 
-Composition supports Git on `PATH` and CPython 3.11 through 3.14.
+Normal Composition consumption requires CPython 3.11, 3.12, 3.13, or 3.14. Git is not required by the Composition runner, and no templates checkout is required.
 
 **Run**
 
 ```sh
-git --version
 python --version
 ```
 
 **Expected**
 
-Both commands succeed, and Python reports 3.11–3.14.
+Python reports 3.11–3.14.
 
 **Repository change**
 
 None.
+
+**What this means**
+
+The local machine can run the stdlib-only immutable installer and bootstrap the selected Composition source archive. Cold runner execution requires HTTPS access to GitHub; a missing Python runtime cache can also require access to the configured Python package source.
 
 **Next**
 
@@ -92,7 +95,7 @@ Use the reviewed immutable installer. This example installs the skill at `/absol
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected**
@@ -101,13 +104,13 @@ python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githu
 
 **Repository change**
 
-None in Release Note Helper. The Composition skill and its runtime/validation caches live outside the consumer repository.
+None in Release Note Helper. The Composition skill and its runtime/validation caches live outside the consumer repository. The selected Composition source is an ephemeral full-SHA archive snapshot and is not retained as a templates checkout.
 
 **What this means**
 
-You now have the normal repository-facing Composition runner. The full SHA is intentional and preserves the reviewed immutable-source model; deeper installer/toolchain identity details are in [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse).
+You now have the normal repository-facing Composition runner. The full SHA is intentional and preserves the reviewed immutable-source model; deeper installer/toolchain identity details are in [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse).
 
-Before the first source/runtime acquisition, run the installed skill's read-only local doctor:
+Before first Composer execution, run the installed skill's read-only local doctor:
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -117,11 +120,11 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
 
 **Expected**
 
-The report identifies the selected immutable toolchain revision, CPython support, Git availability, effective runner-cache path, and whether source/runtime acquisition is required. A fresh installation normally reports those caches as absent/not-evaluable and acquisition as required. It deliberately reports remote/package-source availability as not probed.
+The report identifies the selected immutable toolchain revision, CPython support, effective runtime-cache path, and acquisition modes. It reports Git as not required, source acquisition as an ephemeral full-SHA archive, and remote/package-source availability as not probed.
 
 **Repository change**
 
-None. Doctor does not modify Release Note Helper and does not acquire source/runtime state from the network. It performs and cleans up transient write/atomic-rename probes in the external runner cache and may therefore create otherwise-empty cache parent directories.
+None. Doctor does not modify Release Note Helper and does not acquire source/runtime state from the network. It probes and cleans up the external runtime cache's write/atomic-rename capability; it does not create a persistent source-cache checkout.
 
 **What this means**
 

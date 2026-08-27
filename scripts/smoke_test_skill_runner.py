@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test installed Composition skill doctor, acquisition, provenance, and offline cache reuse."""
+"""Smoke-test installed Composition skill with ephemeral immutable source snapshots."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ def clean_environment() -> dict[str, str]:
         for key, value in os.environ.items()
         if not key.upper().startswith("PIP_")
         and not key.upper().startswith("PYTHON")
+        and not key.upper().startswith("GIT_")
     }
     result["PYTHONNOUSERSITE"] = "1"
     result["PIP_CONFIG_FILE"] = os.devnull
@@ -81,12 +82,19 @@ def single_directory(path: Path, label: str) -> Path:
     return entries[0]
 
 
-def require_empty_directory(path: Path, label: str) -> None:
-    if not path.is_dir():
-        raise RuntimeError(f"doctor did not create expected {label} cache parent")
-    entries = list(path.iterdir())
-    if entries:
-        raise RuntimeError(f"doctor unexpectedly acquired {label} cache entries: {entries!r}")
+def assert_no_source_residue(cache: Path, scratch: Path) -> None:
+    source_cache = cache / "sources"
+    if source_cache.exists():
+        raise RuntimeError(
+            f"normal consumer execution created a persistent source cache: {source_cache}"
+        )
+    residue = [
+        path
+        for path in scratch.iterdir()
+        if path.name.startswith("composition-source-")
+    ]
+    if residue:
+        raise RuntimeError(f"ephemeral Composition source residue remains: {residue!r}")
 
 
 def main() -> int:
@@ -100,8 +108,13 @@ def main() -> int:
         target = root / "consumer"
         cache = root / "runner-cache"
         validation_cache = root / "validation-cache"
+        scratch = root / "scratch"
+        scratch.mkdir()
         env["COMPOSITION_RUNTIME_CACHE"] = str(cache)
         env["COMPOSITION_VALIDATION_CACHE"] = str(validation_cache)
+        env["TMPDIR"] = str(scratch)
+        env["TMP"] = str(scratch)
+        env["TEMP"] = str(scratch)
         config = root / "composition.json"
         config.write_text(
             json.dumps(
@@ -128,6 +141,8 @@ def main() -> int:
         )
         runner = installed / "scripts" / "run.py"
 
+        # Doctor is intentionally network-free. It must not require Git or create a
+        # persistent source checkout merely to diagnose local readiness.
         doctor = run_json(
             [
                 sys.executable,
@@ -147,10 +162,10 @@ def main() -> int:
         checks = doctor["checks"]
         if not isinstance(checks, dict):
             raise RuntimeError("doctor checks must be an object")
-        if checks["source_cache"]["status"] != "absent":
-            raise RuntimeError("fresh doctor unexpectedly found a source cache")
-        if checks["runtime_cache"]["status"] != "not-evaluable":
-            raise RuntimeError("fresh doctor unexpectedly evaluated a runtime cache")
+        if checks["git"]["status"] != "not-required":
+            raise RuntimeError("normal consumer doctor still requires Git")
+        if checks["source_cache"]["status"] != "ephemeral":
+            raise RuntimeError("doctor did not report ephemeral source acquisition")
         if checks["package_source"]["status"] != "not-probed":
             raise RuntimeError("doctor must not claim remote/package-source availability")
         if checks["package_source"]["network_requests"] is not False:
@@ -158,13 +173,15 @@ def main() -> int:
         acquisition = doctor["acquisition"]
         if not isinstance(acquisition, dict):
             raise RuntimeError("doctor acquisition state must be an object")
-        if acquisition["source_required"] is not True or acquisition["runtime_required"] is not True:
-            raise RuntimeError("fresh doctor must report source/runtime acquisition required")
-        require_empty_directory(cache / "sources", "source")
-        require_empty_directory(cache / "runtimes", "runtime")
+        if acquisition["source_mode"] != "ephemeral-full-sha-archive":
+            raise RuntimeError("doctor reported an unexpected source acquisition mode")
+        if acquisition["runtime_mode"] != "persistent-validated-cache":
+            raise RuntimeError("doctor reported an unexpected runtime cache mode")
+        assert_no_source_residue(cache, scratch)
         if validation_cache.exists():
             raise RuntimeError("doctor must not acquire a validation cache")
 
+        # Provenance is also local and network-free before the consumer exists.
         before = run_json(
             [
                 sys.executable,
@@ -187,13 +204,10 @@ def main() -> int:
             "revision": expected_revision,
         }:
             raise RuntimeError("provenance selected unexpected stable toolchain")
-        if before_roles["consumer_lock"]["status"] != "absent":
-            raise RuntimeError("unmanaged consumer unexpectedly reported a lock")
-        require_empty_directory(cache / "sources", "source")
-        require_empty_directory(cache / "runtimes", "runtime")
-        if validation_cache.exists():
-            raise RuntimeError("provenance must not acquire a validation cache")
+        assert_no_source_residue(cache, scratch)
 
+        # Cold apply acquires an immutable full-SHA archive and creates only the
+        # validated Python runtime cache. No templates checkout is persisted.
         run(
             [
                 sys.executable,
@@ -208,6 +222,10 @@ def main() -> int:
             env=env,
             cwd=root,
         )
+        assert_no_source_residue(cache, scratch)
+        runtime_entry = single_directory(cache / "runtimes", "runtime")
+        if not (runtime_entry / "runtime.json").is_file():
+            raise RuntimeError("runtime cache marker is missing")
 
         lock = json.loads(
             (target / ".template-composition" / "lock.json").read_text(
@@ -223,40 +241,8 @@ def main() -> int:
                 f"runner materialized unexpected source identity: {source!r}"
             )
 
-        after = run_json(
-            [
-                sys.executable,
-                "-I",
-                str(runner),
-                "--repository",
-                str(target),
-                "provenance",
-            ],
-            env=offline_environment(env),
-            cwd=root,
-        )
-        after_roles = after["roles"]
-        if not isinstance(after_roles, dict):
-            raise RuntimeError("provenance roles must be an object")
-        if after_roles["consumer_lock"]["source"] != source:
-            raise RuntimeError("provenance did not report the materialized lock source")
-        relationships = after["relationships"]
-        if not isinstance(relationships, dict):
-            raise RuntimeError("provenance relationships must be an object")
-        if relationships["consumer_lock_matches_selected"] is not True:
-            raise RuntimeError("provenance did not correlate lock and selected toolchain")
-
-        source_entry = single_directory(cache / "sources", "source")
-        runtime_entry = single_directory(cache / "runtimes", "runtime")
-        if source_entry.name != expected_revision:
-            raise RuntimeError(
-                f"source cache key does not match stable revision: {source_entry.name}"
-            )
-        if not (source_entry / "source.json").is_file():
-            raise RuntimeError("source cache marker is missing")
-        if not (runtime_entry / "runtime.json").is_file():
-            raise RuntimeError("runtime cache marker is missing")
-
+        # Warm doctor still reports source acquisition because source snapshots are
+        # deliberately disposable. Runtime persistence remains a performance cache.
         warm_doctor = run_json(
             [
                 sys.executable,
@@ -271,22 +257,17 @@ def main() -> int:
             env=offline_environment(env),
             cwd=root,
         )
-        warm_checks = warm_doctor["checks"]
-        if not isinstance(warm_checks, dict):
-            raise RuntimeError("warm doctor checks must be an object")
-        if warm_checks["source_cache"]["status"] != "valid":
-            raise RuntimeError("warm doctor did not validate the source cache")
-        if warm_checks["runtime_cache"]["status"] != "valid":
-            raise RuntimeError("warm doctor did not validate the runtime cache")
         warm_acquisition = warm_doctor["acquisition"]
         if not isinstance(warm_acquisition, dict):
             raise RuntimeError("warm doctor acquisition state must be an object")
-        if warm_acquisition["source_required"] or warm_acquisition["runtime_required"]:
-            raise RuntimeError("warm doctor incorrectly requires acquisition")
+        if warm_acquisition["source_required"] is not True:
+            raise RuntimeError("warm doctor must still require ephemeral source acquisition")
+        if warm_acquisition["runtime_required"] is not False:
+            raise RuntimeError("warm doctor did not recognize the persistent runtime cache")
+        assert_no_source_residue(cache, scratch)
 
-        # Warm validation while network access is available. Toolchain generations
-        # before self-contained validation do not create COMPOSITION_VALIDATION_CACHE;
-        # generations that do must leave a validated runtime marker.
+        # Normal validation reacquires source but reuses the validated runtime. The
+        # product's materialized validator remains usable independently afterward.
         run(
             [
                 sys.executable,
@@ -299,30 +280,7 @@ def main() -> int:
             env=env,
             cwd=root,
         )
-        validation_runtimes = validation_cache / "runtimes"
-        if validation_runtimes.exists():
-            validation_runtime_entry = single_directory(
-                validation_runtimes, "validation runtime"
-            )
-            if not (validation_runtime_entry / "runtime.json").is_file():
-                raise RuntimeError("validation runtime cache marker is missing")
-
-        # After one successful online validation, the selected toolchain generation
-        # must validate again with network acquisition disabled. For generations with
-        # self-contained validation this proves validation-cache reuse; for older
-        # generations it preserves the existing runner-cache offline assertion.
-        run(
-            [
-                sys.executable,
-                "-I",
-                str(runner),
-                "--repository",
-                str(target),
-                "validate",
-            ],
-            env=offline_environment(env),
-            cwd=root,
-        )
+        assert_no_source_residue(cache, scratch)
 
         validator = target / ".template-composition" / "validate_composition.py"
         run(
@@ -331,7 +289,7 @@ def main() -> int:
         )
 
     print(
-        "Composition installed-skill runner doctor/cache/provenance smoke test: OK "
+        "Composition installed-skill zero-clone runner smoke test: OK "
         f"({expected_revision})"
     )
     return 0

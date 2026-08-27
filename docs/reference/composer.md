@@ -83,19 +83,27 @@ python /path/to/agent-skills/composition/scripts/run.py \
 
 The runner selects only a full lowercase 40-character source revision in `TakashiSasaki/templates`. Its stable default comes from `skills/composition/runtime-manifest.json`; an explicit `--revision <full-sha>` may override that default. When `.template-composition/transaction.json` exists, its exact source revision is authoritative for recovery and overrides the stable default. A conflicting explicit revision is rejected.
 
-After selecting the revision, the runner reuses or builds two independently validated persistent cache layers. The source cache is keyed by exact revision and must remain detached at that SHA, point at the canonical remote, be byte-clean with LF-preserving checkout settings, and retain traversable ancestor history. The runtime cache is keyed by repository, revision, runtime-lock SHA-256, CPython major/minor, and platform/machine; a hit is accepted only after marker/digest/identity checks, `pip check`, and the selected source revision's runtime verifier. On a miss, the runner fetches the exact source or builds the exact `requirements-runtime.lock` environment with dependency resolution disabled and atomically installs the new cache entry. A valid cache hit requires no network acquisition. `COMPOSITION_RUNTIME_CACHE` may override the platform-default cache root for controlled environments. The runner adds `--target /repo` itself and refuses any forwarded `--target` option. Cache layout and reuse are performance details and do not redefine Composer semantics.
+Normal consumer execution does not require a templates checkout or Git on `PATH`. After selecting a revision, the runner downloads that exact revision from the canonical GitHub codeload endpoint as a full-SHA tar archive, extracts it under an OS temporary directory, rejects unsafe archive structures, and records a SHA-256 inventory of every regular file. The snapshot source context binds Composer source identity and source-authority reads to that revision and inventory; an authority file must be present in the acquired snapshot and must still match the acquisition digest when consumed. The source snapshot and context metadata are removed when the invocation exits.
 
-## Source checkout requirements
+Only the isolated Python runtime is persistently cached by the normal runner. Its cache identity includes repository, revision, runtime-lock SHA-256, CPython major/minor, and platform/machine; a matching entry is reused only after marker/digest/identity checks, `pip check`, and the selected source revision's runtime verifier. A miss builds the exact `requirements-runtime.lock` environment with dependency resolution disabled and atomically installs it. `COMPOSITION_RUNTIME_CACHE` may override the platform-default cache root for controlled environments. A warm runtime does not make normal Composer execution fully offline because the immutable source archive is deliberately reacquired for each invocation.
 
-The Composer runs from the Composition source checkout. Source authorities consumed by composition must be regular Git-tracked files under one exact clean revision.
+The runner adds `--target /repo` itself and refuses any forwarded `--target` option. Source acquisition and runtime-cache layout are implementation details and do not redefine Composer lifecycle, ownership, lock, transaction, or diagnostic semantics.
 
-For managed `update` and `upgrade`:
+## Source contexts and ancestry
 
-- the old revision recorded in the consumer lock must be available in local Composition Git history;
-- the target source revision must equal or descend from the old revision;
-- recovery requires the exact target revision recorded in `.template-composition/transaction.json`.
+Composer source authority is represented through one of two fail-closed source contexts:
 
-The canonical source identity is the Composition authority in `TakashiSasaki/templates`. The installed runner acquires or reuses a detached exact-SHA checkout with the selected revision's ancestor history and validates that history before reuse, so these checks remain Composer-owned rather than being weakened by the wrapper.
+- **snapshot context — normal consumers:** source files come from the selected immutable full-SHA GitHub archive. Authority reads are checked against the acquisition SHA-256 inventory. No local Git checkout or Git history is required.
+- **Git context — Composition authority maintainers:** direct `scripts/compose.py` execution from a reviewed checkout requires one exact clean Git revision. Source authorities must be regular tracked files; tracked modifications are rejected. This is the authority-maintenance path, not a normal consumer prerequisite.
+
+For managed `update` and `upgrade`, the old lock revision must equal or be an ancestor of the selected target source revision. The mechanism depends on the source context:
+
+- snapshot-backed normal execution verifies the two immutable full SHAs through the canonical GitHub Compare API; `ahead` and `identical` are accepted, while `behind` and `diverged` are rejected;
+- direct Git-context execution verifies the same relation from local Git history.
+
+Ancestry verification is fail closed. An unavailable old revision, unavailable/invalid GitHub compare response, rate limit, network failure, or malformed result does not permit the managed transition. Recovery additionally requires the exact target revision recorded in `.template-composition/transaction.json`.
+
+The canonical source identity remains `TakashiSasaki/templates` in both contexts. The abstraction changes how immutable revision/authority evidence is established; it does not weaken or replace full-SHA source identity.
 
 ## `inspect`
 
@@ -259,9 +267,9 @@ python scripts/compose.py apply --mode update --target /repo
 python scripts/compose.py apply --mode upgrade --target /repo
 ```
 
-Through the installed runner, the equivalent commands omit source checkout management and `--target`; the runner reads the transaction's exact source revision and supplies the target from `--repository`.
+Through the installed runner, the equivalent commands omit source management and `--target`; the runner reads the transaction's exact source revision, acquires that immutable snapshot, and supplies the target from `--repository`.
 
-A transaction for the other operation reports `RECOVERY_OPERATION_MISMATCH`. A different source checkout reports `RECOVERY_SOURCE_MISMATCH`.
+A transaction for the other operation reports `RECOVERY_OPERATION_MISMATCH`. Selecting a source revision different from the transaction reports `RECOVERY_SOURCE_MISMATCH`.
 
 ## Consumer-facing managed lifecycle diagnostics
 
@@ -276,9 +284,10 @@ The following codes are especially relevant to normal consumer operation. The pu
 | `RECOVERY_CONFIG_NOT_ALLOWED` | `--config` was supplied while recovering upgrade | remove `--config`; rerun `apply --mode upgrade` at the exact recorded source revision |
 | `RECOVERY_REQUIRED` | an unfinished managed transaction exists | recover the recorded operation at its exact source revision before planning another one; do not delete the marker |
 | `RECOVERY_OPERATION_MISMATCH` | requested recovery mode differs from transaction operation | rerun `apply` with the operation recorded in the transaction |
-| `RECOVERY_SOURCE_MISMATCH` | source checkout is not the exact revision recorded by the transaction | check out the recorded revision and retry the matching apply; upgrade recovery omits `--config` |
-| `OLD_SOURCE_REVISION_UNAVAILABLE` | old lock revision is absent from local Composition history | make that revision available locally before retrying; do not bypass ancestry validation |
+| `RECOVERY_SOURCE_MISMATCH` | selected source is not the exact revision recorded by the transaction | through the runner, rerun recovery without a conflicting `--revision`; direct checkout execution must use the recorded revision |
+| `OLD_SOURCE_REVISION_UNAVAILABLE` | the old lock revision cannot be established in the active source context | normal runner: verify the locked full SHA belongs to canonical GitHub history and retry when GitHub is available; direct checkout: make the revision available in local history |
 | `SOURCE_REVISION_NOT_DESCENDANT` | target Composition revision is not old revision or its descendant | use the locked revision or a descendant/equal source revision |
+| `SOURCE_TRANSITION_UNAVAILABLE` | snapshot-backed ancestry could not be verified because GitHub compare evidence was unavailable or invalid | retry when canonical GitHub compare evidence is available; do not bypass ancestry validation |
 | `COMPONENT_VERSION_UPGRADE_REQUIRED` | update encounters a component version change | plan an explicit upgrade with desired intent and `--config` |
 | `COMPONENT_DESCRIPTOR_CHANGED_WITHOUT_VERSION` | descriptor bytes changed without version change | source-side invariant is broken; do not bypass it in the consumer |
 | `LOCAL_MODIFICATION` | managed/generated current bytes differ from old lock | restore locked bytes or redesign source/ownership; Composer will not merge, overwrite, or delete the unexpected local state |
