@@ -331,14 +331,15 @@ def doctor_payload(
     runtime_reason: str | None = "runtime identity requires a valid selected source cache"
     runtime_entry: Path | None = None
     runtime_python: Path | None = None
+    runtime_lock_blocker: str | None = None
     if source is not None:
         try:
             lock_data = runtime_lock_data(source, selected, manifest)
             identity = runtime_identity(selected, lock_data)
         except RunnerError as exc:
-            source_state = "invalid"
-            source_reason = str(exc)
-            runtime_reason = "selected source runtime lock is invalid"
+            runtime_state = "blocked"
+            runtime_reason = str(exc)
+            runtime_lock_blocker = f"selected source runtime lock is unusable: {exc}"
         else:
             runtime_entry = runtime_cache_entry(cache, identity)
             runtime_python = venv_python(runtime_entry)
@@ -354,7 +355,7 @@ def doctor_payload(
                     )
 
     source_acquisition_required = source_state != "valid"
-    runtime_acquisition_required = runtime_state != "valid"
+    runtime_acquisition_required = runtime_state not in {"valid", "blocked"}
     local_blockers: list[str] = []
     if host_python["status"] != "pass":
         assert isinstance(host_python["diagnostic"], str)
@@ -362,6 +363,8 @@ def doctor_payload(
     if git["status"] != "pass":
         assert isinstance(git["diagnostic"], str)
         local_blockers.append(git["diagnostic"])
+    if runtime_lock_blocker is not None:
+        local_blockers.append(runtime_lock_blocker)
     if source_acquisition_required and source_parent_probe["status"] != "pass":
         assert isinstance(source_parent_probe["diagnostic"], str)
         local_blockers.append(source_parent_probe["diagnostic"])
