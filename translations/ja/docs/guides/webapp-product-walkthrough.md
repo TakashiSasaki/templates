@@ -29,6 +29,8 @@ separate repository
   ↓
 Composition install
   ↓
+doctor
+  ↓
 composition.json
   ↓
 inspect → plan → review → apply → validate
@@ -78,7 +80,7 @@ sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_
 product repository 外へ reviewed immutable installer で install します。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
@@ -86,6 +88,16 @@ python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githu
 **Repository change:** Task Ledger にはなし。
 
 full SHA は immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse) を参照してください。
+
+最初の acquisition の前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
+
+```sh
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  doctor
+```
+
+`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、Git、runner-cache の write/atomic-rename capability、および既存 source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime acquisition も行いません。`READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証しません。
 
 ## 4. `composition.json` を作る
 
@@ -935,7 +947,7 @@ lock metadata を hand-edit して conflict を成功に見せてはいけませ
 
 ## Completion checklist
 
-**First-use scaffold milestone:** separate product repository、Composition install、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
+**First-use scaffold milestone:** separate product repository、Composition install、read-only `doctor` による local bootstrap diagnosis、`composition.json`、正しい `inspect → plan → review → apply → validate`、read-only plan の理解、valid scaffold、editing boundary の理解。
 
 **Implemented-product milestone:** truthful consumer contracts、product source/tests、complete current-target coverage、stable requirement ID と linked record/non-empty `requiredPositiveProofKinds` を持つすべての caller-visible requirement、宣言した kind を満たす real positive/negative proof（required proof に `deferred` を残さない）、passing product verifier、executed implementation-evidence を含む valid Composition validation、passing release-readiness validation、必要なら独立した valid Policy state。
 

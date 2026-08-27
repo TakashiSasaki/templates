@@ -75,12 +75,12 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
         self.assertEqual(
             installer.SKILL_SOURCE_REVISION,
-            "f9508b92f5b7835fa1af9741f3941f32f6d3db28",
+            "06f6734c372bb30f633e6a53f78532a4cfbb7981",
         )
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))
         self.assertTrue(
             installer.archive_url().endswith(
-                "/tar.gz/f9508b92f5b7835fa1af9741f3941f32f6d3db28"
+                "/tar.gz/06f6734c372bb30f633e6a53f78532a4cfbb7981"
             )
         )
 

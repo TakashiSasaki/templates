@@ -3,12 +3,12 @@
   "channel": "stable",
   "installer": {
     "repository": "TakashiSasaki/templates",
-    "revision": "9c1c093fca1e7e47a9974150e7739665ec570f6e",
+    "revision": "cb06bce5108d804a8f07fb3adb71ff4fd051e12a",
     "path": "scripts/install_composition_skill.py"
   },
   "skill_source": {
     "repository": "TakashiSasaki/templates",
-    "revision": "f9508b92f5b7835fa1af9741f3941f32f6d3db28",
+    "revision": "06f6734c372bb30f633e6a53f78532a4cfbb7981",
     "path": "skills/composition"
   },
   "toolchain": {
