@@ -2,7 +2,11 @@ name: Policy runtime distribution
 
 on:
   push:
+    branches:
+      - policy
   pull_request:
+    branches:
+      - policy
 
 permissions:
   contents: read
