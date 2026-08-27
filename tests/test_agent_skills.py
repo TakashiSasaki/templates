@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 SKILLS_ROOT = ROOT / ".agents" / "skills"
 EXPECTED_SKILLS = {
+    "pr-merge-gate",
     "site-browser-regression-triage",
     "site-publication-cutover",
     "site-pr-exact-head-acceptance",
@@ -114,17 +115,83 @@ class AgentSkillContractTests(unittest.TestCase):
         self.assertIn("exactly `composition` and `policy`", publication)
         self.assertIn("exactly `composition` and `policy`", AGENTS.read_text(encoding="utf-8"))
 
-    def test_exact_head_skill_preserves_acceptance_invariants(self) -> None:
+    def test_site_acceptance_hands_final_merge_authorization_to_merge_gate(self) -> None:
+        index = AGENTS.read_text(encoding="utf-8")
         skill = (
             SKILLS_ROOT / "site-pr-exact-head-acceptance" / "SKILL.md"
         ).read_text(encoding="utf-8")
         for invariant in (
-            "exact head SHA",
-            "base drift",
-            "unresolved",
-            "commit-associated",
+            "SITE_ACCEPTANCE_READY_FOR_MERGE_GATE",
+            "This skill does not authorize merge",
+            ".agents/skills/pr-merge-gate/SKILL.md",
+            "Never report final merge readiness from this skill",
             "Green CI on SHA A is not acceptance of SHA B",
-            "Review of SHA A is not automatically review of changed SHA B",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant.lower(), skill.lower())
+        self.assertIn(
+            "task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`",
+            index,
+        )
+
+    def test_merge_gate_fails_closed_for_missing_pending_stale_or_self_review(self) -> None:
+        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for invariant in (
+            "`reviews = 0 -> MERGE_ALLOWED` is forbidden",
+            "completed independent review evidence count is zero",
+            "self-review does not satisfy this requirement",
+            "reviewer unavailable != review waived",
+            "Never omit `expected_head_sha`",
+            "Final live-state refresh",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant.lower(), skill.lower())
+
+    def test_merge_gate_defines_all_canonical_blocked_states(self) -> None:
+        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for state in (
+            "BLOCKED_CI",
+            "BLOCKED_REVIEW_MISSING",
+            "BLOCKED_REVIEW_PENDING",
+            "BLOCKED_REVIEW_STALE",
+            "BLOCKED_REVIEW_FINDINGS",
+            "BLOCKED_BASE_DRIFT",
+            "BLOCKED_HEAD_CHANGED",
+            "BLOCKED_MERGEABILITY",
+        ):
+            with self.subTest(state=state):
+                self.assertIn(state.lower(), skill.lower())
+
+    def test_merge_gate_success_path_requires_ci_discovery_and_review_completion(self) -> None:
+        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> "
+            "REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> "
+            "FINAL_STATE_REFRESHED -> MERGE_ALLOWED",
+            skill,
+        )
+        self.assertIn("`SCOPE_AUDITED -> CI_GREEN` is forbidden", skill)
+        self.assertIn("`CI_GREEN -> MERGE_ALLOWED` is forbidden", skill)
+        self.assertIn("`REVIEW_REQUESTED -> MERGE_ALLOWED` is forbidden", skill)
+
+    def test_merge_gate_fails_closed_while_expected_ci_is_not_yet_observable(self) -> None:
+        skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        for invariant in (
+            "CI_DISCOVERY_PENDING",
+            "CI_CONFIRMED_ABSENT",
+            "CI_DISCOVERY_MIN_OBSERVATION_MINUTES = 10",
+            "zero workflow runs returned` != `workflow did not fire",
+            "at least two independently indexed live views",
+            "Do not close and reopen the pull request",
+            "retrigger mutation != discovery evidence",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant.lower(), skill.lower())
