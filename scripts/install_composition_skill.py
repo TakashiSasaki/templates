@@ -25,6 +25,7 @@ WINDOWS_RESERVED_STEMS = frozenset(
     {"con", "prn", "aux", "nul"}
     | {f"com{index}" for index in range(1, 10)}
     | {f"lpt{index}" for index in range(1, 10)}
+    | {f"{prefix}{digit}" for prefix in ("com", "lpt") for digit in "¹²³"}
 )
 REQUIRED_SKILL_PATHS = frozenset(
     {
