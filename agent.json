@@ -18,7 +18,8 @@
       "repository": "TakashiSasaki/templates",
       "revision": "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7",
       "path": "skills/composition",
-      "entrypoint": "scripts/run.py"
+      "entrypoint": "scripts/run.py",
+      "instructions_url": "https://raw.githubusercontent.com/TakashiSasaki/templates/e8ee87483ea97e6cce8f27e6438d98a5a7c724a7/skills/composition/SKILL.md"
     },
     "toolchain": {
       "repository": "TakashiSasaki/templates",
@@ -39,9 +40,22 @@
     "installation_modes": [
       "persistent",
       "transient"
+    ],
+    "installer_argv": [
+      "{python}",
+      "-I",
+      "{installer_file}",
+      "{skill_target}"
     ]
   },
   "workflow": {
+    "runner_argv": [
+      "{python}",
+      "{skill_target}/scripts/run.py",
+      "--repository",
+      "{repository}",
+      "{command}"
+    ],
     "diagnose": "doctor",
     "provenance": "provenance",
     "inspect_before_mutation": "inspect",
