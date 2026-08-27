@@ -1,0 +1,416 @@
+name: Retry executable lifecycle next step v5
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Build deterministic candidate and remove all staging workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/finalize-executable-lifecycle-step.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY\n", start)
+          code = textwrap.dedent(source[start:end])
+
+          # Robust component-version edit.
+          old_start = code.index('checkpoint_component = replace_once(\n')
+          old_end_marker = 'label="checkpoint component version"\n)\n'
+          old_end = code.index(old_end_marker, old_start) + len(old_end_marker)
+          replacement = '''import re
+          version_pattern = re.compile(r'(?m)^  "version": 1,$')
+          checkpoint_component, version_count = version_pattern.subn(
+              '  "version": 2,', checkpoint_component
+          )
+          if version_count != 1:
+              raise SystemExit(
+                  f"checkpoint component exact version line mismatch: {version_count}"
+              )
+          '''
+          code = code[:old_start] + textwrap.dedent(replacement) + code[old_end:]
+
+          # Robust runner edits using unique current anchors.
+          section_start = code.index("planning_old = '''")
+          section_end_marker = '    label="product checkpoint command projection",\n)\n'
+          section_end = code.index(section_end_marker, section_start) + len(section_end_marker)
+          runner_edits = r'''planning_anchor = '        if checkpoints_selected and checkpoint_phase != "planning":\n            return {\n'
+          planning_replacement = '        if checkpoints_selected and checkpoint_phase != "planning":\n            command = _checkpoint_action_command(root, "create-planning-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            return {\n'
+          if runner.count(planning_anchor) != 1:
+              raise SystemExit(f"planning command anchor mismatch: {runner.count(planning_anchor)}")
+          runner = runner.replace(planning_anchor, planning_replacement, 1)
+          planning_action = '                "next_actions": ["create-planning-checkpoint"],\n            }\n'
+          planning_action_replacement = '                "next_actions": ["create-planning-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if runner.count(planning_action) != 1:
+              raise SystemExit(f"planning action anchor mismatch: {runner.count(planning_action)}")
+          runner = runner.replace(planning_action, planning_action_replacement, 1)
+
+          product_anchor = '        if checkpoints_selected and checkpoint_phase != "product":\n            blockers = ["product-checkpoint-required"]\n'
+          product_replacement = '        if checkpoints_selected and checkpoint_phase != "product":\n            command = _checkpoint_action_command(root, "create-product-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            blockers = ["product-checkpoint-required"]\n'
+          if runner.count(product_anchor) != 1:
+              raise SystemExit(f"product command anchor mismatch: {runner.count(product_anchor)}")
+          runner = runner.replace(product_anchor, product_replacement, 1)
+          product_action = '                "next_actions": ["create-product-checkpoint"],\n            }\n'
+          product_action_replacement = '                "next_actions": ["create-product-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if runner.count(product_action) != 1:
+              raise SystemExit(f"product action anchor mismatch: {runner.count(product_action)}")
+          runner = runner.replace(product_action, product_action_replacement, 1)
+          '''
+          code = code[:section_start] + textwrap.dedent(runner_edits) + code[section_end:]
+
+          # Replace all fragile incremental test edits with one deterministic file.
+          tests_start = code.index('tests = Path(tests_path).read_text(encoding="utf-8")')
+          tests_end = code.index('\n          updated = {', tests_start)
+          tests_full = r'''tests = '''from __future__ import annotations
+
+          import importlib.util
+          import json
+          import tempfile
+          import unittest
+          from pathlib import Path
+
+          from jsonschema import Draft202012Validator
+
+          ROOT = Path(__file__).resolve().parents[1]
+          RUNNER_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/validate.py"
+          SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
+          ACTION_REGISTRY_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"
+          ACTION_SCHEMA_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/schemas/lifecycle-checkpoint-actions.schema.json"
+
+          SPEC = importlib.util.spec_from_file_location("composition_validation_runner", RUNNER_PATH)
+          if SPEC is None or SPEC.loader is None:
+              raise RuntimeError("cannot load Composition validation runner")
+          runner = importlib.util.module_from_spec(SPEC)
+          SPEC.loader.exec_module(runner)
+
+
+          class LifecycleNextActionsTests(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+                  Draft202012Validator.check_schema(schema)
+                  cls.schema_validator = Draft202012Validator(schema)
+                  action_schema = json.loads(ACTION_SCHEMA_PATH.read_text(encoding="utf-8"))
+                  Draft202012Validator.check_schema(action_schema)
+                  cls.action_schema_validator = Draft202012Validator(action_schema)
+                  cls.action_registry = json.loads(ACTION_REGISTRY_PATH.read_text(encoding="utf-8"))
+                  cls.action_schema_validator.validate(cls.action_registry)
+
+              def project(
+                  self,
+                  mode: str,
+                  status: str = "valid",
+                  checks: list[dict] | None = None,
+                  *,
+                  checkpoints_selected: bool = False,
+                  checkpoint_phase: str | None = None,
+                  malformed_checkpoint_ledger: bool = False,
+                  malformed_action_registry: bool = False,
+              ) -> dict:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      root = Path(temp_dir)
+                      evidence = root / "contracts" / "implementation-evidence.json"
+                      evidence.parent.mkdir()
+                      evidence.write_text(json.dumps({"mode": mode}), encoding="utf-8")
+
+                      active_checks = list(checks or [])
+                      if checkpoints_selected:
+                          registry = root / ".template-composition" / "lifecycle-checkpoint-actions.json"
+                          registry.parent.mkdir()
+                          registry.write_text(
+                              "{}" if malformed_action_registry else json.dumps(self.action_registry),
+                              encoding="utf-8",
+                          )
+                          active_checks.append(
+                              {
+                                  "id": "lifecycle-checkpoints",
+                                  "component": "lifecycle.lifecycle-checkpoints",
+                                  "status": "passed",
+                              }
+                          )
+                          ledger = root / "contracts" / "lifecycle-checkpoints.json"
+                          if malformed_checkpoint_ledger:
+                              ledger.write_text(
+                                  json.dumps({"checkpoints": "not-an-array"}),
+                                  encoding="utf-8",
+                              )
+                          else:
+                              checkpoints = []
+                              if checkpoint_phase is not None:
+                                  checkpoints.append(
+                                      {
+                                          "phase": checkpoint_phase,
+                                          "id": "planning-1" if checkpoint_phase == "planning" else "product-1",
+                                      }
+                                  )
+                              ledger.write_text(
+                                  json.dumps({"checkpoints": checkpoints}),
+                                  encoding="utf-8",
+                              )
+
+                      value = runner._lifecycle_projection(root, status, active_checks)
+                      self.schema_validator.validate(value)
+                      return value
+
+              def test_planning_without_checkpoint_component_preserves_product_actions(self) -> None:
+                  value = self.project("planning")
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+                  self.assertEqual(value["implementation_evidence_mode"], "planning")
+                  self.assertIn("implement-product", value["next_actions"])
+                  self.assertIn("check-release-readiness", value["next_actions"])
+                  self.assertNotIn("next_action_command", value)
+
+              def test_selected_checkpoints_require_planning_checkpoint_before_coding(self) -> None:
+                  value = self.project("planning", checkpoints_selected=True)
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+                  self.assertEqual(
+                      value["blocking_conditions"],
+                      ["implementation-evidence-planning", "planning-checkpoint-required"],
+                  )
+                  self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+                  self.assertEqual(
+                      value["next_action_command"],
+                      {
+                          "action": "create-planning-checkpoint",
+                          "argv": [
+                              "{python}",
+                              ".template-composition/checkpoint.py",
+                              "planning",
+                              "--id",
+                              "{checkpoint_id}",
+                          ],
+                          "caller_inputs": ["{python}", "{checkpoint_id}"],
+                      },
+                  )
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_planning_checkpoint_unlocks_product_implementation(self) -> None:
+                  value = self.project(
+                      "planning", checkpoints_selected=True, checkpoint_phase="planning"
+                  )
+                  self.assertIn("implement-product", value["next_actions"])
+                  self.assertIn("validate-product-state", value["next_actions"])
+                  self.assertNotIn("check-release-readiness", value["next_actions"])
+                  self.assertNotIn("next_action_command", value)
+
+              def test_previous_product_checkpoint_requires_new_planning_checkpoint(self) -> None:
+                  value = self.project(
+                      "planning", checkpoints_selected=True, checkpoint_phase="product"
+                  )
+                  self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+                  self.assertEqual(
+                      value["next_action_command"]["action"], "create-planning-checkpoint"
+                  )
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_product_requires_product_checkpoint_before_release_readiness(self) -> None:
+                  value = self.project(
+                      "product", checkpoints_selected=True, checkpoint_phase="planning"
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["blocking_conditions"], ["product-checkpoint-required"])
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+                  self.assertEqual(
+                      value["next_action_command"],
+                      {
+                          "action": "create-product-checkpoint",
+                          "argv": [
+                              "{python}",
+                              ".template-composition/checkpoint.py",
+                              "product",
+                              "--id",
+                              "{checkpoint_id}",
+                              "--from",
+                              "planning-1",
+                          ],
+                          "caller_inputs": ["{python}", "{checkpoint_id}"],
+                      },
+                  )
+                  self.assertNotIn("check-release-readiness", value["next_actions"])
+
+              def test_product_checkpoint_unlocks_release_readiness(self) -> None:
+                  value = self.project(
+                      "product", checkpoints_selected=True, checkpoint_phase="product"
+                  )
+                  self.assertEqual(value["next_actions"], ["check-release-readiness"])
+                  self.assertNotIn("next_action_command", value)
+
+              def test_release_ready_check_cannot_skip_product_checkpoint(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[{"id": "release-readiness", "status": "passed"}],
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+
+              def test_deferred_proof_waits_behind_missing_product_checkpoint(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[{"id": "browser-proof", "status": "deferred"}],
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertEqual(value["release_readiness"], "not-ready")
+                  self.assertEqual(
+                      value["blocking_conditions"],
+                      ["product-checkpoint-required", "deferred-proof"],
+                  )
+                  self.assertEqual(value["deferred_checks"], ["browser-proof"])
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+
+              def test_deferred_proof_never_projects_release_ready(self) -> None:
+                  value = self.project(
+                      "product", checks=[{"id": "browser-proof", "status": "deferred"}]
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-ready")
+                  self.assertEqual(value["deferred_checks"], ["browser-proof"])
+                  self.assertNotIn("release-ready", value["next_actions"])
+
+              def test_product_validation_separates_release_readiness(self) -> None:
+                  value = self.project("product")
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["next_actions"], ["check-release-readiness"])
+
+                  ready = self.project(
+                      "product", checks=[{"id": "release-readiness", "status": "passed"}]
+                  )
+                  self.assertEqual(ready["lifecycle_stage"], "release-ready")
+                  self.assertEqual(ready["release_readiness"], "ready")
+                  self.assertEqual(ready["next_actions"], [])
+
+              def test_selected_template_does_not_expose_product_coding(self) -> None:
+                  value = self.project("template", checkpoints_selected=True)
+                  self.assertEqual(value["next_actions"], ["define-product-requirements"])
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_malformed_checkpoint_action_registry_fails_closed(self) -> None:
+                  value = self.project(
+                      "planning",
+                      checkpoints_selected=True,
+                      malformed_action_registry=True,
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["checkpoint-command-registry-invalid"]
+                  )
+                  self.assertEqual(
+                      value["next_actions"], ["inspect", "plan", "apply", "validate"]
+                  )
+
+              def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
+                  value = self.project(
+                      "planning", checkpoints_selected=True, malformed_checkpoint_ledger=True
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(value["blocking_conditions"], ["checkpoint-state-invalid"])
+                  self.assertEqual(
+                      value["next_actions"], ["inspect", "plan", "apply", "validate"]
+                  )
+
+              def test_missing_evidence_is_explicitly_scaffold_only(self) -> None:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      value = runner._lifecycle_projection(Path(temp_dir), "valid", [])
+                  self.schema_validator.validate(value)
+                  self.assertEqual(value["implementation_evidence_mode"], "missing")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["implementation-evidence-missing"]
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+
+              def test_malformed_evidence_is_invalid_not_missing(self) -> None:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      root = Path(temp_dir)
+                      evidence = root / "contracts" / "implementation-evidence.json"
+                      evidence.parent.mkdir()
+                      evidence.write_text("{", encoding="utf-8")
+                      self.assertEqual(runner._evidence_mode(root), "invalid")
+
+              def test_check_failure_is_invalid_even_with_valid_status(self) -> None:
+                  value = self.project(
+                      "product", checks=[{"id": "webapp-contracts", "status": "failed"}]
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["composition-validation-failed"]
+                  )
+
+              def test_deferred_check_ids_are_sorted(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[
+                          {"id": "release-evidence-template", "status": "deferred"},
+                          {"id": "browser-proof", "status": "deferred"},
+                      ],
+                  )
+                  self.assertEqual(
+                      value["deferred_checks"],
+                      ["browser-proof", "release-evidence-template"],
+                  )
+
+              def test_invalid_evidence_fails_closed_to_repair_actions(self) -> None:
+                  value = self.project("unexpected-mode")
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["implementation-evidence-invalid"]
+                  )
+                  self.assertEqual(
+                      value["next_actions"], ["inspect", "plan", "apply", "validate"]
+                  )
+
+              def test_invalid_composition_fails_closed_to_repair_actions(self) -> None:
+                  value = self.project("product", status="invalid")
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(
+                      value["next_actions"], ["inspect", "plan", "apply", "validate"]
+                  )
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          tests = textwrap.dedent(tests)
+          '''
+          code = code[:tests_start] + textwrap.dedent(tests_full) + code[tests_end:]
+
+          deletion = 'entries.append({"path": workflow_path, "mode": "100644", "type": "blob", "sha": None})'
+          if deletion not in code:
+              raise SystemExit('workflow deletion marker missing')
+          extra_deletions = '\n'.join([
+              'entries.append({"path": ".github/workflows/retry-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry2-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry3-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry4-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry5-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+          ])
+          code = code.replace(deletion, deletion + '\n' + extra_deletions, 1)
+
+          exec(compile(code, '<corrected-finalizer-v5>', 'exec'), {'__name__': '__main__'})
+          PY
