@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke-test installed Composition skill acquisition, provenance, and offline cache reuse."""
+"""Smoke-test installed Composition skill doctor, acquisition, provenance, and offline cache reuse."""
 
 from __future__ import annotations
 
@@ -81,6 +81,14 @@ def single_directory(path: Path, label: str) -> Path:
     return entries[0]
 
 
+def require_empty_directory(path: Path, label: str) -> None:
+    if not path.is_dir():
+        raise RuntimeError(f"doctor did not create expected {label} cache parent")
+    entries = list(path.iterdir())
+    if entries:
+        raise RuntimeError(f"doctor unexpectedly acquired {label} cache entries: {entries!r}")
+
+
 def main() -> int:
     env = clean_environment()
     manifest = json.loads((SKILL / "runtime-manifest.json").read_text(encoding="utf-8"))
@@ -120,6 +128,43 @@ def main() -> int:
         )
         runner = installed / "scripts" / "run.py"
 
+        doctor = run_json(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "doctor",
+                "--format",
+                "json",
+            ],
+            env=offline_environment(env),
+            cwd=root,
+        )
+        if doctor["status"] != "ready":
+            raise RuntimeError(f"fresh installed runner doctor was not ready: {doctor!r}")
+        checks = doctor["checks"]
+        if not isinstance(checks, dict):
+            raise RuntimeError("doctor checks must be an object")
+        if checks["source_cache"]["status"] != "absent":
+            raise RuntimeError("fresh doctor unexpectedly found a source cache")
+        if checks["runtime_cache"]["status"] != "not-evaluable":
+            raise RuntimeError("fresh doctor unexpectedly evaluated a runtime cache")
+        if checks["package_source"]["status"] != "not-probed":
+            raise RuntimeError("doctor must not claim remote/package-source availability")
+        if checks["package_source"]["network_requests"] is not False:
+            raise RuntimeError("doctor must not perform network requests")
+        acquisition = doctor["acquisition"]
+        if not isinstance(acquisition, dict):
+            raise RuntimeError("doctor acquisition state must be an object")
+        if acquisition["source_required"] is not True or acquisition["runtime_required"] is not True:
+            raise RuntimeError("fresh doctor must report source/runtime acquisition required")
+        require_empty_directory(cache / "sources", "source")
+        require_empty_directory(cache / "runtimes", "runtime")
+        if validation_cache.exists():
+            raise RuntimeError("doctor must not acquire a validation cache")
+
         before = run_json(
             [
                 sys.executable,
@@ -144,8 +189,8 @@ def main() -> int:
             raise RuntimeError("provenance selected unexpected stable toolchain")
         if before_roles["consumer_lock"]["status"] != "absent":
             raise RuntimeError("unmanaged consumer unexpectedly reported a lock")
-        if cache.exists():
-            raise RuntimeError("provenance must not acquire a source or runtime cache")
+        require_empty_directory(cache / "sources", "source")
+        require_empty_directory(cache / "runtimes", "runtime")
         if validation_cache.exists():
             raise RuntimeError("provenance must not acquire a validation cache")
 
@@ -212,6 +257,33 @@ def main() -> int:
         if not (runtime_entry / "runtime.json").is_file():
             raise RuntimeError("runtime cache marker is missing")
 
+        warm_doctor = run_json(
+            [
+                sys.executable,
+                "-I",
+                str(runner),
+                "--repository",
+                str(target),
+                "doctor",
+                "--format",
+                "json",
+            ],
+            env=offline_environment(env),
+            cwd=root,
+        )
+        warm_checks = warm_doctor["checks"]
+        if not isinstance(warm_checks, dict):
+            raise RuntimeError("warm doctor checks must be an object")
+        if warm_checks["source_cache"]["status"] != "valid":
+            raise RuntimeError("warm doctor did not validate the source cache")
+        if warm_checks["runtime_cache"]["status"] != "valid":
+            raise RuntimeError("warm doctor did not validate the runtime cache")
+        warm_acquisition = warm_doctor["acquisition"]
+        if not isinstance(warm_acquisition, dict):
+            raise RuntimeError("warm doctor acquisition state must be an object")
+        if warm_acquisition["source_required"] or warm_acquisition["runtime_required"]:
+            raise RuntimeError("warm doctor incorrectly requires acquisition")
+
         # Warm validation while network access is available. Toolchain generations
         # before self-contained validation do not create COMPOSITION_VALIDATION_CACHE;
         # generations that do must leave a validated runtime marker.
@@ -259,7 +331,7 @@ def main() -> int:
         )
 
     print(
-        "Composition installed-skill runner cache/provenance smoke test: OK "
+        "Composition installed-skill runner doctor/cache/provenance smoke test: OK "
         f"({expected_revision})"
     )
     return 0
