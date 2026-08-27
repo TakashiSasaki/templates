@@ -4,9 +4,9 @@ This directory records the immutable publication identities for the installable 
 
 The stable publication deliberately separates three full-SHA identities:
 
-- **installer script revision** `fba369099e864137e3d6f9460b21e95da91eb200` — the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `92c38aa2c45203513849c011347951d2b8ee72d1` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
-- **stable Composition toolchain revision** `16e8c11b15bfc1c93e9f1de89a496393529430a5` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
+- **installer script revision** `08c7c9ac647000b7e7232ad5eda4f0b3506a7675` — the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `e8ee87483ea97e6cce8f27e6438d98a5a7c724a7` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
+- **stable Composition toolchain revision** `16d3eb411729a79549dbaaf6dab1d05207f83415` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
 
 `composition-installer.json` is the machine-readable authority for these identities. `scripts/verify_composition_skill_installer_release.py` verifies the descriptor against repository history, the complete runnable Skill distribution, the complete snapshot-aware toolchain surface, the runtime-lock digest, and strict ancestry between the three immutable revisions.
 
@@ -17,7 +17,7 @@ This skill-source release includes the read-only `doctor` command. For normal co
 Install the published skill with an installer URL pinned to the installer script revision:
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/fba369099e864137e3d6f9460b21e95da91eb200/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
 For an existing Composition skill installation, append `--replace`. Replacement remains guarded by the local skill installer and is accepted only when the destination is already identified as this skill.
