@@ -23,6 +23,8 @@ create repository
   ↓
 install Composition
   ↓
+run local bootstrap doctor
+  ↓
 create composition.json
   ↓
 inspect → plan → review → apply → validate
@@ -90,7 +92,7 @@ Use the reviewed immutable installer. This example installs the skill at `/absol
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected**
@@ -104,6 +106,26 @@ None in Release Note Helper. The Composition skill and its runtime/validation ca
 **What this means**
 
 You now have the normal repository-facing Composition runner. The full SHA is intentional and preserves the reviewed immutable-source model; deeper installer/toolchain identity details are in [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse).
+
+Before the first source/runtime acquisition, run the installed skill's read-only local doctor:
+
+```sh
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/release-note-helper \
+  doctor
+```
+
+**Expected**
+
+The report identifies the selected immutable toolchain revision, CPython support, Git availability, effective runner-cache path, and whether source/runtime acquisition is required. A fresh installation normally reports those caches as absent/not-evaluable and acquisition as required. It deliberately reports remote/package-source availability as not probed.
+
+**Repository change**
+
+None. Doctor does not modify Release Note Helper and does not acquire source/runtime state from the network. It performs and cleans up transient write/atomic-rename probes in the external runner cache and may therefore create otherwise-empty cache parent directories.
+
+**What this means**
+
+`READY` means the locally observable runner prerequisites do not currently block the normal runner path. It is not Composition validation and does not guarantee that a later cold acquisition can reach GitHub or package indexes. If doctor reports a blocker, fix the stated local prerequisite/cache problem rather than editing Composition lock, transaction, or cache markers.
 
 **Next**
 
@@ -402,6 +424,7 @@ First-use success means a human can reach all of these states without reading th
 
 - Release Note Helper lives in a separate consumer repository.
 - Composition is installed outside it.
+- the local `doctor` reports bootstrap/cache readiness without being confused with Composition validation.
 - `composition.json` selects the minimal `skill` recipe.
 - `inspect -> plan -> review -> apply -> validate` is followed in order.
 - `plan` is understood to be read-only.
