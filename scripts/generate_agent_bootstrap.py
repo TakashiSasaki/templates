@@ -37,6 +37,7 @@ if actual != expected:
         f"installer SHA-256 mismatch: expected {expected}, got {actual}"
     )
 path = pathlib.Path(installer_file)
+path.parent.mkdir(parents=True, exist_ok=True)
 path.write_bytes(data)
 subprocess.run(
     [sys.executable, "-I", str(path), skill_target],

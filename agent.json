@@ -45,7 +45,7 @@
       "{python}",
       "-I",
       "-c",
-      "import hashlib\nimport pathlib\nimport subprocess\nimport sys\nimport urllib.request\n\nurl, expected, installer_file, skill_target = sys.argv[1:5]\ndata = urllib.request.urlopen(url, timeout=30).read()\nactual = hashlib.sha256(data).hexdigest()\nif actual != expected:\n    raise SystemExit(\n        f\"installer SHA-256 mismatch: expected {expected}, got {actual}\"\n    )\npath = pathlib.Path(installer_file)\npath.write_bytes(data)\nsubprocess.run(\n    [sys.executable, \"-I\", str(path), skill_target],\n    check=True,\n)\n",
+      "import hashlib\nimport pathlib\nimport subprocess\nimport sys\nimport urllib.request\n\nurl, expected, installer_file, skill_target = sys.argv[1:5]\ndata = urllib.request.urlopen(url, timeout=30).read()\nactual = hashlib.sha256(data).hexdigest()\nif actual != expected:\n    raise SystemExit(\n        f\"installer SHA-256 mismatch: expected {expected}, got {actual}\"\n    )\npath = pathlib.Path(installer_file)\npath.parent.mkdir(parents=True, exist_ok=True)\npath.write_bytes(data)\nsubprocess.run(\n    [sys.executable, \"-I\", str(path), skill_target],\n    check=True,\n)\n",
       "{installer_url}",
       "{installer_sha256}",
       "{installer_file}",

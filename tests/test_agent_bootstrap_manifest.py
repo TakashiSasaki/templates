@@ -137,7 +137,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             )
             installer_bytes = source_installer.read_bytes()
             good_digest = hashlib.sha256(installer_bytes).hexdigest()
-            downloaded = root / "downloaded-installer.py"
+            downloaded = root / "downloads" / "nested" / "downloaded-installer.py"
             skill_target = root / "skill-target"
 
             def resolve(expected_digest: str) -> list[str]:
@@ -162,6 +162,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn("installer SHA-256 mismatch", failed.stderr)
             self.assertFalse(downloaded.exists())
+            self.assertFalse(downloaded.parent.exists())
             self.assertFalse((skill_target / "executed").exists())
 
             subprocess.run(resolve(good_digest), check=True)
@@ -225,6 +226,10 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         )
         self.assertIn(
             "argument_bindings",
+            schema_value["properties"]["bootstrap"]["required"],
+        )
+        self.assertIn(
+            "caller_inputs",
             schema_value["properties"]["bootstrap"]["required"],
         )
         self.assertIn(
