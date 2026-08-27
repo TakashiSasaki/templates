@@ -6,6 +6,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+import yaml
 from packaging.requirements import Requirement
 
 from scripts.smoke_test_runtime_distribution import environment as smoke_environment
@@ -82,6 +83,18 @@ def test_runtime_workflow_does_not_use_pip_cache_before_sanitization() -> None:
     assert "PYTHONHOME:" in workflow
     assert "PYTHONPATH:" in workflow
     assert "run: python -I scripts/smoke_test_runtime_distribution.py" in workflow
+
+
+def test_runtime_workflow_trigger_tiers_are_exact() -> None:
+    workflow = (ROOT / ".github/workflows/runtime-distribution.yml").read_text(
+        encoding="utf-8"
+    )
+    document = yaml.load(workflow, Loader=yaml.BaseLoader)
+
+    triggers = document["on"]
+    assert set(triggers) == {"push", "pull_request"}
+    assert triggers["push"] == {"branches": ["policy"]}
+    assert triggers["pull_request"] == {"branches": ["policy"]}
 
 
 def test_runtime_verifier_imports_shared_helpers_under_isolated_python() -> None:
