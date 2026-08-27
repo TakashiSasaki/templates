@@ -34,15 +34,37 @@ export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cac
 
 cache は product repository の外側に置きます。`COMPOSITION_RUNTIME_CACHE` に残るのは validation 済み Python runtime state であり、通常の Composition source snapshot は disposable で、そこには保存されません。
 
-通常の consumer は immutable かつ stdlib-only の bootstrap script から公開済み Composition skill をインストールします。installer URL は branch/tag ではなく review 済み installer commit に固定されています。
+通常の consumer は immutable かつ stdlib-only の bootstrap script から公開済み Composition skill をインストールします。installer URL は branch/tag ではなく review 済み installer commit に固定され、downloaded bytes は write / execute の前に公開済み SHA-256 と一致しなければなりません。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /path/to/agent-skills/composition
 ```
 
-既存 destination にこの Composition skill がある場合は `--replace` を追加できます。`SKILL.md` によって `composition` skill と識別できない directory の replacement は拒否されます。
+digest mismatch では installer bytes を書き出す前かつ installer process を起動する前に終了します。出力される verified digest は audit evidence として保存できます。既存 destination にこの Composition skill がある場合は `--replace` を追加できます。`SKILL.md` によって `composition` skill と識別できない directory の replacement は拒否されます。
 
-公開済み immutable identity は役割ごとに分かれています。installer `677dc68fe35fc285638b46685950d31e3a3d3c2f` は skill source `69af2ed811875f95838bf978ee09365554405664` をインストールし、その runtime manifest は stable toolchain `16d3eb411729a79549dbaaf6dab1d05207f83415` を選択します。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。
+公開済み immutable identity は役割ごとに分かれています。installer `677dc68fe35fc285638b46685950d31e3a3d3c2f` は skill source `69af2ed811875f95838bf978ee09365554405664` をインストールし、その runtime manifest は stable toolchain `16d3eb411729a79549dbaaf6dab1d05207f83415` を選択します。installer bytes はさらに SHA-256 `134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34` に固定されています。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。mutable branch/tag を installer URL に置き換えず、verified bootstrap を downloaded bytes の direct execution に置き換えないでください。
 
 通常の command shape は次のとおりです。
 

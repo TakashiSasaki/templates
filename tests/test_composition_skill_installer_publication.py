@@ -17,6 +17,13 @@ RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
 SKILL_WALKTHROUGH = ROOT / "docs" / "guides" / "skill-first-use-walkthrough.md"
 WEBAPP_WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
+TRANSLATED_CONSUMER_GUIDE = ROOT / "translations" / "ja" / "docs" / "consumer-guide.md"
+TRANSLATED_SKILL_WALKTHROUGH = (
+    ROOT / "translations" / "ja" / "docs" / "guides" / "skill-first-use-walkthrough.md"
+)
+TRANSLATED_WEBAPP_WALKTHROUGH = (
+    ROOT / "translations" / "ja" / "docs" / "guides" / "webapp-product-walkthrough.md"
+)
 INSTALLER_REVISION = "677dc68fe35fc285638b46685950d31e3a3d3c2f"
 INSTALLER_SHA256 = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
 SKILL_REVISION = "69af2ed811875f95838bf978ee09365554405664"
@@ -51,6 +58,16 @@ def load_json(path: Path) -> dict[str, object]:
 
 
 class CompositionSkillInstallerPublicationTests(unittest.TestCase):
+    def assert_verified_bootstrap_guidance(self, path: Path) -> None:
+        content = path.read_text(encoding="utf-8")
+        self.assertIn(RAW_INSTALLER_URL, content)
+        self.assertIn(INSTALLER_SHA256, content)
+        self.assertIn("hashlib.sha256(data).hexdigest()", content)
+        self.assertIn("if actual != expected:", content)
+        self.assertIn("subprocess.run", content)
+        self.assertIn("Verified Composition installer SHA-256", content)
+        self.assertNotIn("exec(urllib.request.urlopen", content)
+
     def test_release_descriptor_is_schema_valid_and_separates_identities(self) -> None:
         descriptor = load_json(DESCRIPTOR)
         Draft202012Validator(load_json(SCHEMA)).validate(descriptor)
@@ -91,14 +108,13 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
             (INSTALLER_REVISION, SKILL_REVISION, TOOLCHAIN_REVISION),
         )
 
-    def test_release_readme_publishes_only_full_sha_installer_url(self) -> None:
+    def test_release_readme_publishes_only_verified_full_sha_installer(self) -> None:
         content = RELEASE_README.read_text(encoding="utf-8")
-        self.assertIn(RAW_INSTALLER_URL, content)
+        self.assert_verified_bootstrap_guidance(RELEASE_README)
         self.assertIn("installer script revision", content)
         self.assertIn("skill source revision", content)
         self.assertIn("stable Composition toolchain revision", content)
         self.assertIn(INSTALLER_REVISION, content)
-        self.assertIn(INSTALLER_SHA256, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
         self.assertIn("read-only `doctor` command", content)
@@ -110,9 +126,9 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         )
         self.assertNotIn("/tar.gz/composition", content)
 
-    def test_consumer_guide_publishes_only_full_sha_installer_url(self) -> None:
+    def test_consumer_guide_publishes_only_verified_full_sha_installer(self) -> None:
         content = CONSUMER_GUIDE.read_text(encoding="utf-8")
-        self.assertIn(RAW_INSTALLER_URL, content)
+        self.assert_verified_bootstrap_guidance(CONSUMER_GUIDE)
         self.assertIn(INSTALLER_REVISION, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
@@ -125,11 +141,11 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         )
         self.assertNotIn("/tar.gz/composition", content)
 
-    def test_first_use_walkthroughs_publish_current_installer_and_doctor(self) -> None:
+    def test_first_use_walkthroughs_publish_verified_installer_and_doctor(self) -> None:
         for path in (SKILL_WALKTHROUGH, WEBAPP_WALKTHROUGH):
             with self.subTest(path=path.relative_to(ROOT).as_posix()):
                 content = path.read_text(encoding="utf-8")
-                self.assertIn(RAW_INSTALLER_URL, content)
+                self.assert_verified_bootstrap_guidance(path)
                 self.assertIn("doctor", content)
                 self.assertNotIn(
                     "raw.githubusercontent.com/TakashiSasaki/templates/composition/",
@@ -138,6 +154,15 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
                 self.assertNotIn(
                     "raw.githubusercontent.com/TakashiSasaki/templates/main/", content
                 )
+
+    def test_japanese_bootstrap_guidance_is_also_verified_before_execute(self) -> None:
+        for path in (
+            TRANSLATED_CONSUMER_GUIDE,
+            TRANSLATED_SKILL_WALKTHROUGH,
+            TRANSLATED_WEBAPP_WALKTHROUGH,
+        ):
+            with self.subTest(path=path.relative_to(ROOT).as_posix()):
+                self.assert_verified_bootstrap_guidance(path)
 
     def test_consumer_guide_documents_self_contained_validation_cache(self) -> None:
         content = CONSUMER_GUIDE.read_text(encoding="utf-8")

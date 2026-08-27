@@ -16,18 +16,40 @@ This skill-source release includes the read-only `doctor` command. For normal co
 
 ## Agent bootstrap
 
-A coding agent should treat `composition-installer.json` as data rather than assuming a particular download utility. It may use any available HTTPS transport to fetch the installer at the descriptor's immutable repository/revision/path, but it should verify the downloaded bytes against `installer.sha256` before execution. Save the verified installer to a temporary file, execute it with the supported CPython interpreter in isolated mode (`python -I <installer> <target>`), and remove the temporary installer afterward. Neither `curl` nor `wget` nor a templates clone is required by this contract.
+A coding agent should treat `composition-installer.json` as data rather than assuming a particular download utility. It may use any available HTTPS transport to fetch the installer at the descriptor's immutable repository/revision/path, but it must verify the downloaded bytes against `installer.sha256` before execution. Save the verified installer to a temporary file, execute it with the supported CPython interpreter in isolated mode (`python -I <installer> <target>`), and remove the temporary installer afterward. A digest mismatch must terminate before the installer bytes are written or executed. Neither `curl` nor `wget` nor a templates clone is required by this contract.
 
 The target may be a persistent Agent Skills directory when the host exposes one, or an OS temporary directory for a transient invocation. In either case the installed Composition Skill remains the repository-facing interface and owns `doctor`, `provenance`, `inspect`, `plan`, `apply`, and `validate`.
 
-## Immutable one-line installation
+## Verified installation
 
-For interactive users who prefer a compact command, install the published skill with an installer URL pinned to the installer script revision:
+For interactive users, use the same verify-before-execute invariant. The following POSIX-shell command needs only a supported CPython interpreter. It downloads the immutable installer, verifies the published SHA-256 in memory, prints the verified digest as audit evidence, and only then writes and executes a temporary installer in isolated mode:
 
-```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+```sh
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /path/to/agent-skills/composition
 ```
 
-The machine-oriented bootstrap above is preferred when the caller can verify the published digest before execution. For an existing Composition skill installation, append `--replace`. Replacement remains guarded by the local skill installer and is accepted only when the destination is already identified as this skill.
+For an existing Composition skill installation, append `--replace`. Replacement remains guarded by the local skill installer and is accepted only when the destination is already identified as this skill. Do not replace this command with `exec(urlopen(...).read())`: pinning a URL to a full commit SHA does not by itself verify that the bytes received match the published installer digest.
 
 The commands and bootstrap protocol above never execute the mutable `composition` branch or a tag and do not require a templates clone. Normal Composer invocations obtain the selected full-SHA GitHub archive into an OS temporary directory, verify the snapshot inventory while executing, and remove the source snapshot afterward. The validated Python runtime cache remains a separate persistent performance optimization.

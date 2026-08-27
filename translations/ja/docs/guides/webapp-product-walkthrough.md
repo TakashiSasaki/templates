@@ -78,17 +78,41 @@ sandbox / CI の user cache が writable でなければ、`COMPOSITION_RUNTIME_
 
 ## 3. Composition を install する
 
-product repository 外へ reviewed immutable installer で install します。
+product repository 外へ reviewed immutable installer で install します。stable release は installer full-SHA identity と SHA-256 digest の両方を公開しているため、downloaded bytes を write / execute する前に digest を検証します。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /absolute/path/to/agent-skills/composition
 ```
+
+digest mismatch では installer bytes を書き出す前かつ installer process を起動する前に終了します。出力される verified digest は audit evidence として保存できます。既存 destination にこの Composition skill がある場合は `--replace` を追加できます。replacement は installer によって guard され、この Skill と識別できる既存 directory にだけ許可されます。
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
 
 **Repository change:** Task Ledger にはなし。Composition Skill と runtime/validation cache は repository 外にあり、selected Composition source は invocation ごとの ephemeral full-SHA archive snapshot で、templates checkout として保持されません。
 
-full SHA は immutable-source model のためです。詳細は [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) を参照してください。
+full SHA は reviewed immutable-source identity を固定し、SHA-256 は実際に受信した installer bytes を execution 前に検証します。この2つは別の check です。詳細は [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) を参照してください。
 
 最初の Composer execution 前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
 

@@ -34,15 +34,37 @@ export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cac
 
 Use environment-appropriate paths and keep these caches outside the product repository. `COMPOSITION_RUNTIME_CACHE` contains validated Python runtime state only; normal Composition source snapshots are disposable and are not stored there. An unwritable default cache is an environment problem, not a reason to change Composition ownership or execute a mutable source revision.
 
-Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag:
+Normal consumers install the published Composition skill through the immutable stdlib-only bootstrap script. The installer URL is pinned to the reviewed installer commit rather than to a branch or tag, and the downloaded bytes must match the published installer SHA-256 before they are written or executed:
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /path/to/agent-skills/composition
 ```
 
-If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
+A digest mismatch exits before installer bytes are written or an installer process is launched. The printed digest is useful audit evidence. If that destination already contains this Composition skill, append `--replace`. Replacement is refused when the existing directory is not identified by `SKILL.md` as the `composition` skill.
 
-The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `677dc68fe35fc285638b46685950d31e3a3d3c2f` installs skill source `69af2ed811875f95838bf978ee09365554405664`; that skill's runtime manifest selects stable Composition toolchain revision `16d3eb411729a79549dbaaf6dab1d05207f83415`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL.
+The published installer identity, installed skill source identity, and stable Composition toolchain identity are separate immutable full SHAs. The installer at `677dc68fe35fc285638b46685950d31e3a3d3c2f` installs skill source `69af2ed811875f95838bf978ee09365554405664`; that skill's runtime manifest selects stable Composition toolchain revision `16d3eb411729a79549dbaaf6dab1d05207f83415`. The installer bytes are additionally pinned by SHA-256 `134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34`. These identities are recorded in `release/composition-installer.json` and verified from repository history by Composition CI. Do not substitute the mutable `composition` branch or a tag into the installer URL, and do not replace the verified bootstrap with direct execution of downloaded bytes.
 
 The normal command shape is:
 
