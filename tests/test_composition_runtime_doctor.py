@@ -194,6 +194,41 @@ class CompositionRuntimeDoctorTests(unittest.TestCase):
         self.assertFalse(payload["acquisition"]["runtime_required"])
         self.assertEqual(payload["blockers"], [])
 
+    def test_invalid_selected_source_runtime_lock_is_a_blocker_not_acquisition(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cache = root / "cache"
+            repository = root / "consumer"
+            manifest = runner.load_manifest()
+            selected = runner.stable_revision(manifest)
+            source_entry = runner.source_cache_entry(cache, selected)
+            source_entry.mkdir(parents=True)
+            runner.source_checkout(source_entry).mkdir()
+            diagnostic = "stable runtime lock digest mismatch"
+
+            with (
+                mock.patch.object(runner, "cache_root", return_value=cache),
+                mock.patch.object(runner.shutil, "which", return_value="/usr/bin/git"),
+                mock.patch.object(runner, "source_valid", return_value=True),
+                mock.patch.object(
+                    runner,
+                    "runtime_lock_data",
+                    side_effect=runner.RunnerError(diagnostic),
+                ),
+            ):
+                payload = runner.doctor_payload(repository)
+
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(payload["checks"]["source_cache"]["status"], "valid")
+        self.assertEqual(payload["checks"]["runtime_cache"]["status"], "blocked")
+        self.assertEqual(payload["checks"]["runtime_cache"]["diagnostic"], diagnostic)
+        self.assertFalse(payload["acquisition"]["source_required"])
+        self.assertFalse(payload["acquisition"]["runtime_required"])
+        self.assertEqual(
+            payload["blockers"],
+            [f"selected source runtime lock is unusable: {diagnostic}"],
+        )
+
     def test_host_python_failure_is_reported_as_blocker(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             cache = Path(temporary) / "cache"
