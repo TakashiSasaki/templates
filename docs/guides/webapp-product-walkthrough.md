@@ -104,7 +104,7 @@ Normal consumers install the Composition skill through the reviewed immutable in
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 If that destination already contains an installed Composition skill, use the documented `--replace` path in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill) rather than deleting or overwriting an arbitrary directory.
@@ -120,6 +120,16 @@ None in Task Ledger. The skill is installed at the separate destination you sele
 **What this means**
 
 You now have the normal consumer entry point. The full-SHA installer URL is intentional: Composition uses reviewed immutable source identities rather than a mutable branch or tag. You do not need to understand the installer/skill/toolchain SHA roles before continuing; see [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse) when you need that trust detail.
+
+Before the first source/runtime acquisition, you may run the installed skill's read-only local doctor:
+
+```sh
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/task-ledger \
+  doctor
+```
+
+A fresh installation normally reports source/runtime acquisition as required. `READY` means locally observable prerequisites do not block the runner; it is not Composition validation and does not probe GitHub/package-index availability.
 
 **Next**
 
