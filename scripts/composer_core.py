@@ -21,14 +21,26 @@ for _name, _value in vars(_impl).items():
     if not _name.startswith("__"):
         globals()[_name] = _value
 
-_SOURCE_CONTEXT: Any = composer_source.context_from_environment(_impl.SOURCE_ROOT)
+
+def _select_source_context() -> Any:
+    # A real authority checkout must never be downgraded to caller-supplied snapshot
+    # metadata through an inherited environment variable. Archive-backed normal
+    # consumers have no .git directory and therefore require the runner-provided
+    # immutable snapshot context.
+    git_directory = _impl.SOURCE_ROOT / ".git"
+    if git_directory.is_dir() and not git_directory.is_symlink():
+        return composer_source.GitSourceContext(_impl.SOURCE_ROOT)
+    return composer_source.context_from_environment(_impl.SOURCE_ROOT)
+
+
+_SOURCE_CONTEXT: Any = _select_source_context()
 
 
 def source_context() -> Any:
     """Return the active Composition source context.
 
     A reviewed Git checkout is the authority-maintainer default. Normal consumers
-    can provide immutable snapshot metadata through COMPOSITION_SOURCE_CONTEXT;
+    provide immutable snapshot metadata through COMPOSITION_SOURCE_CONTEXT;
     Composer semantics remain independent of acquisition mechanics.
     """
 
