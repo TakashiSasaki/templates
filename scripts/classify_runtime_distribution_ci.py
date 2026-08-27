@@ -7,7 +7,6 @@ import argparse
 import re
 import subprocess
 import sys
-from collections.abc import Sequence
 from pathlib import Path
 
 
@@ -49,7 +48,7 @@ def is_compatibility_sensitive_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in COMPATIBILITY_SENSITIVE_PREFIXES)
 
 
-def classify_paths(paths: Sequence[str]) -> tuple[bool, str]:
+def classify_paths(paths: list[str]) -> tuple[bool, str]:
     """Return (compatibility_required, stable_reason) for one changed-path set."""
     if not paths:
         return True, "no-changes"
