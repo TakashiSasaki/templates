@@ -735,8 +735,10 @@ def _evidence_mode(root: Path) -> str:
     """Read the consumer evidence mode for the lifecycle projection only."""
     try:
         evidence = _load_json(root / "contracts/implementation-evidence.json")
-    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+    except FileNotFoundError:
         return "missing"
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return "invalid"
     if not isinstance(evidence, dict):
         return "invalid"
     mode = evidence.get("mode")

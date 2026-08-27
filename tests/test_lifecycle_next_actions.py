@@ -70,6 +70,45 @@ class LifecycleNextActionsTests(unittest.TestCase):
         self.assertEqual(ready["next_actions"], [])
 
 
+
+    def test_missing_evidence_is_explicitly_scaffold_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            value = runner._lifecycle_projection(Path(temp_dir), "valid", [])
+        self.schema_validator.validate(value)
+        self.assertEqual(value["implementation_evidence_mode"], "missing")
+        self.assertEqual(value["blocking_conditions"], ["implementation-evidence-missing"])
+        self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+
+    def test_malformed_evidence_is_invalid_not_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            evidence = root / "contracts" / "implementation-evidence.json"
+            evidence.parent.mkdir()
+            evidence.write_text("{", encoding="utf-8")
+            self.assertEqual(runner._evidence_mode(root), "invalid")
+
+    def test_check_failure_is_invalid_even_with_valid_status(self) -> None:
+        value = self.project(
+            "product", checks=[{"id": "webapp-contracts", "status": "failed"}]
+        )
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"], ["composition-validation-failed"]
+        )
+
+    def test_deferred_check_ids_are_sorted(self) -> None:
+        value = self.project(
+            "product",
+            checks=[
+                {"id": "release-evidence-template", "status": "deferred"},
+                {"id": "browser-proof", "status": "deferred"},
+            ],
+        )
+        self.assertEqual(
+            value["deferred_checks"],
+            ["browser-proof", "release-evidence-template"],
+        )
+
     def test_invalid_evidence_fails_closed_to_repair_actions(self) -> None:
         value = self.project("unexpected-mode")
         self.assertEqual(value["lifecycle_stage"], "composition-invalid")
