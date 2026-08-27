@@ -10,6 +10,25 @@
 
 Python / SQLite は Task Ledger の product decision であり、Composition の推奨 technology ではありません。
 
+
+## Completion path at a glance
+
+この短い path を、walkthrough 全体の completion gate として使います。以下の numbered sections は詳細な product example を維持し、この一覧で lifecycle milestone を先に明示します。
+
+1. **Doctor** — install 済み Composition の `doctor` を実行し、local bootstrap blocker を解消します。
+2. **Inspect** — mutation 前に target repository を inspect します。
+3. **Plan** — read-only の Composition plan を作成します。
+4. **Review** — target、resolved components、actions、conflicts を確認します。
+5. **Apply** — review 済み plan だけを apply して scaffold を materialize します。
+6. **Validate scaffold** — Composition `validate` を実行します。最初の `VALID` は scaffold milestone にすぎません。
+7. **Implement product** — consumer-owned contracts と ordinary product code を実装します。product code だけでは implemented-product milestone ではありません。
+8. **Populate product evidence** — implementation evidence を `planning` / `template` から truthful な `product` evidence に更新し、current records、proofs、commands、gates を埋めます。
+9. **Run product verifier** — authoritative product verifier を実行し、結果を evidence として保持します。
+10. **Validate product state** — Composition validation を再実行し、machine-readable な `lifecycle.next_actions` に従います。evidence が `planning` / `template` のままなら続行し、scaffold `VALID` で止まりません。
+11. **Check release readiness** — exact release-readiness operation を実行します。required browser proof が一つでも deferred なら、implementation と ordinary validation が pass でも `NOT READY` です。
+
+最初の `VALID` は scaffold milestone であり、implemented-product / release-ready claim ではありません。implementation milestone には truthful な product evidence と passing product verifier が必要です。release milestone は別であり、required proof が missing、deferred、failed、または未評価の間は `NOT READY` のままです。
+
 ## 0. この walkthrough で何を作るか
 
 `TakashiSasaki/templates` 自体を application repository にするのではなく、**別の `task-ledger` product repository** を作ります。通常の Composition consumption のために templates repository を clone する必要はありません。
