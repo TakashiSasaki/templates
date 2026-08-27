@@ -21,15 +21,15 @@ for _name, _value in vars(_impl).items():
     if not _name.startswith("__"):
         globals()[_name] = _value
 
-_SOURCE_CONTEXT: Any = composer_source.GitSourceContext(_impl.SOURCE_ROOT)
+_SOURCE_CONTEXT: Any = composer_source.context_from_environment(_impl.SOURCE_ROOT)
 
 
 def source_context() -> Any:
     """Return the active Composition source context.
 
-    The Git-backed context is the reviewed-checkout default. Normal consumer
-    acquisition will install a snapshot-backed context through this single
-    boundary rather than teaching Composer logic about acquisition mechanics.
+    A reviewed Git checkout is the authority-maintainer default. Normal consumers
+    can provide immutable snapshot metadata through COMPOSITION_SOURCE_CONTEXT;
+    Composer semantics remain independent of acquisition mechanics.
     """
 
     return _SOURCE_CONTEXT
