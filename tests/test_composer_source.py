@@ -51,7 +51,12 @@ class GitSourceContextTests(unittest.TestCase):
             path.write_text("{}\n", encoding="utf-8")
             context = composer_source.GitSourceContext(root)
             result = subprocess.CompletedProcess([], 1, stdout="", stderr="not tracked")
-            with mock.patch.object(context, "run_git", return_value=result):
+            with mock.patch.object(
+                composer_source.GitSourceContext,
+                "run_git",
+                autospec=True,
+                return_value=result,
+            ):
                 with self.assertRaisesRegex(
                     composer_source.SourceContextError,
                     "not tracked",
@@ -62,7 +67,12 @@ class GitSourceContextTests(unittest.TestCase):
     def test_verify_descendant_accepts_ancestor(self) -> None:
         context = composer_source.GitSourceContext(ROOT)
         success = subprocess.CompletedProcess([], 0, stdout="", stderr="")
-        with mock.patch.object(context, "run_git", return_value=success) as run_git:
+        with mock.patch.object(
+            composer_source.GitSourceContext,
+            "run_git",
+            autospec=True,
+            return_value=success,
+        ) as run_git:
             context.verify_descendant("1" * 40, "2" * 40)
         self.assertEqual(run_git.call_count, 2)
 
@@ -74,7 +84,12 @@ class GitSourceContextTests(unittest.TestCase):
                 subprocess.CompletedProcess([], 1, stdout="", stderr=""),
             )
         )
-        with mock.patch.object(context, "run_git", side_effect=lambda *_a, **_k: next(results)):
+        with mock.patch.object(
+            composer_source.GitSourceContext,
+            "run_git",
+            autospec=True,
+            side_effect=lambda *_a, **_k: next(results),
+        ):
             with self.assertRaisesRegex(
                 composer_source.SourceContextError,
                 "not a descendant",
