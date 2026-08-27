@@ -12,6 +12,7 @@ Choose the path that matches the task you are trying to accomplish:
 
 | I want to… | Start with |
 |---|---|
+| Bootstrap a coding agent to use this repository from another project | Read the machine-readable [`agent.json`](agent.json), also published at `https://templates.moukaeritai.work/agent.json` |
 | Build or maintain an Agent Skill or Web application repository | [Composition](https://templates.moukaeritai.work/composition/) and its [guided view](https://templates.moukaeritai.work/guided/) |
 | Understand which runtime, CLI, browser, service, MCP, or lifecycle capability to select | [Capabilities](https://templates.moukaeritai.work/capabilities/) and [Lifecycle](https://templates.moukaeritai.work/lifecycle/) |
 | Add verifiable coding-agent operating rules to a repository | [Policy](https://templates.moukaeritai.work/policy/) |
@@ -91,6 +92,8 @@ A public document is identified by `publication:document`, for example
 
 The integrated portal exposes:
 
+- `/agent.json` — the machine-readable coding-agent bootstrap projection;
+- `/schemas/agent-bootstrap.schema.json` — its public JSON Schema;
 - `/composition/` — composition architecture, catalog, and composer;
 - `/skill/` — Agent Skill artifact semantics;
 - `/capabilities/` — runtime, CLI, MCP, MCP Apps, browser, and service
