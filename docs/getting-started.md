@@ -73,7 +73,7 @@ Use the published immutable installer:
 **Run**
 
 ```bash
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/b330f517ad2a348fafc7cb9f690b4df298ee24f4/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/202c4e7a66584244accf2000e86525409b1ca806/scripts/install_agent_policy_skill.py', timeout=30).read())" /path/to/agent-skills/agent-policy
 ```
 
 Append `--replace` only when intentionally replacing an existing `agent-policy` skill installation.
@@ -317,8 +317,8 @@ The details below are important for reproducibility and supply-chain trust, but 
 
 Three full-SHA identities intentionally remain separate:
 
-- **installer script revision** `b330f517ad2a348fafc7cb9f690b4df298ee24f4` identifies the remotely executed installer;
-- **skill source revision** `1656a0a18076dcb90d5ccadc0c6271fb557fe2a7` identifies the installed `skills/agent-policy/` subtree; and
+- **installer script revision** `202c4e7a66584244accf2000e86525409b1ca806` identifies the remotely executed installer;
+- **skill source revision** `499dc8699e3dcd9f460d603718bdf2266c45e7ca` identifies the installed `skills/agent-policy/` subtree; and
 - the **stable runtime revision** in the installed `runtime-manifest.json` identifies the canonical CLI runtime used by the skill.
 
 `release/skill-installer.json` records the first two identities. The published command does not execute `policy`, a tag, or an abbreviated SHA.
