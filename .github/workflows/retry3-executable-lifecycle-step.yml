@@ -1,0 +1,74 @@
+name: Retry executable lifecycle next step v3
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step
+
+permissions:
+  contents: write
+
+jobs:
+  retry:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Run corrected finalizer and remove all staging workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/finalize-executable-lifecycle-step.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY\n", start)
+          code = textwrap.dedent(source[start:end])
+
+          # Replace the fragile component-version textual guard with an exact
+          # anchored line substitution that cannot match schema_version.
+          old_start = code.index('checkpoint_component = replace_once(\n')
+          old_end_marker = 'label="checkpoint component version"\n)\n'
+          old_end = code.index(old_end_marker, old_start) + len(old_end_marker)
+          replacement = '''import re
+          version_pattern = re.compile(r'(?m)^  "version": 1,$')
+          checkpoint_component, version_count = version_pattern.subn(
+              '  "version": 2,', checkpoint_component
+          )
+          if version_count != 1:
+              raise SystemExit(
+                  f"checkpoint component exact version line mismatch: {version_count}"
+              )
+          '''
+          code = code[:old_start] + textwrap.dedent(replacement) + code[old_end:]
+
+          # Remove the staging-only no-op replacement guard before execution.
+          noop_label = '    label="noop guard for test source stability",\n)\n'
+          noop_end = code.index(noop_label) + len(noop_label)
+          noop_start = code.rfind('tests = replace_once(\n', 0, noop_end)
+          if noop_start < 0:
+              raise SystemExit('noop guard start not found')
+          code = code[:noop_start] + code[noop_end:]
+
+          deletion = 'entries.append({"path": workflow_path, "mode": "100644", "type": "blob", "sha": None})'
+          if deletion not in code:
+              raise SystemExit('workflow deletion marker missing')
+          extra_deletions = '\n'.join([
+              'entries.append({"path": ".github/workflows/retry-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry2-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+              'entries.append({"path": ".github/workflows/retry3-executable-lifecycle-step.yml", "mode": "100644", "type": "blob", "sha": None})',
+          ])
+          code = code.replace(deletion, deletion + '\n' + extra_deletions, 1)
+
+          exec(compile(code, '<corrected-finalizer-v3>', 'exec'), {'__name__': '__main__'})
+          PY
