@@ -2,50 +2,47 @@
 
 > **参考訳（非正本）:** この文書は英語版 `docs/consumer-guide.md` の日本語参考訳です。正本は英語版であり、内容または解釈に相違がある場合は英語版が優先されます。
 
-このガイドは、Composition を使用して具体的な Agent Skill または Web アプリケーション repository を作成・保守する consumer 向けです。通常の consumer は、インストール済みの Composition skill runner を使用します。その runner の下では Composer が引き続き semantic authority です。
+このガイドは、Composition を使用して具体的な Agent Skill または Web application repository を作成・保守する consumer 向けです。通常の consumer はインストール済み Composition skill runner を使用し、その下では Composer が引き続き semantic authority です。
 
-このガイドでは、具体的な Skill または Web アプリケーション repository の保守者を consumer と呼びます。**Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人だけを指します。
+ここで **Composition authority 保守者** とは、`TakashiSasaki/templates` の `composition` authority 自体を変更・保守する人を指します。consumer repository の保守者とは区別します。
 
-Composer の正確な options、plan fields、ownership definitions、および diagnostic codes については、[Composer reference](reference/composer.md) を参照してください。
+Composer の正確な options、plan fields、ownership definitions、diagnostic codes については [Composer reference](reference/composer.md) を参照してください。
 
 ## 操作を選ぶ
 
-実行したいことから操作を選びます。
-
 | 目的 | 操作 |
 | --- | --- |
-| まだ Composition によって managed されていない repository を作成する | `initial` |
-| 記録済み intent を変更せずに、既存の managed repository をより新しい descendant Composition revision へ移行する | `update` |
-| recipe、component selection、parameters を明示的に変更する、または component-version compatibility boundary を越える | `upgrade` |
-| 中断された `update` または `upgrade` を再開する | 対応する `apply --mode ...` 操作を再実行する |
+| まだ Composition-managed でない repository を作成する | `initial` |
+| 記録済み intent を変えず、より新しい descendant Composition revision へ進める | `update` |
+| recipe、component selection、parameters を変更する、または component-version compatibility boundary を越える | `upgrade` |
+| 中断された `update` / `upgrade` を再開する | 対応する `apply --mode ...` を再実行する |
 
-`inspect` と `validate` は mode-neutral です。mutating operation を選ぶ前に `inspect` を使い、apply が成功した後に `validate` を使います。
+`inspect` と `validate` は mode-neutral です。mutation の前に `inspect`、成功した apply の後に `validate` を使用します。
 
 ## Composition skill をインストールして実行する
 
-対応している runner prerequisite は次のとおりです。
+通常の consumer に必要な local prerequisite は CPython 3.11、3.12、3.13、または 3.14 です。**通常の Composition consumption に Git は不要です。** `TakashiSasaki/templates`、`composition`、`site`、`policy` のいずれも clone せずに利用できます。インストール済み runner は選択された immutable full-SHA Composition revision を HTTPS で取得し、source bootstrap には Python standard library を使用します。
 
-- `PATH` 上で Git が利用できること。
-- CPython 3.11、3.12、3.13、または 3.14。
+cold execution では、選択された full-SHA source archive を取得するための GitHub network access が必要です。また一致する Python runtime cache が存在しない場合は、設定された Python package source への access が必要です。managed `update` / `upgrade` ではさらに GitHub compare API による old-to-new revision ancestry 検証が必要です。これらの network dependency は fail closed であり、mutable branch への fallback や ancestry の推測は行いません。
 
-sandbox、container、CI worker、または既定の user cache が writable でない環境で実行する場合は、runner を最初に呼び出す前に writable な cache root を選択してください。runner と materialized validator には、それぞれ独立した cache override があります。
+sandbox、container、CI worker など、既定 user cache が writable でない環境では runner を最初に呼ぶ前に writable cache root を指定してください。
 
 ```sh
 export COMPOSITION_RUNTIME_CACHE=/path/to/writable/composition-runtime-cache
 export COMPOSITION_VALIDATION_CACHE=/path/to/writable/composition-validation-cache
 ```
 
-環境に適した path を使用し、これらの cache は product repository の外側に置いてください。既定 cache が writable でないことは環境上の問題であり、Composition ownership を変更したり mutable source revision を実行したりする理由にはなりません。
+cache は product repository の外側に置きます。`COMPOSITION_RUNTIME_CACHE` に残るのは validation 済み Python runtime state であり、通常の Composition source snapshot は disposable で、そこには保存されません。
 
-通常の consumer は、immutable かつ stdlib-only の bootstrap script を通じて公開済み Composition skill をインストールします。installer URL は branch や tag ではなく、review 済み installer commit に固定されています。
+通常の consumer は immutable かつ stdlib-only の bootstrap script から公開済み Composition skill をインストールします。installer URL は branch/tag ではなく review 済み installer commit に固定されています。
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /path/to/agent-skills/composition
 ```
 
-その destination にこの Composition skill がすでに存在する場合は、`--replace` を追加します。既存 directory が `SKILL.md` によって `composition` skill と識別されない場合、replacement は拒否されます。
+既存 destination にこの Composition skill がある場合は `--replace` を追加できます。`SKILL.md` によって `composition` skill と識別できない directory の replacement は拒否されます。
 
-公開済み installer identity、installed skill source identity、および stable Composition toolchain identity は、それぞれ独立した immutable full SHA です。`cb06bce5108d804a8f07fb3adb71ff4fd051e12a` の installer は skill source `06f6734c372bb30f633e6a53f78532a4cfbb7981` をインストールし、その skill の runtime manifest は stable Composition toolchain revision `423d30c647238eee3fd4064ab0a02aac7f527bd6` を選択します。これらの identity は `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。installer URL の full SHA を mutable な `composition` branch や tag に置き換えないでください。
+公開済み immutable identity は役割ごとに分かれています。installer `08c7c9ac647000b7e7232ad5eda4f0b3506a7675` は skill source `e8ee87483ea97e6cce8f27e6438d98a5a7c724a7` をインストールし、その runtime manifest は stable toolchain `16d3eb411729a79549dbaaf6dab1d05207f83415` を選択します。これらは `release/composition-installer.json` に記録され、Composition CI が repository history から検証します。
 
 通常の command shape は次のとおりです。
 
@@ -55,7 +52,11 @@ python /path/to/agent-skills/composition/scripts/run.py \
   COMMAND [COMPOSER OPTIONS]
 ```
 
-install 後、最初の acquisition の前に local bootstrap prerequisites や cache behavior を診断したい場合は、read-only `doctor` を使用します。
+runner が Composer target を所有します。Composer の `--target` を重ねて渡さず、runner の `--repository` を使用してください。
+
+### Doctor
+
+local bootstrap prerequisite や runtime-cache behavior を診断するには read-only `doctor` を使用します。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -63,9 +64,9 @@ python /path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-machine-readable diagnostics には `doctor --format json` を使用します。doctor は selected immutable revision、対応 CPython、Git availability、runner-cache の write/atomic-rename capability、および local に存在する source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime state を acquire しません。したがって `READY` は local bootstrap diagnosis であり、Composition validation の成功を意味せず、cold acquisition 時の network/package availability も保証しません。
+machine-readable 出力には `doctor --format json` を使用します。doctor は selected immutable revision、対応 CPython、persistent runtime-cache の write/atomic-rename capability を検査します。通常 consumer の Git は `not-required`、source acquisition は `ephemeral` と報告します。doctor は GitHub や package index に接続せず、source/runtime state を acquire しません。したがって `READY` は local bootstrap diagnosis であり、Composition validation の代替でも、後続 cold acquisition の network availability 保証でもありません。
 
-repository を inspect する例:
+例えば repository の状態確認は次です。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -73,51 +74,55 @@ python /path/to/agent-skills/composition/scripts/run.py \
   inspect
 ```
 
-runner が Composer target を所有します。`--target` を重ねて渡さず、runner の `--repository` を使用してください。
-
 ### Review 済み checkout からインストールする
 
-Composition authority 保守者は、正確な review 済み Composition checkout から skill をインストールすることもできます。
+Composition authority 保守者は、正確な review 済み Composition checkout から skill をインストールできます。
 
 ```sh
 python skills/composition/scripts/install.py /path/to/agent-skills/composition
 ```
 
-これは高度な source-maintenance path であり、通常の consumer installation route ではありません。checkout 自体も mutable branch identity ではなく、正確な review 済み revision でなければなりません。`--replace` は、既存 installation が Composition skill と識別済みの場合にだけ使用してください。
+これは authority-maintenance 向けの高度な path で、通常 consumer installation route ではありません。この reviewed-checkout path では Git が expected prerequisite です。
 
-### Immutable source、runtime selection、cache reuse
+### Immutable source snapshot と runtime reuse
 
-インストール済み skill は mutable な `composition` branch や tag を実行しません。
+インストール済み skill は mutable な `composition` branch/tag を実行せず、persistent templates checkout を作りません。
 
-`runtime-manifest.json` は、通常使用する full-SHA Composition source revision と、その revision の `requirements-runtime.lock` の SHA-256 を記録します。runner は invocation ごとに次を行います。
+`runtime-manifest.json` は通常使用する full-SHA Composition source revision と、その revision の `requirements-runtime.lock` SHA-256 を記録します。各 Composer invocation で runner は次を行います。
 
-1. immutable な full SHA を選択する。
-2. その exact revision に対する validation 済み cached checkout があれば再利用し、なければ ancestor history とともに `TakashiSasaki/templates` からその exact revision を取得する。
-3. checkout が選択 SHA に detached されたままであり、canonical remote を指し、byte-clean で、LF-preserving checkout settings を使用し、history が traversable であることを検証する。
-4. stable manifest revision が選択されている場合、stable runtime-lock digest を検証する。
-5. repository、revision、lock SHA-256、CPython major/minor version、および platform/machine から runtime-cache identity を導出する。
-6. marker、cached lock digest、Python/platform identity、`pip check`、および source revision の runtime verifier を検証した後にだけ runtime を再利用する。そうでなければ、dependency resolution を無効にして exact lock から新しい isolated runtime を構築し、atomic にインストールする。
-7. その revision の `scripts/compose.py` を呼び出す。
+1. immutable full SHA を選択する。
+2. Python standard library で `https://codeload.github.com/TakashiSasaki/templates/tar.gz/<full-sha>` を取得する。
+3. unsafe archive path、symbolic/hard link、duplicate/portable-colliding path、unsupported member type、archive limit 違反を拒否する。
+4. revision を OS temporary directory に展開し、すべての regular file の SHA-256 inventory を作り、repository/revision/inventory metadata を Composer に渡す。
+5. Composer authority file が acquired snapshot 内にあり inventory に含まれ、取得時 digest を維持していることを要求する。
+6. stable revision では runtime-lock digest を検証する。
+7. repository、revision、lock SHA-256、CPython major/minor、platform/machine から persistent runtime-cache identity を導出する。
+8. marker、cached lock digest、Python/platform identity、`pip check`、source revision の runtime verifier がすべて通る runtime だけを再利用し、miss では exact lock から isolated runtime を構築して atomic install する。
+9. その revision の `scripts/compose.py` を実行し、normal completion または handled failure 後に temporary source snapshot/context を削除する。
 
-高度な用途では `--revision <full-sha>` によって別の exact Composition revision を選択できます。mutable name は拒否されます。
+`--revision <full-sha>` で別の exact revision を選ぶこともできますが、現在の immutable snapshot execution contract をサポートする revision である必要があります。mutable name は拒否されます。
 
-`.template-composition/transaction.json` が存在する場合、managed recovery はより厳密です。transaction の exact source revision が stable manifest pin より優先されます。競合する `--revision` は recovery context を暗黙に変更せず拒否されます。malformed transaction metadata も fail closed します。
+`.template-composition/transaction.json` が存在する managed recovery では transaction の exact source revision が stable pin より優先されます。競合する `--revision` は拒否され、malformed transaction metadata も fail closed します。
 
-有効な source/runtime cache hit では network acquisition は不要です。既定では、runner は platform cache location の `composition/runner-v1` namespace を使用します。controlled environment または test では `COMPOSITION_RUNTIME_CACHE=/path/to/cache` で root を上書きできます。invalid cache entry は miss として扱われ、marker metadata だけを根拠に trust されることはありません。
+persistent source-cache hit は意図的に存在しません。通常の `inspect`、`plan`、`apply`、runner `validate` は invocation ごとに selected immutable source archive を再取得します。一方 `COMPOSITION_RUNTIME_CACHE` は、同一 validation 済み Python environment の再構築を避けるため persistent です。したがって warm runtime があっても normal Composer execution は完全 offline にはならず、GitHub source archive availability は必要です。`doctor` と `provenance` は network-free です。
 
-materialized validation は自己完結しています。通常の consumer は validation virtual environment を手動作成せずに `validate` を実行します。cold validation では、validator が platform cache 内に isolated validation runtime を構築し、exact な review 済み validation requirement set の package acquisition を行う場合があります。有効な warm validation cache があれば package acquisition なしで再利用します。validation cache state は product repository の外側にあり、product repository を変更しません。その identity には exact requirement-set SHA-256、CPython major/minor version、および platform/machine が含まれます。既定の platform cache は `composition/validation-v1` namespace を使用します。controlled environment、read-only environment、または test では `COMPOSITION_VALIDATION_CACHE=/path/to/writable/cache` を設定して writable cache root を選択できます。
+materialized validation は自己完結しています。cold validation では exact review 済み validation requirement set 用の isolated validation runtime を platform cache に構築する場合があります。有効な warm validation cache は package acquisition なしで再利用されます。既定 namespace は `composition/validation-v1` で、必要なら `COMPOSITION_VALIDATION_CACHE` で writable root を選べます。
 
-cache layout と reuse は performance detail です。revision selection、recovery、Composer arguments、lock/transaction semantics、material ownership は変更しません。
+cache layout/reuse は performance detail であり、revision selection、recovery、Composer arguments、lock/transaction semantics、source identity、material ownership を変更しません。
+
+### Consumer Git checkout なしの managed revision ancestry
+
+managed `update` / `upgrade` は、新しい selected source revision が old lock revision と同一、またはその descendant であることを証明しなければなりません。snapshot-backed normal-consumer execution は2つの immutable full SHA を GitHub compare API に渡して検証します。`ahead` / `identical` は許可し、`behind` / `diverged` は拒否します。unknown commit、HTTP/network failure、rate limit、malformed response、unsupported status は fail closed です。
+
+この network check が検証するのは revision ancestry であり、branch name を authority に変えるものではありません。lock と runner は full commit SHA のみを使用します。
 
 ### Source checkout から直接実行する
 
-Composition authority 保守者は、正確かつ clean な Composition checkout から `scripts/compose.py` を直接実行することもできます。この path は runner と独立して確立された `requirements-runtime.lock` の consumer runtime contract を使用します。通常の consumer は immutable source selection と runtime setup を runner に任せるため、インストール済み skill を使用してください。
-
-managed `update` および `upgrade` では、consumer lock に記録された old revision が、選択 source revision の Git ancestry から利用できなければなりません。runner の exact-SHA source cache は、この検査のために traversable ancestor history を保持し、検証します。
+Composition authority 保守者は exact clean checkout から `scripts/compose.py` を直接実行できます。その Git-backed source context は reviewed checkout revision、tracked authority file、dirty state、managed ancestry を local Git history から検証します。通常 consumer は templates clone を必要としない installed skill path を使用してください。
 
 ## Consumer configuration
 
-initial composition と新しい upgrade には consumer configuration file が必要です。最小の Skill configuration は次のとおりです。
+initial composition と新しい upgrade には consumer configuration file が必要です。最小の Skill configuration は次です。
 
 ```json
 {
@@ -131,24 +136,22 @@ initial composition と新しい upgrade には consumer configuration file が�
 }
 ```
 
-Web アプリケーションでは `"recipe": "webapp"` を使用します。選択した recipe が公開している場合にだけ、optional な `capability.*` または `lifecycle.*` component ID を `components.include` で追加してください。`recipes/` 以下の recipe file が selectable components の source of truth です。
+Web application では `"recipe": "webapp"` を使用します。optional `capability.*` / `lifecycle.*` は選択 recipe が公開するものだけを `components.include` に追加します。`recipes/` 以下が selectable component の source of truth です。
 
-Web アプリケーションでは、process や listener の topology ではなく、サポート対象とする caller-visible contract に基づいて capability を選択してください。`webapp` recipe はすでに browser application artifact contract を提供しているため、implementation code が同じ process や port を共有しているという理由だけで capability を追加してはいけません。
+Web application の capability は process/listener topology ではなく、caller-visible contract に基づいて選択します。
 
 | Product requirement | Composition selection |
 | --- | --- |
-| Browser application の surfaces、routes、visible states、および responsive behavior | `webapp` recipe baseline (`artifact.webapp-core`) |
-| 独立して保守される browser-facing operational、diagnostic、demonstration、または明示的に contract 化された Web interface | `capability.web-interface` を追加 |
-| browser interface の implementation detail としてのみ使われ、独立した caller contract をサポートしない backend-for-frontend または JSON endpoint | その endpoint だけを理由に `capability.service` を追加しない |
-| browser から独立して caller が利用できる HTTP/JSON またはその他の non-browser API | `capability.service` を追加 |
-| browser interface と独立してサポートされる API が同じ process、listener、または reverse proxy を共有する | 該当する両 capability を追加する。shared topology は contract を統合しない |
-| 保守対象の command-line interface | `capability.cli` を追加 |
+| Browser application の surfaces、routes、visible states、responsive behavior | `webapp` baseline (`artifact.webapp-core`) |
+| 独立して保守される browser-facing operational/diagnostic/demonstration interface | `capability.web-interface` |
+| browser implementation detail にすぎない BFF/JSON endpoint | その理由だけでは `capability.service` を追加しない |
+| browser と独立して caller が利用する HTTP/JSON 等の API | `capability.service` |
+| browser interface と独立 API が同じ process/listener/proxy を共有 | 両方を選ぶ。shared topology は contract を統合しない |
+| 保守対象 CLI | `capability.cli` |
 
-`capability.service` は independently reachable な non-browser service contract を意味します。`capability.web-interface` は browser-facing routing、interaction、security、health、および failure behavior を所有します。したがって shared listener は capability が1つだけである根拠にはならず、private BFF route が存在するだけでは independent service contract が存在する根拠にはなりません。
+現在の production revision では parameter-specific materialization behavior は定義されていません。component が明示的に対応 parameter contract を文書化していない限り `parameters` は空にします。parameter の変更も explicit `upgrade` boundary です。
 
-現在の production revision では、components は parameter-specific materialization behavior を定義していません。選択 component が対応 parameter contract を明示的に文書化していない限り、`parameters` は空のままにしてください。parameter values も normalized consumer intent の一部なので、それを変更することは明示的な `upgrade` boundary です。
-
-## 新しい managed repository を作成する
+## 新しい managed repository を作る
 
 最初に target を inspect します。
 
@@ -158,7 +161,7 @@ python /path/to/agent-skills/composition/scripts/run.py \
   inspect
 ```
 
-新しい target では `absent` または `unmanaged` が期待されます。`inspect` が managed state を報告した場合、validation が失敗したという理由だけで initial composition に戻らないでください。`managed-valid` では `update` または `upgrade` を使い、`managed-interrupted` は先に recovery し、`managed-invalid` は適切な managed operation を再試行する前に診断・修復します。initial composition は既存の Composition lock がある場合に拒否されます。
+新規 target では `absent` または `unmanaged` が正常です。`managed-valid` は update/upgrade、`managed-interrupted` は recovery、`managed-invalid` は診断・修復が必要です。既存 Composition lock がある repository に initial composition は行いません。
 
 apply の前に plan します。
 
@@ -168,57 +171,36 @@ python /path/to/agent-skills/composition/scripts/run.py \
   plan --config composition.json
 ```
 
-relative な `--config` path は `--repository` を基準にせず、runner を呼び出した process の current working directory を基準に解決されます。configuration file が target repository 内にあっても別の directory から runner を呼び出す場合は、absolute path を使用するか、先に意図した directory へ移動してください。例:
+relative `--config` は `--repository` ではなく invocation process の current working directory から解決されます。必要なら absolute path を使用します。
 
-```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/repository \
-  plan --config /path/to/repository/composition.json
-```
-
-この path rule は `--config` を受け付けるすべての initial command と新しい upgrade command に適用されます。
-
-initial planning は read-only です。apply の前に、すべての action と conflict を確認してください。`create` は Composition が新しい destination を作成することを意味します。`adopt-identical` は destination がすでに desired bytes と完全一致しており、上書きせずに adopt できることを意味します。conflict が1つでもあれば apply は進みません。
-
-同じ configuration を apply します。
+initial planning は read-only です。`create`、意図した `adopt-identical`、および conflicts を確認します。conflict があれば apply しません。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   apply --config composition.json
-```
-
-続いて validate します。
-
-```sh
 python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   validate
 ```
 
-initial apply が成功すると `.template-composition/lock.json` が最後に書き込まれます。lock は runner が使用した exact Composition source revision を記録します。
+成功した initial apply は `.template-composition/lock.json` を最後に書き、使用した exact Composition source revision を記録します。
 
 ### Initial apply 後: scaffold を product にする
 
-initial validation が証明するのは、resolved Composition state と選択された template contracts が内部的に valid であることです。Webapp では baseline implementation evidence は product implementation claim を持たない `template` mode から意図的に開始します。この状態で validation が成功しても、application の実装、test、deployment、または release readiness が証明されたと解釈してはいけません。
+initial validation が証明するのは resolved Composition state と selected template contract の internal validity です。Webapp の `template` mode は application implementation、product test、deployment、release readiness の証明ではありません。
 
-initial materialization 後は次の順序で進めます。
-
-1. `.template-composition/lock.json` を読み、ownership boundary を維持します。`seed` と通常の consumer files は編集できますが、`managed`、`generated`、lock、transaction material は手作業で編集しません。
-2. seed assumptions を product の実際の contract に置き換えます。Webapp では surfaces、routes、UI states、viewports、および product に適用される選択済み capability worksheet を具体化します。
-3. consumer-owned source files に product を実装します。Composition は意図的に framework、persistence layer、API design、authentication provider、deployment platform、または product-specific test implementation を選択しません。
-4. Webapp では `python scripts/scaffold_webapp_evidence.py` を実行し、現在の deterministic evidence-target worklist を生成します。この command は read-only であり、worklist を standard output にだけ出力します。
-5. product coding の前に `contracts/implementation-evidence.json` を `template` から `planning` mode に切り替え、stable な caller-visible requirement ID、description、空の `recordIds`、`requiredPositiveProofKinds` を記録します。これらの ID は維持します。implementation boundary と real proof definition ができた後で records / commands / gates を接続し、`planning` から `product` に切り替えます。
-6. product 自身の verification commands と Composition `validate` を実行します。Composition validation と product verification は相補的であり、互いを代替しません。
-7. repository が coding-agent Policy も使用する場合は、Composition が seed ownership を移譲した後で明示的に adopt します。その後 Policy は Composition capability になることなく、残りの implementation と verification work をガイドできます。
-
-Webapp では `TEMPLATE.md` が生成済み product worksheet であり、contract customization と implementation-evidence の詳細な guidance を含みます。scaffold command は canonical evidence document を自動的に書き換えません。truthful evidence claim の責任は consumer に残ります。
+1. lock の ownership boundary を読み、`seed` と ordinary consumer file を編集し、`managed` / `generated` / lock / transaction material は手作業で編集しない。
+2. seed assumption を実際の product contract に置き換える。
+3. product を consumer-owned source file に実装する。
+4. Webapp では `python scripts/scaffold_webapp_evidence.py` で現在の evidence-target worklist を確認する。
+5. product coding 前に `contracts/implementation-evidence.json` を `template` から `planning` にし、stable requirement ID を記録する。real proof が整ったら records/commands/gates を接続して `product` に進める。
+6. product 自身の verification と Composition `validate` の両方を行う。
+7. coding-agent Policy も使用する場合は seed ownership transfer 後に明示的に adopt する。
 
 ## Composition repository で Policy を使う
 
-coding-agent Policy は optional であり、Composition とは独立して adopt します。Composition は `.agent-policy.yml`、`.agent-policy.lock`、または `.agent-policy/**` を作成せず、Policy adoption を `capability.*` として公開せず、`agent-policy` CLI を呼び出しません。
-
-両 authority を使用する repository では、通常の順序は次のとおりです。
+Policy adoption は Composition とは独立しています。Composition は `.agent-policy.yml`、`.agent-policy.lock`、`.agent-policy/**` を作成せず、Policy adoption を capability として扱わず、`agent-policy` CLI を呼びません。
 
 ```text
 Composition initial
@@ -228,17 +210,13 @@ Composition initial
   -> independent Policy + Composition managed state
 ```
 
-この順序が特に重要なのは Skill recipe です。`artifact.skill-core` は `AGENTS.md` を `seed` として materialize するため、initial composition の後、その内容は consumer-owned になります。その後の明示的な Policy adoption は、その instruction bytes を migrate または replace できます。以後の Composition `update` / `upgrade` は、Composition の元の `AGENTS.md` bytes に戻すのではなく、active seed を保持します。
+`artifact.skill-core` の `AGENTS.md` は `seed` なので initial composition 後は consumer-owned です。後続 Policy adoption がその bytes を migrate/replace しても、Composition update/upgrade は active seed を保持します。
 
-Policy-owned metadata は Composition ownership の外側です。既存の `.agent-policy.yml`、`.agent-policy.lock`、および `.agent-policy/**` は、通常の Composition material と衝突しない限り変更されません。Composition schemas と consumer validation も、これらの path を claim しようとする component、lock inventory、または transaction を拒否します。
+Policy-owned metadata は Composition lock の外側です。逆方向の ownership transition も推測されません。異なる `AGENTS.md` が既に存在すれば normal destination conflict として扱われます。
 
-逆方向の ownership transition は推測されません。Policy-managed repository に異なる `AGENTS.md` がすでに存在する状態で Skill initial composition を試みると、planning は通常の destination conflict を報告し、apply は file を上書きせず Composition lock も作成しません。
-
-完全な cross-authority rules については、Site-owned の [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) を参照してください。
+完全な cross-authority rule は Site-owned [Policy–Composition coexistence contract](https://templates.moukaeritai.work/coexistence/) を参照してください。
 
 ## Repository が managed か確認する
-
-次を使用します。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -246,21 +224,11 @@ python /path/to/agent-skills/composition/scripts/run.py \
   inspect
 ```
 
-通常の state は次のとおりです。
-
-- `absent` — target path が存在しない。
-- `unmanaged` — Composition lock が存在しない。
-- `managed-valid` — lock と現在の materialized state が validation を通る。
-- `managed-invalid` — Composition metadata は存在するが、managed state が validation を通らない。
-- `managed-interrupted` — managed transaction marker が存在し、recovery が必要。
-
-symbolic link など invalid な target root には `invalid` state が使用されます。repository に template output のように見える files があるかどうかだけで managed state を判断しないでください。`.template-composition/lock.json` と `inspect` が authoritative indicators です。
+通常 state は `absent`、`unmanaged`、`managed-valid`、`managed-invalid`、`managed-interrupted` です。symbolic link など invalid target root は `invalid` になります。managed state の authority は `.template-composition/lock.json` と `inspect` です。
 
 ## Intent を変更せずに update する
 
-同じ normalized intent、つまり同じ recipe、明示的な include/exclude choices、および parameters を維持したまま、runner が選択した descendant Composition revision へ進める場合は `update` を使用します。
-
-inspect と plan を行います。
+同じ normalized intent を runner の selected descendant Composition revision へ進める場合は `update` を使います。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -271,18 +239,9 @@ python /path/to/agent-skills/composition/scripts/run.py \
   plan --mode update
 ```
 
-`update` は意図的に `--config` を受け付けません。lock schema v2 は normalized consumer intent を保存しているため、通常の update で replacement configuration を受け付けると、intent change と routine source advancement を区別できなくなります。intent を変更する場合は `upgrade` を使用してください。
+`update` は `--config` を受け付けません。intent を変更する場合は `upgrade` を使います。
 
-managed file plan を確認します。主な class は次のとおりです。
-
-- `create` — 新たに選択された destination を安全に作成できる。
-- `replace` — clean な既存 `managed` または `generated` destination に新しい bytes を書き込む。
-- `remove` — clean な既存 `managed` または `generated` destination が選択対象から外れたため削除する。
-- `preserve` — `seed` file は consumer-owned のままで、上書きも削除もしない。
-- `unchanged` — desired bytes がすでに locked bytes と同じ。
-- `conflict` — conflict が解決されるまで apply は repository を mutate してはならない。
-
-plan に問題がなければ次を実行します。
+managed file plan の主な class は `create`、`replace`、`remove`、`preserve`、`unchanged`、`conflict` です。`seed` は preserve され、consumer-owned のままです。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -293,23 +252,14 @@ python /path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-component-version の変更は通常の update ではありません。update plan は `COMPONENT_VERSION_UPGRADE_REQUIRED` を報告します。その boundary は `upgrade` で明示的に越えてください。
+component-version change は ordinary update ではなく `COMPONENT_VERSION_UPGRADE_REQUIRED` となるため、explicit `upgrade` を使います。
 
 ## Upgrade または intent の変更
-
-recipe、明示的な component include/exclude choices、parameters、または upgrade boundary として報告された component versions など、選択された compatibility surface を意図的に変更する場合は `upgrade` を使用します。
-
-desired new configuration を明示的に plan します。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   plan --mode upgrade --config composition.json
-```
-
-続いて、同じ target intent を apply して validate します。
-
-```sh
 python /path/to/agent-skills/composition/scripts/run.py \
   --repository /path/to/repository \
   apply --mode upgrade --config composition.json
@@ -318,15 +268,11 @@ python /path/to/agent-skills/composition/scripts/run.py \
   validate
 ```
 
-`upgrade` は explicit ですが、一般的な merge engine や ownership-migration engine ではありません。component owner が変わる destination や、`managed`、`generated`、`seed` の間で ownership mode が変わる destination は引き続き拒否されます。これらの transition には Composer が推測するのではなく、明示的な source-side migration design が必要です。
+`upgrade` は explicit ですが general merge/ownership-migration engine ではありません。component owner や `managed` / `generated` / `seed` ownership mode の transition は source-side migration design が必要です。
 
-## 中断された update または upgrade を recovery する
+## 中断された update / upgrade を recovery する
 
-`inspect` が `managed-interrupted` を返した場合、`.template-composition/transaction.json` を手作業で削除・編集しないでください。
-
-インストール済み runner は source acquisition の前に transaction を読みます。transaction に記録された exact source revision を自動的に選択し、競合する explicit revision を拒否します。
-
-対応する operation を再実行します。
+`managed-interrupted` では `.template-composition/transaction.json` を手作業で削除・編集しません。runner は source acquisition 前に transaction を読み、記録された exact source revision を自動選択して conflicting explicit revision を拒否します。
 
 ```sh
 python /path/to/agent-skills/composition/scripts/run.py \
@@ -342,56 +288,41 @@ python /path/to/agent-skills/composition/scripts/run.py \
   apply --mode upgrade
 ```
 
-中断された upgrade の recovery では `--config` を渡してはいけません。target intent と new lock はすでに transaction に bind されています。
-
-recovery が成功した後:
-
-```sh
-python /path/to/agent-skills/composition/scripts/run.py \
-  --repository /path/to/repository \
-  validate
-```
-
-recovery は deterministic roll-forward です。file が記録済み old state と、すでに apply 済みの new state のどちらにも一致しなくなっている場合、Composer は unexpected bytes を上書きせず停止します。
+中断 upgrade recovery には `--config` を渡しません。成功後に `validate` します。recovery は deterministic roll-forward で、unexpected bytes は上書きしません。
 
 ## どの file を編集してよいか
 
-materialized file の ownership を判断するには `.template-composition/lock.json` の `ownership` field を使用します。
-
-| Ownership | Consumer の編集規則 |
+| Ownership | Consumer rule |
 | --- | --- |
-| `managed` | update/upgrade にその file を管理させるなら local edit しないでください。Composition が引き続き authoritative です。 |
-| `generated` | local edit しないでください。bytes は Composition authorities から deterministic に再生成されます。 |
-| `seed` | 最初の materialization 後は通常の repository content として編集できます。Composition は後続の consumer edits を上書きしません。 |
+| `managed` | Composition に管理を継続させるなら local edit しない |
+| `generated` | local edit しない。deterministic に再生成される |
+| `seed` | initial materialization 後は通常 content として編集可能 |
 
-active lock に記載されていない files は、別の repository-local contract が定めない限り通常の repository content です。Policy-owned metadata は明示的な例であり、`.agent-policy.yml`、`.agent-policy.lock`、および `.agent-policy/**` は Composition lock の外側にあり、Composer operation の repair target ではありません。
-
-conflict を回避するために `.template-composition/lock.json` や `.template-composition/transaction.json` など Composer-owned metadata を手作業で編集しないでください。
+active lock にない file は、別 authority が定めない限り ordinary repository content です。Composer-owned lock/transaction metadata を conflict 回避のために手編集してはいけません。
 
 ## Planning が conflict を報告した場合
 
-planning は意図的に fail-closed かつ read-only です。原因を修正し、`apply` の前に `plan` を再実行してください。
+planning は fail-closed / read-only です。原因を直して `plan` を再実行します。
 
-一般的な case は次のとおりです。
+- `LOCAL_MODIFICATION` — locked `managed` / `generated` bytes と違う。Composition が管理を続けるなら復元する。
+- `COMPONENT_VERSION_UPGRADE_REQUIRED` — explicit configuration と `upgrade` を使う。
+- `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` / `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` — source-side migration design が必要。
+- `SOURCE_REVISION_NOT_DESCENDANT` — old locked revision と同一または descendant の revision を使う。
+- `OLD_SOURCE_REVISION_UNAVAILABLE` — GitHub が canonical repository history から old locked full SHA を解決できない。source identity/revision を確認し、canonical history が利用可能な状態で再試行する。
+- `SOURCE_TRANSITION_UNAVAILABLE` — GitHub compare response が unavailable、rate-limited、malformed 等で ancestry を確立できない。check を bypass せず再試行する。
+- `DESTINATION_CONFLICT` — ordinary repository path を意図的に reconcile する。
+- `RECOVERY_REQUIRED` — 新しい plan より先に既存 transaction を完了する。
 
-- `LOCAL_MODIFICATION` — `managed` または `generated` file が old lock と一致しなくなっています。Composition に管理を継続させるなら locked bytes を復元してください。local change を維持する必要がある場合は停止し、ownership/source authority を再設計してください。
-- `COMPONENT_VERSION_UPGRADE_REQUIRED` — desired intent を表す explicit configuration とともに `upgrade` を使用してください。
-- `FILE_OWNER_TRANSITION_UPGRADE_REQUIRED` / `OWNERSHIP_TRANSITION_UPGRADE_REQUIRED` — 現在の upgrade はその migration を推測しません。明示的な source-side migration design が必要です。
-- `SOURCE_REVISION_NOT_DESCENDANT` — locked source revision またはその descendant である Composition revision を使用してください。
-- `OLD_SOURCE_REVISION_UNAVAILABLE` — 選択した exact revision は old locked revision を ancestor history に含める必要があります。
-- `DESTINATION_CONFLICT` — conflicting ordinary repository path を削除または意図的に reconcile してください。Composer による overwrite を前提にしないでください。
-- `RECOVERY_REQUIRED` — 新しい plan を開始せず、既存 transaction を完了してください。
-
-正確な diagnostic meaning については [Composer reference](reference/composer.md) を参照してください。
+正確な diagnostic meaning は [Composer reference](reference/composer.md) を参照してください。
 
 ## なぜ apply の前に plan するのか
 
-`plan` は選択された exact Composition source を解決し、target repository と比較して、提案される mutation と conflict を target に書き込まずにすべて提示します。managed `apply` 自体も transaction marker を書く前に deterministic planning を実行しますが、先に explicit plan を review することが consumer safety checkpoint です。
+`plan` は selected exact Composition source と target repository を比較し、提案 mutation/conflict を書き込みなしで提示します。managed `apply` 自体も transaction marker を書く前に deterministic planning を行いますが、explicit plan の review が consumer safety checkpoint です。
 
 ## より深い設計情報
 
-通常の consumer operation では architecture documents を読む必要はありません。設計理由を確認する場合、または Composition authority 自体を保守する場合に参照してください。
+通常 consumer operation では architecture documents を読む必要はありません。設計理由や authority maintenance が必要な場合に参照します。
 
-- [Composition model](architecture/composition-model.md) — authority、intent、lock、component、および ownership model。
-- [Composer MVP](architecture/composer-mvp.md) — deterministic resolver、reconciliation、transaction、digest precondition、および crash-recovery contract。
-- [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — 自己完結した consumer validation contract。
+- [Composition model](architecture/composition-model.md) — authority、intent、lock、component、ownership model。
+- [Composer MVP](architecture/composer-mvp.md) — resolver、reconciliation、transaction、digest precondition、crash recovery。
+- [Composition state](../components/lifecycle.composition-state/files/docs/architecture/composition-state.md) — self-contained consumer validation contract。
