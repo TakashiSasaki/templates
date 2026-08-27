@@ -36,7 +36,10 @@ class EvaluationScorecardTests(unittest.TestCase):
                 "evidence-capture limitation",
             ],
         )
-        self.assertEqual(len(self.schema["properties"]["dimensions"]["required"]), 13)
+        dimensions = self.schema["properties"]["dimensions"]
+        self.assertEqual(len(dimensions["required"]), 13)
+        self.assertEqual(set(dimensions["required"]), set(dimensions["properties"]))
+        self.assertEqual(self.schema["properties"]["next_clean_room_rerun_conditions"]["minItems"], 1)
 
     def test_guide_covers_requested_dimensions_and_environment(self) -> None:
         for phrase in (
@@ -44,16 +47,51 @@ class EvaluationScorecardTests(unittest.TestCase):
             "Machine bootstrap discovery",
             "Canonical bootstrap execution",
             "Integrity verification",
+            "Installer / Skill / toolchain role separation",
             "Lifecycle correctness",
+            "Managed/generated boundary",
             "Product evidence completion",
             "Browser proof handling",
             "Release-readiness honesty",
             "Recovery quality",
+            "User intervention",
             "Dead ends",
             "fresh conversation",
             "complete transcript capture",
         ):
             self.assertIn(phrase, self.text)
+
+    def test_valid_scorecard_instance_and_invalid_status(self) -> None:
+        score = {"status": "PASS", "attribution": "repository defect", "notes": "controlled"}
+        environment = {
+            "model": "test-model",
+            "fresh_conversation": True,
+            "outside_maintainer_workspace": True,
+            "inherited_instructions_recorded": True,
+            "available_tools": ["github"],
+            "git_availability": "available",
+            "browser_availability": "available",
+            "network_restrictions": "none",
+            "user_intervention_count": 0,
+            "transcript_completeness": "complete",
+        }
+        dimensions = {
+            key: dict(score)
+            for key in self.schema["properties"]["dimensions"]["required"]
+        }
+        payload = {
+            "schema_version": 1,
+            "evaluation_id": "test",
+            "environment_fingerprint": environment,
+            "dimensions": dimensions,
+            "next_clean_room_rerun_conditions": ["fresh independent conversation"],
+        }
+        validator = Draft202012Validator(self.schema)
+        validator.validate(payload)
+        invalid = json.loads(json.dumps(payload))
+        invalid["dimensions"]["dead_ends"]["status"] = "UNKNOWN"
+        with self.assertRaises(ValidationError):
+            validator.validate(invalid)
 
     def test_guide_preserves_clean_room_boundary(self) -> None:
         self.assertIn("future clean-room run", self.text)
