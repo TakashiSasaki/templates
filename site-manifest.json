@@ -70,12 +70,17 @@
         {"title": "Runtime decision record", "publication": "composition", "document": "runtime-decision-record", "destination": "capabilities/runtime/index.md"},
         {"title": "Runtime selection", "publication": "composition", "document": "runtime-selection", "destination": "capabilities/runtime/selection.md"},
         {"title": "Packaged CLI interface", "publication": "composition", "document": "cli-interface", "destination": "capabilities/cli/index.md"},
+        {"title": "CLI interface v1 to v2", "publication": "composition", "document": "cli-interface-v2-migration", "destination": "capabilities/cli/migrations/v1-to-v2.md"},
         {"title": "MCP interface", "publication": "composition", "document": "mcp-interface", "destination": "capabilities/mcp/index.md"},
         {"title": "MCP transports", "publication": "composition", "document": "mcp-transports", "destination": "capabilities/mcp/transports.md"},
+        {"title": "MCP interface v1 to v2", "publication": "composition", "document": "mcp-interface-v2-migration", "destination": "capabilities/mcp/migrations/v1-to-v2.md"},
         {"title": "MCP Apps interface", "publication": "composition", "document": "mcp-apps-interface", "destination": "capabilities/mcp-apps/index.md"},
         {"title": "MCP Apps guidance", "publication": "composition", "document": "mcp-apps-guidance", "destination": "capabilities/mcp-apps/guidance.md"},
+        {"title": "MCP Apps v1 to v2", "publication": "composition", "document": "mcp-apps-v2-migration", "destination": "capabilities/mcp-apps/migrations/v1-to-v2.md"},
         {"title": "Standalone browser interface", "publication": "composition", "document": "browser-interface", "destination": "capabilities/browser/index.md"},
-        {"title": "Headless service interface", "publication": "composition", "document": "service-interface", "destination": "capabilities/service/index.md"}
+        {"title": "Web interface v1 to v2", "publication": "composition", "document": "web-interface-v2-migration", "destination": "capabilities/browser/migrations/v1-to-v2.md"},
+        {"title": "Headless service interface", "publication": "composition", "document": "service-interface", "destination": "capabilities/service/index.md"},
+        {"title": "Service interface v1 to v2", "publication": "composition", "document": "service-interface-v2-migration", "destination": "capabilities/service/migrations/v1-to-v2.md"}
       ]
     },
     {
@@ -107,7 +112,12 @@
         {"title": "Implementation evidence", "publication": "composition", "document": "implementation-evidence", "destination": "lifecycle/implementation-evidence/index.md"},
         {"title": "Implementation evidence v1 to v2", "publication": "composition", "document": "implementation-evidence-v2-migration", "destination": "lifecycle/implementation-evidence/migrations/v1-to-v2.md"},
         {"title": "Implementation evidence v2 to v3", "publication": "composition", "document": "implementation-evidence-v3-migration", "destination": "lifecycle/implementation-evidence/migrations/v2-to-v3.md"},
+        {"title": "Implementation evidence v3 to v4", "publication": "composition", "document": "implementation-evidence-v4-migration", "destination": "lifecycle/implementation-evidence/migrations/v3-to-v4.md"},
+        {"title": "Implementation evidence v4 to v5", "publication": "composition", "document": "implementation-evidence-v5-migration", "destination": "lifecycle/implementation-evidence/migrations/v4-to-v5.md"},
+        {"title": "Implementation evidence v5 to v6", "publication": "composition", "document": "implementation-evidence-v6-migration", "destination": "lifecycle/implementation-evidence/migrations/v5-to-v6.md"},
+        {"title": "Lifecycle checkpoints", "publication": "composition", "document": "lifecycle-checkpoints", "destination": "lifecycle/checkpoints/index.md"},
         {"title": "Release execution", "publication": "composition", "document": "release-execution", "destination": "lifecycle/release-execution/index.md"},
+        {"title": "Release execution v1 to v2", "publication": "composition", "document": "release-execution-v2-migration", "destination": "lifecycle/release-execution/migrations/v1-to-v2.md"},
         {"title": "Release evidence", "publication": "composition", "document": "release-evidence", "destination": "lifecycle/release-evidence/index.md"},
         {"title": "Release bundle", "publication": "composition", "document": "release-bundle", "destination": "lifecycle/release-bundle/index.md"}
       ]
