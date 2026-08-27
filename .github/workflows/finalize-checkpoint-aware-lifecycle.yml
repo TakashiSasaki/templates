@@ -1,0 +1,634 @@
+name: Finalize checkpoint-aware lifecycle projection
+
+on:
+  push:
+    branches:
+      - fix/checkpoint-aware-lifecycle-projection
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Build and publish final tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          PARENT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          repo = os.environ["REPOSITORY"]
+          branch = os.environ["BRANCH"]
+          parent_sha = os.environ["PARENT_SHA"]
+          token = os.environ["GH_TOKEN"]
+          workflow_path = ".github/workflows/finalize-checkpoint-aware-lifecycle.yml"
+
+          component_path = "components/lifecycle.composition-state/component.json"
+          schema_path = "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
+          runner_path = "components/lifecycle.composition-state/files/.template-composition/validate.py"
+          docs_path = "components/lifecycle.composition-state/files/docs/architecture/composition-state.md"
+          tests_path = "tests/test_lifecycle_next_actions.py"
+
+          def replace_once(text: str, old: str, new: str, *, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one replacement target, found {count}")
+              return text.replace(old, new, 1)
+
+          component = Path(component_path).read_text(encoding="utf-8")
+          component = replace_once(component, '"version": 11', '"version": 12', label="component version")
+
+          schema = Path(schema_path).read_text(encoding="utf-8")
+          schema = replace_once(
+              schema,
+              '"items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "deferred-proof", "release-readiness-not-evaluated"]}',
+              '"items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "checkpoint-state-invalid", "planning-checkpoint-required", "product-checkpoint-required", "deferred-proof", "release-readiness-not-evaluated"]}',
+              label="blocking condition enum",
+          )
+          schema = replace_once(
+              schema,
+              '"items": {"enum": ["inspect", "plan", "apply", "validate", "define-product-requirements", "implement-product", "populate-product-evidence", "run-product-verifier", "validate-product-state", "resolve-deferred-proof", "check-release-readiness"]}',
+              '"items": {"enum": ["inspect", "plan", "apply", "validate", "define-product-requirements", "create-planning-checkpoint", "implement-product", "populate-product-evidence", "run-product-verifier", "validate-product-state", "create-product-checkpoint", "resolve-deferred-proof", "check-release-readiness"]}',
+              label="next action enum",
+          )
+
+          runner = Path(runner_path).read_text(encoding="utf-8")
+          start = runner.index("def _lifecycle_projection(")
+          end = runner.index("\ndef _validate_base(", start)
+          new_projection = '''def _checkpoint_phase(root: Path, checks: list[dict[str, Any]]) -> str:
+              """Return the latest validated checkpoint phase for lifecycle presentation.
+
+              Checkpoint semantics remain owned by lifecycle.lifecycle-checkpoints. This
+              projection reads the ledger only when that selected component has already
+              contributed a validation check. Unexpected ledger shapes fail closed here;
+              normal selected-component validation remains the authoritative validator.
+              """
+              if not any(
+                  check.get("component") == "lifecycle.lifecycle-checkpoints"
+                  for check in checks
+              ):
+                  return "not-selected"
+              try:
+                  ledger = _load_json(root / "contracts/lifecycle-checkpoints.json")
+              except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+                  return "invalid"
+              if not isinstance(ledger, dict):
+                  return "invalid"
+              checkpoints = ledger.get("checkpoints")
+              if not isinstance(checkpoints, list):
+                  return "invalid"
+              if not checkpoints:
+                  return "missing"
+              latest = checkpoints[-1]
+              if not isinstance(latest, dict):
+                  return "invalid"
+              phase = latest.get("phase")
+              return phase if phase in {"planning", "product"} else "invalid"
+
+
+          def _lifecycle_projection(
+              root: Path, status: str, checks: list[dict[str, Any]]
+          ) -> dict[str, Any]:
+              """Project existing validation/evidence state into deterministic next actions.
+
+              This is a presentation projection, not a second lifecycle authority. It
+              deliberately reports ordinary validation and revision-bound release
+              readiness as separate dimensions. When lifecycle checkpoints are selected,
+              the projection never skips the checkpoint boundary already required by the
+              selected checkpoint authority.
+              """
+              mode = _evidence_mode(root)
+              failed = status != "valid" or any(
+                  check.get("status") == "failed" for check in checks
+              )
+              if failed:
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "composition-invalid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["composition-validation-failed"],
+                      "deferred_checks": [],
+                      "next_actions": ["inspect", "plan", "apply", "validate"],
+                  }
+
+              if mode == "invalid":
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "composition-invalid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["implementation-evidence-invalid"],
+                      "deferred_checks": [],
+                      "next_actions": ["inspect", "plan", "apply", "validate"],
+                  }
+
+              checkpoint_phase = _checkpoint_phase(root, checks)
+              if checkpoint_phase == "invalid":
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "composition-invalid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["checkpoint-state-invalid"],
+                      "deferred_checks": [],
+                      "next_actions": ["inspect", "plan", "apply", "validate"],
+                  }
+
+              checkpoints_selected = checkpoint_phase != "not-selected"
+
+              if mode == "template":
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "scaffold-valid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["implementation-evidence-template"],
+                      "deferred_checks": [],
+                      "next_actions": (
+                          ["define-product-requirements"]
+                          if checkpoints_selected
+                          else [
+                              "define-product-requirements",
+                              "implement-product",
+                              "populate-product-evidence",
+                              "run-product-verifier",
+                              "validate-product-state",
+                              "check-release-readiness",
+                          ]
+                      ),
+                  }
+
+              if mode == "planning":
+                  if checkpoints_selected and checkpoint_phase != "planning":
+                      return {
+                          "schema_version": 1,
+                          "lifecycle_stage": "scaffold-valid",
+                          "implementation_evidence_mode": mode,
+                          "release_readiness": "not-evaluated",
+                          "blocking_conditions": [
+                              "implementation-evidence-planning",
+                              "planning-checkpoint-required",
+                          ],
+                          "deferred_checks": [],
+                          "next_actions": ["create-planning-checkpoint"],
+                      }
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "scaffold-valid",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["implementation-evidence-planning"],
+                      "deferred_checks": [],
+                      "next_actions": (
+                          [
+                              "implement-product",
+                              "populate-product-evidence",
+                              "run-product-verifier",
+                              "validate-product-state",
+                          ]
+                          if checkpoints_selected
+                          else [
+                              "implement-product",
+                              "populate-product-evidence",
+                              "run-product-verifier",
+                              "validate-product-state",
+                              "check-release-readiness",
+                          ]
+                      ),
+                  }
+
+              if mode == "product":
+                  deferred = sorted(
+                      str(check.get("id"))
+                      for check in checks
+                      if check.get("status") == "deferred"
+                  )
+                  if checkpoints_selected and checkpoint_phase != "product":
+                      blockers = ["product-checkpoint-required"]
+                      readiness = "not-evaluated"
+                      if deferred:
+                          blockers.append("deferred-proof")
+                          readiness = "not-ready"
+                      return {
+                          "schema_version": 1,
+                          "lifecycle_stage": "implemented-product",
+                          "implementation_evidence_mode": mode,
+                          "release_readiness": readiness,
+                          "blocking_conditions": blockers,
+                          "deferred_checks": deferred,
+                          "next_actions": ["create-product-checkpoint"],
+                      }
+
+                  if deferred:
+                      return {
+                          "schema_version": 1,
+                          "lifecycle_stage": "implemented-product",
+                          "implementation_evidence_mode": mode,
+                          "release_readiness": "not-ready",
+                          "blocking_conditions": ["deferred-proof"],
+                          "deferred_checks": deferred,
+                          "next_actions": [
+                              "resolve-deferred-proof",
+                              "run-product-verifier",
+                              "validate-product-state",
+                              "check-release-readiness",
+                          ],
+                      }
+
+                  explicitly_ready = any(
+                      check.get("id") == "release-readiness"
+                      and check.get("status") == "passed"
+                      for check in checks
+                  )
+                  if explicitly_ready:
+                      return {
+                          "schema_version": 1,
+                          "lifecycle_stage": "release-ready",
+                          "implementation_evidence_mode": mode,
+                          "release_readiness": "ready",
+                          "blocking_conditions": [],
+                          "deferred_checks": [],
+                          "next_actions": [],
+                      }
+
+                  return {
+                      "schema_version": 1,
+                      "lifecycle_stage": "implemented-product",
+                      "implementation_evidence_mode": mode,
+                      "release_readiness": "not-evaluated",
+                      "blocking_conditions": ["release-readiness-not-evaluated"],
+                      "deferred_checks": [],
+                      "next_actions": ["check-release-readiness"],
+                  }
+
+              return {
+                  "schema_version": 1,
+                  "lifecycle_stage": "scaffold-valid",
+                  "implementation_evidence_mode": mode,
+                  "release_readiness": "not-evaluated",
+                  "blocking_conditions": ["implementation-evidence-missing"],
+                  "deferred_checks": [],
+                  "next_actions": (
+                      ["define-product-requirements"]
+                      if checkpoints_selected
+                      else [
+                          "define-product-requirements",
+                          "implement-product",
+                          "populate-product-evidence",
+                          "run-product-verifier",
+                          "validate-product-state",
+                          "check-release-readiness",
+                      ]
+                  ),
+              }
+
+          '''
+          # Dedent the embedded function block from this finalizer's source indentation.
+          import textwrap
+          new_projection = textwrap.dedent(new_projection)
+          runner = runner[:start] + new_projection + runner[end + 1 :]
+
+          docs = Path(docs_path).read_text(encoding="utf-8")
+          docs_start = docs.index("## Lifecycle next-action projection")
+          docs_section = '''## Lifecycle next-action projection
+
+          The self-contained validation entrypoint emits a nested `lifecycle` projection in its `--format json` result. The projection is derived from the existing Composition validation checks and the consumer-owned `contracts/implementation-evidence.json` mode; it is not a second lifecycle authority.
+
+          - `lifecycle_stage: scaffold-valid` means Composition is valid, but `template` or `planning` evidence is not an implemented-product milestone.
+          - `lifecycle_stage: implemented-product` requires `product` evidence mode and successful ordinary validation.
+          - `release_readiness: not-evaluated` means the ordinary validator has not run the revision-bound release-readiness operation.
+          - `release_readiness: not-ready` is emitted when a selected validator is deferred; deferred browser proof must never be presented as release-ready.
+          - `next_actions` is a deterministic ordered list. When `lifecycle.lifecycle-checkpoints` is selected, the projection respects its already-validated checkpoint ledger instead of skipping across that authority boundary.
+
+          With lifecycle checkpoints selected, planning evidence without a current planning checkpoint exposes only `create-planning-checkpoint`; product implementation is not an allowed next action until that checkpoint exists. This applies both to the initial implementation and to a later specification change whose latest checkpoint is still the previous product milestone. After product evidence validates, a missing product checkpoint exposes only `create-product-checkpoint`; release-readiness checking is not offered until that checkpoint exists. If the checkpoint component is not selected, the pre-existing non-checkpoint lifecycle projection is preserved.
+
+          The projection reads only the latest phase from the checkpoint ledger after selected-component validation has succeeded. Checkpoint ordering, hashes, snapshots, and historical proof semantics remain owned by `lifecycle.lifecycle-checkpoints`; this projection does not reimplement them. An unexpected checkpoint ledger shape fails closed to `composition-invalid` rather than inventing a lifecycle transition.
+
+          The projection schema is materialized at `.template-composition/lifecycle-next-actions.schema.json` and is validated by Composition tests. Existing validator checks and their fail-closed behavior remain authoritative.
+          '''
+          docs = docs[:docs_start] + textwrap.dedent(docs_section)
+
+          tests = '''from __future__ import annotations
+
+          import importlib.util
+          import json
+          import tempfile
+          import unittest
+          from pathlib import Path
+
+          from jsonschema import Draft202012Validator
+
+          ROOT = Path(__file__).resolve().parents[1]
+          RUNNER_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/validate.py"
+          SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
+
+          SPEC = importlib.util.spec_from_file_location("composition_validation_runner", RUNNER_PATH)
+          if SPEC is None or SPEC.loader is None:
+              raise RuntimeError("cannot load Composition validation runner")
+          runner = importlib.util.module_from_spec(SPEC)
+          SPEC.loader.exec_module(runner)
+
+
+          class LifecycleNextActionsTests(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+                  Draft202012Validator.check_schema(schema)
+                  cls.schema_validator = Draft202012Validator(schema)
+
+              def project(
+                  self,
+                  mode: str,
+                  status: str = "valid",
+                  checks: list[dict] | None = None,
+                  *,
+                  checkpoints_selected: bool = False,
+                  checkpoint_phase: str | None = None,
+                  malformed_checkpoint_ledger: bool = False,
+              ) -> dict:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      root = Path(temp_dir)
+                      evidence = root / "contracts" / "implementation-evidence.json"
+                      evidence.parent.mkdir()
+                      evidence.write_text(json.dumps({"mode": mode}), encoding="utf-8")
+
+                      active_checks = list(checks or [])
+                      if checkpoints_selected:
+                          active_checks.append(
+                              {
+                                  "id": "lifecycle-checkpoints",
+                                  "component": "lifecycle.lifecycle-checkpoints",
+                                  "status": "passed",
+                              }
+                          )
+                          ledger = root / "contracts" / "lifecycle-checkpoints.json"
+                          if malformed_checkpoint_ledger:
+                              ledger.write_text(
+                                  json.dumps({"checkpoints": "not-an-array"}),
+                                  encoding="utf-8",
+                              )
+                          else:
+                              checkpoints = []
+                              if checkpoint_phase is not None:
+                                  checkpoints.append({"phase": checkpoint_phase})
+                              ledger.write_text(
+                                  json.dumps({"checkpoints": checkpoints}),
+                                  encoding="utf-8",
+                              )
+
+                      value = runner._lifecycle_projection(root, status, active_checks)
+                      self.schema_validator.validate(value)
+                      return value
+
+              def test_planning_without_checkpoint_component_preserves_product_actions(self) -> None:
+                  value = self.project("planning")
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+                  self.assertEqual(value["implementation_evidence_mode"], "planning")
+                  self.assertIn("implement-product", value["next_actions"])
+                  self.assertIn("check-release-readiness", value["next_actions"])
+
+              def test_selected_checkpoints_require_planning_checkpoint_before_coding(self) -> None:
+                  value = self.project("planning", checkpoints_selected=True)
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+                  self.assertEqual(
+                      value["blocking_conditions"],
+                      ["implementation-evidence-planning", "planning-checkpoint-required"],
+                  )
+                  self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_planning_checkpoint_unlocks_product_implementation(self) -> None:
+                  value = self.project(
+                      "planning",
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertIn("implement-product", value["next_actions"])
+                  self.assertIn("validate-product-state", value["next_actions"])
+                  self.assertNotIn("check-release-readiness", value["next_actions"])
+
+              def test_previous_product_checkpoint_requires_new_planning_checkpoint(self) -> None:
+                  value = self.project(
+                      "planning",
+                      checkpoints_selected=True,
+                      checkpoint_phase="product",
+                  )
+                  self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_product_requires_product_checkpoint_before_release_readiness(self) -> None:
+                  value = self.project(
+                      "product",
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["blocking_conditions"], ["product-checkpoint-required"])
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+                  self.assertNotIn("check-release-readiness", value["next_actions"])
+
+              def test_product_checkpoint_unlocks_release_readiness(self) -> None:
+                  value = self.project(
+                      "product",
+                      checkpoints_selected=True,
+                      checkpoint_phase="product",
+                  )
+                  self.assertEqual(value["next_actions"], ["check-release-readiness"])
+
+              def test_release_ready_check_cannot_skip_product_checkpoint(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[{"id": "release-readiness", "status": "passed"}],
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+
+              def test_deferred_proof_waits_behind_missing_product_checkpoint(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[{"id": "browser-proof", "status": "deferred"}],
+                      checkpoints_selected=True,
+                      checkpoint_phase="planning",
+                  )
+                  self.assertEqual(value["release_readiness"], "not-ready")
+                  self.assertEqual(
+                      value["blocking_conditions"],
+                      ["product-checkpoint-required", "deferred-proof"],
+                  )
+                  self.assertEqual(value["deferred_checks"], ["browser-proof"])
+                  self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+
+              def test_deferred_proof_never_projects_release_ready(self) -> None:
+                  value = self.project(
+                      "product", checks=[{"id": "browser-proof", "status": "deferred"}]
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-ready")
+                  self.assertEqual(value["deferred_checks"], ["browser-proof"])
+                  self.assertNotIn("release-ready", value["next_actions"])
+
+              def test_product_validation_separates_release_readiness(self) -> None:
+                  value = self.project("product")
+                  self.assertEqual(value["lifecycle_stage"], "implemented-product")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["next_actions"], ["check-release-readiness"])
+
+                  ready = self.project(
+                      "product", checks=[{"id": "release-readiness", "status": "passed"}]
+                  )
+                  self.assertEqual(ready["lifecycle_stage"], "release-ready")
+                  self.assertEqual(ready["release_readiness"], "ready")
+                  self.assertEqual(ready["next_actions"], [])
+
+              def test_selected_template_does_not_expose_product_coding(self) -> None:
+                  value = self.project("template", checkpoints_selected=True)
+                  self.assertEqual(value["next_actions"], ["define-product-requirements"])
+                  self.assertNotIn("implement-product", value["next_actions"])
+
+              def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
+                  value = self.project(
+                      "planning",
+                      checkpoints_selected=True,
+                      malformed_checkpoint_ledger=True,
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(value["blocking_conditions"], ["checkpoint-state-invalid"])
+                  self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
+              def test_missing_evidence_is_explicitly_scaffold_only(self) -> None:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      value = runner._lifecycle_projection(Path(temp_dir), "valid", [])
+                  self.schema_validator.validate(value)
+                  self.assertEqual(value["implementation_evidence_mode"], "missing")
+                  self.assertEqual(value["blocking_conditions"], ["implementation-evidence-missing"])
+                  self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
+
+              def test_malformed_evidence_is_invalid_not_missing(self) -> None:
+                  with tempfile.TemporaryDirectory() as temp_dir:
+                      root = Path(temp_dir)
+                      evidence = root / "contracts" / "implementation-evidence.json"
+                      evidence.parent.mkdir()
+                      evidence.write_text("{", encoding="utf-8")
+                      self.assertEqual(runner._evidence_mode(root), "invalid")
+
+              def test_check_failure_is_invalid_even_with_valid_status(self) -> None:
+                  value = self.project(
+                      "product", checks=[{"id": "webapp-contracts", "status": "failed"}]
+                  )
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["composition-validation-failed"]
+                  )
+
+              def test_deferred_check_ids_are_sorted(self) -> None:
+                  value = self.project(
+                      "product",
+                      checks=[
+                          {"id": "release-evidence-template", "status": "deferred"},
+                          {"id": "browser-proof", "status": "deferred"},
+                      ],
+                  )
+                  self.assertEqual(
+                      value["deferred_checks"],
+                      ["browser-proof", "release-evidence-template"],
+                  )
+
+              def test_invalid_evidence_fails_closed_to_repair_actions(self) -> None:
+                  value = self.project("unexpected-mode")
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(
+                      value["blocking_conditions"], ["implementation-evidence-invalid"]
+                  )
+                  self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
+              def test_invalid_composition_fails_closed_to_repair_actions(self) -> None:
+                  value = self.project("product", status="invalid")
+                  self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+                  self.assertEqual(value["release_readiness"], "not-evaluated")
+                  self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''
+          tests = textwrap.dedent(tests)
+
+          updated = {
+              component_path: component,
+              schema_path: schema,
+              runner_path: runner,
+              docs_path: docs,
+              tests_path: tests,
+          }
+
+          api = f"https://api.github.com/repos/{repo}"
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "Content-Type": "application/json",
+          }
+
+          def request(method: str, url: str, payload: dict | None = None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(url, data=body, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  return json.load(response)
+
+          parent = request("GET", f"{api}/git/commits/{parent_sha}")
+          entries = []
+          for path, content in updated.items():
+              blob = request(
+                  "POST",
+                  f"{api}/git/blobs",
+                  {"content": content, "encoding": "utf-8"},
+              )
+              entries.append(
+                  {"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]}
+              )
+          entries.append(
+              {"path": workflow_path, "mode": "100644", "type": "blob", "sha": None}
+          )
+          tree = request(
+              "POST",
+              f"{api}/git/trees",
+              {"base_tree": parent["tree"]["sha"], "tree": entries},
+          )
+          commit = request(
+              "POST",
+              f"{api}/git/commits",
+              {
+                  "message": "Make lifecycle next actions checkpoint-aware",
+                  "tree": tree["sha"],
+                  "parents": [parent_sha],
+              },
+          )
+          request(
+              "PATCH",
+              f"{api}/git/refs/heads/{branch}",
+              {"sha": commit["sha"], "force": False},
+          )
+          print(f"final_head={commit['sha']}")
+          PY
