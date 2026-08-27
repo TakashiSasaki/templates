@@ -94,14 +94,15 @@ class BrowserPrerequisiteDiagnosticsTests(unittest.TestCase):
                     diagnostics.diagnose(**{parameter: "unsupported-state"})
 
     def test_cli_accepts_explicit_arguments(self) -> None:
-        with self.assertRaises(SystemExit) as raised:
+        self.assertEqual(
             diagnostics.main([
                 "--browser-binary", "available",
                 "--webdriver", "available",
                 "--compatibility", "compatible",
                 "--localhost", "allowed",
-            ])
-        self.assertEqual(raised.exception.code, 0)
+            ]),
+            0,
+        )
 
     def test_unchecked_prerequisites_are_not_claimed_available(self) -> None:
         value = diagnostics.diagnose()
