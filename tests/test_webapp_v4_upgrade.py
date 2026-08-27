@@ -105,7 +105,7 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             for entry in lock["resolved_components"]
             if entry["id"] == "artifact.webapp-core"
         )
-        self.assertEqual(artifact["version"], 12)
+        self.assertEqual(artifact["version"], 13)
         artifact["version"] = 3
         artifact["descriptor_sha256"] = "3" * 64
         lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
