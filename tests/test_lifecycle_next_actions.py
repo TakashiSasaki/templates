@@ -26,33 +26,136 @@ class LifecycleNextActionsTests(unittest.TestCase):
         Draft202012Validator.check_schema(schema)
         cls.schema_validator = Draft202012Validator(schema)
 
-    def project(self, mode: str, status: str = "valid", checks: list[dict] | None = None) -> dict:
+    def project(
+        self,
+        mode: str,
+        status: str = "valid",
+        checks: list[dict] | None = None,
+        *,
+        checkpoints_selected: bool = False,
+        checkpoint_phase: str | None = None,
+        malformed_checkpoint_ledger: bool = False,
+    ) -> dict:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             evidence = root / "contracts" / "implementation-evidence.json"
             evidence.parent.mkdir()
             evidence.write_text(json.dumps({"mode": mode}), encoding="utf-8")
-            value = runner._lifecycle_projection(root, status, checks or [])
+
+            active_checks = list(checks or [])
+            if checkpoints_selected:
+                active_checks.append(
+                    {
+                        "id": "lifecycle-checkpoints",
+                        "component": "lifecycle.lifecycle-checkpoints",
+                        "status": "passed",
+                    }
+                )
+                ledger = root / "contracts" / "lifecycle-checkpoints.json"
+                if malformed_checkpoint_ledger:
+                    ledger.write_text(
+                        json.dumps({"checkpoints": "not-an-array"}),
+                        encoding="utf-8",
+                    )
+                else:
+                    checkpoints = []
+                    if checkpoint_phase is not None:
+                        checkpoints.append({"phase": checkpoint_phase})
+                    ledger.write_text(
+                        json.dumps({"checkpoints": checkpoints}),
+                        encoding="utf-8",
+                    )
+
+            value = runner._lifecycle_projection(root, status, active_checks)
             self.schema_validator.validate(value)
             return value
 
-    def test_planning_is_scaffold_only_and_has_product_next_actions(self) -> None:
+    def test_planning_without_checkpoint_component_preserves_product_actions(self) -> None:
         value = self.project("planning")
         self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
         self.assertEqual(value["implementation_evidence_mode"], "planning")
-        self.assertEqual(value["release_readiness"], "not-evaluated")
         self.assertIn("implement-product", value["next_actions"])
-        self.assertIn("populate-product-evidence", value["next_actions"])
         self.assertIn("check-release-readiness", value["next_actions"])
 
-    def test_template_is_not_an_implemented_product(self) -> None:
-        value = self.project("template")
+    def test_selected_checkpoints_require_planning_checkpoint_before_coding(self) -> None:
+        value = self.project("planning", checkpoints_selected=True)
         self.assertEqual(value["lifecycle_stage"], "scaffold-valid")
-        self.assertIn("define-product-requirements", value["next_actions"])
-        self.assertNotEqual(value["lifecycle_stage"], "implemented-product")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["implementation-evidence-planning", "planning-checkpoint-required"],
+        )
+        self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+        self.assertNotIn("implement-product", value["next_actions"])
+
+    def test_planning_checkpoint_unlocks_product_implementation(self) -> None:
+        value = self.project(
+            "planning",
+            checkpoints_selected=True,
+            checkpoint_phase="planning",
+        )
+        self.assertIn("implement-product", value["next_actions"])
+        self.assertIn("validate-product-state", value["next_actions"])
+        self.assertNotIn("check-release-readiness", value["next_actions"])
+
+    def test_previous_product_checkpoint_requires_new_planning_checkpoint(self) -> None:
+        value = self.project(
+            "planning",
+            checkpoints_selected=True,
+            checkpoint_phase="product",
+        )
+        self.assertEqual(value["next_actions"], ["create-planning-checkpoint"])
+        self.assertNotIn("implement-product", value["next_actions"])
+
+    def test_product_requires_product_checkpoint_before_release_readiness(self) -> None:
+        value = self.project(
+            "product",
+            checkpoints_selected=True,
+            checkpoint_phase="planning",
+        )
+        self.assertEqual(value["lifecycle_stage"], "implemented-product")
+        self.assertEqual(value["release_readiness"], "not-evaluated")
+        self.assertEqual(value["blocking_conditions"], ["product-checkpoint-required"])
+        self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+        self.assertNotIn("check-release-readiness", value["next_actions"])
+
+    def test_product_checkpoint_unlocks_release_readiness(self) -> None:
+        value = self.project(
+            "product",
+            checkpoints_selected=True,
+            checkpoint_phase="product",
+        )
+        self.assertEqual(value["next_actions"], ["check-release-readiness"])
+
+    def test_release_ready_check_cannot_skip_product_checkpoint(self) -> None:
+        value = self.project(
+            "product",
+            checks=[{"id": "release-readiness", "status": "passed"}],
+            checkpoints_selected=True,
+            checkpoint_phase="planning",
+        )
+        self.assertEqual(value["lifecycle_stage"], "implemented-product")
+        self.assertEqual(value["release_readiness"], "not-evaluated")
+        self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
+
+    def test_deferred_proof_waits_behind_missing_product_checkpoint(self) -> None:
+        value = self.project(
+            "product",
+            checks=[{"id": "browser-proof", "status": "deferred"}],
+            checkpoints_selected=True,
+            checkpoint_phase="planning",
+        )
+        self.assertEqual(value["release_readiness"], "not-ready")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["product-checkpoint-required", "deferred-proof"],
+        )
+        self.assertEqual(value["deferred_checks"], ["browser-proof"])
+        self.assertEqual(value["next_actions"], ["create-product-checkpoint"])
 
     def test_deferred_proof_never_projects_release_ready(self) -> None:
-        value = self.project("product", checks=[{"id": "browser-proof", "status": "deferred"}])
+        value = self.project(
+            "product", checks=[{"id": "browser-proof", "status": "deferred"}]
+        )
         self.assertEqual(value["lifecycle_stage"], "implemented-product")
         self.assertEqual(value["release_readiness"], "not-ready")
         self.assertEqual(value["deferred_checks"], ["browser-proof"])
@@ -64,12 +167,27 @@ class LifecycleNextActionsTests(unittest.TestCase):
         self.assertEqual(value["release_readiness"], "not-evaluated")
         self.assertEqual(value["next_actions"], ["check-release-readiness"])
 
-        ready = self.project("product", checks=[{"id": "release-readiness", "status": "passed"}])
+        ready = self.project(
+            "product", checks=[{"id": "release-readiness", "status": "passed"}]
+        )
         self.assertEqual(ready["lifecycle_stage"], "release-ready")
         self.assertEqual(ready["release_readiness"], "ready")
         self.assertEqual(ready["next_actions"], [])
 
+    def test_selected_template_does_not_expose_product_coding(self) -> None:
+        value = self.project("template", checkpoints_selected=True)
+        self.assertEqual(value["next_actions"], ["define-product-requirements"])
+        self.assertNotIn("implement-product", value["next_actions"])
 
+    def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
+        value = self.project(
+            "planning",
+            checkpoints_selected=True,
+            malformed_checkpoint_ledger=True,
+        )
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(value["blocking_conditions"], ["checkpoint-state-invalid"])
+        self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
 
     def test_missing_evidence_is_explicitly_scaffold_only(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -122,3 +240,7 @@ class LifecycleNextActionsTests(unittest.TestCase):
         self.assertEqual(value["lifecycle_stage"], "composition-invalid")
         self.assertEqual(value["release_readiness"], "not-evaluated")
         self.assertEqual(value["next_actions"], ["inspect", "plan", "apply", "validate"])
+
+
+if __name__ == "__main__":
+    unittest.main()

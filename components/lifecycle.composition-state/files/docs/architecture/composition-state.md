@@ -41,6 +41,10 @@ The self-contained validation entrypoint emits a nested `lifecycle` projection i
 - `lifecycle_stage: implemented-product` requires `product` evidence mode and successful ordinary validation.
 - `release_readiness: not-evaluated` means the ordinary validator has not run the revision-bound release-readiness operation.
 - `release_readiness: not-ready` is emitted when a selected validator is deferred; deferred browser proof must never be presented as release-ready.
-- `next_actions` is a deterministic ordered list. In particular, planning state points to product implementation, product evidence, product verification, product-state validation, and release-readiness checking.
+- `next_actions` is a deterministic ordered list. When `lifecycle.lifecycle-checkpoints` is selected, the projection respects its already-validated checkpoint ledger instead of skipping across that authority boundary.
+
+With lifecycle checkpoints selected, planning evidence without a current planning checkpoint exposes only `create-planning-checkpoint`; product implementation is not an allowed next action until that checkpoint exists. This applies both to the initial implementation and to a later specification change whose latest checkpoint is still the previous product milestone. After product evidence validates, a missing product checkpoint exposes only `create-product-checkpoint`; release-readiness checking is not offered until that checkpoint exists. If the checkpoint component is not selected, the pre-existing non-checkpoint lifecycle projection is preserved.
+
+The projection reads only the latest phase from the checkpoint ledger after selected-component validation has succeeded. Checkpoint ordering, hashes, snapshots, and historical proof semantics remain owned by `lifecycle.lifecycle-checkpoints`; this projection does not reimplement them. An unexpected checkpoint ledger shape fails closed to `composition-invalid` rather than inventing a lifecycle transition.
 
 The projection schema is materialized at `.template-composition/lifecycle-next-actions.schema.json` and is validated by Composition tests. Existing validator checks and their fail-closed behavior remain authoritative.
