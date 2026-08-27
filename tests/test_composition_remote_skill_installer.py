@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import subprocess
 import sys
 import tarfile
@@ -13,6 +14,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "install_composition_skill.py"
+RELEASE_DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 
 
 def load_module(name: str, path: Path):
@@ -86,18 +88,13 @@ class BytesResponse:
 
 
 class CompositionRemoteSkillInstallerTests(unittest.TestCase):
-    def test_remote_installer_pins_review_candidate_revision(self) -> None:
+    def test_remote_installer_pins_published_skill_source_revision(self) -> None:
+        descriptor = json.loads(RELEASE_DESCRIPTOR.read_text(encoding="utf-8"))
+        expected = descriptor["skill_source"]["revision"]
         self.assertEqual(installer.TOOLCHAIN_REPOSITORY, "TakashiSasaki/templates")
-        self.assertEqual(
-            installer.SKILL_SOURCE_REVISION,
-            "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7",
-        )
+        self.assertEqual(installer.SKILL_SOURCE_REVISION, expected)
         self.assertIsNotNone(installer.FULL_SHA.fullmatch(installer.SKILL_SOURCE_REVISION))
-        self.assertTrue(
-            installer.archive_url().endswith(
-                "/tar.gz/e8ee87483ea97e6cce8f27e6438d98a5a7c724a7"
-            )
-        )
+        self.assertTrue(installer.archive_url().endswith(f"/tar.gz/{expected}"))
 
     def test_archive_url_rejects_mutable_or_short_revisions(self) -> None:
         for revision in ("composition", "main", "f9508b92"):
