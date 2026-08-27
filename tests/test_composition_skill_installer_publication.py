@@ -17,9 +17,9 @@ RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
 SKILL_WALKTHROUGH = ROOT / "docs" / "guides" / "skill-first-use-walkthrough.md"
 WEBAPP_WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
-INSTALLER_REVISION = "cb06bce5108d804a8f07fb3adb71ff4fd051e12a"
-SKILL_REVISION = "06f6734c372bb30f633e6a53f78532a4cfbb7981"
-TOOLCHAIN_REVISION = "423d30c647238eee3fd4064ab0a02aac7f527bd6"
+INSTALLER_REVISION = "08c7c9ac647000b7e7232ad5eda4f0b3506a7675"
+SKILL_REVISION = "e8ee87483ea97e6cce8f27e6438d98a5a7c724a7"
+TOOLCHAIN_REVISION = "16d3eb411729a79549dbaaf6dab1d05207f83415"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
     f"{INSTALLER_REVISION}/scripts/install_composition_skill.py"
@@ -137,7 +137,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
     def test_consumer_guide_documents_self_contained_validation_cache(self) -> None:
         content = CONSUMER_GUIDE.read_text(encoding="utf-8")
         self.assertIn("without manually creating a validation virtual environment", content)
-        self.assertIn("cold validation", content)
+        self.assertIn("cold materialized validation", content)
         self.assertIn("warm validation cache", content)
         self.assertIn("package acquisition", content)
         self.assertIn("COMPOSITION_VALIDATION_CACHE", content)
