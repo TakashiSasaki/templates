@@ -1,6 +1,7 @@
 ---
 name: composition
-description: Create, inspect, update, upgrade, recover, and validate repositories with the immutable TakashiSasaki/templates Composition Composer.
+description: Use TakashiSasaki/templates Composition to create, adopt, inspect, update, upgrade, recover, or validate a new or existing repository. Use when the user asks to use TakashiSasaki/templates, Composition, or its templates with a project.
+compatibility: Requires CPython 3.11–3.14 and HTTPS access.
 ---
 
 # Composition
