@@ -10,7 +10,7 @@ Composition supplies contracts, managed validation material, and a deterministic
 
 ## 0. What this walkthrough will produce
 
-You will create a **separate product repository** named `task-ledger`. Do not clone `TakashiSasaki/templates` and start implementing Task Ledger inside it. The normal relationship is:
+You will create a **separate product repository** named `task-ledger`. Do not clone `TakashiSasaki/templates` and start implementing Task Ledger inside it; normal Composition consumption does not require a templates checkout. The normal relationship is:
 
 ```text
 TakashiSasaki/templates
@@ -42,7 +42,7 @@ Command examples below use POSIX shell syntax and absolute placeholder paths suc
 
 ## 1. Create the separate product repository
 
-Choose a normal development location that is **not inside your checkout of `TakashiSasaki/templates`**.
+Choose a normal development location outside any provider-authority checkout.
 
 **Run**
 
@@ -59,30 +59,28 @@ git init
 
 **Repository change**
 
-Yes. This creates the product repository itself. No Composition material has been added yet.
+Yes. This creates the product repository itself. No Composition material has been added yet. Git is used here because Task Ledger is an ordinary version-controlled product repository; Git is not a prerequisite of the Composition consumer runner.
 
 **What this means**
 
-Task Ledger is the consumer repository. `TakashiSasaki/templates` remains the provider of Composition and Policy authorities; it is not the application repository you are about to implement.
+Task Ledger is the consumer repository. `TakashiSasaki/templates` remains the provider of Composition and Policy authorities; it is not the application repository you are about to implement and does not need to be cloned for normal use.
 
 **Next**
 
-Check the two prerequisites used by the Composition runner.
+Check the Composition runner prerequisite.
 
 ## 2. Check prerequisites
 
-The supported runner prerequisites are Git on `PATH` and CPython 3.11, 3.12, 3.13, or 3.14.
+Normal Composition consumption requires CPython 3.11, 3.12, 3.13, or 3.14. Git is not required by the Composition runner.
 
 **Run**
 
 ```sh
-git --version
 python --version
 ```
 
 **Expected**
 
-- Git reports a version and exits successfully.
 - Python reports 3.11 through 3.14.
 
 **Repository change**
@@ -91,7 +89,7 @@ None.
 
 **What this means**
 
-The local machine can run the supported immutable Composition installer and runner. In a sandbox or CI environment whose normal user cache is not writable, set `COMPOSITION_RUNTIME_CACHE` and `COMPOSITION_VALIDATION_CACHE` to writable directories outside the product repository before the first runner invocation; the full cache guidance is in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill).
+The local machine can run the stdlib-only immutable Composition installer and bootstrap the selected full-SHA source archive without a templates checkout. Cold runner execution requires HTTPS access to GitHub; a missing Python runtime cache can also require access to the configured Python package source. In a sandbox or CI environment whose normal user cache is not writable, set `COMPOSITION_RUNTIME_CACHE` and `COMPOSITION_VALIDATION_CACHE` to writable directories outside the product repository before the first runner invocation; the full cache guidance is in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill).
 
 **Next**
 
@@ -104,7 +102,7 @@ Normal consumers install the Composition skill through the reviewed immutable in
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/08c7c9ac647000b7e7232ad5eda4f0b3506a7675/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 If that destination already contains an installed Composition skill, use the documented `--replace` path in [Using Composition](../consumer-guide.md#install-and-run-the-composition-skill) rather than deleting or overwriting an arbitrary directory.
@@ -115,13 +113,13 @@ If that destination already contains an installed Composition skill, use the doc
 
 **Repository change**
 
-None in Task Ledger. The skill is installed at the separate destination you selected. Later runner and validator cache creation also occurs outside the product repository.
+None in Task Ledger. The skill is installed at the separate destination you selected. Later runtime and validator cache creation also occurs outside the product repository. The selected Composition source itself is an ephemeral full-SHA archive snapshot and is deleted after the invocation.
 
 **What this means**
 
-You now have the normal consumer entry point. The full-SHA installer URL is intentional: Composition uses reviewed immutable source identities rather than a mutable branch or tag. You do not need to understand the installer/skill/toolchain SHA roles before continuing; see [Using Composition](../consumer-guide.md#immutable-source-runtime-selection-and-cache-reuse) when you need that trust detail.
+You now have the normal consumer entry point. The full-SHA installer URL is intentional: Composition uses reviewed immutable source identities rather than a mutable branch or tag. You do not need to understand the installer/skill/toolchain SHA roles before continuing; see [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse) when you need that trust detail.
 
-Before the first source/runtime acquisition, you may run the installed skill's read-only local doctor:
+Before first Composer execution, you may run the installed skill's read-only local doctor:
 
 ```sh
 python /absolute/path/to/agent-skills/composition/scripts/run.py \
@@ -129,7 +127,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   doctor
 ```
 
-A fresh installation normally reports source/runtime acquisition as required. `READY` means locally observable prerequisites do not block the runner; it is not Composition validation and does not probe GitHub/package-index availability.
+A fresh installation normally reports source acquisition as `ephemeral-full-sha-archive`, Git as not required, and runtime acquisition as required unless a matching validated runtime cache already exists. `READY` means locally observable prerequisites do not block the runner; it is not Composition validation and does not probe GitHub/package-index availability.
 
 **Next**
 
@@ -1193,7 +1191,7 @@ python /absolute/path/to/agent-skills/composition/scripts/run.py \
   apply --mode update
 ```
 
-Consumer-owned seed changes are preserved; clean managed/generated material may be replaced or removed according to the reviewed plan.
+Consumer-owned seed changes are preserved; clean managed/generated material may be replaced or removed according to the reviewed plan. The runner verifies the old lock revision to selected revision ancestry through GitHub's compare API without needing local Git history.
 
 If the plan reports `COMPONENT_VERSION_UPGRADE_REQUIRED`, or if Task Ledger intentionally changes recipe/components/parameters, make that boundary explicit:
 
@@ -1214,7 +1212,7 @@ Then rerun product verification and Composition validation. Do not edit lock met
 At the **first-use scaffold milestone**, you have succeeded when:
 
 - Task Ledger is a separate product repository;
-- the Composition skill is installed outside it;
+- the Composition skill is installed outside it and normal Composition use required no templates checkout;
 - `composition.json` states the intended Webapp/capability selection;
 - `inspect → plan → review → apply → validate` was followed in order;
 - the plan was understood as read-only before mutation;
