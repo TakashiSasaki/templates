@@ -73,7 +73,7 @@ class WebappNeutralSeedTests(unittest.TestCase):
 
     def test_seed_change_does_not_create_a_managed_upgrade_boundary(self) -> None:
         descriptor = json.loads((WEBAPP / "component.json").read_text(encoding="utf-8"))
-        self.assertEqual(descriptor["version"], 12)
+        self.assertEqual(descriptor["version"], 13)
         seed_destinations = {
             material["destination"]
             for material in descriptor["materials"]
