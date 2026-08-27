@@ -26,11 +26,18 @@ REQUIRED_SKILL_PATHS = (
     "runtime-manifest.json",
     "scripts/install.py",
     "scripts/run.py",
+    "scripts/run_checkout.py",
     "scripts/runtime.py",
+    "scripts/runtime_checkout.py",
 )
 REQUIRED_TOOLCHAIN_PATHS = (
     "requirements-runtime.lock",
     "scripts/compose.py",
+    "scripts/composer_core.py",
+    "scripts/composer_core_impl.py",
+    "scripts/composer_managed.py",
+    "scripts/composer_managed_impl.py",
+    "scripts/composer_source.py",
     "scripts/verify_runtime_environment.py",
 )
 
