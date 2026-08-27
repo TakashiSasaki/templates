@@ -18,6 +18,38 @@ BROWSER_PROOF_REVISION = "7e1352a527cdfa6a20ac5df1a81b404b4a6699b3"
 
 
 class HumanFirstWebappOnboardingTests(unittest.TestCase):
+
+    def test_short_completion_path_is_ordered_and_milestones_are_explicit(self) -> None:
+        text = WALKTHROUGH.read_text(encoding="utf-8")
+        section = text.index("## Completion path at a glance")
+        markers = [
+            "**Doctor**",
+            "**Inspect**",
+            "**Plan**",
+            "**Review**",
+            "**Apply**",
+            "**Validate scaffold**",
+            "**Implement product**",
+            "**Populate product evidence**",
+            "**Run product verifier**",
+            "**Validate product state**",
+            "**Check release readiness**",
+        ]
+        positions = [text.index(marker, section) for marker in markers]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("initial \`VALID\` is the scaffold milestone only", text)
+        self.assertIn("Product code alone is not the implemented-product milestone", text)
+        self.assertIn("If evidence is still \`planning\` or \`template\`, continue", text)
+        self.assertIn("Any required deferred browser proof means \`NOT READY\`", text)
+        self.assertIn("lifecycle.next_actions", text)
+
+        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
+        self.assertIn("## Completion path at a glance", japanese)
+        self.assertIn("最初の \`VALID\` は scaffold milestone", japanese)
+        self.assertIn("product code だけでは implemented-product milestone ではありません", japanese)
+        self.assertIn("evidence が \`planning\` / \`template\` のままなら続行", japanese)
+        self.assertIn("required browser proof が一つでも deferred", japanese)
+
     def test_walkthrough_starts_at_zero_to_one_state(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
         headings = [
