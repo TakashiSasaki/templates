@@ -1,0 +1,38 @@
+{
+  "$schema": "../schemas/lifecycle-checkpoint-actions.schema.json",
+  "schemaVersion": 1,
+  "actions": {
+    "create-planning-checkpoint": {
+      "argv": [
+        "{python}",
+        ".template-composition/checkpoint.py",
+        "planning",
+        "--id",
+        "{checkpoint_id}"
+      ],
+      "caller_inputs": [
+        "{python}",
+        "{checkpoint_id}"
+      ],
+      "bindings": {}
+    },
+    "create-product-checkpoint": {
+      "argv": [
+        "{python}",
+        ".template-composition/checkpoint.py",
+        "product",
+        "--id",
+        "{checkpoint_id}",
+        "--from",
+        "{latest_checkpoint_id}"
+      ],
+      "caller_inputs": [
+        "{python}",
+        "{checkpoint_id}"
+      ],
+      "bindings": {
+        "{latest_checkpoint_id}": "latest-checkpoint-id"
+      }
+    }
+  }
+}
