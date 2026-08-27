@@ -75,6 +75,26 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             + "c" * 40
             + "/scripts/install_composition_skill.py",
         )
+        self.assertEqual(
+            manifest["composition"]["skill"]["instructions_url"],
+            "https://raw.githubusercontent.com/TakashiSasaki/templates/"
+            + "e" * 40
+            + "/skills/composition/SKILL.md",
+        )
+        self.assertEqual(
+            manifest["bootstrap"]["installer_argv"],
+            ["{python}", "-I", "{installer_file}", "{skill_target}"],
+        )
+        self.assertEqual(
+            manifest["workflow"]["runner_argv"],
+            [
+                "{python}",
+                "{skill_target}/scripts/run.py",
+                "--repository",
+                "{repository}",
+                "{command}",
+            ],
+        )
 
     def test_release_descriptor_rejects_non_sha256_digest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -120,6 +140,18 @@ class AgentBootstrapManifestTests(unittest.TestCase):
         )
         self.assertEqual(manifest["$schema"], schema_value["$id"])
         self.assertEqual(manifest["canonical_url"], bootstrap.CANONICAL_URL)
+        self.assertIn(
+            "instructions_url",
+            schema_value["properties"]["composition"]["properties"]["skill"]["required"],
+        )
+        self.assertIn(
+            "installer_argv",
+            schema_value["properties"]["bootstrap"]["required"],
+        )
+        self.assertIn(
+            "runner_argv",
+            schema_value["properties"]["workflow"]["required"],
+        )
 
     def test_site_asset_pipeline_places_discovery_contract_at_public_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
