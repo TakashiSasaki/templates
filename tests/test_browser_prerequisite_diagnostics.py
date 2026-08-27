@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import sys
 import unittest
@@ -97,15 +99,19 @@ class BrowserPrerequisiteDiagnosticsTests(unittest.TestCase):
                     diagnostics.diagnose(**{parameter: "unsupported-state"})
 
     def test_cli_accepts_explicit_arguments(self) -> None:
-        self.assertEqual(
-            diagnostics.main([
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = diagnostics.main([
                 "--browser-binary", "available",
                 "--webdriver", "available",
                 "--compatibility", "compatible",
                 "--localhost", "allowed",
-            ]),
-            0,
-        )
+            ])
+        self.assertEqual(status, 0)
+        payload = json.loads(output.getvalue())
+        self.assert_valid(payload)
+        self.assertEqual(payload["status"], "available")
+        self.assertEqual(payload["release_impact"], "none")
 
     def test_unchecked_prerequisites_are_not_claimed_available(self) -> None:
         value = diagnostics.diagnose()

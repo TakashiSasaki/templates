@@ -26,7 +26,6 @@ BLOCKING_BY_PREREQUISITE = {
 }
 
 
-
 def diagnose(
     *,
     browser_binary: str = "not-checked",
