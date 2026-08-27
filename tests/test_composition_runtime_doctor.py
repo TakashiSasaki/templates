@@ -157,6 +157,80 @@ class CompositionRuntimeDoctorTests(unittest.TestCase):
             "fail",
         )
 
+    def test_missing_git_blocks_absent_and_present_source_cache(self) -> None:
+        for source_present in (False, True):
+            with self.subTest(source_present=source_present), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cache = root / "cache"
+                repository = root / "consumer"
+                manifest = runner.load_manifest()
+                selected = runner.stable_revision(manifest)
+                source_entry = runner.source_cache_entry(cache, selected)
+                if source_present:
+                    source_entry.mkdir(parents=True)
+
+                with (
+                    mock.patch.object(runner, "cache_root", return_value=cache),
+                    mock.patch.object(runner.shutil, "which", return_value=None),
+                ):
+                    payload = runner.doctor_payload(repository)
+
+                self.assertEqual(payload["status"], "blocked")
+                self.assertEqual(payload["checks"]["git"]["status"], "fail")
+                self.assertIn("Composition runner requires Git on PATH", payload["blockers"])
+                self.assertTrue(payload["acquisition"]["source_required"])
+                self.assertTrue(payload["acquisition"]["runtime_required"])
+                if source_present:
+                    self.assertEqual(
+                        payload["checks"]["source_cache"]["status"], "uncheckable"
+                    )
+                    self.assertEqual(
+                        payload["checks"]["source_cache"]["diagnostic"],
+                        "Git is unavailable, so cached source identity cannot be verified",
+                    )
+                else:
+                    self.assertEqual(
+                        payload["checks"]["source_cache"]["status"], "absent"
+                    )
+                    self.assertIsNone(
+                        payload["checks"]["source_cache"]["diagnostic"]
+                    )
+
+    def test_blocked_doctor_cli_returns_exit_code_two(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cache_file = root / "cache-file"
+            cache_file.write_text("not a directory\n", encoding="utf-8")
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    str(RUNNER_PATH),
+                    "--repository",
+                    str(root / "consumer"),
+                    "doctor",
+                    "--format",
+                    "json",
+                ],
+                env=offline_environment(cache_file),
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "blocked")
+        self.assertEqual(
+            payload["checks"]["runner_cache"]["source_parent_probe"]["status"],
+            "fail",
+        )
+        self.assertEqual(
+            payload["checks"]["runner_cache"]["runtime_parent_probe"]["status"],
+            "fail",
+        )
+        self.assertGreaterEqual(len(payload["blockers"]), 2)
+
     def test_warm_valid_cache_remains_ready_when_write_probe_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
