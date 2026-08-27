@@ -15,8 +15,8 @@ DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 SCHEMA = ROOT / "schemas" / "composition-skill-installer-release.schema.json"
 RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
-INSTALLER_REVISION = "9c1c093fca1e7e47a9974150e7739665ec570f6e"
-SKILL_REVISION = "f9508b92f5b7835fa1af9741f3941f32f6d3db28"
+INSTALLER_REVISION = "cb06bce5108d804a8f07fb3adb71ff4fd051e12a"
+SKILL_REVISION = "06f6734c372bb30f633e6a53f78532a4cfbb7981"
 TOOLCHAIN_REVISION = "423d30c647238eee3fd4064ab0a02aac7f527bd6"
 RAW_INSTALLER_URL = (
     "https://raw.githubusercontent.com/TakashiSasaki/templates/"
@@ -94,6 +94,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         self.assertIn(INSTALLER_REVISION, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
+        self.assertIn("read-only `doctor` command", content)
         self.assertNotIn(
             "raw.githubusercontent.com/TakashiSasaki/templates/composition/", content
         )
@@ -108,6 +109,7 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
         self.assertIn(INSTALLER_REVISION, content)
         self.assertIn(SKILL_REVISION, content)
         self.assertIn(TOOLCHAIN_REVISION, content)
+        self.assertIn(" doctor", content)
         self.assertNotIn(
             "raw.githubusercontent.com/TakashiSasaki/templates/composition/", content
         )
