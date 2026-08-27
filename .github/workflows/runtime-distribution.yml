@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - policy
+    tags:
+      - 'policy-compatibility-*'
   pull_request:
     branches:
       - policy
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
 
 permissions:
   contents: read
@@ -16,8 +24,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  classify_runtime:
+    name: classify runtime compatibility requirement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      required: ${{ steps.classify.outputs.required }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - name: Check out repository history for change classification
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify runtime compatibility requirement
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          FORCE_COMPATIBILITY: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci/full-compatibility')) || startsWith(github.ref, 'refs/tags/policy-compatibility-') }}
+        run: >-
+          python3 -I scripts/classify_runtime_distribution_ci.py
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --force-compatibility "$FORCE_COMPATIBILITY"
+          --github-output "$GITHUB_OUTPUT"
+
   clean-install:
     name: ${{ matrix.platform.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - classify_runtime
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,3 +94,32 @@ jobs:
 
       - name: Install and verify runtime distribution in a clean environment
         run: python -I scripts/smoke_test_runtime_distribution.py
+
+  validate:
+    name: runtime distribution validate
+    if: ${{ always() }}
+    needs:
+      - classify_runtime
+      - clean-install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require policy-correct runtime compatibility outcome
+        env:
+          CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
+          RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
+          CLEAN_INSTALL_RESULT: ${{ needs.clean-install.result }}
+        run: |
+          test "$CLASSIFIER_RESULT" = success
+          case "$RUNTIME_REQUIRED" in
+            true)
+              test "$CLEAN_INSTALL_RESULT" = success
+              ;;
+            false)
+              test "$CLEAN_INSTALL_RESULT" = skipped
+              ;;
+            *)
+              echo "invalid runtime compatibility classification: $RUNTIME_REQUIRED" >&2
+              exit 1
+              ;;
+          esac
