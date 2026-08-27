@@ -730,7 +730,158 @@ def _condition_decision(
     return "deferred", condition["message"]
 
 
-def validate(root: Path) -> dict[str, Any]:
+
+def _evidence_mode(root: Path) -> str:
+    """Read the consumer evidence mode for the lifecycle projection only."""
+    try:
+        evidence = _load_json(root / "contracts/implementation-evidence.json")
+    except FileNotFoundError:
+        return "missing"
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return "invalid"
+    if not isinstance(evidence, dict):
+        return "invalid"
+    mode = evidence.get("mode")
+    return mode if mode in {"template", "planning", "product"} else "invalid"
+
+
+def _lifecycle_projection(
+    root: Path, status: str, checks: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Project existing validation/evidence state into deterministic next actions.
+
+    This is a presentation projection, not a second lifecycle authority. It
+    deliberately reports ordinary validation and revision-bound release
+    readiness as separate dimensions.
+    """
+    mode = _evidence_mode(root)
+    failed = status != "valid" or any(
+        check.get("status") == "failed" for check in checks
+    )
+    if failed:
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "composition-invalid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["composition-validation-failed"],
+            "deferred_checks": [],
+            "next_actions": ["inspect", "plan", "apply", "validate"],
+        }
+
+    if mode == "invalid":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "composition-invalid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["implementation-evidence-invalid"],
+            "deferred_checks": [],
+            "next_actions": ["inspect", "plan", "apply", "validate"],
+        }
+
+    if mode == "template":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "scaffold-valid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["implementation-evidence-template"],
+            "deferred_checks": [],
+            "next_actions": [
+                "define-product-requirements",
+                "implement-product",
+                "populate-product-evidence",
+                "run-product-verifier",
+                "validate-product-state",
+                "check-release-readiness",
+            ],
+        }
+
+    if mode == "planning":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "scaffold-valid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["implementation-evidence-planning"],
+            "deferred_checks": [],
+            "next_actions": [
+                "implement-product",
+                "populate-product-evidence",
+                "run-product-verifier",
+                "validate-product-state",
+                "check-release-readiness",
+            ],
+        }
+
+    if mode == "product":
+        deferred = sorted(
+            str(check.get("id"))
+            for check in checks
+            if check.get("status") == "deferred"
+        )
+        if deferred:
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "implemented-product",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "not-ready",
+                "blocking_conditions": ["deferred-proof"],
+                "deferred_checks": deferred,
+                "next_actions": [
+                    "resolve-deferred-proof",
+                    "run-product-verifier",
+                    "validate-product-state",
+                    "check-release-readiness",
+                ],
+            }
+
+        explicitly_ready = any(
+            check.get("id") == "release-readiness"
+            and check.get("status") == "passed"
+            for check in checks
+        )
+        if explicitly_ready:
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "release-ready",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "ready",
+                "blocking_conditions": [],
+                "deferred_checks": [],
+                "next_actions": [],
+            }
+
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "implemented-product",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["release-readiness-not-evaluated"],
+            "deferred_checks": [],
+            "next_actions": ["check-release-readiness"],
+        }
+
+    return {
+        "schema_version": 1,
+        "lifecycle_stage": "scaffold-valid",
+        "implementation_evidence_mode": mode,
+        "release_readiness": "not-evaluated",
+        "blocking_conditions": ["implementation-evidence-missing"],
+        "deferred_checks": [],
+        "next_actions": [
+            "define-product-requirements",
+            "implement-product",
+            "populate-product-evidence",
+            "run-product-verifier",
+            "validate-product-state",
+            "check-release-readiness",
+        ],
+    }
+
+
+def _validate_base(root: Path) -> dict[str, Any]:
     state_validator = root / STATE_VALIDATOR_RELATIVE
     if state_validator.is_symlink() or not state_validator.is_file():
         return {
@@ -948,6 +1099,15 @@ def validate(root: Path) -> dict[str, Any]:
         "resolved_components": selected,
         "checks": checks,
     }
+
+
+
+def validate(root: Path) -> dict[str, Any]:
+    result = _validate_base(root)
+    result["lifecycle"] = _lifecycle_projection(
+        root, result["status"], result.get("checks", [])
+    )
+    return result
 
 
 def _render_human(result: dict[str, Any]) -> None:

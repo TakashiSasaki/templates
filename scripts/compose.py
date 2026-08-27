@@ -418,15 +418,17 @@ def _run_public_validation() -> int:
         errors.append(f"selected-component validation stderr: {process.stderr.strip()}")
         status = "invalid"
 
-    _emit_validation(
-        {
-            "status": status,
-            "target": str(target),
-            "errors": errors,
-            "resolved_components": result.get("resolved_components", []),
-            "checks": checks if isinstance(checks, list) else [],
-        }
-    )
+    validation_payload = {
+        "status": status,
+        "target": str(target),
+        "errors": errors,
+        "resolved_components": result.get("resolved_components", []),
+        "checks": checks if isinstance(checks, list) else [],
+    }
+    lifecycle = result.get("lifecycle")
+    if isinstance(lifecycle, dict):
+        validation_payload["lifecycle"] = lifecycle
+    _emit_validation(validation_payload)
     return 0 if status == "valid" and not errors else 2
 
 

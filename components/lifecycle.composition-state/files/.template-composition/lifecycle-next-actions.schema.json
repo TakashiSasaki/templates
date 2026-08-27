@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Composition validation lifecycle projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lifecycle_stage", "implementation_evidence_mode", "release_readiness", "blocking_conditions", "deferred_checks", "next_actions"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "lifecycle_stage": {"enum": ["composition-invalid", "scaffold-valid", "implemented-product", "release-ready"]},
+    "implementation_evidence_mode": {"enum": ["missing", "invalid", "template", "planning", "product"]},
+    "release_readiness": {"enum": ["not-evaluated", "not-ready", "ready"]},
+    "blocking_conditions": {
+      "type": "array", "uniqueItems": true,
+      "items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "deferred-proof", "release-readiness-not-evaluated"]}
+    },
+    "deferred_checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}},
+    "next_actions": {
+      "type": "array", "uniqueItems": true,
+      "items": {"enum": ["inspect", "plan", "apply", "validate", "define-product-requirements", "implement-product", "populate-product-evidence", "run-product-verifier", "validate-product-state", "resolve-deferred-proof", "check-release-readiness"]}
+    }
+  }
+}
