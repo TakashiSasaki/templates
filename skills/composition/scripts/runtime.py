@@ -126,13 +126,6 @@ def verify_host_python() -> None:
         )
 
 
-def verify_git() -> str:
-    executable = shutil.which("git")
-    if executable is None:
-        raise RunnerError("Composition runner requires Git on PATH")
-    return executable
-
-
 def python_token() -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -492,10 +485,6 @@ def populate_source_checkout(
         env=env,
     )
     run(
-        ["git", "-C", str(checkout), "config", "--local", "core.longpaths", "true"],
-        env=env,
-    )
-    run(
         ["git", "-C", str(checkout), "remote", "add", "origin", CANONICAL_REMOTE],
         env=env,
     )
@@ -556,7 +545,8 @@ def ensure_source_cache(
     cache: Path,
     env: Mapping[str, str],
 ) -> Path:
-    verify_git()
+    if shutil.which("git") is None:
+        raise RunnerError("Composition runner requires Git on PATH")
     target = source_cache_entry(cache, revision)
     if source_valid(target, revision, env):
         return source_checkout(target)
