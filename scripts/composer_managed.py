@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import composer_core as core
+import composer_source
 
 
 class ManagedPlanError(core.CompositionError):
@@ -127,34 +128,11 @@ def _intent_as_configuration(intent: dict[str, Any]) -> dict[str, Any]:
 
 
 def _verify_source_transition(old_revision: str, new_revision: str) -> None:
-    exists = core._run_git(
-        "cat-file",
-        "-e",
-        f"{old_revision}^{{commit}}",
-        allow_failure=True,
-    )
-    if exists.returncode != 0:
-        raise ManagedPlanError(
-            "OLD_SOURCE_REVISION_UNAVAILABLE",
-            f"old composition source revision is not available in the local source history: {old_revision}",
-        )
-    ancestry = core._run_git(
-        "merge-base",
-        "--is-ancestor",
-        old_revision,
-        new_revision,
-        allow_failure=True,
-    )
-    if ancestry.returncode == 1:
-        raise ManagedPlanError(
-            "SOURCE_REVISION_NOT_DESCENDANT",
-            f"target composition source revision {new_revision} is not a descendant of old revision {old_revision}",
-        )
-    if ancestry.returncode != 0:
-        raise ManagedPlanError(
-            "GIT_FAILED",
-            "cannot establish source revision ancestry for managed operation",
-        )
+    context = composer_source.GitSourceContext(core.SOURCE_ROOT)
+    try:
+        context.verify_descendant(old_revision, new_revision)
+    except composer_source.SourceContextError as exc:
+        raise ManagedPlanError(exc.code, exc.message) from exc
 
 
 def _component_plan(
