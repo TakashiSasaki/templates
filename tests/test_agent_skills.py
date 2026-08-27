@@ -133,6 +133,8 @@ class AgentSkillContractTests(unittest.TestCase):
             "task-specific work -> `site-pr-exact-head-acceptance` -> `pr-merge-gate`",
             index,
         )
+        self.assertIn("Final merge authorization for every Site pull request", index)
+        self.assertIn("reviews = 0", index)
 
     def test_merge_gate_fails_closed_for_missing_pending_stale_or_self_review(self) -> None:
         skill = (SKILLS_ROOT / "pr-merge-gate" / "SKILL.md").read_text(
@@ -206,6 +208,7 @@ class AgentSkillContractTests(unittest.TestCase):
             "generated provenance",
             "Do not infer the target SHA from a branch name",
             "Do not expose uncataloged provider files",
+            "site-pr-exact-head-acceptance` and `pr-merge-gate",
         ):
             with self.subTest(invariant=invariant):
                 self.assertIn(invariant.lower(), skill.lower())
