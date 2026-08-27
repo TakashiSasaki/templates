@@ -37,17 +37,17 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         ]
         positions = [text.index(marker, section) for marker in markers]
         self.assertEqual(positions, sorted(positions))
-        self.assertIn("initial \`VALID\` is the scaffold milestone only", text)
+        self.assertIn("initial `VALID` is the scaffold milestone only", text)
         self.assertIn("Product code alone is not the implemented-product milestone", text)
-        self.assertIn("If evidence is still \`planning\` or \`template\`, continue", text)
-        self.assertIn("Any required deferred browser proof means \`NOT READY\`", text)
+        self.assertIn("If evidence is still `planning` or `template`, continue", text)
+        self.assertIn("Any required deferred browser proof means `NOT READY`", text)
         self.assertIn("lifecycle.next_actions", text)
 
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         self.assertIn("## Completion path at a glance", japanese)
-        self.assertIn("最初の \`VALID\` は scaffold milestone", japanese)
+        self.assertIn("最初の `VALID` は scaffold milestone", japanese)
         self.assertIn("product code だけでは implemented-product milestone ではありません", japanese)
-        self.assertIn("evidence が \`planning\` / \`template\` のままなら続行", japanese)
+        self.assertIn("evidence が `planning` / `template` のままなら続行", japanese)
         self.assertIn("required browser proof が一つでも deferred", japanese)
 
     def test_walkthrough_starts_at_zero_to_one_state(self) -> None:
