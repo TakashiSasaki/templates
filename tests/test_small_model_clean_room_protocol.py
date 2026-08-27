@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = ROOT / "examples/evaluations/small-model-clean-room-protocol.md"
+PROTOCOL = ROOT / "examples/evaluations/small-model-clean-room-protocol.txt"
 
 
 class SmallModelCleanRoomProtocolTests(unittest.TestCase):
