@@ -21,7 +21,8 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
             "commit SHAs, authority branch names, or entry-point paths",
             "inherited system, project, workspace, repository-local, or tool instructions",
         ):
-            self.assertIn(phrase, self.text)
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
         self.assertIn("current maintenance conversation must never be described as a clean-room run", self.text)
 
     def test_protocol_records_environment_and_harness_boundaries(self) -> None:
