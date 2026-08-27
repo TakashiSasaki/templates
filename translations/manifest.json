@@ -6,7 +6,7 @@
       "canonical": "README.md",
       "language": "ja",
       "translation": "translations/ja/README.md",
-      "canonical_blob_sha": "ae01b85011019bb752eab2b6c11963424951fc14",
+      "canonical_blob_sha": "dcd5faeb9f526c3b607fc64e4aa86bcf785b28c9",
       "surfaces": [
         "reader"
       ]
@@ -78,7 +78,7 @@
       "canonical": "docs/consumer-guide.md",
       "language": "ja",
       "translation": "translations/ja/docs/consumer-guide.md",
-      "canonical_blob_sha": "7321e598e021262be4a6cdb9ef0cfe6d4984f9ba",
+      "canonical_blob_sha": "d0ef0729c8e6c9d2582989f21f675c3b80169d77",
       "surfaces": [
         "reader"
       ]
