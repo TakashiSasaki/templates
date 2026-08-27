@@ -32,7 +32,7 @@ SOURCE_CONTEXT_ENV = "COMPOSITION_SOURCE_CONTEXT"
 SNAPSHOT_SCHEMA = 1
 WINDOWS_FORBIDDEN_CHARS = frozenset('<>:"\\|?*')
 WINDOWS_RESERVED_STEMS = frozenset(
-    {"con", "prn", "aux", "nul"}
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
     | {f"com{index}" for index in range(1, 10)}
     | {f"lpt{index}" for index in range(1, 10)}
     | {f"{prefix}{digit}" for prefix in ("com", "lpt") for digit in "¹²³"}
