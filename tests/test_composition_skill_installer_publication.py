@@ -15,6 +15,8 @@ DESCRIPTOR = ROOT / "release" / "composition-installer.json"
 SCHEMA = ROOT / "schemas" / "composition-skill-installer-release.schema.json"
 RELEASE_README = ROOT / "release" / "README.md"
 CONSUMER_GUIDE = ROOT / "docs" / "consumer-guide.md"
+SKILL_WALKTHROUGH = ROOT / "docs" / "guides" / "skill-first-use-walkthrough.md"
+WEBAPP_WALKTHROUGH = ROOT / "docs" / "guides" / "webapp-product-walkthrough.md"
 INSTALLER_REVISION = "cb06bce5108d804a8f07fb3adb71ff4fd051e12a"
 SKILL_REVISION = "06f6734c372bb30f633e6a53f78532a4cfbb7981"
 TOOLCHAIN_REVISION = "423d30c647238eee3fd4064ab0a02aac7f527bd6"
@@ -117,6 +119,20 @@ class CompositionSkillInstallerPublicationTests(unittest.TestCase):
             "raw.githubusercontent.com/TakashiSasaki/templates/main/", content
         )
         self.assertNotIn("/tar.gz/composition", content)
+
+    def test_first_use_walkthroughs_publish_current_installer_and_doctor(self) -> None:
+        for path in (SKILL_WALKTHROUGH, WEBAPP_WALKTHROUGH):
+            with self.subTest(path=path.relative_to(ROOT).as_posix()):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn(RAW_INSTALLER_URL, content)
+                self.assertIn("doctor", content)
+                self.assertNotIn(
+                    "raw.githubusercontent.com/TakashiSasaki/templates/composition/",
+                    content,
+                )
+                self.assertNotIn(
+                    "raw.githubusercontent.com/TakashiSasaki/templates/main/", content
+                )
 
     def test_consumer_guide_documents_self_contained_validation_cache(self) -> None:
         content = CONSUMER_GUIDE.read_text(encoding="utf-8")
