@@ -90,13 +90,37 @@ Install Composition outside the consumer repository.
 
 ## 3. Install Composition
 
-Use the reviewed immutable installer. This example installs the skill at `/absolute/path/to/agent-skills/composition`.
+Use the reviewed immutable installer. This example installs the skill at `/absolute/path/to/agent-skills/composition`. The installer digest is part of the stable release contract, so the walkthrough verifies the downloaded bytes before writing or executing them.
 
 **Run**
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -I -c '
+import hashlib
+import pathlib
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/677dc68fe35fc285638b46685950d31e3a3d3c2f/scripts/install_composition_skill.py"
+expected = "134fae0e01d1ee1d560f5f2c0284dc56e241626fd4d89a426a68fa41d7e93e34"
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(f"installer SHA-256 mismatch: expected {expected}, got {actual}")
+print(f"Verified Composition installer SHA-256: {actual}")
+with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as handle:
+    handle.write(data)
+    installer = pathlib.Path(handle.name)
+try:
+    subprocess.run([sys.executable, "-I", str(installer), *sys.argv[1:]], check=True)
+finally:
+    installer.unlink(missing_ok=True)
+' /absolute/path/to/agent-skills/composition
 ```
+
+A digest mismatch exits before installer bytes are written or an installer process is launched. The printed verified digest is useful audit evidence. If that destination already contains this Composition skill, append `--replace`; replacement is refused when the existing directory is not identified as the Composition skill.
 
 **Expected**
 
@@ -108,7 +132,7 @@ None in Release Note Helper. The Composition skill and its runtime/validation ca
 
 **What this means**
 
-You now have the normal repository-facing Composition runner. The full SHA is intentional and preserves the reviewed immutable-source model; deeper installer/toolchain identity details are in [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse).
+You now have the normal repository-facing Composition runner. Both the full-SHA installer URL and the published SHA-256 are intentional: immutable identity and downloaded-byte verification are separate checks. Deeper installer/toolchain identity details are in [Using Composition](../consumer-guide.md#immutable-source-snapshots-and-runtime-reuse).
 
 Before first Composer execution, run the installed skill's read-only local doctor:
 
