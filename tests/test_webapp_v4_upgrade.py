@@ -154,7 +154,7 @@ class WebappLegacyUpgradeTests(unittest.TestCase):
             self.assertEqual(plan["components"]["removed"], [])
             changed = {entry["id"]: entry for entry in plan["components"]["changed"]}
             self.assertEqual(changed["artifact.webapp-core"]["from_version"], 3)
-            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 12)
+            self.assertEqual(changed["artifact.webapp-core"]["to_version"], 13)
             self.assertEqual(
                 changed["artifact.webapp-core"]["compatibility_boundary"],
                 "component-version",

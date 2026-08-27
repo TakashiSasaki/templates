@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "components/artifact.webapp-core/files/scripts/browser_prerequisite_diagnostics.py"
 SCHEMA = ROOT / "components/artifact.webapp-core/files/.template-composition/browser-proof-diagnostics.schema.json"
+
+sys.dont_write_bytecode = True
 
 SPEC = importlib.util.spec_from_file_location("browser_prerequisite_diagnostics", SCRIPT)
 if SPEC is None or SPEC.loader is None:
