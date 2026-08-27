@@ -5,7 +5,7 @@
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Compose new or existing software repositories",
   "composition": {
-    "publication_revision": "daf18d8a16ece8896d37f2955ca8b428de506893",
+    "publication_revision": "4a189c645fd341f179cfc6388c016a7a75836141",
     "installer": {
       "repository": "TakashiSasaki/templates",
       "revision": "677dc68fe35fc285638b46685950d31e3a3d3c2f",
