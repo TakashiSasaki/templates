@@ -108,6 +108,26 @@ class CompositionArchiveRuntimeTests(unittest.TestCase):
                     "1" * 40,
                 )
 
+    def test_extract_snapshot_rejects_windows_unsafe_path_components(self) -> None:
+        for relative in (
+            "NUL",
+            "con.txt",
+            "trailing.",
+            "trailing ",
+            "bad?name",
+            "bad|name",
+            "control\x01name",
+        ):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temporary:
+                files = required_files()
+                files[relative] = b"unsafe"
+                with self.assertRaisesRegex(runtime.RunnerError, "unsafe path"):
+                    runtime.extract_source_snapshot(
+                        archive_bytes(files),
+                        Path(temporary) / "source",
+                        "1" * 40,
+                    )
+
     def test_run_composer_uses_ephemeral_snapshot_not_source_cache(self) -> None:
         revision = "1" * 40
         files = required_files()
