@@ -37,11 +37,15 @@ def skill_archive(*, include_reserved_receipt: bool = False) -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
         prefix = "templates-source/skills/composition"
-        add_file(archive, f"{prefix}/SKILL.md", b"---\nname: composition\n---\n")
-        add_file(archive, f"{prefix}/runtime-manifest.json", b"{}\n")
-        add_file(archive, f"{prefix}/scripts/install.py", b"print('installer')\n")
-        add_file(archive, f"{prefix}/scripts/run.py", b"print('runner')\n")
-        add_file(archive, f"{prefix}/scripts/runtime.py", b"print('runtime')\n")
+        for relative in sorted(installer.REQUIRED_SKILL_PATHS, key=lambda item: item.as_posix()):
+            content = (
+                b"---\nname: composition\n---\n"
+                if relative.as_posix() == "SKILL.md"
+                else b"{}\n"
+                if relative.as_posix() == "runtime-manifest.json"
+                else b"# runnable test fixture\n"
+            )
+            add_file(archive, f"{prefix}/{relative.as_posix()}", content)
         if include_reserved_receipt:
             add_file(
                 archive,
@@ -100,7 +104,7 @@ class CompositionInstallationReceiptTests(unittest.TestCase):
                 )
 
     def test_receipt_payload_rejects_mutable_revision_and_other_repository(self) -> None:
-        with self.assertRaisesRegex(ValueError, "full lowercase commit SHA"):
+        with self.assertRaisesRegex(ValueError, "full lowercase SHA"):
             installer.installation_receipt_payload(revision="composition")
         with self.assertRaisesRegex(ValueError, "repository is unsupported"):
             installer.installation_receipt_payload(repository="example/other")
