@@ -745,6 +745,37 @@ def _evidence_mode(root: Path) -> str:
     return mode if mode in {"template", "planning", "product"} else "invalid"
 
 
+def _checkpoint_phase(root: Path, checks: list[dict[str, Any]]) -> str:
+    """Return the latest validated checkpoint phase for lifecycle presentation.
+
+    Checkpoint semantics remain owned by lifecycle.lifecycle-checkpoints. This
+    projection reads the ledger only when that selected component has already
+    contributed a validation check. Unexpected ledger shapes fail closed here;
+    normal selected-component validation remains the authoritative validator.
+    """
+    if not any(
+        check.get("component") == "lifecycle.lifecycle-checkpoints"
+        for check in checks
+    ):
+        return "not-selected"
+    try:
+        ledger = _load_json(root / "contracts/lifecycle-checkpoints.json")
+    except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+        return "invalid"
+    if not isinstance(ledger, dict):
+        return "invalid"
+    checkpoints = ledger.get("checkpoints")
+    if not isinstance(checkpoints, list):
+        return "invalid"
+    if not checkpoints:
+        return "missing"
+    latest = checkpoints[-1]
+    if not isinstance(latest, dict):
+        return "invalid"
+    phase = latest.get("phase")
+    return phase if phase in {"planning", "product"} else "invalid"
+
+
 def _lifecycle_projection(
     root: Path, status: str, checks: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -752,7 +783,9 @@ def _lifecycle_projection(
 
     This is a presentation projection, not a second lifecycle authority. It
     deliberately reports ordinary validation and revision-bound release
-    readiness as separate dimensions.
+    readiness as separate dimensions. When lifecycle checkpoints are selected,
+    the projection never skips the checkpoint boundary already required by the
+    selected checkpoint authority.
     """
     mode = _evidence_mode(root)
     failed = status != "valid" or any(
@@ -780,6 +813,20 @@ def _lifecycle_projection(
             "next_actions": ["inspect", "plan", "apply", "validate"],
         }
 
+    checkpoint_phase = _checkpoint_phase(root, checks)
+    if checkpoint_phase == "invalid":
+        return {
+            "schema_version": 1,
+            "lifecycle_stage": "composition-invalid",
+            "implementation_evidence_mode": mode,
+            "release_readiness": "not-evaluated",
+            "blocking_conditions": ["checkpoint-state-invalid"],
+            "deferred_checks": [],
+            "next_actions": ["inspect", "plan", "apply", "validate"],
+        }
+
+    checkpoints_selected = checkpoint_phase != "not-selected"
+
     if mode == "template":
         return {
             "schema_version": 1,
@@ -788,17 +835,34 @@ def _lifecycle_projection(
             "release_readiness": "not-evaluated",
             "blocking_conditions": ["implementation-evidence-template"],
             "deferred_checks": [],
-            "next_actions": [
-                "define-product-requirements",
-                "implement-product",
-                "populate-product-evidence",
-                "run-product-verifier",
-                "validate-product-state",
-                "check-release-readiness",
-            ],
+            "next_actions": (
+                ["define-product-requirements"]
+                if checkpoints_selected
+                else [
+                    "define-product-requirements",
+                    "implement-product",
+                    "populate-product-evidence",
+                    "run-product-verifier",
+                    "validate-product-state",
+                    "check-release-readiness",
+                ]
+            ),
         }
 
     if mode == "planning":
+        if checkpoints_selected and checkpoint_phase != "planning":
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "scaffold-valid",
+                "implementation_evidence_mode": mode,
+                "release_readiness": "not-evaluated",
+                "blocking_conditions": [
+                    "implementation-evidence-planning",
+                    "planning-checkpoint-required",
+                ],
+                "deferred_checks": [],
+                "next_actions": ["create-planning-checkpoint"],
+            }
         return {
             "schema_version": 1,
             "lifecycle_stage": "scaffold-valid",
@@ -806,13 +870,22 @@ def _lifecycle_projection(
             "release_readiness": "not-evaluated",
             "blocking_conditions": ["implementation-evidence-planning"],
             "deferred_checks": [],
-            "next_actions": [
-                "implement-product",
-                "populate-product-evidence",
-                "run-product-verifier",
-                "validate-product-state",
-                "check-release-readiness",
-            ],
+            "next_actions": (
+                [
+                    "implement-product",
+                    "populate-product-evidence",
+                    "run-product-verifier",
+                    "validate-product-state",
+                ]
+                if checkpoints_selected
+                else [
+                    "implement-product",
+                    "populate-product-evidence",
+                    "run-product-verifier",
+                    "validate-product-state",
+                    "check-release-readiness",
+                ]
+            ),
         }
 
     if mode == "product":
@@ -821,6 +894,22 @@ def _lifecycle_projection(
             for check in checks
             if check.get("status") == "deferred"
         )
+        if checkpoints_selected and checkpoint_phase != "product":
+            blockers = ["product-checkpoint-required"]
+            readiness = "not-evaluated"
+            if deferred:
+                blockers.append("deferred-proof")
+                readiness = "not-ready"
+            return {
+                "schema_version": 1,
+                "lifecycle_stage": "implemented-product",
+                "implementation_evidence_mode": mode,
+                "release_readiness": readiness,
+                "blocking_conditions": blockers,
+                "deferred_checks": deferred,
+                "next_actions": ["create-product-checkpoint"],
+            }
+
         if deferred:
             return {
                 "schema_version": 1,
@@ -870,16 +959,19 @@ def _lifecycle_projection(
         "release_readiness": "not-evaluated",
         "blocking_conditions": ["implementation-evidence-missing"],
         "deferred_checks": [],
-        "next_actions": [
-            "define-product-requirements",
-            "implement-product",
-            "populate-product-evidence",
-            "run-product-verifier",
-            "validate-product-state",
-            "check-release-readiness",
-        ],
+        "next_actions": (
+            ["define-product-requirements"]
+            if checkpoints_selected
+            else [
+                "define-product-requirements",
+                "implement-product",
+                "populate-product-evidence",
+                "run-product-verifier",
+                "validate-product-state",
+                "check-release-readiness",
+            ]
+        ),
     }
-
 
 def _validate_base(root: Path) -> dict[str, Any]:
     state_validator = root / STATE_VALIDATOR_RELATIVE

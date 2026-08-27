@@ -11,12 +11,12 @@
     "release_readiness": {"enum": ["not-evaluated", "not-ready", "ready"]},
     "blocking_conditions": {
       "type": "array", "uniqueItems": true,
-      "items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "deferred-proof", "release-readiness-not-evaluated"]}
+      "items": {"enum": ["composition-validation-failed", "implementation-evidence-missing", "implementation-evidence-invalid", "implementation-evidence-template", "implementation-evidence-planning", "checkpoint-state-invalid", "planning-checkpoint-required", "product-checkpoint-required", "deferred-proof", "release-readiness-not-evaluated"]}
     },
     "deferred_checks": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}},
     "next_actions": {
       "type": "array", "uniqueItems": true,
-      "items": {"enum": ["inspect", "plan", "apply", "validate", "define-product-requirements", "implement-product", "populate-product-evidence", "run-product-verifier", "validate-product-state", "resolve-deferred-proof", "check-release-readiness"]}
+      "items": {"enum": ["inspect", "plan", "apply", "validate", "define-product-requirements", "create-planning-checkpoint", "implement-product", "populate-product-evidence", "run-product-verifier", "validate-product-state", "create-product-checkpoint", "resolve-deferred-proof", "check-release-readiness"]}
     }
   }
 }
