@@ -63,7 +63,7 @@ class HumanFirstOnboardingTests(unittest.TestCase):
         )
         self.assertEqual(
             lock["publications"]["policy"]["revision"],
-            "bbb27b90c7eed25799bd036d20730f6b0d4d19f9",
+            "56448995f848ae2de0f38c49ceb1d35f55461ed1",
         )
 
     def test_separate_product_repository_mental_model_is_explicit(self) -> None:
