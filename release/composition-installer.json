@@ -4,7 +4,8 @@
   "installer": {
     "repository": "TakashiSasaki/templates",
     "revision": "08c7c9ac647000b7e7232ad5eda4f0b3506a7675",
-    "path": "scripts/install_composition_skill.py"
+    "path": "scripts/install_composition_skill.py",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
   },
   "skill_source": {
     "repository": "TakashiSasaki/templates",
