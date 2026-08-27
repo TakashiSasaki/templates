@@ -22,6 +22,29 @@ CANONICAL_URL = "https://templates.moukaeritai.work/agent.json"
 FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
 SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
 
+VERIFIED_INSTALLER_BOOTSTRAP = """\
+import hashlib
+import pathlib
+import subprocess
+import sys
+import urllib.request
+
+url, expected, installer_file, skill_target = sys.argv[1:5]
+data = urllib.request.urlopen(url, timeout=30).read()
+actual = hashlib.sha256(data).hexdigest()
+if actual != expected:
+    raise SystemExit(
+        f"installer SHA-256 mismatch: expected {expected}, got {actual}"
+    )
+path = pathlib.Path(installer_file)
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_bytes(data)
+subprocess.run(
+    [sys.executable, "-I", str(path), skill_target],
+    check=True,
+)
+"""
+
 
 class AgentBootstrapError(RuntimeError):
     """Raised when the bootstrap projection cannot be derived safely."""
@@ -148,7 +171,7 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
 
     return {
         "$schema": SCHEMA_URL,
-        "schema_version": 1,
+        "schema_version": 2,
         "repository": REPOSITORY,
         "canonical_url": CANONICAL_URL,
         "purpose": "Compose new or existing software repositories",
@@ -180,15 +203,24 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
         },
         "bootstrap": {
             "download": "https",
-            "verify": "sha256",
+            "verify": "sha256-before-execute",
             "execute": "python-isolated",
             "installation_modes": ["persistent", "transient"],
-            "installer_argv": [
+            "verified_installer_argv": [
                 "{python}",
                 "-I",
+                "-c",
+                VERIFIED_INSTALLER_BOOTSTRAP,
+                "{installer_url}",
+                "{installer_sha256}",
                 "{installer_file}",
                 "{skill_target}",
             ],
+            "argument_bindings": {
+                "{installer_url}": "composition.installer.url",
+                "{installer_sha256}": "composition.installer.sha256",
+            },
+            "caller_inputs": ["{python}", "{installer_file}", "{skill_target}"],
         },
         "workflow": {
             "runner_argv": [

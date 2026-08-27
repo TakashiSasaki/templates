@@ -17,7 +17,7 @@
   ],
   "properties": {
     "$schema": {"const": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"},
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "repository": {"const": "TakashiSasaki/templates"},
     "canonical_url": {"const": "https://templates.moukaeritai.work/agent.json"},
     "purpose": {"const": "Compose new or existing software repositories"},
@@ -86,10 +86,10 @@
     "bootstrap": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["download", "verify", "execute", "installation_modes", "installer_argv"],
+      "required": ["download", "verify", "execute", "installation_modes", "verified_installer_argv", "argument_bindings", "caller_inputs"],
       "properties": {
         "download": {"const": "https"},
-        "verify": {"const": "sha256"},
+        "verify": {"const": "sha256-before-execute"},
         "execute": {"const": "python-isolated"},
         "installation_modes": {
           "type": "array",
@@ -101,17 +101,41 @@
           "minItems": 2,
           "maxItems": 2
         },
-        "installer_argv": {
+        "verified_installer_argv": {
           "type": "array",
           "prefixItems": [
             {"const": "{python}"},
             {"const": "-I"},
+            {"const": "-c"},
+            {"type": "string", "minLength": 1},
+            {"const": "{installer_url}"},
+            {"const": "{installer_sha256}"},
             {"const": "{installer_file}"},
             {"const": "{skill_target}"}
           ],
           "items": false,
-          "minItems": 4,
-          "maxItems": 4
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "argument_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["{installer_url}", "{installer_sha256}"],
+          "properties": {
+            "{installer_url}": {"const": "composition.installer.url"},
+            "{installer_sha256}": {"const": "composition.installer.sha256"}
+          }
+        },
+        "caller_inputs": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "{python}"},
+            {"const": "{installer_file}"},
+            {"const": "{skill_target}"}
+          ],
+          "items": false,
+          "minItems": 3,
+          "maxItems": 3
         }
       }
     },

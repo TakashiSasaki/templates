@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,6 +67,7 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             manifest = bootstrap.build_manifest(source_lock, release)
 
         self.assertEqual(manifest["$schema"], bootstrap.SCHEMA_URL)
+        self.assertEqual(manifest["schema_version"], 2)
         self.assertEqual(manifest["composition"]["publication_revision"], "a" * 40)
         self.assertEqual(manifest["composition"]["installer"]["revision"], "c" * 40)
         self.assertEqual(manifest["composition"]["installer"]["sha256"], "d" * 64)
@@ -81,9 +85,30 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             + "e" * 40
             + "/skills/composition/SKILL.md",
         )
+        self.assertEqual(manifest["bootstrap"]["verify"], "sha256-before-execute")
         self.assertEqual(
-            manifest["bootstrap"]["installer_argv"],
-            ["{python}", "-I", "{installer_file}", "{skill_target}"],
+            manifest["bootstrap"]["verified_installer_argv"][:4],
+            ["{python}", "-I", "-c", bootstrap.VERIFIED_INSTALLER_BOOTSTRAP],
+        )
+        self.assertEqual(
+            manifest["bootstrap"]["verified_installer_argv"][4:],
+            [
+                "{installer_url}",
+                "{installer_sha256}",
+                "{installer_file}",
+                "{skill_target}",
+            ],
+        )
+        self.assertEqual(
+            manifest["bootstrap"]["argument_bindings"],
+            {
+                "{installer_url}": "composition.installer.url",
+                "{installer_sha256}": "composition.installer.sha256",
+            },
+        )
+        self.assertEqual(
+            manifest["bootstrap"]["caller_inputs"],
+            ["{python}", "{installer_file}", "{skill_target}"],
         )
         self.assertEqual(
             manifest["workflow"]["runner_argv"],
@@ -95,6 +120,57 @@ class AgentBootstrapManifestTests(unittest.TestCase):
                 "{command}",
             ],
         )
+
+    def test_verified_bootstrap_checks_digest_before_writing_or_executing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_lock, release = self.write_fixture(root)
+            manifest = bootstrap.build_manifest(source_lock, release)
+            source_installer = root / "fixture-installer.py"
+            source_installer.write_text(
+                "from pathlib import Path\n"
+                "import sys\n"
+                "target = Path(sys.argv[1])\n"
+                "target.mkdir(parents=True, exist_ok=True)\n"
+                "(target / 'executed').write_text('yes', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            installer_bytes = source_installer.read_bytes()
+            good_digest = hashlib.sha256(installer_bytes).hexdigest()
+            downloaded = root / "downloads" / "nested" / "downloaded-installer.py"
+            skill_target = root / "skill-target"
+
+            def resolve(expected_digest: str) -> list[str]:
+                replacements = {
+                    "{python}": sys.executable,
+                    "{installer_url}": source_installer.as_uri(),
+                    "{installer_sha256}": expected_digest,
+                    "{installer_file}": str(downloaded),
+                    "{skill_target}": str(skill_target),
+                }
+                return [
+                    replacements.get(part, part)
+                    for part in manifest["bootstrap"]["verified_installer_argv"]
+                ]
+
+            failed = subprocess.run(
+                resolve("0" * 64),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("installer SHA-256 mismatch", failed.stderr)
+            self.assertFalse(downloaded.exists())
+            self.assertFalse(downloaded.parent.exists())
+            self.assertFalse((skill_target / "executed").exists())
+
+            subprocess.run(resolve(good_digest), check=True)
+            self.assertEqual(downloaded.read_bytes(), installer_bytes)
+            self.assertEqual(
+                (skill_target / "executed").read_text(encoding="utf-8"),
+                "yes",
+            )
 
     def test_release_descriptor_rejects_non_sha256_digest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -145,7 +221,15 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             schema_value["properties"]["composition"]["properties"]["skill"]["required"],
         )
         self.assertIn(
-            "installer_argv",
+            "verified_installer_argv",
+            schema_value["properties"]["bootstrap"]["required"],
+        )
+        self.assertIn(
+            "argument_bindings",
+            schema_value["properties"]["bootstrap"]["required"],
+        )
+        self.assertIn(
+            "caller_inputs",
             schema_value["properties"]["bootstrap"]["required"],
         )
         self.assertIn(
