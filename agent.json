@@ -1,4 +1,5 @@
 {
+  "$schema": "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json",
   "schema_version": 1,
   "repository": "TakashiSasaki/templates",
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
