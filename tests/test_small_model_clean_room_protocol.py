@@ -58,6 +58,18 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
         self.assertIn("planning/template evidence must not be reported as product evidence", self.text)
         self.assertIn("Deferred required browser proof keeps release readiness NOT READY", self.text)
 
+    def test_protocol_enforces_transcript_fallback_and_replay_isolation(self) -> None:
+        for phrase in (
+            "complete",
+            "partial",
+            "unavailable",
+            "mark claims relying on the missing interval as NOT TESTED or BLOCKED rather than inferred PASS",
+            "maintainer-controlled diagnostic environment",
+            "Do not feed the clean-room model's report or artifacts into that replay",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+
 
 if __name__ == "__main__":
     unittest.main()
