@@ -23,6 +23,8 @@ repository 作成
   ↓
 Composition install
   ↓
+doctor
+  ↓
 composition.json
   ↓
 inspect → plan → review → apply → validate
@@ -62,12 +64,22 @@ Git と CPython 3.11–3.14 が必要です。
 ## 3. Composition を install する
 
 ```sh
-python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/9c1c093fca1e7e47a9974150e7739665ec570f6e/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
+python -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/TakashiSasaki/templates/cb06bce5108d804a8f07fb3adb71ff4fd051e12a/scripts/install_composition_skill.py', timeout=30).read())" /absolute/path/to/agent-skills/composition
 ```
 
 **Expected:** `/absolute/path/to/agent-skills/composition/scripts/run.py` が存在します。
 
 Release Note Helper repository には変更ありません。full SHA は reviewed immutable-source model のためです。
+
+最初の acquisition の前に local bootstrap readiness を確認するには read-only `doctor` を実行します。
+
+```sh
+python /absolute/path/to/agent-skills/composition/scripts/run.py \
+  --repository /absolute/path/to/release-note-helper \
+  doctor
+```
+
+`doctor --format json` では machine-readable diagnostics を取得できます。doctor は selected immutable revision、supported CPython、Git、runner-cache の write/atomic-rename capability、および既存 source/runtime cache を normal runner と同じ validator で検査します。Git remote や package index には接続せず、source/runtime acquisition も行いません。したがって `READY` は local bootstrap diagnosis であり、Composition validation の成功や cold acquisition の network/package availability を保証するものではありません。
 
 ## 4. `composition.json` を作る
 
@@ -262,6 +274,7 @@ first-use success:
 
 - separate consumer repository。
 - Composition が repository 外に install 済み。
+- `doctor` で local bootstrap readiness を read-only に確認できる。
 - minimal `skill` recipe の `composition.json`。
 - `inspect -> plan -> review -> apply -> validate` を正しい順序で実行。
 - plan が read-only と理解。
