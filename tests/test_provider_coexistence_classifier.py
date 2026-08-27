@@ -68,6 +68,24 @@ class ProviderCoexistenceClassifierTests(unittest.TestCase):
         self.assertTrue(required)
         self.assertEqual(matched, ("scripts/validate_provider_coexistence.py",))
 
+    def test_classifier_deduplicates_and_sorts_multiple_matching_paths(self) -> None:
+        required, matched = classify_paths(
+            [
+                "scripts/validate_provider_coexistence.py",
+                "publication-sources.json",
+                "scripts/validate_provider_coexistence.py",
+            ]
+        )
+
+        self.assertTrue(required)
+        self.assertEqual(
+            matched,
+            (
+                "publication-sources.json",
+                "scripts/validate_provider_coexistence.py",
+            ),
+        )
+
     def test_windows_separators_are_normalized_before_classification(self) -> None:
         self.assertEqual(
             normalize_path(r"scripts\validate_provider_coexistence.py"),
@@ -133,6 +151,35 @@ class ProviderCoexistenceClassifierTests(unittest.TestCase):
                 "matched_count=1\n"
                 "matched_paths=scripts/resolve_publication_sources.py\n",
             )
+
+    def test_cli_fails_closed_on_invalid_changed_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            changed = root / "changed.txt"
+            output = root / "github-output.txt"
+            changed.write_text("/absolute/path.py\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(CLASSIFIER),
+                    "--changed-paths",
+                    str(changed),
+                    "--output",
+                    str(output),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "provider coexistence classification failed:",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":
