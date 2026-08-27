@@ -4,9 +4,17 @@ on:
   push:
     branches:
       - composition
+    tags:
+      - 'composition-compatibility-*'
   pull_request:
     branches:
       - composition
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
 
 permissions:
   contents: read
@@ -18,12 +26,13 @@ concurrency:
 jobs:
   classify_runtime:
     name: classify consumer-runtime requirement
-    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       required: ${{ steps.classify.outputs.required }}
       reason: ${{ steps.classify.outputs.reason }}
+      compatibility_required: ${{ steps.classify.outputs.compatibility_required }}
+      compatibility_reason: ${{ steps.classify.outputs.compatibility_reason }}
       changed_count: ${{ steps.classify.outputs.changed_count }}
     steps:
       - name: Check out repository history for change classification
@@ -32,29 +41,125 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Classify consumer-runtime requirement
+      - name: Classify consumer-runtime and compatibility requirements
         id: classify
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          FORCE_COMPATIBILITY: ${{ (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci/full-compatibility')) || startsWith(github.ref, 'refs/tags/composition-compatibility-') }}
         run: >-
           python3 -I scripts/classify_composition_ci.py
           --base "$BASE_SHA"
           --head "$HEAD_SHA"
+          --force-compatibility "$FORCE_COMPATIBILITY"
           --github-output "$GITHUB_OUTPUT"
 
-  # Representative tier. Runtime-relevant PRs exercise every supported Python
-  # on Ubuntu plus Windows/Python 3.12. Python 3.12 is also the skill-runner
-  # baseline, so Windows path, subprocess, shell, venv, and filesystem behavior
-  # remains a merge-time check without paying for four Windows versions per PR.
-  # On an exact composition push these jobs are part of the authoritative proof.
-  # always() crosses the intentionally skipped push classifier; !cancelled()
-  # preserves concurrency cancellation so superseded runs do not keep spending.
+  # Fast tier. Every behavior-sensitive change gets one stable maintainer
+  # environment: Ubuntu 24.04 with Python 3.12. This is the ordinary PR/push
+  # evidence layer and deliberately contains no Windows or Python-version matrix.
   clean-runtime:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Ubuntu / Python 3.12
     needs:
       - classify_runtime
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: /dev/null
+    steps:
+      - name: Check out repository with Composition history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Build and exercise clean consumer runtime
+        run: python -I scripts/smoke_test_runtime_distribution.py
+
+  materialized-validation:
+    name: materialized validation / Ubuntu / Python 3.12
+    needs:
+      - classify_runtime
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: /dev/null
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Exercise materialized validation without host site packages
+        run: python -I scripts/smoke_test_materialized_validation.py
+
+  skill-runner:
+    name: installed skill / Ubuntu / Python 3.12
+    needs:
+      - classify_runtime
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.required == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONHOME: ""
+      PYTHONPATH: ""
+      PYTHONUSERBASE: ""
+      PYTHONNOUSERSITE: "1"
+      PIP_PYTHON: ""
+      PIP_CACHE_DIR: ""
+      PIP_NO_CACHE_DIR: ""
+      PIP_QUIET: ""
+      PIP_LOG: ""
+      PIP_CONFIG_FILE: /dev/null
+    steps:
+      - name: Check out runner source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install skill and exercise immutable runner
+        run: python -I scripts/smoke_test_skill_runner.py
+
+      - name: Download and exercise immutable remote installer candidate
+        run: python -I scripts/smoke_test_remote_skill_installer.py
+
+  # Compatibility tier. Python source, runtime/distribution surfaces, workflow
+  # changes, explicit ci/full-compatibility PR labels, and checkpoint tags run
+  # the complete supported Ubuntu/Windows x Python 3.11-3.14 matrix.
+  compatibility-clean-runtime:
+    name: compatibility clean / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    needs:
+      - classify_runtime
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.compatibility_required == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -73,7 +178,16 @@ jobs:
             python-version: "3.14"
           - os: windows-2022
             pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
             python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
@@ -101,11 +215,11 @@ jobs:
       - name: Build and exercise clean consumer runtime
         run: python -I scripts/smoke_test_runtime_distribution.py
 
-  materialized-validation:
-    name: materialized validation / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+  compatibility-materialized-validation:
+    name: compatibility materialized / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.compatibility_required == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -124,7 +238,16 @@ jobs:
             python-version: "3.14"
           - os: windows-2022
             pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
             python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
@@ -150,19 +273,39 @@ jobs:
       - name: Exercise materialized validation without host site packages
         run: python -I scripts/smoke_test_materialized_validation.py
 
-  skill-runner:
-    name: installed skill / ${{ matrix.os }} / Python 3.12
+  compatibility-skill-runner:
+    name: compatibility installed skill / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     needs:
       - classify_runtime
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify_runtime.outputs.required == 'true') }}
+    if: ${{ always() && !cancelled() && needs.classify_runtime.result == 'success' && needs.classify_runtime.outputs.compatibility_required == 'true' }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
             pip-config-file: /dev/null
+            python-version: "3.11"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.12"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.13"
+          - os: ubuntu-24.04
+            pip-config-file: /dev/null
+            python-version: "3.14"
           - os: windows-2022
             pip-config-file: NUL
+            python-version: "3.11"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.12"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.13"
+          - os: windows-2022
+            pip-config-file: NUL
+            python-version: "3.14"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     env:
@@ -183,88 +326,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install skill and exercise immutable runner
         run: python -I scripts/smoke_test_skill_runner.py
 
       - name: Download and exercise immutable remote installer candidate
         run: python -I scripts/smoke_test_remote_skill_installer.py
-
-  # Authoritative full-tier supplements. An exact composition push adds the
-  # Windows versions intentionally omitted from PRs. These jobs have no
-  # classifier dependency, so classifier behavior cannot suppress them.
-  full-windows-clean-runtime:
-    name: full Windows clean / Python ${{ matrix.python-version }}
-    if: ${{ github.event_name == 'push' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - "3.11"
-          - "3.13"
-          - "3.14"
-    runs-on: windows-2022
-    timeout-minutes: 15
-    env:
-      PYTHONHOME: ""
-      PYTHONPATH: ""
-      PYTHONUSERBASE: ""
-      PYTHONNOUSERSITE: "1"
-      PIP_PYTHON: ""
-      PIP_CACHE_DIR: ""
-      PIP_NO_CACHE_DIR: ""
-      PIP_QUIET: ""
-      PIP_LOG: ""
-      PIP_CONFIG_FILE: NUL
-    steps:
-      - name: Check out repository with Composition history
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Build and exercise clean consumer runtime
-        run: python -I scripts/smoke_test_runtime_distribution.py
-
-  full-windows-materialized-validation:
-    name: full Windows materialized / Python ${{ matrix.python-version }}
-    if: ${{ github.event_name == 'push' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - "3.11"
-          - "3.13"
-          - "3.14"
-    runs-on: windows-2022
-    timeout-minutes: 20
-    env:
-      PYTHONHOME: ""
-      PYTHONPATH: ""
-      PYTHONUSERBASE: ""
-      PYTHONNOUSERSITE: "1"
-      PIP_PYTHON: ""
-      PIP_CACHE_DIR: ""
-      PIP_NO_CACHE_DIR: ""
-      PIP_QUIET: ""
-      PIP_LOG: ""
-      PIP_CONFIG_FILE: NUL
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Exercise materialized validation without host site packages
-        run: python -I scripts/smoke_test_materialized_validation.py
 
   validate:
     name: consumer runtime validate
@@ -274,54 +342,56 @@ jobs:
       - clean-runtime
       - materialized-validation
       - skill-runner
-      - full-windows-clean-runtime
-      - full-windows-materialized-validation
+      - compatibility-clean-runtime
+      - compatibility-materialized-validation
+      - compatibility-skill-runner
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Require policy-correct consumer-runtime outcome
         env:
-          EVENT_NAME: ${{ github.event_name }}
           CLASSIFIER_RESULT: ${{ needs.classify_runtime.result }}
           RUNTIME_REQUIRED: ${{ needs.classify_runtime.outputs.required }}
+          COMPATIBILITY_REQUIRED: ${{ needs.classify_runtime.outputs.compatibility_required }}
           CLEAN_RUNTIME_RESULT: ${{ needs.clean-runtime.result }}
           MATERIALIZED_VALIDATION_RESULT: ${{ needs.materialized-validation.result }}
           SKILL_RUNNER_RESULT: ${{ needs.skill-runner.result }}
-          FULL_WINDOWS_CLEAN_RESULT: ${{ needs.full-windows-clean-runtime.result }}
-          FULL_WINDOWS_MATERIALIZED_RESULT: ${{ needs.full-windows-materialized-validation.result }}
+          COMPATIBILITY_CLEAN_RESULT: ${{ needs.compatibility-clean-runtime.result }}
+          COMPATIBILITY_MATERIALIZED_RESULT: ${{ needs.compatibility-materialized-validation.result }}
+          COMPATIBILITY_SKILL_RESULT: ${{ needs.compatibility-skill-runner.result }}
         run: |
-          case "$EVENT_NAME" in
-            push)
-              test "$CLASSIFIER_RESULT" = skipped
+          test "$CLASSIFIER_RESULT" = success
+
+          case "$RUNTIME_REQUIRED" in
+            true)
               test "$CLEAN_RUNTIME_RESULT" = success
               test "$MATERIALIZED_VALIDATION_RESULT" = success
               test "$SKILL_RUNNER_RESULT" = success
-              test "$FULL_WINDOWS_CLEAN_RESULT" = success
-              test "$FULL_WINDOWS_MATERIALIZED_RESULT" = success
               ;;
-            pull_request)
-              test "$CLASSIFIER_RESULT" = success
-              test "$FULL_WINDOWS_CLEAN_RESULT" = skipped
-              test "$FULL_WINDOWS_MATERIALIZED_RESULT" = skipped
-              case "$RUNTIME_REQUIRED" in
-                true)
-                  test "$CLEAN_RUNTIME_RESULT" = success
-                  test "$MATERIALIZED_VALIDATION_RESULT" = success
-                  test "$SKILL_RUNNER_RESULT" = success
-                  ;;
-                false)
-                  test "$CLEAN_RUNTIME_RESULT" = skipped
-                  test "$MATERIALIZED_VALIDATION_RESULT" = skipped
-                  test "$SKILL_RUNNER_RESULT" = skipped
-                  ;;
-                *)
-                  echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED" >&2
-                  exit 1
-                  ;;
-              esac
+            false)
+              test "$CLEAN_RUNTIME_RESULT" = skipped
+              test "$MATERIALIZED_VALIDATION_RESULT" = skipped
+              test "$SKILL_RUNNER_RESULT" = skipped
               ;;
             *)
-              echo "unexpected workflow event: $EVENT_NAME" >&2
+              echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$COMPATIBILITY_REQUIRED" in
+            true)
+              test "$COMPATIBILITY_CLEAN_RESULT" = success
+              test "$COMPATIBILITY_MATERIALIZED_RESULT" = success
+              test "$COMPATIBILITY_SKILL_RESULT" = success
+              ;;
+            false)
+              test "$COMPATIBILITY_CLEAN_RESULT" = skipped
+              test "$COMPATIBILITY_MATERIALIZED_RESULT" = skipped
+              test "$COMPATIBILITY_SKILL_RESULT" = skipped
+              ;;
+            *)
+              echo "invalid compatibility classification: $COMPATIBILITY_REQUIRED" >&2
               exit 1
               ;;
           esac
