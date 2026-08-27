@@ -117,6 +117,13 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
             "templates-source/skills/composition/../outside.txt",
             "templates-source/skills/composition/..\\outside.txt",
             "templates-source/skills/composition/file:stream",
+            "templates-source/skills/composition/NUL",
+            "templates-source/skills/composition/con.txt",
+            "templates-source/skills/composition/trailing.",
+            "templates-source/skills/composition/trailing ",
+            "templates-source/skills/composition/bad?name",
+            "templates-source/skills/composition/bad|name",
+            "templates-source/skills/composition/control\x01name",
         ):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:
                 traversal = tarfile.TarInfo(name)
@@ -126,6 +133,16 @@ class CompositionRemoteSkillInstallerTests(unittest.TestCase):
                         skill_archive(extra_members=[traversal]),
                         Path(temporary) / "skill",
                     )
+
+    def test_extract_rejects_portable_case_collision(self) -> None:
+        collision = tarfile.TarInfo("templates-source/skills/composition/skill.md")
+        collision.size = 0
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(RuntimeError, "portable path collision"):
+                installer.extract_skill_archive(
+                    skill_archive(extra_members=[collision]),
+                    Path(temporary) / "skill",
+                )
 
     def test_extract_rejects_links_unsupported_types_duplicates_and_multiple_roots(self) -> None:
         cases: list[tuple[tarfile.TarInfo, str]] = []
