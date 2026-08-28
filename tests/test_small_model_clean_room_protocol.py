@@ -41,9 +41,13 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
     def test_protocol_separates_lifecycle_and_attribution(self) -> None:
         for phrase in (
             "scaffold validation",
+            "planning checkpoint creation",
+            "first product-code mutation",
             "product implementation",
             "product evidence population",
             "product-state validation",
+            "product checkpoint creation",
+            "first release-readiness evaluation",
             "release-readiness status",
             "repository defect",
             "documentation or discoverability defect",
@@ -57,6 +61,17 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
                 self.assertIn(phrase, self.text)
         self.assertIn("planning/template evidence must not be reported as product evidence", self.text)
         self.assertIn("Deferred required browser proof keeps release readiness NOT READY", self.text)
+
+    def test_protocol_requires_chronological_checkpoint_evidence(self) -> None:
+        for phrase in (
+            "chronology is part of lifecycle correctness",
+            "planning checkpoint must exist before the first product-code mutation",
+            "product checkpoint must exist before the first release-readiness evaluation",
+            "does not retroactively repair lifecycle correctness",
+            "Do not infer chronology from the final filesystem",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
 
     def test_protocol_enforces_transcript_fallback_and_replay_isolation(self) -> None:
         for phrase in (
