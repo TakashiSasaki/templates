@@ -11,21 +11,23 @@ Composition supplies contracts, managed validation material, and a deterministic
 
 ## Completion path at a glance
 
-Use this short path as the completion gate for the full walkthrough. The numbered sections below retain the detailed product example; this list makes the lifecycle milestone explicit before the details begin.
+    Use this short path as the completion gate for the full walkthrough. The numbered sections below retain the detailed product example; this list makes the lifecycle milestone explicit before the details begin.
 
-1. **Doctor** — run the installed Composition `doctor` and resolve local bootstrap blockers.
-2. **Inspect** — inspect the target repository before any mutation.
-3. **Plan** — create the read-only Composition plan.
-4. **Review** — check the target, resolved components, actions, and conflicts.
-5. **Apply** — apply exactly the reviewed plan to materialize the scaffold.
-6. **Validate scaffold** — run Composition `validate`; initial `VALID` is the scaffold milestone only.
-7. **Implement product** — edit consumer-owned contracts and ordinary product code. Product code alone is not the implemented-product milestone.
-8. **Populate product evidence** — change implementation evidence from `planning`/`template` to truthful `product` evidence with current records, proofs, commands, and gates.
-9. **Run product verifier** — execute the authoritative product verifier and retain its result as evidence.
-10. **Validate product state** — run Composition validation again and follow the machine-readable `lifecycle.next_actions`. If evidence is still `planning` or `template`, continue; do not stop at scaffold `VALID`.
-11. **Check release readiness** — run the exact release-readiness operation. Any required deferred browser proof means `NOT READY`, even when implementation and ordinary validation pass.
+    1. **Doctor** — run the installed Composition `doctor` and resolve local bootstrap blockers.
+    2. **Inspect** — inspect the target repository before any mutation.
+    3. **Plan** — create the read-only Composition plan.
+    4. **Review** — check the target, resolved components, actions, and conflicts.
+    5. **Apply** — apply exactly the reviewed plan to materialize the scaffold.
+    6. **Validate scaffold** — run Composition `validate`; initial `VALID` is the scaffold milestone only. Define truthful planning evidence before crossing into product coding.
+    7. **Create planning checkpoint** — when lifecycle checkpoints are selected, follow `lifecycle.next_actions` and execute its `next_action_command.argv` rather than reconstructing checkpoint CLI syntax from prose. Record the validated planning state before product coding begins.
+    8. **Implement product** — edit consumer-owned contracts and ordinary product code. Product code alone is not the implemented-product milestone.
+    9. **Populate product evidence** — change implementation evidence from `planning`/`template` to truthful `product` evidence with current records, proofs, commands, and gates.
+    10. **Run product verifier** — execute the authoritative product verifier and retain its result as evidence.
+    11. **Validate product state** — run Composition validation again and follow the machine-readable `lifecycle.next_actions`. If evidence is still `planning` or `template`, continue; do not stop at scaffold `VALID`.
+    12. **Create product checkpoint** — when lifecycle checkpoints are selected, follow `lifecycle.next_actions` and execute its projected `next_action_command.argv` to close the validated planning-to-product transition before release-readiness evaluation.
+    13. **Check release readiness** — run the exact release-readiness operation. Any required deferred browser proof means `NOT READY`, even when implementation and ordinary validation pass.
 
-The initial `VALID` result is a scaffold milestone, not an implemented-product or release-ready claim. The implementation milestone requires truthful product evidence and a passing product verifier. The release milestone is separate and remains `NOT READY` while required proof is missing, deferred, failed, or not yet evaluated.
+    The initial `VALID` result is a scaffold milestone, not an implemented-product or release-ready claim. When lifecycle checkpoints are selected, the planning checkpoint is the hard boundary before product coding and the product checkpoint is the hard boundary before release-readiness evaluation. The implementation milestone requires truthful product evidence and a passing product verifier. The release milestone is separate and remains `NOT READY` while required proof is missing, deferred, failed, or not yet evaluated.
 
 ## 0. What this walkthrough will produce
 

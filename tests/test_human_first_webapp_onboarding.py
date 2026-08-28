@@ -31,10 +31,12 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
             "**Review**",
             "**Apply**",
             "**Validate scaffold**",
+            "**Create planning checkpoint**",
             "**Implement product**",
             "**Populate product evidence**",
             "**Run product verifier**",
             "**Validate product state**",
+            "**Create product checkpoint**",
             "**Check release readiness**",
         ]
         positions = [text.index(marker, section) for marker in markers]
@@ -44,6 +46,10 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         self.assertIn("If evidence is still `planning` or `template`, continue", text)
         self.assertIn("Any required deferred browser proof means `NOT READY`", text)
         self.assertIn("lifecycle.next_actions", text)
+        self.assertIn("next_action_command.argv", text)
+        self.assertIn("rather than reconstructing checkpoint CLI syntax from prose", text)
+        self.assertIn("hard boundary before product coding", text)
+        self.assertIn("hard boundary before release-readiness evaluation", text)
 
         japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")
         self.assertIn("## Completion path at a glance", japanese)
@@ -51,6 +57,11 @@ class HumanFirstWebappOnboardingTests(unittest.TestCase):
         self.assertIn("product code だけでは implemented-product milestone ではありません", japanese)
         self.assertIn("evidence が `planning` / `template` のままなら続行", japanese)
         self.assertIn("required browser proof が一つでも deferred", japanese)
+        self.assertIn("**Create planning checkpoint**", japanese)
+        self.assertIn("**Create product checkpoint**", japanese)
+        self.assertIn("next_action_command.argv", japanese)
+        self.assertIn("checkpoint CLI を再構成せず", japanese)
+        self.assertIn("product coding 前の hard boundary", japanese)
 
     def test_walkthrough_starts_at_zero_to_one_state(self) -> None:
         text = WALKTHROUGH.read_text(encoding="utf-8")
