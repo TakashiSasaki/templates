@@ -1,0 +1,186 @@
+name: Finalize executable lifecycle next step clean
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step-clean
+    paths:
+      - .github/workflows/finalize-executable-lifecycle-next-step-clean.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Stage executable lifecycle finalizer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Wire canonical checkpoint commands into lifecycle projection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("components/lifecycle.composition-state/files/.template-composition/validate.py")
+          text = path.read_text(encoding="utf-8")
+
+          constant_anchor = 'REGISTRY_RELATIVE = ".template-composition/validation-registry.json"\n'
+          if text.count(constant_anchor) != 1:
+              raise SystemExit("registry constant anchor mismatch")
+          text = text.replace(
+              constant_anchor,
+              constant_anchor
+              + 'CHECKPOINT_ACTION_REGISTRY_RELATIVE = ".template-composition/lifecycle-checkpoint-actions.json"\n',
+              1,
+          )
+
+          lifecycle_anchor = "\ndef _lifecycle_projection(\n"
+          if text.count(lifecycle_anchor) != 1:
+              raise SystemExit("lifecycle projection anchor mismatch")
+          helpers = r'''
+
+          def _checkpoint_latest_id(root: Path) -> str | None:
+              try:
+                  ledger = _load_json(root / "contracts/lifecycle-checkpoints.json")
+              except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+                  return None
+              if not isinstance(ledger, dict):
+                  return None
+              checkpoints = ledger.get("checkpoints")
+              if not isinstance(checkpoints, list) or not checkpoints:
+                  return None
+              latest = checkpoints[-1]
+              if not isinstance(latest, dict):
+                  return None
+              checkpoint_id = latest.get("id")
+              if not isinstance(checkpoint_id, str) or re.fullmatch(r"[a-z][a-z0-9-]*", checkpoint_id) is None:
+                  return None
+              return checkpoint_id
+
+
+          def _checkpoint_action_command(root: Path, action: str) -> dict[str, Any] | None:
+              try:
+                  registry = _load_json(root / CHECKPOINT_ACTION_REGISTRY_RELATIVE)
+              except (OSError, UnicodeError, json.JSONDecodeError, StrictJsonError):
+                  return None
+              if (
+                  not isinstance(registry, dict)
+                  or set(registry) != {"$schema", "schemaVersion", "actions"}
+                  or registry.get("schemaVersion") != 1
+              ):
+                  return None
+              actions = registry.get("actions")
+              if not isinstance(actions, dict):
+                  return None
+              entry = actions.get(action)
+              if not isinstance(entry, dict) or set(entry) != {"argv", "caller_inputs", "bindings"}:
+                  return None
+              argv = entry.get("argv")
+              caller_inputs = entry.get("caller_inputs")
+              bindings = entry.get("bindings")
+              if (
+                  not isinstance(argv, list)
+                  or not argv
+                  or any(not isinstance(token, str) or not token for token in argv)
+                  or not isinstance(caller_inputs, list)
+                  or len(caller_inputs) != len(set(caller_inputs))
+                  or any(
+                      not isinstance(token, str)
+                      or re.fullmatch(r"\{[a-z_]+\}", token) is None
+                      for token in caller_inputs
+                  )
+                  or not isinstance(bindings, dict)
+                  or any(
+                      not isinstance(token, str)
+                      or re.fullmatch(r"\{[a-z_]+\}", token) is None
+                      or binding != "latest-checkpoint-id"
+                      for token, binding in bindings.items()
+                  )
+                  or set(caller_inputs) & set(bindings)
+              ):
+                  return None
+
+              resolved: list[str] = []
+              placeholder = re.compile(r"^\{[a-z_]+\}$")
+              for token in argv:
+                  if token in bindings:
+                      latest_id = _checkpoint_latest_id(root)
+                      if latest_id is None:
+                          return None
+                      resolved.append(latest_id)
+                  elif placeholder.fullmatch(token) is not None:
+                      if token not in caller_inputs:
+                          return None
+                      resolved.append(token)
+                  else:
+                      resolved.append(token)
+              if any(token not in argv for token in caller_inputs):
+                  return None
+              return {
+                  "action": action,
+                  "argv": resolved,
+                  "caller_inputs": list(caller_inputs),
+              }
+
+
+          def _checkpoint_command_failure(mode: str) -> dict[str, Any]:
+              return {
+                  "schema_version": 2,
+                  "lifecycle_stage": "composition-invalid",
+                  "implementation_evidence_mode": mode,
+                  "release_readiness": "not-evaluated",
+                  "blocking_conditions": ["checkpoint-command-registry-invalid"],
+                  "deferred_checks": [],
+                  "next_actions": ["inspect", "plan", "apply", "validate"],
+              }
+          '''
+          import textwrap
+          text = text.replace(lifecycle_anchor, textwrap.dedent(helpers) + lifecycle_anchor, 1)
+
+          start = text.index("def _lifecycle_projection(")
+          end = text.index("\ndef _validate_base", start)
+          projection = text[start:end]
+          if '"schema_version": 1' not in projection:
+              raise SystemExit("projection schema-version anchor missing")
+          projection = projection.replace('"schema_version": 1', '"schema_version": 2')
+
+          planning_anchor = '        if checkpoints_selected and checkpoint_phase != "planning":\n            return {\n'
+          planning_replacement = '        if checkpoints_selected and checkpoint_phase != "planning":\n            command = _checkpoint_action_command(root, "create-planning-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            return {\n'
+          if projection.count(planning_anchor) != 1:
+              raise SystemExit("planning command anchor mismatch")
+          projection = projection.replace(planning_anchor, planning_replacement, 1)
+          planning_action = '                "next_actions": ["create-planning-checkpoint"],\n            }\n'
+          planning_action_replacement = '                "next_actions": ["create-planning-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if projection.count(planning_action) != 1:
+              raise SystemExit("planning action result anchor mismatch")
+          projection = projection.replace(planning_action, planning_action_replacement, 1)
+
+          product_anchor = '        if checkpoints_selected and checkpoint_phase != "product":\n            blockers = ["product-checkpoint-required"]\n'
+          product_replacement = '        if checkpoints_selected and checkpoint_phase != "product":\n            command = _checkpoint_action_command(root, "create-product-checkpoint")\n            if command is None:\n                return _checkpoint_command_failure(mode)\n            blockers = ["product-checkpoint-required"]\n'
+          if projection.count(product_anchor) != 1:
+              raise SystemExit("product command anchor mismatch")
+          projection = projection.replace(product_anchor, product_replacement, 1)
+          product_action = '                "next_actions": ["create-product-checkpoint"],\n            }\n'
+          product_action_replacement = '                "next_actions": ["create-product-checkpoint"],\n                "next_action_command": command,\n            }\n'
+          if projection.count(product_action) != 1:
+              raise SystemExit("product action result anchor mismatch")
+          projection = projection.replace(product_action, product_action_replacement, 1)
+
+          text = text[:start] + projection + text[end:]
+          path.write_text(text, encoding="utf-8")
+          PY
+          python -m py_compile components/lifecycle.composition-state/files/.template-composition/validate.py
+          python -m unittest tests.test_lifecycle_next_actions
+      - name: Commit final candidate and remove staging workflow
+        env:
+          BRANCH: feat/executable-lifecycle-next-step-clean
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/lifecycle.composition-state/files/.template-composition/validate.py
+          git rm .github/workflows/finalize-executable-lifecycle-next-step-clean.yml
+          git commit -m "Expose executable lifecycle checkpoint commands"
+          git push origin HEAD:${BRANCH}
