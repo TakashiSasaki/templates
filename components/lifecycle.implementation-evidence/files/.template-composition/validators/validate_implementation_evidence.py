@@ -544,6 +544,7 @@ def implementation_evidence_errors(
 ) -> list[str]:
     """Validate one already-loaded implementation-evidence document."""
 
+    errors: list[str] = []
     if not isinstance(evidence, dict):
         return ["implementation evidence must be an object"]
 
