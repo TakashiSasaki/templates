@@ -121,13 +121,19 @@ Included modules:
 <!-- PROFILE: pull-request -->
 ### `pull-request`
 
-Use when the context owns pull-request lifecycle work. This profile is operational: it requires freshness against the target branch, at least one completed independent review bound to the exact proposed head, and closure of review threads before the pull-request task is considered complete. A requested or pending review, zero completed reviews, absence of findings, or a review of an older head does not satisfy the merge boundary.
+Use when the context owns pull-request lifecycle work. This profile is operational: it requires target-branch freshness, at least one completed independent review bound to the exact proposed head, review-thread closure, exact-head CI evidence, fail-closed handling while expected CI evidence is unresolved, current mergeability, a final live-state refresh, an immutable proposed-head guard for merge execution, and post-merge verification. Provider-specific APIs, field names, observation intervals, and retry mechanics belong to an adapter or repository-local policy rather than these shared semantics.
 
 Included modules:
 
 - `policy/pull-request/target-branch-head-freshness.md`
 - `policy/pull-request/independent-exact-head-review.md`
 - `policy/pull-request/review-thread-closure.md`
+- `policy/pull-request/exact-head-ci-evidence.md`
+- `policy/pull-request/ci-discovery-fail-closed.md`
+- `policy/pull-request/current-mergeability.md`
+- `policy/pull-request/final-live-state-refresh.md`
+- `policy/pull-request/immutable-head-guard.md`
+- `policy/pull-request/post-merge-verification.md`
 
 <!-- PROFILE: review -->
 ### `review`

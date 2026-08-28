@@ -15,6 +15,12 @@ EXPECTED = [
     "pull-request.verify-target-branch-head-freshness",
     "pull-request.require-independent-exact-head-review",
     "pull-request.close-review-threads-before-merge",
+    "pull-request.require-exact-head-ci-evidence",
+    "pull-request.fail-closed-on-unresolved-ci-discovery",
+    "pull-request.require-current-mergeability",
+    "pull-request.refresh-live-state-before-merge",
+    "pull-request.guard-merge-against-head-movement",
+    "pull-request.verify-merge-result",
 ]
 
 
@@ -93,20 +99,101 @@ def test_independent_review_rule_fails_closed_for_missing_or_stale_review() -> N
         assert semantic.lower() in rule.lower()
 
 
-def test_pull_request_rules_are_provider_neutral() -> None:
+def test_exact_head_ci_rule_rejects_stale_or_unresolved_evidence() -> None:
+    rule = (POLICY_DIR / "exact-head-ci-evidence.md").read_text(encoding="utf-8")
+    required_semantics = (
+        "current proposed head",
+        "exact head commit",
+        "older head is historical evidence",
+        "one live query returns no result",
+        "keep merge authorization fail-closed",
+        "newest applicable evidence",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
+def test_ci_discovery_rule_requires_correlated_read_only_evidence() -> None:
+    rule = (POLICY_DIR / "ci-discovery-fail-closed.md").read_text(encoding="utf-8")
+    required_semantics = (
+        "unresolved discovery",
+        "continue read-only discovery",
+        "single empty query",
+        "only one live index",
+        "elapsed time alone",
+        "corroborating current evidence",
+        "do not mutate the pull request or proposed head solely to manufacture new ci evidence",
+        "keep merge authorization blocked",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
+def test_final_merge_rules_require_live_state_and_immutable_head_guard() -> None:
+    mergeability = (POLICY_DIR / "current-mergeability.md").read_text(encoding="utf-8")
+    refresh = (POLICY_DIR / "final-live-state-refresh.md").read_text(encoding="utf-8")
+    guard = (POLICY_DIR / "immutable-head-guard.md").read_text(encoding="utf-8")
+
+    for semantic in (
+        "immediately before merge authorization",
+        "current repository state",
+        "mergeability is unknown, false, or changes",
+    ):
+        assert semantic.lower() in mergeability.lower()
+
+    for semantic in (
+        "immediately before authorizing or executing",
+        "current proposed head",
+        "current target-branch head",
+        "applicable exact-head validation state",
+        "completed review evidence",
+        "unresolved review-thread state",
+        "current mergeability",
+        "re-evaluate the affected acceptance evidence",
+    ):
+        assert semantic.lower() in refresh.lower()
+
+    for semantic in (
+        "exact proposed head commit",
+        "strongest supported immutable-head precondition",
+        "must not silently apply to a different head",
+        "cannot enforce an immutable proposed-head precondition",
+        "do not retry blindly",
+    ):
+        assert semantic.lower() in guard.lower()
+
+
+def test_post_merge_rule_separates_merge_from_release_readiness() -> None:
+    rule = (POLICY_DIR / "post-merge-verification.md").read_text(encoding="utf-8")
+    required_semantics = (
+        "pull request is actually merged",
+        "record the resulting merge identity",
+        "target branch contains the intended merged result",
+        "without a transport error",
+        "does not by itself establish those later states",
+    )
+    for semantic in required_semantics:
+        assert semantic.lower() in rule.lower()
+
+
+def test_pull_request_rules_are_provider_and_actor_neutral() -> None:
     corpus = "\n".join(
         path.read_text(encoding="utf-8") for path in POLICY_DIR.glob("*.md")
     )
-    provider_terms = (
+    implementation_terms = (
         "Antigravity",
         "Codex",
         "Gemini",
         "GitHub",
         "GitLab",
         "Bitbucket",
+        "expected_head_sha",
+        "check-run",
+        "check-suite",
+        "automated actor",
         "LEFT",
         "RIGHT",
         "REQUEST_CHANGES",
     )
-    for provider_term in provider_terms:
-        assert provider_term not in corpus
+    for term in implementation_terms:
+        assert term not in corpus
