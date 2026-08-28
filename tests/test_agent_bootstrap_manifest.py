@@ -67,8 +67,44 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             manifest = bootstrap.build_manifest(source_lock, release)
 
         self.assertEqual(manifest["$schema"], bootstrap.SCHEMA_URL)
-        self.assertEqual(manifest["schema_version"], 2)
+        self.assertEqual(manifest["schema_version"], 3)
+        self.assertEqual(
+            manifest["authorities"]["composition"],
+            {
+                "role": "artifact-capability-lifecycle-semantics",
+                "publication_revision": "a" * 40,
+                "source_path": "README.md",
+            },
+        )
+        self.assertEqual(
+            manifest["authorities"]["policy"],
+            {
+                "role": "coding-agent-operating-policy",
+                "publication_revision": "b" * 40,
+                "source_path": "README.md",
+                "relationship_to_composition": "independent-optional",
+            },
+        )
+        self.assertEqual(
+            manifest["authorities"]["site"],
+            {
+                "role": "publication-integration",
+                "consumer_repository_mutation": False,
+            },
+        )
+        self.assertEqual(
+            manifest["integration_contracts"]["policy_composition_coexistence"],
+            {
+                "owner": "site",
+                "document_id": bootstrap.COEXISTENCE_DOCUMENT_ID,
+                "canonical_url": bootstrap.COEXISTENCE_URL,
+            },
+        )
         self.assertEqual(manifest["composition"]["publication_revision"], "a" * 40)
+        self.assertEqual(
+            manifest["authorities"]["composition"]["publication_revision"],
+            manifest["composition"]["publication_revision"],
+        )
         self.assertEqual(manifest["composition"]["installer"]["revision"], "c" * 40)
         self.assertEqual(manifest["composition"]["installer"]["sha256"], "d" * 64)
         self.assertEqual(manifest["composition"]["skill"]["revision"], "e" * 40)
@@ -216,8 +252,28 @@ class AgentBootstrapManifestTests(unittest.TestCase):
             manifest["composition"]["publication_revision"],
             sources["composition"],
         )
+        self.assertEqual(
+            manifest["authorities"]["composition"]["publication_revision"],
+            sources["composition"],
+        )
+        self.assertEqual(
+            manifest["authorities"]["policy"]["publication_revision"],
+            sources["policy"],
+        )
+        self.assertEqual(
+            manifest["integration_contracts"]["policy_composition_coexistence"]["document_id"],
+            bootstrap.COEXISTENCE_DOCUMENT_ID,
+        )
+        self.assertEqual(
+            manifest["integration_contracts"]["policy_composition_coexistence"]["canonical_url"],
+            bootstrap.COEXISTENCE_URL,
+        )
+        self.assertFalse(manifest["authorities"]["site"]["consumer_repository_mutation"])
         self.assertEqual(manifest["$schema"], schema_value["$id"])
         self.assertEqual(manifest["canonical_url"], bootstrap.CANONICAL_URL)
+        self.assertEqual(manifest["schema_version"], 3)
+        self.assertIn("authorities", schema_value["required"])
+        self.assertIn("integration_contracts", schema_value["required"])
         self.assertIn(
             "instructions_url",
             schema_value["properties"]["composition"]["properties"]["skill"]["required"],
