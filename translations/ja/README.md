@@ -10,6 +10,8 @@ consumer repository は、artifact recipe と明示的な consumer intent から
 
 **初めて Web application を作る場合**は、[Webapp product walkthrough](docs/guides/webapp-product-walkthrough.md) から始めてください。これは canonical な zero-to-one path です。別 product repository を作り、prerequisites を確認し、Composition を install し、`composition.json` を作成し、`inspect -> plan -> apply -> validate` を進め、editing boundary を理解した後、product implementation と evidence まで続きます。開始前に Composition architecture を理解する必要はありません。
 
+**独立した clean-room evaluation を実行する場合**は、[Evaluating Composition](docs/evaluation-guide.md) から始めてください。これは formal protocol、scorecard guide、scorecard schema、および output sequence への canonical evaluator entry point です。この maintainer/evaluator path は通常の consumer onboarding とは分離され、consumer bootstrap contract を変更しません。
+
 Agent Skill の作成、既存 managed repository の保守、Composition update/upgrade、recovery、ownership、conflict handling など、その他の consumer work には [Using Composition](docs/consumer-guide.md) を使用します。
 
 通常の consumer は installable な `skills/composition/` runner を使用し、`TakashiSasaki/templates` や provider branch を clone しません。local prerequisite は CPython 3.11 から 3.14 であり、通常の consumer execution に Git は不要です。runner は immutable な full-SHA Composition revision を選択し、その revision の GitHub HTTPS archive を OS の temporary directory に取得して source-file digest inventory を検証し、正確に validation 済みの Python runtime を構築または再利用し、consumer repository を target として Composer を呼び出した後、source snapshot を削除します。Composition authority 保守者は direct reviewed-source-checkout entrypoint を引き続き利用でき、その path では Git が authority-maintenance prerequisite です。
