@@ -47,9 +47,9 @@ class EvaluationEntrypointTests(unittest.TestCase):
         )
         translated_guide = JA_ENTRY.read_text(encoding="utf-8")
         for target in (
-            "../../../examples/evaluations/small-model-clean-room-protocol.txt",
-            "../../../examples/evaluations/evaluation-scorecard.txt",
-            "../../../examples/evaluations/evaluation-scorecard.schema.json",
+            "../examples/evaluations/small-model-clean-room-protocol.txt",
+            "../examples/evaluations/evaluation-scorecard.txt",
+            "../examples/evaluations/evaluation-scorecard.schema.json",
         ):
             with self.subTest(target=target):
                 self.assertIn(target, translated_guide)
@@ -57,7 +57,7 @@ class EvaluationEntrypointTests(unittest.TestCase):
     def test_japanese_guide_links_exact_existing_authorities(self) -> None:
         expected = {PROTOCOL.resolve(), SCORECARD.resolve(), SCHEMA.resolve()}
         actual = {
-            (JA_ENTRY.parent / target).resolve()
+            (ROOT / target.removeprefix("../")).resolve()
             for target in LINK_TARGET.findall(JA_ENTRY.read_text(encoding="utf-8"))
         }
         self.assertEqual(actual, expected)
