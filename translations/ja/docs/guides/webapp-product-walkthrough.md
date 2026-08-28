@@ -20,14 +20,16 @@ Python / SQLite は Task Ledger の product decision であり、Composition の
 3. **Plan** — read-only の Composition plan を作成します。
 4. **Review** — target、resolved components、actions、conflicts を確認します。
 5. **Apply** — review 済み plan だけを apply して scaffold を materialize します。
-6. **Validate scaffold** — Composition `validate` を実行します。最初の `VALID` は scaffold milestone にすぎません。
-7. **Implement product** — consumer-owned contracts と ordinary product code を実装します。product code だけでは implemented-product milestone ではありません。
-8. **Populate product evidence** — implementation evidence を `planning` / `template` から truthful な `product` evidence に更新し、current records、proofs、commands、gates を埋めます。
-9. **Run product verifier** — authoritative product verifier を実行し、結果を evidence として保持します。
-10. **Validate product state** — Composition validation を再実行し、machine-readable な `lifecycle.next_actions` に従います。evidence が `planning` / `template` のままなら続行し、scaffold `VALID` で止まりません。
-11. **Check release readiness** — exact release-readiness operation を実行します。required browser proof が一つでも deferred なら、implementation と ordinary validation が pass でも `NOT READY` です。
+6. **Validate scaffold** — Composition `validate` を実行します。最初の `VALID` は scaffold milestone にすぎません。product coding へ進む前に truthful な planning evidence を定義します。
+7. **Create planning checkpoint** — lifecycle checkpoint が selected なら、prose から checkpoint CLI を再構成せず、`lifecycle.next_actions` が返す `next_action_command.argv` を実行して validated planning state を記録します。product coding はこの checkpoint の後に開始します。
+8. **Implement product** — consumer-owned contracts と ordinary product code を実装します。product code だけでは implemented-product milestone ではありません。
+9. **Populate product evidence** — implementation evidence を `planning` / `template` から truthful な `product` evidence に更新し、current records、proofs、commands、gates を埋めます。
+10. **Run product verifier** — authoritative product verifier を実行し、結果を evidence として保持します。
+11. **Validate product state** — Composition validation を再実行し、machine-readable な `lifecycle.next_actions` に従います。evidence が `planning` / `template` のままなら続行し、scaffold `VALID` で止まりません。
+12. **Create product checkpoint** — lifecycle checkpoint が selected なら、`lifecycle.next_actions` が project した `next_action_command.argv` を実行し、release-readiness evaluation より前に validated planning-to-product transition を閉じます。
+13. **Check release readiness** — exact release-readiness operation を実行します。required browser proof が一つでも deferred なら、implementation と ordinary validation が pass でも `NOT READY` です。
 
-最初の `VALID` は scaffold milestone であり、implemented-product / release-ready claim ではありません。implementation milestone には truthful な product evidence と passing product verifier が必要です。release milestone は別であり、required proof が missing、deferred、failed、または未評価の間は `NOT READY` のままです。
+最初の `VALID` は scaffold milestone であり、implemented-product / release-ready claim ではありません。lifecycle checkpoint が selected なら、planning checkpoint は product coding 前の hard boundary、product checkpoint は release-readiness evaluation 前の hard boundary です。implementation milestone には truthful な product evidence と passing product verifier が必要です。release milestone は別であり、required proof が missing、deferred、failed、または未評価の間は `NOT READY` のままです。
 
 ## 0. この walkthrough で何を作るか
 
