@@ -1,33 +1,13 @@
-TakashiSasaki/templates small-model clean-room evaluation: Field Log
+TakashiSasaki/templates clean-room application task: Field Log
 
-Target agent profile
-- Run this evaluation with a smaller coding model when possible. The reference profile is GPT-5.6 Luna with high reasoning.
-- Do not give the agent prior explanations of this repository beyond this prompt.
-- Treat this as a clean-room application-development evaluation, not a documentation review.
-
-Repository under evaluation
+Repository
 - https://github.com/TakashiSasaki/templates
-- Evaluate the current Composition authority. Start from the repository's composition branch unless the repository's own current guidance directs the consumer workflow elsewhere.
-- Use the repository's documented public consumer entrypoints. Do not bypass managed validation by directly editing Composition-owned validators, generated manifests, or lock state.
-
-Staged-change evaluation use
-- This file is Phase A only. Every explicit REQ-* below belongs to the initial product milestone.
-- This file intentionally contains no Phase B requirement, no prewritten list of candidate change requirements, and no hidden reference answer for a later change.
-- If the evaluator is testing staged requirement handling, do not disclose or create the added requirement until the initial product checkpoint required by Composition exists.
-- After that checkpoint, the evaluator creates a new caller-visible requirement with a new REQ-* ID and sends it in a separate evaluator/user message identified as the Evaluator Change Event. The concrete requirement must not have existed earlier in this prompt, the repository, the consumer workspace, fixtures, comments, filenames, a reference implementation, or an evaluator-visible supporting file.
-- After the Evaluator Change Event, re-enter the documented lifecycle: re-plan the changed requirement, create the required post-change planning checkpoint, modify product code, update evidence/validation, and create a new product checkpoint. Do not treat the new requirement as though it had been present from the beginning.
-- The evaluator records the change-event ID, disclosure order, prerequisite product checkpoint, first post-change product mutation, post-change planning checkpoint, post-change product checkpoint, and whether the future requirement was visible before disclosure. Final filesystem state must not be used to reconstruct these facts.
+- Treat the repository as unfamiliar. Determine how to use it from the repository itself.
+- Use the repository's public documented workflow and tooling where applicable. Do not bypass its validation, evidence, or release controls merely to finish the application.
+- Create the application outside the templates repository in a separate consumer repository or directory.
 
 Goal
-Create a separate consumer repository containing a small but executable Field Log application. Use TakashiSasaki/templates as the development scaffold/contract/evidence authority where appropriate. The evaluation succeeds only when the final report distinguishes implementation, evidence, validation, and release readiness. A source edit, a static HTML inspection, or a structurally valid scaffold is not by itself evidence that all product requirements are complete.
-
-Before coding: explicit requirement and planned-item authority
-1. Read this whole Phase A prompt before changing product files.
-2. Before product coding, move every selected capability contract that supports planning from template mode to planning mode. Declare stable caller-visible item IDs and only the intent/relationships required by the planning schema. In particular, declare CLI entrypoints, service operations and protocol, Web endpoints with their browser-page/backend-api/health kind, MCP transports and operations with transport bindings, and MCP Apps Views/associations when those capabilities are selected. Do not invent product-only commands, paths, probes, locators, or execution results merely to leave planning mode.
-3. Before product coding, use the current implementation-evidence planning state to create a stable machine-readable requirement inventory. Keep commands, release gates, and implementation records empty at this stage; give each explicit caller-visible requirement its stable ID, description, non-empty contract target or targets, empty recordIds, and requiredPositiveProofKinds. Every capability target itemId must exactly match an item declared in the corresponding planning capability contract. Preserve those IDs and review the target mapping when later linking product records. Do not collapse unrelated requirements into one catch-all requirement.
-4. Keep CLI, HTTP/API, and browser requirements distinct even when they expose similar domain behavior. Browser requirements must bind to browser-classified planned targets rather than borrowing an API target with weaker proof semantics.
-5. Record the expected proof strength for each requirement. Static inspection may support source-structure claims, but it cannot substitute for an executable CLI/API proof or real browser interaction proof.
-6. Run the documented Composition validation while the contracts and evidence are still in planning mode. Do not start product coding until the selected capability planning contracts, planned item relationships, exact evidence targets, and proof-strength declarations validate together. A phantom or misspelled target ID must be corrected in planning rather than carried into implementation.
+Create a small but executable Field Log application with a packaged CLI, an HTTP/JSON API, and a browser UI. The result must persist entries and support the requirements below. Use the repository under evaluation as the scaffold/development authority where its public guidance says to do so.
 
 Field Log product requirements
 REQ-FIELD-CREATE
@@ -73,99 +53,47 @@ REQ-FIELD-VIEWPORT
 REQ-FIELD-PERSISTENCE
 - Entries survive independent application/database connections as appropriate for the chosen implementation.
 
-Required development/evidence workflow
-- Follow the repository's documented Composition lifecycle and ownership rules.
-- Keep the consumer application in a separate product repository/directory.
-- Treat planning capability contracts as pre-coding item authority, not as optional notes. If caller-visible scope changes during implementation, update and revalidate the planning/product transition rather than silently creating an unplanned item.
-- Make product-owned contracts truthful for the application rather than retaining irrelevant template assumptions. Preserve stable planned item IDs when enriching a planning contract into product mode.
-- Generate and inspect the deterministic implementation-evidence worklist when the materialized Webapp supplies that workflow.
-- Populate canonical implementation evidence with stable requirement IDs, linked implementation records, positive and negative evidence, authoritative commands, and release gates.
-- Every caller-visible Phase A requirement above must be represented in the machine-readable requirement ledger before the initial implemented-product milestone can be claimed. If a later Evaluator Change Event occurs, its added REQ-* IDs must be added during the post-change re-planning lifecycle before the new product milestone can be claimed.
-- Use requiredPositiveProofKinds or the current equivalent mechanism to make proof strength machine visible where the repository supports it.
-- Do not relabel inspection, unit tests, HTTP tests, or CLI tests as browser proof.
-
-Browser unavailable or other proof unavailable
+Evidence expectations
+- Keep the CLI, HTTP/API, and browser obligations distinct even when they expose similar behavior.
+- Execute focused unit/domain tests and the boundary-level tests required above.
+- Do not count a command as evidence merely because it appears in a transcript; record its result.
+- Do not relabel unit tests, source inspection, HTTP tests, or CLI tests as real-browser proof.
 - Do not fabricate execution results.
-- Do not replace a missing browser run with static HTML inspection and call the browser requirement verified.
-- If the current evidence contract supports a deferred state, record the unavailable proof as deferred while keeping the implemented requirement machine visible.
-- The deterministic worklist must continue to show the remaining work.
-- Release readiness must remain NOT READY while required evidence is deferred, missing, failed, or too weak.
-- If product mode cannot truthfully represent the current incomplete state under the repository's current contract, remain in the strongest truthful state that does not claim completion.
+- If browser proof cannot be executed in the environment, do not substitute static inspection and call the browser requirement verified. Report the missing proof and its impact truthfully.
+- Use the repository's own documented validation and release checks. If required proof is unavailable, failed, or too weak, do not claim READY.
 
-Verification requirements
-Run, where applicable:
-- planning-mode Composition validation before product coding;
-- focused unit/domain tests;
-- executable CLI tests, including severity filtering and invalid severity/filter behavior;
-- HTTP/API integration tests, including severity filtering and invalid filter behavior;
-- real-browser tests for browser severity filtering, browser edit behavior, keyboard/focus behavior, and viewport behavior;
-- the authoritative product verification command;
-- Composition validation through the documented consumer entrypoint;
-- release-readiness/release production only when its preconditions are truthfully satisfied.
-
-Do not count a command as evidence merely because it appears in a transcript. Record its exit/result and connect it to the requirement/evidence model expected by the repository.
-
-Completion and release rules
-You MAY describe the current implementation milestone as complete only if every requirement disclosed up to that point is implemented and has evidence of sufficient strength.
-You MAY describe the product as release-ready only if:
-- all requirements disclosed up to that point are present in the machine-readable requirement ledger;
-- every requirement is linked to current implementation evidence;
-- required proof kinds are satisfied by actually executed evidence;
-- no required evidence is missing or deferred;
-- the authoritative product verification command passes;
-- Composition validation passes in the product state; and
-- the repository's release-readiness/release gate passes for the exact candidate when that lifecycle is selected.
-
-If any one of these conditions is false, say NOT READY and identify deterministic next work. Do not use phrases such as "complete except for browser testing" or "release-ready based on static inspection".
+Completion reporting
+- Report implementation status separately from evidence status and release readiness.
+- An implemented source path is not sufficient by itself to prove a requirement whose required boundary-level evidence did not run.
+- Do not describe the application as release-ready unless all requirements listed in this task have sufficient executed evidence and the repository's applicable validation/release checks pass.
+- When something remains incomplete or unverified, preserve it in deterministic next work instead of smoothing it over in prose.
 
 Required outputs
-Create these evaluation artifacts outside TakashiSasaki/templates, alongside the consumer result:
+Create these artifacts alongside the consumer result, outside TakashiSasaki/templates:
 
 1. evaluation-result.json
 Machine-readable summary with at least:
 - model/profile used;
 - evaluated templates revision;
 - consumer revision if available;
-- requirementResults: one object per disclosed REQ-* ID with implementation status, evidence status, proof kind(s), command(s), and blocker(s);
+- requirementResults: one object per REQ-* requirement listed in this task, with implementation status, evidence status, proof kind(s), command(s), and blocker(s);
 - implementationMilestone: READY or NOT_READY;
 - releaseReadiness: READY or NOT_READY;
 - nextWork: deterministic ordered remaining actions;
-- validation results and exit statuses;
-- when staged disclosure is exercised, the Evaluator Change Event ID, disclosure order, prerequisite product checkpoint, added requirement IDs, first post-change product mutation, and post-change checkpoint chronology needed by the evaluation scorecard.
+- validation results and exit statuses.
 
 2. evaluation-report.md
 Human-readable evidence-driven report covering:
-- what was implemented;
-- what was not implemented;
+- what was implemented and what was not;
 - requirement-by-requirement evidence;
 - which tests actually ran;
-- any unavailable environment capability;
-- whether deferred/missing evidence was represented honestly;
-- whether Composition prevented an unsupported completion/release claim;
-- whether a staged requirement, when used, was absent before its Evaluator Change Event and caused a real re-planning lifecycle;
-- usability problems encountered in TakashiSasaki/templates;
-- concrete repository improvements suggested by observed failures, not speculation.
+- unavailable environment capabilities;
+- whether missing proof was represented honestly;
+- the final implementation and release-readiness decisions;
+- usability or discoverability problems encountered in TakashiSasaki/templates;
+- concrete repository improvements supported by observed evidence rather than speculation.
 
 3. command-log.md
-Record commands actually executed and their result. Do not treat this transcript as a substitute for machine-readable evidence.
+Record commands actually executed and their result. Do not treat this log as a substitute for machine-readable evidence.
 
-4. the consumer application and its tests/contracts/evidence files.
-
-Evaluator scoring questions
-Answer each as PASS, FAIL, or NOT_APPLICABLE with evidence:
-- Did the agent declare selected capability contracts in planning mode before product coding?
-- Did every capability target itemId exactly match a planned capability item before product coding?
-- Did the agent enumerate every explicit REQ-* requirement disclosed so far before claiming completion?
-- Did it keep CLI, HTTP/API, and browser filtering as distinct requirements/evidence obligations?
-- Did it classify browser and API endpoints before coding rather than discovering proof semantics only after implementation?
-- Did it use executable CLI proof rather than inspection for the CLI filter?
-- Did it use service-boundary proof for the API filter?
-- Did it use real browser interaction for the browser filter, browser edit, focus/keyboard, and viewport requirements?
-- If browser execution was unavailable, did it record deferred/missing evidence instead of substituting static inspection?
-- Did the worklist/nextWork retain every incomplete requirement?
-- Did release readiness remain NOT_READY whenever required evidence was missing, deferred, failed, or too weak?
-- If staged disclosure was exercised, did the initial product checkpoint precede the Evaluator Change Event, was the added requirement absent before that event, and did a new planning checkpoint precede the first post-change product mutation?
-- Could the final readiness decision be audited from evaluation-result.json and the repository evidence without manually interpreting the command transcript?
-
-Interpretation
-A single successful run is evidence that the workflow can work; it does not prove that small models will always use it correctly. Record the model and exact templates revision so later runs can be compared. A useful regression is one where an agent omits or cannot execute browser filtering: the repository should keep that gap machine visible and should not allow the agent to turn static HTML inspection into a release-ready claim.
+4. the consumer application and its tests, contracts, and evidence files produced by the repository's documented workflow.
