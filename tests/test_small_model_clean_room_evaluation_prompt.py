@@ -33,8 +33,12 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
         self.assertIn("Determine how to use it from the repository itself", self.text)
         self.assertIn("Create the application outside the templates repository", self.text)
 
-    def test_prompt_contains_no_repository_specific_solution_path(self) -> None:
+    def test_prompt_contains_no_evaluation_or_repository_specific_solution_framing(self) -> None:
         forbidden = (
+            "clean-room",
+            "under evaluation",
+            "Target agent profile",
+            "GPT-5.6",
             "composition branch",
             "Composition authority",
             "Composition lifecycle",
