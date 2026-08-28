@@ -22,7 +22,7 @@ Checkpoint creation is transactional. The writer first runs canonical selected-c
 
 ## Machine action command authority
 
-The checkpoint component owns `.template-composition/lifecycle-checkpoint-actions.json`, a managed registry of canonical argument-vector templates for the planning and product checkpoint writers. Its schema is materialized as `schemas/lifecycle-checkpoint-actions.schema.json`. This registry is the machine-facing command authority for checkpoint creation; another lifecycle component must not reconstruct `checkpoint.py` command syntax independently.
+The checkpoint component owns `.template-composition/lifecycle-checkpoint-actions.json`, a managed registry of canonical argument-vector templates for the planning and product checkpoint writers. Its schema is materialized as `.template-composition/lifecycle-checkpoint-actions.schema.json`. This registry is the machine-facing command authority for checkpoint creation; another lifecycle component must not reconstruct `checkpoint.py` command syntax independently.
 
 The registry separates caller-owned placeholders such as `{python}` and `{checkpoint_id}` from provider-owned bindings. For the product transition, `{latest_checkpoint_id}` is bound to `latest-checkpoint-id`, allowing the lifecycle projection to resolve the exact current planning checkpoint while leaving the caller to choose the interpreter and new checkpoint ID. Commands remain argument vectors rather than shell strings, so no shell quoting contract is introduced.
 

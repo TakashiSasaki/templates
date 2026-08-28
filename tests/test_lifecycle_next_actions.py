@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/validate.py"
 SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-composition/lifecycle-next-actions.schema.json"
 ACTION_REGISTRY_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"
-ACTION_SCHEMA_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/schemas/lifecycle-checkpoint-actions.schema.json"
+ACTION_SCHEMA_PATH = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.schema.json"
 
 SPEC = importlib.util.spec_from_file_location("composition_validation_runner", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
