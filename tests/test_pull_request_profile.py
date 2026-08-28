@@ -156,7 +156,8 @@ def test_final_merge_rules_require_live_state_and_immutable_head_guard() -> None
     for semantic in (
         "exact proposed head commit",
         "strongest supported immutable-head precondition",
-        "rejected if the pull-request head moves",
+        "must not silently apply to a different head",
+        "cannot enforce an immutable proposed-head precondition",
         "do not retry blindly",
     ):
         assert semantic.lower() in guard.lower()
@@ -175,11 +176,11 @@ def test_post_merge_rule_separates_merge_from_release_readiness() -> None:
         assert semantic.lower() in rule.lower()
 
 
-def test_pull_request_rules_are_provider_neutral() -> None:
+def test_pull_request_rules_are_provider_and_actor_neutral() -> None:
     corpus = "\n".join(
         path.read_text(encoding="utf-8") for path in POLICY_DIR.glob("*.md")
     )
-    provider_terms = (
+    implementation_terms = (
         "Antigravity",
         "Codex",
         "Gemini",
@@ -189,9 +190,10 @@ def test_pull_request_rules_are_provider_neutral() -> None:
         "expected_head_sha",
         "check-run",
         "check-suite",
+        "automated actor",
         "LEFT",
         "RIGHT",
         "REQUEST_CHANGES",
     )
-    for provider_term in provider_terms:
-        assert provider_term not in corpus
+    for term in implementation_terms:
+        assert term not in corpus
