@@ -51,6 +51,44 @@ A document is globally identified by `publication:document`, for example
 `composition:skill-contract`, `composition:contract-evolution`, or
 `policy:overview`.
 
+## Human and machine projection parity
+
+The human-facing portal and the machine-facing repository/bootstrap surface are
+different projections of the same reviewed authorities. They may differ in
+presentation, navigation, progressive disclosure, localization, and executable
+detail, but they must not lead humans and coding agents to different normative
+models of this repository.
+
+The projections must converge on the same:
+
+- authority owner for each task or semantic domain;
+- exact reviewed Composition and Policy publication revisions;
+- provider lifecycle, ownership, and safety semantics;
+- independence of Policy and Composition, including that Policy is optional
+  relative to Composition; and
+- Site-owned cross-provider integration contracts whose meaning affects safe
+  consumer behavior.
+
+The Site may explain, organize, route, translate, visualize, and integrate
+provider-owned material. Site-owned reader prose must not silently redefine
+Composition or Policy semantics. Site may own genuinely cross-provider semantics,
+such as the Policy–Composition coexistence contract, because no individual
+provider can unilaterally own that integration boundary.
+
+The machine-facing projection must expose enough authority metadata for a coding
+agent to discover those boundaries without being forced through the deployed
+human portal. In particular, `agent.json` must project the exact locked
+Composition and Policy revisions, their distinct authority roles, the independent
+and optional relationship of Policy to Composition, Site's non-mutating
+integration role, and the canonical Site-owned coexistence contract. Executable
+bootstrap remains a separate concern: exposing Policy as an authority does not
+make Policy a Composition dependency or merge their consumer management planes.
+
+Parity is validated through stable semantic identifiers, authority roles,
+revision identity, and canonical contract references. It does not require human
+prose and machine-readable data to be textually identical or to present concepts
+in the same order.
+
 ## Public boundary
 
 Publication catalogs are explicit allowlists. The assembler must not infer that
@@ -204,6 +242,10 @@ Before a Site cutover is considered complete:
 
 - source-lock parsing proves the provider set is exactly Composition and Policy;
 - both provider checkouts are at the locked full SHAs;
+- repository and public `agent.json` projections are byte-identical and schema-valid;
+- machine authority discovery projects the exact locked Composition and Policy
+  revisions, distinct authority roles, Policy's independent/optional relationship,
+  Site's non-mutating integration role, and the canonical coexistence contract;
 - every catalog document is mapped exactly once by `site-manifest.json`;
 - the Composition glossary parses through the actual Site YAML loader;
 - repository trees/browser/guided navigation use the new provider set;
