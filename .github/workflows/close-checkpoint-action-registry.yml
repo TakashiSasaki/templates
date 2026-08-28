@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   repair:
-    if: github.event.head_commit.message == 'Stage closed checkpoint action registry repair'
+    if: github.event.head_commit.message == 'Fix closed registry repair workflow'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,37 +27,35 @@ jobs:
           runner_path = Path("components/lifecycle.composition-state/files/.template-composition/validate.py")
           runner = runner_path.read_text(encoding="utf-8")
           old = '''    actions = registry.get("actions")
-              if not isinstance(actions, dict):
-                  return None
-              entry = actions.get(action)
+          if not isinstance(actions, dict):
+              return None
+          entry = actions.get(action)
           '''
           new = '''    actions = registry.get("actions")
-              if (
-                  registry.get("$schema") != "./lifecycle-checkpoint-actions.schema.json"
-                  or not isinstance(actions, dict)
-                  or set(actions) != {
-                      "create-planning-checkpoint",
-                      "create-product-checkpoint",
-                  }
-              ):
-                  return None
-              entry = actions.get(action)
+          if (
+              registry.get("$schema") != "./lifecycle-checkpoint-actions.schema.json"
+              or not isinstance(actions, dict)
+              or set(actions) != {
+                  "create-planning-checkpoint",
+                  "create-product-checkpoint",
+              }
+          ):
+              return None
+          entry = actions.get(action)
           '''
-          old = old.replace("          ", "")
-          new = new.replace("          ", "")
           if runner.count(old) != 1:
               raise SystemExit(f"actions anchor mismatch: {runner.count(old)}")
           runner = runner.replace(old, new, 1)
 
           old = '''    if any(token not in argv for token in caller_inputs):
-                  return None
-          '''.replace("          ", "")
+              return None
+          '''
           new = '''    if (
-                  any(token not in argv for token in caller_inputs)
-                  or any(token not in argv for token in bindings)
-              ):
-                  return None
-          '''.replace("          ", "")
+              any(token not in argv for token in caller_inputs)
+              or any(token not in argv for token in bindings)
+          ):
+              return None
+          '''
           if runner.count(old) != 1:
               raise SystemExit(f"binding anchor mismatch: {runner.count(old)}")
           runner = runner.replace(old, new, 1)
@@ -65,9 +63,8 @@ jobs:
 
           test_path = Path("tests/test_lifecycle_next_actions.py")
           tests = test_path.read_text(encoding="utf-8")
-          anchor = '''    def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
-          '''
-          insertion = '''    def test_registry_with_unknown_action_fails_closed(self) -> None:
+          anchor = "    def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:\n"
+          insertion = """    def test_registry_with_unknown_action_fails_closed(self) -> None:
               original = self.action_registry
               try:
                   mutated = json.loads(json.dumps(original))
@@ -99,9 +96,20 @@ jobs:
                   ["checkpoint-command-registry-invalid"],
               )
 
-          '''
-          # Fix indentation introduced by YAML literal while keeping source readable.
+          """
+          insertion = insertion.replace("              original", "        original")
+          insertion = insertion.replace("              try:", "        try:")
+          insertion = insertion.replace("                  mutated", "            mutated")
+          insertion = insertion.replace("                  self.action_registry", "            self.action_registry")
+          insertion = insertion.replace("                  value", "            value")
+          insertion = insertion.replace("              finally:", "        finally:")
+          insertion = insertion.replace("              self.assert", "        self.assert")
+          insertion = insertion.replace("                  value[", "            value[")
+          insertion = insertion.replace("                  [\"checkpoint", "            [\"checkpoint")
+          insertion = insertion.replace("              )", "        )")
           insertion = insertion.replace("              def test_registry", "    def test_registry")
+          insertion = insertion.replace("                  \"{latest", "                \"{latest")
+          insertion = insertion.replace("                  }", "            }")
           if tests.count(anchor) != 1:
               raise SystemExit(f"test insertion anchor mismatch: {tests.count(anchor)}")
           tests = tests.replace(anchor, insertion + anchor, 1)
