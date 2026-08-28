@@ -92,7 +92,10 @@ def test_adapter_requires_exact_head_review_and_guarded_merge() -> None:
     for invariant in (
         "request review for the exact current head",
         "the request must name the exact sha",
-        "a request, pending review, empty review list, or absence of findings is not completed review evidence",
+        (
+            "a request, pending review, empty review list, or absence of findings "
+            "is not completed review evidence"
+        ),
         "include the literal string `@hermes review`",
         "current pr head equals the exact accepted head",
         "never omit `expected_head_sha`",
@@ -106,6 +109,9 @@ def test_adapter_separates_merge_from_post_merge_readiness() -> None:
     for invariant in (
         "confirm the pr is actually merged",
         "record the merge commit sha",
-        "treat release, publication, deployment, and other post-merge readiness as separate boundaries",
+        (
+            "treat release, publication, deployment, and other post-merge readiness "
+            "as separate boundaries"
+        ),
     ):
         assert invariant in text
