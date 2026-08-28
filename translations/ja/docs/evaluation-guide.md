@@ -11,7 +11,7 @@
 3. [evaluation scorecard guide](../examples/evaluations/evaluation-scorecard.txt) に従い、固定された dimension、attribution vocabulary、chronology rule、missing evidence の fail-closed treatment を使用します。
 4. `evaluation-scorecard.json` を生成し、[evaluation scorecard schema](../examples/evaluations/evaluation-scorecard.schema.json) で validation します。`BLOCKED` や `NOT TESTED` を `PASS` に変換せず、後から得られた final state で observed ordering violation を修復しません。
 
-output は、validation 済み scorecard JSON と、その claim を裏付ける transcript/tool evidence です。repository defect、documentation/discoverability defect、machine-contract defect、evaluator mistake、environment limitation、evidence-capture limitation は別々の attribution として維持します。
+output は、validation 済み scorecard JSON と、その claim を裏付ける transcript/tool evidence です。repository defect、documentation/discoverability defect、machine-contract defect、evaluation-methodology defect、evaluator mistake、environment limitation、evidence-capture limitation は別々の attribution として維持します。
 
 ## Authority boundary
 
