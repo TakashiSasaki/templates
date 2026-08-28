@@ -11,6 +11,9 @@
     "warnings"
   ],
   "properties": {
+    "$schema": {
+      "const": ".template-composition/implementation-evidence-release-readiness.schema.json"
+    },
     "schema_version": {"const": 1},
     "release_readiness": {"enum": ["not-ready", "ready"]},
     "blocking_conditions": {
