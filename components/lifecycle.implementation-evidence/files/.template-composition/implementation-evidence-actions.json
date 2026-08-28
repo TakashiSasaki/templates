@@ -5,11 +5,8 @@
     "check-release-readiness": {
       "argv": [
         "{python}",
-        ".template-composition/validators/validate_implementation_evidence.py",
-        ".",
-        "--release-readiness",
-        "--format",
-        "json"
+        ".template-composition/run_action.py",
+        "check-release-readiness"
       ],
       "caller_inputs": ["{python}"],
       "output_schema": ".template-composition/implementation-evidence-release-readiness.schema.json"
