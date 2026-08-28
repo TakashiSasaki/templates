@@ -21,6 +21,7 @@
       "title": "Composition",
       "children": [
         {"title": "Overview", "publication": "composition", "document": "overview", "destination": "composition/index.md"},
+        {"title": "Evaluate Composition", "publication": "composition", "document": "evaluation-guide", "destination": "composition/evaluate/index.md"},
         {"title": "Use Composition", "publication": "composition", "document": "consumer-guide", "destination": "composition/use/index.md"},
         {"title": "Webapp product walkthrough", "publication": "composition", "document": "webapp-product-walkthrough", "destination": "composition/use/webapp-product-walkthrough.md"},
         {"title": "Produce a product release", "publication": "composition", "document": "release-guide", "destination": "composition/release/index.md"},

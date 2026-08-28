@@ -5,25 +5,25 @@
   "canonical_url": "https://templates.moukaeritai.work/agent.json",
   "purpose": "Compose new or existing software repositories",
   "composition": {
-    "publication_revision": "6fad82a9fa6cd97433f84d5d0c7912ae88a4dc92",
+    "publication_revision": "fa5cc2f3a24304b4eb55224313748c27e0742cd8",
     "installer": {
       "repository": "TakashiSasaki/templates",
-      "revision": "b862171ed7d8fb7f53cb5a28a0d89eab07ab534e",
+      "revision": "5a3cfb200ed68d87da1a8e128b61b40401820347",
       "path": "scripts/install_composition_skill.py",
-      "sha256": "161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4",
-      "url": "https://raw.githubusercontent.com/TakashiSasaki/templates/b862171ed7d8fb7f53cb5a28a0d89eab07ab534e/scripts/install_composition_skill.py"
+      "sha256": "114c3375f4edef8aa64f42ab3beeaae246fdf8b960f6eb09868648e6a62cd1ab",
+      "url": "https://raw.githubusercontent.com/TakashiSasaki/templates/5a3cfb200ed68d87da1a8e128b61b40401820347/scripts/install_composition_skill.py"
     },
     "skill": {
       "name": "composition",
       "repository": "TakashiSasaki/templates",
-      "revision": "dee6278c275d4c480373acd5b66cfc2c2db4c663",
+      "revision": "8defa866d088de7f8c29bc3a5443dc2df69983dc",
       "path": "skills/composition",
       "entrypoint": "scripts/run.py",
-      "instructions_url": "https://raw.githubusercontent.com/TakashiSasaki/templates/dee6278c275d4c480373acd5b66cfc2c2db4c663/skills/composition/SKILL.md"
+      "instructions_url": "https://raw.githubusercontent.com/TakashiSasaki/templates/8defa866d088de7f8c29bc3a5443dc2df69983dc/skills/composition/SKILL.md"
     },
     "toolchain": {
       "repository": "TakashiSasaki/templates",
-      "revision": "1e8fd592d82670c3d524d5038b8045715bb01038"
+      "revision": "199f25731170a6e25d25aa759fa6edc038623f58"
     }
   },
   "requirements": {
