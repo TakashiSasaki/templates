@@ -14,7 +14,7 @@ from .policy_loader import Rule
 
 GENERATED_MARKER = "agent-policy-generated: true"
 SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-NON_GENERATED_SKILLS = frozenset({"agent-policy"})
+NON_GENERATED_SKILLS = frozenset({"agent-policy", "pr-merge-gate"})
 SKILL_CONFIG_PATH_TOKEN = "{{ config_path }}"
 SKILL_CONFIG_PATH_SHELL_TOKEN = "{{ config_path_shell }}"
 SKILL_CONFIG_PATH_YAML_TOKEN = "{{ config_path_yaml }}"
