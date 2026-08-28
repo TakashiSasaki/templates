@@ -1,0 +1,16 @@
+{
+  "$schema": "./release-execution-actions.schema.json",
+  "schemaVersion": 1,
+  "actions": {
+    "verify-release-candidate": {
+      "argv": [
+        "{python}",
+        ".template-composition/run_action.py",
+        "verify-release-candidate",
+        "{revision}"
+      ],
+      "caller_inputs": ["{python}", "{revision}"],
+      "output_schema": ".template-composition/release-candidate-verification.schema.json"
+    }
+  }
+}
