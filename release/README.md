@@ -4,11 +4,11 @@ This directory records the immutable publication identities for the installable 
 
 The stable publication deliberately separates three full-SHA identities:
 
-- **installer script revision** `01c65730afdbd431749ffd00e790ff3c5bd72015` — the remotely executed stdlib-only bootstrap script;
-- **skill source revision** `cc180cecbde7f75cd5f07c1aa311014d6db7c97c` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
-- **stable Composition toolchain revision** `2bf8c86060d48281a03807b2429ce045aa8e2a91` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
+- **installer script revision** `b862171ed7d8fb7f53cb5a28a0d89eab07ab534e` — the remotely executed stdlib-only bootstrap script;
+- **skill source revision** `dee6278c275d4c480373acd5b66cfc2c2db4c663` — the `skills/composition/` tree downloaded and atomically installed by that bootstrap script; and
+- **stable Composition toolchain revision** `1e8fd592d82670c3d524d5038b8045715bb01038` — the exact Composer source selected by the installed skill's `runtime-manifest.json`.
 
-The published installer bytes are additionally pinned by SHA-256: `7c2ed9ae19e331f1042299f7f55014632e0b21cceca7df8a56750b2e222c3194`.
+The published installer bytes are additionally pinned by SHA-256: `161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4`.
 
 `composition-installer.json` is the machine-readable authority for these identities and the installer digest. `scripts/verify_composition_skill_installer_release.py` verifies the descriptor against repository history, the pinned installer bytes, the complete runnable Skill distribution, the complete snapshot-aware toolchain surface, the runtime-lock digest, and strict ancestry between the three immutable revisions.
 
@@ -33,8 +33,8 @@ import sys
 import tempfile
 import urllib.request
 
-url = "https://raw.githubusercontent.com/TakashiSasaki/templates/01c65730afdbd431749ffd00e790ff3c5bd72015/scripts/install_composition_skill.py"
-expected = "7c2ed9ae19e331f1042299f7f55014632e0b21cceca7df8a56750b2e222c3194"
+url = "https://raw.githubusercontent.com/TakashiSasaki/templates/b862171ed7d8fb7f53cb5a28a0d89eab07ab534e/scripts/install_composition_skill.py"
+expected = "161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4"
 data = urllib.request.urlopen(url, timeout=30).read()
 actual = hashlib.sha256(data).hexdigest()
 if actual != expected:
