@@ -1,4 +1,4 @@
-TakashiSasaki/templates clean-room application task: Field Log
+TakashiSasaki/templates application task: Field Log
 
 Repository
 - https://github.com/TakashiSasaki/templates
@@ -7,7 +7,7 @@ Repository
 - Create the application outside the templates repository in a separate consumer repository or directory.
 
 Goal
-Create a small but executable Field Log application with a packaged CLI, an HTTP/JSON API, and a browser UI. The result must persist entries and support the requirements below. Use the repository under evaluation as the scaffold/development authority where its public guidance says to do so.
+Create a small but executable Field Log application with a packaged CLI, an HTTP/JSON API, and a browser UI. The result must persist entries and support the requirements below. Use the repository's public guidance and tooling where appropriate.
 
 Field Log product requirements
 REQ-FIELD-CREATE
