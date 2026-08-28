@@ -6,7 +6,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github/workflows/composer-runtime.yml"
+FAST_WORKFLOW = ROOT / ".github/workflows/composer-runtime.yml"
+FULL_WORKFLOW = ROOT / ".github/workflows/composer-full-compatibility.yml"
 SUPPORTED_PYTHONS = {"3.11", "3.12", "3.13", "3.14"}
 SUPPORTED_OSES = {"ubuntu-24.04", "windows-2022"}
 FULL_PAIRS = {
@@ -93,36 +94,40 @@ def _trigger_list(workflow: str, event: str, key: str) -> list[str]:
 class ComposerRuntimeCIPolicyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.workflow = WORKFLOW.read_text(encoding="utf-8")
+        cls.fast_workflow = FAST_WORKFLOW.read_text(encoding="utf-8")
+        cls.full_workflow = FULL_WORKFLOW.read_text(encoding="utf-8")
 
-    def test_authority_and_checkpoint_triggers_are_exact(self) -> None:
-        self.assertEqual(_trigger_list(self.workflow, "push", "branches"), ["composition"])
+    def test_fast_gate_triggers_only_for_authority_push_and_ordinary_pr(self) -> None:
         self.assertEqual(
-            _trigger_list(self.workflow, "push", "tags"),
-            ["composition-compatibility-*"],
+            _trigger_list(self.fast_workflow, "push", "branches"), ["composition"]
         )
         self.assertEqual(
-            _trigger_list(self.workflow, "pull_request", "branches"), ["composition"]
+            _trigger_list(self.fast_workflow, "pull_request", "branches"),
+            ["composition"],
         )
         self.assertEqual(
-            set(_trigger_list(self.workflow, "pull_request", "types")),
-            {"opened", "synchronize", "reopened", "labeled", "unlabeled"},
+            set(_trigger_list(self.fast_workflow, "pull_request", "types")),
+            {"opened", "synchronize", "reopened"},
         )
-        trigger = self.workflow.split("\njobs:\n", 1)[0]
-        self.assertNotIn("agent/composition-", trigger)
+        trigger = self.fast_workflow.split("\njobs:\n", 1)[0]
+        self.assertNotIn("composition-compatibility-*", trigger)
+        self.assertNotIn("labeled", trigger)
+        self.assertNotIn("unlabeled", trigger)
         self.assertNotIn("schedule:", trigger)
         self.assertNotIn("workflow_dispatch:", trigger)
 
-    def test_classifier_runs_for_pr_push_and_explicit_checkpoints(self) -> None:
-        classifier = _job_block(self.workflow, "classify_runtime")
+    def test_fast_classifier_has_no_full_compatibility_decision(self) -> None:
+        classifier = _job_block(self.fast_workflow, "classify_runtime")
         self.assertNotIn("\n    if:", classifier)
         self.assertIn("scripts/classify_composition_ci.py", classifier)
-        self.assertIn("compatibility_required:", classifier)
-        self.assertIn("compatibility_reason:", classifier)
-        self.assertIn("ci/full-compatibility", classifier)
-        self.assertIn("refs/tags/composition-compatibility-", classifier)
-        self.assertIn("--force-compatibility", classifier)
-        self.assertIn("github.event.before", classifier)
+        self.assertIn("required:", classifier)
+        self.assertIn("reason:", classifier)
+        self.assertIn("changed_count:", classifier)
+        self.assertNotIn("compatibility_required", classifier)
+        self.assertNotIn("compatibility_reason", classifier)
+        self.assertNotIn("ci/full-compatibility", classifier)
+        self.assertNotIn("force-compatibility", classifier)
+        self.assertIn("Record runtime CI selection", classifier)
 
     def test_fast_tier_is_exactly_ubuntu_python_312(self) -> None:
         conditional = (
@@ -131,7 +136,7 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
         )
         for name in FAST_JOBS:
             with self.subTest(job=name):
-                job = _job_block(self.workflow, name)
+                job = _job_block(self.fast_workflow, name)
                 self.assertIn("runs-on: ubuntu-24.04", job)
                 self.assertIn('python-version: "3.12"', job)
                 self.assertIn("PIP_CONFIG_FILE: /dev/null", job)
@@ -141,20 +146,72 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
                 for version in ("3.11", "3.13", "3.14"):
                     self.assertNotIn(f'python-version: "{version}"', job)
 
-    def test_compatibility_tier_is_full_eight_environment_matrix(self) -> None:
-        conditional = (
-            "needs.classify_runtime.result == 'success' && "
-            "needs.classify_runtime.outputs.compatibility_required == 'true'"
-        )
+    def test_fast_gate_has_no_compatibility_jobs(self) -> None:
         for name in COMPATIBILITY_JOBS:
             with self.subTest(job=name):
-                job = _job_block(self.workflow, name)
+                with self.assertRaisesRegex(AssertionError, "missing workflow job"):
+                    _job_block(self.fast_workflow, name)
+        self.assertNotIn("matrix.python-version", self.fast_workflow)
+        self.assertNotIn("windows-2022", self.fast_workflow)
+
+    def test_fast_final_validator_propagates_only_fast_skip_semantics(self) -> None:
+        validate = _job_block(self.fast_workflow, "validate")
+        self.assertIn("name: consumer runtime validate", validate)
+        self.assertIn("if: ${{ always() }}", validate)
+        for dependency in ("classify_runtime", *FAST_JOBS):
+            self.assertIn(f"      - {dependency}\n", validate)
+        for dependency in COMPATIBILITY_JOBS:
+            self.assertNotIn(f"      - {dependency}\n", validate)
+
+        for assertion in (
+            'test "$CLASSIFIER_RESULT" = success',
+            'test "$CLEAN_RUNTIME_RESULT" = success',
+            'test "$MATERIALIZED_VALIDATION_RESULT" = success',
+            'test "$SKILL_RUNNER_RESULT" = success',
+            'test "$CLEAN_RUNTIME_RESULT" = skipped',
+            'test "$MATERIALIZED_VALIDATION_RESULT" = skipped',
+            'test "$SKILL_RUNNER_RESULT" = skipped',
+        ):
+            with self.subTest(assertion=assertion):
+                self.assertIn(assertion, validate)
+        self.assertNotIn("COMPATIBILITY_CLEAN_RESULT", validate)
+        self.assertIn(
+            'echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED"', validate
+        )
+
+    def test_full_qualification_has_only_explicit_checkpoint_triggers(self) -> None:
+        self.assertEqual(
+            _trigger_list(self.full_workflow, "push", "tags"),
+            ["composition-compatibility-*"],
+        )
+        self.assertEqual(
+            _trigger_list(self.full_workflow, "pull_request", "branches"),
+            ["composition"],
+        )
+        self.assertEqual(
+            _trigger_list(self.full_workflow, "pull_request", "types"), ["labeled"]
+        )
+        trigger = self.full_workflow.split("\njobs:\n", 1)[0]
+        self.assertNotIn("branches:\n      - composition\n    tags:", trigger)
+        self.assertNotIn("schedule:", trigger)
+        self.assertNotIn("workflow_dispatch:", trigger)
+        self.assertNotIn("synchronize", trigger)
+
+        qualify = _job_block(self.full_workflow, "qualify")
+        self.assertIn("github.event_name == 'push'", qualify)
+        self.assertIn("github.event.label.name == 'ci/full-compatibility'", qualify)
+        self.assertIn("CANDIDATE_SHA: ${{ github.sha }}", qualify)
+
+    def test_full_qualification_is_complete_eight_environment_matrix(self) -> None:
+        for name in COMPATIBILITY_JOBS:
+            with self.subTest(job=name):
+                job = _job_block(self.full_workflow, name)
                 rows = _include_rows(job)
                 pairs = {(row["os"], row["python-version"]) for row in rows}
                 self.assertEqual(pairs, FULL_PAIRS)
                 self.assertEqual(len(rows), 8)
                 self.assertIn("\n      fail-fast: false\n", job)
-                self.assertIn(conditional, job)
+                self.assertIn("needs.qualify.result == 'success'", job)
                 self.assertEqual(
                     {
                         row["pip-config-file"]
@@ -172,7 +229,7 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
                     {"NUL"},
                 )
 
-    def test_all_runtime_surfaces_exist_in_both_tiers(self) -> None:
+    def test_all_runtime_surfaces_exist_in_fast_and_full_workflows(self) -> None:
         pairs = (
             ("clean-runtime", "compatibility-clean-runtime", "smoke_test_runtime_distribution.py"),
             (
@@ -184,52 +241,31 @@ class ComposerRuntimeCIPolicyTests(unittest.TestCase):
         )
         for fast_name, compatibility_name, script in pairs:
             with self.subTest(surface=fast_name):
-                self.assertIn(script, _job_block(self.workflow, fast_name))
-                self.assertIn(script, _job_block(self.workflow, compatibility_name))
+                self.assertIn(script, _job_block(self.fast_workflow, fast_name))
+                self.assertIn(script, _job_block(self.full_workflow, compatibility_name))
         self.assertIn(
             "smoke_test_remote_skill_installer.py",
-            _job_block(self.workflow, "skill-runner"),
+            _job_block(self.fast_workflow, "skill-runner"),
         )
         self.assertIn(
             "smoke_test_remote_skill_installer.py",
-            _job_block(self.workflow, "compatibility-skill-runner"),
+            _job_block(self.full_workflow, "compatibility-skill-runner"),
         )
 
-    def test_final_validator_propagates_fast_and_compatibility_skip_semantics(self) -> None:
-        validate = _job_block(self.workflow, "validate")
-        self.assertIn("name: consumer runtime validate", validate)
-        self.assertIn("if: ${{ always() }}", validate)
-        for dependency in (
-            "classify_runtime",
-            *FAST_JOBS,
-            *COMPATIBILITY_JOBS,
-        ):
+    def test_full_final_validator_requires_every_surface(self) -> None:
+        validate = _job_block(self.full_workflow, "validate")
+        self.assertIn("name: full compatibility validate", validate)
+        self.assertIn("github.event.label.name == 'ci/full-compatibility'", validate)
+        for dependency in ("qualify", *COMPATIBILITY_JOBS):
             self.assertIn(f"      - {dependency}\n", validate)
-
         for assertion in (
-            'test "$CLASSIFIER_RESULT" = success',
-            'test "$CLEAN_RUNTIME_RESULT" = success',
-            'test "$MATERIALIZED_VALIDATION_RESULT" = success',
-            'test "$SKILL_RUNNER_RESULT" = success',
-            'test "$CLEAN_RUNTIME_RESULT" = skipped',
-            'test "$MATERIALIZED_VALIDATION_RESULT" = skipped',
-            'test "$SKILL_RUNNER_RESULT" = skipped',
+            'test "$QUALIFY_RESULT" = success',
             'test "$COMPATIBILITY_CLEAN_RESULT" = success',
             'test "$COMPATIBILITY_MATERIALIZED_RESULT" = success',
             'test "$COMPATIBILITY_SKILL_RESULT" = success',
-            'test "$COMPATIBILITY_CLEAN_RESULT" = skipped',
-            'test "$COMPATIBILITY_MATERIALIZED_RESULT" = skipped',
-            'test "$COMPATIBILITY_SKILL_RESULT" = skipped',
         ):
             with self.subTest(assertion=assertion):
                 self.assertIn(assertion, validate)
-        self.assertIn(
-            'echo "invalid consumer-runtime classification: $RUNTIME_REQUIRED"', validate
-        )
-        self.assertIn(
-            'echo "invalid compatibility classification: $COMPATIBILITY_REQUIRED"',
-            validate,
-        )
 
 
 if __name__ == "__main__":
