@@ -50,14 +50,26 @@ Record separately:
 - canonical bootstrap discovery and execution;
 - integrity verification from the exact received bytes;
 - scaffold validation;
+- planning checkpoint creation when lifecycle checkpoints are selected;
+- first product-code mutation;
 - product implementation;
 - product evidence population;
 - product-state validation;
+- product checkpoint creation when lifecycle checkpoints are selected;
+- first release-readiness evaluation;
 - browser-proof prerequisite status;
 - release-readiness status;
 - recovery attempts, dead ends, and user interventions.
 
 A successful scaffold validation is only a scaffold milestone. Product code alone is not implementation evidence, and planning/template evidence must not be reported as product evidence. Deferred required browser proof keeps release readiness NOT READY.
+
+## Lifecycle chronology
+
+When lifecycle checkpoints are selected, chronology is part of lifecycle correctness, not merely final-state evidence. Record transcript/tool evidence for the first product-code mutation and the first release-readiness evaluation, then compare those observations with checkpoint creation evidence.
+
+The planning checkpoint must exist before the first product-code mutation. The product checkpoint must exist before the first release-readiness evaluation. If either checkpoint is created later, keep the earlier ordering violation in the scorecard; a later checkpoint does not retroactively repair lifecycle correctness for that run.
+
+Do not infer chronology from the final filesystem, the final checkpoint ledger, or the final presence of evidence files. If the transcript interval needed to establish ordering is unavailable, mark lifecycle correctness NOT TESTED or BLOCKED as appropriate rather than inferring PASS.
 
 ## Transcript completeness
 
