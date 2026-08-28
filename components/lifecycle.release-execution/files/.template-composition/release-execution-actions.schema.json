@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release-execution executable action registry",
+  "description": "Machine argv is complete and exact. Consumers replace whole-token caller_inputs only. The dispatcher owns the provider wrapper path and exact-candidate implementation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "actions"],
+  "properties": {
+    "$schema": {"const": "./release-execution-actions.schema.json"},
+    "schemaVersion": {"const": 1},
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verify-release-candidate"],
+      "properties": {
+        "verify-release-candidate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["argv", "caller_inputs", "output_schema"],
+          "properties": {
+            "argv": {
+              "const": [
+                "{python}",
+                ".template-composition/run_action.py",
+                "verify-release-candidate",
+                "{revision}"
+              ]
+            },
+            "caller_inputs": {"const": ["{python}", "{revision}"]},
+            "output_schema": {
+              "const": ".template-composition/release-candidate-verification.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

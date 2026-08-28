@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "lifecycle.composition-state",
   "kind": "lifecycle",
-  "version": 15,
+  "version": 16,
   "summary": "Self-contained consumer validation for resolved composition state, material ownership, selected-component validator dispatch, deterministic lifecycle next-step projection, and provider-owned executable action dispatch.",
   "requires": [],
   "conflicts": [],
@@ -11,6 +11,7 @@
     {"source": "files/.template-composition/validate_composition.py", "destination": ".template-composition/validate_composition.py", "ownership": "managed"},
     {"source": "files/.template-composition/lifecycle-next-actions.schema.json", "destination": ".template-composition/lifecycle-next-actions.schema.json", "ownership": "managed"},
     {"source": "files/.template-composition/validation-registry.json", "destination": ".template-composition/validation-registry.json", "ownership": "managed"},
+    {"source": "files/.template-composition/validate_impl.py", "destination": ".template-composition/validate_impl.py", "ownership": "managed"},
     {"source": "files/.template-composition/validate.py", "destination": ".template-composition/validate.py", "ownership": "managed"},
     {"source": "files/.template-composition/run_action.py", "destination": ".template-composition/run_action.py", "ownership": "managed"},
     {"source": "files/docs/architecture/composition-state.md", "destination": "docs/architecture/composition-state.md", "ownership": "managed"}
