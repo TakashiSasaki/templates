@@ -47,8 +47,8 @@
       "ownership": "managed"
     },
     {
-      "source": "files/schemas/lifecycle-checkpoint-actions.schema.json",
-      "destination": "schemas/lifecycle-checkpoint-actions.schema.json",
+      "source": "files/.template-composition/lifecycle-checkpoint-actions.schema.json",
+      "destination": ".template-composition/lifecycle-checkpoint-actions.schema.json",
       "ownership": "managed"
     },
     {
