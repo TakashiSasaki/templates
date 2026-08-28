@@ -96,7 +96,7 @@ class SmallModelCleanRoomProtocolTests(unittest.TestCase):
 
     def test_protocol_forbids_retrospective_staged_chronology(self) -> None:
         for phrase in (
-            "future requirement was visible before the event",
+            "added requirement was visible before the event",
             "evaluation-methodology defect",
             "evaluator mistake",
             "first post-change product mutation",
