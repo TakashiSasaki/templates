@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSER = ROOT / "scripts" / "compose.py"
 SCHEMA = ROOT / "components" / "lifecycle.implementation-evidence" / "files" / "schemas" / "implementation-evidence.schema.json"
-PROMPT = ROOT / "examples" / "evaluations" / "small-model-clean-room-field-log.txt"
+IMPLEMENTATION_EVIDENCE_GUIDE = ROOT / "components" / "lifecycle.implementation-evidence" / "files" / "docs" / "architecture" / "implementation-evidence.md"
 PUBLICATION_CATALOG = ROOT / "docs" / "publication-catalog.json"
 
 
@@ -195,7 +195,7 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             )
             self.assertIn("Release execution validation: OK", validation.stdout)
 
-    def test_template_is_not_release_ready_and_prompt_uses_target_bound_planning_before_coding(self) -> None:
+    def test_template_is_not_release_ready_and_planning_authority_is_target_bound(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = self.materialize(Path(temp_dir))
             readiness = self.run_python(
@@ -207,13 +207,18 @@ class ImplementationEvidencePlanningTests(unittest.TestCase):
             self.assertNotEqual(readiness.returncode, 0)
             self.assertIn("mode 'template' is not 'product'", readiness.stderr)
 
-        prompt = PROMPT.read_text(encoding="utf-8")
-        self.assertIn("Before product coding", prompt)
-        self.assertIn("implementation-evidence planning state", prompt)
-        self.assertIn("contract target", prompt)
-        self.assertIn("empty recordIds", prompt)
-        self.assertIn("requiredPositiveProofKinds", prompt)
-        self.assertIn("Preserve those IDs", prompt)
+        guide = IMPLEMENTATION_EVIDENCE_GUIDE.read_text(encoding="utf-8")
+        for phrase in (
+            'Use `mode: "planning"` after explicit product requirements',
+            '`commands`, `releaseGates`, and `records` stay empty',
+            '`requirements` is non-empty',
+            'non-empty `targets`',
+            'empty `recordIds`',
+            'non-empty `requiredPositiveProofKinds`',
+            'Preserve stable requirement IDs when moving to `product`',
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, guide)
 
     def test_v6_migration_guide_is_published(self) -> None:
         catalog = json.loads(PUBLICATION_CATALOG.read_text(encoding="utf-8"))

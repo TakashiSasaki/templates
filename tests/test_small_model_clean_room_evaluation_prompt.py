@@ -29,86 +29,94 @@ class SmallModelCleanRoomEvaluationPromptTests(unittest.TestCase):
     def test_prompt_has_stable_explicit_requirement_inventory(self) -> None:
         declared = set(re.findall(r"^REQ-[A-Z0-9-]+$", self.text, flags=re.MULTILINE))
         self.assertEqual(declared, EXPECTED_REQUIREMENTS)
-        self.assertIn("Before product coding", self.text)
-        self.assertIn("implementation-evidence planning state", self.text)
-        self.assertIn("empty recordIds", self.text)
-        self.assertIn("requiredPositiveProofKinds", self.text)
-        self.assertIn("before the initial implemented-product milestone can be claimed", self.text)
-        self.assertIn("Do not collapse unrelated requirements into one catch-all requirement", self.text)
+        self.assertIn("https://github.com/TakashiSasaki/templates", self.text)
+        self.assertIn("Determine how to use it from the repository itself", self.text)
+        self.assertIn("Create the application outside the templates repository", self.text)
 
-    def test_prompt_is_phase_a_only_and_contains_no_precreated_change_requirement(self) -> None:
-        for phrase in (
-            "This file is Phase A only",
-            "Every explicit REQ-* below belongs to the initial product milestone",
-            "intentionally contains no Phase B requirement",
-            "no prewritten list of candidate change requirements",
-            "do not disclose or create the added requirement until the initial product checkpoint",
-            "creates a new caller-visible requirement with a new REQ-* ID",
-            "separate evaluator/user message identified as the Evaluator Change Event",
-            "must not have existed earlier in this prompt",
-            "Final filesystem state must not be used to reconstruct these facts",
-        ):
+    def test_prompt_contains_no_evaluation_or_repository_specific_solution_framing(self) -> None:
+        forbidden = (
+            "clean-room",
+            "under evaluation",
+            "Target agent profile",
+            "GPT-5.6",
+            "composition branch",
+            "Composition authority",
+            "Composition lifecycle",
+            "implementation-evidence",
+            "requiredPositiveProofKinds",
+            "recordIds",
+            "itemId",
+            "template mode",
+            "planning mode",
+            "planning checkpoint",
+            "product checkpoint",
+            "browser-page",
+            "MCP transports",
+            "MCP Apps",
+            ".template-composition",
+            "deterministic implementation-evidence worklist",
+        )
+        lowered = self.text.lower()
+        for phrase in forbidden:
             with self.subTest(phrase=phrase):
-                self.assertIn(phrase, self.text)
+                self.assertNotIn(phrase.lower(), lowered)
 
-    def test_prompt_requires_capability_item_authority_before_coding(self) -> None:
-        for phrase in (
-            "move every selected capability contract that supports planning from template mode to planning mode",
-            "Every capability target itemId must exactly match an item declared in the corresponding planning capability contract",
-            "Web endpoints with their browser-page/backend-api/health kind",
-            "MCP transports and operations with transport bindings",
-            "MCP Apps Views/associations",
-            "Do not start product coding until the selected capability planning contracts",
-            "A phantom or misspelled target ID must be corrected in planning",
-            "Preserve stable planned item IDs when enriching a planning contract into product mode",
-        ):
+    def test_prompt_does_not_telegraph_a_future_requirement_change(self) -> None:
+        forbidden = (
+            "Phase A",
+            "Phase B",
+            "staged change",
+            "staged requirement",
+            "future requirement",
+            "Evaluator Change Event",
+            "post-change",
+            "later requirement",
+            "another requirement will arrive",
+        )
+        lowered = self.text.lower()
+        for phrase in forbidden:
             with self.subTest(phrase=phrase):
-                self.assertIn(phrase, self.text)
+                self.assertNotIn(phrase.lower(), lowered)
 
-    def test_prompt_separates_cli_api_and_browser_evidence_strength(self) -> None:
+    def test_prompt_keeps_product_level_evidence_strength_requirements(self) -> None:
         for phrase in (
-            "Keep CLI, HTTP/API, and browser requirements distinct",
-            "Static source inspection alone is insufficient proof",
+            "executable process-level test",
+            "through the service boundary",
+            "A real browser changes the filter",
             "API or CLI filter tests do not count as browser-filter proof",
             "does not count as browser-interaction proof",
             "Focus evidence must come from browser interaction",
-            "This is browser-level evidence",
-            "Browser requirements must bind to browser-classified planned targets",
+            "browser proof cannot be executed",
+            "do not substitute static inspection",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)
 
-    def test_prompt_requires_truthful_deferred_and_release_blocking(self) -> None:
+    def test_prompt_requires_truthful_completion_and_release_reporting(self) -> None:
         for phrase in (
-            "record the unavailable proof as deferred",
-            "Release readiness must remain NOT READY",
-            "no required evidence is missing or deferred",
-            "If any one of these conditions is false, say NOT READY",
             "Do not fabricate execution results",
-        ):
-            with self.subTest(phrase=phrase):
-                self.assertIn(phrase, self.text)
-
-    def test_prompt_requires_machine_auditable_results_and_next_work(self) -> None:
-        for phrase in (
-            "evaluation-result.json",
-            "requirementResults: one object per disclosed REQ-* ID",
-            "nextWork: deterministic ordered remaining actions",
             "implementationMilestone: READY or NOT_READY",
             "releaseReadiness: READY or NOT_READY",
-            "without manually interpreting the command transcript",
-            "Evaluator Change Event ID",
-            "first post-change product mutation",
+            "nextWork: deterministic ordered remaining actions",
+            "If required proof is unavailable, failed, or too weak, do not claim READY",
+            "Use the repository's own documented validation and release checks",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)
 
-    def test_prompt_does_not_treat_one_successful_run_as_proof_of_general_robustness(self) -> None:
-        self.assertIn(
-            "A single successful run is evidence that the workflow can work; it does not prove that small models will always use it correctly.",
-            self.text,
-        )
-        self.assertIn("Record the model and exact templates revision", self.text)
+    def test_prompt_requires_machine_auditable_outputs_without_evaluator_chronology(self) -> None:
+        for phrase in (
+            "evaluation-result.json",
+            "requirementResults: one object per REQ-* requirement listed in this task",
+            "validation results and exit statuses",
+            "evaluation-report.md",
+            "command-log.md",
+            "the consumer application and its tests",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.text)
+        self.assertNotIn("disclosure order", self.text)
+        self.assertNotIn("first post-change product mutation", self.text)
 
 
 if __name__ == "__main__":

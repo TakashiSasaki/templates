@@ -15,6 +15,24 @@ The evaluator must:
 
 The evaluator may not silently remove an inherited instruction. If an inherited instruction changes Git usage, network access, browser access, file locations, or user interaction, record it as part of the environment fingerprint and classify its impact.
 
+## Agent-visible task boundary
+
+The agent-visible task is black-box evaluation input. It may contain product requirements, repository URL, proof expectations, and required outputs, but it must not prescribe repository-specific solution mechanics that the evaluation is intended to test the agent's ability to discover.
+
+Do not put any of the following into the agent-visible task unless they are themselves caller-visible product requirements:
+
+- authority branch names, commit SHAs, repository-internal entry-point paths, or exact bootstrap paths;
+- internal contract or schema field names;
+- component IDs, lifecycle-stage names, validator names, action names, or checkpoint commands;
+- exact instructions for moving repository-owned state between internal lifecycle modes;
+- evaluator scoring questions, chronology assertions, or expected internal file mutations.
+
+The evaluated agent must discover repository-specific mechanics from the repository's own public consumer path. Evaluator-side chronology and scoring rules are not part of the agent-visible task. Keep evaluator orchestration in the evaluator's own context; do not copy it into the consumer workspace or quote it in the initial agent message; do not point the agent at evaluation fixtures as an alternate bootstrap path.
+
+If the repository itself contains generic evaluation documentation and the agent independently discovers it during ordinary exploration, record that discovery rather than silently suppressing it. The evaluator must not make those files a privileged hidden entry point.
+
+When a staged requirement change is planned, the initial agent-visible task must not announce that a later requirement will arrive, mention Phase A or Phase B, name an Evaluator Change Event, describe post-change chronology, or otherwise let the agent anticipate the future change. The first signal of the added requirement must be the actual evaluator/user message sent after the prerequisite product checkpoint exists.
+
 ## Run record
 
 Capture the following before product work begins:
