@@ -18,8 +18,7 @@
     "action": {
       "enum": [
         "create-planning-checkpoint",
-        "create-product-checkpoint",
-        "unknown"
+        "create-product-checkpoint"
       ]
     },
     "status": {"enum": ["completed", "failed"]},
