@@ -1,0 +1,121 @@
+name: Close checkpoint action registry
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step-clean
+    paths:
+      - .github/workflows/close-checkpoint-action-registry.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.head_commit.message == 'Stage closed checkpoint action registry repair'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Tighten registry parser and regression coverage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runner_path = Path("components/lifecycle.composition-state/files/.template-composition/validate.py")
+          runner = runner_path.read_text(encoding="utf-8")
+          old = '''    actions = registry.get("actions")
+              if not isinstance(actions, dict):
+                  return None
+              entry = actions.get(action)
+          '''
+          new = '''    actions = registry.get("actions")
+              if (
+                  registry.get("$schema") != "./lifecycle-checkpoint-actions.schema.json"
+                  or not isinstance(actions, dict)
+                  or set(actions) != {
+                      "create-planning-checkpoint",
+                      "create-product-checkpoint",
+                  }
+              ):
+                  return None
+              entry = actions.get(action)
+          '''
+          old = old.replace("          ", "")
+          new = new.replace("          ", "")
+          if runner.count(old) != 1:
+              raise SystemExit(f"actions anchor mismatch: {runner.count(old)}")
+          runner = runner.replace(old, new, 1)
+
+          old = '''    if any(token not in argv for token in caller_inputs):
+                  return None
+          '''.replace("          ", "")
+          new = '''    if (
+                  any(token not in argv for token in caller_inputs)
+                  or any(token not in argv for token in bindings)
+              ):
+                  return None
+          '''.replace("          ", "")
+          if runner.count(old) != 1:
+              raise SystemExit(f"binding anchor mismatch: {runner.count(old)}")
+          runner = runner.replace(old, new, 1)
+          runner_path.write_text(runner, encoding="utf-8")
+
+          test_path = Path("tests/test_lifecycle_next_actions.py")
+          tests = test_path.read_text(encoding="utf-8")
+          anchor = '''    def test_malformed_selected_checkpoint_ledger_fails_closed(self) -> None:
+          '''
+          insertion = '''    def test_registry_with_unknown_action_fails_closed(self) -> None:
+              original = self.action_registry
+              try:
+                  mutated = json.loads(json.dumps(original))
+                  mutated["actions"]["unknown-action"] = mutated["actions"]["create-planning-checkpoint"]
+                  self.action_registry = mutated
+                  value = self.project("planning", checkpoints_selected=True)
+              finally:
+                  self.action_registry = original
+              self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+              self.assertEqual(
+                  value["blocking_conditions"],
+                  ["checkpoint-command-registry-invalid"],
+              )
+
+              def test_registry_with_unused_provider_binding_fails_closed(self) -> None:
+              original = self.action_registry
+              try:
+                  mutated = json.loads(json.dumps(original))
+                  mutated["actions"]["create-planning-checkpoint"]["bindings"] = {
+                      "{latest_checkpoint_id}": "latest-checkpoint-id"
+                  }
+                  self.action_registry = mutated
+                  value = self.project("planning", checkpoints_selected=True)
+              finally:
+                  self.action_registry = original
+              self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+              self.assertEqual(
+                  value["blocking_conditions"],
+                  ["checkpoint-command-registry-invalid"],
+              )
+
+          '''
+          # Fix indentation introduced by YAML literal while keeping source readable.
+          insertion = insertion.replace("              def test_registry", "    def test_registry")
+          if tests.count(anchor) != 1:
+              raise SystemExit(f"test insertion anchor mismatch: {tests.count(anchor)}")
+          tests = tests.replace(anchor, insertion + anchor, 1)
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+          python -m py_compile components/lifecycle.composition-state/files/.template-composition/validate.py tests/test_lifecycle_next_actions.py
+          python -m unittest tests.test_lifecycle_next_actions
+      - name: Commit repair and remove workflow
+        env:
+          BRANCH: feat/executable-lifecycle-next-step-clean
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/lifecycle.composition-state/files/.template-composition/validate.py tests/test_lifecycle_next_actions.py
+          git rm .github/workflows/close-checkpoint-action-registry.yml
+          git commit -m "Fail closed on malformed checkpoint action registries"
+          git push origin HEAD:${BRANCH}
