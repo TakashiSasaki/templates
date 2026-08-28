@@ -19,6 +19,10 @@ from scripts.resolve_publication_sources import SourceLockError, resolve_sources
 REPOSITORY = "TakashiSasaki/templates"
 SCHEMA_URL = "https://templates.moukaeritai.work/schemas/agent-bootstrap.schema.json"
 CANONICAL_URL = "https://templates.moukaeritai.work/agent.json"
+PUBLICATION_CATALOG_PATH = "docs/publication-catalog.json"
+COMPOSITION_OVERVIEW_DOCUMENT_ID = "composition:overview"
+POLICY_OVERVIEW_DOCUMENT_ID = "policy:overview"
+SITE_OVERVIEW_DOCUMENT_ID = "site:portal-home"
 COEXISTENCE_DOCUMENT_ID = "site:policy-composition-coexistence"
 COEXISTENCE_URL = "https://templates.moukaeritai.work/coexistence/"
 FULL_SHA = re.compile(r"\A[0-9a-f]{40}\Z")
@@ -181,16 +185,19 @@ def build_manifest(source_lock: Path, composition_release: Path) -> dict[str, An
             "composition": {
                 "role": "artifact-capability-lifecycle-semantics",
                 "publication_revision": sources["composition"],
-                "source_path": "README.md",
+                "overview_document_id": COMPOSITION_OVERVIEW_DOCUMENT_ID,
+                "publication_catalog_path": PUBLICATION_CATALOG_PATH,
             },
             "policy": {
                 "role": "coding-agent-operating-policy",
                 "publication_revision": sources["policy"],
-                "source_path": "README.md",
+                "overview_document_id": POLICY_OVERVIEW_DOCUMENT_ID,
+                "publication_catalog_path": PUBLICATION_CATALOG_PATH,
                 "relationship_to_composition": "independent-optional",
             },
             "site": {
                 "role": "publication-integration",
+                "overview_document_id": SITE_OVERVIEW_DOCUMENT_ID,
                 "consumer_repository_mutation": False,
             },
         },
