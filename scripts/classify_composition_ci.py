@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classify Composition behavioral and compatibility CI requirements."""
+"""Classify whether Composition behavioral CI is required."""
 
 from __future__ import annotations
 
@@ -16,12 +16,6 @@ ZERO_SHA = "0" * 40
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 SAFE_DOCUMENTATION_PREFIXES = ("docs/", "translations/")
 SAFE_DOCUMENTATION_FILES = frozenset({"README.md"})
-COMPATIBILITY_SENSITIVE_PREFIXES = (
-    ".github/workflows/",
-    "release/",
-    "skills/composition/",
-)
-COMPATIBILITY_SENSITIVE_FILES = frozenset({"requirements-runtime.lock"})
 
 
 class ClassificationError(RuntimeError):
@@ -43,19 +37,6 @@ def is_documentation_only_path(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in SAFE_DOCUMENTATION_PREFIXES)
 
 
-def is_compatibility_sensitive_path(path: str) -> bool:
-    """Return whether a path can affect Python/OS runtime compatibility."""
-    if not is_safe_repository_path(path):
-        return True
-    if is_documentation_only_path(path):
-        return False
-    if path.endswith(".py"):
-        return True
-    if path in COMPATIBILITY_SENSITIVE_FILES:
-        return True
-    return any(path.startswith(prefix) for prefix in COMPATIBILITY_SENSITIVE_PREFIXES)
-
-
 def classify_paths(paths: Sequence[str]) -> tuple[bool, str]:
     """Return (behavioral_ci_required, stable_reason) for one changed-path set."""
     if not paths:
@@ -64,16 +45,6 @@ def classify_paths(paths: Sequence[str]) -> tuple[bool, str]:
         if not is_documentation_only_path(path):
             return True, "composition-sensitive-change"
     return False, "documentation-only"
-
-
-def classify_compatibility_paths(paths: Sequence[str]) -> tuple[bool, str]:
-    """Return (full_compatibility_required, stable_reason) for one path set."""
-    if not paths:
-        return True, "no-changes"
-    for path in paths:
-        if is_compatibility_sensitive_path(path):
-            return True, "compatibility-sensitive-change"
-    return False, "compatibility-insensitive-change"
 
 
 def validate_sha(value: str, label: str) -> None:
@@ -115,18 +86,11 @@ def write_github_output(
     *,
     required: bool,
     reason: str,
-    compatibility_required: bool,
-    compatibility_reason: str,
     count: int,
 ) -> None:
     with path.open("a", encoding="utf-8") as output:
         output.write(f"required={'true' if required else 'false'}\n")
         output.write(f"reason={reason}\n")
-        output.write(
-            "compatibility_required="
-            f"{'true' if compatibility_required else 'false'}\n"
-        )
-        output.write(f"compatibility_reason={compatibility_reason}\n")
         output.write(f"changed_count={count}\n")
 
 
@@ -135,47 +99,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base", required=True)
     parser.add_argument("--head", required=True)
     parser.add_argument("--github-output", type=Path, required=True)
-    parser.add_argument(
-        "--force-compatibility",
-        choices=("true", "false"),
-        default="false",
-        help="Force full compatibility CI for an explicit checkpoint.",
-    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    force_compatibility = args.force_compatibility == "true"
 
     if args.base == ZERO_SHA:
         required, reason, paths = True, "unbounded-push", []
-        compatibility_required = True
-        compatibility_reason = "unbounded-push"
     else:
         try:
             paths = changed_paths(args.base, args.head)
             required, reason = classify_paths(paths)
-            compatibility_required, compatibility_reason = classify_compatibility_paths(
-                paths
-            )
         except ClassificationError as exc:
             print(
                 f"Composition CI classification fell back to required: {exc}",
                 file=sys.stderr,
             )
             required, reason, paths = True, "diff-unavailable", []
-            compatibility_required = True
-            compatibility_reason = "diff-unavailable"
-
-    if force_compatibility and not compatibility_required:
-        compatibility_required = True
-        compatibility_reason = "explicit-checkpoint"
 
     print(
         f"composition-ci required={str(required).lower()} reason={reason} "
-        f"compatibility_required={str(compatibility_required).lower()} "
-        f"compatibility_reason={compatibility_reason} changed_count={len(paths)}"
+        f"changed_count={len(paths)}"
     )
     for path in paths:
         print(f"changed: {path!r}")
@@ -183,8 +128,6 @@ def main() -> int:
         args.github_output,
         required=required,
         reason=reason,
-        compatibility_required=compatibility_required,
-        compatibility_reason=compatibility_reason,
         count=len(paths),
     )
     return 0
