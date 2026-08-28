@@ -1,0 +1,116 @@
+name: Cut over Site to checkpoint lifecycle Composition
+
+on:
+  push:
+    branches:
+      - cutover/checkpoint-lifecycle-site
+
+permissions:
+  contents: write
+
+jobs:
+  cutover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out Site candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Check out exact Composition publication
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 6fad82a9fa6cd97433f84d5d0c7912ae88a4dc92
+          path: .composition-publication
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Update Site pins and regenerate bootstrap projection
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          old_c = "2cf6367241dbc9ee6dfecd0e059d34d7ced195cd"
+          new_c = "6fad82a9fa6cd97433f84d5d0c7912ae88a4dc92"
+
+          source_path = Path("publication-sources.json")
+          source = json.loads(source_path.read_text(encoding="utf-8"))
+          if source["publications"]["composition"]["revision"] != old_c:
+              raise SystemExit("unexpected current Composition publication lock")
+          source["publications"]["composition"]["revision"] = new_c
+          source_path.write_text(json.dumps(source, indent=2) + "\n", encoding="utf-8")
+
+          deployment_path = Path("deployment-state.json")
+          deployment = json.loads(deployment_path.read_text(encoding="utf-8"))
+          if deployment["locked_composition_revision"] != old_c:
+              raise SystemExit("unexpected deployment-state Composition lock")
+          deployment["locked_composition_revision"] = new_c
+          deployment_path.write_text(
+              json.dumps(deployment, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          test_path = Path("tests/test_human_first_onboarding.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          if test_text.count(old_c) != 1:
+              raise SystemExit(
+                  f"unexpected onboarding Composition pin count: {test_text.count(old_c)}"
+              )
+          test_path.write_text(test_text.replace(old_c, new_c), encoding="utf-8")
+          PY
+          python3 -I scripts/generate_agent_bootstrap.py \
+            --site-root . \
+            --composition-root .composition-publication \
+            --write
+          python3 -I scripts/generate_agent_bootstrap.py \
+            --site-root . \
+            --composition-root .composition-publication
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path("agent.json").read_bytes()
+          published = Path("assets/agent.json").read_bytes()
+          if root != published:
+              raise SystemExit("root and published agent manifests differ")
+          agent = json.loads(root)
+          expected = {
+              "publication_revision": "6fad82a9fa6cd97433f84d5d0c7912ae88a4dc92",
+              "installer_revision": "b862171ed7d8fb7f53cb5a28a0d89eab07ab534e",
+              "installer_sha256": "161b9fb7f432eec8cb104f4f49d945c7f8ef5654382fb4607a13ae0de5015cc4",
+              "skill_revision": "dee6278c275d4c480373acd5b66cfc2c2db4c663",
+              "toolchain_revision": "1e8fd592d82670c3d524d5038b8045715bb01038",
+          }
+          actual = {
+              "publication_revision": agent["composition"]["publication_revision"],
+              "installer_revision": agent["composition"]["installer"]["revision"],
+              "installer_sha256": agent["composition"]["installer"]["sha256"],
+              "skill_revision": agent["composition"]["skill"]["revision"],
+              "toolchain_revision": agent["composition"]["toolchain"]["revision"],
+          }
+          if actual != expected:
+              raise SystemExit(f"unexpected generated Composition identities: {actual}")
+          if agent["bootstrap"]["canonical_operation"] != "execute-verified-installer-argv":
+              raise SystemExit("canonical bootstrap operation changed")
+          if agent["bootstrap"]["reimplementation_policy"] != "do-not-reimplement":
+              raise SystemExit("bootstrap reimplementation policy changed")
+          if agent["bootstrap"]["verify"] != "sha256-before-execute":
+              raise SystemExit("bootstrap verification mode changed")
+          print(json.dumps(actual, sort_keys=True))
+          PY
+          python3 -m unittest tests.test_human_first_onboarding
+          git diff --check
+      - name: Commit cutover candidate and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            publication-sources.json \
+            deployment-state.json \
+            agent.json \
+            assets/agent.json \
+            tests/test_human_first_onboarding.py
+          git commit -m "Cut Site over to checkpoint lifecycle Composition publication"
+          git rm .github/workflows/cutover-checkpoint-lifecycle-site.yml
+          git commit -m "Remove Site cutover staging helper"
+          git push origin HEAD:cutover/checkpoint-lifecycle-site
