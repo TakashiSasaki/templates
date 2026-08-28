@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -7,16 +8,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
 SKILL = ROOT / ".agents" / "skills" / "pr-merge-gate" / "SKILL.md"
+SOURCE = ROOT / ".agents" / "skills" / "pr-merge-gate" / "source.json"
+SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
-class PullRequestMergeGateSkillTests(unittest.TestCase):
-    def test_agents_routes_all_merge_completion_through_merge_gate(self) -> None:
+class PullRequestMergeGateReferenceTests(unittest.TestCase):
+    def test_agents_routes_merge_completion_through_reference_shim(self) -> None:
         index = AGENTS.read_text(encoding="utf-8")
         self.assertIn(".agents/skills/pr-merge-gate/SKILL.md", index)
         self.assertIn("before declaring any pull request merge-ready", index.lower())
         self.assertIn("green ci and `reviews = 0`", index.lower())
 
-    def test_skill_frontmatter_and_name_are_stable(self) -> None:
+    def test_shim_has_stable_agent_skill_identity(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
         self.assertTrue(text.startswith("---\n"))
         _, frontmatter, body = text.split("---\n", 2)
@@ -25,150 +28,69 @@ class PullRequestMergeGateSkillTests(unittest.TestCase):
         self.assertRegex(body.lstrip(), r"^# Pull Request Merge Gate\n")
         self.assertTrue(re.fullmatch(r"[a-z0-9-]+", SKILL.parent.name))
 
-    def test_zero_pending_stale_and_self_review_fail_closed(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
+    def test_source_manifest_pins_immutable_policy_adapter_identity(self) -> None:
+        source = json.loads(SOURCE.read_text(encoding="utf-8"))
+        self.assertEqual(source["schema_version"], 1)
+        self.assertEqual(source["kind"], "policy-adapter-reference")
+        self.assertEqual(source["repository"], "TakashiSasaki/templates")
+        self.assertEqual(source["path"], "skills/pr-merge-gate/SKILL.md")
+        self.assertRegex(source["revision"], SHA_PATTERN)
+        self.assertRegex(source["blob_sha"], SHA_PATTERN)
+        self.assertNotEqual(source["revision"], source["blob_sha"])
+
+    def test_shim_declares_reference_not_policy_authority(self) -> None:
+        text = SKILL.read_text(encoding="utf-8").lower()
         for invariant in (
-            "`reviews = 0 -> merge_allowed` is forbidden",
-            "completed independent review evidence count is zero",
-            "self-review does not satisfy this requirement",
-            "reviewer unavailable != review waived",
+            "repository-local reference shim",
+            "does not define shared pull-request policy",
+            "does not duplicate the adapter's github orchestration semantics",
+            "the immutable source identity is recorded in the adjacent `source.json`",
+            "current composition code, schemas, validators, tests, workflows",
         ):
             with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
+                self.assertIn(invariant, text)
 
-    def test_pending_and_stale_review_transitions_are_explicit(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
+    def test_shim_loads_only_exact_verified_source_and_fails_closed(self) -> None:
+        text = SKILL.read_text(encoding="utf-8").lower()
         for invariant in (
-            "pending review",
-            "is not a completed review",
-            "if the pr head changes after review",
-            "classify prior review evidence as stale",
-            "until a new review completes for the new head",
+            "use the github connector to fetch `path` from exactly `revision`",
+            "returned file blob sha equals `blob_sha`",
+            "do not resolve the source through a branch name",
+            "full 40-character lowercase hexadecimal sha",
+            "if any source field is missing, malformed, unavailable, or mismatched",
+            "stop in a blocked state",
+            "source unavailability is a blocked condition",
         ):
             with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
+                self.assertIn(invariant, text)
 
-    def test_base_drift_requires_semantic_re_evaluation(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "if it differs from the evaluated pr base/current target snapshot",
-            "must be rebuilt, rebased, or otherwise synchronized",
-            "conflict-free mergeability alone does not establish semantic freshness",
-            "all previous final-head ci and review evidence becomes stale",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_all_blocked_states_are_defined(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for state in (
-            "blocked_ci",
-            "blocked_review_missing",
-            "blocked_review_pending",
-            "blocked_review_stale",
-            "blocked_review_findings",
-            "blocked_base_drift",
-            "blocked_head_changed",
-            "blocked_mergeability",
-        ):
-            with self.subTest(state=state):
-                self.assertIn(state, skill)
-
-    def test_exact_head_and_final_live_refresh_are_mandatory(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "final live-state refresh",
-            "review of sha a != review of changed sha b",
+    def test_shim_does_not_duplicate_policy_adapter_mechanics(self) -> None:
+        text = SKILL.read_text(encoding="utf-8")
+        forbidden = (
+            "CI_DISCOVERY_MIN_OBSERVATION_MINUTES",
+            "CI_DISCOVERY_PENDING",
+            "CI_CONFIRMED_ABSENT",
+            "BLOCKED_REVIEW_MISSING",
+            "BLOCKED_REVIEW_STALE",
+            "PR_OPEN -> SCOPE_AUDITED",
             "expected_head_sha",
-            "never omit `expected_head_sha`",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_ci_discovery_lag_cannot_trigger_mutating_retry(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "ref visibility and actions/check indexing are not atomic",
-            "a zero-result response is negative evidence, not proof",
-            "enter `ci_discovery_pending` and use read-only discovery only",
-            "workflow-run view",
-            "exact-commit check-run/check-suite view",
-            "at least two independently indexed live views",
-            "remain `ci_discovery_pending`",
-            "do not close and reopen the pull request",
-            "create a no-op commit",
-            "solely to retrigger ci while `ci_discovery_pending`",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_ci_discovery_states_are_fail_closed_and_distinct(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "may resolve only to `ci_discovered`",
-            "or to `ci_confirmed_absent` after the full confirmed-absence protocol succeeds",
-            "cannot transition directly to `ci_green`, `blocked_ci`, a retrigger mutation, or `merge_allowed`",
-            "use `ci_confirmed_absent` only when the confirmed-absence protocol below is satisfied",
-            "`ci_confirmed_absent` is not a success state",
-            "must lead to `blocked_ci` or to an explicitly justified recovery action",
-            "`ci_discovery_pending` != `ci_confirmed_absent`",
-            "`ci_discovered` != `ci_green`",
-            "`ci_confirmed_absent` is a positive evidence decision",
-            "ci discovery is resolved as `ci_discovered`",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_confirmed_absence_requires_correlated_read_only_evidence(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "do not classify an expected run as `ci_confirmed_absent` from a single zero-result view",
-            "repeated queries against only one index",
-            "the pr head remained unchanged throughout the observation",
-            "the current workflow definition still says the run should exist",
-            "repeated read-only refreshes in at least two independently indexed live views",
-            "no contradictory pending, queued, in-progress, or newly indexed exact-head evidence exists",
-            "concrete observations that support the `ci_confirmed_absent` decision",
-            "only after entering `ci_confirmed_absent` may a recovery mutation be considered",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_confirmed_absence_has_a_minimum_observation_floor(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "`ci_discovery_min_observation_minutes = 10`",
-            "this minimum observation floor is a guard, not evidence",
-            "it does not delay `ci_discovered` when positive exact-head evidence appears",
-            "do not sleep solely to satisfy it",
-            "since the later of the pr action expected to generate the run and the exact head becoming current",
-            "observation-floor elapsed != `ci_confirmed_absent`",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_ci_discovery_rejects_stale_and_superseded_false_failures(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8").lower()
-        for invariant in (
-            "an older-head result is stale evidence",
-            "concurrency-cancelled run that was superseded",
-            "is not by itself a ci failure",
-            "evaluate the newest applicable run",
-        ):
-            with self.subTest(invariant=invariant):
-                self.assertIn(invariant, skill)
-
-    def test_success_path_cannot_skip_ci_discovery_or_review_completion(self) -> None:
-        skill = SKILL.read_text(encoding="utf-8")
-        self.assertIn(
-            "PR_OPEN -> SCOPE_AUDITED -> CI_DISCOVERED -> CI_GREEN -> "
-            "REVIEW_REQUESTED -> REVIEW_COMPLETED -> FINDINGS_CLEARED -> "
-            "FINAL_STATE_REFRESHED -> MERGE_ALLOWED",
-            skill,
+            "@hermes review",
+            "check-run",
+            "check-suite",
         )
-        self.assertIn("`SCOPE_AUDITED -> CI_GREEN` is forbidden", skill)
-        self.assertIn("`CI_GREEN -> MERGE_ALLOWED` is forbidden", skill)
-        self.assertIn("`REVIEW_REQUESTED -> MERGE_ALLOWED` is forbidden", skill)
+        for term in forbidden:
+            with self.subTest(term=term):
+                self.assertNotIn(term, text)
+
+    def test_shim_keeps_composition_acceptance_separate(self) -> None:
+        text = SKILL.read_text(encoding="utf-8").lower()
+        for invariant in (
+            "task-specific composition implementation, schema, runtime, release",
+            "composition-specific semantic acceptance",
+            "keep composition-specific acceptance evidence separate",
+        ):
+            with self.subTest(invariant=invariant):
+                self.assertIn(invariant, text)
 
 
 if __name__ == "__main__":
