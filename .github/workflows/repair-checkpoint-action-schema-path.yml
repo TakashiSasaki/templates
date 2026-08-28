@@ -1,0 +1,53 @@
+name: Repair checkpoint action schema path
+
+on:
+  push:
+    branches:
+      - feat/executable-lifecycle-next-step-clean
+    paths:
+      - .github/workflows/repair-checkpoint-action-schema-path.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.head_commit.message == 'Stage checkpoint action schema path repair'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Repair non-contract schema references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path("tests/test_lifecycle_next_actions.py"): (
+                  'components/lifecycle.lifecycle-checkpoints/files/schemas/lifecycle-checkpoint-actions.schema.json',
+                  'components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.schema.json',
+              ),
+              Path("components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md"): (
+                  '`schemas/lifecycle-checkpoint-actions.schema.json`',
+                  '`.template-composition/lifecycle-checkpoint-actions.schema.json`',
+              ),
+          }
+          for path, (old, new) in replacements.items():
+              text = path.read_text(encoding="utf-8")
+              if text.count(old) != 1:
+                  raise SystemExit(f"{path}: expected exactly one schema-path reference, found {text.count(old)}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python -m unittest tests.test_lifecycle_next_actions
+      - name: Commit repaired candidate
+        env:
+          BRANCH: feat/executable-lifecycle-next-step-clean
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/test_lifecycle_next_actions.py components/lifecycle.lifecycle-checkpoints/files/docs/architecture/lifecycle-checkpoints.md
+          git rm .github/workflows/repair-checkpoint-action-schema-path.yml
+          git commit -m "Keep checkpoint action schema outside contract registry"
+          git push origin HEAD:${BRANCH}
