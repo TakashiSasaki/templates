@@ -15,6 +15,7 @@ SCHEMA_PATH = ROOT / "components/lifecycle.composition-state/files/.template-com
 WEBAPP_REGISTRY = ROOT / "components/artifact.webapp-core/files/.template-composition/webapp-actions.json"
 READINESS_REGISTRY = ROOT / "components/lifecycle.implementation-evidence/files/.template-composition/implementation-evidence-actions.json"
 CHECKPOINT_REGISTRY = ROOT / "components/lifecycle.lifecycle-checkpoints/files/.template-composition/lifecycle-checkpoint-actions.json"
+RELEASE_EXECUTION_REGISTRY = ROOT / "components/lifecycle.release-execution/files/.template-composition/release-execution-actions.json"
 
 SPEC = importlib.util.spec_from_file_location("composition_validation_runner_with_prerequisites", RUNNER_PATH)
 if SPEC is None or SPEC.loader is None:
@@ -32,6 +33,7 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
         cls.webapp_registry = WEBAPP_REGISTRY.read_text(encoding="utf-8")
         cls.readiness_registry = READINESS_REGISTRY.read_text(encoding="utf-8")
         cls.checkpoint_registry = CHECKPOINT_REGISTRY.read_text(encoding="utf-8")
+        cls.release_execution_registry = RELEASE_EXECUTION_REGISTRY.read_text(encoding="utf-8")
 
     @staticmethod
     def _evidence(*, deferred: bool, browser: bool) -> dict:
@@ -67,6 +69,8 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
         webapp_selected: bool = True,
         malformed_webapp_registry: bool = False,
         checkpoint_phase: str | None = None,
+        release_execution_selected: bool = False,
+        malformed_release_registry: bool = False,
     ) -> dict:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -121,6 +125,18 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
                         "status": "passed",
                     }
                 )
+            if release_execution_selected:
+                (root / ".template-composition/release-execution-actions.json").write_text(
+                    "{}" if malformed_release_registry else self.release_execution_registry,
+                    encoding="utf-8",
+                )
+                checks.append(
+                    {
+                        "id": "release-execution",
+                        "component": "lifecycle.release-execution",
+                        "status": "passed",
+                    }
+                )
             value = runner._lifecycle_projection(root, "valid", checks)
             self.schema_validator.validate(value)
             return value
@@ -159,6 +175,7 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
                 "output_schema": ".template-composition/browser-proof-diagnostics.schema.json",
             },
         )
+        self.assertEqual(value["conditional_prerequisite_commands"], [])
 
     def test_generic_deferred_proof_does_not_mislabel_readiness_as_next_command(self) -> None:
         value = self._project(self._evidence(deferred=True, browser=False))
@@ -188,6 +205,7 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
         )
         self.assertEqual(value["deferred_proofs"], ["feature-proof"])
         self.assertNotIn("next_action_command", value)
+        self.assertEqual(value["conditional_prerequisite_commands"], [])
 
     def test_browser_capability_without_webapp_component_remains_generic(self) -> None:
         value = self._project(
@@ -204,6 +222,67 @@ class LifecyclePrerequisiteProjectionTests(unittest.TestCase):
         self.assertEqual(value["release_readiness"], "not-evaluated")
         self.assertEqual(value["next_actions"], ["check-release-readiness"])
         self.assertEqual(value["next_action_command"]["action"], "check-release-readiness")
+        self.assertEqual(value["conditional_prerequisite_commands"], [])
+
+    def test_release_execution_projects_conditional_exact_candidate_action(self) -> None:
+        value = self._project(
+            self._evidence(deferred=False, browser=False),
+            release_execution_selected=True,
+        )
+        self.assertEqual(
+            value["conditional_prerequisite_commands"],
+            [
+                {
+                    "condition": "before-release-production",
+                    "action": "verify-release-candidate",
+                    "argv": [
+                        "{python}",
+                        ".template-composition/run_action.py",
+                        "verify-release-candidate",
+                        "{revision}",
+                    ],
+                    "caller_inputs": ["{python}", "{revision}"],
+                    "output_schema": ".template-composition/release-candidate-verification.schema.json",
+                }
+            ],
+        )
+
+    def test_git_candidate_prerequisite_is_not_global(self) -> None:
+        value = self._project(self._evidence(deferred=False, browser=False))
+        self.assertEqual(value["conditional_prerequisite_commands"], [])
+        self.assertNotIn("verify-release-candidate", value["next_actions"])
+
+    def test_malformed_selected_release_registry_fails_closed(self) -> None:
+        value = self._project(
+            self._evidence(deferred=False, browser=False),
+            release_execution_selected=True,
+            malformed_release_registry=True,
+        )
+        self.assertEqual(value["lifecycle_stage"], "composition-invalid")
+        self.assertEqual(
+            value["blocking_conditions"],
+            ["release-candidate-command-registry-invalid"],
+        )
+        self.assertEqual(value["conditional_prerequisite_commands"], [])
+        self.assertNotIn("next_action_command", value)
+
+    def test_browser_resolution_and_release_prerequisite_coexist(self) -> None:
+        value = self._project(
+            self._evidence(deferred=True, browser=True),
+            release_execution_selected=True,
+        )
+        self.assertEqual(
+            value["next_action_command"]["action"],
+            "diagnose-browser-prerequisites",
+        )
+        self.assertEqual(
+            value["conditional_prerequisite_commands"][0]["action"],
+            "verify-release-candidate",
+        )
+        self.assertEqual(
+            value["conditional_prerequisite_commands"][0]["condition"],
+            "before-release-production",
+        )
 
 
 if __name__ == "__main__":
