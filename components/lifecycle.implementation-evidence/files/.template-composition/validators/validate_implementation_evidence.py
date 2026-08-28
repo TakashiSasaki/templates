@@ -660,24 +660,27 @@ def main() -> int:
         else validate(root)
     )
     evidence = load_json(root / "contracts/implementation-evidence.json")
-    warnings: list[str] = []
-    if isinstance(evidence, dict) and evidence.get("mode") == "product":
-        records = evidence.get("records", [])
-        if isinstance(records, list):
-            warnings = proof_reuse_warnings(records)
+    records = evidence.get("records", []) if isinstance(evidence, dict) else []
+    if not isinstance(records, list):
+        records = []
+    warnings = (
+        list(dict.fromkeys(proof_reuse_warnings(records)))
+        if isinstance(evidence, dict) and evidence.get("mode") == "product"
+        else []
+    )
 
     if args.release_readiness and args.output_format == "json":
-        deferred_proofs = sorted(
+        deferred_proofs = sorted({
             proof.get("id")
-            for record in evidence.get("records", [])
-            if isinstance(evidence, dict)
-            and isinstance(record, dict)
+            for record in records
+            if isinstance(record, dict)
             for field in ("positiveEvidence", "negativeEvidence")
             for proof in record.get(field, [])
             if isinstance(proof, dict)
             and proof.get("status") == "deferred"
             and isinstance(proof.get("id"), str)
-        )
+        })
+        errors = list(dict.fromkeys(errors))
         print(
             json.dumps(
                 {
