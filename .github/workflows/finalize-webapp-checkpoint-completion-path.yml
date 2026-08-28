@@ -1,0 +1,124 @@
+name: Finalize Webapp checkpoint completion path
+
+on:
+  push:
+    branches:
+      - docs/webapp-checkpoint-completion-path
+    paths:
+      - .github/workflows/finalize-webapp-checkpoint-completion-path.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Stage Webapp checkpoint completion path'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Align English and Japanese completion gates with checkpoint lifecycle
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          english_path = Path("docs/guides/webapp-product-walkthrough.md")
+          english = english_path.read_text(encoding="utf-8")
+          start = english.index("## Completion path at a glance\n")
+          end = english.index("## 0. What this walkthrough will produce\n", start)
+          english_section = '''## Completion path at a glance
+
+          Use this short path as the completion gate for the full walkthrough. The numbered sections below retain the detailed product example; this list makes the lifecycle milestone explicit before the details begin.
+
+          1. **Doctor** — run the installed Composition `doctor` and resolve local bootstrap blockers.
+          2. **Inspect** — inspect the target repository before any mutation.
+          3. **Plan** — create the read-only Composition plan.
+          4. **Review** — check the target, resolved components, actions, and conflicts.
+          5. **Apply** — apply exactly the reviewed plan to materialize the scaffold.
+          6. **Validate scaffold** — run Composition `validate`; initial `VALID` is the scaffold milestone only. Define truthful planning evidence before crossing into product coding.
+          7. **Create planning checkpoint** — when lifecycle checkpoints are selected, follow `lifecycle.next_actions` and its `next_action_command` argv to record the validated planning state. Do not start product coding before this checkpoint exists.
+          8. **Implement product** — edit consumer-owned contracts and ordinary product code. Product code alone is not the implemented-product milestone.
+          9. **Populate product evidence** — change implementation evidence from `planning`/`template` to truthful `product` evidence with current records, proofs, commands, and gates.
+          10. **Run product verifier** — execute the authoritative product verifier and retain its result as evidence.
+          11. **Validate product state** — run Composition validation again and follow the machine-readable `lifecycle.next_actions`. If evidence is still `planning` or `template`, continue; do not stop at scaffold `VALID`.
+          12. **Create product checkpoint** — when lifecycle checkpoints are selected, follow the projected `next_action_command` to close the validated planning-to-product transition before release-readiness evaluation.
+          13. **Check release readiness** — run the exact release-readiness operation. Any required deferred browser proof means `NOT READY`, even when implementation and ordinary validation pass.
+
+          The initial `VALID` result is a scaffold milestone, not an implemented-product or release-ready claim. When lifecycle checkpoints are selected, the planning checkpoint is the hard boundary before product coding and the product checkpoint is the hard boundary before release-readiness evaluation. The implementation milestone requires truthful product evidence and a passing product verifier. The release milestone is separate and remains `NOT READY` while required proof is missing, deferred, failed, or not yet evaluated.
+
+          '''
+          import textwrap
+          english_path.write_text(
+              english[:start] + textwrap.dedent(english_section) + english[end:],
+              encoding="utf-8",
+          )
+
+          japanese_path = Path("translations/ja/docs/guides/webapp-product-walkthrough.md")
+          japanese = japanese_path.read_text(encoding="utf-8")
+          start = japanese.index("## Completion path at a glance\n")
+          end = japanese.index("## 0. この walkthrough で何を作るか\n", start)
+          japanese_section = '''## Completion path at a glance
+
+          この短い path を、walkthrough 全体の completion gate として使います。以下の numbered sections は詳細な product example を維持し、この一覧で lifecycle milestone を先に明示します。
+
+          1. **Doctor** — install 済み Composition の `doctor` を実行し、local bootstrap blocker を解消します。
+          2. **Inspect** — mutation 前に target repository を inspect します。
+          3. **Plan** — read-only の Composition plan を作成します。
+          4. **Review** — target、resolved components、actions、conflicts を確認します。
+          5. **Apply** — review 済み plan だけを apply して scaffold を materialize します。
+          6. **Validate scaffold** — Composition `validate` を実行します。最初の `VALID` は scaffold milestone にすぎません。product coding へ進む前に truthful な planning evidence を定義します。
+          7. **Create planning checkpoint** — lifecycle checkpoint が selected なら、`lifecycle.next_actions` と `next_action_command` の argv に従い、validated planning state を記録します。この checkpoint より前に product coding を開始しません。
+          8. **Implement product** — consumer-owned contracts と ordinary product code を実装します。product code だけでは implemented-product milestone ではありません。
+          9. **Populate product evidence** — implementation evidence を `planning` / `template` から truthful な `product` evidence に更新し、current records、proofs、commands、gates を埋めます。
+          10. **Run product verifier** — authoritative product verifier を実行し、結果を evidence として保持します。
+          11. **Validate product state** — Composition validation を再実行し、machine-readable な `lifecycle.next_actions` に従います。evidence が `planning` / `template` のままなら続行し、scaffold `VALID` で止まりません。
+          12. **Create product checkpoint** — lifecycle checkpoint が selected なら、project された `next_action_command` に従い、release-readiness evaluation より前に validated planning-to-product transition を閉じます。
+          13. **Check release readiness** — exact release-readiness operation を実行します。required browser proof が一つでも deferred なら、implementation と ordinary validation が pass でも `NOT READY` です。
+
+          最初の `VALID` は scaffold milestone であり、implemented-product / release-ready claim ではありません。lifecycle checkpoint が selected なら、planning checkpoint は product coding 前の hard boundary、product checkpoint は release-readiness evaluation 前の hard boundary です。implementation milestone には truthful な product evidence と passing product verifier が必要です。release milestone は別であり、required proof が missing、deferred、failed、または未評価の間は `NOT READY` のままです。
+
+          '''
+          japanese_path.write_text(
+              japanese[:start] + textwrap.dedent(japanese_section) + japanese[end:],
+              encoding="utf-8",
+          )
+
+          test_path = Path("tests/test_human_first_webapp_onboarding.py")
+          tests = test_path.read_text(encoding="utf-8")
+          marker_anchor = '            "**Validate scaffold**",\n            "**Implement product**",\n'
+          marker_replacement = '            "**Validate scaffold**",\n            "**Create planning checkpoint**",\n            "**Implement product**",\n'
+          if tests.count(marker_anchor) != 1:
+              raise SystemExit("planning checkpoint marker anchor mismatch")
+          tests = tests.replace(marker_anchor, marker_replacement, 1)
+          marker_anchor = '            "**Validate product state**",\n            "**Check release readiness**",\n'
+          marker_replacement = '            "**Validate product state**",\n            "**Create product checkpoint**",\n            "**Check release readiness**",\n'
+          if tests.count(marker_anchor) != 1:
+              raise SystemExit("product checkpoint marker anchor mismatch")
+          tests = tests.replace(marker_anchor, marker_replacement, 1)
+
+          assertion_anchor = '        self.assertIn("lifecycle.next_actions", text)\n\n        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")\n'
+          assertion_replacement = '        self.assertIn("lifecycle.next_actions", text)\n        self.assertIn("next_action_command", text)\n        self.assertIn("Do not start product coding before this checkpoint exists", text)\n        self.assertIn("before release-readiness evaluation", text)\n\n        japanese = WALKTHROUGH_JA.read_text(encoding="utf-8")\n'
+          if tests.count(assertion_anchor) != 1:
+              raise SystemExit("English checkpoint assertion anchor mismatch")
+          tests = tests.replace(assertion_anchor, assertion_replacement, 1)
+
+          japanese_anchor = '        self.assertIn("required browser proof が一つでも deferred", japanese)\n'
+          japanese_replacement = '        self.assertIn("required browser proof が一つでも deferred", japanese)\n        self.assertIn("**Create planning checkpoint**", japanese)\n        self.assertIn("**Create product checkpoint**", japanese)\n        self.assertIn("next_action_command", japanese)\n        self.assertIn("product coding 前の hard boundary", japanese)\n'
+          if tests.count(japanese_anchor) != 1:
+              raise SystemExit("Japanese checkpoint assertion anchor mismatch")
+          tests = tests.replace(japanese_anchor, japanese_replacement, 1)
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+          python -m unittest tests.test_human_first_webapp_onboarding
+      - name: Commit walkthrough updates and remove staging workflow
+        env:
+          BRANCH: docs/webapp-checkpoint-completion-path
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/guides/webapp-product-walkthrough.md translations/ja/docs/guides/webapp-product-walkthrough.md tests/test_human_first_webapp_onboarding.py
+          git rm .github/workflows/finalize-webapp-checkpoint-completion-path.yml
+          git commit -m "Align Webapp completion path with checkpoint lifecycle"
+          git push origin HEAD:${BRANCH}
