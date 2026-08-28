@@ -32,7 +32,6 @@ The selected validators themselves run with the isolated cached interpreter. Dis
 
 Release evidence and release bundles have an additional boundary. Template-mode documents can be validated during ordinary repository validation. Product-mode evidence is bound to an exact product revision and therefore remains deferred to the product-owned exact-candidate release operation; ordinary validation reports that deferral explicitly instead of weakening or pretending to satisfy the revision-bound validator.
 
-
 ## Lifecycle next-action projection
 
 The self-contained validation entrypoint emits a nested `lifecycle` projection in its `--format json` result. The projection is derived from the existing Composition validation checks and the consumer-owned `contracts/implementation-evidence.json` mode; it is not a second lifecycle authority.
@@ -45,6 +44,8 @@ The self-contained validation entrypoint emits a nested `lifecycle` projection i
 
 With lifecycle checkpoints selected, planning evidence without a current planning checkpoint exposes only `create-planning-checkpoint`; product implementation is not an allowed next action until that checkpoint exists. This applies both to the initial implementation and to a later specification change whose latest checkpoint is still the previous product milestone. After product evidence validates, a missing product checkpoint exposes only `create-product-checkpoint`; release-readiness checking is not offered until that checkpoint exists. If the checkpoint component is not selected, the pre-existing non-checkpoint lifecycle projection is preserved.
 
-The projection reads only the latest phase from the checkpoint ledger after selected-component validation has succeeded. Checkpoint ordering, hashes, snapshots, and historical proof semantics remain owned by `lifecycle.lifecycle-checkpoints`; this projection does not reimplement them. An unexpected checkpoint ledger shape fails closed to `composition-invalid` rather than inventing a lifecycle transition.
+When one of those checkpoint transitions is the immediate next action, schema version 2 may also include `next_action_command`. That object contains the canonical argument vector from the checkpoint component's managed `.template-composition/lifecycle-checkpoint-actions.json` registry. The projection does not reconstruct checkpoint CLI syntax. It resolves only provider-owned bindings such as the exact latest planning checkpoint ID; caller-owned placeholders such as `{python}` and `{checkpoint_id}` remain explicit in `caller_inputs`. A malformed or unreadable selected action registry fails closed to `composition-invalid` with `checkpoint-command-registry-invalid`.
+
+The projection reads only the latest phase and, when required to bind the product command, the latest checkpoint ID from the checkpoint ledger after selected-component validation has succeeded. Checkpoint ordering, hashes, snapshots, command definitions, and historical proof semantics remain owned by `lifecycle.lifecycle-checkpoints`; this projection does not reimplement them. An unexpected checkpoint ledger shape fails closed to `composition-invalid` rather than inventing a lifecycle transition.
 
 The projection schema is materialized at `.template-composition/lifecycle-next-actions.schema.json` and is validated by Composition tests. Existing validator checks and their fail-closed behavior remain authoritative.

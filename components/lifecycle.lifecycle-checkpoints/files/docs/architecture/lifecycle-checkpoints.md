@@ -20,6 +20,16 @@ For a later specification change, first put the intended contracts/evidence into
 
 Checkpoint creation is transactional. The writer first runs canonical selected-component validation and preserves that pre-write result as the historical proof that the state was already valid. It then writes the snapshot and ledger entry and runs canonical validation again. If the appended checkpoint is invalid, both the new ledger entry and snapshot are rolled back rather than leaving a partial or orphaned checkpoint.
 
+## Machine action command authority
+
+The checkpoint component owns `.template-composition/lifecycle-checkpoint-actions.json`, a managed registry of canonical argument-vector templates for the planning and product checkpoint writers. Its schema is materialized as `.template-composition/lifecycle-checkpoint-actions.schema.json`. This registry is the machine-facing command authority for checkpoint creation; another lifecycle component must not reconstruct `checkpoint.py` command syntax independently.
+
+The registry separates caller-owned placeholders such as `{python}` and `{checkpoint_id}` from provider-owned bindings. For the product transition, `{latest_checkpoint_id}` is bound to `latest-checkpoint-id`, allowing the lifecycle projection to resolve the exact current planning checkpoint while leaving the caller to choose the interpreter and new checkpoint ID. Commands remain argument vectors rather than shell strings, so no shell quoting contract is introduced.
+
+The registry is a closed managed contract for runtime metadata: unknown action names, a non-canonical schema reference, undeclared placeholders, or provider bindings that are not consumed by the selected argv are rejected rather than ignored. This prevents a syntactically plausible but semantically ambiguous registry from becoming executable lifecycle guidance.
+
+`lifecycle.composition-state` may project one of these command templates after ordinary selected-component validation succeeds. It does not own the templates and must fail closed if the managed registry cannot be interpreted. Checkpoint ordering, parentage, validation, transactionality, and ID acceptance continue to be enforced by `checkpoint.py` and the checkpoint validator.
+
 ## Snapshot authority
 
 Each ledger entry points to `artifacts/lifecycle/NNN-<id>/manifest.json`. The manifest lists SHA-256 hashes for the historical `contracts/manifest.json`, each non-checkpoint registered contract document, all registered contract schemas including the lifecycle-checkpoint schema, and available Composition validation authority files. The lifecycle checkpoint ledger itself is not copied into its own snapshot because that would create a self-referential hash cycle. `validation.json` preserves the successful canonical selected-component validation result and is itself hash-bound by the snapshot manifest. The ledger stores the snapshot-manifest hash.
