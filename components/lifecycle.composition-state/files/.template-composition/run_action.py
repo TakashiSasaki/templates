@@ -32,7 +32,7 @@ def _failure(action: str, message: str, *, provider_returncode: int | None = Non
     return 1
 
 
-def _run_provider(action: str, entrypoint: str, arguments: list[str]) -> subprocess.CompletedProcess[str] | None:
+def _run_provider(entrypoint: str, arguments: list[str]) -> subprocess.CompletedProcess[str]:
     command = [sys.executable, str(ROOT / entrypoint), *arguments]
     try:
         return subprocess.run(
@@ -43,8 +43,12 @@ def _run_provider(action: str, entrypoint: str, arguments: list[str]) -> subproc
             check=False,
         )
     except OSError as exc:
-        _failure(action, f"cannot execute provider action: {exc}", provider_returncode=126)
-        return None
+        return subprocess.CompletedProcess(
+            command,
+            126,
+            "",
+            f"cannot execute provider action: {exc}",
+        )
 
 
 def _load_object(text: str) -> dict[str, Any] | None:
@@ -56,14 +60,10 @@ def _load_object(text: str) -> dict[str, Any] | None:
 
 
 def _release_readiness() -> int:
-    action = "check-release-readiness"
     result = _run_provider(
-        action,
         ".template-composition/validators/validate_implementation_evidence.py",
         [".", "--release-readiness", "--format", "json"],
     )
-    if result is None:
-        return 1
     value = _load_object(result.stdout)
     if result.returncode not in {0, 1} or value is None:
         detail = result.stderr.strip() or result.stdout.strip() or "provider returned no structured result"
@@ -97,9 +97,10 @@ def _checkpoint(action: str, arguments: list[str]) -> int:
     else:
         return _failure(action, "unsupported checkpoint action")
 
-    result = _run_provider(action, ".template-composition/checkpoint.py", provider_arguments)
-    if result is None:
-        return 1
+    result = _run_provider(
+        ".template-composition/checkpoint.py",
+        provider_arguments,
+    )
     value = _load_object(result.stdout)
     if result.returncode != 0 or value is None:
         detail = result.stderr.strip() or result.stdout.strip() or "checkpoint provider returned no structured result"
